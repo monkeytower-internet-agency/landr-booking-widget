@@ -37,6 +37,15 @@ jobs:
           VITE_USE_MOCKS: '0'
         run: npm run build
 
+      - name: Ensure Cloudflare Pages project exists (idempotent)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 pages project create "${{ env.PAGES_PROJECT_NAME }}" \
+            --production-branch=main 2>&1 | tee /tmp/pages-create.log \
+            || grep -qi "already exists" /tmp/pages-create.log
+
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
