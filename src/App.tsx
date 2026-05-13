@@ -1,20 +1,82 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useCallback, useMemo, useState } from 'react'
+import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
+import { BookingForm } from '@/components/booking/BookingForm'
+import { Confirmation } from '@/components/booking/Confirmation'
+import { ProductList } from '@/components/booking/ProductList'
+import type {
+  AvailabilitySlot,
+  Product,
+  SubmitBookingResponse,
+} from '@/api/types'
+
+type Step =
+  | { name: 'pick-product' }
+  | { name: 'pick-slot'; product: Product }
+  | { name: 'fill-form'; product: Product; slot: AvailabilitySlot }
+  | { name: 'confirmed'; response: SubmitBookingResponse }
+
+function readQueryParams() {
+  if (typeof window === 'undefined') {
+    return { operator: null as string | null, product: null as string | null }
+  }
+  const params = new URLSearchParams(window.location.search)
+  return {
+    operator: params.get('operator'),
+    product: params.get('product'),
+  }
+}
 
 function App() {
+  const { operator, product } = useMemo(() => readQueryParams(), [])
+  const operatorSlug =
+    operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
+  const [step, setStep] = useState<Step>({ name: 'pick-product' })
+
+  const goToProductStep = useCallback(() => {
+    setStep({ name: 'pick-product' })
+  }, [])
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <Card className="max-w-md w-full">
-        <CardHeader>
-          <CardTitle>LANDR Booking Widget</CardTitle>
-          <CardDescription>
-            Scaffold OK. Customer flow lands in landr-e10.2.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button disabled>Coming soon</Button>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+        <header>
+          <h1 className="text-xl font-semibold">Book with {operatorSlug}</h1>
+        </header>
+
+        {step.name === 'pick-product' ? (
+          <ProductList
+            operatorSlug={operatorSlug}
+            preselectSlug={product ?? undefined}
+            onSelect={(p) => setStep({ name: 'pick-slot', product: p })}
+          />
+        ) : null}
+
+        {step.name === 'pick-slot' ? (
+          <AvailabilityPicker
+            product={step.product}
+            onBack={goToProductStep}
+            onConfirm={(slot) =>
+              setStep({ name: 'fill-form', product: step.product, slot })
+            }
+          />
+        ) : null}
+
+        {step.name === 'fill-form' ? (
+          <BookingForm
+            operatorSlug={operatorSlug}
+            product={step.product}
+            slot={step.slot}
+            onBack={() =>
+              setStep({ name: 'pick-slot', product: step.product })
+            }
+            onConfirmed={(response) => setStep({ name: 'confirmed', response })}
+          />
+        ) : null}
+
+        {step.name === 'confirmed' ? (
+          <Confirmation response={step.response} onRestart={goToProductStep} />
+        ) : null}
+      </div>
     </div>
   )
 }
