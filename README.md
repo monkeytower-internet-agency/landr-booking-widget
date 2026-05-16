@@ -4,7 +4,7 @@ Customer-facing booking widget embedded in operator websites (e.g. Para42's Word
 
 **Stack:** Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui. Decision recap: [`../decisions/2026-05-13-dashboard-stack.md`](../decisions/2026-05-13-dashboard-stack.md).
 
-**Hosting:** Cloudflare Pages at `book.landr.app` (wired in landr-e10.5).
+**Hosting:** Cloudflare Pages at `bw.landr.de` (wired in landr-e10.5).
 
 ## Setup
 

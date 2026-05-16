@@ -34,20 +34,20 @@ The token needs `Cloudflare Pages: Edit` scope on the account.
 The workflow has sensible defaults, but you can override the build-time env via repo variables:
 
 ```bash
-gh variable set VITE_API_BASE_URL --repo monkeytower-internet-agency/landr-booking-widget --body "https://api.landr.app"
+gh variable set VITE_API_BASE_URL --repo monkeytower-internet-agency/landr-booking-widget --body "https://api.landr.de"
 gh variable set VITE_DEFAULT_OPERATOR_SLUG --repo monkeytower-internet-agency/landr-booking-widget --body "para42"
 ```
 
-### 4. Custom domain `book.landr.app`
+### 4. Custom domain `bw.landr.de`
 
-DNS is managed in DALM (Ansible/Tofu). The CNAME from `book.landr.app` → `<project>.pages.dev` is filed under [the relevant DALM playbook ticket](../.beads). Until that's deployed, the project is reachable at `https://landr-booking-widget.pages.dev/?operator=para42`.
+DNS is managed in DALM (Ansible/Tofu). The CNAME from `bw.landr.de` → `<project>.pages.dev` is filed under [the relevant DALM playbook ticket](../.beads). Until that's deployed, the project is reachable at `https://landr-booking-widget.pages.dev/?operator=para42`.
 
 ## Verifying a deploy
 
 ```bash
 gh run watch --repo monkeytower-internet-agency/landr-booking-widget
 # Then:
-open "https://book.landr.app/?operator=para42"
+open "https://bw.landr.de/?operator=para42"
 # Or, before DNS:
 open "https://landr-booking-widget.pages.dev/?operator=para42"
 ```

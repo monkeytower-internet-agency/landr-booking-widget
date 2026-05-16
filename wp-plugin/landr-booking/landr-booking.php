@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LANDR Booking
  * Plugin URI:  https://github.com/monkeytower-internet-agency/landr-booking-widget
- * Description: Embeds the LANDR booking widget via the [landr_booking operator="..."] shortcode. The widget itself lives at book.landr.app.
+ * Description: Embeds the LANDR booking widget via the [landr_booking operator="..."] shortcode. The widget itself lives at bw.landr.de.
  * Version:     0.1.0
  * Author:      Monkeytower Internet Agency
  * License:     MIT
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'LANDR_BOOKING_DEFAULT_SRC', 'https://book.landr.app/' );
+define( 'LANDR_BOOKING_DEFAULT_SRC', 'https://bw.landr.de/' );
 
 /**
  * [landr_booking operator="para42" product="optional-slug" height="800"]

@@ -10,7 +10,7 @@ Embed the LANDR booking widget via a shortcode.
 
 == Description ==
 
-Drops the LANDR booking widget (hosted at book.landr.app) into any page or post using a shortcode.
+Drops the LANDR booking widget (hosted at bw.landr.de) into any page or post using a shortcode.
 
 == Installation ==
 
@@ -23,7 +23,7 @@ Drops the LANDR booking widget (hosted at book.landr.app) into any page or post 
    Optional attributes:
    - `product="slug"` to pre-select a product.
    - `height="900"` to override the iframe height (default 800px).
-   - `src="https://book.landr.app/"` to override the widget origin (rarely needed).
+   - `src="https://bw.landr.de/"` to override the widget origin (rarely needed).
 
 == Changelog ==
 
