@@ -2,7 +2,7 @@ name: Deploy widget to Cloudflare Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
 
@@ -31,8 +31,17 @@ jobs:
       - run: npm run lint
       - run: npm test
       - name: Build (production)
+        if: github.ref == 'refs/heads/main'
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.landr.de' }}
+          VITE_API_BASE_URL: https://landr-api-service-693721943357.europe-west3.run.app
+          VITE_DEFAULT_OPERATOR_SLUG: ${{ vars.VITE_DEFAULT_OPERATOR_SLUG || 'para42' }}
+          VITE_USE_MOCKS: '0'
+        run: npm run build
+
+      - name: Build (dev / preview)
+        if: github.ref != 'refs/heads/main'
+        env:
+          VITE_API_BASE_URL: https://api.dev.landr.de
           VITE_DEFAULT_OPERATOR_SLUG: ${{ vars.VITE_DEFAULT_OPERATOR_SLUG || 'para42' }}
           VITE_USE_MOCKS: '0'
         run: npm run build
