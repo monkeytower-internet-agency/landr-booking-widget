@@ -13,11 +13,12 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 
 interface Props {
   operatorSlug: string
+  productGroup?: string
   preselectSlug?: string
   onSelect: (product: Product) => void
 }
 
-export function ProductList({ operatorSlug, preselectSlug, onSelect }: Props) {
+export function ProductList({ operatorSlug, productGroup, preselectSlug, onSelect }: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()
@@ -26,7 +27,7 @@ export function ProductList({ operatorSlug, preselectSlug, onSelect }: Props) {
     let cancelled = false
     void (async () => {
       try {
-        const list = await listProducts(operatorSlug)
+        const list = await listProducts(operatorSlug, { group: productGroup })
         if (cancelled) return
         setProducts(list)
         if (preselectSlug) {
@@ -41,7 +42,7 @@ export function ProductList({ operatorSlug, preselectSlug, onSelect }: Props) {
     return () => {
       cancelled = true
     }
-  }, [operatorSlug, preselectSlug, onSelect])
+  }, [operatorSlug, productGroup, preselectSlug, onSelect])
 
   if (error) {
     return (

@@ -18,17 +18,18 @@ type Step =
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
-    return { operator: null as string | null, product: null as string | null }
+    return { operator: null as string | null, product: null as string | null, group: null as string | null }
   }
   const params = new URLSearchParams(window.location.search)
   return {
     operator: params.get('operator'),
     product: params.get('product'),
+    group: params.get('group'),
   }
 }
 
 function App() {
-  const { operator, product } = useMemo(() => readQueryParams(), [])
+  const { operator, product, group } = useMemo(() => readQueryParams(), [])
   const operatorSlug =
     operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
   const [step, setStep] = useState<Step>({ name: 'pick-product' })
@@ -47,6 +48,7 @@ function App() {
         {step.name === 'pick-product' ? (
           <ProductList
             operatorSlug={operatorSlug}
+            productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
             onSelect={(p) => setStep({ name: 'pick-slot', product: p })}
           />

@@ -25,9 +25,17 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
-export async function listProducts(operatorSlug: string): Promise<Product[]> {
-  if (USE_MOCKS) return mockProducts
-  return http<Product[]>(`/api/public/operators/${encodeURIComponent(operatorSlug)}/products`)
+export async function listProducts(
+  operatorSlug: string,
+  options?: { group?: string },
+): Promise<Product[]> {
+  if (USE_MOCKS) return mockProducts(options?.group)
+  const qs = new URLSearchParams()
+  if (options?.group) {
+    qs.append('group', options.group)
+  }
+  const path = `/api/public/operators/${encodeURIComponent(operatorSlug)}/products`
+  return http<Product[]>(qs.toString() ? `${path}?${qs}` : path)
 }
 
 export async function getAvailability(

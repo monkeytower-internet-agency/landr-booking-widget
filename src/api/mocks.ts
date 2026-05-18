@@ -10,7 +10,7 @@ const addDays = (base: Date, n: number) => {
   return d
 }
 
-export const mockProducts: Product[] = [
+const allMockProducts: Product[] = [
   {
     product_id: '00000000-0000-0000-0000-000000000001',
     slug: 'tandem-classic',
@@ -26,9 +26,9 @@ export const mockProducts: Product[] = [
     duration_minutes: 25,
     fixed_start_date: null,
     fixed_end_date: null,
-    product_group_id: null,
-    group_slug: null,
-    group_name: null,
+    product_group_id: '11111111-1111-1111-1111-111111111111',
+    group_slug: 'courses',
+    group_name: 'Courses',
     sort_order: 1,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
@@ -44,14 +44,19 @@ export const mockProducts: Product[] = [
     duration_minutes: 45,
     fixed_start_date: null,
     fixed_end_date: null,
-    product_group_id: null,
-    group_slug: null,
-    group_name: null,
+    product_group_id: '22222222-2222-2222-2222-222222222222',
+    group_slug: 'guided-days',
+    group_name: 'Guided Days',
     sort_order: 2,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
   },
 ]
+
+export const mockProducts = (groupSlug?: string): Product[] => {
+  if (!groupSlug) return allMockProducts
+  return allMockProducts.filter((p) => p.group_slug === groupSlug)
+}
 
 export const mockAvailability = (productId: string): AvailabilitySlot[] => {
   const base = today()
