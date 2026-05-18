@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import { BookingForm } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
@@ -13,7 +14,7 @@ type Step =
   | { name: 'pick-product' }
   | { name: 'pick-slot'; product: Product }
   | { name: 'fill-form'; product: Product; slot: AvailabilitySlot }
-  | { name: 'confirmed'; response: SubmitBookingResponse }
+  | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -69,12 +70,17 @@ function App() {
             onBack={() =>
               setStep({ name: 'pick-slot', product: step.product })
             }
-            onConfirmed={(response) => setStep({ name: 'confirmed', response })}
+            onConfirmed={(response, email) =>
+              setStep({ name: 'confirmed', response, email })
+            }
           />
         ) : null}
 
         {step.name === 'confirmed' ? (
-          <Confirmation response={step.response} onRestart={goToProductStep} />
+          <>
+            <Confirmation response={step.response} onRestart={goToProductStep} />
+            <AccountLinkPrompt email={step.email} />
+          </>
         ) : null}
       </div>
     </div>

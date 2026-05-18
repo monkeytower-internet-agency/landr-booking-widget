@@ -42,7 +42,7 @@ interface Props {
   product: Product
   slot: AvailabilitySlot
   onBack: () => void
-  onConfirmed: (response: SubmitBookingResponse) => void
+  onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
 
 const cancellationDeadline = (slotDateIso: string) => {
@@ -107,7 +107,7 @@ export function BookingForm({ operatorSlug, product, slot, onBack, onConfirmed }
         })),
       }
       const result = await submitBooking(body)
-      onConfirmed(result)
+      onConfirmed(result, values.email)
     } catch (err) {
       setServerError(err instanceof Error ? err.message : String(err))
     } finally {
