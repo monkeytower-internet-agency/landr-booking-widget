@@ -3,6 +3,7 @@ import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import { BookingForm } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
+import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
 import type {
   AvailabilitySlot,
@@ -13,7 +14,8 @@ import type {
 type Step =
   | { name: 'pick-product' }
   | { name: 'pick-slot'; product: Product }
-  | { name: 'fill-form'; product: Product; slot: AvailabilitySlot }
+  | { name: 'pick-pickup'; product: Product; slot: AvailabilitySlot }
+  | { name: 'fill-form'; product: Product; slot: AvailabilitySlot; pickupLocationId: string | null }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
 function readQueryParams() {
@@ -58,8 +60,23 @@ function App() {
           <AvailabilityPicker
             product={step.product}
             onBack={goToProductStep}
-            onConfirm={(slot) =>
-              setStep({ name: 'fill-form', product: step.product, slot })
+            onConfirm={(slot) => {
+              if (step.product.needs_pickup) {
+                setStep({ name: 'pick-pickup', product: step.product, slot })
+              } else {
+                setStep({ name: 'fill-form', product: step.product, slot, pickupLocationId: null })
+              }
+            }}
+          />
+        ) : null}
+
+        {step.name === 'pick-pickup' ? (
+          <PickupLocationPicker
+            operatorSlug={operatorSlug}
+            productName={step.product.name}
+            onBack={() => setStep({ name: 'pick-slot', product: step.product })}
+            onConfirm={(locationId) =>
+              setStep({ name: 'fill-form', product: step.product, slot: step.slot, pickupLocationId: locationId })
             }
           />
         ) : null}
@@ -69,9 +86,14 @@ function App() {
             operatorSlug={operatorSlug}
             product={step.product}
             slot={step.slot}
-            onBack={() =>
-              setStep({ name: 'pick-slot', product: step.product })
-            }
+            pickupLocationId={step.pickupLocationId}
+            onBack={() => {
+              if (step.product.needs_pickup) {
+                setStep({ name: 'pick-pickup', product: step.product, slot: step.slot })
+              } else {
+                setStep({ name: 'pick-slot', product: step.product })
+              }
+            }}
             onConfirmed={(response, email) =>
               setStep({ name: 'confirmed', response, email })
             }

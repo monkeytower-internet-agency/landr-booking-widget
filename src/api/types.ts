@@ -22,6 +22,16 @@ export interface Product {
   sort_order: number
   sport_subcategory_codes: string[]
   location_ids: string[]
+  /** Backend field: products.needs_pickup. Included once landr-e10.8 lands. */
+  needs_pickup?: boolean
+}
+
+/** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
+export interface Location {
+  location_id: string
+  name: string
+  name_localized: Record<string, string> | null
+  parent_id: string | null
 }
 
 export interface AvailabilitySlot {
@@ -40,6 +50,7 @@ export interface Participant {
   last_name?: string | null
   email?: string | null
   service_role_code: string
+  pickup_location_id?: string | null
 }
 
 export interface ProductLine {
