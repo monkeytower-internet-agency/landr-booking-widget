@@ -1,4 +1,4 @@
-import type { AvailabilitySlot, Product, SubmitBookingResponse } from './types'
+import type { AvailabilitySlot, Location, Product, SubmitBookingResponse } from './types'
 
 const today = () => new Date()
 
@@ -32,6 +32,7 @@ const allMockProducts: Product[] = [
     sort_order: 1,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
+    needs_pickup: false,
   },
   {
     product_id: '00000000-0000-0000-0000-000000000002',
@@ -50,6 +51,28 @@ const allMockProducts: Product[] = [
     sort_order: 2,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
+    needs_pickup: true,
+  },
+]
+
+export const mockLocations: Location[] = [
+  {
+    location_id: 'aaaaaaaa-0000-0000-0000-000000000001',
+    name: 'Ölüdeniz Beach',
+    name_localized: { en: 'Ölüdeniz Beach', de: 'Ölüdeniz Strand', tr: 'Ölüdeniz Plajı' },
+    parent_id: null,
+  },
+  {
+    location_id: 'aaaaaaaa-0000-0000-0000-000000000002',
+    name: 'Hisarönü Main Square',
+    name_localized: { en: 'Hisarönü Main Square', de: 'Hisarönü Hauptplatz', tr: 'Hisarönü Meydanı' },
+    parent_id: null,
+  },
+  {
+    location_id: 'aaaaaaaa-0000-0000-0000-000000000003',
+    name: 'Fethiye Harbour',
+    name_localized: { en: 'Fethiye Harbour', de: 'Hafen Fethiye', tr: 'Fethiye Limanı' },
+    parent_id: null,
   },
 ]
 

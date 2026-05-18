@@ -1,10 +1,11 @@
 import type {
   AvailabilitySlot,
+  Location,
   Product,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
-import { mockAvailability, mockProducts, mockSubmit } from './mocks'
+import { mockAvailability, mockLocations, mockProducts, mockSubmit } from './mocks'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === '1'
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
@@ -47,6 +48,17 @@ export async function getAvailability(
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
+  )
+}
+
+/**
+ * Stub pointing at the future GET /api/public/operators/{slug}/locations endpoint (landr-e10.8).
+ * Falls back to mock data until the backend lands.
+ */
+export async function listLocations(operatorSlug: string): Promise<Location[]> {
+  if (USE_MOCKS) return mockLocations
+  return http<Location[]>(
+    `/api/public/operators/${encodeURIComponent(operatorSlug)}/locations`,
   )
 }
 

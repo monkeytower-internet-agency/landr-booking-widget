@@ -41,6 +41,7 @@ interface Props {
   operatorSlug: string
   product: Product
   slot: AvailabilitySlot
+  pickupLocationId: string | null
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -52,7 +53,7 @@ const cancellationDeadline = (slotDateIso: string) => {
   return d.toISOString()
 }
 
-export function BookingForm({ operatorSlug, product, slot, onBack, onConfirmed }: Props) {
+export function BookingForm({ operatorSlug, product, slot, pickupLocationId, onBack, onConfirmed }: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
@@ -104,6 +105,7 @@ export function BookingForm({ operatorSlug, product, slot, onBack, onConfirmed }
           last_name: p.last_name || null,
           email: p.email || null,
           service_role_code: 'participant',
+          pickup_location_id: pickupLocationId ?? null,
         })),
       }
       const result = await submitBooking(body)
