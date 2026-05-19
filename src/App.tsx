@@ -3,6 +3,10 @@ import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import { BookingForm } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
+import {
+  FixedDateWindowPicker,
+  expandWindowDays,
+} from '@/components/booking/FixedDateWindowPicker'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
 import type {
@@ -11,11 +15,24 @@ import type {
   SubmitBookingResponse,
 } from '@/api/types'
 
+type PickedSlot = {
+  slot: AvailabilitySlot
+  /** Days to pass to the API as selected_days. For time_slot / single_days_range
+   * single-pick this is [slot.date]; for fixed_date_range windows it covers the
+   * full window range. */
+  selectedDays: string[]
+}
+
 type Step =
   | { name: 'pick-product' }
   | { name: 'pick-slot'; product: Product }
-  | { name: 'pick-pickup'; product: Product; slot: AvailabilitySlot }
-  | { name: 'fill-form'; product: Product; slot: AvailabilitySlot; pickupLocationId: string | null }
+  | { name: 'pick-pickup'; product: Product; picked: PickedSlot }
+  | {
+      name: 'fill-form'
+      product: Product
+      picked: PickedSlot
+      pickupLocationId: string | null
+    }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
 function readQueryParams() {
@@ -57,17 +74,46 @@ function App() {
         ) : null}
 
         {step.name === 'pick-slot' ? (
-          <AvailabilityPicker
-            product={step.product}
-            onBack={goToProductStep}
-            onConfirm={(slot) => {
-              if (step.product.needs_pickup) {
-                setStep({ name: 'pick-pickup', product: step.product, slot })
-              } else {
-                setStep({ name: 'fill-form', product: step.product, slot, pickupLocationId: null })
-              }
-            }}
-          />
+          step.product.duration_kind === 'fixed_date_range' ? (
+            <FixedDateWindowPicker
+              product={step.product}
+              onBack={goToProductStep}
+              onConfirm={(slot, window) => {
+                const picked: PickedSlot = {
+                  slot,
+                  selectedDays: expandWindowDays(window),
+                }
+                if (step.product.needs_pickup) {
+                  setStep({ name: 'pick-pickup', product: step.product, picked })
+                } else {
+                  setStep({
+                    name: 'fill-form',
+                    product: step.product,
+                    picked,
+                    pickupLocationId: null,
+                  })
+                }
+              }}
+            />
+          ) : (
+            <AvailabilityPicker
+              product={step.product}
+              onBack={goToProductStep}
+              onConfirm={(slot) => {
+                const picked: PickedSlot = { slot, selectedDays: [slot.date] }
+                if (step.product.needs_pickup) {
+                  setStep({ name: 'pick-pickup', product: step.product, picked })
+                } else {
+                  setStep({
+                    name: 'fill-form',
+                    product: step.product,
+                    picked,
+                    pickupLocationId: null,
+                  })
+                }
+              }}
+            />
+          )
         ) : null}
 
         {step.name === 'pick-pickup' ? (
@@ -76,7 +122,12 @@ function App() {
             productName={step.product.name}
             onBack={() => setStep({ name: 'pick-slot', product: step.product })}
             onConfirm={(locationId) =>
-              setStep({ name: 'fill-form', product: step.product, slot: step.slot, pickupLocationId: locationId })
+              setStep({
+                name: 'fill-form',
+                product: step.product,
+                picked: step.picked,
+                pickupLocationId: locationId,
+              })
             }
           />
         ) : null}
@@ -85,11 +136,16 @@ function App() {
           <BookingForm
             operatorSlug={operatorSlug}
             product={step.product}
-            slot={step.slot}
+            slot={step.picked.slot}
+            selectedDays={step.picked.selectedDays}
             pickupLocationId={step.pickupLocationId}
             onBack={() => {
               if (step.product.needs_pickup) {
-                setStep({ name: 'pick-pickup', product: step.product, slot: step.slot })
+                setStep({
+                  name: 'pick-pickup',
+                  product: step.product,
+                  picked: step.picked,
+                })
               } else {
                 setStep({ name: 'pick-slot', product: step.product })
               }

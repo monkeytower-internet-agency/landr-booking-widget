@@ -41,6 +41,10 @@ interface Props {
   operatorSlug: string
   product: Product
   slot: AvailabilitySlot
+  /** Days to send as selected_days on the booking. For time_slot products this
+   * is typically [slot.date]; for fixed_date_range course windows it spans the
+   * full window's start..end range. */
+  selectedDays: string[]
   pickupLocationId: string | null
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
@@ -53,7 +57,15 @@ const cancellationDeadline = (slotDateIso: string) => {
   return d.toISOString()
 }
 
-export function BookingForm({ operatorSlug, product, slot, pickupLocationId, onBack, onConfirmed }: Props) {
+export function BookingForm({
+  operatorSlug,
+  product,
+  slot,
+  selectedDays,
+  pickupLocationId,
+  onBack,
+  onConfirmed,
+}: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
@@ -97,7 +109,7 @@ export function BookingForm({ operatorSlug, product, slot, pickupLocationId, onB
           {
             product_id: product.product_id,
             quantity: 1,
-            selected_days: [slot.date],
+            selected_days: selectedDays,
           },
         ],
         participants: values.participants.map((p) => ({
@@ -122,7 +134,10 @@ export function BookingForm({ operatorSlug, product, slot, pickupLocationId, onB
       <CardHeader>
         <CardTitle>Your details</CardTitle>
         <CardDescription>
-          {product.name} · {slot.date}
+          {product.name} ·{' '}
+          {selectedDays.length > 1
+            ? `${selectedDays[0]} → ${selectedDays[selectedDays.length - 1]}`
+            : slot.date}
           {slot.start_time ? ` · ${slot.start_time.slice(0, 5)}` : ''} · {timezone}
         </CardDescription>
       </CardHeader>

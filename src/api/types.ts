@@ -3,7 +3,15 @@
  * and the DB RPCs in `supabase/migrations/20260512190528_public_rpcs.sql`.
  */
 
-export type DurationKind = 'single_day' | 'date_range' | 'time_slot'
+export type DurationKind = 'single_days_range' | 'fixed_date_range' | 'time_slot'
+
+export interface FixedDateWindow {
+  id: string
+  start_date: string
+  end_date: string
+  capacity: number
+  capacity_reserved: number
+}
 
 export interface Product {
   product_id: string
