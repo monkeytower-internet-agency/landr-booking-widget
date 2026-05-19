@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,7 +10,8 @@ import type {
   SubmitBookingBody,
   SubmitBookingResponse,
 } from '@/api/types'
-import type { RoomSelection } from './accommodationCalc'
+import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
+import { formatDayLabel, formatDayRange } from './dateLabel'
 
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
@@ -73,15 +74,19 @@ const firstSelectionDate = (selection: BookingSelection): string => {
   return selection.selectedDays[0] ?? ''
 }
 
-const describeSelection = (selection: BookingSelection): string => {
+const describeSelection = (
+  selection: BookingSelection,
+  locale: string,
+): string => {
   if (selection.kind === 'slot') {
     const { date, start_time } = selection.slot
-    return start_time ? `${date} · ${start_time.slice(0, 5)}` : date
+    const label = formatDayLabel(date, locale)
+    return start_time ? `${label} · ${start_time.slice(0, 5)}` : label
   }
   const days = selection.selectedDays
   if (days.length === 0) return ''
-  if (days.length === 1) return days[0]!
-  return `${days[0]} – ${days[days.length - 1]} (${days.length} days)`
+  if (days.length === 1) return formatDayLabel(days[0]!, locale)
+  return `${formatDayRange(days[0]!, days[days.length - 1]!, locale)} (${days.length} days)`
 }
 
 export function BookingForm({
@@ -102,6 +107,8 @@ export function BookingForm({
     register,
     handleSubmit,
     control,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -119,11 +126,48 @@ export function BookingForm({
     name: 'participants',
   })
 
+  // Pre-fill first participant's first/last name from the booker as
+  // they type. Mirrors the ProductForm slug-from-name convention in
+  // landr-dashboard: keep syncing forward as long as the target field
+  // is empty OR still matches the *previous* booker value. Once the
+  // user types something different in the participant field, the two
+  // values diverge and the sync stops naturally.
+  const prevBooker = useRef({ first: '', last: '' })
+
+  const syncParticipantFirst = (next: string) => {
+    const current = getValues('participants.0.first_name') ?? ''
+    if (current === '' || current === prevBooker.current.first) {
+      setValue('participants.0.first_name', next, { shouldValidate: false })
+    }
+    prevBooker.current.first = next
+  }
+
+  const syncParticipantLast = (next: string) => {
+    const current = getValues('participants.0.last_name') ?? ''
+    if (current === '' || current === prevBooker.current.last) {
+      setValue('participants.0.last_name', next, { shouldValidate: false })
+    }
+    prevBooker.current.last = next
+  }
+
+  const bookerFirst = register('first_name')
+  const bookerLast = register('last_name')
+
+  // Derive the hotel check-in/check-out window when the booking
+  // includes room line items (landr-vyaz). The widget intentionally
+  // shows this for the GUIDED date range only — slot-style bookings
+  // never carry rooms today.
+  const selectedDays =
+    selection.kind === 'days' ? selection.selectedDays : []
+  const hasRooms = (accommodationRooms?.length ?? 0) > 0
+  const stay = hasRooms ? deriveStayWindow(selectedDays) : null
+  const showTimezone = product.service_time_shape === 'time_slot'
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null)
     setSubmitting(true)
     try {
-      const selectedDays =
+      const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep. The public_submit_booking RPC
@@ -136,12 +180,12 @@ export function BookingForm({
         {
           product_id: product.product_id,
           quantity: 1,
-          selected_days: selectedDays,
+          selected_days: selectedDaysForSubmit,
         },
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
           product_id: room.productId,
           quantity: room.quantity,
-          selected_days: selectedDays,
+          selected_days: selectedDaysForSubmit,
         })),
       ]
       const body: SubmitBookingBody = {
@@ -176,17 +220,47 @@ export function BookingForm({
       <CardHeader>
         <CardTitle>Your details</CardTitle>
         <CardDescription>
-          {product.name} · {describeSelection(selection)} · {timezone}
+          {product.name} · {describeSelection(selection, locale)}
+          {showTimezone ? ` · ${timezone}` : ''}
         </CardDescription>
+        {stay && stay.checkInIso && stay.checkOutIso ? (
+          <div
+            className="bg-muted/40 mt-2 rounded-md border px-3 py-2 text-sm"
+            data-testid="hotel-stay-block"
+          >
+            <div className="font-medium">
+              Hotel: {formatDayLabel(stay.checkInIso, locale)} check-in →{' '}
+              {formatDayLabel(stay.checkOutIso, locale)} check-out (
+              {stay.nights} {stay.nights === 1 ? 'night' : 'nights'})
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Paid directly to hotel — not included in your booking total.
+            </p>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name" error={errors.first_name?.message}>
-              <Input {...register('first_name')} autoComplete="given-name" />
+              <Input
+                {...bookerFirst}
+                autoComplete="given-name"
+                onChange={(e) => {
+                  bookerFirst.onChange(e)
+                  syncParticipantFirst(e.target.value)
+                }}
+              />
             </Field>
             <Field label="Last name" error={errors.last_name?.message}>
-              <Input {...register('last_name')} autoComplete="family-name" />
+              <Input
+                {...bookerLast}
+                autoComplete="family-name"
+                onChange={(e) => {
+                  bookerLast.onChange(e)
+                  syncParticipantLast(e.target.value)
+                }}
+              />
             </Field>
             <Field label="Email" error={errors.email?.message}>
               <Input type="email" {...register('email')} autoComplete="email" />
