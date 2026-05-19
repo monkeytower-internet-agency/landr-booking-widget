@@ -26,6 +26,22 @@ export interface Product {
   needs_pickup?: boolean
 }
 
+/**
+ * Operator-level rendering/behaviour flags surfaced by
+ * GET /api/public/operators/{slug}/settings (landr-e10.9). The widget
+ * fetches this once on mount and caches it in OperatorContext. Future
+ * operator-level flags slot in here as additional fields.
+ */
+export interface OperatorSettings {
+  slug: string
+  /**
+   * When false (default): widget hides numeric remaining-seat counts on
+   * availability cells. When true: widget shows "{N} seats" as an
+   * urgency lever. Para42 (Martin) stays on false.
+   */
+  expose_seats_to_customer: boolean
+}
+
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
 export interface Location {
   location_id: string

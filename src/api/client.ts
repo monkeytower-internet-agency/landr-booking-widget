@@ -1,11 +1,18 @@
 import type {
   AvailabilitySlot,
   Location,
+  OperatorSettings,
   Product,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
-import { mockAvailability, mockLocations, mockProducts, mockSubmit } from './mocks'
+import {
+  mockAvailability,
+  mockLocations,
+  mockOperatorSettings,
+  mockProducts,
+  mockSubmit,
+} from './mocks'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === '1'
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
@@ -48,6 +55,19 @@ export async function getAvailability(
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
+  )
+}
+
+/**
+ * Operator-level rendering/behaviour flags (landr-e10.9). The widget
+ * calls this once on App mount and caches the result in OperatorContext.
+ */
+export async function getOperatorSettings(
+  operatorSlug: string,
+): Promise<OperatorSettings> {
+  if (USE_MOCKS) return mockOperatorSettings(operatorSlug)
+  return http<OperatorSettings>(
+    `/api/public/operators/${encodeURIComponent(operatorSlug)}/settings`,
   )
 }
 
