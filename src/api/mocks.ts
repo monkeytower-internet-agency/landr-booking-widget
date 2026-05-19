@@ -70,18 +70,21 @@ export const mockLocations: Location[] = [
     name: 'Ölüdeniz Beach',
     name_localized: { en: 'Ölüdeniz Beach', de: 'Ölüdeniz Strand', tr: 'Ölüdeniz Plajı' },
     parent_id: null,
+    role_type: { code: 'beach', label: 'Beach' },
   },
   {
     location_id: 'aaaaaaaa-0000-0000-0000-000000000002',
     name: 'Hisarönü Main Square',
     name_localized: { en: 'Hisarönü Main Square', de: 'Hisarönü Hauptplatz', tr: 'Hisarönü Meydanı' },
     parent_id: null,
+    role_type: { code: 'plaza', label: 'Plaza' },
   },
   {
     location_id: 'aaaaaaaa-0000-0000-0000-000000000003',
     name: 'Fethiye Harbour',
     name_localized: { en: 'Fethiye Harbour', de: 'Hafen Fethiye', tr: 'Fethiye Limanı' },
     parent_id: null,
+    role_type: { code: 'hotel', label: 'Hotel' },
   },
 ]
 
