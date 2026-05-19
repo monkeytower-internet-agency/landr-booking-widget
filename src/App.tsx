@@ -83,9 +83,13 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-        <header>
-          <h1 className="text-xl font-semibold">Book with {operatorSlug}</h1>
-        </header>
+        {/*
+          landr-711: no widget-level headline. Operators embed the widget
+          inside their own page (WordPress shortcode / iframe) and own the
+          surrounding HTML, including any <h1>. The operator context is
+          still fetched above for downstream step-machine + product
+          requests — it just isn't rendered as a title here.
+        */}
 
         {step.name === 'pick-product' ? (
           <ProductList
