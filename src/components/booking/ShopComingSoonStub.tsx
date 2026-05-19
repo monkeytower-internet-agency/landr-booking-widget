@@ -15,6 +15,11 @@ interface Props {
 
 const KIND_LABEL: Record<NonNullable<Product['product_kind']>, string> = {
   service: 'service',
+  // hotel_room is sold via AccommodationStep, not the main catalogue —
+  // if it ever falls through here something upstream went wrong, so we
+  // still render a polite-but-useful label rather than 'undefined'.
+  hotel_room: 'hotel room',
+  subscription: 'subscription',
   digital_good: 'digital product',
   physical_good: 'physical product',
   gift_card: 'gift card',

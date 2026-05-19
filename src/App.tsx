@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AccommodationStep } from '@/components/booking/AccommodationStep'
+import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import {
@@ -7,7 +9,7 @@ import {
 } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
-import { expandWindowDays } from '@/components/booking/expandWindowDays' 
+import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
@@ -19,12 +21,19 @@ import type { OperatorSettings, Product, SubmitBookingResponse } from '@/api/typ
 type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
-  | { name: 'pick-pickup'; product: Product; selection: BookingSelection }
+  | { name: 'pick-accommodation'; product: Product; selection: BookingSelection }
+  | {
+      name: 'pick-pickup'
+      product: Product
+      selection: BookingSelection
+      accommodationRooms: RoomSelection[]
+    }
   | {
       name: 'fill-form'
       product: Product
       selection: BookingSelection
       pickupLocationId: string | null
+      accommodationRooms: RoomSelection[]
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -72,12 +81,53 @@ function App() {
     setStep({ name: 'pick-product' })
   }, [])
 
+  /**
+   * After date selection, branch into the accommodation step when the
+   * product offers a hotel stay (landr-vyaz). For products without a
+   * hotel offering, the existing pickup-or-form branch still applies.
+   * The accommodation step always returns through afterAccommodation
+   * which preserves the pickup-vs-form decision tree.
+   */
   const afterSelection = (product: Product, selection: BookingSelection) => {
-    if (product.needs_pickup) {
-      setStep({ name: 'pick-pickup', product, selection })
-    } else {
-      setStep({ name: 'fill-form', product, selection, pickupLocationId: null })
+    const offering = product.hotel_offering ?? 'none'
+    if (product.product_kind === 'service' && offering !== 'none') {
+      setStep({ name: 'pick-accommodation', product, selection })
+      return
     }
+    afterAccommodation(product, selection, [])
+  }
+
+  const afterAccommodation = (
+    product: Product,
+    selection: BookingSelection,
+    accommodationRooms: RoomSelection[],
+  ) => {
+    if (product.needs_pickup) {
+      setStep({
+        name: 'pick-pickup',
+        product,
+        selection,
+        accommodationRooms,
+      })
+    } else {
+      setStep({
+        name: 'fill-form',
+        product,
+        selection,
+        pickupLocationId: null,
+        accommodationRooms,
+      })
+    }
+  }
+
+  /**
+   * The selectedDays helper for the AccommodationStep. AvailabilityPicker
+   * + time-slot bookings only carry a single date; we wrap it in a one-
+   * element array so the deriveStayWindow helper still works.
+   */
+  const selectionToDays = (selection: BookingSelection): string[] => {
+    if (selection.kind === 'slot') return [selection.slot.date]
+    return selection.selectedDays
   }
 
   return (
@@ -167,17 +217,41 @@ function App() {
           />
         ) : null}
 
+        {step.name === 'pick-accommodation' ? (
+          <AccommodationStep
+            product={step.product}
+            selectedDays={selectionToDays(step.selection)}
+            operatorSlug={operatorSlug}
+            onBack={() => setStep({ name: 'pick-selection', product: step.product })}
+            onConfirm={(rooms) =>
+              afterAccommodation(step.product, step.selection, rooms)
+            }
+          />
+        ) : null}
+
         {step.name === 'pick-pickup' ? (
           <PickupLocationPicker
             operatorSlug={operatorSlug}
             productName={step.product.name}
-            onBack={() => setStep({ name: 'pick-selection', product: step.product })}
+            onBack={() => {
+              const offering = step.product.hotel_offering ?? 'none'
+              if (step.product.product_kind === 'service' && offering !== 'none') {
+                setStep({
+                  name: 'pick-accommodation',
+                  product: step.product,
+                  selection: step.selection,
+                })
+              } else {
+                setStep({ name: 'pick-selection', product: step.product })
+              }
+            }}
             onConfirm={(locationId) =>
               setStep({
                 name: 'fill-form',
                 product: step.product,
                 selection: step.selection,
                 pickupLocationId: locationId,
+                accommodationRooms: step.accommodationRooms,
               })
             }
           />
@@ -189,15 +263,26 @@ function App() {
             product={step.product}
             selection={step.selection}
             pickupLocationId={step.pickupLocationId}
+            accommodationRooms={step.accommodationRooms}
             onBack={() => {
               if (step.product.needs_pickup) {
                 setStep({
                   name: 'pick-pickup',
                   product: step.product,
                   selection: step.selection,
+                  accommodationRooms: step.accommodationRooms,
                 })
               } else {
-                setStep({ name: 'pick-selection', product: step.product })
+                const offering = step.product.hotel_offering ?? 'none'
+                if (step.product.product_kind === 'service' && offering !== 'none') {
+                  setStep({
+                    name: 'pick-accommodation',
+                    product: step.product,
+                    selection: step.selection,
+                  })
+                } else {
+                  setStep({ name: 'pick-selection', product: step.product })
+                }
               }
             }}
             onConfirmed={(response, email) =>

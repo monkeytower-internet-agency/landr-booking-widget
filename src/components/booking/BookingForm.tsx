@@ -6,9 +6,11 @@ import { submitBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
   Product,
+  ProductLine,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from '@/api/types'
+import type { RoomSelection } from './accommodationCalc'
 
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
@@ -47,6 +49,14 @@ interface Props {
   product: Product
   selection: BookingSelection
   pickupLocationId: string | null
+  /**
+   * Additional hotel_room line items captured by the AccommodationStep
+   * (landr-vyaz). Empty array when the product has no hotel offering or
+   * the customer opted out. Each entry becomes one extra booking_products
+   * row server-side via the existing public_submit_booking RPC, which
+   * already iterates the `products` array.
+   */
+  accommodationRooms?: RoomSelection[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -74,7 +84,15 @@ const describeSelection = (selection: BookingSelection): string => {
   return `${days[0]} – ${days[days.length - 1]} (${days.length} days)`
 }
 
-export function BookingForm({ operatorSlug, product, selection, pickupLocationId, onBack, onConfirmed }: Props) {
+export function BookingForm({
+  operatorSlug,
+  product,
+  selection,
+  pickupLocationId,
+  accommodationRooms,
+  onBack,
+  onConfirmed,
+}: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
@@ -107,6 +125,25 @@ export function BookingForm({ operatorSlug, product, selection, pickupLocationId
     try {
       const selectedDays =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+      // Build the primary service line + any hotel_room line items
+      // captured by AccommodationStep. The public_submit_booking RPC
+      // already iterates products[] and inserts N booking_products
+      // rows (landr-vyaz: no API-side change needed for multi-line
+      // submit). Hotel rooms share the same selected_days as the
+      // service so the pricing engine multiplies by len(selected_days)+1
+      // nights (landr-kd5t).
+      const productLines: ProductLine[] = [
+        {
+          product_id: product.product_id,
+          quantity: 1,
+          selected_days: selectedDays,
+        },
+        ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
+          product_id: room.productId,
+          quantity: room.quantity,
+          selected_days: selectedDays,
+        })),
+      ]
       const body: SubmitBookingBody = {
         operator_slug: operatorSlug,
         customer_first_name: values.first_name,
@@ -116,13 +153,7 @@ export function BookingForm({ operatorSlug, product, selection, pickupLocationId
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
-        products: [
-          {
-            product_id: product.product_id,
-            quantity: 1,
-            selected_days: selectedDays,
-          },
-        ],
+        products: productLines,
         participants: values.participants.map((p) => ({
           first_name: p.first_name,
           last_name: p.last_name || null,

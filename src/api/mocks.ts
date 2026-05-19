@@ -17,6 +17,8 @@ const addDays = (base: Date, n: number) => {
   return d
 }
 
+const MOCK_HOTEL_ID = 'aaaaaaaa-0000-0000-0000-000000000003'
+
 const allMockProducts: Product[] = [
   {
     product_id: '00000000-0000-0000-0000-000000000001',
@@ -43,6 +45,10 @@ const allMockProducts: Product[] = [
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
     needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: null,
+    price_per_unit: null,
+    currency: 'EUR',
   },
   {
     product_id: '00000000-0000-0000-0000-000000000002',
@@ -65,6 +71,65 @@ const allMockProducts: Product[] = [
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
     needs_pickup: true,
+    hotel_offering: 'optional',
+    hotel_location_id: null,
+    price_per_unit: null,
+    currency: 'EUR',
+  },
+]
+
+const allMockHotelRooms: Product[] = [
+  {
+    product_id: '00000000-0000-0000-0000-000000000101',
+    slug: 'single-room',
+    name: 'Single Room',
+    name_localized: { en: 'Single Room', de: 'Einzelzimmer' },
+    short_description: 'One twin bed, en-suite bathroom.',
+    short_description_localized: null,
+    description: null,
+    product_kind: 'hotel_room',
+    service_time_shape: null,
+    is_contiguous: false,
+    duration_minutes: null,
+    fixed_start_date: null,
+    fixed_end_date: null,
+    product_group_id: null,
+    group_slug: null,
+    group_name: null,
+    sort_order: 200,
+    sport_subcategory_codes: [],
+    location_ids: [],
+    needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: MOCK_HOTEL_ID,
+    price_per_unit: 49,
+    currency: 'EUR',
+  },
+  {
+    product_id: '00000000-0000-0000-0000-000000000102',
+    slug: 'double-room',
+    name: 'Double Room',
+    name_localized: { en: 'Double Room', de: 'Doppelzimmer' },
+    short_description: 'Two single beds or one queen, en-suite bathroom.',
+    short_description_localized: null,
+    description: null,
+    product_kind: 'hotel_room',
+    service_time_shape: null,
+    is_contiguous: false,
+    duration_minutes: null,
+    fixed_start_date: null,
+    fixed_end_date: null,
+    product_group_id: null,
+    group_slug: null,
+    group_name: null,
+    sort_order: 201,
+    sport_subcategory_codes: [],
+    location_ids: [],
+    needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: MOCK_HOTEL_ID,
+    price_per_unit: 73,
+    currency: 'EUR',
   },
 ]
 
@@ -96,6 +161,13 @@ export const mockProducts = (groupSlug?: string): Product[] => {
   if (!groupSlug) return allMockProducts
   return allMockProducts.filter((p) => p.group_slug === groupSlug)
 }
+
+/**
+ * Mock helper for the widget AccommodationStep — returns hotel_room
+ * products linked to a hotel location (landr-vyaz).
+ */
+export const mockHotelRooms = (hotelLocationId: string): Product[] =>
+  allMockHotelRooms.filter((p) => p.hotel_location_id === hotelLocationId)
 
 export const mockAvailability = (productId: string): AvailabilitySlot[] => {
   const base = today()
