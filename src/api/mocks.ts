@@ -1,5 +1,6 @@
 import type {
   AvailabilitySlot,
+  FixedDateWindow,
   Location,
   OperatorSettings,
   Product,
@@ -106,6 +107,20 @@ export const mockAvailability = (productId: string): AvailabilitySlot[] => {
         status: 'open',
       }
     })
+}
+
+export const mockFixedDateWindows = (): FixedDateWindow[] => {
+  const base = today()
+  return [0, 28, 56].map((offset, idx) => {
+    const start = addDays(base, 14 + offset)
+    return {
+      id: `mock-window-${idx}`,
+      start_date: isoDate(start),
+      end_date: isoDate(addDays(start, 6)),
+      capacity: 8,
+      capacity_reserved: idx === 1 ? 8 : idx,
+    }
+  })
 }
 
 export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => ({

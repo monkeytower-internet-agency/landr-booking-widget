@@ -13,6 +13,7 @@ import type {
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
   | { kind: 'days'; selectedDays: string[] }
+
 import { Button } from '@/components/ui/button'
 import {
   Card,

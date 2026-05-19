@@ -6,6 +6,10 @@ import {
   type BookingSelection,
 } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
+import {
+  FixedDateWindowPicker,
+  expandWindowDays,
+} from '@/components/booking/FixedDateWindowPicker'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
@@ -76,8 +80,6 @@ function App() {
     }
   }
 
-  const isTimeSlotProduct = (p: Product) => p.duration_kind === 'time_slot'
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -94,16 +96,35 @@ function App() {
           />
         ) : null}
 
-        {step.name === 'pick-selection' && isTimeSlotProduct(step.product) ? (
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'time_slot' ? (
           <AvailabilityPicker
             product={step.product}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={goToProductStep}
-            onConfirm={(slot) => afterSelection(step.product, { kind: 'slot', slot })}
+            onConfirm={(slot) =>
+              afterSelection(step.product, { kind: 'slot', slot })
+            }
           />
         ) : null}
 
-        {step.name === 'pick-selection' && !isTimeSlotProduct(step.product) ? (
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'fixed_date_range' ? (
+          <FixedDateWindowPicker
+            product={step.product}
+            exposeSeats={operatorSettings.expose_seats_to_customer}
+            onBack={goToProductStep}
+            onConfirm={(_slot, window) =>
+              afterSelection(step.product, {
+                kind: 'days',
+                selectedDays: expandWindowDays(window),
+              })
+            }
+          />
+        ) : null}
+
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'single_days_range' ? (
           <MultiDayStep
             product={step.product}
             onBack={goToProductStep}

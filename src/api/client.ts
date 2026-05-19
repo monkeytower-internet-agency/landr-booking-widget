@@ -1,5 +1,6 @@
 import type {
   AvailabilitySlot,
+  FixedDateWindow,
   Location,
   OperatorSettings,
   Product,
@@ -8,6 +9,7 @@ import type {
 } from './types'
 import {
   mockAvailability,
+  mockFixedDateWindows,
   mockLocations,
   mockOperatorSettings,
   mockProducts,
@@ -80,6 +82,37 @@ export async function listLocations(operatorSlug: string): Promise<Location[]> {
   return http<Location[]>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/locations`,
   )
+}
+
+/**
+ * Returns upcoming, non-deleted, active windows for a fixed_date_range product.
+ * Backed by public_get_product_fixed_date_windows RPC (landr-m05.28).
+ * Uses the Supabase REST RPC endpoint exposed by Kong.
+ */
+export async function getFixedDateWindows(
+  productId: string,
+): Promise<FixedDateWindow[]> {
+  if (USE_MOCKS) return mockFixedDateWindows()
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+  if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL is not configured')
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/public_get_product_fixed_date_windows`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ p_product_id: productId }),
+    },
+  )
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`)
+  }
+  return (await res.json()) as FixedDateWindow[]
 }
 
 export async function submitBooking(
