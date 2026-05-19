@@ -214,6 +214,33 @@ describe('MultiDayPicker', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
+  it(
+    'click+click range that brackets a disabled day still includes the surrounding days and excludes the disabled one (landr-e10.9)',
+    () => {
+      // 2026-06-13 is the 4th day in the 10..19 window (idx 3) — flip it
+      // to zero seats so it renders disabled inside the range.
+      const seatless = availability.map((slot, idx) =>
+        idx === 3 ? { ...slot, available_seats: 0, capacity_reserved: 5 } : slot,
+      )
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={seatless}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+        />,
+      )
+      clickDay(new Date(2026, 5, 12)) // anchor
+      clickDay(new Date(2026, 5, 15)) // range click+click
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([
+        '2026-06-12',
+        // 2026-06-13 omitted — disabled day inside the bracketed range
+        '2026-06-14',
+        '2026-06-15',
+      ])
+    },
+  )
+
   it('renders the provided help text', () => {
     render(
       <MultiDayPicker

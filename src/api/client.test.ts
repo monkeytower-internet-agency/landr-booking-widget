@@ -17,3 +17,11 @@ describe('listProducts with mocks', () => {
     expect(coursesProducts.length).toBeLessThanOrEqual(allProducts.length)
   })
 })
+
+describe('getOperatorSettings with mocks (landr-e10.9)', () => {
+  it('returns the operator slug and the safe default (false) for unknown operators', async () => {
+    const settings = await client.getOperatorSettings('para42')
+    expect(settings.slug).toBe('para42')
+    expect(settings.expose_seats_to_customer).toBe(false)
+  })
+})

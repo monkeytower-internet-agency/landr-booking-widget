@@ -1,4 +1,10 @@
-import type { AvailabilitySlot, Location, Product, SubmitBookingResponse } from './types'
+import type {
+  AvailabilitySlot,
+  Location,
+  OperatorSettings,
+  Product,
+  SubmitBookingResponse,
+} from './types'
 
 const today = () => new Date()
 
@@ -99,6 +105,11 @@ export const mockAvailability = (productId: string): AvailabilitySlot[] => {
       }
     })
 }
+
+export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => ({
+  slug: operatorSlug,
+  expose_seats_to_customer: false,
+})
 
 export const mockSubmit = (): SubmitBookingResponse => ({
   booking_id: '00000000-0000-0000-0000-0000000000bb',

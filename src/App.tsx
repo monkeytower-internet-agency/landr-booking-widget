@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import {
@@ -9,7 +9,8 @@ import { Confirmation } from '@/components/booking/Confirmation'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
-import type { Product, SubmitBookingResponse } from '@/api/types'
+import { getOperatorSettings } from '@/api/client'
+import type { OperatorSettings, Product, SubmitBookingResponse } from '@/api/types'
 
 type Step =
   | { name: 'pick-product' }
@@ -40,6 +41,28 @@ function App() {
   const operatorSlug =
     operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
   const [step, setStep] = useState<Step>({ name: 'pick-product' })
+  // Operator-level flags (landr-e10.9). Defaults to the safe value
+  // (expose_seats_to_customer=false) until the fetch resolves so the
+  // first render never leaks seat counts for opted-out operators.
+  const [operatorSettings, setOperatorSettings] = useState<OperatorSettings>({
+    slug: operatorSlug,
+    expose_seats_to_customer: false,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const settings = await getOperatorSettings(operatorSlug)
+        if (!cancelled) setOperatorSettings(settings)
+      } catch {
+        // Keep the safe defaults — failing this fetch must not block booking.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [operatorSlug])
 
   const goToProductStep = useCallback(() => {
     setStep({ name: 'pick-product' })
@@ -74,6 +97,7 @@ function App() {
         {step.name === 'pick-selection' && isTimeSlotProduct(step.product) ? (
           <AvailabilityPicker
             product={step.product}
+            exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={goToProductStep}
             onConfirm={(slot) => afterSelection(step.product, { kind: 'slot', slot })}
           />
