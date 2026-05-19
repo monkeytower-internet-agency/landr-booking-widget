@@ -57,6 +57,7 @@ export interface Location {
   name: string
   name_localized: Record<string, string> | null
   parent_id: string | null
+  role_type: { code: string; label: string } | null
 }
 
 export interface AvailabilitySlot {
