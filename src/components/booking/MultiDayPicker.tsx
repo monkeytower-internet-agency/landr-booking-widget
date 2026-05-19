@@ -12,6 +12,14 @@ interface MultiDayPickerProps {
   longPressMs?: number
   /** Initial visible month. Forwarded to react-day-picker; tests rely on this. */
   defaultMonth?: Date
+  /**
+   * When true (product.is_contiguous, landr-y9k): selection MUST be a single
+   * contiguous run of available days. Clicks that would break contiguity
+   * (toggle middle days, shift-click far dates) are coerced into a fresh
+   * single-day selection, so the user always ends up with a valid range.
+   * When false (default): legacy any-day-toggle behaviour.
+   */
+  isContiguous?: boolean
 }
 
 const LONG_PRESS_MS = 500
@@ -53,6 +61,13 @@ export const DEFAULT_MULTI_DAY_HELP_EN =
 export const DEFAULT_MULTI_DAY_HELP_DE =
   'Klicke ein Datum an, klicke ein zweites für einen Zeitraum. Halte Umschalt (oder Cmd/Strg), um einzelne Tage an- oder abzuwählen.'
 
+/**
+ * Help text shown in contiguous mode (landr-y9k). The any-day-toggle copy
+ * does not apply — contiguous selection rejects non-adjacent clicks.
+ */
+export const CONTIGUOUS_MULTI_DAY_HELP_EN =
+  'Click a start date, then click another to extend the range. Selection must be consecutive days.'
+
 export function MultiDayPicker({
   availability,
   value,
@@ -60,6 +75,7 @@ export function MultiDayPicker({
   helpText,
   longPressMs = LONG_PRESS_MS,
   defaultMonth,
+  isContiguous = false,
 }: MultiDayPickerProps) {
   const availableSet = useMemo(() => {
     return new Set(
@@ -156,6 +172,68 @@ export function MultiDayPicker({
       const key = isoDate(day)
       if (!availableSet.has(key)) return
       const next = new Set(valueSet)
+
+      // Contiguous mode (landr-y9k): the selection must always be a single
+      // gap-free run of available days. A click is honoured as a range
+      // extension/trim if every day between the existing run and the
+      // clicked date is available; otherwise the selection restarts from
+      // the clicked day. Toggle gestures (shift/ctrl/long-press) are
+      // suppressed — they always restart since they can't preserve the
+      // contiguous invariant.
+      if (isContiguous) {
+        if (anchor === null || valueSet.size === 0 || toggle) {
+          next.clear()
+          next.add(key)
+          setAnchor(day)
+        } else {
+          const sorted = Array.from(valueSet).sort()
+          const first = fromIso(sorted[0]!)
+          const last = fromIso(sorted[sorted.length - 1]!)
+          let rangeFrom: Date
+          let rangeTo: Date
+          if (day < first) {
+            rangeFrom = day
+            rangeTo = last
+          } else if (day > last) {
+            rangeFrom = first
+            rangeTo = day
+          } else {
+            // Click inside the existing run: trim to [anchor..day].
+            rangeFrom = anchor
+            rangeTo = day
+          }
+          const orderedFrom = rangeFrom <= rangeTo ? rangeFrom : rangeTo
+          const orderedTo = rangeFrom <= rangeTo ? rangeTo : rangeFrom
+          // Verify the candidate range is gap-free (no unavailable days
+          // between orderedFrom and orderedTo). If any day in the span is
+          // disabled the range can't be honoured contiguously, so restart.
+          let gapFree = true
+          const check = new Date(orderedFrom)
+          while (check <= orderedTo) {
+            if (!availableSet.has(isoDate(check))) {
+              gapFree = false
+              break
+            }
+            check.setDate(check.getDate() + 1)
+          }
+          if (!gapFree) {
+            next.clear()
+            next.add(key)
+            setAnchor(day)
+          } else {
+            next.clear()
+            const cursor = new Date(orderedFrom)
+            while (cursor <= orderedTo) {
+              next.add(isoDate(cursor))
+              cursor.setDate(cursor.getDate() + 1)
+            }
+            setAnchor(day)
+          }
+        }
+        onChange(sortedDates(next))
+        return
+      }
+
       if (toggle) {
         if (next.has(key)) next.delete(key)
         else next.add(key)
@@ -188,7 +266,7 @@ export function MultiDayPicker({
       }
       onChange(sortedDates(next))
     },
-    [anchor, availableSet, onChange, valueSet],
+    [anchor, availableSet, isContiguous, onChange, valueSet],
   )
 
   const handleSelect = (
@@ -209,7 +287,9 @@ export function MultiDayPicker({
     applyClick(triggerDate, toggle)
   }
 
-  const text = helpText ?? DEFAULT_MULTI_DAY_HELP_EN
+  const text =
+    helpText ??
+    (isContiguous ? CONTIGUOUS_MULTI_DAY_HELP_EN : DEFAULT_MULTI_DAY_HELP_EN)
 
   return (
     <div

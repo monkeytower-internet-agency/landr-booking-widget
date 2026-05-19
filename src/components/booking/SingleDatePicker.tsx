@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import {
   Card,
   CardContent,
@@ -9,12 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
-import { tr } from '@/lib/strings'
 
 interface Props {
   product: Product
   onBack: () => void
+  /**
+   * Commits the picked date as a one-element selected_days array, matching
+   * the BookingForm contract used by the days-range and fixed-window paths.
+   */
   onConfirm: (selectedDays: string[]) => void
 }
 
@@ -27,16 +30,24 @@ const isoDate = (d: Date) => {
   return `${y}-${m}-${day}`
 }
 
-export function MultiDayStep({ product, onBack, onConfirm }: Props) {
+/**
+ * Picker for service products with service_time_shape='single_date' (landr-y9k).
+ *
+ * Single click commits one date. No range concept. Past dates and dates with
+ * zero availability are disabled. Reuses the same /availability endpoint the
+ * MultiDayPicker uses — the only difference is one-click-only semantics.
+ */
+export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDays, setSelectedDays] = useState<Date[]>([])
+  const [selected, setSelected] = useState<Date | null>(null)
 
-  const { fromIso, toIso } = useMemo(() => {
+  const { fromIso, toIso, today } = useMemo(() => {
     const from = new Date()
-    const to = new Date()
+    from.setHours(0, 0, 0, 0)
+    const to = new Date(from)
     to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to) }
+    return { fromIso: isoDate(from), toIso: isoDate(to), today: from }
   }, [])
 
   useEffect(() => {
@@ -53,6 +64,14 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
       cancelled = true
     }
   }, [product.product_id, fromIso, toIso])
+
+  const availableSet = useMemo(() => {
+    return new Set(
+      (slots ?? [])
+        .filter((slot) => slot.available_seats > 0)
+        .map((slot) => slot.date),
+    )
+  }, [slots])
 
   if (error) {
     return (
@@ -73,25 +92,23 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pick your dates</CardTitle>
+        <CardTitle>Pick a date</CardTitle>
         <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}.
+          Showing the next {HORIZON_DAYS} days for {product.name}. Click a date
+          to continue.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <MultiDayPicker
-          availability={slots ?? []}
-          value={selectedDays}
-          onChange={setSelectedDays}
-          helpText={product.is_contiguous ? undefined : tr('multiDayPickerHelp')}
-          defaultMonth={new Date()}
-          isContiguous={product.is_contiguous}
+        <Calendar
+          mode="single"
+          selected={selected ?? undefined}
+          onSelect={(date) => setSelected(date ?? null)}
+          disabled={(date) => date < today || !availableSet.has(isoDate(date))}
+          defaultMonth={today}
         />
-        {selectedDays.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {selectedDays.length === 1
-              ? `1 day selected`
-              : `${selectedDays.length} days selected`}
+        {selected ? (
+          <p className="text-sm text-muted-foreground" data-testid="single-date-selected">
+            Selected: {isoDate(selected)}
           </p>
         ) : null}
         <div className="flex justify-between pt-2">
@@ -100,8 +117,10 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
           </Button>
           <Button
             type="button"
-            disabled={selectedDays.length === 0}
-            onClick={() => onConfirm(selectedDays.map(isoDate))}
+            disabled={selected === null}
+            onClick={() => {
+              if (selected) onConfirm([isoDate(selected)])
+            }}
           >
             Continue
           </Button>

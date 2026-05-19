@@ -101,7 +101,9 @@ export function ProductList({ operatorSlug, productGroup, preselectSlug, onSelec
               <span className="text-sm text-muted-foreground">
                 {product.duration_minutes
                   ? `${product.duration_minutes} min`
-                  : product.duration_kind.replace('_', ' ')}
+                  : product.product_kind === 'service'
+                    ? (product.service_time_shape ?? 'service').replace('_', ' ')
+                    : product.product_kind.replace('_', ' ')}
               </span>
               <Button type="button" onClick={() => onSelect(product)}>
                 Select

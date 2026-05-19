@@ -72,12 +72,14 @@ function Harness({
   onChangeSpy,
   longPressMs,
   defaultMonth,
+  isContiguous,
 }: {
   availability: AvailabilitySlot[]
   initial?: Date[]
   onChangeSpy?: (days: Date[]) => void
   longPressMs?: number
   defaultMonth: Date
+  isContiguous?: boolean
 }) {
   const [value, setValue] = useState<Date[]>(initial)
   return (
@@ -90,6 +92,7 @@ function Harness({
       }}
       longPressMs={longPressMs}
       defaultMonth={defaultMonth}
+      isContiguous={isContiguous}
     />
   )
 }
@@ -268,5 +271,100 @@ describe('MultiDayPicker', () => {
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
       /Click to pick a date/i,
     )
+  })
+
+  describe('contiguous mode (landr-y9k)', () => {
+    it('renders the consecutive-days help text in contiguous mode', () => {
+      render(
+        <MultiDayPicker
+          availability={availability}
+          value={[]}
+          onChange={() => {}}
+          defaultMonth={defaultMonth}
+          isContiguous
+        />,
+      )
+      expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
+        /consecutive days/i,
+      )
+    })
+
+    it('clicking two adjacent dates extends the range', () => {
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={availability}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+          isContiguous
+        />,
+      )
+      clickDay(new Date(2026, 5, 12))
+      clickDay(new Date(2026, 5, 15))
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([
+        '2026-06-12',
+        '2026-06-13',
+        '2026-06-14',
+        '2026-06-15',
+      ])
+    })
+
+    it('clicking past a gap in availability RESTARTS the selection (can not span a disabled day)', () => {
+      // Punch out 2026-06-14 (idx 4 in the 10..19 window) so any range that
+      // would bracket it is rejected as non-contiguous.
+      const gappy = availability.map((slot, idx) =>
+        idx === 4 ? { ...slot, available_seats: 0, capacity_reserved: 5 } : slot,
+      )
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={gappy}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+          isContiguous
+        />,
+      )
+      clickDay(new Date(2026, 5, 12))
+      clickDay(new Date(2026, 5, 13)) // 12..13 (fine, no gap)
+      // 14 is disabled; trying to extend to 16 would bracket it →
+      // contiguous invariant violated → restart from 16.
+      clickDay(new Date(2026, 5, 16))
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual(['2026-06-16'])
+    })
+
+    it('shift+click suppresses the toggle gesture and restarts from the clicked date', () => {
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={availability}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+          isContiguous
+        />,
+      )
+      clickDay(new Date(2026, 5, 12))
+      clickDay(new Date(2026, 5, 19), { shiftKey: true })
+      // In any-day mode this would yield [12, 19]; in contiguous mode the
+      // toggle gesture is suppressed and the run restarts from the click.
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual(['2026-06-19'])
+    })
+
+    it('clicking one day before the existing run prepends it (adjacent extension)', () => {
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={availability}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+          isContiguous
+        />,
+      )
+      clickDay(new Date(2026, 5, 14)) // anchor at 14
+      clickDay(new Date(2026, 5, 13)) // adjacent before → 13..14
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([
+        '2026-06-13',
+        '2026-06-14',
+      ])
+    })
   })
 })
