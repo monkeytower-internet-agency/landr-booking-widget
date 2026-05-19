@@ -13,6 +13,8 @@ import {
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
+import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
+import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import { getOperatorSettings } from '@/api/client'
 import type { OperatorSettings, Product, SubmitBookingResponse } from '@/api/types'
 
@@ -96,8 +98,23 @@ function App() {
           />
         ) : null}
 
+        {/*
+          Step machine branching (landr-y9k). First branch is product_kind:
+          non-service kinds (digital_good, physical_good, gift_card) render
+          the ShopComingSoonStub since the booking widget doesn't take
+          checkout for shop kinds yet. For services, branch on
+          service_time_shape to pick the right picker; MultiDayPicker also
+          consumes product.is_contiguous to switch between any-day-toggle
+          and consecutive-only modes.
+        */}
         {step.name === 'pick-selection' &&
-        step.product.duration_kind === 'time_slot' ? (
+        step.product.product_kind !== 'service' ? (
+          <ShopComingSoonStub product={step.product} onBack={goToProductStep} />
+        ) : null}
+
+        {step.name === 'pick-selection' &&
+        step.product.product_kind === 'service' &&
+        step.product.service_time_shape === 'time_slot' ? (
           <AvailabilityPicker
             product={step.product}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
@@ -109,7 +126,8 @@ function App() {
         ) : null}
 
         {step.name === 'pick-selection' &&
-        step.product.duration_kind === 'fixed_date_range' ? (
+        step.product.product_kind === 'service' &&
+        step.product.service_time_shape === 'fixed_window' ? (
           <FixedDateWindowPicker
             product={step.product}
             exposeSeats={operatorSettings.expose_seats_to_customer}
@@ -124,8 +142,21 @@ function App() {
         ) : null}
 
         {step.name === 'pick-selection' &&
-        step.product.duration_kind === 'single_days_range' ? (
+        step.product.product_kind === 'service' &&
+        step.product.service_time_shape === 'days_range' ? (
           <MultiDayStep
+            product={step.product}
+            onBack={goToProductStep}
+            onConfirm={(selectedDays) =>
+              afterSelection(step.product, { kind: 'days', selectedDays })
+            }
+          />
+        ) : null}
+
+        {step.name === 'pick-selection' &&
+        step.product.product_kind === 'service' &&
+        step.product.service_time_shape === 'single_date' ? (
+          <SingleDatePicker
             product={step.product}
             onBack={goToProductStep}
             onConfirm={(selectedDays) =>

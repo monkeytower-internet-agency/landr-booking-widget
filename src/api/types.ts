@@ -1,9 +1,30 @@
 /**
  * Wire types — keep aligned with FastAPI `app/routers/public_bookings.py`
- * and the DB RPCs in `supabase/migrations/20260512190528_public_rpcs.sql`.
+ * and the DB RPCs in `supabase/migrations/20260512190528_public_rpcs.sql`
+ * (last refactored by `20260519210000_product_kinds_refactor.sql`, landr-glx).
  */
 
-export type DurationKind = 'single_days_range' | 'fixed_date_range' | 'time_slot'
+/**
+ * What the operator sells. Drives the booking flow shape and the dashboard
+ * ProductForm. Mirrors public.product_kind. For everything that is not a
+ * 'service' the widget renders a "sold in Shop — coming soon" stub.
+ */
+export type ProductKind = 'service' | 'digital_good' | 'physical_good' | 'gift_card'
+
+/**
+ * Only meaningful when product_kind = 'service'. Mirrors
+ * public.service_time_shape. The widget branches on this to pick the right
+ * picker component:
+ *   - 'time_slot'    → AvailabilityPicker
+ *   - 'days_range'   → MultiDayPicker (pass is_contiguous prop)
+ *   - 'fixed_window' → FixedDateWindowPicker
+ *   - 'single_date'  → SingleDatePicker
+ */
+export type ServiceTimeShape =
+  | 'single_date'
+  | 'days_range'
+  | 'fixed_window'
+  | 'time_slot'
 
 export interface FixedDateWindow {
   id: string
@@ -21,7 +42,21 @@ export interface Product {
   short_description: string | null
   short_description_localized: Record<string, string> | null
   description: string | null
-  duration_kind: DurationKind
+  /**
+   * What the operator sells (landr-glx). The booking flow renders a shop-stub
+   * for any kind other than 'service'.
+   */
+  product_kind: ProductKind
+  /**
+   * Only set when product_kind = 'service'; null for non-service kinds.
+   * DB CHECK: (product_kind='service') = (service_time_shape IS NOT NULL).
+   */
+  service_time_shape: ServiceTimeShape | null
+  /**
+   * Only meaningful when service_time_shape = 'days_range'. When true the
+   * picker enforces consecutive-day selection (whole-week semantics).
+   */
+  is_contiguous: boolean
   duration_minutes: number | null
   fixed_start_date: string | null
   fixed_end_date: string | null
