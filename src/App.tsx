@@ -16,26 +16,8 @@ import { ProductList } from '@/components/booking/ProductList'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import { getOperatorSettings } from '@/api/client'
-import type { OperatorSettings, Product, SubmitBookingResponse } from '@/api/types'
-
-type Step =
-  | { name: 'pick-product' }
-  | { name: 'pick-selection'; product: Product }
-  | { name: 'pick-accommodation'; product: Product; selection: BookingSelection }
-  | {
-      name: 'pick-pickup'
-      product: Product
-      selection: BookingSelection
-      accommodationRooms: RoomSelection[]
-    }
-  | {
-      name: 'fill-form'
-      product: Product
-      selection: BookingSelection
-      pickupLocationId: string | null
-      accommodationRooms: RoomSelection[]
-    }
-  | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
+import type { OperatorSettings, Product } from '@/api/types'
+import { type Step, stepAfterAccommodation } from './appStepMachine'
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -94,30 +76,26 @@ function App() {
       setStep({ name: 'pick-accommodation', product, selection })
       return
     }
-    afterAccommodation(product, selection, [])
+    // No accommodation step ran (product has no hotel offering) → no
+    // hotel context, so hotelLocationId is null and the pickup branch
+    // below decides whether pick-pickup runs.
+    afterAccommodation(product, selection, [], null)
   }
 
   const afterAccommodation = (
     product: Product,
     selection: BookingSelection,
     accommodationRooms: RoomSelection[],
+    hotelLocationId: string | null,
   ) => {
-    if (product.needs_pickup) {
-      setStep({
-        name: 'pick-pickup',
+    setStep(
+      stepAfterAccommodation(
         product,
         selection,
         accommodationRooms,
-      })
-    } else {
-      setStep({
-        name: 'fill-form',
-        product,
-        selection,
-        pickupLocationId: null,
-        accommodationRooms,
-      })
-    }
+        hotelLocationId,
+      ),
+    )
   }
 
   /**
@@ -223,8 +201,13 @@ function App() {
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
             onBack={() => setStep({ name: 'pick-selection', product: step.product })}
-            onConfirm={(rooms) =>
-              afterAccommodation(step.product, step.selection, rooms)
+            onConfirm={(rooms, hotelLocationId) =>
+              afterAccommodation(
+                step.product,
+                step.selection,
+                rooms,
+                hotelLocationId,
+              )
             }
           />
         ) : null}
