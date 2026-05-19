@@ -26,8 +26,6 @@ export function PickupLocationPicker({ operatorSlug, productName, onBack, onConf
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     listLocations(operatorSlug)
       .then((locs) => {
         if (!cancelled) setLocations(locs)
