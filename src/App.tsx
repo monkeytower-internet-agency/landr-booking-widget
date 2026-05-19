@@ -1,21 +1,26 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
-import { BookingForm } from '@/components/booking/BookingForm'
+import {
+  BookingForm,
+  type BookingSelection,
+} from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
+import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
-import type {
-  AvailabilitySlot,
-  Product,
-  SubmitBookingResponse,
-} from '@/api/types'
+import type { Product, SubmitBookingResponse } from '@/api/types'
 
 type Step =
   | { name: 'pick-product' }
-  | { name: 'pick-slot'; product: Product }
-  | { name: 'pick-pickup'; product: Product; slot: AvailabilitySlot }
-  | { name: 'fill-form'; product: Product; slot: AvailabilitySlot; pickupLocationId: string | null }
+  | { name: 'pick-selection'; product: Product }
+  | { name: 'pick-pickup'; product: Product; selection: BookingSelection }
+  | {
+      name: 'fill-form'
+      product: Product
+      selection: BookingSelection
+      pickupLocationId: string | null
+    }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
 function readQueryParams() {
@@ -40,6 +45,16 @@ function App() {
     setStep({ name: 'pick-product' })
   }, [])
 
+  const afterSelection = (product: Product, selection: BookingSelection) => {
+    if (product.needs_pickup) {
+      setStep({ name: 'pick-pickup', product, selection })
+    } else {
+      setStep({ name: 'fill-form', product, selection, pickupLocationId: null })
+    }
+  }
+
+  const isTimeSlotProduct = (p: Product) => p.duration_kind === 'time_slot'
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -52,21 +67,25 @@ function App() {
             operatorSlug={operatorSlug}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
-            onSelect={(p) => setStep({ name: 'pick-slot', product: p })}
+            onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
           />
         ) : null}
 
-        {step.name === 'pick-slot' ? (
+        {step.name === 'pick-selection' && isTimeSlotProduct(step.product) ? (
           <AvailabilityPicker
             product={step.product}
             onBack={goToProductStep}
-            onConfirm={(slot) => {
-              if (step.product.needs_pickup) {
-                setStep({ name: 'pick-pickup', product: step.product, slot })
-              } else {
-                setStep({ name: 'fill-form', product: step.product, slot, pickupLocationId: null })
-              }
-            }}
+            onConfirm={(slot) => afterSelection(step.product, { kind: 'slot', slot })}
+          />
+        ) : null}
+
+        {step.name === 'pick-selection' && !isTimeSlotProduct(step.product) ? (
+          <MultiDayStep
+            product={step.product}
+            onBack={goToProductStep}
+            onConfirm={(selectedDays) =>
+              afterSelection(step.product, { kind: 'days', selectedDays })
+            }
           />
         ) : null}
 
@@ -74,9 +93,14 @@ function App() {
           <PickupLocationPicker
             operatorSlug={operatorSlug}
             productName={step.product.name}
-            onBack={() => setStep({ name: 'pick-slot', product: step.product })}
+            onBack={() => setStep({ name: 'pick-selection', product: step.product })}
             onConfirm={(locationId) =>
-              setStep({ name: 'fill-form', product: step.product, slot: step.slot, pickupLocationId: locationId })
+              setStep({
+                name: 'fill-form',
+                product: step.product,
+                selection: step.selection,
+                pickupLocationId: locationId,
+              })
             }
           />
         ) : null}
@@ -85,13 +109,17 @@ function App() {
           <BookingForm
             operatorSlug={operatorSlug}
             product={step.product}
-            slot={step.slot}
+            selection={step.selection}
             pickupLocationId={step.pickupLocationId}
             onBack={() => {
               if (step.product.needs_pickup) {
-                setStep({ name: 'pick-pickup', product: step.product, slot: step.slot })
+                setStep({
+                  name: 'pick-pickup',
+                  product: step.product,
+                  selection: step.selection,
+                })
               } else {
-                setStep({ name: 'pick-slot', product: step.product })
+                setStep({ name: 'pick-selection', product: step.product })
               }
             }}
             onConfirmed={(response, email) =>
