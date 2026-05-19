@@ -1,6 +1,7 @@
 import type {
   AvailabilitySlot,
   FixedDateWindow,
+  Hotel,
   Location,
   OperatorSettings,
   Product,
@@ -10,6 +11,7 @@ import type {
 import {
   mockAvailability,
   mockFixedDateWindows,
+  mockHotelRooms,
   mockLocations,
   mockOperatorSettings,
   mockProducts,
@@ -37,15 +39,24 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listProducts(
   operatorSlug: string,
-  options?: { group?: string },
+  options?: { group?: string; includeHotelRooms?: boolean },
 ): Promise<Product[]> {
-  if (USE_MOCKS) return mockProducts(options?.group)
-  const qs = new URLSearchParams()
-  if (options?.group) {
-    qs.append('group', options.group)
+  let raw: Product[]
+  if (USE_MOCKS) {
+    raw = mockProducts(options?.group)
+  } else {
+    const qs = new URLSearchParams()
+    if (options?.group) {
+      qs.append('group', options.group)
+    }
+    const path = `/api/public/operators/${encodeURIComponent(operatorSlug)}/products`
+    raw = await http<Product[]>(qs.toString() ? `${path}?${qs}` : path)
   }
-  const path = `/api/public/operators/${encodeURIComponent(operatorSlug)}/products`
-  return http<Product[]>(qs.toString() ? `${path}?${qs}` : path)
+  // Hotel rooms (landr-vyaz) are surfaced only inside AccommodationStep,
+  // never in the main catalogue. Callers that need rooms use
+  // getHotelRoomsForHotel which opts in via includeHotelRooms.
+  if (options?.includeHotelRooms) return raw
+  return raw.filter((p) => p.product_kind !== 'hotel_room')
 }
 
 export async function getAvailability(
@@ -81,6 +92,40 @@ export async function listLocations(operatorSlug: string): Promise<Location[]> {
   if (USE_MOCKS) return mockLocations
   return http<Location[]>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/locations`,
+  )
+}
+
+/**
+ * Operator's hotels (locations.role_type.code === 'hotel'). Used by the
+ * widget AccommodationStep (landr-vyaz). Filtered client-side because
+ * the public locations RPC already returns role_type and the catalogue
+ * is tiny — a second RPC would cost a migration for no benefit.
+ */
+export async function getHotelsForOperator(
+  operatorSlug: string,
+): Promise<Hotel[]> {
+  const locations = await listLocations(operatorSlug)
+  return locations.filter((loc) => loc.role_type?.code === 'hotel')
+}
+
+/**
+ * Hotel rooms (kind=hotel_room, hotel_location_id=hotelId) for a given
+ * hotel under an operator (landr-vyaz). Filtered client-side off the
+ * existing public_get_operator_products RPC — same rationale as
+ * getHotelsForOperator.
+ */
+export async function getHotelRoomsForHotel(
+  operatorSlug: string,
+  hotelLocationId: string,
+): Promise<Product[]> {
+  if (USE_MOCKS) return mockHotelRooms(hotelLocationId)
+  // opt-in: bypass the default hotel_room filter on listProducts so
+  // the AccommodationStep can see the rooms it owns.
+  const products = await listProducts(operatorSlug, { includeHotelRooms: true })
+  return products.filter(
+    (p) =>
+      p.product_kind === 'hotel_room' &&
+      p.hotel_location_id === hotelLocationId,
   )
 }
 

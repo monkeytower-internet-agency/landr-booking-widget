@@ -1,0 +1,390 @@
+import { useEffect, useMemo, useState } from 'react'
+import { getHotelRoomsForHotel, getHotelsForOperator } from '@/api/client'
+import type { Hotel, Product } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { browserLocale, pickLocalized } from '@/lib/locale'
+import {
+  deriveStayWindow,
+  formatCurrency,
+  roomSubtotal,
+  totalStayCost,
+  type RoomSelection,
+} from './accommodationCalc'
+
+interface Props {
+  product: Product
+  selectedDays: string[]
+  operatorSlug: string
+  /**
+   * Called when the customer confirms a room selection. rooms can be
+   * empty when the customer opts out of an `optional` accommodation.
+   * hotelLocationId is null in that case so the booking submit does
+   * not pass a hotel context.
+   */
+  onConfirm: (
+    rooms: RoomSelection[],
+    hotelLocationId: string | null,
+  ) => void
+  /**
+   * Called when the customer wants to go back to the previous step
+   * (date selection). Mirrors the other booking steps' Back affordance.
+   */
+  onBack: () => void
+}
+
+/**
+ * AccommodationStep — between pick-selection and pick-pickup/fill-form
+ * for service products whose hotel_offering != 'none' (landr-vyaz).
+ *
+ * Mandatory flow: customer picks a hotel (auto-selected when only one
+ * is configured), then picks at least one room. Optional flow: same
+ * but a Yes/No toggle gates the hotel + rooms — answering No skips
+ * the hotel context entirely.
+ *
+ * Pricing: the per-night room price is shown for clarity and totals
+ * are summed, but the panel makes it explicit that the hotel is paid
+ * directly at check-in and is NOT part of the booking gross_total.
+ * The pricing engine on the API side still bills the rooms (via the
+ * landr-kd5t multiplier) so operators that route hotel revenue
+ * through the platform keep that path; the "paid directly" copy is
+ * the consumer-facing affordance landr-vyaz scopes to.
+ */
+export function AccommodationStep({
+  product,
+  selectedDays,
+  operatorSlug,
+  onConfirm,
+  onBack,
+}: Props) {
+  const locale = browserLocale()
+  const offering = product.hotel_offering ?? 'none'
+  const isMandatory = offering === 'mandatory'
+
+  const [hotels, setHotels] = useState<Hotel[] | null>(null)
+  const [hotelError, setHotelError] = useState<string | null>(null)
+  const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null)
+  const [includeHotel, setIncludeHotel] = useState<boolean>(isMandatory)
+  const [rooms, setRooms] = useState<Product[] | null>(null)
+  const [roomsError, setRoomsError] = useState<string | null>(null)
+  const [selection, setSelection] = useState<Record<string, number>>({})
+
+  // Fetch hotels for the operator. We always do this on mount so the
+  // 'optional' flow can immediately offer the customer a Yes/No choice
+  // without a second loading state after they answer Yes.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await getHotelsForOperator(operatorSlug)
+        if (cancelled) return
+        setHotels(list)
+        // Auto-select when mandatory + exactly one hotel exists. Skip
+        // the hotel-picker UI entirely in that case so the customer
+        // sees the room list immediately.
+        if (isMandatory && list.length === 1 && list[0]) {
+          setSelectedHotelId(list[0].location_id)
+        }
+      } catch (err) {
+        if (cancelled) return
+        setHotelError(err instanceof Error ? err.message : String(err))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [operatorSlug, isMandatory])
+
+  // Fetch rooms when a hotel is selected. The previous-state cleanup
+  // (rooms→null + selection→{}) happens in the hotel-change handlers
+  // rather than synchronously inside the effect — see react-hooks/
+  // set-state-in-effect. The effect itself only runs the async load.
+  useEffect(() => {
+    if (!selectedHotelId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await getHotelRoomsForHotel(operatorSlug, selectedHotelId)
+        if (cancelled) return
+        setRooms(list)
+      } catch (err) {
+        if (cancelled) return
+        setRoomsError(err instanceof Error ? err.message : String(err))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [operatorSlug, selectedHotelId])
+
+  // Centralised hotel-change handler — resets the room list + selected
+  // quantities BEFORE the next render so the effect only handles the
+  // async fetch. Used by the radio onChange and the "No, thanks"
+  // optional opt-out path.
+  function changeHotel(nextId: string | null) {
+    setSelectedHotelId(nextId)
+    setRooms(null)
+    setRoomsError(null)
+    setSelection({})
+  }
+
+  const { checkInIso, checkOutIso, nights } = useMemo(
+    () => deriveStayWindow(selectedDays),
+    [selectedDays],
+  )
+
+  const roomSelections: RoomSelection[] = useMemo(
+    () =>
+      Object.entries(selection)
+        .filter(([, qty]) => qty > 0)
+        .map(([productId, quantity]) => ({ productId, quantity })),
+    [selection],
+  )
+
+  const totals = useMemo(
+    () => totalStayCost(roomSelections, rooms ?? [], nights),
+    [roomSelections, rooms, nights],
+  )
+
+  const productName = pickLocalized(product.name, product.name_localized, locale)
+  const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
+
+  // 'optional' + No → no hotel context; confirm immediately on Continue.
+  const optedOut = offering === 'optional' && !includeHotel
+  const canContinue = optedOut
+    ? true
+    : Boolean(selectedHotelId) && totalRoomsPicked > 0
+
+  function bumpQty(productId: string, delta: number) {
+    setSelection((prev) => {
+      const next = Math.max(0, (prev[productId] ?? 0) + delta)
+      const out = { ...prev, [productId]: next }
+      if (next === 0) delete out[productId]
+      return out
+    })
+  }
+
+  function handleContinue() {
+    if (optedOut) {
+      onConfirm([], null)
+      return
+    }
+    if (!selectedHotelId || roomSelections.length === 0) return
+    onConfirm(roomSelections, selectedHotelId)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Accommodation</CardTitle>
+        <CardDescription>
+          {productName} ·{' '}
+          {offering === 'mandatory'
+            ? 'Hotel stay required'
+            : 'Add a hotel stay (optional)'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {/* Optional-mode Yes/No gate. Mandatory mode skips this. */}
+        {offering === 'optional' ? (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium">
+              Would you like to add a hotel stay?
+            </legend>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={includeHotel ? 'default' : 'outline'}
+                onClick={() => setIncludeHotel(true)}
+              >
+                Yes, add hotel
+              </Button>
+              <Button
+                type="button"
+                variant={!includeHotel ? 'default' : 'outline'}
+                onClick={() => {
+                  setIncludeHotel(false)
+                  changeHotel(null)
+                }}
+              >
+                No, thanks
+              </Button>
+            </div>
+          </fieldset>
+        ) : null}
+
+        {/* Hotel picker — hidden when the customer opted out or only one hotel is auto-selected. */}
+        {!optedOut && hotels && hotels.length > 0 ? (
+          hotels.length === 1 && isMandatory ? (
+            <p className="text-sm text-muted-foreground">
+              Staying at{' '}
+              <span className="font-medium text-foreground">
+                {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
+              </span>
+              .
+            </p>
+          ) : (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium">Choose your hotel</legend>
+              {hotels.map((hotel) => {
+                const checked = selectedHotelId === hotel.location_id
+                const name = pickLocalized(hotel.name, hotel.name_localized, locale)
+                return (
+                  <label
+                    key={hotel.location_id}
+                    className={[
+                      'flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors',
+                      checked
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/40',
+                    ].join(' ')}
+                  >
+                    <input
+                      type="radio"
+                      name="hotel"
+                      value={hotel.location_id}
+                      checked={checked}
+                      onChange={() => changeHotel(hotel.location_id)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span>{name}</span>
+                  </label>
+                )
+              })}
+            </fieldset>
+          )
+        ) : null}
+
+        {!optedOut && hotels && hotels.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No hotels configured for this operator yet.
+          </p>
+        ) : null}
+
+        {hotelError ? (
+          <p className="text-sm text-destructive">{hotelError}</p>
+        ) : null}
+
+        {/* Room list for the selected hotel. */}
+        {!optedOut && selectedHotelId ? (
+          <fieldset className="flex flex-col gap-3 border-t pt-3">
+            <legend className="text-sm font-medium">Rooms</legend>
+            {rooms === null && !roomsError ? (
+              <p className="text-sm text-muted-foreground">Loading rooms…</p>
+            ) : null}
+            {roomsError ? (
+              <p className="text-sm text-destructive">{roomsError}</p>
+            ) : null}
+            {rooms && rooms.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No rooms configured for this hotel yet.
+              </p>
+            ) : null}
+            {rooms?.map((room) => {
+              const qty = selection[room.product_id] ?? 0
+              const roomName = pickLocalized(room.name, room.name_localized, locale)
+              const subtotal = roomSubtotal(room, qty, nights)
+              return (
+                <div
+                  key={room.product_id}
+                  className="grid grid-cols-[1fr_auto] gap-2 rounded-md border border-border p-3"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">{roomName}</span>
+                    {room.price_per_unit ? (
+                      <span className="text-xs text-muted-foreground">
+                        {formatCurrency(Number(room.price_per_unit), room.currency)}{' '}
+                        / night
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Price on request
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={qty <= 0}
+                      onClick={() => bumpQty(room.product_id, -1)}
+                      aria-label={`Decrease ${roomName} quantity`}
+                    >
+                      −
+                    </Button>
+                    <span
+                      className="w-6 text-center text-sm tabular-nums"
+                      aria-live="polite"
+                    >
+                      {qty}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bumpQty(room.product_id, 1)}
+                      aria-label={`Increase ${roomName} quantity`}
+                    >
+                      +
+                    </Button>
+                    <span className="ml-2 w-20 text-right text-sm tabular-nums text-muted-foreground">
+                      {subtotal > 0
+                        ? formatCurrency(subtotal, room.currency)
+                        : '—'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </fieldset>
+        ) : null}
+
+        {/* Stay summary — derived check-in/out, nights, total + paid-directly notice. */}
+        {!optedOut && selectedHotelId && rooms && rooms.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-in</span>
+              <span className="tabular-nums">{checkInIso ?? '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-out</span>
+              <span className="tabular-nums">{checkOutIso ?? '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Nights</span>
+              <span className="tabular-nums">{nights}</span>
+            </div>
+            <div className="flex justify-between border-t border-border pt-2 font-medium">
+              <span>Hotel total</span>
+              <span className="tabular-nums">
+                {totals.amount > 0
+                  ? formatCurrency(totals.amount, totals.currency)
+                  : '—'}
+              </span>
+            </div>
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              Hotel is paid directly at check-in and is{' '}
+              <strong>not included</strong> in your booking total.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex justify-between pt-2">
+          <Button type="button" variant="outline" onClick={onBack}>
+            Back
+          </Button>
+          <Button type="button" disabled={!canContinue} onClick={handleContinue}>
+            Continue
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

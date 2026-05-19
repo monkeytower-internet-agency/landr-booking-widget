@@ -7,9 +7,27 @@
 /**
  * What the operator sells. Drives the booking flow shape and the dashboard
  * ProductForm. Mirrors public.product_kind. For everything that is not a
- * 'service' the widget renders a "sold in Shop — coming soon" stub.
+ * 'service' or 'hotel_room' the widget renders a "sold in Shop — coming
+ * soon" stub. hotel_room products are not exposed in the main catalogue
+ * — they're listed only inside the AccommodationStep after the customer
+ * picked a service product with hotel_offering != 'none' (landr-vyaz).
  */
-export type ProductKind = 'service' | 'digital_good' | 'physical_good' | 'gift_card'
+export type ProductKind =
+  | 'service'
+  | 'hotel_room'
+  | 'subscription'
+  | 'digital_good'
+  | 'physical_good'
+  | 'gift_card'
+
+/**
+ * How a service product offers hotel accommodation alongside the booking
+ * (landr-nzak). 'none' = no accommodation step; 'optional' = step shown
+ * with a Yes/No toggle; 'mandatory' = step shown and at least one room
+ * required. Only meaningful when product_kind = 'service'; a DB CHECK
+ * forces 'none' for all other kinds.
+ */
+export type HotelOffering = 'none' | 'optional' | 'mandatory'
 
 /**
  * Only meaningful when product_kind = 'service'. Mirrors
@@ -68,6 +86,32 @@ export interface Product {
   location_ids: string[]
   /** Backend field: products.needs_pickup. Included once landr-e10.8 lands. */
   needs_pickup?: boolean
+  /**
+   * Whether/how this product offers hotel accommodation (landr-vyaz).
+   * Service products with 'optional' or 'mandatory' trigger the
+   * AccommodationStep after pick-selection. Defaults to 'none' for
+   * backwards compatibility with operators that have not adopted the
+   * hotel-rooms feature yet.
+   */
+  hotel_offering?: HotelOffering
+  /**
+   * For product_kind='hotel_room' only: the locations.id row representing
+   * the hotel that owns this room. Always non-null on hotel_room rows
+   * (DB CHECK products_hotel_room_requires_hotel_location). Null on all
+   * other kinds. The widget groups rooms by this id inside the
+   * AccommodationStep.
+   */
+  hotel_location_id?: string | null
+  /**
+   * Display per-unit price extracted from the first active per_day_base
+   * pricing rule on the product's default scheme (landr-vyaz). The widget
+   * uses this for the per-night room price chip — the canonical total
+   * is always computed server-side by the pricing engine at submit.
+   * Null when the scheme uses tier/fixed pricing without a per-day base.
+   */
+  price_per_unit?: number | null
+  /** ISO-4217 currency from the product's pricing scheme. */
+  currency?: string | null
 }
 
 /**
@@ -94,6 +138,14 @@ export interface Location {
   parent_id: string | null
   role_type: { code: string; label: string } | null
 }
+
+/**
+ * Narrowed Location alias for the AccommodationStep hotel picker
+ * (landr-vyaz). A Hotel is just a Location whose role_type.code === 'hotel'.
+ * Kept as a structural alias rather than a separate type so the filter
+ * is a single client-side `.filter` on the public locations RPC.
+ */
+export type Hotel = Location
 
 export interface AvailabilitySlot {
   availability_id: string
