@@ -9,6 +9,11 @@ import type {
   SubmitBookingBody,
   SubmitBookingResponse,
 } from '@/api/types'
+
+export type BookingSelection =
+  | { kind: 'slot'; slot: AvailabilitySlot }
+  | { kind: 'days'; selectedDays: string[] }
+
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -40,11 +45,7 @@ type FormValues = z.infer<typeof formSchema>
 interface Props {
   operatorSlug: string
   product: Product
-  slot: AvailabilitySlot
-  /** Days to send as selected_days on the booking. For time_slot products this
-   * is typically [slot.date]; for fixed_date_range course windows it spans the
-   * full window's start..end range. */
-  selectedDays: string[]
+  selection: BookingSelection
   pickupLocationId: string | null
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
@@ -57,15 +58,23 @@ const cancellationDeadline = (slotDateIso: string) => {
   return d.toISOString()
 }
 
-export function BookingForm({
-  operatorSlug,
-  product,
-  slot,
-  selectedDays,
-  pickupLocationId,
-  onBack,
-  onConfirmed,
-}: Props) {
+const firstSelectionDate = (selection: BookingSelection): string => {
+  if (selection.kind === 'slot') return selection.slot.date
+  return selection.selectedDays[0] ?? ''
+}
+
+const describeSelection = (selection: BookingSelection): string => {
+  if (selection.kind === 'slot') {
+    const { date, start_time } = selection.slot
+    return start_time ? `${date} · ${start_time.slice(0, 5)}` : date
+  }
+  const days = selection.selectedDays
+  if (days.length === 0) return ''
+  if (days.length === 1) return days[0]!
+  return `${days[0]} – ${days[days.length - 1]} (${days.length} days)`
+}
+
+export function BookingForm({ operatorSlug, product, selection, pickupLocationId, onBack, onConfirmed }: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
@@ -96,6 +105,8 @@ export function BookingForm({
     setServerError(null)
     setSubmitting(true)
     try {
+      const selectedDays =
+        selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
       const body: SubmitBookingBody = {
         operator_slug: operatorSlug,
         customer_first_name: values.first_name,
@@ -103,7 +114,7 @@ export function BookingForm({
         customer_email: values.email,
         customer_phone: values.phone || null,
         customer_preferred_locale: locale,
-        cancellation_deadline: cancellationDeadline(slot.date),
+        cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: [
           {
@@ -134,11 +145,7 @@ export function BookingForm({
       <CardHeader>
         <CardTitle>Your details</CardTitle>
         <CardDescription>
-          {product.name} ·{' '}
-          {selectedDays.length > 1
-            ? `${selectedDays[0]} → ${selectedDays[selectedDays.length - 1]}`
-            : slot.date}
-          {slot.start_time ? ` · ${slot.start_time.slice(0, 5)}` : ''} · {timezone}
+          {product.name} · {describeSelection(selection)} · {timezone}
         </CardDescription>
       </CardHeader>
       <CardContent>

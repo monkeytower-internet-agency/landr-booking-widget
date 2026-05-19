@@ -25,6 +25,7 @@ function makeProduct(): Product {
     name_localized: null,
     short_description: null,
     short_description_localized: null,
+    description: null,
     duration_kind: 'fixed_date_range',
     duration_minutes: null,
     fixed_start_date: null,

@@ -1,36 +1,29 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
-import { BookingForm } from '@/components/booking/BookingForm'
+import {
+  BookingForm,
+  type BookingSelection,
+} from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
 import {
   FixedDateWindowPicker,
   expandWindowDays,
 } from '@/components/booking/FixedDateWindowPicker'
+import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
-import type {
-  AvailabilitySlot,
-  Product,
-  SubmitBookingResponse,
-} from '@/api/types'
-
-type PickedSlot = {
-  slot: AvailabilitySlot
-  /** Days to pass to the API as selected_days. For time_slot / single_days_range
-   * single-pick this is [slot.date]; for fixed_date_range windows it covers the
-   * full window range. */
-  selectedDays: string[]
-}
+import { getOperatorSettings } from '@/api/client'
+import type { OperatorSettings, Product, SubmitBookingResponse } from '@/api/types'
 
 type Step =
   | { name: 'pick-product' }
-  | { name: 'pick-slot'; product: Product }
-  | { name: 'pick-pickup'; product: Product; picked: PickedSlot }
+  | { name: 'pick-selection'; product: Product }
+  | { name: 'pick-pickup'; product: Product; selection: BookingSelection }
   | {
       name: 'fill-form'
       product: Product
-      picked: PickedSlot
+      selection: BookingSelection
       pickupLocationId: string | null
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
@@ -52,10 +45,40 @@ function App() {
   const operatorSlug =
     operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
   const [step, setStep] = useState<Step>({ name: 'pick-product' })
+  // Operator-level flags (landr-e10.9). Defaults to the safe value
+  // (expose_seats_to_customer=false) until the fetch resolves so the
+  // first render never leaks seat counts for opted-out operators.
+  const [operatorSettings, setOperatorSettings] = useState<OperatorSettings>({
+    slug: operatorSlug,
+    expose_seats_to_customer: false,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const settings = await getOperatorSettings(operatorSlug)
+        if (!cancelled) setOperatorSettings(settings)
+      } catch {
+        // Keep the safe defaults — failing this fetch must not block booking.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [operatorSlug])
 
   const goToProductStep = useCallback(() => {
     setStep({ name: 'pick-product' })
   }, [])
+
+  const afterSelection = (product: Product, selection: BookingSelection) => {
+    if (product.needs_pickup) {
+      setStep({ name: 'pick-pickup', product, selection })
+    } else {
+      setStep({ name: 'fill-form', product, selection, pickupLocationId: null })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -69,63 +92,58 @@ function App() {
             operatorSlug={operatorSlug}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
-            onSelect={(p) => setStep({ name: 'pick-slot', product: p })}
+            onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
           />
         ) : null}
 
-        {step.name === 'pick-slot' ? (
-          step.product.duration_kind === 'fixed_date_range' ? (
-            <FixedDateWindowPicker
-              product={step.product}
-              onBack={goToProductStep}
-              onConfirm={(slot, window) => {
-                const picked: PickedSlot = {
-                  slot,
-                  selectedDays: expandWindowDays(window),
-                }
-                if (step.product.needs_pickup) {
-                  setStep({ name: 'pick-pickup', product: step.product, picked })
-                } else {
-                  setStep({
-                    name: 'fill-form',
-                    product: step.product,
-                    picked,
-                    pickupLocationId: null,
-                  })
-                }
-              }}
-            />
-          ) : (
-            <AvailabilityPicker
-              product={step.product}
-              onBack={goToProductStep}
-              onConfirm={(slot) => {
-                const picked: PickedSlot = { slot, selectedDays: [slot.date] }
-                if (step.product.needs_pickup) {
-                  setStep({ name: 'pick-pickup', product: step.product, picked })
-                } else {
-                  setStep({
-                    name: 'fill-form',
-                    product: step.product,
-                    picked,
-                    pickupLocationId: null,
-                  })
-                }
-              }}
-            />
-          )
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'time_slot' ? (
+          <AvailabilityPicker
+            product={step.product}
+            exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
+            onBack={goToProductStep}
+            onConfirm={(slot) =>
+              afterSelection(step.product, { kind: 'slot', slot })
+            }
+          />
+        ) : null}
+
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'fixed_date_range' ? (
+          <FixedDateWindowPicker
+            product={step.product}
+            exposeSeats={operatorSettings.expose_seats_to_customer}
+            onBack={goToProductStep}
+            onConfirm={(_slot, window) =>
+              afterSelection(step.product, {
+                kind: 'days',
+                selectedDays: expandWindowDays(window),
+              })
+            }
+          />
+        ) : null}
+
+        {step.name === 'pick-selection' &&
+        step.product.duration_kind === 'single_days_range' ? (
+          <MultiDayStep
+            product={step.product}
+            onBack={goToProductStep}
+            onConfirm={(selectedDays) =>
+              afterSelection(step.product, { kind: 'days', selectedDays })
+            }
+          />
         ) : null}
 
         {step.name === 'pick-pickup' ? (
           <PickupLocationPicker
             operatorSlug={operatorSlug}
             productName={step.product.name}
-            onBack={() => setStep({ name: 'pick-slot', product: step.product })}
+            onBack={() => setStep({ name: 'pick-selection', product: step.product })}
             onConfirm={(locationId) =>
               setStep({
                 name: 'fill-form',
                 product: step.product,
-                picked: step.picked,
+                selection: step.selection,
                 pickupLocationId: locationId,
               })
             }
@@ -136,18 +154,17 @@ function App() {
           <BookingForm
             operatorSlug={operatorSlug}
             product={step.product}
-            slot={step.picked.slot}
-            selectedDays={step.picked.selectedDays}
+            selection={step.selection}
             pickupLocationId={step.pickupLocationId}
             onBack={() => {
               if (step.product.needs_pickup) {
                 setStep({
                   name: 'pick-pickup',
                   product: step.product,
-                  picked: step.picked,
+                  selection: step.selection,
                 })
               } else {
-                setStep({ name: 'pick-slot', product: step.product })
+                setStep({ name: 'pick-selection', product: step.product })
               }
             }}
             onConfirmed={(response, email) =>

@@ -2,6 +2,7 @@ import type {
   AvailabilitySlot,
   FixedDateWindow,
   Location,
+  OperatorSettings,
   Product,
   SubmitBookingResponse,
 } from './types'
@@ -28,6 +29,7 @@ const allMockProducts: Product[] = [
       de: 'Standard-Tandemerlebnis über dem Babadağ.',
       tr: 'Babadağ üzerinde standart tandem deneyimi.',
     },
+    description: '**25 minutes** in the air over Babadağ.\n\n- Fully guided from launch to landing\n- Suitable for all fitness levels\n- GoPro footage available on request',
     duration_kind: 'time_slot',
     duration_minutes: 25,
     fixed_start_date: null,
@@ -47,6 +49,7 @@ const allMockProducts: Product[] = [
     name_localized: { en: 'Tandem Long', de: 'Tandem Lang' },
     short_description: 'Extended-flight tandem when conditions allow.',
     short_description_localized: null,
+    description: null,
     duration_kind: 'time_slot',
     duration_minutes: 45,
     fixed_start_date: null,
@@ -119,6 +122,11 @@ export const mockFixedDateWindows = (): FixedDateWindow[] => {
     }
   })
 }
+
+export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => ({
+  slug: operatorSlug,
+  expose_seats_to_customer: false,
+})
 
 export const mockSubmit = (): SubmitBookingResponse => ({
   booking_id: '00000000-0000-0000-0000-0000000000bb',

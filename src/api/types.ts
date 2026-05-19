@@ -20,6 +20,7 @@ export interface Product {
   name_localized: Record<string, string> | null
   short_description: string | null
   short_description_localized: Record<string, string> | null
+  description: string | null
   duration_kind: DurationKind
   duration_minutes: number | null
   fixed_start_date: string | null
@@ -32,6 +33,22 @@ export interface Product {
   location_ids: string[]
   /** Backend field: products.needs_pickup. Included once landr-e10.8 lands. */
   needs_pickup?: boolean
+}
+
+/**
+ * Operator-level rendering/behaviour flags surfaced by
+ * GET /api/public/operators/{slug}/settings (landr-e10.9). The widget
+ * fetches this once on mount and caches it in OperatorContext. Future
+ * operator-level flags slot in here as additional fields.
+ */
+export interface OperatorSettings {
+  slug: string
+  /**
+   * When false (default): widget hides numeric remaining-seat counts on
+   * availability cells. When true: widget shows "{N} seats" as an
+   * urgency lever. Para42 (Martin) stays on false.
+   */
+  expose_seats_to_customer: boolean
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

@@ -2,6 +2,7 @@ import type {
   AvailabilitySlot,
   FixedDateWindow,
   Location,
+  OperatorSettings,
   Product,
   SubmitBookingBody,
   SubmitBookingResponse,
@@ -10,6 +11,7 @@ import {
   mockAvailability,
   mockFixedDateWindows,
   mockLocations,
+  mockOperatorSettings,
   mockProducts,
   mockSubmit,
 } from './mocks'
@@ -55,6 +57,19 @@ export async function getAvailability(
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
+  )
+}
+
+/**
+ * Operator-level rendering/behaviour flags (landr-e10.9). The widget
+ * calls this once on App mount and caches the result in OperatorContext.
+ */
+export async function getOperatorSettings(
+  operatorSlug: string,
+): Promise<OperatorSettings> {
+  if (USE_MOCKS) return mockOperatorSettings(operatorSlug)
+  return http<OperatorSettings>(
+    `/api/public/operators/${encodeURIComponent(operatorSlug)}/settings`,
   )
 }
 
