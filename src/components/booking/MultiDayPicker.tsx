@@ -91,47 +91,6 @@ export function MultiDayPicker({
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
 
-  const contiguousModifiers = useMemo(() => {
-    const sorted = Array.from(valueSet).sort()
-    const runs: Array<[string, string]> = []
-    let runStart: string | null = null
-    let prev: string | null = null
-    for (const iso of sorted) {
-      if (runStart === null) {
-        runStart = iso
-        prev = iso
-        continue
-      }
-      const expected = fromIso(prev!)
-      expected.setDate(expected.getDate() + 1)
-      if (isoDate(expected) === iso) {
-        prev = iso
-      } else {
-        runs.push([runStart, prev!])
-        runStart = iso
-        prev = iso
-      }
-    }
-    if (runStart && prev) runs.push([runStart, prev])
-
-    const starts: Date[] = []
-    const ends: Date[] = []
-    const middles: Date[] = []
-    for (const [s, e] of runs) {
-      if (s === e) continue
-      starts.push(fromIso(s))
-      ends.push(fromIso(e))
-      const cursor = fromIso(s)
-      cursor.setDate(cursor.getDate() + 1)
-      const end = fromIso(e)
-      while (cursor < end) {
-        middles.push(new Date(cursor))
-        cursor.setDate(cursor.getDate() + 1)
-      }
-    }
-    return { range_start: starts, range_end: ends, range_middle: middles }
-  }, [valueSet])
-
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current !== null) {
       clearTimeout(longPressTimerRef.current)
@@ -305,11 +264,14 @@ export function MultiDayPicker({
         onSelect={handleSelect}
         disabled={(date) => !availableSet.has(isoDate(date))}
         defaultMonth={defaultMonth}
-        modifiers={{
-          range_start: contiguousModifiers.range_start,
-          range_end: contiguousModifiers.range_end,
-          range_middle: contiguousModifiers.range_middle,
-        }}
+        // landr-711: do NOT pass range_start / range_middle / range_end
+        // modifiers. CalendarDayButton paints range_middle with bg-accent
+        // (light gray) instead of bg-primary, so mid-run selected days
+        // looked unselected. Every day in `value` should fall through to
+        // data-selected-single=true and render in the same primary color,
+        // regardless of contiguity. The picker is multi-select; a
+        // "continuous range" visual is meaningless here — the user picks
+        // discrete days, even when they happen to be adjacent.
       />
       <p className="text-xs text-muted-foreground" data-testid="multi-day-help">
         {text}

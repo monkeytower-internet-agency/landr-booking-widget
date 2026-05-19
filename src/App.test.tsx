@@ -70,24 +70,32 @@ describe('App', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the heading and product list', async () => {
+  it('renders the product list for the default operator (landr-711: no widget headline)', async () => {
     mocks.listProducts.mockResolvedValue([
       makeProduct({ product_id: 'p-1', slug: 'tandem-classic', name: 'Tandem Classic' }),
       makeProduct({ product_id: 'p-2', slug: 'tandem-long', name: 'Tandem Long' }),
     ])
     render(<App />)
-    expect(screen.getByText(/Book with para42/i)).toBeInTheDocument()
+    // landr-711: widget no longer renders a "Book with {operator}" H1 —
+    // operators own the surrounding HTML and its headings.
+    expect(screen.queryByText(/Book with/i)).not.toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByText(/Tandem Classic/i)).toBeInTheDocument()
       expect(screen.getByText(/Tandem Long/i)).toBeInTheDocument()
     })
   })
 
-  it('honours ?operator= override', async () => {
+  it('honours ?operator= override by fetching that operator\'s products + settings', async () => {
     mocks.listProducts.mockResolvedValue([])
     window.history.replaceState({}, '', '/?operator=acme')
     render(<App />)
-    expect(screen.getByText(/Book with acme/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mocks.getOperatorSettings).toHaveBeenCalledWith('acme')
+      expect(mocks.listProducts).toHaveBeenCalledWith(
+        'acme',
+        expect.any(Object),
+      )
+    })
   })
 
   describe('step machine branching (landr-y9k)', () => {
