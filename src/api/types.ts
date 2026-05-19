@@ -12,6 +12,7 @@ export interface Product {
   name_localized: Record<string, string> | null
   short_description: string | null
   short_description_localized: Record<string, string> | null
+  description: string | null
   duration_kind: DurationKind
   duration_minutes: number | null
   fixed_start_date: string | null
