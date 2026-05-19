@@ -2,10 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { FixedDateWindow, Product } from '@/api/types'
-import {
-  FixedDateWindowPicker,
-  expandWindowDays,
-} from './FixedDateWindowPicker'
+import { FixedDateWindowPicker } from './FixedDateWindowPicker'
+import { expandWindowDays } from './expandWindowDays'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {

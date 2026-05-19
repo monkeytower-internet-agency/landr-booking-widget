@@ -6,10 +6,8 @@ import {
   type BookingSelection,
 } from '@/components/booking/BookingForm'
 import { Confirmation } from '@/components/booking/Confirmation'
-import {
-  FixedDateWindowPicker,
-  expandWindowDays,
-} from '@/components/booking/FixedDateWindowPicker'
+import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
+import { expandWindowDays } from '@/components/booking/expandWindowDays' 
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
