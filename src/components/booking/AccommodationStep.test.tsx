@@ -166,7 +166,7 @@ describe('AccommodationStep', () => {
     expect(continueBtn).toBeDisabled()
   })
 
-  it('optional starts with no hotel context and "No, thanks" lets Continue fire empty', async () => {
+  it('optional + "No, thanks" auto-advances by firing onConfirm immediately (landr-eiiz)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -186,15 +186,13 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
     )
-    // The Yes/No gate appears; Continue should be enabled even when "No"
-    // is the default-untouched state since onConfirm([], null) is a valid
-    // skip outcome.
+    // landr-eiiz: a single click on "No, thanks" must fire onConfirm with
+    // the empty/no-hotel payload — no second Continue click required. The
+    // previous UX only toggled local state which made the button look
+    // unresponsive ("clicked No but nothing happened").
     const noBtn = screen.getByRole('button', { name: /No, thanks/i })
     fireEvent.click(noBtn)
-
-    const continueBtn = screen.getByRole('button', { name: /Continue/i })
-    expect(continueBtn).not.toBeDisabled()
-    fireEvent.click(continueBtn)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onConfirm).toHaveBeenCalledWith([], null, [])
   })
 
@@ -531,13 +529,12 @@ describe('AccommodationStep', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /No, thanks/i }))
 
-    // Neither picker nor "Staying at" banner should render when opted out.
-    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Staying at/i)).not.toBeInTheDocument()
-
-    const continueBtn = screen.getByRole('button', { name: /Continue/i })
-    expect(continueBtn).not.toBeDisabled()
-    fireEvent.click(continueBtn)
+    // landr-eiiz: "No, thanks" auto-advances. The opt-out fires onConfirm
+    // with the empty payload on a single click — no second Continue click
+    // needed. The single-hotel landr-punc auto-select must not fire here
+    // because includeHotel stays false (the click also calls changeHotel
+    // (null) which nulls selectedHotelId, and the auto-select effect is
+    // gated on includeHotel).
     expect(onConfirm).toHaveBeenCalledWith([], null, [])
     // Rooms must NOT have been fetched — the customer skipped accommodation.
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
