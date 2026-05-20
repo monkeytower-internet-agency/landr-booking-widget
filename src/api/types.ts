@@ -231,3 +231,63 @@ export interface SubmitBookingResponse {
   state: string
   token?: string
 }
+
+/**
+ * One row in the PriceSidebar breakdown (landr-qez0). Returned by
+ * POST /api/public/operators/{slug}/products/{id}/estimate (landr-xbqh).
+ * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
+ * customer pays the operator at checkout; 'hotel' means the customer
+ * settles directly with the hotel on arrival.
+ */
+export interface EstimateLineItem {
+  product_id: string
+  label: string
+  qty: number
+  /** Units underlying the line (e.g. days, nights). 0 for flat-priced lines. */
+  units: number
+  /** Per-unit gross as a decimal string ("60.00"). */
+  unit_price: string
+  /** Total gross for the line (qty × unit pricing) as a decimal string. */
+  line_total: string
+  paid_to: 'operator' | 'hotel'
+}
+
+/**
+ * One entry in the applied_rules trace. The widget surfaces tier matches
+ * (per_total_days_tier, per_streak_tier, etc.) as small "discount" tags
+ * in the sidebar. Other rule kinds (per_day_base, …) are included for
+ * transparency but only the tier/discount kinds get a tag. The detail
+ * payload is an opaque object — its shape depends on `kind`.
+ */
+export interface EstimateAppliedRule {
+  kind: string
+  detail?: Record<string, unknown>
+}
+
+/**
+ * One add-on line in the request body. `product_id` is the add-on
+ * product (not the parent service); the FastAPI route validates the
+ * parent ↔ add-on link via product_addons before computing the price.
+ */
+export interface EstimateAddonLine {
+  product_id: string
+  qty: number
+}
+
+export interface EstimateRequestBody {
+  selected_days: string[]
+  participants_count: number
+  addon_lines: EstimateAddonLine[]
+}
+
+export interface EstimateResponse {
+  line_items: EstimateLineItem[]
+  /** Decimal string. Sum of line_items where paid_to='operator'. */
+  operator_total: string
+  /** Decimal string. Sum of line_items where paid_to='hotel'. */
+  hotel_total: string
+  /** Decimal string. operator_total + hotel_total. */
+  grand_total: string
+  currency: string
+  applied_rules: EstimateAppliedRule[]
+}
