@@ -271,6 +271,7 @@ function App() {
             product={step.product}
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
+            participantCount={step.participantCount}
             onBack={() =>
               setStep({
                 name: 'participants',

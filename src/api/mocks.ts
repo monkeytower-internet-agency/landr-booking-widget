@@ -105,6 +105,7 @@ const allMockHotelRooms: Product[] = [
     hotel_location_id: MOCK_HOTEL_ID,
     price_per_unit: 49,
     currency: 'EUR',
+    capacity_per_unit: 1,
   },
   {
     product_id: '00000000-0000-0000-0000-000000000102',
@@ -131,6 +132,7 @@ const allMockHotelRooms: Product[] = [
     hotel_location_id: MOCK_HOTEL_ID,
     price_per_unit: 73,
     currency: 'EUR',
+    capacity_per_unit: 2,
   },
 ]
 

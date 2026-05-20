@@ -1,10 +1,11 @@
 /**
- * Pure helpers for AccommodationStep (landr-vyaz). Kept separate from
- * the component file so React Fast Refresh stays happy — the widget
- * deploy pipeline blocks `react-refresh/only-export-components` (see
- * landr-znl history in the CI warning notes).
+ * Pure helpers for AccommodationStep (landr-vyaz, landr-qpab). Kept
+ * separate from the component file so React Fast Refresh stays happy
+ * — the widget deploy pipeline blocks
+ * `react-refresh/only-export-components` (see landr-znl history in the
+ * CI warning notes).
  */
-import type { Product } from '@/api/types'
+import type { Product, ProductAddon } from '@/api/types'
 
 /** ISO date helpers — UTC-only to avoid TZ drift in derived dates. */
 function isoToUtcDate(iso: string): Date {
@@ -104,4 +105,65 @@ export function totalStayCost(
     if (!currency && product.currency) currency = product.currency
   }
   return { amount, currency }
+}
+
+/**
+ * Total bed capacity across the selected rooms (landr-qpab). For each
+ * picked room we multiply quantity × capacity_per_unit. NULL/missing
+ * capacity is treated as 1 — the lenient default while landr-knm0
+ * backfills seeds; once every operator sets a value this fallback
+ * still keeps legacy rooms bookable rather than asserting an invariant.
+ */
+export function totalRoomCapacity(
+  rooms: RoomSelection[],
+  products: Product[],
+): number {
+  const byId = new Map(products.map((p) => [p.product_id, p]))
+  let total = 0
+  for (const room of rooms) {
+    const product = byId.get(room.productId)
+    if (!product) continue
+    const capacity = product.capacity_per_unit ?? 1
+    total += capacity * room.quantity
+  }
+  return total
+}
+
+/**
+ * Identify the set of add-on product ids that look like "breakfast"
+ * line items (landr-qpab). Today we use a case-insensitive substring
+ * match on the add-on display name because ProductAddon does not carry
+ * a slug or a structural flag — see TODO. The Para42 seed names the
+ * row 'Breakfast' across locales, so the heuristic catches it without
+ * tripping on unrelated add-ons (Video Package etc.).
+ *
+ * TODO(landr-qpab): replace with a structural flag once add-ons grow
+ * a category/kind field; the name match is a pragmatic starter that
+ * keeps the overbook warning scoped to the obvious case without
+ * blocking the wider epic on a schema migration.
+ */
+export function findBreakfastAddonIds(addons: ProductAddon[]): Set<string> {
+  const ids = new Set<string>()
+  for (const addon of addons) {
+    if (/breakfast/i.test(addon.name)) {
+      ids.add(addon.addon_product_id)
+    }
+  }
+  return ids
+}
+
+/**
+ * Sum the picked quantity across every add-on whose addon_product_id
+ * is in `breakfastIds` (landr-qpab). Callers normally build the id
+ * set via findBreakfastAddonIds(addonsForRoom).
+ */
+export function totalBreakfastQty(
+  addonSelection: Record<string, number>,
+  breakfastIds: Set<string>,
+): number {
+  let total = 0
+  for (const id of breakfastIds) {
+    total += addonSelection[id] ?? 0
+  }
+  return total
 }

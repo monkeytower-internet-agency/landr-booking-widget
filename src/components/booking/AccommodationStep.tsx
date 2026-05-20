@@ -16,8 +16,11 @@ import {
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import {
   deriveStayWindow,
+  findBreakfastAddonIds,
   formatCurrency,
   roomSubtotal,
+  totalBreakfastQty,
+  totalRoomCapacity,
   totalStayCost,
   type RoomSelection,
 } from './accommodationCalc'
@@ -31,6 +34,14 @@ interface Props {
   product: Product
   selectedDays: string[]
   operatorSlug: string
+  /**
+   * Number of people travelling, threaded through from ParticipantsStep
+   * (landr-mbge). Used by the overbook warning (landr-qpab) to compare
+   * against total room capacity and total breakfast quantity. Defaults
+   * to 1 when not provided so legacy call sites keep working without
+   * triggering false-positive warnings.
+   */
+  participantCount?: number
   /**
    * Called when the customer confirms a room selection. rooms can be
    * empty when the customer opts out of an `optional` accommodation.
@@ -70,6 +81,7 @@ export function AccommodationStep({
   product,
   selectedDays,
   operatorSlug,
+  participantCount = 1,
   onConfirm,
   onBack,
 }: Props) {
@@ -214,6 +226,38 @@ export function AccommodationStep({
 
   // 'optional' + No → no hotel context; confirm immediately on Continue.
   const optedOut = offering === 'optional' && !includeHotel
+
+  // Overbook warning inputs (landr-qpab) — both are non-blocking; the
+  // customer can still hit Continue with the warning visible. We compute
+  // capacity vs participants and breakfast vs participants from the same
+  // selection state already driving the steppers + add-ons.
+  const totalCapacity = useMemo(
+    () => totalRoomCapacity(roomSelections, rooms ?? []),
+    [roomSelections, rooms],
+  )
+
+  // Walk every selected room's add-on catalogue once to identify the
+  // breakfast addon_product_ids in play, then collapse the picked qtys
+  // across them. Same add-on may be linked to multiple rooms (Para42
+  // seeds Breakfast on Single + Double) and the customer picks a single
+  // total quantity — addonSelection is already keyed by addon_product_id
+  // so de-duplication is implicit.
+  const breakfastQty = useMemo(() => {
+    const breakfastIds = new Set<string>()
+    for (const roomId of Object.keys(selection)) {
+      for (const id of findBreakfastAddonIds(addonsByRoom[roomId] ?? [])) {
+        breakfastIds.add(id)
+      }
+    }
+    return totalBreakfastQty(addonSelection, breakfastIds)
+  }, [selection, addonsByRoom, addonSelection])
+
+  // Warning visibility — both gates require at least one room picked so
+  // an empty cart doesn't surface a "0 beds for N people" copy on mount.
+  const showCapacityWarning =
+    !optedOut && totalRoomsPicked > 0 && totalCapacity < participantCount
+  const showBreakfastWarning =
+    !optedOut && totalRoomsPicked > 0 && breakfastQty > participantCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
@@ -450,6 +494,36 @@ export function AccommodationStep({
               )
             })}
           </fieldset>
+        ) : null}
+
+        {/*
+          Overbook warnings (landr-qpab). Non-blocking — Continue stays
+          enabled. Orange tone (amber border + background) matches the
+          existing "paid directly" notice below so the visual language
+          is consistent across this step.
+        */}
+        {showCapacityWarning ? (
+          <p
+            role="alert"
+            data-testid="overbook-capacity-warning"
+            className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+          >
+            You have {participantCount}{' '}
+            {participantCount === 1 ? 'person' : 'people'} but only{' '}
+            {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
+          </p>
+        ) : null}
+        {showBreakfastWarning ? (
+          <p
+            role="alert"
+            data-testid="overbook-breakfast-warning"
+            className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+          >
+            You ordered {breakfastQty}{' '}
+            {breakfastQty === 1 ? 'breakfast' : 'breakfasts'} for{' '}
+            {participantCount}{' '}
+            {participantCount === 1 ? 'person' : 'people'} — sure?
+          </p>
         ) : null}
 
         {/* Stay summary — derived check-in/out, nights, total + paid-directly notice. */}

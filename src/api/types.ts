@@ -112,6 +112,15 @@ export interface Product {
   price_per_unit?: number | null
   /** ISO-4217 currency from the product's pricing scheme. */
   currency?: string | null
+  /**
+   * Capacity per booked unit of this product (landr-fi68). Meaningful
+   * for kind='hotel_room' (max sleepers per room); NULL elsewhere by
+   * convention. The widget AccommodationStep cross-references
+   * sum(qty × capacity_per_unit) against participantCount to surface
+   * an overbook warning (landr-qpab). NULL is treated as 1 by callers
+   * — the lenient default until landr-knm0 backfills the seeds.
+   */
+  capacity_per_unit?: number | null
 }
 
 /**
