@@ -55,17 +55,16 @@ function sortedDates(isoSet: Set<string>): Date[] {
     .map(fromIso)
 }
 
-export const DEFAULT_MULTI_DAY_HELP_EN =
+// landr-ifcu: v1 is English-only. The German variant of this help text was
+// removed; locale-suffixed names dropped in favour of plain identifiers.
+export const DEFAULT_MULTI_DAY_HELP =
   'Click to pick a date. Click another to make a range. Hold Shift (or Cmd/Ctrl) to toggle individual days.'
-
-export const DEFAULT_MULTI_DAY_HELP_DE =
-  'Klicke ein Datum an, klicke ein zweites für einen Zeitraum. Halte Umschalt (oder Cmd/Strg), um einzelne Tage an- oder abzuwählen.'
 
 /**
  * Help text shown in contiguous mode (landr-y9k). The any-day-toggle copy
  * does not apply — contiguous selection rejects non-adjacent clicks.
  */
-export const CONTIGUOUS_MULTI_DAY_HELP_EN =
+export const CONTIGUOUS_MULTI_DAY_HELP =
   'Click a start date, then click another to extend the range. Selection must be consecutive days.'
 
 export function MultiDayPicker({
@@ -248,7 +247,7 @@ export function MultiDayPicker({
 
   const text =
     helpText ??
-    (isContiguous ? CONTIGUOUS_MULTI_DAY_HELP_EN : DEFAULT_MULTI_DAY_HELP_EN)
+    (isContiguous ? CONTIGUOUS_MULTI_DAY_HELP : DEFAULT_MULTI_DAY_HELP)
 
   return (
     <div
