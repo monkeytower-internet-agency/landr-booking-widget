@@ -136,13 +136,14 @@ export function BookingForm({
     name: 'participants',
   })
 
-  // Pre-fill first participant's first/last name from the booker as
-  // they type. Mirrors the ProductForm slug-from-name convention in
-  // landr-dashboard: keep syncing forward as long as the target field
-  // is empty OR still matches the *previous* booker value. Once the
-  // user types something different in the participant field, the two
-  // values diverge and the sync stops naturally.
-  const prevBooker = useRef({ first: '', last: '' })
+  // Pre-fill first participant's first/last name + email from the
+  // booker as they type. Mirrors the ProductForm slug-from-name
+  // convention in landr-dashboard: keep syncing forward as long as the
+  // target field is empty OR still matches the *previous* booker
+  // value. Once the user types something different in the participant
+  // field, the two values diverge and the sync stops naturally.
+  // landr-qs8d extends this to the optional participant email.
+  const prevBooker = useRef({ first: '', last: '', email: '' })
 
   const syncParticipantFirst = (next: string) => {
     const current = getValues('participants.0.first_name') ?? ''
@@ -160,8 +161,17 @@ export function BookingForm({
     prevBooker.current.last = next
   }
 
+  const syncParticipantEmail = (next: string) => {
+    const current = getValues('participants.0.email') ?? ''
+    if (current === '' || current === prevBooker.current.email) {
+      setValue('participants.0.email', next, { shouldValidate: false })
+    }
+    prevBooker.current.email = next
+  }
+
   const bookerFirst = register('first_name')
   const bookerLast = register('last_name')
+  const bookerEmail = register('email')
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -282,7 +292,15 @@ export function BookingForm({
               />
             </Field>
             <Field label="Email" error={errors.email?.message}>
-              <Input type="email" {...register('email')} autoComplete="email" />
+              <Input
+                type="email"
+                {...bookerEmail}
+                autoComplete="email"
+                onChange={(e) => {
+                  bookerEmail.onChange(e)
+                  syncParticipantEmail(e.target.value)
+                }}
+              />
             </Field>
             <Field label="Phone" error={errors.phone?.message}>
               <Input type="tel" {...register('phone')} autoComplete="tel" />
