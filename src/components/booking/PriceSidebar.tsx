@@ -147,18 +147,34 @@ function BookingOverviewBody({
               </li>
             ))}
           </ul>
-          <div className="mt-2 flex items-baseline justify-between border-t pt-2 text-sm">
-            <span className="font-medium">Subtotal</span>
-            <span className="font-medium tabular-nums">
+          {/* landr-kat8: "Booking total" (was "Grand total") — what the
+              customer pays now to the operator. The hotel line items are
+              rendered as a separate pill below with their own subtotal
+              + "paid at check-in" caveat so the customer can't mistake
+              the hotel charge for part of the booking checkout total. */}
+          <div
+            className="mt-2 flex items-baseline justify-between border-t pt-2"
+            data-testid="price-sidebar-booking-total"
+          >
+            <span className="text-base font-semibold">Booking total</span>
+            <span className="text-base font-semibold tabular-nums">
               {formatMoney(data.operator_total, data.currency)}
             </span>
           </div>
         </section>
       ) : null}
       {hotel.length > 0 ? (
-        <section data-testid="price-sidebar-hotel-section">
+        // landr-kat8: hotel rendered as a visually distinct pill/card
+        // (border + tinted background) so the customer reads it as a
+        // separate concern from the booking total above. The explicit
+        // caveat at the bottom reinforces that the hotel charge is NOT
+        // part of the operator checkout.
+        <section
+          data-testid="price-sidebar-hotel-section"
+          className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+        >
           <h4 className="mb-1 text-sm font-semibold text-foreground">
-            Pay at hotel
+            At-hotel total · pay at check-in
           </h4>
           {stay && stay.checkInIso && stay.checkOutIso ? (
             <p
@@ -188,23 +204,24 @@ function BookingOverviewBody({
               </li>
             ))}
           </ul>
-          <div className="mt-2 flex items-baseline justify-between border-t pt-2 text-sm">
+          <div
+            className="mt-2 flex items-baseline justify-between border-t border-amber-200 pt-2 text-sm dark:border-amber-900"
+            data-testid="price-sidebar-hotel-total"
+          >
             <span className="font-medium">Subtotal</span>
             <span className="font-medium tabular-nums">
               {formatMoney(data.hotel_total, data.currency)}
             </span>
           </div>
+          <p
+            className="mt-2 text-xs italic text-muted-foreground"
+            data-testid="price-sidebar-hotel-caveat"
+          >
+            Paid directly to the hotel at check-in. Not included in your
+            booking total.
+          </p>
         </section>
       ) : null}
-      <div
-        className="flex items-baseline justify-between border-t pt-3"
-        data-testid="price-sidebar-grand-total"
-      >
-        <span className="text-base font-semibold">Grand total</span>
-        <span className="text-base font-semibold tabular-nums">
-          {formatMoney(data.grand_total, data.currency)}
-        </span>
-      </div>
       {data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
         <ul className="flex flex-wrap gap-1">
           {data.applied_rules
@@ -303,9 +320,17 @@ export default function PriceSidebar(props: Props) {
     }
   }, [mobileOpen])
 
-  const grandTotalLabel = estimate.data
-    ? formatMoney(estimate.data.grand_total, estimate.data.currency)
+  // landr-kat8: the collapsed mobile bar shows the BOOKING total (operator
+  // only — what the customer pays now at checkout). The hotel charge is
+  // surfaced as a separate "+ €X at hotel" sub-line so the customer sees
+  // it exists without conflating it into the checkout number.
+  const bookingTotalLabel = estimate.data
+    ? formatMoney(estimate.data.operator_total, estimate.data.currency)
     : '—'
+  const atHotelLabel =
+    estimate.data && Number(estimate.data.hotel_total) > 0
+      ? formatMoney(estimate.data.hotel_total, estimate.data.currency)
+      : null
 
   return (
     <>
@@ -344,11 +369,19 @@ export default function PriceSidebar(props: Props) {
         >
           <span className="flex flex-col">
             <span className="text-xs font-medium text-muted-foreground">
-              Booking overview
+              Booking total
             </span>
             <span className="text-base font-semibold tabular-nums">
-              {grandTotalLabel}
+              {bookingTotalLabel}
             </span>
+            {atHotelLabel ? (
+              <span
+                className="text-xs text-muted-foreground"
+                data-testid="price-sidebar-mobile-athotel"
+              >
+                + {atHotelLabel} at hotel
+              </span>
+            ) : null}
           </span>
           <span className="text-sm text-muted-foreground">
             {mobileOpen ? 'Tap to collapse' : 'Tap to expand'}
