@@ -30,20 +30,30 @@ jobs:
 
       - name: Pick project + API base per branch
         id: env
+        env:
+          SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+          SUPABASE_ANON_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+          SUPABASE_ANON_DEV: ${{ vars.VITE_SUPABASE_ANON_KEY_DEV || secrets.VITE_SUPABASE_ANON_KEY_DEV }}
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "project=landr-booking-widget"                                       >> "$GITHUB_OUTPUT"
             echo "api_base=https://landr-api-service-693721943357.europe-west3.run.app" >> "$GITHUB_OUTPUT"
             echo "production_branch=main"                                             >> "$GITHUB_OUTPUT"
+            echo "supabase_url=${SUPABASE_URL_PROD:-https://supabase.landr.de}"       >> "$GITHUB_OUTPUT"
+            echo "supabase_anon=${SUPABASE_ANON_PROD}"                                >> "$GITHUB_OUTPUT"
           else
             echo "project=landr-booking-widget-dev"                                   >> "$GITHUB_OUTPUT"
             echo "api_base=https://api-dev.landr.de"                                  >> "$GITHUB_OUTPUT"
             echo "production_branch=dev"                                              >> "$GITHUB_OUTPUT"
+            echo "supabase_url=https://kong.dev.landr.de"                             >> "$GITHUB_OUTPUT"
+            echo "supabase_anon=${SUPABASE_ANON_DEV}"                                 >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build
         env:
           VITE_API_BASE_URL: ${{ steps.env.outputs.api_base }}
+          VITE_SUPABASE_URL: ${{ steps.env.outputs.supabase_url }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.env.outputs.supabase_anon }}
           VITE_DEFAULT_OPERATOR_SLUG: ${{ vars.VITE_DEFAULT_OPERATOR_SLUG || 'para42' }}
           VITE_USE_MOCKS: '0'
         run: npm run build
