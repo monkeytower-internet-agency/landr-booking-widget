@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,11 @@ interface Props {
    * the BookingForm contract used by the days-range and fixed-window paths.
    */
   onConfirm: (selectedDays: string[]) => void
+  /**
+   * Called when the user selects a date so App.tsx can feed the live
+   * selection into PriceSidebar before Continue is pressed (landr-w7pi).
+   */
+  onLiveDaysChange?: (isoDays: string[]) => void
 }
 
 const HORIZON_DAYS = 60
@@ -38,7 +43,7 @@ const isoDate = (d: Date) => {
  * zero availability are disabled. Reuses the same /availability endpoint the
  * MultiDayPicker uses — the only difference is one-click-only semantics.
  */
-export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
+export function SingleDatePicker({ product, onBack, onConfirm, onLiveDaysChange }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Date | null>(null)
@@ -74,6 +79,13 @@ export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
     )
   }, [slots])
 
+  // Stable handler so Calendar doesn't re-render on every parent render.
+  const handleSelect = useCallback((date: Date | undefined) => {
+    const d = date ?? null
+    setSelected(d)
+    onLiveDaysChange?.(d ? [isoDate(d)] : [])
+  }, [onLiveDaysChange])
+
   if (error) {
     return (
       <Card>
@@ -100,7 +112,7 @@ export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
         <Calendar
           mode="single"
           selected={selected ?? undefined}
-          onSelect={(date) => setSelected(date ?? null)}
+          onSelect={handleSelect}
           disabled={(date) => date < today || !availableSet.has(isoDate(date))}
           defaultMonth={today}
         />

@@ -27,7 +27,7 @@
  * Sibling .ts file (react-refresh/only-export-components rule — see
  * useDebouncedValue.ts for the rationale).
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { estimateBookingPrice } from '@/api/client'
 import type {
   EstimateAddonLine,
@@ -52,6 +52,8 @@ export interface UseBookingEstimateResult {
   isLoading: boolean
   isStale: boolean
   error: Error | null
+  /** Triggers an immediate re-fetch, bypassing the debounce timer. */
+  refresh: () => void
 }
 
 /**
@@ -104,6 +106,17 @@ export function useBookingEstimate(
   const [error, setError] = useState<Error | null>(null)
   const requestIdRef = useRef<number>(0)
 
+  // Refs that allow the refresh callback to always see the latest values
+  // without being listed as hook dependencies (avoiding infinite loops).
+  const operatorSlugRef = useRef(operatorSlug)
+  const productIdRef = useRef(productId)
+  const bodyRef = useRef(body)
+  const enabledRef = useRef(enabled)
+  useEffect(() => { operatorSlugRef.current = operatorSlug }, [operatorSlug])
+  useEffect(() => { productIdRef.current = productId }, [productId])
+  useEffect(() => { bodyRef.current = body }, [body])
+  useEffect(() => { enabledRef.current = enabled }, [enabled])
+
   // The effect re-runs whenever the debounced KEY changes. We don't
   // call setState synchronously inside the effect body — that triggers
   // the react-hooks/set-state-in-effect rule. Instead, the async IIFE
@@ -139,6 +152,31 @@ export function useBookingEstimate(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedKey])
 
+  // Immediate re-fetch that bypasses the debounce timer. Safe to call
+  // any time — uses refs so it always sees the latest inputs without
+  // being a dependency of any effect.
+  const refresh = useCallback(() => {
+    if (!enabledRef.current || !productIdRef.current) return
+    const slug = operatorSlugRef.current
+    const pid = productIdRef.current
+    const b = bodyRef.current
+    const myId = ++requestIdRef.current
+    void (async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const res = await estimateBookingPrice(slug, pid, b)
+        if (myId !== requestIdRef.current) return
+        setData(res)
+        setIsLoading(false)
+      } catch (err) {
+        if (myId !== requestIdRef.current) return
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setIsLoading(false)
+      }
+    })()
+  }, [])
+
   return {
     data,
     isLoading,
@@ -147,5 +185,6 @@ export function useBookingEstimate(
     // good total instead of blanking the panel.
     isStale: liveKey !== debouncedKey || isLoading,
     error,
+    refresh,
   }
 }

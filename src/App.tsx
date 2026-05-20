@@ -48,6 +48,10 @@ function App() {
   const operatorSlug =
     operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
   const [step, setStep] = useState<Step>({ name: 'pick-product' })
+  // Live selection from the date pickers before the user presses Continue
+  // (landr-w7pi). Cleared whenever we leave pick-selection so the next
+  // visit to that step starts fresh.
+  const [liveSelectionDays, setLiveSelectionDays] = useState<string[]>([])
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
   // first render never leaks seat counts for opted-out operators.
@@ -72,6 +76,9 @@ function App() {
   }, [operatorSlug])
 
   const goToProductStep = useCallback(() => {
+    // Clear live selection so that a Back → re-enter cycle shows an
+    // empty price sidebar until the user picks days again (landr-w7pi).
+    setLiveSelectionDays([])
     setStep({ name: 'pick-product' })
   }, [])
 
@@ -86,6 +93,10 @@ function App() {
    * fires upstream).
    */
   const afterSelection = (product: Product, selection: BookingSelection) => {
+    // The live selection is now committed into the selection object; clear
+    // the ephemeral state so it doesn't linger if the user ever navigates
+    // back to pick-selection via Back (landr-w7pi).
+    setLiveSelectionDays([])
     setStep({ name: 'details', product, selection })
   }
 
@@ -257,6 +268,7 @@ function App() {
                 selectedDays: expandWindowDays(window),
               })
             }
+            onLiveDaysChange={setLiveSelectionDays}
           />
         ) : null}
 
@@ -269,6 +281,7 @@ function App() {
             onConfirm={(selectedDays) =>
               afterSelection(step.product, { kind: 'days', selectedDays })
             }
+            onLiveDaysChange={setLiveSelectionDays}
           />
         ) : null}
 
@@ -281,6 +294,7 @@ function App() {
             onConfirm={(selectedDays) =>
               afterSelection(step.product, { kind: 'days', selectedDays })
             }
+            onLiveDaysChange={setLiveSelectionDays}
           />
         ) : null}
 
@@ -461,11 +475,16 @@ function App() {
           <PriceSidebar
             operatorSlug={operatorSlug}
             product={sidebarInputs.product}
-            selectedDays={sidebarInputs.selectedDays}
+            selectedDays={
+              step.name === 'pick-selection'
+                ? liveSelectionDays
+                : sidebarInputs.selectedDays
+            }
             participantCount={sidebarInputs.participantCount}
             participantNames={sidebarInputs.participantNames}
             accommodationRooms={sidebarInputs.accommodationRooms}
             addons={sidebarInputs.addons}
+            debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
           />
         ) : null}
       </div>
