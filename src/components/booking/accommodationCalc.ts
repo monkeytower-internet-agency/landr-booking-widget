@@ -51,6 +51,30 @@ export function deriveStayWindow(selectedDays: string[]): StayWindow {
   }
 }
 
+/**
+ * Array of ISO night dates for a stay, inclusive of check-in and
+ * exclusive of check-out (one entry per night the room is occupied).
+ * Mirrors hotel-industry convention: a 4-night stay from Mon→Fri
+ * occupies Mon, Tue, Wed, Thu (4 entries). Returned in ascending order.
+ *
+ * Used by BookingForm to populate `selected_days` on hotel_room
+ * ProductLineIn entries (landr-piyv) so the server-side pricing engine
+ * computes per-night totals against the right window. Returns [] for
+ * empty input — callers should skip emitting the line item in that case.
+ */
+export function stayNightIsos(selectedDays: string[]): string[] {
+  const win = deriveStayWindow(selectedDays)
+  if (!win.checkInIso || !win.checkOutIso) return []
+  const out: string[] = []
+  let cursor = win.checkInIso
+  // walk from check-in (inclusive) to check-out (exclusive)
+  while (cursor < win.checkOutIso) {
+    out.push(cursor)
+    cursor = shiftDays(cursor, 1)
+  }
+  return out
+}
+
 /** Single line item: a hotel_room product + how many of it the customer picked. */
 export interface RoomSelection {
   productId: string

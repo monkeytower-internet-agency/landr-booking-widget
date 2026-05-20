@@ -6,9 +6,15 @@ import { BookingForm, type BookingSelection } from './BookingForm'
 import { submitBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
-vi.mock('@/api/client', () => ({
-  submitBooking: vi.fn(),
-}))
+vi.mock('@/api/client', async (importOriginal) => {
+  // Keep the real HttpError class (BookingForm uses `err instanceof HttpError`)
+  // while replacing only the network function.
+  const actual = await importOriginal<typeof import('@/api/client')>()
+  return {
+    ...actual,
+    submitBooking: vi.fn(),
+  }
+})
 
 function makeServiceProduct(
   shape: 'days_range' | 'time_slot' = 'days_range',
