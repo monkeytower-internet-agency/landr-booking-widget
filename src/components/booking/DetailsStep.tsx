@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product } from '@/api/types'
 import { browserLocale } from '@/lib/locale'
-import { formatDayLabel, formatDayRange } from '@/components/booking/dateLabel'
+import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -55,6 +55,21 @@ interface Props {
  * Generic copy per landr-genericity-northstar — "participants" not
  * "pilots"/"divers".
  */
+/**
+ * Short selection summary for the card description. After landr-2wyi the
+ * persistent PriceSidebar carries the full day-by-day breakdown (chips
+ * for each picked date + explicit hotel span), so we no longer repeat
+ * the date list here — that duplication was actively misleading for
+ * multi-day flows, where a "Mon 25 May → Wed 27 May (2 days)" header
+ * conflated a non-contiguous selection (25 + 27 skipping 26) with a
+ * contiguous range.
+ *
+ * Slot bookings still surface date + time inline because the sidebar's
+ * chip layout only covers multi-day selections and slot bookings carry
+ * a specific clock-time the customer needs to see in the step header.
+ * Single multi-day picks also stay so the header doesn't go blank for
+ * the most common one-day case.
+ */
 function describeSelection(
   selection: BookingSelection,
   locale: string,
@@ -67,7 +82,8 @@ function describeSelection(
   const days = selection.selectedDays
   if (days.length === 0) return ''
   if (days.length === 1) return formatDayLabel(days[0]!, locale)
-  return `${formatDayRange(days[0]!, days[days.length - 1]!, locale)} (${days.length} days)`
+  // Multi-day: defer to the sidebar's DayChips (landr-2wyi).
+  return `${days.length} days selected`
 }
 
 export function DetailsStep({

@@ -178,3 +178,163 @@ describe('PriceSidebar (landr-qez0)', () => {
     })
   })
 })
+
+describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('renders one chip per selected day in the operator section (contiguous selection)', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getAllByTestId('day-chips').length).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    // Each picked day shows as its own chip — weekday + day + month.
+    // Locale-agnostic regex: match any "<weekday short>, <month> <day>"
+    // or "<weekday short> <day> <month>" the test env's Intl produces.
+    expect(desktop).toHaveTextContent(/25/)
+    expect(desktop).toHaveTextContent(/Mon/)
+    expect(desktop).toHaveTextContent(/Tue/)
+    expect(desktop).toHaveTextContent(/Wed/)
+    // Three discrete chips inside the operator section.
+    const chips = desktop.querySelectorAll('[data-testid="day-chips"] li')
+    expect(chips.length).toBe(3)
+  })
+
+  it('renders separate chips (not a contiguous range) for a NON-contiguous selection', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        // 25 + 27 skipping 26 — the regression chips guard against.
+        selectedDays={['2026-05-25', '2026-05-27']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getAllByTestId('day-chips').length).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    // Two chips, NOT a "25 → 27" range.
+    const chips = desktop.querySelectorAll('[data-testid="day-chips"] li')
+    expect(chips.length).toBe(2)
+    expect(desktop).toHaveTextContent(/Mon/) // 25
+    expect(desktop).toHaveTextContent(/Wed/) // 27
+    // The middle day (Tue 26) is NOT in any chip.
+    const chipsText = Array.from(chips).map((c) => c.textContent ?? '')
+    expect(chipsText.some((t) => /Tue/.test(t))).toBe(false)
+  })
+
+  it('renders the explicit hotel span with weekday + nights above the hotel rows', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        // Guided days 25, 26, 27 → check-in Sun 24, check-out Thu 28
+        // (deriveStayWindow shifts ±1 day; 3 days → 4 nights).
+        selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-hotel-span').length,
+      ).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const span = desktop.querySelector(
+      '[data-testid="price-sidebar-hotel-span"]',
+    )
+    // Weekday is asserted explicitly to lock the spec's "with weekday"
+    // requirement. Day/month digits are asserted separately so the test
+    // tolerates US-style ("Sun, May 24") vs EU-style ("Sun 24 May").
+    expect(span?.textContent).toMatch(/Sun/)
+    expect(span?.textContent).toMatch(/Thu/)
+    expect(span?.textContent).toMatch(/24/)
+    expect(span?.textContent).toMatch(/28/)
+    expect(span?.textContent).toMatch(/4 nights/)
+  })
+
+  it('omits the hotel span when there are no hotel-paid line items', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: SAMPLE.line_items.filter((li) => li.paid_to === 'operator'),
+      hotel_total: '0.00',
+      grand_total: '180.00',
+      applied_rules: [],
+    })
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-operator-section').length,
+      ).toBeGreaterThan(0)
+    })
+    expect(screen.queryAllByTestId('price-sidebar-hotel-span')).toHaveLength(0)
+  })
+
+  it('renders the participant names line under the Booking overview header', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-25']}
+        participantCount={2}
+        participantNames={['Ada', 'Grace']}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const names = desktop.querySelector('[data-testid="price-sidebar-names"]')
+    expect(names?.textContent).toMatch(/Ada/)
+    expect(names?.textContent).toMatch(/Grace/)
+    expect(names?.textContent).toMatch(/For/)
+  })
+
+  it('collapses long name lists with a "+N others" suffix', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-25']}
+        participantCount={5}
+        participantNames={['Ada', 'Grace', 'Alan', 'Linus', 'Margaret']}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const names = desktop.querySelector('[data-testid="price-sidebar-names"]')
+    // First two named + "+3 others" (plural).
+    expect(names?.textContent).toMatch(/Ada, Grace/)
+    expect(names?.textContent).toMatch(/\+ 3 others/)
+  })
+})

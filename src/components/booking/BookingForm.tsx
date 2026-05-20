@@ -9,7 +9,7 @@ import type {
 } from '@/api/types'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
-import { formatDayLabel, formatDayRange } from './dateLabel'
+import { formatDayLabel } from './dateLabel'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 export type BookingSelection =
@@ -70,6 +70,13 @@ const firstSelectionDate = (selection: BookingSelection): string => {
   return selection.selectedDays[0] ?? ''
 }
 
+/**
+ * Short selection summary for the review card. Mirrors DetailsStep
+ * (landr-2wyi): the persistent PriceSidebar carries day chips for
+ * multi-day picks, so we collapse them to a count here instead of
+ * repeating the misleading "first → last (N days)" range that
+ * conflated non-contiguous selections with a contiguous span.
+ */
 const describeSelection = (
   selection: BookingSelection,
   locale: string,
@@ -82,7 +89,7 @@ const describeSelection = (
   const days = selection.selectedDays
   if (days.length === 0) return ''
   if (days.length === 1) return formatDayLabel(days[0]!, locale)
-  return `${formatDayRange(days[0]!, days[days.length - 1]!, locale)} (${days.length} days)`
+  return `${days.length} days selected`
 }
 
 /**
