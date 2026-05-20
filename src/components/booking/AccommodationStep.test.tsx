@@ -454,6 +454,130 @@ describe('AccommodationStep', () => {
     ).not.toBeInTheDocument()
   })
 
+  // ── Auto-skip single-hotel picker (landr-punc) ─────────────────────
+  // When the operator has exactly one hotel configured, the radio list
+  // is friction (single-item list). The widget auto-selects the lone
+  // hotel and jumps straight to the room picker — both in the mandatory
+  // path (already covered above) and the optional + Yes path.
+
+  it('optional + Yes + single hotel auto-selects and shows rooms (no picker)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    // Yes/No gate appears on mount with hotels already fetched.
+    await waitFor(() =>
+      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
+    )
+    // Picker radio list should NOT be in the DOM (single-hotel auto-skip).
+    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
+
+    // Click Yes — the auto-select effect fires, jumps straight to rooms.
+    fireEvent.click(screen.getByRole('button', { name: /Yes, add hotel/i }))
+
+    // "Staying at" banner appears (informational, not a picker).
+    await waitFor(() =>
+      expect(screen.getByText(/Staying at/i)).toBeInTheDocument(),
+    )
+    expect(screen.getByText('Hotel Mirador')).toBeInTheDocument()
+    // No radio list rendered even after Yes.
+    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
+    // Room appears once the room fetch resolves.
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+  })
+
+  it('optional + No + single hotel skips accommodation entirely', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /No, thanks/i }))
+
+    // Neither picker nor "Staying at" banner should render when opted out.
+    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Staying at/i)).not.toBeInTheDocument()
+
+    const continueBtn = screen.getByRole('button', { name: /Continue/i })
+    expect(continueBtn).not.toBeDisabled()
+    fireEvent.click(continueBtn)
+    expect(onConfirm).toHaveBeenCalledWith([], null, [])
+    // Rooms must NOT have been fetched — the customer skipped accommodation.
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+  })
+
+  it('mandatory + single hotel does not render the radio picker', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(/Staying at/i)).toBeInTheDocument(),
+    )
+    // Radio list never appears.
+    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+  })
+
+  it('mandatory + multiple hotels still shows the radio picker (no regression)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(/Choose your hotel/i)).toBeInTheDocument(),
+    )
+    // Both radios present
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+  })
+
   it('shows the paid-directly-to-hotel notice when a hotel is selected', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
