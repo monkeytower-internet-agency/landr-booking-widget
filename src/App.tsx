@@ -288,6 +288,8 @@ function App() {
           <DetailsStep
             product={step.product}
             selection={step.selection}
+            initialBooker={step.booker}
+            initialParticipants={step.participants}
             onBack={() =>
               setStep({ name: 'pick-selection', product: step.product })
             }
@@ -304,10 +306,15 @@ function App() {
             operatorSlug={operatorSlug}
             participantCount={step.participants.length}
             onBack={() =>
+              // landr-b3g5: thread the already-collected booker +
+              // participants back to DetailsStep so the form re-mounts
+              // pre-filled instead of empty.
               setStep({
                 name: 'details',
                 product: step.product,
                 selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
               })
             }
             onConfirm={(rooms, hotelLocationId, addons) =>
@@ -328,10 +335,14 @@ function App() {
           <ServiceAddonsStep
             product={step.product}
             onBack={() =>
+              // landr-b3g5: carry booker + participants back so the
+              // DetailsStep re-mount restores them.
               setStep({
                 name: 'details',
                 product: step.product,
                 selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
               })
             }
             onConfirm={(addons) =>
@@ -363,10 +374,14 @@ function App() {
                   participants: step.participants,
                 })
               } else {
+                // landr-b3g5: preserve booker + participants when
+                // back-stepping into DetailsStep.
                 setStep({
                   name: 'details',
                   product: step.product,
                   selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
                 })
               }
             }}
@@ -417,10 +432,14 @@ function App() {
                     participants: step.participants,
                   })
                 } else {
+                  // landr-b3g5: preserve booker + participants when
+                  // back-stepping from fill-form into DetailsStep.
                   setStep({
                     name: 'details',
                     product: step.product,
                     selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
                   })
                 }
               }
