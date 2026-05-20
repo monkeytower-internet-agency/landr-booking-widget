@@ -147,8 +147,13 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
       />,
     )
     const stay = screen.getByTestId('hotel-stay-block')
-    expect(stay.textContent).toMatch(/check-in/)
-    expect(stay.textContent).toMatch(/check-out/)
+    // landr-8yaz: the block now reads "Hotel: Fri … Nov → Tue … Nov, 4 nights"
+    // (weekday-prefixed date range via formatDayRange + nights count).
+    // Assert on stable substrings: weekday abbreviations + arrow + nights.
+    expect(stay.textContent).toMatch(/Hotel:/)
+    expect(stay.textContent).toMatch(/Fri/)
+    expect(stay.textContent).toMatch(/Tue/)
+    expect(stay.textContent).toMatch(/→/)
     expect(stay.textContent).toMatch(/4 nights/)
   })
 

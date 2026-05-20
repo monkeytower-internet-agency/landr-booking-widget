@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { StepBackButton } from '@/components/booking/StepBackButton'
 
 interface Props {
   product: Product
@@ -76,21 +77,18 @@ export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
   if (error) {
     return (
       <Card>
+        <StepBackButton onBack={onBack} />
         <CardHeader>
           <CardTitle>Could not load availability.</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        </CardContent>
       </Card>
     )
   }
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
         <CardDescription>
@@ -111,10 +109,7 @@ export function SingleDatePicker({ product, onBack, onConfirm }: Props) {
             Selected: {isoDate(selected)}
           </p>
         ) : null}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             disabled={selected === null}

@@ -367,4 +367,26 @@ describe('MultiDayPicker', () => {
       ])
     })
   })
+
+  // landr-8yaz: calendar week defaults to Monday (European convention) for
+  // every picker that mounts <Calendar>. react-day-picker renders the
+  // weekday header row as <th scope="col"> cells inside an aria-hidden
+  // <thead>, so query the cells via class selector (the rdp-weekday class
+  // is part of the public render contract) rather than role lookup.
+  it('renders the weekday header with Monday in the first column', () => {
+    const { container } = render(
+      <Harness
+        availability={availability}
+        onChangeSpy={vi.fn()}
+        defaultMonth={defaultMonth}
+      />,
+    )
+    const headers = container.querySelectorAll('th.rdp-weekday')
+    expect(headers.length).toBeGreaterThanOrEqual(7)
+    // Use the full aria-label ("Monday"/"Tuesday"/…) which react-day-picker
+    // sets independent of the visible short label so the assertion stays
+    // stable across CI locale variants.
+    expect(headers[0]!.getAttribute('aria-label')).toBe('Monday')
+    expect(headers[6]!.getAttribute('aria-label')).toBe('Sunday')
+  })
 })

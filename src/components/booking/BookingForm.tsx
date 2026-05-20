@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, browserTimezone } from '@/lib/locale'
+import { StepBackButton } from './StepBackButton'
 
 interface Props {
   operatorSlug: string
@@ -189,6 +190,7 @@ export function BookingForm({
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Review your booking</CardTitle>
         <CardDescription>
@@ -200,10 +202,12 @@ export function BookingForm({
             className="bg-muted/40 mt-2 rounded-md border px-3 py-2 text-sm"
             data-testid="hotel-stay-block"
           >
+            {/* landr-8yaz: weekday-prefixed dates ("Sun 24 May → Wed 28 May,
+                4 nights") via formatDayRange (sibling helper in dateLabel.ts
+                already pins UTC for ISO inputs). */}
             <div className="font-medium">
-              Hotel: {formatDayLabel(stay.checkInIso, locale)} check-in →{' '}
-              {formatDayLabel(stay.checkOutIso, locale)} check-out (
-              {stay.nights} {stay.nights === 1 ? 'night' : 'nights'})
+              Hotel: {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
+              {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
               Paid directly to hotel — not included in your booking total.
@@ -269,10 +273,7 @@ export function BookingForm({
           </p>
         ) : null}
 
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             onClick={() => void onConfirm()}

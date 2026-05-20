@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { StepBackButton } from '@/components/booking/StepBackButton'
 
 interface Props {
   product: Product
@@ -86,21 +87,18 @@ export function FixedDateWindowPicker({
   if (error) {
     return (
       <Card>
+        <StepBackButton onBack={onBack} />
         <CardHeader>
           <CardTitle>Could not load course windows.</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        </CardContent>
       </Card>
     )
   }
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a course window</CardTitle>
         <CardDescription>
@@ -153,10 +151,7 @@ export function FixedDateWindowPicker({
           </ul>
         )}
 
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             disabled={!selectedWindow}

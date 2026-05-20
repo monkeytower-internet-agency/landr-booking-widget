@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
+import { StepBackButton } from '@/components/booking/StepBackButton'
 import { tr } from '@/lib/strings'
 
 interface Props {
@@ -57,21 +58,18 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
   if (error) {
     return (
       <Card>
+        <StepBackButton onBack={onBack} />
         <CardHeader>
           <CardTitle>Could not load availability.</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        </CardContent>
       </Card>
     )
   }
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick your dates</CardTitle>
         <CardDescription>
@@ -94,10 +92,7 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
               : `${selectedDays.length} days selected`}
           </p>
         ) : null}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             disabled={selectedDays.length === 0}

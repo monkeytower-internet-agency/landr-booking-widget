@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { StepBackButton } from '@/components/booking/StepBackButton'
 import {
   bookerToParticipant,
   detailsAreComplete,
@@ -177,6 +178,7 @@ export function DetailsStep({
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Your details</CardTitle>
         <CardDescription>
@@ -325,10 +327,7 @@ export function DetailsStep({
           ))}
         </fieldset>
 
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button type="button" onClick={handleContinue} disabled={!canContinue}>
             Continue
           </Button>
