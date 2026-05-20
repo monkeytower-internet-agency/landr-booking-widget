@@ -48,6 +48,13 @@ interface Props {
   product: Product
   selectedDays: string[]
   participantCount: number
+  /**
+   * Optional. When supplied (landr-8c03 — populated once DetailsStep
+   * has run), renders a "For Ada, Grace + 1 other" sub-line under the
+   * Booking overview header so the customer sees who they're paying
+   * for. Empty/undefined falls back to the count-only behaviour.
+   */
+  participantNames?: string[]
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
 }
@@ -204,6 +211,7 @@ export default function PriceSidebar(props: Props) {
     product,
     selectedDays,
     participantCount,
+    participantNames,
     accommodationRooms,
     addons,
   } = props
@@ -212,6 +220,18 @@ export default function PriceSidebar(props: Props) {
     () => buildAddonLines(accommodationRooms, addons),
     [accommodationRooms, addons],
   )
+
+  // Human-friendly "for Ada, Grace + 1 other" line. Only renders when
+  // DetailsStep has surfaced the names (landr-8c03). Three or fewer
+  // names: list them all; otherwise show the first two + "+N others".
+  const namesLine = useMemo(() => {
+    const names = (participantNames ?? []).filter((n) => n.length > 0)
+    if (names.length === 0) return null
+    if (names.length <= 3) return `For ${names.join(', ')}`
+    const head = names.slice(0, 2).join(', ')
+    const rest = names.length - 2
+    return `For ${head} + ${rest} other${rest === 1 ? '' : 's'}`
+  }, [participantNames])
 
   const estimate = useBookingEstimate({
     operatorSlug,
@@ -254,7 +274,17 @@ export default function PriceSidebar(props: Props) {
         className="hidden md:block w-80 shrink-0"
       >
         <div className="sticky top-6 rounded-md border bg-card p-4 shadow-sm">
-          <h3 className="mb-3 text-base font-semibold">Booking overview</h3>
+          <h3 className="mb-1 text-base font-semibold">Booking overview</h3>
+          {namesLine ? (
+            <p
+              className="mb-3 text-xs text-muted-foreground"
+              data-testid="price-sidebar-names"
+            >
+              {namesLine}
+            </p>
+          ) : (
+            <div className="mb-3" />
+          )}
           <BookingOverviewBody {...estimate} />
         </div>
       </aside>

@@ -1,7 +1,4 @@
-import { useRef, useState } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useState } from 'react'
 import { submitBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
@@ -13,6 +10,7 @@ import type {
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel, formatDayRange } from './dateLabel'
+import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
@@ -26,53 +24,34 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
-
-const participantSchema = z.object({
-  first_name: z.string().min(1, 'Required'),
-  last_name: z.string().optional(),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-})
-
-const formSchema = z.object({
-  first_name: z.string().min(1, 'Required'),
-  last_name: z.string().min(1, 'Required'),
-  email: z.string().email('Invalid email'),
-  phone: z.string().optional(),
-  participants: z.array(participantSchema).min(1, 'At least one participant'),
-})
-
-type FormValues = z.infer<typeof formSchema>
 
 interface Props {
   operatorSlug: string
   product: Product
   selection: BookingSelection
-  pickupLocationId: string | null
   /**
-   * Total participants captured by ParticipantsStep upstream
-   * (landr-mbge). The form pre-renders this many participant rows so
-   * the customer fills in N name slots instead of manually clicking
-   * "Add participant" N times. Defaults to 1 for safety (in case a
-   * caller forgets to thread it through).
+   * Booker contact details captured upstream by DetailsStep (landr-8c03).
+   * Required — the BookingForm is review-only and no longer collects
+   * input. Callers that previously omitted booker fields must update.
    */
-  participantCount?: number
+  booker: BookerDetails
+  /**
+   * Full participant roster captured by DetailsStep (landr-8c03) —
+   * includes the booker as participant 1 plus any additional people.
+   * Threaded through into the submit payload's participants[] array.
+   */
+  participants: ParticipantDetails[]
+  pickupLocationId: string | null
   /**
    * Additional hotel_room line items captured by the AccommodationStep
    * (landr-vyaz). Empty array when the product has no hotel offering or
-   * the customer opted out. Each entry becomes one extra booking_products
-   * row server-side via the existing public_submit_booking RPC, which
-   * already iterates the `products` array.
+   * the customer opted out.
    */
   accommodationRooms?: RoomSelection[]
   /**
-   * Add-on line items captured upstream — either from the
-   * AccommodationStep (one entry per room add-on the customer picked)
-   * or from the ServiceAddonsStep for service products without a hotel
-   * offering (landr-cip6). Same line-item shape as accommodationRooms;
-   * gets merged into the submit `products` array.
+   * Add-on line items captured upstream — from AccommodationStep
+   * (per-room add-ons) or ServiceAddonsStep (landr-cip6).
    */
   addons?: AddonSelection[]
   onBack: () => void
@@ -106,93 +85,33 @@ const describeSelection = (
   return `${formatDayRange(days[0]!, days[days.length - 1]!, locale)} (${days.length} days)`
 }
 
+/**
+ * BookingForm — review-only step (landr-8c03). All inputs (booker
+ * contact, participant names/emails/phones) are now collected upstream
+ * in the DetailsStep. This screen renders a read-only summary of every
+ * choice the customer has made — dates, participants, accommodation,
+ * pickup — and a single Confirm button that POSTs the assembled
+ * submit_booking payload. The PriceSidebar in the right rail (or
+ * mobile drawer) carries the financial summary, so the review card
+ * sticks to the WHAT (dates / who / where) and leaves the HOW MUCH to
+ * the sidebar.
+ */
 export function BookingForm({
   operatorSlug,
   product,
   selection,
+  booker,
+  participants,
   pickupLocationId,
-  participantCount,
   accommodationRooms,
   addons,
   onBack,
   onConfirmed,
 }: Props) {
-  // landr-mbge: ParticipantsStep upstream fixed the count, so the form
-  // pre-renders that many participant rows. Clamp to >=1 in case a
-  // caller passes 0 or undefined. The add/remove buttons stay
-  // available as an override (worker decision documented in handoff)
-  // because the legacy use case where a customer realises they need
-  // one more spot at the form stage is still worth supporting; the
-  // backend doesn't enforce a hard cap.
-  const initialCount = Math.max(1, participantCount ?? 1)
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
   const timezone = browserTimezone()
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      participants: Array.from({ length: initialCount }, () => ({
-        first_name: '',
-        last_name: '',
-        email: '',
-      })),
-    },
-  })
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'participants',
-  })
-
-  // Pre-fill first participant's first/last name + email from the
-  // booker as they type. Mirrors the ProductForm slug-from-name
-  // convention in landr-dashboard: keep syncing forward as long as the
-  // target field is empty OR still matches the *previous* booker
-  // value. Once the user types something different in the participant
-  // field, the two values diverge and the sync stops naturally.
-  // landr-qs8d extends this to the optional participant email.
-  const prevBooker = useRef({ first: '', last: '', email: '' })
-
-  const syncParticipantFirst = (next: string) => {
-    const current = getValues('participants.0.first_name') ?? ''
-    if (current === '' || current === prevBooker.current.first) {
-      setValue('participants.0.first_name', next, { shouldValidate: false })
-    }
-    prevBooker.current.first = next
-  }
-
-  const syncParticipantLast = (next: string) => {
-    const current = getValues('participants.0.last_name') ?? ''
-    if (current === '' || current === prevBooker.current.last) {
-      setValue('participants.0.last_name', next, { shouldValidate: false })
-    }
-    prevBooker.current.last = next
-  }
-
-  const syncParticipantEmail = (next: string) => {
-    const current = getValues('participants.0.email') ?? ''
-    if (current === '' || current === prevBooker.current.email) {
-      setValue('participants.0.email', next, { shouldValidate: false })
-    }
-    prevBooker.current.email = next
-  }
-
-  const bookerFirst = register('first_name')
-  const bookerLast = register('last_name')
-  const bookerEmail = register('email')
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -204,23 +123,16 @@ export function BookingForm({
   const stay = hasRooms ? deriveStayWindow(selectedDays) : null
   const showTimezone = product.service_time_shape === 'time_slot'
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onConfirm = async () => {
     setServerError(null)
     setSubmitting(true)
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
       // Build the primary service line + any hotel_room line items
-      // captured by AccommodationStep. The public_submit_booking RPC
-      // already iterates products[] and inserts N booking_products
-      // rows (landr-vyaz: no API-side change needed for multi-line
-      // submit). Hotel rooms share the same selected_days as the
-      // service so the pricing engine multiplies by len(selected_days)+1
-      // nights (landr-kd5t).
-      // landr-cip6: each add-on becomes its own booking_products line
-      // item alongside the parent service line + any room lines. The
-      // pricing engine handles per-line totals server-side; the widget
-      // only needs to emit the rows.
+      // captured by AccommodationStep (landr-vyaz: public_submit_booking
+      // already iterates products[]). Add-ons become their own lines
+      // (landr-cip6).
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
@@ -238,17 +150,20 @@ export function BookingForm({
           selected_days: selectedDaysForSubmit,
         })),
       ]
+      // Drop participant phone before submit — backend ParticipantIn
+      // doesn't accept it yet (follow-up filed in landr-8c03 handoff).
+      // The booker phone goes through as customer_phone as before.
       const body: SubmitBookingBody = {
         operator_slug: operatorSlug,
-        customer_first_name: values.first_name,
-        customer_last_name: values.last_name,
-        customer_email: values.email,
-        customer_phone: values.phone || null,
+        customer_first_name: booker.first_name,
+        customer_last_name: booker.last_name,
+        customer_email: booker.email,
+        customer_phone: booker.phone || null,
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: productLines,
-        participants: values.participants.map((p) => ({
+        participants: participants.map((p) => ({
           first_name: p.first_name,
           last_name: p.last_name || null,
           email: p.email || null,
@@ -257,18 +172,18 @@ export function BookingForm({
         })),
       }
       const result = await submitBooking(body)
-      onConfirmed(result, values.email)
+      onConfirmed(result, booker.email)
     } catch (err) {
       setServerError(err instanceof Error ? err.message : String(err))
     } finally {
       setSubmitting(false)
     }
-  })
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your details</CardTitle>
+        <CardTitle>Review your booking</CardTitle>
         <CardDescription>
           {product.name} · {describeSelection(selection, locale)}
           {showTimezone ? ` · ${timezone}` : ''}
@@ -289,119 +204,77 @@ export function BookingForm({
           </div>
         ) : null}
       </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="First name" error={errors.first_name?.message}>
-              <Input
-                {...bookerFirst}
-                autoComplete="given-name"
-                onChange={(e) => {
-                  bookerFirst.onChange(e)
-                  syncParticipantFirst(e.target.value)
-                }}
-              />
-            </Field>
-            <Field label="Last name" error={errors.last_name?.message}>
-              <Input
-                {...bookerLast}
-                autoComplete="family-name"
-                onChange={(e) => {
-                  bookerLast.onChange(e)
-                  syncParticipantLast(e.target.value)
-                }}
-              />
-            </Field>
-            <Field label="Email" error={errors.email?.message}>
-              <Input
-                type="email"
-                {...bookerEmail}
-                autoComplete="email"
-                onChange={(e) => {
-                  bookerEmail.onChange(e)
-                  syncParticipantEmail(e.target.value)
-                }}
-              />
-            </Field>
-            <Field label="Phone" error={errors.phone?.message}>
-              <Input type="tel" {...register('phone')} autoComplete="tel" />
-            </Field>
-          </div>
+      <CardContent className="flex flex-col gap-5">
+        {/* Booker summary — pulled from DetailsStep upstream. */}
+        <section data-testid="review-booker">
+          <h3 className="mb-2 text-sm font-semibold">Your contact</h3>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt className="text-muted-foreground">Name</dt>
+            <dd>
+              {booker.first_name} {booker.last_name}
+            </dd>
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="break-all">{booker.email}</dd>
+            {booker.phone ? (
+              <>
+                <dt className="text-muted-foreground">Phone</dt>
+                <dd>{booker.phone}</dd>
+              </>
+            ) : null}
+          </dl>
+        </section>
 
-          <fieldset className="flex flex-col gap-3 border-t pt-4">
-            <legend className="text-sm font-medium">Participants</legend>
-            {fields.map((field, idx) => (
-              <div key={field.id} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                <Field
-                  label={`Participant ${idx + 1} first name`}
-                  error={errors.participants?.[idx]?.first_name?.message}
-                >
-                  <Input {...register(`participants.${idx}.first_name`)} />
-                </Field>
-                <Field label="Last name">
-                  <Input {...register(`participants.${idx}.last_name`)} />
-                </Field>
-                <Field
-                  label="Email (optional)"
-                  error={errors.participants?.[idx]?.email?.message}
-                >
-                  <Input type="email" {...register(`participants.${idx}.email`)} />
-                </Field>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => remove(idx)}
-                    disabled={fields.length === 1}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => append({ first_name: '', last_name: '', email: '' })}
+        {/* Participants summary. participants[0] mirrors the booker, so
+            we render the heading + a clear row-per-person list. */}
+        <section data-testid="review-participants">
+          <h3 className="mb-2 text-sm font-semibold">
+            Participants ({participants.length})
+          </h3>
+          <ol className="space-y-1 text-sm">
+            {participants.map((p, idx) => (
+              <li
+                key={`participant-${idx}`}
+                className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
               >
-                Add participant
-              </Button>
-            </div>
-          </fieldset>
+                <span>
+                  <span className="font-medium">
+                    {idx + 1}. {p.first_name} {p.last_name}
+                  </span>
+                  {p.email ? (
+                    <span className="ml-2 text-xs text-muted-foreground break-all">
+                      {p.email}
+                    </span>
+                  ) : null}
+                  {p.phone ? (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {p.phone}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-          {serverError ? (
-            <p className="text-sm text-destructive">{serverError}</p>
-          ) : null}
+        {serverError ? (
+          <p className="text-sm text-destructive" data-testid="review-error">
+            {serverError}
+          </p>
+        ) : null}
 
-          <div className="flex justify-between pt-2">
-            <Button variant="outline" type="button" onClick={onBack}>
-              Back
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Submitting…' : 'Request booking'}
-            </Button>
-          </div>
-        </form>
+        <div className="flex justify-between pt-2">
+          <Button variant="outline" type="button" onClick={onBack}>
+            Back
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void onConfirm()}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting…' : 'Confirm booking'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
-  )
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string
-  error?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <Label className="text-xs">{label}</Label>
-      {children}
-      {error ? <span className="text-xs text-destructive">{error}</span> : null}
-    </div>
   )
 }

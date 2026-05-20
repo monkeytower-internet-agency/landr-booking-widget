@@ -7,6 +7,10 @@
 import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
+import type {
+  BookerDetails,
+  ParticipantDetails,
+} from '@/components/booking/detailsTypes'
 import type { Product, SubmitBookingResponse } from '@/api/types'
 
 /**
@@ -20,12 +24,18 @@ import type { Product, SubmitBookingResponse } from '@/api/types'
  * For non-service product kinds (digital_good, gift_card, …) we
  * suppress the sidebar — those flows render the ShopComingSoonStub and
  * don't take a booking, so quoting a price would be misleading.
+ *
+ * participantNames (landr-8c03): once DetailsStep has been completed we
+ * pass the list of first names down so the sidebar can label the line
+ * items with "Ada, Grace + 1 other" instead of just "1×". Empty before
+ * DetailsStep so the sidebar falls back to the count-only labels.
  */
 export interface SidebarInputs {
   product: Product
   selectedDays: string[]
-  /** Defaults to 1 before ParticipantsStep confirms. */
+  /** Defaults to 1 before DetailsStep confirms. */
   participantCount: number
+  participantNames: string[]
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
 }
@@ -33,11 +43,12 @@ export interface SidebarInputs {
 export type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
-  // landr-mbge: collects how many participants (1-6). Inserted between
-  // pick-selection and accommodation/pickup/fill-form so the count
-  // threads through into every downstream step + the submit payload.
+  // landr-8c03 (was 'participants' / landr-mbge): collects full booker
+  // + participant details right after dates. The booker fields and the
+  // participants array thread through every downstream step + the
+  // submit payload. Replaces the count-only ParticipantsStep.
   | {
-      name: 'participants'
+      name: 'details'
       product: Product
       selection: BookingSelection
     }
@@ -45,19 +56,22 @@ export type Step =
       name: 'pick-accommodation'
       product: Product
       selection: BookingSelection
-      participantCount: number
+      booker: BookerDetails
+      participants: ParticipantDetails[]
     }
   | {
       name: 'pick-service-addons'
       product: Product
       selection: BookingSelection
-      participantCount: number
+      booker: BookerDetails
+      participants: ParticipantDetails[]
     }
   | {
       name: 'pick-pickup'
       product: Product
       selection: BookingSelection
-      participantCount: number
+      booker: BookerDetails
+      participants: ParticipantDetails[]
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
     }
@@ -65,7 +79,8 @@ export type Step =
       name: 'fill-form'
       product: Product
       selection: BookingSelection
-      participantCount: number
+      booker: BookerDetails
+      participants: ParticipantDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -88,11 +103,15 @@ export type Step =
  * the customer answered "No" to an optional hotel), fall back to the
  * pre-existing branch: pick-pickup if needs_pickup, else fill-form
  * with pickupLocationId=null.
+ *
+ * landr-8c03: booker + participants now thread through every branch so
+ * the final fill-form (review screen) can show the whole party.
  */
 export function stepAfterAccommodation(
   product: Product,
   selection: BookingSelection,
-  participantCount: number,
+  booker: BookerDetails,
+  participants: ParticipantDetails[],
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: AddonSelection[] = [],
@@ -102,7 +121,8 @@ export function stepAfterAccommodation(
       name: 'fill-form',
       product,
       selection,
-      participantCount,
+      booker,
+      participants,
       pickupLocationId: hotelLocationId,
       accommodationRooms,
       addons,
@@ -113,7 +133,8 @@ export function stepAfterAccommodation(
       name: 'pick-pickup',
       product,
       selection,
-      participantCount,
+      booker,
+      participants,
       accommodationRooms,
       addons,
     }
@@ -122,7 +143,8 @@ export function stepAfterAccommodation(
     name: 'fill-form',
     product,
     selection,
-    participantCount,
+    booker,
+    participants,
     pickupLocationId: null,
     accommodationRooms,
     addons,
@@ -140,6 +162,12 @@ function selectionToDays(selection: BookingSelection): string[] {
   return selection.selectedDays
 }
 
+function namesFrom(participants: ParticipantDetails[]): string[] {
+  return participants
+    .map((p) => p.first_name.trim())
+    .filter((s) => s.length > 0)
+}
+
 export function sidebarInputsForStep(step: Step): SidebarInputs | null {
   switch (step.name) {
     case 'pick-product':
@@ -151,14 +179,16 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         product: step.product,
         selectedDays: [],
         participantCount: 1,
+        participantNames: [],
         accommodationRooms: [],
         addons: [],
       }
-    case 'participants':
+    case 'details':
       return {
         product: step.product,
         selectedDays: selectionToDays(step.selection),
         participantCount: 1,
+        participantNames: [],
         accommodationRooms: [],
         addons: [],
       }
@@ -167,7 +197,8 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
       return {
         product: step.product,
         selectedDays: selectionToDays(step.selection),
-        participantCount: step.participantCount,
+        participantCount: step.participants.length,
+        participantNames: namesFrom(step.participants),
         accommodationRooms: [],
         addons: [],
       }
@@ -176,7 +207,8 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
       return {
         product: step.product,
         selectedDays: selectionToDays(step.selection),
-        participantCount: step.participantCount,
+        participantCount: step.participants.length,
+        participantNames: namesFrom(step.participants),
         accommodationRooms: step.accommodationRooms,
         addons: step.addons,
       }

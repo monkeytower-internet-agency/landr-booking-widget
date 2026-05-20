@@ -221,16 +221,16 @@ describe('App', () => {
     })
   })
 
-  describe('participants step (landr-mbge)', () => {
+  describe('details step (landr-8c03, replacing landr-mbge participants count)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
       const selectBtns = screen.getAllByRole('button', { name: 'Select' })
       fireEvent.click(selectBtns[0]!)
     }
 
-    it('inserts a ParticipantsStep between pick-selection and fill-form for a service product with no hotel/pickup/addons', async () => {
+    it('inserts a DetailsStep between pick-selection and fill-form for a service product with no hotel/pickup/addons', async () => {
       // single_date product, needs_pickup=false, hotel_offering='none'
-      // → AFTER pick-selection the customer sees the participants step,
+      // → AFTER pick-selection the customer sees the details step,
       // NOT fill-form directly.
       const today = new Date()
       today.setHours(12, 0, 0, 0)
@@ -280,18 +280,36 @@ describe('App', () => {
       })
       fireEvent.click(continueBtn)
 
-      // Now we should land on the ParticipantsStep.
+      // Now we should land on the DetailsStep — the booker contact
+      // heading is the unambiguous marker.
       await waitFor(() =>
         expect(
-          screen.getByText(/how many participants/i),
+          screen.getByText(/your contact details/i),
         ).toBeInTheDocument(),
       )
-      // Defaults to "Just me".
-      expect(screen.getByRole('radio', { name: /just me/i })).toBeChecked()
-      // Continue from participants → BookingForm (fill-form).
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Fill in booker, click Continue → BookingForm (review screen).
+      const bookerFirst = document.querySelector<HTMLInputElement>(
+        'input[name="booker_first_name"]',
+      )!
+      const bookerLast = document.querySelector<HTMLInputElement>(
+        'input[name="booker_last_name"]',
+      )!
+      const bookerEmail = document.querySelector<HTMLInputElement>(
+        'input[name="booker_email"]',
+      )!
+      const bookerPhone = document.querySelector<HTMLInputElement>(
+        'input[name="booker_phone"]',
+      )!
+      fireEvent.change(bookerFirst, { target: { value: 'Ada' } })
+      fireEvent.change(bookerLast, { target: { value: 'Lovelace' } })
+      fireEvent.change(bookerEmail, { target: { value: 'ada@example.com' } })
+      fireEvent.change(bookerPhone, { target: { value: '+34 600000000' } })
+
+      const detailsContinue = screen.getByRole('button', { name: /continue/i })
+      fireEvent.click(detailsContinue)
       await waitFor(() =>
-        expect(screen.getByText(/Your details/i)).toBeInTheDocument(),
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
     })
   })
