@@ -17,6 +17,12 @@ interface Props {
   product: Product
   onBack: () => void
   onConfirm: (selectedDays: string[]) => void
+  /**
+   * Called whenever the user's day selection changes so App.tsx can feed
+   * the live selection into PriceSidebar before the user presses Continue
+   * (landr-w7pi). Optional — omitting it has no effect on the picker UX.
+   */
+  onLiveDaysChange?: (isoDays: string[]) => void
 }
 
 const HORIZON_DAYS = 60
@@ -28,7 +34,7 @@ const isoDate = (d: Date) => {
   return `${y}-${m}-${day}`
 }
 
-export function MultiDayStep({ product, onBack, onConfirm }: Props) {
+export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedDays, setSelectedDays] = useState<Date[]>([])
@@ -54,6 +60,12 @@ export function MultiDayStep({ product, onBack, onConfirm }: Props) {
       cancelled = true
     }
   }, [product.product_id, fromIso, toIso])
+
+  // Propagate live day selection up to App.tsx so PriceSidebar can show
+  // a live price estimate before the user presses Continue (landr-w7pi).
+  useEffect(() => {
+    onLiveDaysChange?.(selectedDays.map(isoDate))
+  }, [selectedDays, onLiveDaysChange])
 
   if (error) {
     return (

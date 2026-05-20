@@ -32,6 +32,7 @@
  *     discount tags
  */
 import { useEffect, useMemo, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import type { Product } from '@/api/types'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
@@ -59,6 +60,8 @@ interface Props {
   participantNames?: string[]
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
+  /** Debounce delay in ms before firing the estimate RPC (default 300). */
+  debounceMs?: number
 }
 
 /**
@@ -222,6 +225,19 @@ function BookingOverviewBody({
           </p>
         </section>
       ) : null}
+      <div
+        className="flex items-baseline justify-between border-t pt-3"
+        data-testid="price-sidebar-grand-total"
+      >
+        <span className="text-base font-semibold">Grand total</span>
+        {isLoading ? (
+          <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+        ) : (
+          <span className="text-base font-semibold tabular-nums">
+            {formatMoney(data.grand_total, data.currency)}
+          </span>
+        )}
+      </div>
       {data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
         <ul className="flex flex-wrap gap-1">
           {data.applied_rules
@@ -272,6 +288,7 @@ export default function PriceSidebar(props: Props) {
     participantNames,
     accommodationRooms,
     addons,
+    debounceMs,
   } = props
 
   const addonLines = useMemo(
@@ -298,6 +315,7 @@ export default function PriceSidebar(props: Props) {
     participantCount,
     addonLines,
     enabled: true,
+    debounceMs,
   })
 
   // Mobile drawer open state — collapsed by default so the customer
@@ -340,7 +358,20 @@ export default function PriceSidebar(props: Props) {
         className="hidden md:block w-80 shrink-0"
       >
         <div className="sticky top-6 rounded-md border bg-card p-4 shadow-sm">
-          <h3 className="mb-1 text-base font-semibold">Booking overview</h3>
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="text-base font-semibold">Booking overview</h3>
+            {estimate.isStale ? (
+              <button
+                type="button"
+                onClick={estimate.refresh}
+                title="Update price"
+                data-testid="price-sidebar-refresh"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
           {namesLine ? (
             <p
               className="mb-3 text-xs text-muted-foreground"

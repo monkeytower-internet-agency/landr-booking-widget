@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
+import { expandWindowDays } from './expandWindowDays'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -24,6 +25,11 @@ interface Props {
   /** Operator's expose_seats_to_customer flag (landr-e10.9). When false the
    * picker hides exact seat counts and just shows Available / Full. */
   exposeSeats?: boolean
+  /**
+   * Called when the user selects a window so App.tsx can feed the live
+   * expanded days into PriceSidebar before Continue is pressed (landr-w7pi).
+   */
+  onLiveDaysChange?: (isoDays: string[]) => void
 }
 
 function fmtDate(iso: string): string {
@@ -59,6 +65,7 @@ export function FixedDateWindowPicker({
   onBack,
   onConfirm,
   exposeSeats = true,
+  onLiveDaysChange,
 }: Props) {
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -126,7 +133,10 @@ export function FixedDateWindowPicker({
                   <button
                     type="button"
                     disabled={isFull}
-                    onClick={() => setSelectedId(window.id)}
+                    onClick={() => {
+                      setSelectedId(window.id)
+                      onLiveDaysChange?.(expandWindowDays(window))
+                    }}
                     aria-pressed={isSelected}
                     className={`w-full rounded-md border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       isSelected
