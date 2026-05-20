@@ -1,5 +1,7 @@
 import type {
   AvailabilitySlot,
+  EstimateRequestBody,
+  EstimateResponse,
   FixedDateWindow,
   Location,
   OperatorSettings,
@@ -263,3 +265,81 @@ export const mockSubmit = (): SubmitBookingResponse => ({
   reference: 'P42-MOCK-0001',
   state: 'pending',
 })
+
+/**
+ * Mock estimate response for the PriceSidebar (landr-qez0). Uses a
+ * deterministic per-day price (€60) for the parent service, €49/night
+ * for the single-room mock, €73/night for the double-room mock, and
+ * €10/night for the Breakfast add-on. Hotel rooms bill by nights
+ * (days + 1) per the engine convention, services bill by days.
+ *
+ * Surfaces a tier-discount applied_rule when 3+ days are selected so
+ * tests can exercise the discount-tag rendering path.
+ */
+export const mockEstimate = (
+  productId: string,
+  body: EstimateRequestBody,
+): EstimateResponse => {
+  const lineItems: EstimateResponse['line_items'] = []
+  const rules: EstimateResponse['applied_rules'] = []
+  const days = body.selected_days.length
+  const productMap: Record<string, { name: string; price: number; kind: 'service' | 'hotel_room' | 'addon'; paidTo: 'operator' | 'hotel' }> = {
+    '00000000-0000-0000-0000-000000000001': { name: 'Tandem Classic', price: 60, kind: 'service', paidTo: 'operator' },
+    '00000000-0000-0000-0000-000000000002': { name: 'Tandem Long', price: 80, kind: 'service', paidTo: 'operator' },
+    '00000000-0000-0000-0000-000000000101': { name: 'Single Room', price: 49, kind: 'hotel_room', paidTo: 'hotel' },
+    '00000000-0000-0000-0000-000000000102': { name: 'Double Room', price: 73, kind: 'hotel_room', paidTo: 'hotel' },
+    '00000000-0000-0000-0000-000000000401': { name: 'Video Package', price: 39, kind: 'addon', paidTo: 'operator' },
+    '00000000-0000-0000-0000-000000000402': { name: 'Breakfast', price: 10, kind: 'addon', paidTo: 'hotel' },
+  }
+  const main = productMap[productId]
+  if (main) {
+    const units = days
+    const lineTotal = (main.price * units).toFixed(2)
+    lineItems.push({
+      product_id: productId,
+      label: main.name,
+      qty: 1,
+      units,
+      unit_price: main.price.toFixed(2),
+      line_total: lineTotal,
+      paid_to: main.paidTo,
+    })
+    rules.push({ kind: 'per_day_base', detail: { product_id: productId } })
+    if (days >= 3) {
+      rules.push({
+        kind: 'per_total_days_tier',
+        detail: { days, tier: { threshold_min: 3, label: 'Multi-day discount' } },
+      })
+    }
+  }
+  for (const addon of body.addon_lines) {
+    const a = productMap[addon.product_id]
+    if (!a) continue
+    const units = a.kind === 'hotel_room' || (a.kind === 'addon' && a.paidTo === 'hotel') ? days + 1 : days
+    const lineTotal = (a.price * units * addon.qty).toFixed(2)
+    lineItems.push({
+      product_id: addon.product_id,
+      label: a.name,
+      qty: addon.qty,
+      units,
+      unit_price: a.price.toFixed(2),
+      line_total: lineTotal,
+      paid_to: a.paidTo,
+    })
+  }
+  let opTotal = 0
+  let hotelTotal = 0
+  for (const li of lineItems) {
+    const v = Number(li.line_total)
+    if (li.paid_to === 'operator') opTotal += v
+    else hotelTotal += v
+  }
+  return {
+    line_items: lineItems,
+    operator_total: opTotal.toFixed(2),
+    hotel_total: hotelTotal.toFixed(2),
+    grand_total: (opTotal + hotelTotal).toFixed(2),
+    currency: 'EUR',
+    applied_rules: rules,
+  }
+}

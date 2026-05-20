@@ -1,5 +1,7 @@
 import type {
   AvailabilitySlot,
+  EstimateRequestBody,
+  EstimateResponse,
   FixedDateWindow,
   Hotel,
   Location,
@@ -11,6 +13,7 @@ import type {
 } from './types'
 import {
   mockAvailability,
+  mockEstimate,
   mockFixedDateWindows,
   mockHotelRooms,
   mockLocations,
@@ -186,4 +189,29 @@ export async function submitBooking(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+/**
+ * Live booking-price estimator for the PriceSidebar (landr-qez0).
+ * Backed by POST /api/public/operators/{slug}/products/{id}/estimate
+ * (landr-xbqh) — reuses the canonical compute_booking_price engine so
+ * the sidebar preview matches the gross_total persisted by
+ * submit_booking bit-for-bit. No DB write. Returns the multi-line
+ * breakdown (per-product line items, operator/hotel split, applied
+ * pricing rules). The widget calls this debounced 300ms whenever
+ * selected_days / participants_count / addon_lines changes.
+ */
+export async function estimateBookingPrice(
+  operatorSlug: string,
+  productId: string,
+  body: EstimateRequestBody,
+): Promise<EstimateResponse> {
+  if (USE_MOCKS) return mockEstimate(productId, body)
+  return http<EstimateResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorSlug)}/products/${encodeURIComponent(productId)}/estimate`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
 }

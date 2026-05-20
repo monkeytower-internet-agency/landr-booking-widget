@@ -9,6 +9,27 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, SubmitBookingResponse } from '@/api/types'
 
+/**
+ * Inputs for the persistent PriceSidebar (landr-qez0). Returns null
+ * when the current step is BEFORE pick-selection (i.e. pick-product) or
+ * AFTER fill-form (confirmed). For pick-selection where the customer
+ * hasn't yet committed dates/slots we still show the sidebar — the
+ * pricing engine handles 0 selected_days by emitting a base/fixed total
+ * (or 0) so the customer sees a placeholder until they pick.
+ *
+ * For non-service product kinds (digital_good, gift_card, …) we
+ * suppress the sidebar — those flows render the ShopComingSoonStub and
+ * don't take a booking, so quoting a price would be misleading.
+ */
+export interface SidebarInputs {
+  product: Product
+  selectedDays: string[]
+  /** Defaults to 1 before ParticipantsStep confirms. */
+  participantCount: number
+  accommodationRooms: RoomSelection[]
+  addons: AddonSelection[]
+}
+
 export type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
@@ -105,5 +126,59 @@ export function stepAfterAccommodation(
     pickupLocationId: null,
     accommodationRooms,
     addons,
+  }
+}
+
+/**
+ * Derive the PriceSidebar inputs for the current step (landr-qez0).
+ * Returns null when the sidebar should NOT mount — pick-product (no
+ * product chosen yet), confirmed (booking already done), or non-service
+ * products on pick-selection (ShopComingSoonStub renders instead).
+ */
+function selectionToDays(selection: BookingSelection): string[] {
+  if (selection.kind === 'slot') return [selection.slot.date]
+  return selection.selectedDays
+}
+
+export function sidebarInputsForStep(step: Step): SidebarInputs | null {
+  switch (step.name) {
+    case 'pick-product':
+    case 'confirmed':
+      return null
+    case 'pick-selection':
+      if (step.product.product_kind !== 'service') return null
+      return {
+        product: step.product,
+        selectedDays: [],
+        participantCount: 1,
+        accommodationRooms: [],
+        addons: [],
+      }
+    case 'participants':
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: 1,
+        accommodationRooms: [],
+        addons: [],
+      }
+    case 'pick-accommodation':
+    case 'pick-service-addons':
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: step.participantCount,
+        accommodationRooms: [],
+        addons: [],
+      }
+    case 'pick-pickup':
+    case 'fill-form':
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: step.participantCount,
+        accommodationRooms: step.accommodationRooms,
+        addons: step.addons,
+      }
   }
 }

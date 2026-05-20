@@ -15,12 +15,17 @@ import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { ParticipantsStep } from '@/components/booking/ParticipantsStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
+import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import { getOperatorSettings, getProductAddons } from '@/api/client'
 import type { OperatorSettings, Product } from '@/api/types'
-import { type Step, stepAfterAccommodation } from './appStepMachine'
+import {
+  type Step,
+  sidebarInputsForStep,
+  stepAfterAccommodation,
+} from './appStepMachine'
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -166,9 +171,19 @@ function App() {
     return selection.selectedDays
   }
 
+  const sidebarInputs = sidebarInputsForStep(step)
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      {/*
+        Outer flex (md and up) puts the step content on the left and the
+        sticky PriceSidebar on the right. On mobile the sidebar renders
+        as a fixed bottom bar (handled inside PriceSidebar), so the main
+        column simply takes the full width. Wider max-w-5xl gives the
+        sidebar breathing room without squeezing the step content.
+      */}
+      <div className="mx-auto flex max-w-5xl flex-col md:flex-row md:items-start gap-6 p-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
         {/*
           landr-711: no widget-level headline. Operators embed the widget
           inside their own page (WordPress shortcode / iframe) and own the
@@ -397,6 +412,17 @@ function App() {
             <Confirmation response={step.response} onRestart={goToProductStep} />
             <AccountLinkPrompt email={step.email} />
           </>
+        ) : null}
+        </div>
+        {sidebarInputs ? (
+          <PriceSidebar
+            operatorSlug={operatorSlug}
+            product={sidebarInputs.product}
+            selectedDays={sidebarInputs.selectedDays}
+            participantCount={sidebarInputs.participantCount}
+            accommodationRooms={sidebarInputs.accommodationRooms}
+            addons={sidebarInputs.addons}
+          />
         ) : null}
       </div>
     </div>
