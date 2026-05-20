@@ -373,8 +373,21 @@ export function AccommodationStep({
                 type="button"
                 variant={!includeHotel ? 'default' : 'outline'}
                 onClick={() => {
+                  // landr-eiiz: "No, thanks" auto-advances. The bare radio-
+                  // toggle UX made the button look unresponsive (it only
+                  // mutated local state and waited for a second Continue
+                  // click). We now fire the same payload Continue would
+                  // fire when opted out — empty rooms + null hotel + empty
+                  // add-ons — so the customer skips straight to the next
+                  // step. Continue still works as a fallback (e.g. if the
+                  // customer toggled Yes→No and the rooms list cleanup
+                  // already ran). The single-hotel auto-skip (landr-punc)
+                  // is gated on includeHotel so this opt-out doesn't fire
+                  // it; the room fetch effect short-circuits on a null
+                  // selectedHotelId regardless.
                   setIncludeHotel(false)
                   changeHotel(null)
+                  onConfirm([], null, [])
                 }}
               >
                 No, thanks
