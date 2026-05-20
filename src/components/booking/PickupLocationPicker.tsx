@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { StepBackButton } from './StepBackButton'
 
 interface Props {
   operatorSlug: string
@@ -67,6 +68,7 @@ export function PickupLocationPicker({
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pickup location</CardTitle>
         <CardDescription>
@@ -115,10 +117,7 @@ export function PickupLocationPicker({
           </fieldset>
         )}
 
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             disabled={!selected || loading}

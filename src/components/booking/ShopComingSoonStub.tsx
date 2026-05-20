@@ -1,12 +1,11 @@
 import type { Product } from '@/api/types'
-import { Button } from '@/components/ui/button'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { StepBackButton } from './StepBackButton'
 
 interface Props {
   product: Product
@@ -36,6 +35,7 @@ export function ShopComingSoonStub({ product, onBack }: Props) {
   const kindLabel = KIND_LABEL[product.product_kind] ?? 'product'
   return (
     <Card data-testid="shop-coming-soon-stub">
+      <StepBackButton onBack={onBack} label="Back to products" />
       <CardHeader>
         <CardTitle>{product.name}</CardTitle>
         <CardDescription>
@@ -43,11 +43,6 @@ export function ShopComingSoonStub({ product, onBack }: Props) {
           contact the operator directly to order it in the meantime.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Button variant="outline" type="button" onClick={onBack}>
-          Back to products
-        </Button>
-      </CardContent>
     </Card>
   )
 }

@@ -227,11 +227,21 @@ describe('AccommodationStep', () => {
     })
     fireEvent.click(plusButtons[0]!)
 
-    // Derived stay window: selectedDays 10,11 → check-in 09, out 12, nights 3
+    // Derived stay window: selectedDays 10,11 → check-in 09, out 12, nights 3.
+    // landr-8yaz: check-in/out render with weekday + day + month abbreviation
+    // (via formatDayLabel) rather than the raw ISO string. The exact day/
+    // month ordering and separators are Intl/locale-dependent (en-US
+    // "Tue, Jun 9" vs en-GB "Tue 9 Jun"), so assert on the weekday + day
+    // + month fragments independently within the same text node.
     await waitFor(() =>
-      expect(screen.getByText('2026-06-09')).toBeInTheDocument(),
+      expect(screen.getByText(/Tue/)).toBeInTheDocument(),
     )
-    expect(screen.getByText('2026-06-12')).toBeInTheDocument()
+    const checkIn = screen.getByText(/Tue/)
+    expect(checkIn.textContent).toMatch(/Jun/)
+    expect(checkIn.textContent).toMatch(/\b9\b/)
+    const checkOut = screen.getByText(/Fri/)
+    expect(checkOut.textContent).toMatch(/Jun/)
+    expect(checkOut.textContent).toMatch(/\b12\b/)
     // Continue should fire with the selected line item
     const continueBtn = screen.getByRole('button', { name: /Continue/i })
     expect(continueBtn).not.toBeDisabled()

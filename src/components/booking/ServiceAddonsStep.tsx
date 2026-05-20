@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { AddonsList } from './AddonsList'
+import { StepBackButton } from './StepBackButton'
 import {
   defaultAddonQty,
   requiredAddonError,
@@ -94,6 +95,7 @@ export function ServiceAddonsStep({ product, onBack, onConfirm }: Props) {
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Add-ons</CardTitle>
         <CardDescription>{productName}</CardDescription>
@@ -116,10 +118,7 @@ export function ServiceAddonsStep({ product, onBack, onConfirm }: Props) {
             parentQty={1}
           />
         ) : null}
-        <div className="flex justify-between pt-2">
-          <Button type="button" variant="outline" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button type="button" disabled={!canContinue} onClick={handleContinue}>
             Continue
           </Button>

@@ -237,6 +237,29 @@ describe('DetailsStep (landr-8c03)', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  // landr-8yaz: the Back affordance lives in the top-left of the step
+  // (above the CardHeader) rather than the bottom row. Assert via the
+  // shared step-back-button testid + that it precedes the CardHeader in
+  // DOM order so the layout doesn't silently regress to bottom-row Back.
+  it('renders the Back button above the step header (top-left placement)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const back = screen.getByTestId('step-back-button')
+    const header = document.querySelector('[data-slot="card-header"]')
+    expect(back).toBeInTheDocument()
+    expect(header).toBeInTheDocument()
+    // DOCUMENT_POSITION_FOLLOWING (4) on the header means it follows `back`.
+    expect(back.compareDocumentPosition(header!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
   it('restores prior data when re-entered with initialBooker + initialParticipants', () => {
     render(
       <DetailsStep

@@ -29,6 +29,8 @@ import {
   requiredAddonError,
   type AddonSelection,
 } from './addonsState'
+import { formatDayLabel } from './dateLabel'
+import { StepBackButton } from './StepBackButton'
 
 interface Props {
   product: Product
@@ -342,6 +344,7 @@ export function AccommodationStep({
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Accommodation</CardTitle>
         <CardDescription>
@@ -557,16 +560,23 @@ export function AccommodationStep({
           </p>
         ) : null}
 
-        {/* Stay summary — derived check-in/out, nights, total + paid-directly notice. */}
+        {/* Stay summary — derived check-in/out, nights, total + paid-directly notice.
+            landr-8yaz: check-in/out render with weekday ("Sun 24 May") via
+            formatDayLabel so the customer doesn't have to mentally convert
+            an ISO string into a day-of-week. */}
         {!optedOut && selectedHotelId && rooms && rooms.length > 0 ? (
           <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Check-in</span>
-              <span className="tabular-nums">{checkInIso ?? '—'}</span>
+              <span>
+                {checkInIso ? formatDayLabel(checkInIso, locale) : '—'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Check-out</span>
-              <span className="tabular-nums">{checkOutIso ?? '—'}</span>
+              <span>
+                {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Nights</span>
@@ -587,10 +597,7 @@ export function AccommodationStep({
           </div>
         ) : null}
 
-        <div className="flex justify-between pt-2">
-          <Button type="button" variant="outline" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button type="button" disabled={!canContinue} onClick={handleContinue}>
             Continue
           </Button>
