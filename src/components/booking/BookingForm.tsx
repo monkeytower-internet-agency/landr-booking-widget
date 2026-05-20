@@ -52,6 +52,14 @@ interface Props {
   selection: BookingSelection
   pickupLocationId: string | null
   /**
+   * Total participants captured by ParticipantsStep upstream
+   * (landr-mbge). The form pre-renders this many participant rows so
+   * the customer fills in N name slots instead of manually clicking
+   * "Add participant" N times. Defaults to 1 for safety (in case a
+   * caller forgets to thread it through).
+   */
+  participantCount?: number
+  /**
    * Additional hotel_room line items captured by the AccommodationStep
    * (landr-vyaz). Empty array when the product has no hotel offering or
    * the customer opted out. Each entry becomes one extra booking_products
@@ -103,11 +111,20 @@ export function BookingForm({
   product,
   selection,
   pickupLocationId,
+  participantCount,
   accommodationRooms,
   addons,
   onBack,
   onConfirmed,
 }: Props) {
+  // landr-mbge: ParticipantsStep upstream fixed the count, so the form
+  // pre-renders that many participant rows. Clamp to >=1 in case a
+  // caller passes 0 or undefined. The add/remove buttons stay
+  // available as an override (worker decision documented in handoff)
+  // because the legacy use case where a customer realises they need
+  // one more spot at the form stage is still worth supporting; the
+  // backend doesn't enforce a hard cap.
+  const initialCount = Math.max(1, participantCount ?? 1)
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
@@ -127,7 +144,11 @@ export function BookingForm({
       last_name: '',
       email: '',
       phone: '',
-      participants: [{ first_name: '', last_name: '', email: '' }],
+      participants: Array.from({ length: initialCount }, () => ({
+        first_name: '',
+        last_name: '',
+        email: '',
+      })),
     },
   })
 

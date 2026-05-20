@@ -12,16 +12,31 @@ import type { Product, SubmitBookingResponse } from '@/api/types'
 export type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
-  | { name: 'pick-accommodation'; product: Product; selection: BookingSelection }
+  // landr-mbge: collects how many participants (1-6). Inserted between
+  // pick-selection and accommodation/pickup/fill-form so the count
+  // threads through into every downstream step + the submit payload.
+  | {
+      name: 'participants'
+      product: Product
+      selection: BookingSelection
+    }
+  | {
+      name: 'pick-accommodation'
+      product: Product
+      selection: BookingSelection
+      participantCount: number
+    }
   | {
       name: 'pick-service-addons'
       product: Product
       selection: BookingSelection
+      participantCount: number
     }
   | {
       name: 'pick-pickup'
       product: Product
       selection: BookingSelection
+      participantCount: number
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
     }
@@ -29,6 +44,7 @@ export type Step =
       name: 'fill-form'
       product: Product
       selection: BookingSelection
+      participantCount: number
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -55,6 +71,7 @@ export type Step =
 export function stepAfterAccommodation(
   product: Product,
   selection: BookingSelection,
+  participantCount: number,
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: AddonSelection[] = [],
@@ -64,6 +81,7 @@ export function stepAfterAccommodation(
       name: 'fill-form',
       product,
       selection,
+      participantCount,
       pickupLocationId: hotelLocationId,
       accommodationRooms,
       addons,
@@ -74,6 +92,7 @@ export function stepAfterAccommodation(
       name: 'pick-pickup',
       product,
       selection,
+      participantCount,
       accommodationRooms,
       addons,
     }
@@ -82,6 +101,7 @@ export function stepAfterAccommodation(
     name: 'fill-form',
     product,
     selection,
+    participantCount,
     pickupLocationId: null,
     accommodationRooms,
     addons,
