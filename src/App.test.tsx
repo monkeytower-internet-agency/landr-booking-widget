@@ -312,5 +312,104 @@ describe('App', () => {
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
     })
+
+    // landr-b3g5: regression test — back-navigating from a downstream
+    // step into the DetailsStep must restore the previously entered
+    // booker + participants instead of wiping the form. The bug surfaced
+    // because the App.tsx Back handlers reset the details step state to
+    // { name: 'details', product, selection } — dropping booker and
+    // participants — and DetailsStep had no way to recover them on
+    // re-mount. The fix threads them through every Back transition and
+    // hands them to DetailsStep as initialBooker / initialParticipants.
+    it('restores booker + additional participants when back-navigating into DetailsStep', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+
+      // SingleDatePicker → pick a date → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+
+      // Land on DetailsStep — fill booker and add one extra participant.
+      await waitFor(() =>
+        expect(
+          screen.getByText(/your contact details/i),
+        ).toBeInTheDocument(),
+      )
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(
+        screen.getByRole('button', { name: /add participant/i }),
+      )
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+
+      // Continue → BookingForm (review screen).
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Hit the top-left Back button on the BookingForm. The fill-form
+      // Back path with needs_pickup=false + hotel_offering=none routes
+      // straight back to DetailsStep.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      // We should be back on DetailsStep with every field restored.
+      await waitFor(() =>
+        expect(
+          screen.getByText(/your contact details/i),
+        ).toBeInTheDocument(),
+      )
+      const value = (name: string) =>
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+          ?.value
+      expect(value('booker_first_name')).toBe('Ada')
+      expect(value('booker_last_name')).toBe('Lovelace')
+      expect(value('booker_email')).toBe('ada@example.com')
+      expect(value('booker_phone')).toBe('+34 600000000')
+      // Additional participant row restored with both name fields filled.
+      expect(value('participant_2_first_name')).toBe('Grace')
+      expect(value('participant_2_last_name')).toBe('Hopper')
+    })
   })
 })

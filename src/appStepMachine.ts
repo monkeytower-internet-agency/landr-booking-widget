@@ -47,10 +47,17 @@ export type Step =
   // + participant details right after dates. The booker fields and the
   // participants array thread through every downstream step + the
   // submit payload. Replaces the count-only ParticipantsStep.
+  //
+  // landr-b3g5: optional booker + participants carry over when the
+  // customer hits Back from a downstream step. They seed the form so
+  // previously entered data isn't wiped on re-mount. Undefined on the
+  // initial forward visit (no prior data to restore).
   | {
       name: 'details'
       product: Product
       selection: BookingSelection
+      booker?: BookerDetails
+      participants?: ParticipantDetails[]
     }
   | {
       name: 'pick-accommodation'
@@ -184,11 +191,17 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         addons: [],
       }
     case 'details':
+      // landr-b3g5: when the customer re-enters DetailsStep via Back
+      // from a downstream step, the prior booker + participants are
+      // attached to the step state. Surface them so the sidebar keeps
+      // the previously rendered names/count instead of resetting to the
+      // forward-first-visit defaults (which would briefly flicker the
+      // sidebar to "1×" while the customer just glances at the step).
       return {
         product: step.product,
         selectedDays: selectionToDays(step.selection),
-        participantCount: 1,
-        participantNames: [],
+        participantCount: step.participants?.length ?? 1,
+        participantNames: step.participants ? namesFrom(step.participants) : [],
         accommodationRooms: [],
         addons: [],
       }
