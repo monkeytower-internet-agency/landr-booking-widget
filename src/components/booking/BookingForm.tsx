@@ -9,7 +9,7 @@ import type {
 } from '@/api/types'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
-import { formatDayLabel } from './dateLabel'
+import { formatDayLabel, formatDayRange } from './dateLabel'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 export type BookingSelection =
