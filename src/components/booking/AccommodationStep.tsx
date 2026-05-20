@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getHotelRoomsForHotel, getHotelsForOperator } from '@/api/client'
-import type { Hotel, Product } from '@/api/types'
+import {
+  getHotelRoomsForHotel,
+  getHotelsForOperator,
+  getProductAddons,
+} from '@/api/client'
+import type { Hotel, Product, ProductAddon } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -17,6 +21,11 @@ import {
   totalStayCost,
   type RoomSelection,
 } from './accommodationCalc'
+import { AddonsList } from './AddonsList'
+import {
+  requiredAddonError,
+  type AddonSelection,
+} from './addonsState'
 
 interface Props {
   product: Product
@@ -31,6 +40,7 @@ interface Props {
   onConfirm: (
     rooms: RoomSelection[],
     hotelLocationId: string | null,
+    addons: AddonSelection[],
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -74,6 +84,21 @@ export function AccommodationStep({
   const [rooms, setRooms] = useState<Product[] | null>(null)
   const [roomsError, setRoomsError] = useState<string | null>(null)
   const [selection, setSelection] = useState<Record<string, number>>({})
+  // Per-room add-on catalogues, keyed by room product_id. Lazily fetched
+  // as the room list resolves (one fetch per room). The widget tolerates
+  // an individual fetch failure silently — the room itself still
+  // bookable; the add-on row simply doesn't render.
+  const [addonsByRoom, setAddonsByRoom] = useState<
+    Record<string, ProductAddon[]>
+  >({})
+  // Add-on selection map: addon_product_id → quantity. Shared across
+  // every room because the same add-on (e.g. Breakfast) can be linked
+  // to several rooms and the customer ultimately picks a single total
+  // quantity; collapsing into one map keeps the submit payload free of
+  // duplicate addon line items.
+  const [addonSelection, setAddonSelection] = useState<
+    Record<string, number>
+  >({})
 
   // Fetch hotels for the operator. We always do this on mount so the
   // 'optional' flow can immediately offer the customer a Yes/No choice
@@ -123,15 +148,47 @@ export function AccommodationStep({
     }
   }, [operatorSlug, selectedHotelId])
 
+  // Fetch add-ons per room as soon as the rooms list resolves. Done as
+  // an N-fetch (one per room) rather than a single bulk call because
+  // the public RPC is keyed on a single parent product_id; the room
+  // catalogue per hotel is tiny in practice (≤ ~5 rows) so the cost is
+  // negligible. Per-room failures are swallowed — the room remains
+  // bookable, just without its add-on row.
+  useEffect(() => {
+    if (!rooms || rooms.length === 0) return
+    let cancelled = false
+    void (async () => {
+      const next: Record<string, ProductAddon[]> = {}
+      await Promise.all(
+        rooms.map(async (room) => {
+          try {
+            next[room.product_id] = await getProductAddons(room.product_id)
+          } catch {
+            next[room.product_id] = []
+          }
+        }),
+      )
+      if (cancelled) return
+      setAddonsByRoom(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rooms])
+
   // Centralised hotel-change handler — resets the room list + selected
   // quantities BEFORE the next render so the effect only handles the
   // async fetch. Used by the radio onChange and the "No, thanks"
-  // optional opt-out path.
+  // optional opt-out path. Also clears add-on selections so a customer
+  // switching hotels doesn't carry over breakfasts from the previous
+  // hotel's room list.
   function changeHotel(nextId: string | null) {
     setSelectedHotelId(nextId)
     setRooms(null)
     setRoomsError(null)
     setSelection({})
+    setAddonsByRoom({})
+    setAddonSelection({})
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -157,9 +214,29 @@ export function AccommodationStep({
 
   // 'optional' + No → no hotel context; confirm immediately on Continue.
   const optedOut = offering === 'optional' && !includeHotel
+
+  // Required add-ons gate Continue regardless of room selection — if a
+  // room with a required breakfast is in the cart and the breakfast qty
+  // is 0, the customer must address it before proceeding. Walk every
+  // picked room's add-on catalogue and surface the first unmet required
+  // row; the AddonsList itself renders the per-row helper line.
+  const unmetRequiredAddon = useMemo(() => {
+    if (optedOut || totalRoomsPicked === 0) return false
+    for (const [roomId] of Object.entries(selection)) {
+      const list = addonsByRoom[roomId] ?? []
+      for (const addon of list) {
+        const qty = addonSelection[addon.addon_product_id] ?? 0
+        if (requiredAddonError(addon, qty) !== null) return true
+      }
+    }
+    return false
+  }, [optedOut, totalRoomsPicked, selection, addonsByRoom, addonSelection])
+
   const canContinue = optedOut
     ? true
-    : Boolean(selectedHotelId) && totalRoomsPicked > 0
+    : Boolean(selectedHotelId) &&
+      totalRoomsPicked > 0 &&
+      !unmetRequiredAddon
 
   function bumpQty(productId: string, delta: number) {
     setSelection((prev) => {
@@ -172,11 +249,24 @@ export function AccommodationStep({
 
   function handleContinue() {
     if (optedOut) {
-      onConfirm([], null)
+      onConfirm([], null, [])
       return
     }
     if (!selectedHotelId || roomSelections.length === 0) return
-    onConfirm(roomSelections, selectedHotelId)
+    // Collapse the add-on selection map into line items (qty > 0 only).
+    // Only include add-ons whose parent room is actually in the cart;
+    // a customer who picked a Breakfast under "Single Room" and then
+    // dropped Single Room to 0 should not ship a Breakfast line.
+    const activeAddonIds = new Set<string>()
+    for (const [roomId] of Object.entries(selection)) {
+      for (const addon of addonsByRoom[roomId] ?? []) {
+        activeAddonIds.add(addon.addon_product_id)
+      }
+    }
+    const addonLines: AddonSelection[] = Object.entries(addonSelection)
+      .filter(([id, qty]) => qty > 0 && activeAddonIds.has(id))
+      .map(([productId, quantity]) => ({ productId, quantity }))
+    onConfirm(roomSelections, selectedHotelId, addonLines)
   }
 
   return (
@@ -290,56 +380,72 @@ export function AccommodationStep({
               const qty = selection[room.product_id] ?? 0
               const roomName = pickLocalized(room.name, room.name_localized, locale)
               const subtotal = roomSubtotal(room, qty, nights)
+              const roomAddons = addonsByRoom[room.product_id] ?? []
+              // Only show add-on rows once at least one of THIS room is
+              // in the cart — otherwise an empty room block sprouts an
+              // un-actionable list of add-ons.
+              const showAddons = qty > 0 && roomAddons.length > 0
               return (
                 <div
                   key={room.product_id}
-                  className="grid grid-cols-[1fr_auto] gap-2 rounded-md border border-border p-3"
+                  className="flex flex-col gap-2 rounded-md border border-border p-3"
                 >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium">{roomName}</span>
-                    {room.price_per_unit ? (
-                      <span className="text-xs text-muted-foreground">
-                        {formatCurrency(Number(room.price_per_unit), room.currency)}{' '}
-                        / night
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">{roomName}</span>
+                      {room.price_per_unit ? (
+                        <span className="text-xs text-muted-foreground">
+                          {formatCurrency(Number(room.price_per_unit), room.currency)}{' '}
+                          / night
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Price on request
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={qty <= 0}
+                        onClick={() => bumpQty(room.product_id, -1)}
+                        aria-label={`Decrease ${roomName} quantity`}
+                      >
+                        −
+                      </Button>
+                      <span
+                        className="w-6 text-center text-sm tabular-nums"
+                        aria-live="polite"
+                      >
+                        {qty}
                       </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Price on request
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => bumpQty(room.product_id, 1)}
+                        aria-label={`Increase ${roomName} quantity`}
+                      >
+                        +
+                      </Button>
+                      <span className="ml-2 w-20 text-right text-sm tabular-nums text-muted-foreground">
+                        {subtotal > 0
+                          ? formatCurrency(subtotal, room.currency)
+                          : '—'}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={qty <= 0}
-                      onClick={() => bumpQty(room.product_id, -1)}
-                      aria-label={`Decrease ${roomName} quantity`}
-                    >
-                      −
-                    </Button>
-                    <span
-                      className="w-6 text-center text-sm tabular-nums"
-                      aria-live="polite"
-                    >
-                      {qty}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => bumpQty(room.product_id, 1)}
-                      aria-label={`Increase ${roomName} quantity`}
-                    >
-                      +
-                    </Button>
-                    <span className="ml-2 w-20 text-right text-sm tabular-nums text-muted-foreground">
-                      {subtotal > 0
-                        ? formatCurrency(subtotal, room.currency)
-                        : '—'}
-                    </span>
-                  </div>
+                  {showAddons ? (
+                    <AddonsList
+                      addons={roomAddons}
+                      selection={addonSelection}
+                      onChange={setAddonSelection}
+                      parentQty={qty}
+                      heading="Add-ons"
+                    />
+                  ) : null}
                 </div>
               )
             })}

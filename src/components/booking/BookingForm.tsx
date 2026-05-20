@@ -11,6 +11,7 @@ import type {
   SubmitBookingResponse,
 } from '@/api/types'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
+import type { AddonSelection } from './addonsState'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 
 export type BookingSelection =
@@ -58,6 +59,14 @@ interface Props {
    * already iterates the `products` array.
    */
   accommodationRooms?: RoomSelection[]
+  /**
+   * Add-on line items captured upstream — either from the
+   * AccommodationStep (one entry per room add-on the customer picked)
+   * or from the ServiceAddonsStep for service products without a hotel
+   * offering (landr-cip6). Same line-item shape as accommodationRooms;
+   * gets merged into the submit `products` array.
+   */
+  addons?: AddonSelection[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -95,6 +104,7 @@ export function BookingForm({
   selection,
   pickupLocationId,
   accommodationRooms,
+  addons,
   onBack,
   onConfirmed,
 }: Props) {
@@ -176,6 +186,10 @@ export function BookingForm({
       // submit). Hotel rooms share the same selected_days as the
       // service so the pricing engine multiplies by len(selected_days)+1
       // nights (landr-kd5t).
+      // landr-cip6: each add-on becomes its own booking_products line
+      // item alongside the parent service line + any room lines. The
+      // pricing engine handles per-line totals server-side; the widget
+      // only needs to emit the rows.
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
@@ -185,6 +199,11 @@ export function BookingForm({
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
           product_id: room.productId,
           quantity: room.quantity,
+          selected_days: selectedDaysForSubmit,
+        })),
+        ...(addons ?? []).map<ProductLine>((addon) => ({
+          product_id: addon.productId,
+          quantity: addon.quantity,
           selected_days: selectedDaysForSubmit,
         })),
       ]

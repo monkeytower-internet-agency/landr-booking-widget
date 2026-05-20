@@ -4,6 +4,7 @@ import type {
   Location,
   OperatorSettings,
   Product,
+  ProductAddon,
   SubmitBookingResponse,
 } from './types'
 
@@ -206,6 +207,56 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   slug: operatorSlug,
   expose_seats_to_customer: false,
 })
+
+/**
+ * Mock helper for the widget add-on rendering (landr-cip6). Tandem
+ * Classic has no add-ons; Tandem Long is wired to a sample video
+ * package; the mock rooms each expose a breakfast add-on. Keep the
+ * IDs deterministic so component tests can assert against them.
+ */
+const MOCK_VIDEO_ADDON_ID = '00000000-0000-0000-0000-000000000401'
+const MOCK_BREAKFAST_ADDON_ID = '00000000-0000-0000-0000-000000000402'
+
+export const mockProductAddons = (productId: string): ProductAddon[] => {
+  // Service example: Tandem Long → Video Package (optional).
+  if (productId === '00000000-0000-0000-0000-000000000002') {
+    return [
+      {
+        product_addon_id: 'mock-addon-1',
+        addon_product_id: MOCK_VIDEO_ADDON_ID,
+        name: 'Video Package',
+        name_localized: { en: 'Video Package', de: 'Video-Paket' },
+        is_required: false,
+        min_qty: 0,
+        max_qty: null,
+        sort_order: 10,
+        price_per_unit: 39,
+        currency: 'EUR',
+      },
+    ]
+  }
+  // Hotel-room example: every mock room offers Breakfast.
+  if (
+    productId === '00000000-0000-0000-0000-000000000101' ||
+    productId === '00000000-0000-0000-0000-000000000102'
+  ) {
+    return [
+      {
+        product_addon_id: `mock-addon-breakfast-${productId}`,
+        addon_product_id: MOCK_BREAKFAST_ADDON_ID,
+        name: 'Breakfast',
+        name_localized: { en: 'Breakfast', de: 'Frühstück' },
+        is_required: false,
+        min_qty: 0,
+        max_qty: null,
+        sort_order: 10,
+        price_per_unit: 10,
+        currency: 'EUR',
+      },
+    ]
+  }
+  return []
+}
 
 export const mockSubmit = (): SubmitBookingResponse => ({
   booking_id: '00000000-0000-0000-0000-0000000000bb',
