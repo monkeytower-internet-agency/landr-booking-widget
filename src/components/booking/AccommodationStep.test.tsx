@@ -323,9 +323,13 @@ describe('AccommodationStep', () => {
     })
     fireEvent.click(plusButtons[0]!)
 
-    // Wait for derived stay window to render so we know rerender happened
+    // landr-kat8: the in-step "Hotel total" summary moved into the
+    // PriceSidebar pill — we now wait for the stay-window orientation
+    // line instead to confirm the post-pick rerender flushed.
     await waitFor(() =>
-      expect(screen.getByText(/Hotel total/i)).toBeInTheDocument(),
+      expect(
+        screen.getByTestId('accommodation-stay-window'),
+      ).toBeInTheDocument(),
     )
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
@@ -585,7 +589,12 @@ describe('AccommodationStep', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(2)
   })
 
-  it('shows the paid-directly-to-hotel notice when a hotel is selected', async () => {
+  // landr-kat8: the in-step "Hotel is paid directly at check-in" notice
+  // moved into the PriceSidebar's at-hotel pill (sidebar is now canonical
+  // for hotel totals + caveat). The step keeps a short stay-window
+  // orientation line so the customer sees which nights the room steppers
+  // below cover — but the totals + paid-directly copy live in the sidebar.
+  it('renders a stay-window orientation line when a hotel + rooms are loaded (landr-kat8)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -604,8 +613,16 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
+    const stay = screen.getByTestId('accommodation-stay-window')
+    // Stay: <weekday Tue 9 Jun> → <weekday Thu 11 Jun> · 2 nights
+    expect(stay.textContent).toMatch(/Stay/)
+    expect(stay.textContent).toMatch(/Tue/)
+    expect(stay.textContent).toMatch(/Thu/)
+    expect(stay.textContent).toMatch(/2 nights/)
+    // The verbose totals + paid-directly notice no longer live in the step.
     expect(
-      screen.getByText(/Hotel is paid directly at check-in/i),
-    ).toBeInTheDocument()
+      screen.queryByText(/Hotel is paid directly at check-in/i),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Hotel total/i)).not.toBeInTheDocument()
   })
 })

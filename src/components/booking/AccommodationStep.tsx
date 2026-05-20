@@ -21,7 +21,6 @@ import {
   roomSubtotal,
   totalBreakfastQty,
   totalRoomCapacity,
-  totalStayCost,
   type RoomSelection,
 } from './accommodationCalc'
 import { AddonsList } from './AddonsList'
@@ -243,11 +242,6 @@ export function AccommodationStep({
         .filter(([, qty]) => qty > 0)
         .map(([productId, quantity]) => ({ productId, quantity })),
     [selection],
-  )
-
-  const totals = useMemo(
-    () => totalStayCost(roomSelections, rooms ?? [], nights),
-    [roomSelections, rooms, nights],
   )
 
   const productName = pickLocalized(product.name, product.name_localized, locale)
@@ -573,41 +567,25 @@ export function AccommodationStep({
           </p>
         ) : null}
 
-        {/* Stay summary — derived check-in/out, nights, total + paid-directly notice.
-            landr-8yaz: check-in/out render with weekday ("Sun 24 May") via
-            formatDayLabel so the customer doesn't have to mentally convert
-            an ISO string into a day-of-week. */}
+        {/* landr-kat8: stripped the inline price + totals breakdown — the
+            PriceSidebar's "At-hotel total · pay at check-in" pill now
+            owns the canonical hotel summary (check-in/out span, per-line
+            breakdown, subtotal, and the "paid directly at check-in"
+            caveat). Keeping a parallel summary here would just duplicate
+            those numbers and risk drift when the estimate engine evolves.
+            We retain a short check-in/out stay window for orientation
+            inside the accommodation step so the customer knows which
+            nights the rooms below cover — but the totals + caveat now
+            live exclusively in the sidebar pill. */}
         {!optedOut && selectedHotelId && rooms && rooms.length > 0 ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Check-in</span>
-              <span>
-                {checkInIso ? formatDayLabel(checkInIso, locale) : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Check-out</span>
-              <span>
-                {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Nights</span>
-              <span className="tabular-nums">{nights}</span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 font-medium">
-              <span>Hotel total</span>
-              <span className="tabular-nums">
-                {totals.amount > 0
-                  ? formatCurrency(totals.amount, totals.currency)
-                  : '—'}
-              </span>
-            </div>
-            <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-              Hotel is paid directly at check-in and is{' '}
-              <strong>not included</strong> in your booking total.
-            </p>
-          </div>
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="accommodation-stay-window"
+          >
+            Stay: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
+            {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'} ·{' '}
+            {nights} {nights === 1 ? 'night' : 'nights'}
+          </p>
         ) : null}
 
         <div className="flex justify-end pt-2">

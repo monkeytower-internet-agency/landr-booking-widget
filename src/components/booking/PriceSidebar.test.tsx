@@ -81,7 +81,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders the operator/hotel split with grand total and a discount tag', async () => {
+  it('renders the operator/hotel split with booking total and a discount tag (landr-kat8)', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
@@ -94,20 +94,38 @@ describe('PriceSidebar (landr-qez0)', () => {
       />,
     )
     await waitFor(() => {
-      // grand total appears on both desktop and mobile renders
+      // landr-kat8: the grand-total testid is replaced by
+      // price-sidebar-booking-total (operator-only) + a separate hotel
+      // pill. Both render on desktop and mobile.
       expect(
-        screen.getAllByTestId('price-sidebar-grand-total').length,
+        screen.getAllByTestId('price-sidebar-booking-total').length,
       ).toBeGreaterThan(0)
     })
     const desktop = screen.getByTestId('price-sidebar-desktop')
     expect(desktop).toHaveTextContent('Booking overview')
     expect(desktop).toHaveTextContent('You pay now')
-    expect(desktop).toHaveTextContent('Pay at hotel')
+    // landr-kat8: hotel pill header replaces the old "Pay at hotel" label.
+    expect(desktop).toHaveTextContent('At-hotel total')
     expect(desktop).toHaveTextContent('Guided Day Dive')
     expect(desktop).toHaveTextContent('Single Room')
     expect(desktop).toHaveTextContent('Breakfast')
-    // Currency formatting comes through Intl — assert the digits/grand total
-    expect(desktop).toHaveTextContent('456')
+    // Booking total = operator only (180), NOT the old grand_total (456).
+    const bookingTotal = desktop.querySelector(
+      '[data-testid="price-sidebar-booking-total"]',
+    )
+    expect(bookingTotal?.textContent).toMatch(/Booking total/)
+    expect(bookingTotal?.textContent).toMatch(/180/)
+    expect(bookingTotal?.textContent).not.toMatch(/456/)
+    // Hotel pill carries its own subtotal (276) and the caveat copy.
+    const hotelSection = desktop.querySelector(
+      '[data-testid="price-sidebar-hotel-section"]',
+    )
+    expect(hotelSection?.textContent).toMatch(/276/)
+    const caveat = desktop.querySelector(
+      '[data-testid="price-sidebar-hotel-caveat"]',
+    )
+    expect(caveat?.textContent).toMatch(/Paid directly to the hotel at check-in/)
+    expect(caveat?.textContent).toMatch(/Not included in your booking total/)
     expect(desktop).toHaveTextContent('Multi-day discount')
   })
 
@@ -320,6 +338,125 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     expect(names?.textContent).toMatch(/Ada/)
     expect(names?.textContent).toMatch(/Grace/)
     expect(names?.textContent).toMatch(/For/)
+  })
+
+  // landr-kat8: dedicated coverage for the hotel pill restructure.
+  // Spec: booking total = operator only; hotel rendered as a distinct
+  // visual pill with a header, per-line breakdown, subtotal, and an
+  // explicit "paid at check-in" caveat. Mobile collapsed bar shows the
+  // booking total + a small "+ €X at hotel" sub-line.
+  it('booking total reflects operator only, not operator + hotel (landr-kat8)', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-booking-total').length,
+      ).toBeGreaterThan(0),
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const bookingTotal = desktop.querySelector(
+      '[data-testid="price-sidebar-booking-total"]',
+    )
+    // 180 = operator_total, NOT 456 (operator + hotel).
+    expect(bookingTotal?.textContent).toMatch(/180/)
+    expect(bookingTotal?.textContent).not.toMatch(/456/)
+  })
+
+  it('hotel pill carries the explicit pay-at-check-in caveat (landr-kat8)', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-hotel-caveat').length,
+      ).toBeGreaterThan(0),
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const caveat = desktop.querySelector(
+      '[data-testid="price-sidebar-hotel-caveat"]',
+    )
+    expect(caveat?.textContent).toMatch(/Paid directly to the hotel at check-in/)
+    expect(caveat?.textContent).toMatch(/Not included in your booking total/)
+    // Hotel pill also gets its own subtotal-bearing row.
+    const hotelTotal = desktop.querySelector(
+      '[data-testid="price-sidebar-hotel-total"]',
+    )
+    expect(hotelTotal?.textContent).toMatch(/276/)
+  })
+
+  it('mobile collapsed bar shows booking total + "+ €X at hotel" sub-line (landr-kat8)', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-mobile-athotel').length,
+      ).toBeGreaterThan(0),
+    )
+    const mobile = screen.getByTestId('price-sidebar-mobile')
+    expect(mobile.textContent).toMatch(/Booking total/)
+    expect(mobile.textContent).toMatch(/180/) // operator only
+    const athotel = mobile.querySelector(
+      '[data-testid="price-sidebar-mobile-athotel"]',
+    )
+    expect(athotel?.textContent).toMatch(/at hotel/)
+    expect(athotel?.textContent).toMatch(/276/)
+  })
+
+  it('hides the mobile at-hotel sub-line when there are no hotel lines (landr-kat8)', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue({
+      ...SAMPLE,
+      line_items: SAMPLE.line_items.filter((li) => li.paid_to === 'operator'),
+      hotel_total: '0.00',
+      grand_total: '180.00',
+      applied_rules: [],
+    })
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-booking-total').length,
+      ).toBeGreaterThan(0),
+    )
+    expect(
+      screen.queryByTestId('price-sidebar-mobile-athotel'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('price-sidebar-hotel-caveat'),
+    ).not.toBeInTheDocument()
   })
 
   it('collapses long name lists with a "+N others" suffix', async () => {
