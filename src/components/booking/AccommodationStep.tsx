@@ -124,7 +124,10 @@ export function AccommodationStep({
         setHotels(list)
         // Auto-select when mandatory + exactly one hotel exists. Skip
         // the hotel-picker UI entirely in that case so the customer
-        // sees the room list immediately.
+        // sees the room list immediately. The optional + Yes case is
+        // handled by a separate effect below so the auto-select fires
+        // when the customer flips includeHotel from false → true (the
+        // hotel list resolves on mount, before the toggle is clicked).
         if (isMandatory && list.length === 1 && list[0]) {
           setSelectedHotelId(list[0].location_id)
         }
@@ -137,6 +140,30 @@ export function AccommodationStep({
       cancelled = true
     }
   }, [operatorSlug, isMandatory])
+
+  // landr-punc: auto-select the lone hotel in the optional + Yes path.
+  // The hotel list resolves on mount (effect above) but the customer
+  // hasn't clicked "Yes, add hotel" yet, so we re-run when includeHotel
+  // flips. The set lives inside an async IIFE (no synchronous setState
+  // in effect body — see widget-eslint-react-hooks-rules memory).
+  // Idempotent: re-firing with the same id is a no-op because the
+  // selectedHotelId guard short-circuits. Guards against clobbering an
+  // explicit user pick in the (offering=optional, hotels.length>1) path
+  // by gating on the exact-one-hotel condition.
+  useEffect(() => {
+    if (!includeHotel) return
+    if (!hotels || hotels.length !== 1) return
+    if (selectedHotelId) return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      const only = hotels[0]
+      if (only) setSelectedHotelId(only.location_id)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [includeHotel, hotels, selectedHotelId])
 
   // Fetch rooms when a hotel is selected. The previous-state cleanup
   // (rooms→null + selection→{}) happens in the hotel-change handlers
@@ -353,9 +380,13 @@ export function AccommodationStep({
           </fieldset>
         ) : null}
 
-        {/* Hotel picker — hidden when the customer opted out or only one hotel is auto-selected. */}
+        {/* Hotel picker — hidden when the customer opted out or only one
+            hotel exists (auto-selected via the effect above). landr-punc:
+            we also auto-skip the picker in the optional + Yes single-hotel
+            path so the customer doesn't have to click through a redundant
+            one-item radio list before reaching the rooms. */}
         {!optedOut && hotels && hotels.length > 0 ? (
-          hotels.length === 1 && isMandatory ? (
+          hotels.length === 1 && (isMandatory || includeHotel) ? (
             <p className="text-sm text-muted-foreground">
               Staying at{' '}
               <span className="font-medium text-foreground">
