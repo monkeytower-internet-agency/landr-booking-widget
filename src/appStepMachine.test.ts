@@ -58,6 +58,7 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     const next = stepAfterAccommodation(
       product,
       SLOT_SELECTION,
+      1,
       [{ productId: 'room-1', quantity: 2 }],
       'loc-hotel-mirador',
     )
@@ -67,6 +68,7 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     expect(next.accommodationRooms).toEqual([
       { productId: 'room-1', quantity: 2 },
     ])
+    expect(next.participantCount).toBe(1)
   })
 
   it('routes to pick-pickup when no hotel was booked and the product needs a pickup', () => {
@@ -76,8 +78,10 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
       needs_pickup: true,
       hotel_offering: 'optional',
     })
-    const next = stepAfterAccommodation(product, SLOT_SELECTION, [], null)
+    const next = stepAfterAccommodation(product, SLOT_SELECTION, 3, [], null)
     expect(next.name).toBe('pick-pickup')
+    if (next.name !== 'pick-pickup') throw new Error('narrowing')
+    expect(next.participantCount).toBe(3)
   })
 
   it('routes to fill-form with pickup_location_id=null when no hotel and no pickup needed', () => {
@@ -85,10 +89,11 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
       needs_pickup: false,
       hotel_offering: 'none',
     })
-    const next = stepAfterAccommodation(product, SLOT_SELECTION, [], null)
+    const next = stepAfterAccommodation(product, SLOT_SELECTION, 2, [], null)
     expect(next.name).toBe('fill-form')
     if (next.name !== 'fill-form') throw new Error('narrowing')
     expect(next.pickupLocationId).toBeNull()
+    expect(next.participantCount).toBe(2)
   })
 
   it('hotel-booked wins over needs_pickup=false (still locks pickup to the hotel)', () => {
@@ -105,11 +110,41 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     const next = stepAfterAccommodation(
       product,
       SLOT_SELECTION,
+      4,
       [{ productId: 'room-1', quantity: 1 }],
       'loc-hotel-x',
     )
     expect(next.name).toBe('fill-form')
     if (next.name !== 'fill-form') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-hotel-x')
+    expect(next.participantCount).toBe(4)
+  })
+
+  it('threads participantCount through all branches (landr-mbge)', () => {
+    // Sanity check: every shape returned by stepAfterAccommodation
+    // carries participantCount so downstream steps (sidebar pricing,
+    // overbook warning, submit payload) all see the same number.
+    const cases = [
+      { hotelLocationId: 'h-1', needs_pickup: true, expected: 'fill-form' },
+      { hotelLocationId: null, needs_pickup: true, expected: 'pick-pickup' },
+      { hotelLocationId: null, needs_pickup: false, expected: 'fill-form' },
+    ] as const
+    for (const c of cases) {
+      const product = makeProduct({
+        needs_pickup: c.needs_pickup,
+        hotel_offering: 'optional',
+      })
+      const next = stepAfterAccommodation(
+        product,
+        SLOT_SELECTION,
+        5,
+        [],
+        c.hotelLocationId,
+      )
+      expect(next.name).toBe(c.expected)
+      if (next.name === 'fill-form' || next.name === 'pick-pickup') {
+        expect(next.participantCount).toBe(5)
+      }
+    }
   })
 })

@@ -13,6 +13,7 @@ import { Confirmation } from '@/components/booking/Confirmation'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
+import { ParticipantsStep } from '@/components/booking/ParticipantsStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
@@ -66,7 +67,23 @@ function App() {
   }, [])
 
   /**
-   * After date selection, branch into:
+   * After date selection, hand off to the ParticipantsStep (landr-mbge)
+   * which collects the participant count. The branching to
+   * accommodation / service-addons / pickup / fill-form only runs after
+   * we know how many participants — that count threads through into
+   * AccommodationStep (overbook warning in landr-qpab), PriceSidebar
+   * per-participant pricing (landr-qez0), and the submit payload.
+   *
+   * Non-service product_kind never reaches afterSelection (shop stub
+   * fires upstream).
+   */
+  const afterSelection = (product: Product, selection: BookingSelection) => {
+    setStep({ name: 'participants', product, selection })
+  }
+
+  /**
+   * After the ParticipantsStep confirms a count, run the existing
+   * post-selection branching:
    *   1. AccommodationStep when the product offers a hotel stay
    *      (landr-vyaz). Add-ons are surfaced INSIDE that step under
    *      each room (landr-cip6).
@@ -79,43 +96,50 @@ function App() {
    * The accommodation/service-addons steps always return through
    * afterAccommodation which preserves the pickup-vs-form decision tree.
    */
-  const afterSelection = (product: Product, selection: BookingSelection) => {
+  const afterParticipants = (
+    product: Product,
+    selection: BookingSelection,
+    participantCount: number,
+  ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
-      setStep({ name: 'pick-accommodation', product, selection })
+      setStep({
+        name: 'pick-accommodation',
+        product,
+        selection,
+        participantCount,
+      })
       return
     }
     if (product.product_kind === 'service') {
-      // Quick add-on probe — only insert the add-ons step when the
-      // product actually has at least one linked add-on. A failure
-      // (network blip) short-circuits to the legacy no-addons path so
-      // customers are never stranded.
       void (async () => {
         let hasAddons: boolean
         try {
           const addons = await getProductAddons(product.product_id)
           hasAddons = addons.length > 0
         } catch {
-          // Probe failure short-circuits to the legacy no-addons path so
-          // a network blip never leaves the customer stranded.
           hasAddons = false
         }
         if (hasAddons) {
-          setStep({ name: 'pick-service-addons', product, selection })
+          setStep({
+            name: 'pick-service-addons',
+            product,
+            selection,
+            participantCount,
+          })
         } else {
-          afterAccommodation(product, selection, [], null, [])
+          afterAccommodation(product, selection, participantCount, [], null, [])
         }
       })()
       return
     }
-    // Non-service products go straight to the shop stub upstream;
-    // afterSelection is only called for services.
-    afterAccommodation(product, selection, [], null, [])
+    afterAccommodation(product, selection, participantCount, [], null, [])
   }
 
   const afterAccommodation = (
     product: Product,
     selection: BookingSelection,
+    participantCount: number,
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[] = [],
@@ -124,6 +148,7 @@ function App() {
       stepAfterAccommodation(
         product,
         selection,
+        participantCount,
         accommodationRooms,
         hotelLocationId,
         addons,
@@ -228,16 +253,36 @@ function App() {
           />
         ) : null}
 
+        {step.name === 'participants' ? (
+          <ParticipantsStep
+            product={step.product}
+            selection={step.selection}
+            onBack={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
+            onConfirm={(count) =>
+              afterParticipants(step.product, step.selection, count)
+            }
+          />
+        ) : null}
+
         {step.name === 'pick-accommodation' ? (
           <AccommodationStep
             product={step.product}
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
-            onBack={() => setStep({ name: 'pick-selection', product: step.product })}
+            onBack={() =>
+              setStep({
+                name: 'participants',
+                product: step.product,
+                selection: step.selection,
+              })
+            }
             onConfirm={(rooms, hotelLocationId, addons) =>
               afterAccommodation(
                 step.product,
                 step.selection,
+                step.participantCount,
                 rooms,
                 hotelLocationId,
                 addons,
@@ -250,10 +295,21 @@ function App() {
           <ServiceAddonsStep
             product={step.product}
             onBack={() =>
-              setStep({ name: 'pick-selection', product: step.product })
+              setStep({
+                name: 'participants',
+                product: step.product,
+                selection: step.selection,
+              })
             }
             onConfirm={(addons) =>
-              afterAccommodation(step.product, step.selection, [], null, addons)
+              afterAccommodation(
+                step.product,
+                step.selection,
+                step.participantCount,
+                [],
+                null,
+                addons,
+              )
             }
           />
         ) : null}
@@ -269,9 +325,14 @@ function App() {
                   name: 'pick-accommodation',
                   product: step.product,
                   selection: step.selection,
+                  participantCount: step.participantCount,
                 })
               } else {
-                setStep({ name: 'pick-selection', product: step.product })
+                setStep({
+                  name: 'participants',
+                  product: step.product,
+                  selection: step.selection,
+                })
               }
             }}
             onConfirm={(locationId) =>
@@ -279,6 +340,7 @@ function App() {
                 name: 'fill-form',
                 product: step.product,
                 selection: step.selection,
+                participantCount: step.participantCount,
                 pickupLocationId: locationId,
                 accommodationRooms: step.accommodationRooms,
                 addons: step.addons,
@@ -292,6 +354,7 @@ function App() {
             operatorSlug={operatorSlug}
             product={step.product}
             selection={step.selection}
+            participantCount={step.participantCount}
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
             addons={step.addons}
@@ -301,6 +364,7 @@ function App() {
                   name: 'pick-pickup',
                   product: step.product,
                   selection: step.selection,
+                  participantCount: step.participantCount,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                 })
@@ -311,9 +375,14 @@ function App() {
                     name: 'pick-accommodation',
                     product: step.product,
                     selection: step.selection,
+                    participantCount: step.participantCount,
                   })
                 } else {
-                  setStep({ name: 'pick-selection', product: step.product })
+                  setStep({
+                    name: 'participants',
+                    product: step.product,
+                    selection: step.selection,
+                  })
                 }
               }
             }}

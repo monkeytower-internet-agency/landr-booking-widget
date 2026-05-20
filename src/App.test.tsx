@@ -220,4 +220,79 @@ describe('App', () => {
       })
     })
   })
+
+  describe('participants step (landr-mbge)', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
+      fireEvent.click(selectBtns[0]!)
+    }
+
+    it('inserts a ParticipantsStep between pick-selection and fill-form for a service product with no hotel/pickup/addons', async () => {
+      // single_date product, needs_pickup=false, hotel_offering='none'
+      // → AFTER pick-selection the customer sees the participants step,
+      // NOT fill-form directly.
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      // SingleDatePicker calls getAvailability — feed it one slot for today.
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+
+      // Land on SingleDatePicker.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+
+      // Pick the date cell + continue. The SingleDatePicker exposes a
+      // button-grid via react-day-picker; clicking the date enables
+      // Continue. We just click any enabled date cell, then Continue.
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      expect(dayButtons.length).toBeGreaterThan(0)
+      fireEvent.click(dayButtons[0]!)
+
+      const continueBtn = await screen.findByRole('button', {
+        name: /continue/i,
+      })
+      fireEvent.click(continueBtn)
+
+      // Now we should land on the ParticipantsStep.
+      await waitFor(() =>
+        expect(
+          screen.getByText(/how many participants/i),
+        ).toBeInTheDocument(),
+      )
+      // Defaults to "Just me".
+      expect(screen.getByRole('radio', { name: /just me/i })).toBeChecked()
+      // Continue from participants → BookingForm (fill-form).
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/Your details/i)).toBeInTheDocument(),
+      )
+    })
+  })
 })
