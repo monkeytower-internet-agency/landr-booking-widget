@@ -208,7 +208,9 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     expect(desktop).toHaveTextContent(/Tue/)
     expect(desktop).toHaveTextContent(/Wed/)
     // Three discrete chips inside the operator section.
-    const chips = desktop.querySelectorAll('[data-testid="day-chips"] li')
+    const chips = desktop.querySelectorAll(
+      '[data-testid="day-chips"] [data-day]',
+    )
     expect(chips.length).toBe(3)
   })
 
@@ -230,7 +232,9 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     })
     const desktop = screen.getByTestId('price-sidebar-desktop')
     // Two chips, NOT a "25 → 27" range.
-    const chips = desktop.querySelectorAll('[data-testid="day-chips"] li')
+    const chips = desktop.querySelectorAll(
+      '[data-testid="day-chips"] [data-day]',
+    )
     expect(chips.length).toBe(2)
     expect(desktop).toHaveTextContent(/Mon/) // 25
     expect(desktop).toHaveTextContent(/Wed/) // 27
