@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
+import { submitBooking } from '@/api/client'
 
 vi.mock('@/api/client', () => ({
   submitBooking: vi.fn(),
@@ -124,6 +125,60 @@ describe('BookingForm — timezone line (landr-iu3s)', () => {
     const desc = screen.getByText(/Guided day/)
     // Only one separator dot when the timezone is hidden.
     expect(desc.textContent?.match(/·/g)?.length).toBe(1)
+  })
+})
+
+describe('BookingForm — add-on line items (landr-cip6)', () => {
+  function byName(name: string): HTMLInputElement {
+    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+    if (!el) throw new Error(`No input named ${name}`)
+    return el
+  }
+
+  it('appends each add-on as its own product line in the submit payload', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-1',
+      reference: 'REF-1',
+      state: 'pending',
+    })
+
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        addons={[
+          { productId: 'breakfast-1', quantity: 2 },
+          { productId: 'video-1', quantity: 1 },
+        ]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    // Minimum-valid booker + participant data.
+    fireEvent.change(byName('first_name'), { target: { value: 'Ada' } })
+    fireEvent.change(byName('last_name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Request booking/i }))
+    })
+
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.products).toEqual([
+      // primary service line
+      expect.objectContaining({ product_id: 'service-1', quantity: 1 }),
+      // hotel room
+      expect.objectContaining({ product_id: 'room-1', quantity: 1 }),
+      // add-ons
+      expect.objectContaining({ product_id: 'breakfast-1', quantity: 2 }),
+      expect.objectContaining({ product_id: 'video-1', quantity: 1 }),
+    ])
   })
 })
 

@@ -5,6 +5,7 @@ import type {
   Location,
   OperatorSettings,
   Product,
+  ProductAddon,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
@@ -14,6 +15,7 @@ import {
   mockHotelRooms,
   mockLocations,
   mockOperatorSettings,
+  mockProductAddons,
   mockProducts,
   mockSubmit,
 } from './mocks'
@@ -158,6 +160,22 @@ export async function getFixedDateWindows(
     throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`)
   }
   return (await res.json()) as FixedDateWindow[]
+}
+
+/**
+ * Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
+ * Backed by GET /api/public/products/{id}/addons → SECURITY DEFINER RPC
+ * public_get_product_addons. Returns an empty array when the parent has
+ * no add-ons configured (or is itself hidden) — the widget treats empty
+ * as "no add-ons UI to render".
+ */
+export async function getProductAddons(
+  productId: string,
+): Promise<ProductAddon[]> {
+  if (USE_MOCKS) return mockProductAddons(productId)
+  return http<ProductAddon[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/addons`,
+  )
 }
 
 export async function submitBooking(

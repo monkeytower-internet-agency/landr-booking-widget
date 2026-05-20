@@ -147,6 +147,33 @@ export interface Location {
  */
 export type Hotel = Location
 
+/**
+ * Add-on row returned by GET /api/public/products/{id}/addons (landr-cip6,
+ * epic landr-ie8g). Each entry is one linked add-on product that the
+ * widget surfaces under the parent product (qty stepper, overbook warning,
+ * required-min gating). On submit each selected add-on becomes its own
+ * booking_products line item — the existing public_submit_booking RPC
+ * already iterates products[] so no API change is needed for submit.
+ */
+export interface ProductAddon {
+  product_addon_id: string
+  addon_product_id: string
+  name: string
+  name_localized: Record<string, string> | null
+  is_required: boolean
+  min_qty: number
+  /** NULL = unlimited (widget shows orange warning above parent qty but allows submit). */
+  max_qty: number | null
+  sort_order: number
+  /**
+   * Display per-unit price (per night for hotel_room kind, per slot/line
+   * for service kind). NULL when the add-on's scheme uses tiers/fixed_total
+   * without a per_day_base rule — widget falls back to "Included on request".
+   */
+  price_per_unit: number | null
+  currency: string | null
+}
+
 export interface AvailabilitySlot {
   availability_id: string
   date: string

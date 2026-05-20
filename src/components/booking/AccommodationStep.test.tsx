@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Hotel, Product } from '@/api/types'
+import type { Hotel, Product, ProductAddon } from '@/api/types'
 import { AccommodationStep } from './AccommodationStep'
 
 const { mocks } = vi.hoisted(() => ({
@@ -9,12 +9,17 @@ const { mocks } = vi.hoisted(() => ({
     getHotelsForOperator: vi.fn<(slug: string) => Promise<Hotel[]>>(),
     getHotelRoomsForHotel:
       vi.fn<(slug: string, hotelId: string) => Promise<Product[]>>(),
+    // landr-cip6: AccommodationStep now fetches add-ons per room. Default
+    // mock returns [] so existing tests don't need to thread add-on
+    // catalogue mocks unless they specifically exercise add-on UX.
+    getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
   },
 }))
 
 vi.mock('@/api/client', () => ({
   getHotelsForOperator: mocks.getHotelsForOperator,
   getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
+  getProductAddons: mocks.getProductAddons,
 }))
 
 const HOTEL_A: Hotel = {
@@ -96,6 +101,9 @@ function makeRoom(id: string, name: string, price: number): Product {
 describe('AccommodationStep', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default to no add-ons so the existing room-flow tests don't have
+    // to know about the add-on RPC at all.
+    mocks.getProductAddons.mockResolvedValue([])
   })
 
   it('mandatory + single hotel auto-selects + shows rooms immediately', async () => {
@@ -181,7 +189,7 @@ describe('AccommodationStep', () => {
     const continueBtn = screen.getByRole('button', { name: /Continue/i })
     expect(continueBtn).not.toBeDisabled()
     fireEvent.click(continueBtn)
-    expect(onConfirm).toHaveBeenCalledWith([], null)
+    expect(onConfirm).toHaveBeenCalledWith([], null, [])
   })
 
   it('renders per-room qty steppers and computes nights × price × qty totals', async () => {
@@ -226,6 +234,7 @@ describe('AccommodationStep', () => {
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 1 }],
       'hotel-a',
+      [],
     )
   })
 

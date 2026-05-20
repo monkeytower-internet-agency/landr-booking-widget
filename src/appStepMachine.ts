@@ -5,6 +5,7 @@
  * exports there would trigger the rule and block CI).
  */
 import type { RoomSelection } from '@/components/booking/accommodationCalc'
+import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, SubmitBookingResponse } from '@/api/types'
 
@@ -13,10 +14,16 @@ export type Step =
   | { name: 'pick-selection'; product: Product }
   | { name: 'pick-accommodation'; product: Product; selection: BookingSelection }
   | {
+      name: 'pick-service-addons'
+      product: Product
+      selection: BookingSelection
+    }
+  | {
       name: 'pick-pickup'
       product: Product
       selection: BookingSelection
       accommodationRooms: RoomSelection[]
+      addons: AddonSelection[]
     }
   | {
       name: 'fill-form'
@@ -24,6 +31,7 @@ export type Step =
       selection: BookingSelection
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
+      addons: AddonSelection[]
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -49,6 +57,7 @@ export function stepAfterAccommodation(
   selection: BookingSelection,
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
+  addons: AddonSelection[] = [],
 ): Step {
   if (hotelLocationId !== null) {
     return {
@@ -57,6 +66,7 @@ export function stepAfterAccommodation(
       selection,
       pickupLocationId: hotelLocationId,
       accommodationRooms,
+      addons,
     }
   }
   if (product.needs_pickup) {
@@ -65,6 +75,7 @@ export function stepAfterAccommodation(
       product,
       selection,
       accommodationRooms,
+      addons,
     }
   }
   return {
@@ -73,5 +84,6 @@ export function stepAfterAccommodation(
     selection,
     pickupLocationId: null,
     accommodationRooms,
+    addons,
   }
 }

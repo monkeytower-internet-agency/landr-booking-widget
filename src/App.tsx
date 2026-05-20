@@ -7,6 +7,8 @@ import {
   BookingForm,
   type BookingSelection,
 } from '@/components/booking/BookingForm'
+import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
+import type { AddonSelection } from '@/components/booking/addonsState'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
@@ -15,7 +17,7 @@ import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import { ProductList } from '@/components/booking/ProductList'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
-import { getOperatorSettings } from '@/api/client'
+import { getOperatorSettings, getProductAddons } from '@/api/client'
 import type { OperatorSettings, Product } from '@/api/types'
 import { type Step, stepAfterAccommodation } from './appStepMachine'
 
@@ -64,11 +66,18 @@ function App() {
   }, [])
 
   /**
-   * After date selection, branch into the accommodation step when the
-   * product offers a hotel stay (landr-vyaz). For products without a
-   * hotel offering, the existing pickup-or-form branch still applies.
-   * The accommodation step always returns through afterAccommodation
-   * which preserves the pickup-vs-form decision tree.
+   * After date selection, branch into:
+   *   1. AccommodationStep when the product offers a hotel stay
+   *      (landr-vyaz). Add-ons are surfaced INSIDE that step under
+   *      each room (landr-cip6).
+   *   2. ServiceAddonsStep when the product has no hotel offering but
+   *      DOES have add-ons configured (landr-cip6). We do a quick
+   *      add-on fetch up front so customers without add-ons don't see
+   *      an empty step appear and disappear.
+   *   3. Straight through to pick-pickup / fill-form for products with
+   *      neither hotel nor add-ons (the legacy short-circuit).
+   * The accommodation/service-addons steps always return through
+   * afterAccommodation which preserves the pickup-vs-form decision tree.
    */
   const afterSelection = (product: Product, selection: BookingSelection) => {
     const offering = product.hotel_offering ?? 'none'
@@ -76,10 +85,32 @@ function App() {
       setStep({ name: 'pick-accommodation', product, selection })
       return
     }
-    // No accommodation step ran (product has no hotel offering) → no
-    // hotel context, so hotelLocationId is null and the pickup branch
-    // below decides whether pick-pickup runs.
-    afterAccommodation(product, selection, [], null)
+    if (product.product_kind === 'service') {
+      // Quick add-on probe — only insert the add-ons step when the
+      // product actually has at least one linked add-on. A failure
+      // (network blip) short-circuits to the legacy no-addons path so
+      // customers are never stranded.
+      void (async () => {
+        let hasAddons: boolean
+        try {
+          const addons = await getProductAddons(product.product_id)
+          hasAddons = addons.length > 0
+        } catch {
+          // Probe failure short-circuits to the legacy no-addons path so
+          // a network blip never leaves the customer stranded.
+          hasAddons = false
+        }
+        if (hasAddons) {
+          setStep({ name: 'pick-service-addons', product, selection })
+        } else {
+          afterAccommodation(product, selection, [], null, [])
+        }
+      })()
+      return
+    }
+    // Non-service products go straight to the shop stub upstream;
+    // afterSelection is only called for services.
+    afterAccommodation(product, selection, [], null, [])
   }
 
   const afterAccommodation = (
@@ -87,6 +118,7 @@ function App() {
     selection: BookingSelection,
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
+    addons: AddonSelection[] = [],
   ) => {
     setStep(
       stepAfterAccommodation(
@@ -94,6 +126,7 @@ function App() {
         selection,
         accommodationRooms,
         hotelLocationId,
+        addons,
       ),
     )
   }
@@ -201,13 +234,26 @@ function App() {
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
             onBack={() => setStep({ name: 'pick-selection', product: step.product })}
-            onConfirm={(rooms, hotelLocationId) =>
+            onConfirm={(rooms, hotelLocationId, addons) =>
               afterAccommodation(
                 step.product,
                 step.selection,
                 rooms,
                 hotelLocationId,
+                addons,
               )
+            }
+          />
+        ) : null}
+
+        {step.name === 'pick-service-addons' ? (
+          <ServiceAddonsStep
+            product={step.product}
+            onBack={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
+            onConfirm={(addons) =>
+              afterAccommodation(step.product, step.selection, [], null, addons)
             }
           />
         ) : null}
@@ -235,6 +281,7 @@ function App() {
                 selection: step.selection,
                 pickupLocationId: locationId,
                 accommodationRooms: step.accommodationRooms,
+                addons: step.addons,
               })
             }
           />
@@ -247,6 +294,7 @@ function App() {
             selection={step.selection}
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
+            addons={step.addons}
             onBack={() => {
               if (step.product.needs_pickup) {
                 setStep({
@@ -254,6 +302,7 @@ function App() {
                   product: step.product,
                   selection: step.selection,
                   accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
                 })
               } else {
                 const offering = step.product.hotel_offering ?? 'none'
