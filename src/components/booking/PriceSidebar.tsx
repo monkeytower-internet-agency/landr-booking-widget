@@ -33,8 +33,10 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { Product } from '@/api/types'
-import type { RoomSelection } from './accommodationCalc'
+import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
+import { formatDayLabel } from './dateLabel'
+import { DayChips } from './DayChips'
 import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
@@ -61,14 +63,23 @@ interface Props {
 
 /**
  * Inner content used by both the desktop rail and the mobile drawer
- * body. Stateless — receives the resolved estimate data as props.
+ * body. Stateless — receives the resolved estimate data as props plus
+ * the selectedDays so it can render day chips per operator line item
+ * (landr-2wyi) and derive the hotel check-in / check-out span.
  */
+interface BookingOverviewBodyProps
+  extends ReturnType<typeof useBookingEstimate> {
+  /** ISO YYYY-MM-DD days the customer picked for the guided service. */
+  selectedDays: string[]
+}
+
 function BookingOverviewBody({
   data,
   isLoading,
   isStale,
   error,
-}: ReturnType<typeof useBookingEstimate>) {
+  selectedDays,
+}: BookingOverviewBodyProps) {
   if (!data && isLoading) {
     return (
       <p className="text-sm text-muted-foreground">Calculating…</p>
@@ -90,6 +101,17 @@ function BookingOverviewBody({
     )
   }
   const { operator, hotel } = splitLineItems(data.line_items)
+  // Hotel check-in / check-out span (landr-2wyi). Derived from the
+  // selected guided days: check-in = first day − 1, check-out = last
+  // day + 1 (see deriveStayWindow / accommodationCalc.ts). We surface
+  // this as an explicit "Hotel: Sun 24 May → Thu 29 May, 5 nights"
+  // header above the hotel line items so the customer sees the actual
+  // night range — the chips on the operator side only cover the
+  // guided days, not the +1 buffer nights.
+  const stay =
+    hotel.length > 0 && selectedDays.length > 0
+      ? deriveStayWindow(selectedDays)
+      : null
   const showStaleSpinner = isStale && data !== null
   return (
     <div className="space-y-4">
@@ -98,7 +120,7 @@ function BookingOverviewBody({
           <h4 className="mb-1 text-sm font-semibold text-foreground">
             You pay now
           </h4>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-2 text-sm">
             {operator.map((li) => (
               <li
                 key={`op-${li.product_id}`}
@@ -106,9 +128,18 @@ function BookingOverviewBody({
               >
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {li.qty} × {li.units} {li.units === 1 ? 'day' : 'days'}
-                  </span>
+                  {/* DayChips: one chip per picked date — replaces the
+                      previous "qty × units days" subtitle which conflated
+                      non-contiguous selections with a range. We still
+                      show the participant-count multiplier when qty > 1
+                      so the customer sees why the line total scales. */}
+                  <DayChips dates={selectedDays} />
+                  {li.qty > 1 ? (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {li.qty} × {li.units}{' '}
+                      {li.units === 1 ? 'day' : 'days'}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="tabular-nums">
                   {formatMoney(li.line_total, data.currency)}
@@ -129,6 +160,16 @@ function BookingOverviewBody({
           <h4 className="mb-1 text-sm font-semibold text-foreground">
             Pay at hotel
           </h4>
+          {stay && stay.checkInIso && stay.checkOutIso ? (
+            <p
+              className="mb-2 text-xs text-muted-foreground"
+              data-testid="price-sidebar-hotel-span"
+            >
+              Hotel: {formatDayLabel(stay.checkInIso)} →{' '}
+              {formatDayLabel(stay.checkOutIso)}, {stay.nights}{' '}
+              {stay.nights === 1 ? 'night' : 'nights'}
+            </p>
+          ) : null}
           <ul className="space-y-1 text-sm">
             {hotel.map((li) => (
               <li
@@ -285,7 +326,7 @@ export default function PriceSidebar(props: Props) {
           ) : (
             <div className="mb-3" />
           )}
-          <BookingOverviewBody {...estimate} />
+          <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
         </div>
       </aside>
 
@@ -318,7 +359,7 @@ export default function PriceSidebar(props: Props) {
             id="price-sidebar-mobile-panel"
             className="max-h-[60vh] overflow-y-auto border-t bg-card px-4 py-4"
           >
-            <BookingOverviewBody {...estimate} />
+            <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
           </div>
         ) : null}
       </div>
