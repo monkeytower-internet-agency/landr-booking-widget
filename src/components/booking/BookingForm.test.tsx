@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import { submitBooking } from '@/api/client'
+import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', () => ({
   submitBooking: vi.fn(),
@@ -45,13 +46,100 @@ const DAYS_SELECTION: BookingSelection = {
   selectedDays: ['2024-11-23', '2024-11-24', '2024-11-25'],
 }
 
-describe('BookingForm — hotel stay block (landr-iu3s)', () => {
-  it('renders the hotel block when accommodationRooms is non-empty', () => {
+const ADA_BOOKER: BookerDetails = {
+  first_name: 'Ada',
+  last_name: 'Lovelace',
+  email: 'ada@example.com',
+  phone: '+34 600 000 000',
+}
+
+function bookerAsParticipant(b: BookerDetails): ParticipantDetails {
+  return {
+    first_name: b.first_name,
+    last_name: b.last_name,
+    email: b.email,
+    phone: b.phone,
+  }
+}
+
+describe('BookingForm — review-only screen (landr-8c03)', () => {
+  it('renders the "Review your booking" header and the booker + participants summary', () => {
     render(
       <BookingForm
         operatorSlug="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/review your booking/i)).toBeInTheDocument()
+    const booker = screen.getByTestId('review-booker')
+    expect(booker).toHaveTextContent('Ada Lovelace')
+    expect(booker).toHaveTextContent('ada@example.com')
+    expect(booker).toHaveTextContent('+34 600 000 000')
+    const participants = screen.getByTestId('review-participants')
+    expect(participants).toHaveTextContent(/Participants \(1\)/)
+    expect(participants).toHaveTextContent(/1\. Ada Lovelace/)
+  })
+
+  it('renders every participant in the summary list', () => {
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: 'grace@example.com',
+            phone: '',
+          },
+          { first_name: 'Alan', last_name: 'Turing', email: '', phone: '' },
+        ]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const list = screen.getByTestId('review-participants')
+    expect(list).toHaveTextContent(/Participants \(3\)/)
+    expect(list).toHaveTextContent(/Ada Lovelace/)
+    expect(list).toHaveTextContent(/Grace Hopper/)
+    expect(list).toHaveTextContent(/Alan Turing/)
+  })
+
+  it('does NOT render any form input fields (data flows in via props)', () => {
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    // No editable inputs (the review screen is read-only).
+    expect(document.querySelectorAll('input').length).toBe(0)
+  })
+
+  it('renders the hotel block when accommodationRooms is non-empty (landr-iu3s)', () => {
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
         pickupLocationId={null}
         accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
         onBack={vi.fn()}
@@ -59,8 +147,6 @@ describe('BookingForm — hotel stay block (landr-iu3s)', () => {
       />,
     )
     const stay = screen.getByTestId('hotel-stay-block')
-    // 2024-11-23 - 1 day = 2024-11-22 (Fri) check-in,
-    // 2024-11-25 + 1 day = 2024-11-26 (Tue) check-out, 4 nights.
     expect(stay.textContent).toMatch(/check-in/)
     expect(stay.textContent).toMatch(/check-out/)
     expect(stay.textContent).toMatch(/4 nights/)
@@ -72,6 +158,8 @@ describe('BookingForm — hotel stay block (landr-iu3s)', () => {
         operatorSlug="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
         pickupLocationId={null}
         accommodationRooms={[]}
         onBack={vi.fn()}
@@ -80,10 +168,8 @@ describe('BookingForm — hotel stay block (landr-iu3s)', () => {
     )
     expect(screen.queryByTestId('hotel-stay-block')).toBeNull()
   })
-})
 
-describe('BookingForm — timezone line (landr-iu3s)', () => {
-  it('shows the timezone for time_slot products', () => {
+  it('shows the timezone for time_slot products (landr-iu3s)', () => {
     render(
       <BookingForm
         operatorSlug="para42"
@@ -99,14 +185,13 @@ describe('BookingForm — timezone line (landr-iu3s)', () => {
             capacity_reserved: 0,
           } as never,
         }}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
         pickupLocationId={null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
     )
-    // Browser timezone string varies by environment, but the
-    // separator dot before it must be present when the product
-    // is time_slot.
     const desc = screen.getByText(/Guided day/)
     expect(desc.textContent).toMatch(/·.*·/) // name · date · tz
   })
@@ -117,161 +202,150 @@ describe('BookingForm — timezone line (landr-iu3s)', () => {
         operatorSlug="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
         pickupLocationId={null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
     )
     const desc = screen.getByText(/Guided day/)
-    // Only one separator dot when the timezone is hidden.
     expect(desc.textContent?.match(/·/g)?.length).toBe(1)
   })
 })
 
-describe('BookingForm — add-on line items (landr-cip6)', () => {
-  function byName(name: string): HTMLInputElement {
-    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
-    if (!el) throw new Error(`No input named ${name}`)
-    return el
-  }
+describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
+  beforeEach(() => {
+    vi.mocked(submitBooking).mockReset()
+  })
 
-  it('appends each add-on as its own product line in the submit payload', async () => {
+  it('builds the submit body from booker + participants + line items and calls onConfirmed', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({
       booking_id: 'b-1',
       reference: 'REF-1',
       state: 'pending',
     })
+    const onConfirmed = vi.fn()
 
     render(
       <BookingForm
         operatorSlug="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
-        pickupLocationId={null}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: 'grace@example.com',
+            phone: '',
+          },
+        ]}
+        pickupLocationId="loc-pickup-1"
         accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
         addons={[
           { productId: 'breakfast-1', quantity: 2 },
           { productId: 'video-1', quantity: 1 },
         ]}
         onBack={vi.fn()}
-        onConfirmed={vi.fn()}
+        onConfirmed={onConfirmed}
       />,
     )
 
-    // Minimum-valid booker + participant data.
-    fireEvent.change(byName('first_name'), { target: { value: 'Ada' } })
-    fireEvent.change(byName('last_name'), { target: { value: 'Lovelace' } })
-    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
-
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Request booking/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
 
     await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
     const body = submitMock.mock.calls[0]![0]
+    expect(body.customer_first_name).toBe('Ada')
+    expect(body.customer_last_name).toBe('Lovelace')
+    expect(body.customer_email).toBe('ada@example.com')
+    expect(body.customer_phone).toBe('+34 600 000 000')
     expect(body.products).toEqual([
-      // primary service line
       expect.objectContaining({ product_id: 'service-1', quantity: 1 }),
-      // hotel room
       expect.objectContaining({ product_id: 'room-1', quantity: 1 }),
-      // add-ons
       expect.objectContaining({ product_id: 'breakfast-1', quantity: 2 }),
       expect.objectContaining({ product_id: 'video-1', quantity: 1 }),
     ])
-  })
-})
-
-describe('BookingForm — first-participant pre-fill (landr-iu3s)', () => {
-  function byName(name: string): HTMLInputElement {
-    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
-    if (!el) throw new Error(`No input named ${name}`)
-    return el
-  }
-
-  it('mirrors booker first/last name into participant 0 while untouched', () => {
-    render(
-      <BookingForm
-        operatorSlug="para42"
-        product={makeServiceProduct('days_range')}
-        selection={DAYS_SELECTION}
-        pickupLocationId={null}
-        onBack={vi.fn()}
-        onConfirmed={vi.fn()}
-      />,
+    expect(body.participants).toEqual([
+      expect.objectContaining({
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        email: 'ada@example.com',
+        service_role_code: 'participant',
+        pickup_location_id: 'loc-pickup-1',
+      }),
+      expect.objectContaining({
+        first_name: 'Grace',
+        last_name: 'Hopper',
+        email: 'grace@example.com',
+        pickup_location_id: 'loc-pickup-1',
+      }),
+    ])
+    await waitFor(() =>
+      expect(onConfirmed).toHaveBeenCalledWith(
+        expect.objectContaining({ reference: 'REF-1' }),
+        'ada@example.com',
+      ),
     )
-    fireEvent.change(byName('first_name'), { target: { value: 'Ada' } })
-    fireEvent.change(byName('last_name'), { target: { value: 'Lovelace' } })
-    expect(byName('participants.0.first_name').value).toBe('Ada')
-    expect(byName('participants.0.last_name').value).toBe('Lovelace')
   })
 
-  it('stops syncing once the participant field diverges', () => {
-    render(
-      <BookingForm
-        operatorSlug="para42"
-        product={makeServiceProduct('days_range')}
-        selection={DAYS_SELECTION}
-        pickupLocationId={null}
-        onBack={vi.fn()}
-        onConfirmed={vi.fn()}
-      />,
-    )
-    fireEvent.change(byName('first_name'), { target: { value: 'Ada' } })
-    expect(byName('participants.0.first_name').value).toBe('Ada')
-    // User overrides the participant name explicitly.
-    fireEvent.change(byName('participants.0.first_name'), {
-      target: { value: 'Grace' },
+  it('coerces empty participant email to null in the submit payload', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-2',
+      reference: 'REF-2',
+      state: 'pending',
     })
-    expect(byName('participants.0.first_name').value).toBe('Grace')
-    // Further booker edits must NOT overwrite the overridden value.
-    fireEvent.change(byName('first_name'), { target: { value: 'Alan' } })
-    expect(byName('participants.0.first_name').value).toBe('Grace')
-  })
-})
-
-describe('BookingForm — first-participant email pre-fill (landr-qs8d)', () => {
-  function byName(name: string): HTMLInputElement {
-    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
-    if (!el) throw new Error(`No input named ${name}`)
-    return el
-  }
-
-  it('mirrors booker email into participant 0 email while untouched', () => {
     render(
       <BookingForm
         operatorSlug="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          { first_name: 'Grace', last_name: 'Hopper', email: '', phone: '' },
+        ]}
         pickupLocationId={null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,
     )
-    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
-    expect(byName('participants.0.email').value).toBe('ada@example.com')
-  })
-
-  it('stops syncing once the participant email diverges', () => {
-    render(
-      <BookingForm
-        operatorSlug="para42"
-        product={makeServiceProduct('days_range')}
-        selection={DAYS_SELECTION}
-        pickupLocationId={null}
-        onBack={vi.fn()}
-        onConfirmed={vi.fn()}
-      />,
-    )
-    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
-    expect(byName('participants.0.email').value).toBe('ada@example.com')
-    // User overrides the participant email explicitly.
-    fireEvent.change(byName('participants.0.email'), {
-      target: { value: 'grace@example.com' },
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
-    expect(byName('participants.0.email').value).toBe('grace@example.com')
-    // Further booker edits must NOT overwrite the overridden value.
-    fireEvent.change(byName('email'), { target: { value: 'alan@example.com' } })
-    expect(byName('participants.0.email').value).toBe('grace@example.com')
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.participants[1]!.email).toBeNull()
+    expect(body.participants[1]!.last_name).toBe('Hopper')
+  })
+
+  it('surfaces a server error message and re-enables the Confirm button', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(new Error('boom'))
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent('boom'),
+    )
+    const btn = screen.getByRole('button', { name: /Confirm booking/i })
+    expect(btn).not.toBeDisabled()
   })
 })

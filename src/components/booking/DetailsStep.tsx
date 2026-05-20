@@ -1,0 +1,342 @@
+import { useEffect, useRef, useState } from 'react'
+import type { BookingSelection } from '@/components/booking/BookingForm'
+import type { Product } from '@/api/types'
+import { browserLocale } from '@/lib/locale'
+import { formatDayLabel, formatDayRange } from '@/components/booking/dateLabel'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  bookerToParticipant,
+  detailsAreComplete,
+  emptyBooker,
+  emptyParticipant,
+  type BookerDetails,
+  type ParticipantDetails,
+} from './detailsTypes'
+
+const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
+
+interface Props {
+  product: Product
+  selection: BookingSelection
+  /** Re-entry data when the customer hits Back from a downstream step. */
+  initialBooker?: BookerDetails
+  initialParticipants?: ParticipantDetails[]
+  onBack: () => void
+  onConfirm: (
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+  ) => void
+}
+
+/**
+ * DetailsStep (landr-8c03) — collects FULL participant details right
+ * after dates, not just count. Replaces the previous count-only
+ * ParticipantsStep (landr-mbge). The booker fills in their own
+ * first/last/email/phone (all required) and 0-5 additional participants
+ * with first/last (required) + email/phone (optional). The booker is
+ * automatically mirrored into participants[0] so the data only gets
+ * typed once.
+ *
+ * Why move details up here: downstream steps (AccommodationStep,
+ * PriceSidebar) now have full party context — they can show names next
+ * to room assignments / line items instead of just a count. The final
+ * BookingForm becomes a review-only confirmation screen
+ * (no inputs).
+ *
+ * Generic copy per landr-genericity-northstar — "participants" not
+ * "pilots"/"divers".
+ */
+function describeSelection(
+  selection: BookingSelection,
+  locale: string,
+): string {
+  if (selection.kind === 'slot') {
+    const { date, start_time } = selection.slot
+    const label = formatDayLabel(date, locale)
+    return start_time ? `${label} · ${start_time.slice(0, 5)}` : label
+  }
+  const days = selection.selectedDays
+  if (days.length === 0) return ''
+  if (days.length === 1) return formatDayLabel(days[0]!, locale)
+  return `${formatDayRange(days[0]!, days[days.length - 1]!, locale)} (${days.length} days)`
+}
+
+export function DetailsStep({
+  product,
+  selection,
+  initialBooker,
+  initialParticipants,
+  onBack,
+  onConfirm,
+}: Props) {
+  const locale = browserLocale()
+  const [booker, setBooker] = useState<BookerDetails>(
+    () => initialBooker ?? emptyBooker(),
+  )
+  // Additional participants only (booker is participants[0], synced
+  // automatically). When the customer comes back to this step we
+  // restore the additional slots from initialParticipants[1..].
+  const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
+    if (initialParticipants && initialParticipants.length > 1) {
+      return initialParticipants.slice(1)
+    }
+    return []
+  })
+
+  // Mirror the booker into participants[0] while the customer hasn't
+  // overridden individual fields. We track the previous booker values
+  // per-field; once the participant field diverges from the previous
+  // booker value, that field is "owned" by the user and stops syncing
+  // (mirrors the prevBooker pattern from landr-iu3s/landr-qs8d).
+  //
+  // Implementation note: participants[0] data lives implicitly — we
+  // derive it from the booker on submit (bookerToParticipant). The
+  // additional[] state covers participants 1..N. This avoids needing
+  // to track a "participant 0 has diverged" flag because the participant
+  // 0 row is rendered as a read-only summary in the UI.
+  //
+  // The "additional" array is the only mutable participant state. To
+  // change participant 0's name distinct from the booker, the customer
+  // would edit the booker — that's the explicit landr-8c03 product
+  // decision (booker == primary participant; no separate override).
+  const prevBooker = useRef(emptyBooker())
+  useEffect(() => {
+    prevBooker.current = booker
+  }, [booker])
+
+  const totalCount = 1 + additional.length
+
+  const setAdditionalCount = (next: number) => {
+    const clamped = Math.min(MAX_ADDITIONAL, Math.max(0, Math.floor(next)))
+    setAdditional((current) => {
+      if (clamped === current.length) return current
+      if (clamped > current.length) {
+        const grown = current.slice()
+        for (let i = current.length; i < clamped; i += 1) {
+          grown.push(emptyParticipant())
+        }
+        return grown
+      }
+      return current.slice(0, clamped)
+    })
+  }
+
+  const updateBookerField = (key: keyof BookerDetails, value: string) => {
+    setBooker((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const updateParticipant = (
+    idx: number,
+    key: keyof ParticipantDetails,
+    value: string,
+  ) => {
+    setAdditional((prev) => {
+      const next = prev.slice()
+      const row = next[idx]
+      if (!row) return prev
+      next[idx] = { ...row, [key]: value }
+      return next
+    })
+  }
+
+  const participantsForValidation: ParticipantDetails[] = [
+    bookerToParticipant(booker),
+    ...additional,
+  ]
+  const canContinue = detailsAreComplete(booker, participantsForValidation)
+
+  const handleContinue = () => {
+    if (!canContinue) return
+    onConfirm(booker, participantsForValidation)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Your details</CardTitle>
+        <CardDescription>
+          {product.name} · {describeSelection(selection, locale)}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
+        {/* Booker section — required fields for the person making the
+            booking. They're also automatically participant 1. */}
+        <fieldset className="flex flex-col gap-3">
+          <legend className="text-sm font-medium">Your contact details</legend>
+          <p className="text-xs text-muted-foreground">
+            You&rsquo;ll be listed as participant 1. Add more people below if
+            others are joining.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="First name" htmlFor="booker-first">
+              <Input
+                id="booker-first"
+                name="booker_first_name"
+                autoComplete="given-name"
+                value={booker.first_name}
+                onChange={(e) => updateBookerField('first_name', e.target.value)}
+              />
+            </Field>
+            <Field label="Last name" htmlFor="booker-last">
+              <Input
+                id="booker-last"
+                name="booker_last_name"
+                autoComplete="family-name"
+                value={booker.last_name}
+                onChange={(e) => updateBookerField('last_name', e.target.value)}
+              />
+            </Field>
+            <Field label="Email" htmlFor="booker-email">
+              <Input
+                id="booker-email"
+                name="booker_email"
+                type="email"
+                autoComplete="email"
+                value={booker.email}
+                onChange={(e) => updateBookerField('email', e.target.value)}
+              />
+            </Field>
+            <Field label="Phone" htmlFor="booker-phone">
+              <Input
+                id="booker-phone"
+                name="booker_phone"
+                type="tel"
+                autoComplete="tel"
+                value={booker.phone}
+                onChange={(e) => updateBookerField('phone', e.target.value)}
+              />
+            </Field>
+          </div>
+        </fieldset>
+
+        {/* Additional participants — same stepper pattern as the legacy
+            ParticipantsStep (landr-mbge) but now growing/shrinking a
+            list of full participant rows instead of a single counter. */}
+        <fieldset className="flex flex-col gap-3 border-t pt-4">
+          <legend className="text-sm font-medium">
+            Other participants ({totalCount} total)
+          </legend>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Remove participant"
+              onClick={() => setAdditionalCount(additional.length - 1)}
+              disabled={additional.length <= 0}
+            >
+              −
+            </Button>
+            <span className="text-sm tabular-nums w-8 text-center">
+              {additional.length}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Add participant"
+              onClick={() => setAdditionalCount(additional.length + 1)}
+              disabled={additional.length >= MAX_ADDITIONAL}
+            >
+              +
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              additional (max {MAX_ADDITIONAL})
+            </span>
+          </div>
+
+          {additional.map((row, idx) => (
+            <div
+              key={`participant-${idx}`}
+              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              data-testid={`participant-row-${idx + 2}`}
+            >
+              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
+                Participant {idx + 2}
+              </div>
+              <Field label="First name" htmlFor={`p-${idx}-first`}>
+                <Input
+                  id={`p-${idx}-first`}
+                  name={`participant_${idx + 2}_first_name`}
+                  value={row.first_name}
+                  onChange={(e) =>
+                    updateParticipant(idx, 'first_name', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Last name" htmlFor={`p-${idx}-last`}>
+                <Input
+                  id={`p-${idx}-last`}
+                  name={`participant_${idx + 2}_last_name`}
+                  value={row.last_name}
+                  onChange={(e) =>
+                    updateParticipant(idx, 'last_name', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Email (optional)" htmlFor={`p-${idx}-email`}>
+                <Input
+                  id={`p-${idx}-email`}
+                  name={`participant_${idx + 2}_email`}
+                  type="email"
+                  value={row.email}
+                  onChange={(e) =>
+                    updateParticipant(idx, 'email', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Phone (optional)" htmlFor={`p-${idx}-phone`}>
+                <Input
+                  id={`p-${idx}-phone`}
+                  name={`participant_${idx + 2}_phone`}
+                  type="tel"
+                  value={row.phone}
+                  onChange={(e) =>
+                    updateParticipant(idx, 'phone', e.target.value)
+                  }
+                />
+              </Field>
+            </div>
+          ))}
+        </fieldset>
+
+        <div className="flex justify-between pt-2">
+          <Button variant="outline" type="button" onClick={onBack}>
+            Back
+          </Button>
+          <Button type="button" onClick={handleContinue} disabled={!canContinue}>
+            Continue
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string
+  htmlFor?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={htmlFor} className="text-xs">
+        {label}
+      </Label>
+      {children}
+    </div>
+  )
+}

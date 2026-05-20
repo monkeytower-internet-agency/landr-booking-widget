@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { Product } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
-import { stepAfterAccommodation } from './appStepMachine'
+import type {
+  BookerDetails,
+  ParticipantDetails,
+} from '@/components/booking/detailsTypes'
+import { sidebarInputsForStep, stepAfterAccommodation } from './appStepMachine'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -45,12 +49,35 @@ const SLOT_SELECTION: BookingSelection = {
   },
 }
 
-describe('stepAfterAccommodation (landr-4r80)', () => {
+const ADA: BookerDetails = {
+  first_name: 'Ada',
+  last_name: 'Lovelace',
+  email: 'ada@example.com',
+  phone: '+34 600000000',
+}
+
+function makeParticipants(n: number): ParticipantDetails[] {
+  const rows: ParticipantDetails[] = [
+    {
+      first_name: ADA.first_name,
+      last_name: ADA.last_name,
+      email: ADA.email,
+      phone: ADA.phone,
+    },
+  ]
+  for (let i = 1; i < n; i += 1) {
+    rows.push({
+      first_name: `P${i + 1}`,
+      last_name: 'Doe',
+      email: '',
+      phone: '',
+    })
+  }
+  return rows
+}
+
+describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
   it('routes to fill-form with pickup_location_id pre-set when a hotel was booked, skipping pick-pickup', () => {
-    // The customer chose Hotel Mirador (loc-hotel-mirador). Even though
-    // needs_pickup=true on the product, Martin's bus picks up AT the
-    // hotel — so we must NOT show pick-pickup and instead lock the
-    // pickup to the hotel's location row.
     const product = makeProduct({
       needs_pickup: true,
       hotel_offering: 'optional',
@@ -58,7 +85,8 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     const next = stepAfterAccommodation(
       product,
       SLOT_SELECTION,
-      1,
+      ADA,
+      makeParticipants(1),
       [{ productId: 'room-1', quantity: 2 }],
       'loc-hotel-mirador',
     )
@@ -68,20 +96,27 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     expect(next.accommodationRooms).toEqual([
       { productId: 'room-1', quantity: 2 },
     ])
-    expect(next.participantCount).toBe(1)
+    expect(next.booker).toEqual(ADA)
+    expect(next.participants).toHaveLength(1)
   })
 
   it('routes to pick-pickup when no hotel was booked and the product needs a pickup', () => {
-    // Optional hotel + customer said "No". Existing behaviour: pickup
-    // must still be picked from the operator's pickup-role locations.
     const product = makeProduct({
       needs_pickup: true,
       hotel_offering: 'optional',
     })
-    const next = stepAfterAccommodation(product, SLOT_SELECTION, 3, [], null)
+    const next = stepAfterAccommodation(
+      product,
+      SLOT_SELECTION,
+      ADA,
+      makeParticipants(3),
+      [],
+      null,
+    )
     expect(next.name).toBe('pick-pickup')
     if (next.name !== 'pick-pickup') throw new Error('narrowing')
-    expect(next.participantCount).toBe(3)
+    expect(next.participants).toHaveLength(3)
+    expect(next.booker).toEqual(ADA)
   })
 
   it('routes to fill-form with pickup_location_id=null when no hotel and no pickup needed', () => {
@@ -89,20 +124,21 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
       needs_pickup: false,
       hotel_offering: 'none',
     })
-    const next = stepAfterAccommodation(product, SLOT_SELECTION, 2, [], null)
+    const next = stepAfterAccommodation(
+      product,
+      SLOT_SELECTION,
+      ADA,
+      makeParticipants(2),
+      [],
+      null,
+    )
     expect(next.name).toBe('fill-form')
     if (next.name !== 'fill-form') throw new Error('narrowing')
     expect(next.pickupLocationId).toBeNull()
-    expect(next.participantCount).toBe(2)
+    expect(next.participants).toHaveLength(2)
   })
 
   it('hotel-booked wins over needs_pickup=false (still locks pickup to the hotel)', () => {
-    // Edge case: product doesn't normally need a pickup, but the
-    // customer booked a hotel anyway. The hotel still becomes the
-    // pickup_location_id because that's where the customer is — the
-    // operator can decide downstream whether they actually dispatch
-    // a vehicle. Keeping the routing consistent avoids surprising
-    // back-end branches.
     const product = makeProduct({
       needs_pickup: false,
       hotel_offering: 'optional',
@@ -110,20 +146,18 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
     const next = stepAfterAccommodation(
       product,
       SLOT_SELECTION,
-      4,
+      ADA,
+      makeParticipants(4),
       [{ productId: 'room-1', quantity: 1 }],
       'loc-hotel-x',
     )
     expect(next.name).toBe('fill-form')
     if (next.name !== 'fill-form') throw new Error('narrowing')
     expect(next.pickupLocationId).toBe('loc-hotel-x')
-    expect(next.participantCount).toBe(4)
+    expect(next.participants).toHaveLength(4)
   })
 
-  it('threads participantCount through all branches (landr-mbge)', () => {
-    // Sanity check: every shape returned by stepAfterAccommodation
-    // carries participantCount so downstream steps (sidebar pricing,
-    // overbook warning, submit payload) all see the same number.
+  it('threads booker + participants through every branch (landr-8c03)', () => {
     const cases = [
       { hotelLocationId: 'h-1', needs_pickup: true, expected: 'fill-form' },
       { hotelLocationId: null, needs_pickup: true, expected: 'pick-pickup' },
@@ -137,14 +171,47 @@ describe('stepAfterAccommodation (landr-4r80)', () => {
       const next = stepAfterAccommodation(
         product,
         SLOT_SELECTION,
-        5,
+        ADA,
+        makeParticipants(5),
         [],
         c.hotelLocationId,
       )
       expect(next.name).toBe(c.expected)
       if (next.name === 'fill-form' || next.name === 'pick-pickup') {
-        expect(next.participantCount).toBe(5)
+        expect(next.participants).toHaveLength(5)
+        expect(next.booker).toEqual(ADA)
       }
     }
+  })
+})
+
+describe('sidebarInputsForStep (landr-8c03 — participant names threaded through)', () => {
+  it('returns empty participantNames before DetailsStep has confirmed', () => {
+    const product = makeProduct()
+    const inputs = sidebarInputsForStep({
+      name: 'details',
+      product,
+      selection: SLOT_SELECTION,
+    })
+    expect(inputs?.participantNames).toEqual([])
+    expect(inputs?.participantCount).toBe(1)
+  })
+
+  it('surfaces participant first names downstream of DetailsStep', () => {
+    const product = makeProduct()
+    const inputs = sidebarInputsForStep({
+      name: 'pick-accommodation',
+      product,
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: [
+        { first_name: 'Ada', last_name: 'L', email: '', phone: '' },
+        { first_name: 'Grace', last_name: 'H', email: '', phone: '' },
+        { first_name: '', last_name: '', email: '', phone: '' },
+      ],
+    })
+    // Empty names filtered out.
+    expect(inputs?.participantNames).toEqual(['Ada', 'Grace'])
+    expect(inputs?.participantCount).toBe(3)
   })
 })

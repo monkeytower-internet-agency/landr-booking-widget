@@ -10,10 +10,14 @@ import {
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import { Confirmation } from '@/components/booking/Confirmation'
+import { DetailsStep } from '@/components/booking/DetailsStep'
+import type {
+  BookerDetails,
+  ParticipantDetails,
+} from '@/components/booking/detailsTypes'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
-import { ParticipantsStep } from '@/components/booking/ParticipantsStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
@@ -72,23 +76,22 @@ function App() {
   }, [])
 
   /**
-   * After date selection, hand off to the ParticipantsStep (landr-mbge)
-   * which collects the participant count. The branching to
-   * accommodation / service-addons / pickup / fill-form only runs after
-   * we know how many participants — that count threads through into
-   * AccommodationStep (overbook warning in landr-qpab), PriceSidebar
-   * per-participant pricing (landr-qez0), and the submit payload.
+   * After date selection, hand off to the DetailsStep (landr-8c03,
+   * replacing the count-only ParticipantsStep from landr-mbge). The
+   * DetailsStep collects full booker + participant details so the
+   * downstream steps (accommodation, sidebar, review) all have the
+   * party context to render names/quantities accurately.
    *
    * Non-service product_kind never reaches afterSelection (shop stub
    * fires upstream).
    */
   const afterSelection = (product: Product, selection: BookingSelection) => {
-    setStep({ name: 'participants', product, selection })
+    setStep({ name: 'details', product, selection })
   }
 
   /**
-   * After the ParticipantsStep confirms a count, run the existing
-   * post-selection branching:
+   * After the DetailsStep confirms booker + participants, run the
+   * existing post-selection branching:
    *   1. AccommodationStep when the product offers a hotel stay
    *      (landr-vyaz). Add-ons are surfaced INSIDE that step under
    *      each room (landr-cip6).
@@ -101,10 +104,11 @@ function App() {
    * The accommodation/service-addons steps always return through
    * afterAccommodation which preserves the pickup-vs-form decision tree.
    */
-  const afterParticipants = (
+  const afterDetails = (
     product: Product,
     selection: BookingSelection,
-    participantCount: number,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
   ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
@@ -112,7 +116,8 @@ function App() {
         name: 'pick-accommodation',
         product,
         selection,
-        participantCount,
+        booker,
+        participants,
       })
       return
     }
@@ -130,21 +135,31 @@ function App() {
             name: 'pick-service-addons',
             product,
             selection,
-            participantCount,
+            booker,
+            participants,
           })
         } else {
-          afterAccommodation(product, selection, participantCount, [], null, [])
+          afterAccommodation(
+            product,
+            selection,
+            booker,
+            participants,
+            [],
+            null,
+            [],
+          )
         }
       })()
       return
     }
-    afterAccommodation(product, selection, participantCount, [], null, [])
+    afterAccommodation(product, selection, booker, participants, [], null, [])
   }
 
   const afterAccommodation = (
     product: Product,
     selection: BookingSelection,
-    participantCount: number,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[] = [],
@@ -153,7 +168,8 @@ function App() {
       stepAfterAccommodation(
         product,
         selection,
-        participantCount,
+        booker,
+        participants,
         accommodationRooms,
         hotelLocationId,
         addons,
@@ -268,15 +284,15 @@ function App() {
           />
         ) : null}
 
-        {step.name === 'participants' ? (
-          <ParticipantsStep
+        {step.name === 'details' ? (
+          <DetailsStep
             product={step.product}
             selection={step.selection}
             onBack={() =>
               setStep({ name: 'pick-selection', product: step.product })
             }
-            onConfirm={(count) =>
-              afterParticipants(step.product, step.selection, count)
+            onConfirm={(booker, participants) =>
+              afterDetails(step.product, step.selection, booker, participants)
             }
           />
         ) : null}
@@ -286,10 +302,10 @@ function App() {
             product={step.product}
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
-            participantCount={step.participantCount}
+            participantCount={step.participants.length}
             onBack={() =>
               setStep({
-                name: 'participants',
+                name: 'details',
                 product: step.product,
                 selection: step.selection,
               })
@@ -298,7 +314,8 @@ function App() {
               afterAccommodation(
                 step.product,
                 step.selection,
-                step.participantCount,
+                step.booker,
+                step.participants,
                 rooms,
                 hotelLocationId,
                 addons,
@@ -312,7 +329,7 @@ function App() {
             product={step.product}
             onBack={() =>
               setStep({
-                name: 'participants',
+                name: 'details',
                 product: step.product,
                 selection: step.selection,
               })
@@ -321,7 +338,8 @@ function App() {
               afterAccommodation(
                 step.product,
                 step.selection,
-                step.participantCount,
+                step.booker,
+                step.participants,
                 [],
                 null,
                 addons,
@@ -341,11 +359,12 @@ function App() {
                   name: 'pick-accommodation',
                   product: step.product,
                   selection: step.selection,
-                  participantCount: step.participantCount,
+                  booker: step.booker,
+                  participants: step.participants,
                 })
               } else {
                 setStep({
-                  name: 'participants',
+                  name: 'details',
                   product: step.product,
                   selection: step.selection,
                 })
@@ -356,7 +375,8 @@ function App() {
                 name: 'fill-form',
                 product: step.product,
                 selection: step.selection,
-                participantCount: step.participantCount,
+                booker: step.booker,
+                participants: step.participants,
                 pickupLocationId: locationId,
                 accommodationRooms: step.accommodationRooms,
                 addons: step.addons,
@@ -370,7 +390,8 @@ function App() {
             operatorSlug={operatorSlug}
             product={step.product}
             selection={step.selection}
-            participantCount={step.participantCount}
+            booker={step.booker}
+            participants={step.participants}
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
             addons={step.addons}
@@ -380,7 +401,8 @@ function App() {
                   name: 'pick-pickup',
                   product: step.product,
                   selection: step.selection,
-                  participantCount: step.participantCount,
+                  booker: step.booker,
+                  participants: step.participants,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                 })
@@ -391,11 +413,12 @@ function App() {
                     name: 'pick-accommodation',
                     product: step.product,
                     selection: step.selection,
-                    participantCount: step.participantCount,
+                    booker: step.booker,
+                    participants: step.participants,
                   })
                 } else {
                   setStep({
-                    name: 'participants',
+                    name: 'details',
                     product: step.product,
                     selection: step.selection,
                   })
@@ -421,6 +444,7 @@ function App() {
             product={sidebarInputs.product}
             selectedDays={sidebarInputs.selectedDays}
             participantCount={sidebarInputs.participantCount}
+            participantNames={sidebarInputs.participantNames}
             accommodationRooms={sidebarInputs.accommodationRooms}
             addons={sidebarInputs.addons}
           />
