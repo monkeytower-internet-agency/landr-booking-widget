@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { submitBooking } from '@/api/client'
+import { HttpError, submitBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
   Product,
@@ -7,7 +7,11 @@ import type {
   SubmitBookingBody,
   SubmitBookingResponse,
 } from '@/api/types'
-import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
+import {
+  deriveStayWindow,
+  stayNightIsos,
+  type RoomSelection,
+} from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
@@ -59,11 +63,49 @@ interface Props {
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
 
+/**
+ * Default cancellation deadline: 24 h before midnight UTC of the first
+ * booked day (landr-piyv). The widget always sends *something* because
+ * the API marks the field required; the server stores it on the booking
+ * row but does not enforce cancellation logic at submit time, so the
+ * exact policy can evolve without breaking submits. Operator-configurable
+ * deadlines are a future enhancement.
+ */
 const cancellationDeadline = (slotDateIso: string) => {
   const d = new Date(slotDateIso)
-  d.setUTCDate(d.getUTCDate() - 2)
   d.setUTCHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() - 1)
   return d.toISOString()
+}
+
+/**
+ * Pretty-print a FastAPI 422 `detail` payload. Pydantic emits an array
+ * of {loc, msg, type} entries — we surface up to the first few as
+ * "field: message" lines so the user sees the actual contract issue
+ * instead of an opaque "Failed to fetch". Falls back to the raw
+ * stringified detail when the shape is unexpected.
+ */
+const formatHttpError = (err: HttpError): string => {
+  if (err.status === 422 && Array.isArray(err.detail)) {
+    const lines = err.detail
+      .slice(0, 4)
+      .map((entry: unknown) => {
+        if (entry && typeof entry === 'object') {
+          const e = entry as { loc?: unknown[]; msg?: string }
+          const path = Array.isArray(e.loc)
+            ? e.loc.filter((p) => p !== 'body').join('.')
+            : ''
+          const msg = e.msg ?? 'invalid value'
+          return path ? `${path}: ${msg}` : msg
+        }
+        return String(entry)
+      })
+    return `Booking rejected (422): ${lines.join('; ')}`
+  }
+  if (err.status >= 400 && err.detail && typeof err.detail === 'string') {
+    return `Booking rejected (${err.status}): ${err.detail}`
+  }
+  return err.message
 }
 
 const firstSelectionDate = (selection: BookingSelection): string => {
@@ -137,10 +179,18 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+      // Hotel-room lines book the night window (check-in → check-out
+      // exclusive) — distinct from the service's selected_days. Empty
+      // when the customer chose no rooms or picked a slot-style service.
+      const nightIsos = stayNightIsos(selectedDaysForSubmit)
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
-      // (landr-cip6).
+      // (landr-cip6). Service add-ons piggyback on the service days;
+      // room-tied add-ons (e.g. breakfast) intentionally use the same
+      // service-day window today — the engine prices per-line based on
+      // quantity × per_unit × len(selected_days), so for daily add-ons
+      // the two windows produce the same total (selectedDays.length).
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
@@ -150,7 +200,7 @@ export function BookingForm({
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
           product_id: room.productId,
           quantity: room.quantity,
-          selected_days: selectedDaysForSubmit,
+          selected_days: nightIsos,
         })),
         ...(addons ?? []).map<ProductLine>((addon) => ({
           product_id: addon.productId,
@@ -182,7 +232,11 @@ export function BookingForm({
       const result = await submitBooking(body)
       onConfirmed(result, booker.email)
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : String(err))
+      if (err instanceof HttpError) {
+        setServerError(formatHttpError(err))
+      } else {
+        setServerError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSubmitting(false)
     }

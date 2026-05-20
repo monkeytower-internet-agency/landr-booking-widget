@@ -23,12 +23,51 @@ import {
   mockSubmit,
 } from './mocks'
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === '1'
-const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+// Read env flags lazily (per-call) so tests can vi.stubEnv after the
+// module is imported — contract tests in particular need to flip
+// VITE_USE_MOCKS off mid-suite to exercise the real fetch path (landr-piyv).
+const mocksEnabled = (): boolean => import.meta.env.VITE_USE_MOCKS === '1'
+const apiBase = (): string =>
+  (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
+/**
+ * Error thrown by `http()` when the response is non-2xx. Carries the
+ * raw status, the response body text, and (when the body is FastAPI's
+ * JSON envelope) a parsed `detail` array — typically a list of Pydantic
+ * validation errors of shape {loc, msg, type}. Callers (e.g. the
+ * BookingForm submit handler) format the detail array for the user so
+ * the underlying contract mismatch is visible instead of the opaque
+ * native fetch "Failed to fetch" string. Filed under landr-piyv.
+ */
+export class HttpError extends Error {
+  status: number
+  statusText: string
+  body: string
+  detail?: unknown
+  constructor(status: number, statusText: string, body: string) {
+    let detail: unknown
+    let message = `${status} ${statusText}`
+    try {
+      const parsed: unknown = JSON.parse(body)
+      if (parsed && typeof parsed === 'object' && 'detail' in parsed) {
+        detail = (parsed as { detail: unknown }).detail
+      }
+    } catch {
+      // body wasn't JSON — leave detail undefined and fall back to text
+    }
+    if (body) message += `: ${body}`
+    super(message)
+    this.name = 'HttpError'
+    this.status = status
+    this.statusText = statusText
+    this.body = body
+    this.detail = detail
+  }
+}
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!BASE) throw new Error('VITE_API_BASE_URL is not configured')
-  const res = await fetch(`${BASE}${path}`, {
+  if (!apiBase()) throw new Error('VITE_API_BASE_URL is not configured')
+  const res = await fetch(`${apiBase()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +76,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`)
+    throw new HttpError(res.status, res.statusText, body)
   }
   return (await res.json()) as T
 }
@@ -47,7 +86,7 @@ export async function listProducts(
   options?: { group?: string; includeHotelRooms?: boolean },
 ): Promise<Product[]> {
   let raw: Product[]
-  if (USE_MOCKS) {
+  if (mocksEnabled()) {
     raw = mockProducts(options?.group)
   } else {
     const qs = new URLSearchParams()
@@ -69,7 +108,7 @@ export async function getAvailability(
   fromIso: string,
   toIso: string,
 ): Promise<AvailabilitySlot[]> {
-  if (USE_MOCKS) return mockAvailability(productId)
+  if (mocksEnabled()) return mockAvailability(productId)
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
@@ -83,7 +122,7 @@ export async function getAvailability(
 export async function getOperatorSettings(
   operatorSlug: string,
 ): Promise<OperatorSettings> {
-  if (USE_MOCKS) return mockOperatorSettings(operatorSlug)
+  if (mocksEnabled()) return mockOperatorSettings(operatorSlug)
   return http<OperatorSettings>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/settings`,
   )
@@ -94,7 +133,7 @@ export async function getOperatorSettings(
  * Falls back to mock data until the backend lands.
  */
 export async function listLocations(operatorSlug: string): Promise<Location[]> {
-  if (USE_MOCKS) return mockLocations
+  if (mocksEnabled()) return mockLocations
   return http<Location[]>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/locations`,
   )
@@ -123,7 +162,7 @@ export async function getHotelRoomsForHotel(
   operatorSlug: string,
   hotelLocationId: string,
 ): Promise<Product[]> {
-  if (USE_MOCKS) return mockHotelRooms(hotelLocationId)
+  if (mocksEnabled()) return mockHotelRooms(hotelLocationId)
   // opt-in: bypass the default hotel_room filter on listProducts so
   // the AccommodationStep can see the rooms it owns.
   const products = await listProducts(operatorSlug, { includeHotelRooms: true })
@@ -142,7 +181,7 @@ export async function getHotelRoomsForHotel(
 export async function getFixedDateWindows(
   productId: string,
 ): Promise<FixedDateWindow[]> {
-  if (USE_MOCKS) return mockFixedDateWindows()
+  if (mocksEnabled()) return mockFixedDateWindows()
   const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
   if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL is not configured')
@@ -175,7 +214,7 @@ export async function getFixedDateWindows(
 export async function getProductAddons(
   productId: string,
 ): Promise<ProductAddon[]> {
-  if (USE_MOCKS) return mockProductAddons(productId)
+  if (mocksEnabled()) return mockProductAddons(productId)
   return http<ProductAddon[]>(
     `/api/public/products/${encodeURIComponent(productId)}/addons`,
   )
@@ -184,7 +223,7 @@ export async function getProductAddons(
 export async function submitBooking(
   body: SubmitBookingBody,
 ): Promise<SubmitBookingResponse> {
-  if (USE_MOCKS) return mockSubmit()
+  if (mocksEnabled()) return mockSubmit()
   return http<SubmitBookingResponse>('/api/public/bookings', {
     method: 'POST',
     body: JSON.stringify(body),
@@ -206,7 +245,7 @@ export async function estimateBookingPrice(
   productId: string,
   body: EstimateRequestBody,
 ): Promise<EstimateResponse> {
-  if (USE_MOCKS) return mockEstimate(productId, body)
+  if (mocksEnabled()) return mockEstimate(productId, body)
   return http<EstimateResponse>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/products/${encodeURIComponent(productId)}/estimate`,
     {
