@@ -69,7 +69,12 @@ function makeService(
   }
 }
 
-function makeRoom(id: string, name: string, price: number): Product {
+function makeRoom(
+  id: string,
+  name: string,
+  price: number,
+  capacityPerUnit: number | null = null,
+): Product {
   return {
     product_id: id,
     slug: id,
@@ -95,6 +100,7 @@ function makeRoom(id: string, name: string, price: number): Product {
     hotel_location_id: 'hotel-a',
     price_per_unit: price,
     currency: 'EUR',
+    capacity_per_unit: capacityPerUnit,
   }
 }
 
@@ -236,6 +242,216 @@ describe('AccommodationStep', () => {
       'hotel-a',
       [],
     )
+  })
+
+  // ── Overbook warnings (landr-qpab) ──────────────────────────────────
+  // These tests render the step with a participantCount prop and assert
+  // the non-blocking orange warnings appear (or do not appear) based on
+  // the capacity vs participants and breakfast vs participants compares.
+  // Continue must stay enabled in every overbook case — they're hints,
+  // not gates.
+
+  it('shows capacity warning when participantCount > total room capacity', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        participantCount={4}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // Bump single-room qty to 2 → capacity = 2*1 = 2, participants = 4
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+    fireEvent.click(plusButtons[0]!)
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('overbook-capacity-warning'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('overbook-capacity-warning')).toHaveTextContent(
+      /4 people.*only 2 beds/i,
+    )
+    // Non-blocking: Continue stays enabled
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+  })
+
+  it('hides capacity warning when capacity meets participantCount', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+
+    // Wait for derived stay window to render so we know rerender happened
+    await waitFor(() =>
+      expect(screen.getByText(/Hotel total/i)).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByTestId('overbook-capacity-warning'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('treats null capacity_per_unit as 1 (lenient default)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    // Legacy room without capacity_per_unit set
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('legacy-room', 'Legacy Room', 49, null),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        participantCount={3}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Legacy Room')).toBeInTheDocument(),
+    )
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+
+    // 1 room × 1 (fallback) = 1 < 3 participants → warn
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('overbook-capacity-warning'),
+      ).toBeInTheDocument(),
+    )
+  })
+
+  it('shows breakfast warning when breakfast qty > participantCount', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    // Pick 1 double room (capacity 2 = participants 2, no capacity warn)
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+
+    // Breakfast row appears once the room qty > 0; bump it to 5
+    await waitFor(() =>
+      expect(screen.getByText('Breakfast')).toBeInTheDocument(),
+    )
+    const breakfastButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    // After picking the room a second "Increase" button appears for the
+    // breakfast add-on (room stepper is index 0, breakfast stepper is 1).
+    for (let i = 0; i < 5; i += 1) {
+      fireEvent.click(breakfastButtons[1]!)
+    }
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('overbook-breakfast-warning'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('overbook-breakfast-warning')).toHaveTextContent(
+      /5 breakfasts for 2 people/i,
+    )
+    // Capacity is fine (1*2=2 vs 2 participants) → no capacity warn
+    expect(
+      screen.queryByTestId('overbook-capacity-warning'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+  })
+
+  it('shows no warnings when no rooms are picked', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        participantCount={10}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // No qty bumps. Both warnings stay hidden because totalRoomsPicked === 0.
+    expect(
+      screen.queryByTestId('overbook-capacity-warning'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('overbook-breakfast-warning'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the paid-directly-to-hotel notice when a hotel is selected', async () => {
