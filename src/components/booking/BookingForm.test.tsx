@@ -229,3 +229,49 @@ describe('BookingForm — first-participant pre-fill (landr-iu3s)', () => {
     expect(byName('participants.0.first_name').value).toBe('Grace')
   })
 })
+
+describe('BookingForm — first-participant email pre-fill (landr-qs8d)', () => {
+  function byName(name: string): HTMLInputElement {
+    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+    if (!el) throw new Error(`No input named ${name}`)
+    return el
+  }
+
+  it('mirrors booker email into participant 0 email while untouched', () => {
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
+    expect(byName('participants.0.email').value).toBe('ada@example.com')
+  })
+
+  it('stops syncing once the participant email diverges', () => {
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    fireEvent.change(byName('email'), { target: { value: 'ada@example.com' } })
+    expect(byName('participants.0.email').value).toBe('ada@example.com')
+    // User overrides the participant email explicitly.
+    fireEvent.change(byName('participants.0.email'), {
+      target: { value: 'grace@example.com' },
+    })
+    expect(byName('participants.0.email').value).toBe('grace@example.com')
+    // Further booker edits must NOT overwrite the overridden value.
+    fireEvent.change(byName('email'), { target: { value: 'alan@example.com' } })
+    expect(byName('participants.0.email').value).toBe('grace@example.com')
+  })
+})
