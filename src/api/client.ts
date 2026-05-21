@@ -251,6 +251,37 @@ export async function submitBooking(
 }
 
 /**
+ * Response shape from POST /api/public/bookings/{id}/cancel. The API
+ * returns the same shape on both first-cancel and already-cancelled
+ * (idempotent) paths so the widget doesn't need to branch on status.
+ */
+export interface CancelBookingResponse {
+  ok: boolean
+  booking_id: string
+  message: string
+}
+
+/**
+ * Customer one-click cancel (landr-sgnd). Backed by the public cancel
+ * endpoint added in the API worker — auth is just the booking_id UUID
+ * (v1 secrecy model, same as the iCal endpoint). Called from the
+ * /cancel/{booking_id} confirm page after the customer clicks Yes.
+ *
+ * No mock fallback: this surface is reached only by following the
+ * email link, which never lands in the demo/mocks flow. If
+ * VITE_USE_MOCKS=1 we still hit the real API — there is no useful
+ * mock for "cancel a booking that doesn't exist in mocks".
+ */
+export async function cancelBooking(
+  bookingId: string,
+): Promise<CancelBookingResponse> {
+  return http<CancelBookingResponse>(
+    `/api/public/bookings/${encodeURIComponent(bookingId)}/cancel`,
+    { method: 'POST' },
+  )
+}
+
+/**
  * Live booking-price estimator for the PriceSidebar (landr-qez0).
  * Backed by POST /api/public/operators/{slug}/products/{id}/estimate
  * (landr-xbqh) — reuses the canonical compute_booking_price engine so
