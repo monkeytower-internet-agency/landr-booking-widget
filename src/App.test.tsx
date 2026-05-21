@@ -412,4 +412,121 @@ describe('App', () => {
       expect(value('participant_2_last_name')).toBe('Hopper')
     })
   })
+
+  // landr-yf0n: same pattern as landr-b3g5 (DetailsStep) but for the
+  // downstream steps. PickupLocationPicker is the easiest to exercise
+  // at the App level — the only extra mock it needs is listLocations,
+  // already wired in the suite's beforeEach. The AccommodationStep +
+  // ServiceAddonsStep paths require getHotelsForOperator /
+  // getProductAddons mocks which the per-step tests already cover; this
+  // App-level test just guards the App.tsx wiring for pick-pickup.
+  describe('back-nav state restoration (landr-yf0n)', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
+      fireEvent.click(selectBtns[0]!)
+    }
+
+    it('restores the PickupLocationPicker radio choice when back-navigating from fill-form', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        // needs_pickup=true + hotel_offering='none' → details → pickup
+        // → fill-form. The Back button on fill-form must restore the
+        // pickup choice.
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: true,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.listLocations.mockResolvedValue([
+        {
+          location_id: 'loc-a',
+          name: 'Main Square',
+          name_localized: null,
+          parent_id: null,
+          role_type: { code: 'pickup', label: 'Pickup' },
+        },
+        {
+          location_id: 'loc-b',
+          name: 'Beach Parking',
+          name_localized: null,
+          parent_id: null,
+          role_type: { code: 'pickup', label: 'Pickup' },
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Tandem Flight')
+
+      // SingleDatePicker → pick a date → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+
+      // DetailsStep → fill booker → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // PickupLocationPicker → pick "Beach Parking" → Continue.
+      await waitFor(() =>
+        expect(screen.getByText('Beach Parking')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('radio', { name: /Beach Parking/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+
+      // Land on fill-form (BookingForm review screen).
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Click the top-left Back button — back to PickupLocationPicker.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      // The picker re-mounts with Beach Parking still selected.
+      await waitFor(() =>
+        expect(screen.getByText('Beach Parking')).toBeInTheDocument(),
+      )
+      const beach = screen.getByRole('radio', { name: /Beach Parking/i })
+      expect(beach).toBeChecked()
+      // Continue stays enabled — the restored selection counts as a pick.
+      expect(
+        screen.getByRole('button', { name: /Continue/i }),
+      ).not.toBeDisabled()
+    })
+  })
 })

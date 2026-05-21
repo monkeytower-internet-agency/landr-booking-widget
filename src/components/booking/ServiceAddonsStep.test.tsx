@@ -180,6 +180,69 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     expect(onConfirm).toHaveBeenCalledWith([{ productId: 'pack-1', quantity: 3 }])
   })
 
+  // ── Back-nav state restoration (landr-yf0n) ──────────────────────
+  // App.tsx threads the previously confirmed add-on line items back as
+  // initialAddons so the step re-mounts with the customer's prior picks
+  // restored — not reset to the min_qty seed.
+
+  it('restores prior add-on selection from initialAddons on back-nav re-entry', async () => {
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({ addon_product_id: 'video-1', name: 'Video Package' }),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        initialAddons={[{ productId: 'video-1', quantity: 2 }]}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Video Package')).toBeInTheDocument(),
+    )
+
+    // Continue without further interaction → emits the restored line
+    // items unchanged (quantity=2, not the min_qty default of 0).
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith([
+      { productId: 'video-1', quantity: 2 },
+    ])
+  })
+
+  it('initialAddons override the required-min seed (customer pick wins)', async () => {
+    // The catalogue has a required add-on with min_qty=3. The seed would
+    // normally start it at 3, but the initialAddons map carries qty=5
+    // (the customer's prior pick) — that wins.
+    mocks.getProductAddons.mockResolvedValue([
+      makeAddon({
+        addon_product_id: 'pack-1',
+        name: 'Pack',
+        is_required: true,
+        min_qty: 3,
+      }),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        initialAddons={[{ productId: 'pack-1', quantity: 5 }]}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Pack')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith([
+      { productId: 'pack-1', quantity: 5 },
+    ])
+  })
+
   it('shows an empty-state message when the add-ons fetch returns []', async () => {
     mocks.getProductAddons.mockResolvedValue([])
 

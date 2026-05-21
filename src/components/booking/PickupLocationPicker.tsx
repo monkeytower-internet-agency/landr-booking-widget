@@ -15,6 +15,13 @@ import { StepBackButton } from './StepBackButton'
 interface Props {
   operatorSlug: string
   productName: string
+  /**
+   * landr-yf0n: when the customer hits Back from fill-form, App.tsx
+   * threads the previously confirmed pickup location id back so the
+   * radio re-mounts with the prior choice already selected (instead of
+   * the radio list being empty + Continue disabled).
+   */
+  initialLocationId?: string | null
   onBack: () => void
   onConfirm: (locationId: string) => void
 }
@@ -40,11 +47,14 @@ interface Props {
 export function PickupLocationPicker({
   operatorSlug,
   productName,
+  initialLocationId,
   onBack,
   onConfirm,
 }: Props) {
   const [locations, setLocations] = useState<Location[]>([])
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(
+    initialLocationId ?? null,
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()

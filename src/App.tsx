@@ -150,6 +150,8 @@ function App() {
             participants,
           })
         } else {
+          // landr-yf0n: hadServiceAddons=false here — the customer
+          // skipped this step because the product has no add-ons.
           afterAccommodation(
             product,
             selection,
@@ -158,12 +160,24 @@ function App() {
             [],
             null,
             [],
+            false,
           )
         }
       })()
       return
     }
-    afterAccommodation(product, selection, booker, participants, [], null, [])
+    // landr-yf0n: hadServiceAddons=false — product has no hotel + no
+    // add-on probe ran (non-service products short-circuit here).
+    afterAccommodation(
+      product,
+      selection,
+      booker,
+      participants,
+      [],
+      null,
+      [],
+      false,
+    )
   }
 
   const afterAccommodation = (
@@ -174,6 +188,10 @@ function App() {
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[] = [],
+    // landr-yf0n: provenance flags so back-nav can hop back through the
+    // upstream intermediate steps with their previously confirmed state.
+    hadServiceAddons: boolean = false,
+    includeHotel: boolean | undefined = undefined,
   ) => {
     setStep(
       stepAfterAccommodation(
@@ -184,6 +202,8 @@ function App() {
         accommodationRooms,
         hotelLocationId,
         addons,
+        hadServiceAddons,
+        includeHotel,
       ),
     )
   }
@@ -319,6 +339,14 @@ function App() {
             selectedDays={selectionToDays(step.selection)}
             operatorSlug={operatorSlug}
             participantCount={step.participants.length}
+            // landr-yf0n: thread prior accommodation context back so the
+            // step re-mounts with hotel + rooms + add-ons restored
+            // instead of empty steppers. Each field is independently
+            // optional — only what was previously confirmed comes back.
+            initialHotelLocationId={step.hotelLocationId}
+            initialRooms={step.accommodationRooms}
+            initialAddons={step.addons}
+            initialIncludeHotel={step.includeHotel}
             onBack={() =>
               // landr-b3g5: thread the already-collected booker +
               // participants back to DetailsStep so the form re-mounts
@@ -331,7 +359,7 @@ function App() {
                 participants: step.participants,
               })
             }
-            onConfirm={(rooms, hotelLocationId, addons) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -340,6 +368,12 @@ function App() {
                 rooms,
                 hotelLocationId,
                 addons,
+                // Carry forward whether the customer originally went
+                // through ServiceAddonsStep (false here — this product
+                // has a hotel offering, so the service-addons step
+                // never ran).
+                false,
+                includeHotel,
               )
             }
           />
@@ -348,6 +382,10 @@ function App() {
         {step.name === 'pick-service-addons' ? (
           <ServiceAddonsStep
             product={step.product}
+            // landr-yf0n: thread prior add-on selections back so the
+            // step re-mounts with the customer's choices restored
+            // instead of resetting to the min_qty seed.
+            initialAddons={step.addons}
             onBack={() =>
               // landr-b3g5: carry booker + participants back so the
               // DetailsStep re-mount restores them.
@@ -368,6 +406,10 @@ function App() {
                 [],
                 null,
                 addons,
+                // landr-yf0n: hadServiceAddons=true — the customer
+                // explicitly went through ServiceAddonsStep, so back-
+                // nav from downstream steps must hop back through here.
+                true,
               )
             }
           />
@@ -377,15 +419,36 @@ function App() {
           <PickupLocationPicker
             operatorSlug={operatorSlug}
             productName={step.product.name}
+            // landr-yf0n: thread the prior pickup choice back so the
+            // radio re-mounts with it already selected on back-nav.
+            initialLocationId={step.pickupLocationId}
             onBack={() => {
               const offering = step.product.hotel_offering ?? 'none'
               if (step.product.product_kind === 'service' && offering !== 'none') {
+                // landr-yf0n: restore the prior accommodation state on
+                // back-nav so the room steppers + add-ons aren't wiped.
                 setStep({
                   name: 'pick-accommodation',
                   product: step.product,
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  hotelLocationId: step.hotelLocationId,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  includeHotel: step.includeHotel,
+                })
+              } else if (step.hadServiceAddons) {
+                // landr-yf0n: the customer originally went through
+                // ServiceAddonsStep — back-nav must hop back through
+                // it instead of jumping straight to DetailsStep.
+                setStep({
+                  name: 'pick-service-addons',
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  addons: step.addons,
                 })
               } else {
                 // landr-b3g5: preserve booker + participants when
@@ -409,6 +472,12 @@ function App() {
                 pickupLocationId: locationId,
                 accommodationRooms: step.accommodationRooms,
                 addons: step.addons,
+                // landr-yf0n: carry provenance flags through so the
+                // fill-form back path can hop back through the right
+                // upstream intermediate steps with their state.
+                hotelLocationId: step.hotelLocationId,
+                hadServiceAddons: step.hadServiceAddons,
+                includeHotel: step.includeHotel,
               })
             }
           />
@@ -426,6 +495,11 @@ function App() {
             addons={step.addons}
             onBack={() => {
               if (step.product.needs_pickup) {
+                // landr-yf0n: thread the prior pickupLocationId +
+                // upstream provenance back so PickupLocationPicker
+                // re-mounts with the prior radio choice restored AND
+                // its own back button still hops back through the
+                // right upstream intermediate steps.
                 setStep({
                   name: 'pick-pickup',
                   product: step.product,
@@ -434,16 +508,37 @@ function App() {
                   participants: step.participants,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
+                  pickupLocationId: step.pickupLocationId,
+                  hotelLocationId: step.hotelLocationId,
+                  hadServiceAddons: step.hadServiceAddons,
+                  includeHotel: step.includeHotel,
                 })
               } else {
                 const offering = step.product.hotel_offering ?? 'none'
                 if (step.product.product_kind === 'service' && offering !== 'none') {
+                  // landr-yf0n: restore the prior accommodation state.
                   setStep({
                     name: 'pick-accommodation',
                     product: step.product,
                     selection: step.selection,
                     booker: step.booker,
                     participants: step.participants,
+                    hotelLocationId: step.hotelLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    includeHotel: step.includeHotel,
+                  })
+                } else if (step.hadServiceAddons) {
+                  // landr-yf0n: the customer originally went through
+                  // ServiceAddonsStep — back-nav must hop back through
+                  // it instead of skipping to DetailsStep.
+                  setStep({
+                    name: 'pick-service-addons',
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    addons: step.addons,
                   })
                 } else {
                   // landr-b3g5: preserve booker + participants when
