@@ -273,6 +273,13 @@ export interface SubmitBookingResponse {
   reference: string
   state: string
   token?: string
+  /**
+   * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
+   * Exposed by the API so the success page can render an
+   * "Add to calendar" button without knowing the API base URL.
+   * Optional because older API deploys (pre-landr-3vr5) omit the field.
+   */
+  ical_url?: string
 }
 
 /**
