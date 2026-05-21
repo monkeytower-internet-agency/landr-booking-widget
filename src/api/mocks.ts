@@ -291,6 +291,10 @@ export const mockSubmit = (): SubmitBookingResponse => ({
   booking_id: '00000000-0000-0000-0000-0000000000bb',
   reference: 'P42-MOCK-0001',
   state: 'pending',
+  // landr-3vr5: mock the per-booking iCal URL so storybook/dev mode
+  // exercises the "Add to calendar" anchor branch in Confirmation.tsx.
+  ical_url:
+    'https://api.dev.landr.de/api/public/bookings/00000000-0000-0000-0000-0000000000bb/calendar.ics',
 })
 
 /**
