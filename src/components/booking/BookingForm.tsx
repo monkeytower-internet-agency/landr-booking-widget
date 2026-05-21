@@ -225,6 +225,11 @@ export function BookingForm({
           first_name: p.first_name,
           last_name: p.last_name || null,
           email: p.email || null,
+          // landr-zaan: per-participant phone now round-trips to
+          // contacts.phone server-side (no longer dropped). Normalised to
+          // null when the field is blank so the RPC's COALESCE-update
+          // never overwrites an existing phone with an empty string.
+          phone: p.phone || null,
           // landr-mg0a: pick the participant's chosen role (set by
           // DetailsStep). Falls back to the legacy hardcoded 'participant'
           // code in the rare race where DetailsStep submitted before the

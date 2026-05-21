@@ -353,6 +353,57 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(body.participants[1]!.last_name).toBe('Hopper')
   })
 
+  it('forwards per-participant phone on submit (landr-zaan)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-zaan',
+      reference: 'REF-ZAAN',
+      state: 'pending',
+    })
+    render(
+      <BookingForm
+        operatorSlug="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: 'grace@example.com',
+            phone: '+34 600 111 222',
+            service_role_code: '',
+          },
+          {
+            first_name: 'Linus',
+            last_name: 'Torvalds',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    // Booker's phone always rides on the body's customer_phone AND on
+    // participants[0].phone (booker is auto-mirrored into participants[0]).
+    expect(body.customer_phone).toBe('+34 600 000 000')
+    expect(body.participants[0]!.phone).toBe('+34 600 000 000')
+    // Participant 2 supplied a phone → forwarded verbatim.
+    expect(body.participants[1]!.phone).toBe('+34 600 111 222')
+    // Participant 3 left phone blank → normalised to null so the RPC's
+    // COALESCE-update never wipes a phone already on file.
+    expect(body.participants[2]!.phone).toBeNull()
+  })
+
   it('surfaces a server error message and re-enables the Confirm button', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(new Error('boom'))

@@ -13,12 +13,12 @@
  * so the customer doesn't have to type their own data twice. Additional
  * participants only need first/last; email + phone are optional.
  *
- * NOTE on phone: the backend's ParticipantIn (app/routers/public_bookings.py)
- * does NOT currently accept a per-participant phone field — only the
- * booker's customer_phone is persisted server-side. We still collect
- * participant phones in the UI per the landr-8c03 spec, but they're
- * dropped before submit. Adding `phone` to ParticipantIn is a follow-up
- * (filed as landr-8c03-followup).
+ * NOTE on phone: as of landr-zaan the backend's ParticipantIn accepts a
+ * per-participant `phone` field and the public_submit_booking RPC
+ * persists it to the participant's `contacts.phone` row (same upsert
+ * semantics as the booker's customer_phone). The DetailsStep UI surface
+ * is unchanged — participants 2..N continue to see an optional phone
+ * input — but the value is now sent on submit instead of dropped.
  */
 export interface BookerDetails {
   first_name: string
@@ -32,7 +32,9 @@ export interface ParticipantDetails {
   last_name: string
   /** Optional. Empty string when not provided — normalised to null on submit. */
   email: string
-  /** Optional. Collected client-side; not yet sent to the backend. */
+  /** Optional per-participant phone. landr-zaan: round-trips to
+   *  `contacts.phone` server-side. Empty string normalised to null on
+   *  submit so a blank field never overwrites a phone already on file. */
   phone: string
   /**
    * Operator-scoped service_roles.code (landr-mg0a). Defaults to the
