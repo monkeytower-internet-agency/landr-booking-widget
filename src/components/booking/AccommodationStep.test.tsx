@@ -193,7 +193,10 @@ describe('AccommodationStep', () => {
     const noBtn = screen.getByRole('button', { name: /No, thanks/i })
     fireEvent.click(noBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith([], null, [])
+    // landr-yf0n: optional-mode onConfirm now reports includeHotel as a
+    // 4th arg so App.tsx can stash it for back-nav restoration. Opt-out
+    // → false; mandatory-mode callsites still receive undefined.
+    expect(onConfirm).toHaveBeenCalledWith([], null, [], false)
   })
 
   it('renders per-room qty steppers and computes nights × price × qty totals', async () => {
@@ -245,10 +248,13 @@ describe('AccommodationStep', () => {
     expect(continueBtn).not.toBeDisabled()
     fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
+    // landr-yf0n: mandatory-mode onConfirm receives includeHotel=undefined
+    // (the Yes/No gate doesn't apply, so no opt-out state to report).
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 1 }],
       'hotel-a',
       [],
+      undefined,
     )
   })
 
@@ -538,8 +544,9 @@ describe('AccommodationStep', () => {
     // needed. The single-hotel landr-punc auto-select must not fire here
     // because includeHotel stays false (the click also calls changeHotel
     // (null) which nulls selectedHotelId, and the auto-select effect is
-    // gated on includeHotel).
-    expect(onConfirm).toHaveBeenCalledWith([], null, [])
+    // gated on includeHotel). landr-yf0n: opt-out now also reports
+    // includeHotel=false as the 4th arg for back-nav state restoration.
+    expect(onConfirm).toHaveBeenCalledWith([], null, [], false)
     // Rooms must NOT have been fetched — the customer skipped accommodation.
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
   })
@@ -594,6 +601,143 @@ describe('AccommodationStep', () => {
   // for hotel totals + caveat). The step keeps a short stay-window
   // orientation line so the customer sees which nights the room steppers
   // below cover — but the totals + paid-directly copy live in the sidebar.
+  // ── Back-nav state restoration (landr-yf0n) ──────────────────────
+  // When the customer hits Back from a downstream step (pick-pickup or
+  // fill-form), App.tsx threads the prior hotel + rooms + add-ons +
+  // includeHotel back as the initial-* props. The step must re-mount
+  // with the steppers + radios + Yes/No toggle restored — NOT reset to
+  // an empty cart.
+
+  it('restores prior hotel + room selection from initial* props on back-nav re-entry', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+      makeRoom('double-room', 'Double Room', 73),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'single-room', quantity: 2 }]}
+      />,
+    )
+
+    // Hotel pre-selected: rooms fetch fires for hotel-a without a click.
+    await waitFor(() =>
+      expect(mocks.getHotelRoomsForHotel).toHaveBeenCalledWith(
+        'para42',
+        'hotel-a',
+      ),
+    )
+    // Single Room stepper renders with qty=2 already seeded.
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // The qty cell sits adjacent to the +/- buttons with aria-live=polite.
+    // Reading the qty span for Single Room directly is cleanest: it's the
+    // sibling of the "Increase Single Room quantity" button.
+    const increaseBtn = screen.getByRole('button', {
+      name: /Increase Single Room/i,
+    })
+    const qtySpan = increaseBtn.previousElementSibling
+    expect(qtySpan?.textContent?.trim()).toBe('2')
+
+    // Continue without further interaction → confirms the restored cart.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'single-room', quantity: 2 }],
+      'hotel-a',
+      [],
+      undefined,
+    )
+  })
+
+  it('restores prior add-on selection from initialAddons (landr-yf0n)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'double-room', quantity: 1 }]}
+        initialAddons={[{ productId: 'bf-1', quantity: 3 }]}
+      />,
+    )
+
+    // Wait for the breakfast row to render (room is already in cart so
+    // its add-on list mounts as soon as the per-room fetch resolves).
+    await waitFor(() =>
+      expect(screen.getByText('Breakfast')).toBeInTheDocument(),
+    )
+
+    // Continue → emits the restored room + add-on cart unchanged.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'double-room', quantity: 1 }],
+      'hotel-a',
+      [{ productId: 'bf-1', quantity: 3 }],
+      undefined,
+    )
+  })
+
+  it('restores optional-mode "No, thanks" opt-out from initialIncludeHotel=false', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialIncludeHotel={false}
+      />,
+    )
+
+    // The Yes/No gate renders with "No, thanks" already the active
+    // variant — verify by checking that the "Yes" button is in outline
+    // mode (not the active variant).
+    await waitFor(() =>
+      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
+    )
+    // The rooms list must NOT render — the customer opted out.
+    expect(screen.queryByText(/Single Room/i)).not.toBeInTheDocument()
+    // The room fetch must NOT have fired — opt-out → no hotel selected.
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+  })
+
   it('renders a stay-window orientation line when a hotel + rooms are loaded (landr-kat8)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([

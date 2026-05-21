@@ -59,20 +59,36 @@ export type Step =
       booker?: BookerDetails
       participants?: ParticipantDetails[]
     }
+  // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
+  // addons / includeHotel let AccommodationStep re-seed its internal
+  // state when the customer hits Back from a downstream step. Undefined
+  // on the initial forward visit (no prior data to restore).
   | {
       name: 'pick-accommodation'
       product: Product
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      hotelLocationId?: string | null
+      accommodationRooms?: RoomSelection[]
+      addons?: AddonSelection[]
+      includeHotel?: boolean
     }
+  // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
+  // selection map on back-nav re-entry.
   | {
       name: 'pick-service-addons'
       product: Product
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      addons?: AddonSelection[]
     }
+  // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
+  // seed its radio selection on back-nav re-entry. hadServiceAddons +
+  // hotelLocationId remember which upstream step the customer originally
+  // confirmed through so the back-nav routing can hop back through the
+  // same intermediate steps instead of jumping straight to DetailsStep.
   | {
       name: 'pick-pickup'
       product: Product
@@ -81,7 +97,14 @@ export type Step =
       participants: ParticipantDetails[]
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
+      pickupLocationId?: string | null
+      hotelLocationId?: string | null
+      hadServiceAddons?: boolean
+      includeHotel?: boolean
     }
+  // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
+  // the upstream path so the BookingForm back button can restore the
+  // intermediate steps with their previously confirmed state.
   | {
       name: 'fill-form'
       product: Product
@@ -91,6 +114,9 @@ export type Step =
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
+      hotelLocationId?: string | null
+      hadServiceAddons?: boolean
+      includeHotel?: boolean
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -122,6 +148,12 @@ export function stepAfterAccommodation(
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: AddonSelection[] = [],
+  // landr-yf0n: optional provenance flags so downstream steps can hand
+  // them back when the customer hits Back. hadServiceAddons distinguishes
+  // a customer who confirmed an empty ServiceAddonsStep from one who
+  // never saw it; includeHotel preserves the optional-mode Yes/No state.
+  hadServiceAddons: boolean = false,
+  includeHotel: boolean | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     return {
@@ -133,6 +165,9 @@ export function stepAfterAccommodation(
       pickupLocationId: hotelLocationId,
       accommodationRooms,
       addons,
+      hotelLocationId,
+      hadServiceAddons,
+      includeHotel,
     }
   }
   if (product.needs_pickup) {
@@ -144,6 +179,9 @@ export function stepAfterAccommodation(
       participants,
       accommodationRooms,
       addons,
+      hotelLocationId: null,
+      hadServiceAddons,
+      includeHotel,
     }
   }
   return {
@@ -155,6 +193,9 @@ export function stepAfterAccommodation(
     pickupLocationId: null,
     accommodationRooms,
     addons,
+    hotelLocationId: null,
+    hadServiceAddons,
+    includeHotel,
   }
 }
 
@@ -206,14 +247,28 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         addons: [],
       }
     case 'pick-accommodation':
+      // landr-yf0n: on re-entry via back-nav the step carries the
+      // previously confirmed accommodationRooms + addons so the sidebar
+      // keeps the rooms/add-ons subtotal visible while the customer
+      // re-edits. Falls back to empty on the initial forward visit.
+      return {
+        product: step.product,
+        selectedDays: selectionToDays(step.selection),
+        participantCount: step.participants.length,
+        participantNames: namesFrom(step.participants),
+        accommodationRooms: step.accommodationRooms ?? [],
+        addons: step.addons ?? [],
+      }
     case 'pick-service-addons':
+      // landr-yf0n: same back-nav restoration for service-addons. No
+      // accommodationRooms field — this step never has hotel context.
       return {
         product: step.product,
         selectedDays: selectionToDays(step.selection),
         participantCount: step.participants.length,
         participantNames: namesFrom(step.participants),
         accommodationRooms: [],
-        addons: [],
+        addons: step.addons ?? [],
       }
     case 'pick-pickup':
     case 'fill-form':

@@ -48,17 +48,37 @@ interface Props {
    * empty when the customer opts out of an `optional` accommodation.
    * hotelLocationId is null in that case so the booking submit does
    * not pass a hotel context.
+   *
+   * landr-yf0n: the includeHotel boolean reports the optional-mode
+   * Yes/No state at confirm time so App.tsx can stash it in the step
+   * state for back-nav restoration. undefined for the mandatory path.
    */
   onConfirm: (
     rooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[],
+    includeHotel?: boolean,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
    * (date selection). Mirrors the other booking steps' Back affordance.
    */
   onBack: () => void
+  /**
+   * landr-yf0n: when the customer hits Back from a downstream step,
+   * App.tsx threads the previously confirmed accommodation context back
+   * so the step re-mounts with the prior hotel + rooms + add-ons
+   * restored (instead of empty steppers). Each field is independently
+   * optional — only what was confirmed comes back.
+   *
+   * initialIncludeHotel covers the optional-mode Yes/No gate so a
+   * customer who opted-out doesn't see the gate flip back to "Yes" on
+   * re-entry. undefined → default to the offering-driven initial value.
+   */
+  initialHotelLocationId?: string | null
+  initialRooms?: RoomSelection[]
+  initialAddons?: AddonSelection[]
+  initialIncludeHotel?: boolean
 }
 
 /**
@@ -85,6 +105,10 @@ export function AccommodationStep({
   participantCount = 1,
   onConfirm,
   onBack,
+  initialHotelLocationId,
+  initialRooms,
+  initialAddons,
+  initialIncludeHotel,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -92,11 +116,23 @@ export function AccommodationStep({
 
   const [hotels, setHotels] = useState<Hotel[] | null>(null)
   const [hotelError, setHotelError] = useState<string | null>(null)
-  const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null)
-  const [includeHotel, setIncludeHotel] = useState<boolean>(isMandatory)
+  // landr-yf0n: seed selectedHotelId / includeHotel / selection /
+  // addonSelection from the initial-* props so back-nav re-entry
+  // restores the prior accommodation state instead of resetting.
+  const [selectedHotelId, setSelectedHotelId] = useState<string | null>(
+    initialHotelLocationId ?? null,
+  )
+  const [includeHotel, setIncludeHotel] = useState<boolean>(
+    initialIncludeHotel ?? isMandatory,
+  )
   const [rooms, setRooms] = useState<Product[] | null>(null)
   const [roomsError, setRoomsError] = useState<string | null>(null)
-  const [selection, setSelection] = useState<Record<string, number>>({})
+  const [selection, setSelection] = useState<Record<string, number>>(() => {
+    if (!initialRooms || initialRooms.length === 0) return {}
+    const seed: Record<string, number> = {}
+    for (const r of initialRooms) seed[r.productId] = r.quantity
+    return seed
+  })
   // Per-room add-on catalogues, keyed by room product_id. Lazily fetched
   // as the room list resolves (one fetch per room). The widget tolerates
   // an individual fetch failure silently — the room itself still
@@ -109,9 +145,15 @@ export function AccommodationStep({
   // to several rooms and the customer ultimately picks a single total
   // quantity; collapsing into one map keeps the submit payload free of
   // duplicate addon line items.
+  // landr-yf0n: seed from initialAddons on back-nav re-entry.
   const [addonSelection, setAddonSelection] = useState<
     Record<string, number>
-  >({})
+  >(() => {
+    if (!initialAddons || initialAddons.length === 0) return {}
+    const seed: Record<string, number> = {}
+    for (const line of initialAddons) seed[line.productId] = line.quantity
+    return seed
+  })
 
   // Fetch hotels for the operator. We always do this on mount so the
   // 'optional' flow can immediately offer the customer a Yes/No choice
@@ -316,7 +358,9 @@ export function AccommodationStep({
 
   function handleContinue() {
     if (optedOut) {
-      onConfirm([], null, [])
+      // landr-yf0n: report includeHotel=false so App.tsx can stash the
+      // opt-out state for back-nav restoration.
+      onConfirm([], null, [], offering === 'optional' ? false : undefined)
       return
     }
     if (!selectedHotelId || roomSelections.length === 0) return
@@ -333,7 +377,12 @@ export function AccommodationStep({
     const addonLines: AddonSelection[] = Object.entries(addonSelection)
       .filter(([id, qty]) => qty > 0 && activeAddonIds.has(id))
       .map(([productId, quantity]) => ({ productId, quantity }))
-    onConfirm(roomSelections, selectedHotelId, addonLines)
+    onConfirm(
+      roomSelections,
+      selectedHotelId,
+      addonLines,
+      offering === 'optional' ? includeHotel : undefined,
+    )
   }
 
   return (
@@ -381,7 +430,9 @@ export function AccommodationStep({
                   // selectedHotelId regardless.
                   setIncludeHotel(false)
                   changeHotel(null)
-                  onConfirm([], null, [])
+                  // landr-yf0n: report includeHotel=false for back-nav
+                  // restoration.
+                  onConfirm([], null, [], false)
                 }}
               >
                 No, thanks

@@ -39,17 +39,36 @@ import {
  */
 interface Props {
   product: Product
+  /**
+   * landr-yf0n: when the customer hits Back from a downstream step,
+   * App.tsx threads the previously confirmed add-on line items back so
+   * the step re-mounts with the prior selections restored. When
+   * present, the seed-from-min_qty defaults are skipped because the
+   * customer's explicit picks take precedence (including any required
+   * add-ons they had at their picked qty).
+   */
+  initialAddons?: AddonSelection[]
   onBack: () => void
   onConfirm: (addons: AddonSelection[]) => void
 }
 
-export function ServiceAddonsStep({ product, onBack, onConfirm }: Props) {
+export function ServiceAddonsStep({
+  product,
+  initialAddons,
+  onBack,
+  onConfirm,
+}: Props) {
   const locale = browserLocale()
   const productName = pickLocalized(product.name, product.name_localized, locale)
 
   const [addons, setAddons] = useState<ProductAddon[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selection, setSelection] = useState<Record<string, number>>({})
+  const [selection, setSelection] = useState<Record<string, number>>(() => {
+    if (!initialAddons || initialAddons.length === 0) return {}
+    const seed: Record<string, number> = {}
+    for (const line of initialAddons) seed[line.productId] = line.quantity
+    return seed
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -60,13 +79,20 @@ export function ServiceAddonsStep({ product, onBack, onConfirm }: Props) {
         setAddons(list)
         // Seed required add-ons at their min_qty so the customer sees
         // a sensible default and the Continue button isn't blocked the
-        // moment they land here.
-        const seed: Record<string, number> = {}
-        for (const a of list) {
-          const q = defaultAddonQty(a)
-          if (q > 0) seed[a.addon_product_id] = q
-        }
-        setSelection(seed)
+        // moment they land here. landr-yf0n: when initialAddons came
+        // through (back-nav re-entry), the customer's prior picks
+        // already own the selection map — don't overwrite them with
+        // min_qty defaults; just fill in any required add-on the
+        // initialAddons map doesn't already cover.
+        setSelection((prev) => {
+          const next = { ...prev }
+          for (const a of list) {
+            if (next[a.addon_product_id] !== undefined) continue
+            const q = defaultAddonQty(a)
+            if (q > 0) next[a.addon_product_id] = q
+          }
+          return next
+        })
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : String(err))
