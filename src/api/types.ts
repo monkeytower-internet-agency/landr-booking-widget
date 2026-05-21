@@ -210,6 +210,14 @@ export interface Participant {
   first_name: string
   last_name?: string | null
   email?: string | null
+  /**
+   * Optional per-participant phone (landr-zaan). The booker's phone is
+   * always sent as `customer_phone` on the body; this field carries
+   * phones for additional participants (2..N) collected by DetailsStep.
+   * The RPC persists it to the participant's contacts.phone using the
+   * same upsert pattern as customer_phone.
+   */
+  phone?: string | null
   service_role_code: string
   pickup_location_id?: string | null
 }
