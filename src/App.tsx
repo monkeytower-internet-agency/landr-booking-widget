@@ -10,6 +10,7 @@ import {
 } from '@/components/booking/BookingForm'
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
+import { CancelPage } from '@/components/booking/CancelPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import type {
@@ -48,7 +49,52 @@ function readQueryParams() {
   }
 }
 
+/**
+ * Path-based route detection for the customer-self-serve surfaces
+ * (landr-sgnd). The widget is otherwise a single-screen SPA driven
+ * by appStepMachine, so we don't pull in a router library — a tiny
+ * regex check at the top of App is enough.
+ *
+ * Currently supported paths:
+ *   /cancel/{uuid} → renders CancelPage (cancel-confirm + POST)
+ *
+ * Any other path falls through to the normal booking flow.
+ *
+ * Exported for unit tests.
+ */
+const CANCEL_PATH_RE = /^\/cancel\/([0-9a-fA-F-]+)\/?$/
+export function detectRoute(pathname: string):
+  | { kind: 'cancel'; bookingId: string }
+  | { kind: 'booking' } {
+  const m = CANCEL_PATH_RE.exec(pathname)
+  if (m) return { kind: 'cancel', bookingId: m[1] }
+  return { kind: 'booking' }
+}
+
 function App() {
+  // landr-sgnd: branch on the URL pathname before the booking flow
+  // state machinery so we never spin up the operator/product fetches
+  // when the customer is just here to cancel.
+  const route = useMemo(
+    () =>
+      typeof window === 'undefined'
+        ? { kind: 'booking' as const }
+        : detectRoute(window.location.pathname),
+    [],
+  )
+  if (route.kind === 'cancel') {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+          <CancelPage bookingId={route.bookingId} />
+        </div>
+      </div>
+    )
+  }
+  return <BookingFlowApp />
+}
+
+function BookingFlowApp() {
   const { operator, product, group } = useMemo(() => readQueryParams(), [])
   const operatorSlug =
     operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
