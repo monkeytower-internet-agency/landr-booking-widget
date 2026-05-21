@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
-import type { Product } from '@/api/types'
+import type { Product, ServiceRole } from '@/api/types'
 import { browserLocale } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,20 @@ const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 interface Props {
   product: Product
   selection: BookingSelection
+  /**
+   * Operator's active service_roles (landr-mg0a). Fetched once at App
+   * mount via getOperatorServiceRoles and threaded down. When the list
+   * has >1 entry DetailsStep renders a per-participant dropdown so
+   * customers can pick (e.g. 'pilot' vs 'passenger' for tandem flights).
+   * With exactly one row the dropdown is hidden and the single code is
+   * pre-assigned to every participant.
+   *
+   * Optional / empty while the fetch is in flight (or in legacy test
+   * call-sites). In that case the dropdown is suppressed and
+   * BookingForm falls back to the legacy hardcoded 'participant' code
+   * at submit time.
+   */
+  serviceRoles?: ServiceRole[]
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -90,14 +104,30 @@ function describeSelection(
 export function DetailsStep({
   product,
   selection,
+  serviceRoles = [],
   initialBooker,
   initialParticipants,
   onBack,
   onConfirm,
 }: Props) {
   const locale = browserLocale()
+  // landr-mg0a: defaultRoleCode is the first row served by
+  // public_get_operator_service_roles (ordered by sort_order). When
+  // serviceRoles is still empty (fetch in flight) defaults are ''; the
+  // showRoleDropdown gate below also evaluates to false so the UI just
+  // omits the dropdown rather than render a broken empty <select>.
+  const defaultRoleCode = serviceRoles[0]?.code ?? ''
+  const showRoleDropdown = serviceRoles.length > 1
   const [booker, setBooker] = useState<BookerDetails>(
     () => initialBooker ?? emptyBooker(),
+  )
+  // The booker becomes participants[0] on submit (via bookerToParticipant)
+  // — but we need an independent state slot for THEIR role code since the
+  // booker type itself carries no role. Seeded from initialParticipants[0]
+  // when restoring after Back, else the operator's default.
+  const [bookerRoleCode, setBookerRoleCode] = useState<string>(
+    () =>
+      initialParticipants?.[0]?.service_role_code ?? defaultRoleCode,
   )
   // Additional participants only (booker is participants[0], synced
   // automatically). When the customer comes back to this step we
@@ -108,6 +138,19 @@ export function DetailsStep({
     }
     return []
   })
+
+  // If the service-roles fetch resolves AFTER DetailsStep first
+  // mounted, swap empty role codes for the new default. Already-picked
+  // roles (from a Back-restore) stay untouched.
+  useEffect(() => {
+    if (!defaultRoleCode) return
+    setBookerRoleCode((prev) => prev || defaultRoleCode)
+    setAdditional((prev) =>
+      prev.map((p) =>
+        p.service_role_code ? p : { ...p, service_role_code: defaultRoleCode },
+      ),
+    )
+  }, [defaultRoleCode])
 
   // Mirror the booker into participants[0] while the customer hasn't
   // overridden individual fields. We track the previous booker values
@@ -139,7 +182,7 @@ export function DetailsStep({
       if (clamped > current.length) {
         const grown = current.slice()
         for (let i = current.length; i < clamped; i += 1) {
-          grown.push(emptyParticipant())
+          grown.push(emptyParticipant(defaultRoleCode))
         }
         return grown
       }
@@ -166,7 +209,7 @@ export function DetailsStep({
   }
 
   const participantsForValidation: ParticipantDetails[] = [
-    bookerToParticipant(booker),
+    bookerToParticipant(booker, bookerRoleCode),
     ...additional,
   ]
   const canContinue = detailsAreComplete(booker, participantsForValidation)
@@ -233,6 +276,20 @@ export function DetailsStep({
                 onChange={(e) => updateBookerField('phone', e.target.value)}
               />
             </Field>
+            {/* landr-mg0a: per-participant role dropdown, hidden when the
+                operator only has the single default role. */}
+            {showRoleDropdown ? (
+              <Field label="Role" htmlFor="booker-role">
+                <RoleSelect
+                  id="booker-role"
+                  name="booker_role"
+                  value={bookerRoleCode}
+                  serviceRoles={serviceRoles}
+                  onChange={setBookerRoleCode}
+                  testId="booker-role-select"
+                />
+              </Field>
+            ) : null}
           </div>
         </fieldset>
 
@@ -323,6 +380,20 @@ export function DetailsStep({
                   }
                 />
               </Field>
+              {showRoleDropdown ? (
+                <Field label="Role" htmlFor={`p-${idx}-role`}>
+                  <RoleSelect
+                    id={`p-${idx}-role`}
+                    name={`participant_${idx + 2}_role`}
+                    value={row.service_role_code || defaultRoleCode}
+                    serviceRoles={serviceRoles}
+                    onChange={(value) =>
+                      updateParticipant(idx, 'service_role_code', value)
+                    }
+                    testId={`participant-role-select-${idx + 2}`}
+                  />
+                </Field>
+              ) : null}
             </div>
           ))}
         </fieldset>
@@ -353,5 +424,45 @@ function Field({
       </Label>
       {children}
     </div>
+  )
+}
+
+/**
+ * landr-mg0a: per-participant service_role picker. Native <select> kept
+ * minimal — the dropdown is only ever rendered when the operator has
+ * >1 active role (single-role operators get the auto-default flow with
+ * no UI surface). Styling mirrors the project's <Input> component so
+ * the row blends visually with the surrounding text fields.
+ */
+function RoleSelect({
+  id,
+  name,
+  value,
+  serviceRoles,
+  onChange,
+  testId,
+}: {
+  id: string
+  name: string
+  value: string
+  serviceRoles: ServiceRole[]
+  onChange: (next: string) => void
+  testId?: string
+}) {
+  return (
+    <select
+      id={id}
+      name={name}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      data-testid={testId}
+      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {serviceRoles.map((role) => (
+        <option key={role.id} value={role.code}>
+          {role.label}
+        </option>
+      ))}
+    </select>
   )
 }

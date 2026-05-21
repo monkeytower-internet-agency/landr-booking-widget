@@ -62,8 +62,18 @@ const BOOKER: BookerDetails = {
   phone: '+34 600 111 222',
 }
 const PARTICIPANTS: ParticipantDetails[] = [
-  { ...BOOKER },
-  { first_name: 'Grace', last_name: 'Hopper', email: 'grace@example.com', phone: '' },
+  // landr-mg0a: empty service_role_code intentionally exercises the
+  // BookingForm fallback to 'participant' (which the contract assertion
+  // below still expects). When DetailsStep is the actual upstream the
+  // participant carries the operator's first ServiceRole code.
+  { ...BOOKER, service_role_code: '' },
+  {
+    first_name: 'Grace',
+    last_name: 'Hopper',
+    email: 'grace@example.com',
+    phone: '',
+    service_role_code: '',
+  },
 ]
 
 /** Fields the FastAPI PublicSubmitBookingIn marks required. */
@@ -247,7 +257,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         product={makeServiceProduct()}
         selection={SELECTION}
         booker={BOOKER}
-        participants={[{ ...BOOKER }]}
+        participants={[{ ...BOOKER, service_role_code: "" }]}
         pickupLocationId={null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
@@ -271,7 +281,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         product={makeServiceProduct()}
         selection={SELECTION}
         booker={BOOKER}
-        participants={[{ ...BOOKER }]}
+        participants={[{ ...BOOKER, service_role_code: "" }]}
         pickupLocationId={null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}

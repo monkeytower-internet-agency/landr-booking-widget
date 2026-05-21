@@ -8,6 +8,7 @@ import type {
   OperatorSettings,
   Product,
   ProductAddon,
+  ServiceRole,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
@@ -17,6 +18,7 @@ import {
   mockFixedDateWindows,
   mockHotelRooms,
   mockLocations,
+  mockOperatorServiceRoles,
   mockOperatorSettings,
   mockProductAddons,
   mockProducts,
@@ -125,6 +127,24 @@ export async function getOperatorSettings(
   if (mocksEnabled()) return mockOperatorSettings(operatorSlug)
   return http<OperatorSettings>(
     `/api/public/operators/${encodeURIComponent(operatorSlug)}/settings`,
+  )
+}
+
+/**
+ * Operator's active service_roles for the participant role dropdown
+ * (landr-mg0a). The widget fetches this once on App mount alongside
+ * getOperatorSettings. Returns the list ordered by (sort_order, label).
+ * Defaults to whatever the API seeds for new operators (a single
+ * 'participant' row); operators that have configured multiple roles
+ * (e.g. 'pilot' + 'passenger' for paragliding tandems) surface the
+ * full list and DetailsStep shows a dropdown per participant.
+ */
+export async function getOperatorServiceRoles(
+  operatorSlug: string,
+): Promise<ServiceRole[]> {
+  if (mocksEnabled()) return mockOperatorServiceRoles(operatorSlug)
+  return http<ServiceRole[]>(
+    `/api/public/operators/${encodeURIComponent(operatorSlug)}/service-roles`,
   )
 }
 

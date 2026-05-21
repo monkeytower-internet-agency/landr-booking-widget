@@ -225,7 +225,13 @@ export function BookingForm({
           first_name: p.first_name,
           last_name: p.last_name || null,
           email: p.email || null,
-          service_role_code: 'participant',
+          // landr-mg0a: pick the participant's chosen role (set by
+          // DetailsStep). Falls back to the legacy hardcoded 'participant'
+          // code in the rare race where DetailsStep submitted before the
+          // App-mount service-roles fetch resolved — every operator now
+          // has a 'participant' row seeded by the AFTER INSERT trigger,
+          // so the fallback path stays valid for fresh tenants too.
+          service_role_code: p.service_role_code || 'participant',
           pickup_location_id: pickupLocationId ?? null,
         })),
       }
