@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { AccommodationStep } from '@/components/booking/AccommodationStep'
 import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
@@ -59,9 +60,15 @@ function App() {
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
   // first render never leaks seat counts for opted-out operators.
+  // landr-yp8x adds branding fields (logo_url, primary_color, name) to
+  // the same endpoint; defaults stay null so the widget renders its
+  // built-in theme until the fetch resolves.
   const [operatorSettings, setOperatorSettings] = useState<OperatorSettings>({
     slug: operatorSlug,
     expose_seats_to_customer: false,
+    logo_url: null,
+    primary_color: null,
+    name: null,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -246,8 +253,23 @@ function App() {
 
   const sidebarInputs = sidebarInputsForStep(step)
 
+  // landr-yp8x — apply the operator's primary colour as a CSS variable
+  // override so every component that reads `var(--primary)` (Button,
+  // PriceSidebar CTA, accent borders) automatically picks it up.
+  // Setting it as inline style at the widget root means we don't
+  // mutate a global stylesheet (which would leak across embeds when
+  // the host page mounts more than one widget instance — uncommon but
+  // possible). When primary_color is null the inline style isn't
+  // applied and the index.css default kicks in.
+  const brandStyle: CSSProperties = operatorSettings.primary_color
+    ? ({ ['--primary' as never]: operatorSettings.primary_color } as CSSProperties)
+    : {}
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className="min-h-screen bg-background text-foreground"
+      style={brandStyle}
+    >
       {/*
         Outer flex (md and up) puts the step content on the left and the
         sticky PriceSidebar on the right. On mobile the sidebar renders
@@ -258,12 +280,33 @@ function App() {
       <div className="mx-auto flex max-w-5xl flex-col md:flex-row md:items-start gap-6 p-6">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
         {/*
-          landr-711: no widget-level headline. Operators embed the widget
-          inside their own page (WordPress shortcode / iframe) and own the
-          surrounding HTML, including any <h1>. The operator context is
-          still fetched above for downstream step-machine + product
-          requests — it just isn't rendered as a title here.
+          landr-yp8x — operator brand header. We deliberately keep this
+          tight (logo + name, no <h1>) because the widget is embedded
+          inside the operator's own page and they own the surrounding
+          HTML including any <h1>. The header gives the customer a
+          visual anchor inside the embed (especially when the iframe
+          host page is busy) without competing with the operator's
+          page title. Falls back to a text-only header when no logo is
+          uploaded; renders nothing at all when both logo and name are
+          unset (defensive — public_get_operator_settings always
+          projects `name`).
         */}
+        {(operatorSettings.logo_url || operatorSettings.name) ? (
+          <div className="flex items-center gap-3">
+            {operatorSettings.logo_url ? (
+              <img
+                src={operatorSettings.logo_url}
+                alt={operatorSettings.name ?? operatorSettings.slug}
+                className="h-10 w-auto max-w-[160px] object-contain"
+              />
+            ) : null}
+            {operatorSettings.name && !operatorSettings.logo_url ? (
+              <span className="text-lg font-semibold">
+                {operatorSettings.name}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {step.name === 'pick-product' ? (
           <ProductList

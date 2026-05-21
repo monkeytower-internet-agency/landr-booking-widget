@@ -98,6 +98,76 @@ describe('App', () => {
     })
   })
 
+  // landr-yp8x — operator branding (logo + primary colour) surfaced by
+  // GET /api/public/operators/{slug}/settings.
+  describe('operator branding (landr-yp8x)', () => {
+    it('renders the operator logo when logo_url is set', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: '#ff8800',
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        const logo = screen.getByAltText('Para42') as HTMLImageElement
+        expect(logo.src).toBe('https://example.com/logo.png')
+      })
+    })
+
+    it('renders the operator name as a fallback header when logo_url is null', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByText('Para42')).toBeInTheDocument()
+      })
+      expect(screen.queryByAltText('Para42')).not.toBeInTheDocument()
+    })
+
+    it('applies primary_color as a --primary CSS variable on the widget root', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: '#ff8800',
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      const { container } = render(<App />)
+      await waitFor(() => {
+        // First child of the test container is the widget's root <div>.
+        const root = container.firstElementChild as HTMLElement
+        expect(root.style.getPropertyValue('--primary')).toBe('#ff8800')
+      })
+    })
+
+    it('does not set --primary when primary_color is null (falls back to theme default)', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      const { container } = render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
+      })
+      const root = container.firstElementChild as HTMLElement
+      expect(root.style.getPropertyValue('--primary')).toBe('')
+    })
+  })
+
   describe('step machine branching (landr-y9k)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
