@@ -5,6 +5,7 @@ import {
   findBreakfastAddonIds,
   formatCurrency,
   roomSubtotal,
+  stayNightIsos,
   totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
@@ -96,6 +97,44 @@ describe('deriveStayWindow', () => {
     const win = deriveStayWindow(['2026-05-31'])
     expect(win.checkInIso).toBe('2026-05-30')
     expect(win.checkOutIso).toBe('2026-06-01')
+  })
+
+  // landr-ma5n: non-contiguous selections must count nights by SPAN
+  // (last - first + 2), not by selectedDays.length + 1. The hotel
+  // window is continuous from check-in to check-out — the customer does
+  // not vacate the room on the gap day. Pre-fix this returned 3 nights
+  // for [25, 27] which under-charged the operator by 1 night.
+  it('counts nights by span for non-contiguous selections (landr-ma5n)', () => {
+    const win = deriveStayWindow(['2026-05-25', '2026-05-27'])
+    expect(win.checkInIso).toBe('2026-05-24')
+    expect(win.checkOutIso).toBe('2026-05-28')
+    expect(win.nights).toBe(4)
+  })
+
+  it('counts nights by span for multi-gap non-contiguous selections (landr-ma5n)', () => {
+    // [Mon, Wed, Thu] — gap on Tuesday, then Wed-Thu contiguous. Hotel
+    // span = Sun → Fri = 5 nights, NOT 4 (selectedDays.length + 1).
+    const win = deriveStayWindow(['2026-05-25', '2026-05-27', '2026-05-28'])
+    expect(win.checkInIso).toBe('2026-05-24')
+    expect(win.checkOutIso).toBe('2026-05-29')
+    expect(win.nights).toBe(5)
+  })
+
+  it('keeps deriveStayWindow.nights consistent with stayNightIsos.length (landr-ma5n)', () => {
+    // Regression guard: before the fix, deriveStayWindow.nights and
+    // stayNightIsos disagreed on non-contiguous input (the latter
+    // already walked the full span). Lock them in step.
+    const cases: string[][] = [
+      ['2026-06-10', '2026-06-11', '2026-06-12'],
+      ['2026-06-10'],
+      ['2026-05-25', '2026-05-27'],
+      ['2026-05-25', '2026-05-27', '2026-05-28'],
+      ['2026-05-25', '2026-05-30'],
+    ]
+    for (const days of cases) {
+      const win = deriveStayWindow(days)
+      expect(win.nights).toBe(stayNightIsos(days).length)
+    }
   })
 })
 

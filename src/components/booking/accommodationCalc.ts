@@ -25,8 +25,16 @@ function shiftDays(iso: string, delta: number): string {
 /**
  * Derived check-in/check-out + nights for a stay aligned with a multi-day
  * service. Per the spec: check-in = first selected day - 1, check-out =
- * last selected day + 1, nights = (check-out - check-in) =
- * selectedDays.length + 1.
+ * last selected day + 1, nights = (check-out - check-in).
+ *
+ * Nights are computed from the day span (last - first + 2), NOT from
+ * selectedDays.length, because non-contiguous service selections still
+ * occupy the hotel continuously across the gap. Example: selecting
+ * [Mon, Wed] for the service means check-in Sun, check-out Thu, the
+ * customer does not check out on Tuesday and return — that would be a
+ * second booking. Pre-2026-05-21 (landr-ma5n) this used
+ * `selectedDays.length + 1`, which under-counted non-contiguous spans
+ * (e.g. [25, 27] returned 3 nights instead of 4).
  *
  * Returns null fields + nights=0 when selectedDays is empty so the
  * caller can render an empty-state without crashing.
@@ -44,10 +52,17 @@ export function deriveStayWindow(selectedDays: string[]): StayWindow {
   const sorted = [...selectedDays].sort()
   const checkInIso = shiftDays(sorted[0]!, -1)
   const checkOutIso = shiftDays(sorted[sorted.length - 1]!, 1)
+  // Span-based night count: difference (in days) between check-out and
+  // check-in. Works for both contiguous and non-contiguous selections
+  // because the hotel window is continuous from first-1 to last+1.
+  const checkInUtc = isoToUtcDate(checkInIso)
+  const checkOutUtc = isoToUtcDate(checkOutIso)
+  const msPerDay = 24 * 60 * 60 * 1000
+  const nights = Math.round((checkOutUtc.getTime() - checkInUtc.getTime()) / msPerDay)
   return {
     checkInIso,
     checkOutIso,
-    nights: sorted.length + 1,
+    nights,
   }
 }
 
