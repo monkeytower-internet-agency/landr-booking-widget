@@ -202,6 +202,37 @@ export interface Participant {
   pickup_location_id?: string | null
 }
 
+/**
+ * Operator-scoped participant role surfaced by
+ * GET /api/public/operators/{slug}/service-roles (landr-mg0a). The widget
+ * fetches this list once on App mount and:
+ *
+ *   - Uses the first row's `code` as the default service_role_code for
+ *     every participant on submit. Without a server-configured row the
+ *     widget can't submit (the RPC validates the code), so a missing
+ *     list bubbles up as a booking error. The API trigger seeded in
+ *     migration 20260521080000 guarantees every operator has at least
+ *     one row, so an empty list only happens for genuinely-missing
+ *     operators.
+ *
+ *   - When the list has >1 entry the DetailsStep renders a dropdown per
+ *     participant so customers can pick (e.g. 'pilot' vs 'passenger'
+ *     for a tandem flight). With exactly one row the dropdown is
+ *     hidden — the auto-default flow stays identical to the pre-mg0a
+ *     hardcoded path.
+ *
+ * `label_localized` is reserved for a future i18n pass (the dashboard
+ * already round-trips it); the current DetailsStep falls back to
+ * `label` regardless.
+ */
+export interface ServiceRole {
+  id: string
+  code: string
+  label: string
+  label_localized: Record<string, string> | null
+  sort_order: number
+}
+
 export interface ProductLine {
   product_id: string
   quantity?: number

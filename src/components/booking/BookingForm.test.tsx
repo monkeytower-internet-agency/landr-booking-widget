@@ -65,6 +65,10 @@ function bookerAsParticipant(b: BookerDetails): ParticipantDetails {
     last_name: b.last_name,
     email: b.email,
     phone: b.phone,
+    // landr-mg0a: empty role code exercises the BookingForm fallback
+    // ('participant') so legacy review-only tests don't need to know
+    // about the operator's role catalogue.
+    service_role_code: '',
   }
 }
 
@@ -106,8 +110,15 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
             last_name: 'Hopper',
             email: 'grace@example.com',
             phone: '',
+            service_role_code: '',
           },
-          { first_name: 'Alan', last_name: 'Turing', email: '', phone: '' },
+          {
+            first_name: 'Alan',
+            last_name: 'Turing',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
         ]}
         pickupLocationId={null}
         onBack={vi.fn()}
@@ -252,6 +263,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
             last_name: 'Hopper',
             email: 'grace@example.com',
             phone: '',
+            service_role_code: '',
           },
         ]}
         pickupLocationId="loc-pickup-1"
@@ -319,7 +331,13 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
         booker={ADA_BOOKER}
         participants={[
           bookerAsParticipant(ADA_BOOKER),
-          { first_name: 'Grace', last_name: 'Hopper', email: '', phone: '' },
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
         ]}
         pickupLocationId={null}
         onBack={vi.fn()}

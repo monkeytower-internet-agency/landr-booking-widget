@@ -23,8 +23,12 @@ import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
-import { getOperatorSettings, getProductAddons } from '@/api/client'
-import type { OperatorSettings, Product } from '@/api/types'
+import {
+  getOperatorServiceRoles,
+  getOperatorSettings,
+  getProductAddons,
+} from '@/api/client'
+import type { OperatorSettings, Product, ServiceRole } from '@/api/types'
 import {
   type Step,
   sidebarInputsForStep,
@@ -59,6 +63,12 @@ function App() {
     slug: operatorSlug,
     expose_seats_to_customer: false,
   })
+  // Operator's active service_roles (landr-mg0a). Starts empty so the
+  // DetailsStep dropdown stays hidden during the fetch — BookingForm
+  // falls back to the legacy 'participant' code if the customer manages
+  // to submit before the list arrives (extremely unlikely; the fetch
+  // races multiple full-page paints' worth of UX).
+  const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -68,6 +78,22 @@ function App() {
         if (!cancelled) setOperatorSettings(settings)
       } catch {
         // Keep the safe defaults — failing this fetch must not block booking.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [operatorSlug])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const roles = await getOperatorServiceRoles(operatorSlug)
+        if (!cancelled) setServiceRoles(roles)
+      } catch {
+        // Empty list is the safe fallback — BookingForm's || 'participant'
+        // guard keeps submit working for the default-seeded operator.
       }
     })()
     return () => {
@@ -322,6 +348,7 @@ function App() {
           <DetailsStep
             product={step.product}
             selection={step.selection}
+            serviceRoles={serviceRoles}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             onBack={() =>

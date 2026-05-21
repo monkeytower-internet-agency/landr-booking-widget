@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Product } from '@/api/types'
+import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
 
@@ -277,12 +277,14 @@ describe('DetailsStep (landr-8c03)', () => {
             last_name: 'Lovelace',
             email: 'ada@example.com',
             phone: '+34 600 000 000',
+            service_role_code: '',
           },
           {
             first_name: 'Grace',
             last_name: 'Hopper',
             email: '',
             phone: '',
+            service_role_code: '',
           },
         ]}
         onBack={vi.fn()}
@@ -292,5 +294,167 @@ describe('DetailsStep (landr-8c03)', () => {
     expect(byName('booker_first_name').value).toBe('Ada')
     expect(byName('participant_2_first_name').value).toBe('Grace')
     expect(byName('participant_2_last_name').value).toBe('Hopper')
+  })
+})
+
+// landr-mg0a: per-participant service_role picker. The dropdown only
+// surfaces when the operator has >1 active role. With a single role
+// the UI is unchanged and the lone code is assigned automatically.
+
+const ONE_ROLE: ServiceRole[] = [
+  {
+    id: 'role-participant',
+    code: 'participant',
+    label: 'Participant',
+    label_localized: null,
+    sort_order: 0,
+  },
+]
+
+const TWO_ROLES: ServiceRole[] = [
+  {
+    id: 'role-pilot',
+    code: 'pilot',
+    label: 'Pilot',
+    label_localized: null,
+    sort_order: 0,
+  },
+  {
+    id: 'role-passenger',
+    code: 'passenger',
+    label: 'Passenger',
+    label_localized: null,
+    sort_order: 10,
+  },
+]
+
+describe('DetailsStep — service_role selector (landr-mg0a)', () => {
+  it('hides the role dropdown when the operator only has one role', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={ONE_ROLE}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('booker-role-select')).not.toBeInTheDocument()
+  })
+
+  it('auto-assigns the single role code to the booker on submit', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={ONE_ROLE}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    const [, participants] = onConfirm.mock.calls[0]!
+    expect(participants[0].service_role_code).toBe('participant')
+  })
+
+  it('shows the dropdown for the booker when >1 role + defaults to the first', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={TWO_ROLES}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const select = screen.getByTestId('booker-role-select') as HTMLSelectElement
+    expect(select).toBeInTheDocument()
+    // First role (lowest sort_order) is the default.
+    expect(select.value).toBe('pilot')
+    // Both options surfaced.
+    const options = Array.from(select.options).map((o) => o.value)
+    expect(options).toEqual(['pilot', 'passenger'])
+  })
+
+  it('lets the user pick a different role for the booker', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={TWO_ROLES}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    const select = screen.getByTestId('booker-role-select') as HTMLSelectElement
+    fireEvent.change(select, { target: { value: 'passenger' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    const [, participants] = onConfirm.mock.calls[0]!
+    expect(participants[0].service_role_code).toBe('passenger')
+  })
+
+  it('shows a per-participant dropdown for additional rows when >1 role', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={TWO_ROLES}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: 'Grace' },
+    })
+    fireEvent.change(byName('participant_2_last_name'), {
+      target: { value: 'Hopper' },
+    })
+    const p2Select = screen.getByTestId(
+      'participant-role-select-2',
+    ) as HTMLSelectElement
+    // Participant 2 defaults to the first role too.
+    expect(p2Select.value).toBe('pilot')
+    fireEvent.change(p2Select, { target: { value: 'passenger' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    const [, participants] = onConfirm.mock.calls[0]!
+    expect(participants).toHaveLength(2)
+    expect(participants[0].service_role_code).toBe('pilot')
+    expect(participants[1].service_role_code).toBe('passenger')
+  })
+
+  it('seeds the booker dropdown from initialParticipants[0] when re-entered', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={TWO_ROLES}
+        initialBooker={{
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          email: 'ada@example.com',
+          phone: '+34 600 000 000',
+        }}
+        initialParticipants={[
+          {
+            first_name: 'Ada',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '+34 600 000 000',
+            service_role_code: 'passenger',
+          },
+        ]}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const select = screen.getByTestId('booker-role-select') as HTMLSelectElement
+    expect(select.value).toBe('passenger')
   })
 })

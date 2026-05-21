@@ -7,6 +7,7 @@ import type {
   OperatorSettings,
   Product,
   ProductAddon,
+  ServiceRole,
   SubmitBookingResponse,
 } from './types'
 
@@ -211,6 +212,25 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   slug: operatorSlug,
   expose_seats_to_customer: false,
 })
+
+/**
+ * Mock for getOperatorServiceRoles (landr-mg0a). Returns a single
+ * 'participant' row by default — the auto-seeded shape every new
+ * operator gets via the AFTER INSERT trigger. The first arg is unused
+ * today; we keep the signature symmetric with the real fetch so the
+ * App can swap between mocks/real without rewiring.
+ */
+export const mockOperatorServiceRoles = (
+  _operatorSlug: string,
+): ServiceRole[] => [
+  {
+    id: '00000000-0000-0000-0000-000000000501',
+    code: 'participant',
+    label: 'Participant',
+    label_localized: null,
+    sort_order: 0,
+  },
+]
 
 /**
  * Mock helper for the widget add-on rendering (landr-cip6). Tandem

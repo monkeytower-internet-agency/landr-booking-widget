@@ -63,6 +63,9 @@ function makeParticipants(n: number): ParticipantDetails[] {
       last_name: ADA.last_name,
       email: ADA.email,
       phone: ADA.phone,
+      // landr-mg0a: empty role code is fine here — step-machine routing
+      // is orthogonal to participant role selection.
+      service_role_code: '',
     },
   ]
   for (let i = 1; i < n; i += 1) {
@@ -71,6 +74,7 @@ function makeParticipants(n: number): ParticipantDetails[] {
       last_name: 'Doe',
       email: '',
       phone: '',
+      service_role_code: '',
     })
   }
   return rows
@@ -205,9 +209,27 @@ describe('sidebarInputsForStep (landr-8c03 — participant names threaded throug
       selection: SLOT_SELECTION,
       booker: ADA,
       participants: [
-        { first_name: 'Ada', last_name: 'L', email: '', phone: '' },
-        { first_name: 'Grace', last_name: 'H', email: '', phone: '' },
-        { first_name: '', last_name: '', email: '', phone: '' },
+        {
+          first_name: 'Ada',
+          last_name: 'L',
+          email: '',
+          phone: '',
+          service_role_code: '',
+        },
+        {
+          first_name: 'Grace',
+          last_name: 'H',
+          email: '',
+          phone: '',
+          service_role_code: '',
+        },
+        {
+          first_name: '',
+          last_name: '',
+          email: '',
+          phone: '',
+          service_role_code: '',
+        },
       ],
     })
     // Empty names filtered out.

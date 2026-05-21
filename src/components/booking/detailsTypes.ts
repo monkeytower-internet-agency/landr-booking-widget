@@ -34,14 +34,40 @@ export interface ParticipantDetails {
   email: string
   /** Optional. Collected client-side; not yet sent to the backend. */
   phone: string
+  /**
+   * Operator-scoped service_roles.code (landr-mg0a). Defaults to the
+   * first ServiceRole returned by getOperatorServiceRoles (typically
+   * 'participant'). When the operator has multiple roles configured
+   * (e.g. 'pilot' / 'passenger' for tandem paragliding) DetailsStep
+   * shows a dropdown per participant so customers can pick.
+   *
+   * Empty string before App-mount finishes fetching the role list —
+   * BookingForm falls back to the first available code on submit so a
+   * race never produces an unknown code.
+   */
+  service_role_code: string
 }
 
 export function emptyBooker(): BookerDetails {
   return { first_name: '', last_name: '', email: '', phone: '' }
 }
 
-export function emptyParticipant(): ParticipantDetails {
-  return { first_name: '', last_name: '', email: '', phone: '' }
+/**
+ * Empty participant scaffold. `serviceRoleCode` defaults to '' so callers
+ * that don't yet have the operator's role list (race on App mount) can
+ * still construct rows; BookingForm fills the gap with the first
+ * available code before submit.
+ */
+export function emptyParticipant(
+  serviceRoleCode: string = '',
+): ParticipantDetails {
+  return {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    service_role_code: serviceRoleCode,
+  }
 }
 
 /**
@@ -50,13 +76,20 @@ export function emptyParticipant(): ParticipantDetails {
  * Subsequent edits to participants[0] are user-driven and not synced
  * back (the prevBooker ref pattern from landr-iu3s/landr-qs8d lives in
  * DetailsStep itself).
+ *
+ * landr-mg0a: callers pass the operator's default service_role_code so
+ * the synthesised participants[0] row carries it through to submit.
  */
-export function bookerToParticipant(b: BookerDetails): ParticipantDetails {
+export function bookerToParticipant(
+  b: BookerDetails,
+  serviceRoleCode: string = '',
+): ParticipantDetails {
   return {
     first_name: b.first_name,
     last_name: b.last_name,
     email: b.email,
     phone: b.phone,
+    service_role_code: serviceRoleCode,
   }
 }
 
