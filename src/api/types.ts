@@ -137,6 +137,18 @@ export interface OperatorSettings {
    * urgency lever. Para42 (Martin) stays on false.
    */
   expose_seats_to_customer: boolean
+  /**
+   * landr-yp8x — operator branding surfaced for the embedded booking
+   * widget. logo_url is the public URL of an image uploaded to the
+   * operator-logos storage bucket (null when the operator hasn't
+   * uploaded one yet). primary_color is a 7-char hex (#RRGGBB) used to
+   * override the widget's --primary CSS variable; null = keep the
+   * widget's default theme. name is the operator's display name
+   * (rendered alongside / as a fallback for the logo header).
+   */
+  logo_url?: string | null
+  primary_color?: string | null
+  name?: string | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

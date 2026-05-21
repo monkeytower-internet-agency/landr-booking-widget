@@ -210,6 +210,11 @@ export const mockFixedDateWindows = (): FixedDateWindow[] => {
 export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => ({
   slug: operatorSlug,
   expose_seats_to_customer: false,
+  // landr-yp8x — null mirrors the API default (operator hasn't picked
+  // a brand yet). Widget falls back to its built-in theme.
+  logo_url: null,
+  primary_color: null,
+  name: operatorSlug,
 })
 
 /**
