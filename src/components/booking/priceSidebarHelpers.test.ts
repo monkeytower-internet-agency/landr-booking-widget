@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { EstimateLineItem } from '@/api/types'
+import type { EstimateAppliedRule, EstimateLineItem } from '@/api/types'
 import {
   buildAddonLines,
+  buildDiscountExplanation,
   formatMoney,
   isDiscountRule,
   splitLineItems,
@@ -89,5 +90,184 @@ describe('isDiscountRule (landr-qez0)', () => {
   it('does not flag base/audit rules', () => {
     expect(isDiscountRule('per_day_base')).toBe(false)
     expect(isDiscountRule('tax_split')).toBe(false)
+  })
+})
+
+describe('buildDiscountExplanation — per_streak_tier (landr-8s6c)', () => {
+  it('explains a single 3-day consecutive run at €75/day', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [[3, 75.0]],
+        per_participant: false,
+        participants: null,
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/3 consecutive days/)
+    expect(lines[0]).toMatch(/75/)
+    expect(lines[0]).toMatch(/€|EUR/)
+    expect(lines[0]).toMatch(/\/day/)
+    // No participant multiplier when per_participant is false.
+    expect(lines[0]).not.toMatch(/participant/)
+  })
+
+  it('lists one line per run for multiple streaks', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        // 3-day run at 75/day + a separate 2-day run at 90/day.
+        streaks: [
+          [3, 75.0],
+          [2, 90.0],
+        ],
+        per_participant: false,
+        participants: null,
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toMatch(/3 consecutive days/)
+    expect(lines[0]).toMatch(/75/)
+    expect(lines[1]).toMatch(/2 consecutive days/)
+    expect(lines[1]).toMatch(/90/)
+  })
+
+  it('notes the participant multiplier when per_participant is set', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [[3, 75.0]],
+        per_participant: true,
+        participants: 2,
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/3 consecutive days/)
+    expect(lines[0]).toMatch(/× 2 participants/)
+  })
+
+  it('uses the singular day/participant nouns where appropriate', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [[1, 90.0]],
+        per_participant: true,
+        participants: 1,
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines[0]).toMatch(/1 consecutive day\b/)
+    expect(lines[0]).toMatch(/× 1 participant\b/)
+  })
+
+  it('returns [] when the streaks detail is missing or empty', () => {
+    expect(
+      buildDiscountExplanation({ kind: 'per_streak_tier' }, 'EUR'),
+    ).toEqual([])
+    expect(
+      buildDiscountExplanation(
+        { kind: 'per_streak_tier', detail: { streaks: [] } },
+        'EUR',
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('buildDiscountExplanation — per_total_days_tier (landr-8s6c)', () => {
+  it('explains a 4-day tier priced per unit', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_total_days_tier',
+      detail: {
+        days: 4,
+        per_participant: false,
+        participants: null,
+        tier: {
+          threshold_min: 4,
+          threshold_max: null,
+          amount_per_unit: 70.0,
+          amount_total: null,
+        },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/4 days/)
+    expect(lines[0]).toMatch(/70/)
+    expect(lines[0]).toMatch(/\/day/)
+  })
+
+  it('derives a per-day rate from amount_total when amount_per_unit is null', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_total_days_tier',
+      detail: {
+        days: 5,
+        per_participant: false,
+        participants: null,
+        // 350 total over 5 days → 70/day.
+        tier: {
+          threshold_min: 5,
+          threshold_max: null,
+          amount_per_unit: null,
+          amount_total: 350.0,
+        },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/5 days/)
+    expect(lines[0]).toMatch(/70/)
+  })
+
+  it('reflects the participant multiplier', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_total_days_tier',
+      detail: {
+        days: 3,
+        per_participant: true,
+        participants: 3,
+        tier: {
+          threshold_min: 3,
+          threshold_max: null,
+          amount_per_unit: 75.0,
+          amount_total: null,
+        },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines[0]).toMatch(/3 days/)
+    expect(lines[0]).toMatch(/× 3 participants/)
+  })
+
+  it('returns [] when no tier matched or no rate is present', () => {
+    expect(
+      buildDiscountExplanation(
+        { kind: 'per_total_days_tier', detail: { days: 3, matched: false } },
+        'EUR',
+      ),
+    ).toEqual([])
+    // A tier with neither per-unit nor total can't yield a per-day rate.
+    expect(
+      buildDiscountExplanation(
+        {
+          kind: 'per_total_days_tier',
+          detail: { days: 3, tier: { threshold_min: 3 } },
+        },
+        'EUR',
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('buildDiscountExplanation — non-explainable kinds (landr-8s6c)', () => {
+  it('returns [] for voucher / unknown kinds', () => {
+    expect(
+      buildDiscountExplanation({ kind: 'voucher_percent' }, 'EUR'),
+    ).toEqual([])
+    expect(buildDiscountExplanation({ kind: 'per_day_base' }, 'EUR')).toEqual(
+      [],
+    )
   })
 })
