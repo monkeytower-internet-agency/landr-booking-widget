@@ -459,6 +459,123 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     ).not.toBeInTheDocument()
   })
 
+  // landr-8s6c: each discount tag now carries a plain-language
+  // explanation of why the price dropped — the consecutive-day count
+  // + the applied per-day rate — so the customer sees the multi-day
+  // rate working, not just a terse "Streak discount" pill.
+  it('renders the consecutive-day explanation under a per_streak_tier discount tag (landr-8s6c)', async () => {
+    // Realistic Para42 guided-day fixture: a 3-day consecutive run
+    // priced at €75/day via the streak brackets (1-2=90, 3-5=75).
+    const streakSample: EstimateResponse = {
+      line_items: [
+        {
+          product_id: 'svc',
+          label: 'Guided Day Dive',
+          qty: 1,
+          units: 3,
+          unit_price: '75.00',
+          line_total: '225.00',
+          paid_to: 'operator',
+        },
+      ],
+      operator_total: '225.00',
+      hotel_total: '0.00',
+      grand_total: '225.00',
+      currency: 'EUR',
+      applied_rules: [
+        {
+          kind: 'per_streak_tier',
+          detail: {
+            streaks: [[3, 75.0]],
+            per_participant: false,
+            participants: null,
+          },
+        },
+      ],
+    }
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(streakSample)
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-discount-explanation').length,
+      ).toBeGreaterThan(0),
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    // Terse tag still present.
+    expect(desktop).toHaveTextContent('Streak discount')
+    // The WHY is now explicit.
+    const explanation = desktop.querySelector(
+      '[data-testid="price-sidebar-discount-explanation"]',
+    )
+    expect(explanation?.textContent).toMatch(/Multi-day rate applied/)
+    expect(explanation?.textContent).toMatch(/3 consecutive days/)
+    expect(explanation?.textContent).toMatch(/75/)
+    expect(explanation?.textContent).toMatch(/\/day/)
+  })
+
+  it('reflects the per-participant multiplier in the discount explanation (landr-8s6c)', async () => {
+    const perParticipantSample: EstimateResponse = {
+      line_items: [
+        {
+          product_id: 'svc',
+          label: 'Guided Day Dive',
+          qty: 2,
+          units: 3,
+          unit_price: '75.00',
+          line_total: '450.00',
+          paid_to: 'operator',
+        },
+      ],
+      operator_total: '450.00',
+      hotel_total: '0.00',
+      grand_total: '450.00',
+      currency: 'EUR',
+      applied_rules: [
+        {
+          kind: 'per_streak_tier',
+          detail: {
+            streaks: [[3, 75.0]],
+            per_participant: true,
+            participants: 2,
+          },
+        },
+      ],
+    }
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(
+      perParticipantSample,
+    )
+    render(
+      <PriceSidebar
+        operatorSlug="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={2}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-discount-explanation').length,
+      ).toBeGreaterThan(0),
+    )
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const explanation = desktop.querySelector(
+      '[data-testid="price-sidebar-discount-explanation"]',
+    )
+    expect(explanation?.textContent).toMatch(/3 consecutive days/)
+    expect(explanation?.textContent).toMatch(/× 2 participants/)
+  })
+
   it('collapses long name lists with a "+N others" suffix', async () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(

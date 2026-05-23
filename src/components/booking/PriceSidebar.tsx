@@ -41,6 +41,7 @@ import { DayChips } from './DayChips'
 import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
+  buildDiscountExplanation,
   formatMoney,
   isDiscountRule,
   splitLineItems,
@@ -239,17 +240,43 @@ function BookingOverviewBody({
         )}
       </div>
       {data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
-        <ul className="flex flex-wrap gap-1">
+        // landr-8s6c: each discount rule renders its terse tag PLUS a
+        // plain-language explanation of why the price dropped — the
+        // consecutive-day count + the per-day rate that was applied —
+        // so the customer sees the multi-day rate working, not just a
+        // bare "Streak discount" pill. Explanation lines come from
+        // buildDiscountExplanation (reads applied_rules[].detail).
+        <ul className="space-y-2" data-testid="price-sidebar-discounts">
           {data.applied_rules
             .filter((r) => isDiscountRule(r.kind))
-            .map((rule, idx) => (
-              <li
-                key={`rule-${idx}`}
-                className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900"
-              >
-                {discountLabel(rule.kind)}
-              </li>
-            ))}
+            .map((rule, idx) => {
+              const lines = buildDiscountExplanation(rule, data.currency)
+              return (
+                <li key={`rule-${idx}`} data-testid="price-sidebar-discount">
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
+                    {discountLabel(rule.kind)}
+                  </span>
+                  {lines.length > 0 ? (
+                    <div
+                      className="mt-1 text-xs text-muted-foreground"
+                      data-testid="price-sidebar-discount-explanation"
+                    >
+                      <span className="block font-medium text-foreground/80">
+                        {explanationHeading(rule.kind)}
+                      </span>
+                      {lines.map((line, lineIdx) => (
+                        <span
+                          key={`rule-${idx}-line-${lineIdx}`}
+                          className="block tabular-nums"
+                        >
+                          {line}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
         </ul>
       ) : null}
       {showStaleSpinner ? (
@@ -276,6 +303,21 @@ function discountLabel(kind: string): string {
       return 'Voucher applied'
     default:
       return kind
+  }
+}
+
+/**
+ * Heading above the per-day explanation lines (landr-8s6c). Names the
+ * WHY in plain language — both tier kinds resolve to "Multi-day rate
+ * applied" since that's the reason the per-day price dropped.
+ */
+function explanationHeading(kind: string): string {
+  switch (kind) {
+    case 'per_streak_tier':
+    case 'per_total_days_tier':
+      return 'Multi-day rate applied'
+    default:
+      return ''
   }
 }
 
