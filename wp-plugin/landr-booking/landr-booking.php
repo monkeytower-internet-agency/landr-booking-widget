@@ -3,7 +3,7 @@
  * Plugin Name: LANDR Booking
  * Plugin URI:  https://github.com/monkeytower-internet-agency/landr-booking-widget
  * Description: Embeds the LANDR booking widget via the [landr_booking operator="..."] shortcode. Widget origin is configurable under Settings → LANDR Booking.
- * Version:     0.2.0
+ * Version:     0.3.0
  * Author:      Monkeytower Internet Agency
  * License:     MIT
  */
@@ -28,7 +28,14 @@ function landr_booking_get_origin() {
 }
 
 /**
- * [landr_booking operator="para42" product="optional-slug" height="800" src="https://..."]
+ * [landr_booking operator="para42" group="optional-category-slug" product="optional-slug" height="800" src="https://..."]
+ *
+ * `group=` scopes the embed to one product category (a product_groups
+ * slug) AND all of its nested sub-categories — the API resolves the
+ * subtree server-side (landr-up1b). `product=` pins a single product.
+ * Pass at most one of the two; when both are given, `product=` deep-links
+ * to the product (the `group=` filter is still forwarded but the widget
+ * lands directly on the product).
  *
  * The shortcode's `src=` attribute always wins so individual pages can pin a
  * specific origin (handy when testing a preview deploy). When omitted, the
@@ -38,6 +45,7 @@ function landr_booking_shortcode( $atts ) {
     $atts = shortcode_atts(
         array(
             'operator' => '',
+            'group'    => '',
             'product'  => '',
             'height'   => '800',
             'src'      => '',
@@ -51,6 +59,9 @@ function landr_booking_shortcode( $atts ) {
     }
 
     $query = array( 'operator' => $atts['operator'] );
+    if ( ! empty( $atts['group'] ) ) {
+        $query['group'] = $atts['group'];
+    }
     if ( ! empty( $atts['product'] ) ) {
         $query['product'] = $atts['product'];
     }
@@ -179,6 +190,15 @@ function landr_booking_render_settings_page() {
                 '<code>' . esc_html( landr_booking_get_origin() ) . '</code>'
             );
             ?>
+        </p>
+        <p>
+            <?php esc_html_e( 'Optional attributes:', 'landr-booking' ); ?>
+            <code>group="courses"</code>
+            <?php esc_html_e( '(scope to one category + its sub-categories)', 'landr-booking' ); ?>,
+            <code>product="open-water"</code>
+            <?php esc_html_e( '(deep-link to a single product)', 'landr-booking' ); ?>,
+            <code>height="800"</code>,
+            <code>src="https://..."</code>.
         </p>
     </div>
     <?php
