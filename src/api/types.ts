@@ -274,6 +274,18 @@ export interface SubmitBookingBody {
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
+  /**
+   * landr-sbhz.3: customer eligibility declarations. Dict of key→true
+   * for each confirmed declaration. Only sent when the operator requires
+   * pre-booking declarations (e.g. Para42). Omitted for operators that
+   * have not adopted the feature.
+   */
+  customer_declarations?: Record<string, true> | null
+  /**
+   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
+   * Required for operators that enforce a language selection.
+   */
+  customer_language?: string | null
 }
 
 export interface SubmitBookingResponse {

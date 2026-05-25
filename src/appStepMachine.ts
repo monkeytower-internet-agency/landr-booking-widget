@@ -11,6 +11,7 @@ import type {
   BookerDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
+import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
 import type { Product, SubmitBookingResponse } from '@/api/types'
 
 /**
@@ -107,6 +108,27 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
     }
+  // landr-sbhz.3: declarations step — customer confirms eligibility
+  // declarations + selects their spoken language before the review screen.
+  // Only inserted by App.tsx when the operator requires declarations
+  // (v1: para42). Optional initialDeclarations for back-nav restoration.
+  // landr-sbhz.4: isSharedDouble threads through so it survives the
+  // declarations → fill-form hop and back-nav restores the tick.
+  | {
+      name: 'declarations'
+      product: Product
+      selection: BookingSelection
+      booker: BookerDetails
+      participants: ParticipantDetails[]
+      pickupLocationId: string | null
+      accommodationRooms: RoomSelection[]
+      addons: AddonSelection[]
+      hotelLocationId?: string | null
+      hadServiceAddons?: boolean
+      includeHotel?: boolean
+      isSharedDouble?: boolean
+      initialDeclarations?: CustomerDeclarations
+    }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
   // intermediate steps with their previously confirmed state.
@@ -125,6 +147,10 @@ export type Step =
       hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
+      // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
+      // Only present when the operator requires declarations.
+      customerDeclarations?: Record<string, true> | null
+      customerLanguage?: string | null
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -213,6 +239,47 @@ export function stepAfterAccommodation(
 }
 
 /**
+ * Build the step that comes after all pre-review steps are done.
+ * When requiresDeclarations is true (operator-specific), inserts the
+ * declarations step between the last pre-review step and fill-form.
+ * When false, goes directly to fill-form (backward-compatible).
+ *
+ * landr-sbhz.3: v1 hardcodes Para42 as the only requiring operator;
+ * App.tsx passes requiresDeclarations based on the operatorSlug constant.
+ */
+export function fillFormOrDeclarations(
+  args: {
+    product: Product
+    selection: BookingSelection
+    booker: BookerDetails
+    participants: ParticipantDetails[]
+    pickupLocationId: string | null
+    accommodationRooms: RoomSelection[]
+    addons: AddonSelection[]
+    hotelLocationId?: string | null
+    hadServiceAddons?: boolean
+    includeHotel?: boolean
+    // landr-sbhz.4: thread the shared-double flag through so it survives
+    // the declarations → fill-form hop.
+    isSharedDouble?: boolean
+  },
+  requiresDeclarations: boolean,
+  initialDeclarations?: CustomerDeclarations,
+): Step {
+  if (requiresDeclarations) {
+    return {
+      ...args,
+      name: 'declarations' as const,
+      initialDeclarations,
+    }
+  }
+  return {
+    ...args,
+    name: 'fill-form' as const,
+  }
+}
+
+/**
  * Derive the PriceSidebar inputs for the current step (landr-qez0).
  * Returns null when the sidebar should NOT mount — pick-product (no
  * product chosen yet), confirmed (booking already done), or non-service
@@ -284,6 +351,7 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         addons: step.addons ?? [],
       }
     case 'pick-pickup':
+    case 'declarations':
     case 'fill-form':
       return {
         product: step.product,

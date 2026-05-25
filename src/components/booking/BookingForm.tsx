@@ -59,6 +59,17 @@ interface Props {
    * (per-room add-ons) or ServiceAddonsStep (landr-cip6).
    */
   addons?: AddonSelection[]
+  /**
+   * landr-sbhz.3: pre-booking customer declarations. When present,
+   * both fields are included in the submit body. Omitted for operators
+   * that have not adopted the declarations feature.
+   */
+  customerDeclarations?: Record<string, true> | null
+  /**
+   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
+   * Required alongside customerDeclarations for enforcing operators.
+   */
+  customerLanguage?: string | null
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -155,6 +166,8 @@ export function BookingForm({
   pickupLocationId,
   accommodationRooms,
   addons,
+  customerDeclarations,
+  customerLanguage,
   onBack,
   onConfirmed,
 }: Props) {
@@ -239,6 +252,16 @@ export function BookingForm({
           service_role_code: p.service_role_code || 'participant',
           pickup_location_id: pickupLocationId ?? null,
         })),
+        // landr-sbhz.3: thread declarations + language through to the
+        // submit payload. Only included when they were collected upstream
+        // by DeclarationsStep (non-null). Omitted for operators that have
+        // not adopted the declarations feature.
+        ...(customerDeclarations != null
+          ? { customer_declarations: customerDeclarations }
+          : {}),
+        ...(customerLanguage != null
+          ? { customer_language: customerLanguage }
+          : {}),
       }
       const result = await submitBooking(body)
       onConfirmed(result, booker.email)

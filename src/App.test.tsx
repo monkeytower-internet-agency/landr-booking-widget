@@ -378,6 +378,19 @@ describe('App', () => {
 
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
+
+      // landr-sbhz.3: para42 requires declarations — pass through before review.
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
+        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
+      }
+      fireEvent.change(screen.getByTestId('language-select'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('declarations-continue'))
+
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -453,15 +466,32 @@ describe('App', () => {
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
 
-      // Continue → BookingForm (review screen).
+      // Continue → DeclarationsStep (landr-sbhz.3: para42 requires declarations).
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
+        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
+      }
+      fireEvent.change(screen.getByTestId('language-select'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('declarations-continue'))
+
+      // Now on BookingForm (review screen).
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
 
-      // Hit the top-left Back button on the BookingForm. The fill-form
-      // Back path with needs_pickup=false + hotel_offering=none routes
-      // straight back to DetailsStep.
+      // Hit the top-left Back button on the BookingForm. With declarations
+      // enforced, Back from fill-form goes to DeclarationsStep first.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+
+      // Hit Back on DeclarationsStep → back to DetailsStep.
       fireEvent.click(screen.getByTestId('step-back-button'))
 
       // We should be back on DetailsStep with every field restored.
@@ -579,12 +609,31 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('radio', { name: /Beach Parking/i }))
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
+      // landr-sbhz.3: para42 requires declarations — pass the step.
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
+        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
+      }
+      fireEvent.change(screen.getByTestId('language-select'), {
+        target: { value: 'de' },
+      })
+      fireEvent.click(screen.getByTestId('declarations-continue'))
+
       // Land on fill-form (BookingForm review screen).
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
 
-      // Click the top-left Back button — back to PickupLocationPicker.
+      // Click the top-left Back button — back to DeclarationsStep (not
+      // directly to PickupLocationPicker since declarations are enforced).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+
+      // Click Back from declarations — back to PickupLocationPicker.
       fireEvent.click(screen.getByTestId('step-back-button'))
 
       // The picker re-mounts with Beach Parking still selected.
