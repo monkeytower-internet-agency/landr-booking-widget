@@ -36,6 +36,7 @@ import {
   sidebarInputsForStep,
   stepAfterAccommodation,
 } from './appStepMachine'
+import { detectRoute } from './detectRoute'
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -47,28 +48,6 @@ function readQueryParams() {
     product: params.get('product'),
     group: params.get('group'),
   }
-}
-
-/**
- * Path-based route detection for the customer-self-serve surfaces
- * (landr-sgnd). The widget is otherwise a single-screen SPA driven
- * by appStepMachine, so we don't pull in a router library — a tiny
- * regex check at the top of App is enough.
- *
- * Currently supported paths:
- *   /cancel/{uuid} → renders CancelPage (cancel-confirm + POST)
- *
- * Any other path falls through to the normal booking flow.
- *
- * Exported for unit tests.
- */
-const CANCEL_PATH_RE = /^\/cancel\/([0-9a-fA-F-]+)\/?$/
-export function detectRoute(pathname: string):
-  | { kind: 'cancel'; bookingId: string }
-  | { kind: 'booking' } {
-  const m = CANCEL_PATH_RE.exec(pathname)
-  if (m) return { kind: 'cancel', bookingId: m[1] }
-  return { kind: 'booking' }
 }
 
 function App() {

@@ -221,21 +221,31 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
 /**
  * Mock for getOperatorServiceRoles (landr-mg0a). Returns a single
  * 'participant' row by default — the auto-seeded shape every new
- * operator gets via the AFTER INSERT trigger. The first arg is unused
+ * operator gets via the AFTER INSERT trigger. The slug arg is unused
  * today; we keep the signature symmetric with the real fetch so the
  * App can swap between mocks/real without rewiring.
+ *
+ * landr-sbhz.4: the project ESLint config (typescript-eslint
+ * recommended) doesn't honour the `_`-prefix convention for unused
+ * args, so the previous `_operatorSlug` tripped no-unused-vars (a
+ * required CI gate). We keep the param (signature symmetry) and
+ * reference it via a no-op `void` so the rule is satisfied without
+ * relaxing it project-wide or changing the call site.
  */
 export const mockOperatorServiceRoles = (
-  _operatorSlug: string,
-): ServiceRole[] => [
-  {
-    id: '00000000-0000-0000-0000-000000000501',
-    code: 'participant',
-    label: 'Participant',
-    label_localized: null,
-    sort_order: 0,
-  },
-]
+  operatorSlug: string,
+): ServiceRole[] => {
+  void operatorSlug
+  return [
+    {
+      id: '00000000-0000-0000-0000-000000000501',
+      code: 'participant',
+      label: 'Participant',
+      label_localized: null,
+      sort_order: 0,
+    },
+  ]
+}
 
 /**
  * Mock helper for the widget add-on rendering (landr-cip6). Tandem
