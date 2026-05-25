@@ -651,7 +651,7 @@ export function AccommodationStep({
                       addons={roomAddons}
                       selection={addonSelection}
                       onChange={setAddonSelection}
-                      parentQty={qty}
+                      expectedQty={(room.capacity_per_unit ?? 1) * qty}
                       heading="Add-ons"
                     />
                   ) : null}

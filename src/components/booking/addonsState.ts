@@ -59,17 +59,28 @@ export function requiredAddonError(
 }
 
 /**
- * Overbook check: does the add-on quantity exceed the parent quantity?
- * Returns true when the widget should render the orange warning panel
- * — the warning is non-blocking (the customer can still submit). When
- * the add-on has no parent reference (e.g. a service-flow add-on whose
- * parent qty is 1 implicitly), parentQty=1 yields the right answer.
+ * Quantity-deviation check for an add-on row vs the expected occupancy
+ * (landr-u4c7). Returns:
+ *   'over'  — qty > expectedQty (bringing extras?),
+ *   'under' — 0 < qty < expectedQty (one per guest?),
+ *   null    — qty === expectedQty or qty === 0 (no warning).
+ *
+ * expectedQty is the number of people the room(s) sleep:
+ *   capacity_per_unit × roomQty for per-occupant add-ons (breakfast),
+ *   1 for service-flow add-ons where the caller passes no parent context.
+ *
+ * When expectedQty=1 (service-flow callers), the 'under' branch never
+ * fires because qty is either 0 (no warning) or ≥1 (either parity or
+ * 'over'), preserving the existing over-only behaviour for those callers.
  */
 export function isOverbooked(
   addonQty: number,
-  parentQty: number,
-): boolean {
-  return addonQty > parentQty && addonQty > 0
+  expectedQty: number,
+): 'over' | 'under' | null {
+  if (addonQty === 0) return null
+  if (addonQty > expectedQty) return 'over'
+  if (addonQty < expectedQty) return 'under'
+  return null
 }
 
 /**
