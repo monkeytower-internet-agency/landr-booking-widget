@@ -31,7 +31,7 @@ describe('AddonsList (landr-cip6)', () => {
         ]}
         selection={{}}
         onChange={onChange}
-        parentQty={1}
+        expectedQty={1}
       />,
     )
 
@@ -48,20 +48,20 @@ describe('AddonsList (landr-cip6)', () => {
         addons={[]}
         selection={{}}
         onChange={vi.fn()}
-        parentQty={1}
+        expectedQty={1}
       />,
     )
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows the orange overbook warning when qty > parent qty', () => {
+  it('shows the orange overbook warning when qty > expectedQty', () => {
     const addon = makeAddon({ addon_product_id: 'a1', name: 'Breakfast' })
     render(
       <AddonsList
         addons={[addon]}
         selection={{ a1: 3 }}
         onChange={vi.fn()}
-        parentQty={2}
+        expectedQty={2}
       />,
     )
     expect(
@@ -69,17 +69,18 @@ describe('AddonsList (landr-cip6)', () => {
     ).toBeInTheDocument()
   })
 
-  it('does NOT show overbook warning when qty equals parent qty', () => {
+  it('does NOT show overbook or under warning when qty equals expectedQty', () => {
     const addon = makeAddon({ addon_product_id: 'a1', name: 'Breakfast' })
     render(
       <AddonsList
         addons={[addon]}
         selection={{ a1: 2 }}
         onChange={vi.fn()}
-        parentQty={2}
+        expectedQty={2}
       />,
     )
     expect(screen.queryByTestId('addon-overbook-a1')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-a1')).toBeNull()
   })
 
   it('shows the required-error helper when a required add-on is at 0', () => {
@@ -94,7 +95,7 @@ describe('AddonsList (landr-cip6)', () => {
         addons={[addon]}
         selection={{}}
         onChange={vi.fn()}
-        parentQty={1}
+        expectedQty={1}
       />,
     )
     expect(screen.getByTestId('addon-required-error-a1')).toHaveTextContent(
@@ -113,7 +114,7 @@ describe('AddonsList (landr-cip6)', () => {
         addons={[addon]}
         selection={{ a1: 2 }}
         onChange={vi.fn()}
-        parentQty={1}
+        expectedQty={1}
       />,
     )
     const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
@@ -128,10 +129,132 @@ describe('AddonsList (landr-cip6)', () => {
         addons={[addon]}
         selection={{ a1: 1 }}
         onChange={onChange}
-        parentQty={1}
+        expectedQty={1}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /Increase Breakfast/i }))
     expect(onChange).toHaveBeenCalledWith({ a1: 2 })
+  })
+
+  // landr-u4c7: occupancy-based warning tests.
+
+  it('Double Room x1 (cap=2, expectedQty=2): 2 breakfast => no warning', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 2 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+  })
+
+  it('Double Room x1 (cap=2, expectedQty=2): 1 breakfast => under-warning', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    const underWarn = screen.getByTestId('addon-underbook-bf')
+    expect(underWarn).toBeInTheDocument()
+    expect(underWarn).toHaveTextContent(/only 1/i)
+    expect(underWarn).toHaveTextContent(/sleeps 2/i)
+  })
+
+  it('Double Room x1 (cap=2, expectedQty=2): 3 breakfast => over-warning', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 3 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+    const overWarn = screen.getByTestId('addon-overbook-bf')
+    expect(overWarn).toBeInTheDocument()
+    expect(overWarn).toHaveTextContent(/more breakfast/i)
+    expect(overWarn).toHaveTextContent(/sleeps \(2\)/i)
+  })
+
+  it('Single Room x1 (cap=1, expectedQty=1): 1 breakfast => no warning', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+  })
+
+  it('2 Double Rooms (cap=2 each, expectedQty=4): 4 breakfast => no warning', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 4 }}
+        onChange={vi.fn()}
+        expectedQty={4}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+  })
+
+  it('service add-on with expectedQty=1: qty=2 shows over-warning, qty=1 is silent', () => {
+    // "Tandem video package" — service flow, no room context, expectedQty=1.
+    // Under-warning must never fire (qty is 0 or ≥1 for non-room add-ons).
+    const addon = makeAddon({ addon_product_id: 'vid', name: 'Video Package' })
+
+    // qty=2: over-warning visible
+    const { rerender } = render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ vid: 2 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    expect(screen.getByTestId('addon-overbook-vid')).toBeInTheDocument()
+    expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
+
+    // qty=1: no warning
+    rerender(
+      <AddonsList
+        addons={[addon]}
+        selection={{ vid: 1 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-vid')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-vid')).toBeNull()
+  })
+
+  it('shows no warning when qty is 0 regardless of expectedQty', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{}}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
 })

@@ -85,17 +85,37 @@ describe('addonsState (landr-cip6)', () => {
     })
   })
 
-  describe('isOverbooked', () => {
-    it('flags add-on qty greater than parent qty', () => {
-      expect(isOverbooked(3, 2)).toBe(true)
+  describe('isOverbooked (landr-u4c7: occupancy-aware)', () => {
+    it('returns "over" when add-on qty exceeds expectedQty', () => {
+      expect(isOverbooked(3, 2)).toBe('over')
     })
 
-    it('does not flag equal qty (no warning at parity)', () => {
-      expect(isOverbooked(2, 2)).toBe(false)
+    it('returns "under" when 0 < qty < expectedQty', () => {
+      expect(isOverbooked(1, 2)).toBe('under')
     })
 
-    it('does not flag zero qty (no warning when nothing picked)', () => {
-      expect(isOverbooked(0, 2)).toBe(false)
+    it('returns null when qty equals expectedQty (no warning at parity)', () => {
+      expect(isOverbooked(2, 2)).toBeNull()
+    })
+
+    it('returns null when qty is 0 (no warning when nothing picked)', () => {
+      expect(isOverbooked(0, 2)).toBeNull()
+    })
+
+    it('returns null for Single Room x1 (expectedQty=1, qty=1)', () => {
+      expect(isOverbooked(1, 1)).toBeNull()
+    })
+
+    it('returns "over" for service add-on (expectedQty=1) when qty=2', () => {
+      // Preserves over-only behaviour: under never fires when expectedQty=1
+      // because qty is either 0 (null) or ≥1 (null at parity, over above 1).
+      expect(isOverbooked(2, 1)).toBe('over')
+    })
+
+    it('never produces "under" for service add-ons (expectedQty=1, qty=1)', () => {
+      // With expectedQty=1 the under branch is unreachable in practice:
+      // qty=0 → null, qty=1 → null, qty>1 → over.
+      expect(isOverbooked(1, 1)).toBeNull()
     })
   })
 

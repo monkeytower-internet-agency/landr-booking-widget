@@ -141,7 +141,7 @@ export function ServiceAddonsStep({
             addons={addons}
             selection={selection}
             onChange={setSelection}
-            parentQty={1}
+            expectedQty={1}
           />
         ) : null}
         <div className="flex justify-end pt-2">

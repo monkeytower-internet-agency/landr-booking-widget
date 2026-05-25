@@ -10,16 +10,17 @@ import {
 
 /**
  * Stateless add-on list. Renders one row per linked add-on with name +
- * per-unit price + qty stepper, an orange overbook warning when qty >
- * parent qty (non-blocking), and a destructive helper line when a
- * required add-on falls below its min_qty (the caller wires the
- * disable into its Continue button via the same `requiredAddonError`
- * helper — keeping the component pure of step-machine state).
+ * per-unit price + qty stepper, an orange quantity-deviation warning
+ * (non-blocking), and a destructive helper line when a required add-on
+ * falls below its min_qty (the caller wires the disable into its
+ * Continue button via the same `requiredAddonError` helper — keeping
+ * the component pure of step-machine state).
  *
- * Used by AccommodationStep (rendered under each room, parentQty = room
- * qty) and the service-flow add-on rendering inline on BookingForm
- * (parentQty = 1). Both share the same UX affordances; this component
- * only knows about the add-on rows and the selection map.
+ * Used by AccommodationStep (rendered under each room, expectedQty =
+ * capacity_per_unit × roomQty) and the service-flow add-on rendering
+ * inline on BookingForm (expectedQty = 1). Both share the same UX
+ * affordances; this component only knows about the add-on rows and the
+ * selection map.
  *
  * Per landr-znl: this file ONLY exports the React component as default
  * — the pure helpers (`requiredAddonError`, `isOverbooked`, etc.) live
@@ -37,12 +38,20 @@ interface Props {
   /** Setter for the selection map; pure (no side effects). */
   onChange: (next: Record<string, number>) => void
   /**
-   * Quantity of the parent product the customer picked. Drives the
-   * overbook warning (addonQty > parentQty). When the caller has no
-   * concept of a parent qty (e.g. a service flow with implicit qty
-   * 1), pass 1.
+   * Expected quantity for per-occupant add-ons (landr-u4c7). For
+   * room add-ons (breakfast) this is capacity_per_unit × roomQty —
+   * how many people the room(s) sleep in total. For service-flow
+   * add-ons where there is no room context, pass 1.
+   *
+   * qty > expectedQty → orange over-warning ("bringing extras?").
+   * 0 < qty < expectedQty → orange under-warning ("one per guest?").
+   * qty === expectedQty or qty === 0 → no warning.
+   *
+   * When expectedQty = 1 (service-flow callers), the under-warning
+   * never fires because qty is either 0 or ≥ 1, preserving the
+   * existing over-only behaviour for those callers.
    */
-  parentQty: number
+  expectedQty: number
   /**
    * Optional label rendered above the list (e.g. "Add-ons" inside a
    * room block). The caller usually owns this from a <fieldset
@@ -55,7 +64,7 @@ export function AddonsList({
   addons,
   selection,
   onChange,
-  parentQty,
+  expectedQty,
   heading,
 }: Props) {
   const locale = browserLocale()
@@ -78,7 +87,7 @@ export function AddonsList({
       {addons.map((addon) => {
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
-        const overbook = isOverbooked(qty, parentQty)
+        const deviation = isOverbooked(qty, expectedQty)
         const requiredError = requiredAddonError(addon, qty)
         const atMax = addon.max_qty !== null && qty >= addon.max_qty
 
@@ -141,13 +150,22 @@ export function AddonsList({
                 </Button>
               </div>
             </div>
-            {overbook ? (
+            {deviation === 'over' ? (
               <p
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-overbook-${addon.addon_product_id}`}
               >
-                More {addonName.toLowerCase()} ({qty}) than parent ({parentQty})
-                — bringing extras?
+                More {addonName.toLowerCase()} ({qty}) than this room sleeps (
+                {expectedQty}) — bringing extras?
+              </p>
+            ) : null}
+            {deviation === 'under' ? (
+              <p
+                className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
+                data-testid={`addon-underbook-${addon.addon_product_id}`}
+              >
+                Only {qty} {addonName.toLowerCase()} for a room that sleeps{' '}
+                {expectedQty} — one per guest?
               </p>
             ) : null}
             {requiredError ? (
