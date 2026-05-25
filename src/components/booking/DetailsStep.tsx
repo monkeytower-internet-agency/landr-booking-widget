@@ -142,8 +142,20 @@ export function DetailsStep({
   // If the service-roles fetch resolves AFTER DetailsStep first
   // mounted, swap empty role codes for the new default. Already-picked
   // roles (from a Back-restore) stay untouched.
+  //
+  // landr-sbhz.4: this is a legitimate "backfill editable local state
+  // once async-arriving prop data lands" effect — the role codes are
+  // user-editable after this, so they can't be plain derived render
+  // values, and the updater functions are idempotent (a re-fire with
+  // the same defaultRoleCode is a no-op because each branch only fills
+  // EMPTY codes). A render-time refactor would need to track an
+  // "already-backfilled" flag and risk clobbering a Back-restored pick,
+  // so we keep the effect and scope-disable the rule (per-setState, as
+  // the rule reports at each call site) rather than relax it
+  // project-wide.
   useEffect(() => {
     if (!defaultRoleCode) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBookerRoleCode((prev) => prev || defaultRoleCode)
     setAdditional((prev) =>
       prev.map((p) =>

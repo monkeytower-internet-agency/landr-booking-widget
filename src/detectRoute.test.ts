@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectRoute } from './App'
+import { detectRoute } from './detectRoute'
 
 /**
  * Path-based route detection (landr-sgnd). The widget is otherwise a
  * single-screen SPA so the routing surface is intentionally tiny — a
- * regex inside App.tsx — but we still cover the edges so adding new
- * paths later (e.g. /receipt/{id}) doesn't accidentally regress
+ * regex inside detectRoute.ts — but we still cover the edges so adding
+ * new paths later (e.g. /receipt/{id}) doesn't accidentally regress
  * cancel-link handling.
+ *
+ * landr-sbhz.4: detectRoute moved out of App.tsx into its own module so
+ * App.tsx only exports a React component (react-refresh ESLint gate).
  */
 describe('detectRoute', () => {
   it('returns cancel for /cancel/{uuid}', () => {

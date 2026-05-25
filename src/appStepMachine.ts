@@ -63,6 +63,8 @@ export type Step =
   // addons / includeHotel let AccommodationStep re-seed its internal
   // state when the customer hits Back from a downstream step. Undefined
   // on the initial forward visit (no prior data to restore).
+  // landr-sbhz.4: isSharedDouble carries the shared-double checkbox
+  // state so back-nav restores the tick.
   | {
       name: 'pick-accommodation'
       product: Product
@@ -73,6 +75,7 @@ export type Step =
       accommodationRooms?: RoomSelection[]
       addons?: AddonSelection[]
       includeHotel?: boolean
+      isSharedDouble?: boolean
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -89,6 +92,7 @@ export type Step =
   // hotelLocationId remember which upstream step the customer originally
   // confirmed through so the back-nav routing can hop back through the
   // same intermediate steps instead of jumping straight to DetailsStep.
+  // landr-sbhz.4: isSharedDouble threads through for back-nav restoration.
   | {
       name: 'pick-pickup'
       product: Product
@@ -101,10 +105,13 @@ export type Step =
       hotelLocationId?: string | null
       hadServiceAddons?: boolean
       includeHotel?: boolean
+      isSharedDouble?: boolean
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
   // intermediate steps with their previously confirmed state.
+  // landr-sbhz.4: isSharedDouble threads through so the back button
+  // from fill-form restores the shared-double tick on re-entry.
   | {
       name: 'fill-form'
       product: Product
@@ -117,6 +124,7 @@ export type Step =
       hotelLocationId?: string | null
       hadServiceAddons?: boolean
       includeHotel?: boolean
+      isSharedDouble?: boolean
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -154,6 +162,8 @@ export function stepAfterAccommodation(
   // never saw it; includeHotel preserves the optional-mode Yes/No state.
   hadServiceAddons: boolean = false,
   includeHotel: boolean | undefined = undefined,
+  // landr-sbhz.4: shared-double flag for back-nav restoration.
+  isSharedDouble: boolean | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     return {
@@ -168,6 +178,7 @@ export function stepAfterAccommodation(
       hotelLocationId,
       hadServiceAddons,
       includeHotel,
+      isSharedDouble,
     }
   }
   if (product.needs_pickup) {
@@ -182,6 +193,7 @@ export function stepAfterAccommodation(
       hotelLocationId: null,
       hadServiceAddons,
       includeHotel,
+      isSharedDouble,
     }
   }
   return {
@@ -196,6 +208,7 @@ export function stepAfterAccommodation(
     hotelLocationId: null,
     hadServiceAddons,
     includeHotel,
+    isSharedDouble,
   }
 }
 

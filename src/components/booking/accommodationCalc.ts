@@ -206,3 +206,37 @@ export function totalBreakfastQty(
   }
   return total
 }
+
+/**
+ * Returns true when a hotel_room product is a "premium-includes-breakfast"
+ * variant — i.e. the room price already bundles breakfast (landr-sbhz.4).
+ *
+ * Detection strategy: case-insensitive substring match on the product
+ * name for "breakfast", "frühstück", "desayuno" or "petit-déjeuner".
+ * Para42 names these rooms "Premium Single Room w/ Breakfast" /
+ * "Premium Double Room w/ Breakfast" so the match fires correctly.
+ *
+ * Callers (AccommodationStep) use this to suppress the breakfast add-on
+ * row for these rooms so the customer isn't offered a separate breakfast
+ * charge on top of one already included in the room rate.
+ *
+ * TODO(landr-sbhz.4): replace with a structural flag (e.g. a product tag
+ * or a 'includes_breakfast' boolean) once the data model grows it. The
+ * name heuristic is a pragmatic starter that keeps the widget correct for
+ * Para42 without blocking on a schema migration.
+ */
+export function isPremiumIncludesBreakfast(product: Product): boolean {
+  // Check the default display name first.
+  if (/breakfast|frühstück|desayuno|petit-déjeuner/i.test(product.name)) {
+    return true
+  }
+  // Also check any localised variants stored in name_localized.
+  if (product.name_localized) {
+    for (const localeName of Object.values(product.name_localized)) {
+      if (/breakfast|frühstück|desayuno|petit-déjeuner/i.test(localeName)) {
+        return true
+      }
+    }
+  }
+  return false
+}

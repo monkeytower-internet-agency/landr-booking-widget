@@ -4,6 +4,7 @@ import {
   deriveStayWindow,
   findBreakfastAddonIds,
   formatCurrency,
+  isPremiumIncludesBreakfast,
   roomSubtotal,
   stayNightIsos,
   totalBreakfastQty,
@@ -297,5 +298,71 @@ describe('totalBreakfastQty (landr-qpab)', () => {
 
   it('returns 0 when no breakfast addon is selected', () => {
     expect(totalBreakfastQty({}, new Set(['bf-1']))).toBe(0)
+  })
+})
+
+describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
+  function makeProduct(name: string, nameLocalized?: Record<string, string>): Product {
+    return {
+      product_id: 'p-1',
+      slug: 'p-1',
+      name,
+      name_localized: nameLocalized ?? null,
+      short_description: null,
+      short_description_localized: null,
+      description: null,
+      product_kind: 'hotel_room',
+      service_time_shape: null,
+      is_contiguous: false,
+      duration_minutes: null,
+      fixed_start_date: null,
+      fixed_end_date: null,
+      product_group_id: null,
+      group_slug: null,
+      group_name: null,
+      sort_order: 0,
+      sport_subcategory_codes: [],
+      location_ids: [],
+    }
+  }
+
+  it('returns true for Para42 "Premium Single Room w/ Breakfast"', () => {
+    expect(
+      isPremiumIncludesBreakfast(makeProduct('Premium Single Room w/ Breakfast')),
+    ).toBe(true)
+  })
+
+  it('returns true for Para42 "Premium Double Room w/ Breakfast"', () => {
+    expect(
+      isPremiumIncludesBreakfast(makeProduct('Premium Double Room w/ Breakfast')),
+    ).toBe(true)
+  })
+
+  it('returns true when matched in a localised name variant (de: Frühstück)', () => {
+    expect(
+      isPremiumIncludesBreakfast(
+        makeProduct('Premium Einzelzimmer', { de: 'Premium Einzelzimmer mit Frühstück', en: 'Premium Single Room' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('returns true when matched in a localised name variant (es: desayuno)', () => {
+    expect(
+      isPremiumIncludesBreakfast(
+        makeProduct('Habitación individual', { es: 'Habitación individual prémium con desayuno' }),
+      ),
+    ).toBe(true)
+  })
+
+  it('returns false for a plain Double Room', () => {
+    expect(
+      isPremiumIncludesBreakfast(makeProduct('Double Room')),
+    ).toBe(false)
+  })
+
+  it('returns false for a plain Single Room', () => {
+    expect(
+      isPremiumIncludesBreakfast(makeProduct('Single Room')),
+    ).toBe(false)
   })
 })
