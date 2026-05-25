@@ -13,6 +13,12 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
+import {
+  DeclarationsStep,
+  type CustomerDeclarations,
+  type DeclarationItem,
+  type LanguageOption,
+} from '@/components/booking/DeclarationsStep'
 import type {
   BookerDetails,
   ParticipantDetails,
@@ -33,10 +39,50 @@ import {
 import type { OperatorSettings, Product, ServiceRole } from '@/api/types'
 import {
   type Step,
+  fillFormOrDeclarations,
   sidebarInputsForStep,
   stepAfterAccommodation,
 } from './appStepMachine'
 import { detectRoute } from './detectRoute'
+
+// landr-sbhz.3: operators that require pre-booking customer declarations.
+// v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
+// API (operator_declarations table). Exact match on slug — the para42-dev-*
+// test slugs do NOT match and are therefore not subject to enforcement.
+const OPERATORS_REQUIRING_DECLARATIONS: ReadonlySet<string> = new Set(['para42'])
+
+// Para42 declaration items (v1 hardcoded set).
+// Extension point: replace with a fetch from /api/public/operators/{slug}/declarations
+// when the operator-configurable declaration feature is implemented.
+const PARA42_DECLARATION_ITEMS: DeclarationItem[] = [
+  {
+    key: 'license_valid',
+    label:
+      'I have a valid paragliding license that is accepted in Tenerife / the Canary Islands.',
+  },
+  {
+    key: 'insurance_valid',
+    label:
+      'I have valid health insurance and third-party liability insurance for paragliding.',
+  },
+  {
+    key: 'autonomous_pilot',
+    label:
+      'I am an autonomous paraglider at intermediate-to-advanced level and can fly independently.',
+  },
+  {
+    key: 'emergency_contact',
+    label:
+      'I will provide an emergency contact (name + phone number) on the first day of the booking.',
+  },
+]
+
+const PARA42_LANGUAGE_OPTIONS: LanguageOption[] = [
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+]
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -253,20 +299,29 @@ function BookingFlowApp() {
     // landr-sbhz.4: shared-double flag for back-nav restoration.
     isSharedDouble: boolean | undefined = undefined,
   ) => {
-    setStep(
-      stepAfterAccommodation(
-        product,
-        selection,
-        booker,
-        participants,
-        accommodationRooms,
-        hotelLocationId,
-        addons,
-        hadServiceAddons,
-        includeHotel,
-        isSharedDouble,
-      ),
+    const next = stepAfterAccommodation(
+      product,
+      selection,
+      booker,
+      participants,
+      accommodationRooms,
+      hotelLocationId,
+      addons,
+      hadServiceAddons,
+      includeHotel,
+      // landr-sbhz.4: shared-double flag threads through for back-nav.
+      isSharedDouble,
     )
+    // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
+    // the operator requires declarations, convert to the declarations step
+    // so the customer confirms eligibility before the review screen.
+    // pick-pickup is left unchanged — the pickup step's onConfirm handler
+    // also goes through fillFormOrDeclarations.
+    if (next.name === 'fill-form' && OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug)) {
+      setStep(fillFormOrDeclarations(next, true))
+    } else {
+      setStep(next)
+    }
   }
 
   /**
@@ -565,9 +620,10 @@ function BookingFlowApp() {
                 })
               }
             }}
-            onConfirm={(locationId) =>
-              setStep({
-                name: 'fill-form',
+            onConfirm={(locationId) => {
+              // landr-sbhz.3: route to declarations step before fill-form
+              // when the operator requires pre-booking declarations.
+              const fillFormArgs = {
                 product: step.product,
                 selection: step.selection,
                 booker: step.booker,
@@ -583,6 +639,100 @@ function BookingFlowApp() {
                 hadServiceAddons: step.hadServiceAddons,
                 includeHotel: step.includeHotel,
                 isSharedDouble: step.isSharedDouble,
+              }
+              setStep(
+                fillFormOrDeclarations(
+                  fillFormArgs,
+                  OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug),
+                ),
+              )
+            }}
+          />
+        ) : null}
+
+        {/* landr-sbhz.3: declarations step — eligibility confirmations
+            + language selector, shown before the review screen for
+            operators in OPERATORS_REQUIRING_DECLARATIONS. */}
+        {step.name === 'declarations' ? (
+          <DeclarationsStep
+            productName={step.product.name}
+            declarationItems={PARA42_DECLARATION_ITEMS}
+            languageOptions={PARA42_LANGUAGE_OPTIONS}
+            initialDeclarations={step.initialDeclarations}
+            onBack={() => {
+              // Back from declarations returns to the previous step.
+              // If the product needed pickup, go back to pick-pickup;
+              // otherwise go back through the standard accommodation/
+              // addons/details chain.
+              if (step.product.needs_pickup) {
+                setStep({
+                  name: 'pick-pickup',
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  pickupLocationId: step.pickupLocationId,
+                  hotelLocationId: step.hotelLocationId,
+                  hadServiceAddons: step.hadServiceAddons,
+                  includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
+                })
+              } else {
+                const offering = step.product.hotel_offering ?? 'none'
+                if (
+                  step.product.product_kind === 'service' &&
+                  offering !== 'none'
+                ) {
+                  setStep({
+                    name: 'pick-accommodation',
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    hotelLocationId: step.hotelLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                  })
+                } else if (step.hadServiceAddons) {
+                  setStep({
+                    name: 'pick-service-addons',
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    addons: step.addons,
+                  })
+                } else {
+                  setStep({
+                    name: 'details',
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                  })
+                }
+              }
+            }}
+            onConfirm={(customerDeclarations: CustomerDeclarations) =>
+              setStep({
+                name: 'fill-form',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                pickupLocationId: step.pickupLocationId,
+                accommodationRooms: step.accommodationRooms,
+                addons: step.addons,
+                hotelLocationId: step.hotelLocationId,
+                hadServiceAddons: step.hadServiceAddons,
+                includeHotel: step.includeHotel,
+                isSharedDouble: step.isSharedDouble,
+                customerDeclarations: customerDeclarations.declarations,
+                customerLanguage: customerDeclarations.language,
               })
             }
           />
@@ -598,7 +748,38 @@ function BookingFlowApp() {
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
             addons={step.addons}
+            customerDeclarations={step.customerDeclarations}
+            customerLanguage={step.customerLanguage}
             onBack={() => {
+              // landr-sbhz.3: if declarations were collected, back
+              // from fill-form goes to the declarations step (not all
+              // the way back to pickup/accommodation) so the customer
+              // can review/change declarations without losing context.
+              if (OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug)) {
+                setStep({
+                  name: 'declarations',
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  pickupLocationId: step.pickupLocationId,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  hotelLocationId: step.hotelLocationId,
+                  hadServiceAddons: step.hadServiceAddons,
+                  includeHotel: step.includeHotel,
+                  // landr-sbhz.4: keep the shared-double tick through the
+                  // fill-form → declarations back hop.
+                  isSharedDouble: step.isSharedDouble,
+                  initialDeclarations: step.customerDeclarations
+                    ? {
+                        declarations: step.customerDeclarations,
+                        language: step.customerLanguage ?? '',
+                      }
+                    : undefined,
+                })
+                return
+              }
               if (step.product.needs_pickup) {
                 // landr-yf0n: thread the prior pickupLocationId +
                 // upstream provenance back so PickupLocationPicker
