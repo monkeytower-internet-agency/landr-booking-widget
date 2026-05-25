@@ -18,6 +18,7 @@ import {
   deriveStayWindow,
   findBreakfastAddonIds,
   formatCurrency,
+  isPremiumIncludesBreakfast,
   roomSubtotal,
   totalBreakfastQty,
   totalRoomCapacity,
@@ -52,12 +53,20 @@ interface Props {
    * landr-yf0n: the includeHotel boolean reports the optional-mode
    * Yes/No state at confirm time so App.tsx can stash it in the step
    * state for back-nav restoration. undefined for the mandatory path.
+   *
+   * landr-sbhz.4: isSharedDouble is true when the customer checked
+   * "I am the second occupant of a shared double room". This is
+   * informational only — it does not change the submitted product
+   * lines (the double room line still goes through as qty=1 so the
+   * hotel knows one room is occupied by two separate bookings). It is
+   * threaded through the step machine so back-nav restores the tick.
    */
   onConfirm: (
     rooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[],
     includeHotel?: boolean,
+    isSharedDouble?: boolean,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -74,11 +83,15 @@ interface Props {
    * initialIncludeHotel covers the optional-mode Yes/No gate so a
    * customer who opted-out doesn't see the gate flip back to "Yes" on
    * re-entry. undefined → default to the offering-driven initial value.
+   *
+   * initialIsSharedDouble restores the shared-double tick (landr-sbhz.4).
    */
   initialHotelLocationId?: string | null
   initialRooms?: RoomSelection[]
   initialAddons?: AddonSelection[]
   initialIncludeHotel?: boolean
+  /** landr-sbhz.4: restore shared-double flag on back-nav re-entry. */
+  initialIsSharedDouble?: boolean
 }
 
 /**
@@ -89,6 +102,23 @@ interface Props {
  * is configured), then picks at least one room. Optional flow: same
  * but a Yes/No toggle gates the hotel + rooms — answering No skips
  * the hotel context entirely.
+ *
+ * landr-sbhz.4 additions:
+ *   - "I am the second occupant of a shared double room" checkbox,
+ *     shown when exactly 1 double-capacity room is in the cart. The
+ *     checkbox is informational — it doesn't change the booking lines;
+ *     the hotel receives one double-room line and knows internally that
+ *     two separate bookings share the room. The flag is threaded to
+ *     onConfirm so the step machine can restore it on back-nav.
+ *   - "Hotel is paid directly at check-in (cash / card) — not
+ *     included in your booking total." notice, shown inside the step
+ *     alongside the stay-window orientation line so the customer reads
+ *     it while looking at the room list (rather than only in the
+ *     sidebar pill).
+ *   - Breakfast add-ons are already surfaced via AddonsList per room.
+ *     Premium rooms (name includes "with Breakfast" / "incl. breakfast")
+ *     are identified by isPremiumIncludesBreakfast() and their add-on
+ *     list is hidden to avoid suggesting a duplicate breakfast charge.
  *
  * Pricing: the per-night room price is shown for clarity and totals
  * are summed, but the panel makes it explicit that the hotel is paid
@@ -109,6 +139,7 @@ export function AccommodationStep({
   initialRooms,
   initialAddons,
   initialIncludeHotel,
+  initialIsSharedDouble,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -154,6 +185,15 @@ export function AccommodationStep({
     for (const line of initialAddons) seed[line.productId] = line.quantity
     return seed
   })
+
+  // landr-sbhz.4: shared-double flag. True when the customer ticked "I
+  // am the second occupant of a shared double room". Seeded from
+  // initialIsSharedDouble on back-nav re-entry; reset to false when the
+  // hotel/room selection changes (changeHotel) because a different room
+  // choice may not be a double at all.
+  const [isSharedDouble, setIsSharedDouble] = useState<boolean>(
+    initialIsSharedDouble ?? false,
+  )
 
   // Fetch hotels for the operator. We always do this on mount so the
   // 'optional' flow can immediately offer the customer a Yes/No choice
@@ -263,7 +303,8 @@ export function AccommodationStep({
   // async fetch. Used by the radio onChange and the "No, thanks"
   // optional opt-out path. Also clears add-on selections so a customer
   // switching hotels doesn't carry over breakfasts from the previous
-  // hotel's room list.
+  // hotel's room list. Resets shared-double flag since a different room
+  // selection may not be a double.
   function changeHotel(nextId: string | null) {
     setSelectedHotelId(nextId)
     setRooms(null)
@@ -271,6 +312,7 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    setIsSharedDouble(false)
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -352,9 +394,35 @@ export function AccommodationStep({
       const next = Math.max(0, (prev[productId] ?? 0) + delta)
       const out = { ...prev, [productId]: next }
       if (next === 0) delete out[productId]
+      // Reset shared-double when the qty of any room changes — the
+      // customer may have switched to a different room type.
       return out
     })
+    setIsSharedDouble(false)
   }
+
+  // landr-sbhz.4: determine whether the shared-double checkbox should
+  // be visible. Condition: exactly one double-capacity room in the cart
+  // (qty=1) and the product is not a premium-includes-breakfast type
+  // (those are single-occupancy packages). We detect "double capacity"
+  // via capacity_per_unit >= 2 on the room product; if capacity_per_unit
+  // is null (legacy), we fall back to a slug/name heuristic.
+  const showSharedDoubleCheckbox = useMemo(() => {
+    if (!rooms) return false
+    // Look for any room product with qty=1 and capacity_per_unit >= 2
+    // (or matching the double/doppel heuristic when capacity not set).
+    return rooms.some((room) => {
+      const qty = selection[room.product_id] ?? 0
+      if (qty !== 1) return false
+      // Prefer the structured capacity field.
+      if (room.capacity_per_unit !== null && room.capacity_per_unit !== undefined) {
+        return room.capacity_per_unit >= 2
+      }
+      // Fallback: name/slug heuristic for legacy rooms without capacity set.
+      const combined = `${room.name} ${room.slug ?? ''}`.toLowerCase()
+      return combined.includes('double') || combined.includes('doppel')
+    })
+  }, [rooms, selection])
 
   function handleContinue() {
     if (optedOut) {
@@ -382,6 +450,7 @@ export function AccommodationStep({
       selectedHotelId,
       addonLines,
       offering === 'optional' ? includeHotel : undefined,
+      isSharedDouble,
     )
   }
 
@@ -520,7 +589,11 @@ export function AccommodationStep({
               // Only show add-on rows once at least one of THIS room is
               // in the cart — otherwise an empty room block sprouts an
               // un-actionable list of add-ons.
-              const showAddons = qty > 0 && roomAddons.length > 0
+              // landr-sbhz.4: premium-with-breakfast rooms already include
+              // breakfast in their price; suppress the breakfast add-on row
+              // to avoid implying a second charge.
+              const isPremium = isPremiumIncludesBreakfast(room)
+              const showAddons = qty > 0 && roomAddons.length > 0 && !isPremium
               return (
                 <div
                   key={room.product_id}
@@ -589,6 +662,39 @@ export function AccommodationStep({
         ) : null}
 
         {/*
+          landr-sbhz.4: Shared-double checkbox. Shown when the customer
+          has exactly 1 double-capacity room in their cart. Clicking it
+          acknowledges that another pilot holds the second half of the
+          same room under a separate booking; they each settle their half
+          of the room price directly at check-in.
+
+          The checkbox is informational — it does NOT halve the displayed
+          room cost, because the hotel total is paid externally (not
+          through LANDR) and the hotel keeps its own record of which
+          bookings share a room. The flag is forwarded via onConfirm so
+          the step machine can restore it on back-nav.
+        */}
+        {showSharedDoubleCheckbox ? (
+          <label
+            className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3 text-sm"
+            data-testid="shared-double-checkbox-label"
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-primary"
+              checked={isSharedDouble}
+              onChange={(e) => setIsSharedDouble(e.target.checked)}
+              data-testid="shared-double-checkbox"
+            />
+            <span>
+              I am the second occupant sharing this double room with another
+              booking. I will settle my half of the room price directly at
+              check-in.
+            </span>
+          </label>
+        ) : null}
+
+        {/*
           Overbook warnings (landr-qpab). Non-blocking — Continue stays
           enabled. Orange tone (amber border + background) matches the
           existing "paid directly" notice below so the visual language
@@ -622,21 +728,30 @@ export function AccommodationStep({
             PriceSidebar's "At-hotel total · pay at check-in" pill now
             owns the canonical hotel summary (check-in/out span, per-line
             breakdown, subtotal, and the "paid directly at check-in"
-            caveat). Keeping a parallel summary here would just duplicate
-            those numbers and risk drift when the estimate engine evolves.
-            We retain a short check-in/out stay window for orientation
-            inside the accommodation step so the customer knows which
-            nights the rooms below cover — but the totals + caveat now
-            live exclusively in the sidebar pill. */}
+            caveat). We retain a short check-in/out stay window for
+            orientation inside the accommodation step so the customer
+            knows which nights the rooms below cover — and we add a brief
+            payment notice here (landr-sbhz.4) so the customer reads it
+            while looking at the room list (the sidebar pill may be
+            collapsed on mobile or below the fold on desktop). */}
         {!optedOut && selectedHotelId && rooms && rooms.length > 0 ? (
-          <p
-            className="text-xs text-muted-foreground"
-            data-testid="accommodation-stay-window"
-          >
-            Stay: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
-            {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'} ·{' '}
-            {nights} {nights === 1 ? 'night' : 'nights'}
-          </p>
+          <div className="flex flex-col gap-1">
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="accommodation-stay-window"
+            >
+              Stay: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
+              {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'} ·{' '}
+              {nights} {nights === 1 ? 'night' : 'nights'}
+            </p>
+            <p
+              className="text-xs italic text-muted-foreground"
+              data-testid="accommodation-payment-notice"
+            >
+              Hotel is paid directly at check-in (cash / card) — not included
+              in your booking total.
+            </p>
+          </div>
         ) : null}
 
         <div className="flex justify-end pt-2">

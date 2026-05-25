@@ -271,6 +271,8 @@ function BookingFlowApp() {
     // upstream intermediate steps with their previously confirmed state.
     hadServiceAddons: boolean = false,
     includeHotel: boolean | undefined = undefined,
+    // landr-sbhz.4: shared-double flag for back-nav restoration.
+    isSharedDouble: boolean | undefined = undefined,
   ) => {
     setStep(
       stepAfterAccommodation(
@@ -283,6 +285,7 @@ function BookingFlowApp() {
         addons,
         hadServiceAddons,
         includeHotel,
+        isSharedDouble,
       ),
     )
   }
@@ -459,10 +462,12 @@ function BookingFlowApp() {
             // step re-mounts with hotel + rooms + add-ons restored
             // instead of empty steppers. Each field is independently
             // optional — only what was previously confirmed comes back.
+            // landr-sbhz.4: also restore the shared-double tick.
             initialHotelLocationId={step.hotelLocationId}
             initialRooms={step.accommodationRooms}
             initialAddons={step.addons}
             initialIncludeHotel={step.includeHotel}
+            initialIsSharedDouble={step.isSharedDouble}
             onBack={() =>
               // landr-b3g5: thread the already-collected booker +
               // participants back to DetailsStep so the form re-mounts
@@ -475,7 +480,7 @@ function BookingFlowApp() {
                 participants: step.participants,
               })
             }
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -490,6 +495,7 @@ function BookingFlowApp() {
                 // never ran).
                 false,
                 includeHotel,
+                isSharedDouble,
               )
             }
           />
@@ -543,6 +549,7 @@ function BookingFlowApp() {
               if (step.product.product_kind === 'service' && offering !== 'none') {
                 // landr-yf0n: restore the prior accommodation state on
                 // back-nav so the room steppers + add-ons aren't wiped.
+                // landr-sbhz.4: also carry isSharedDouble back.
                 setStep({
                   name: 'pick-accommodation',
                   product: step.product,
@@ -553,6 +560,7 @@ function BookingFlowApp() {
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
                   includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
                 })
               } else if (step.hadServiceAddons) {
                 // landr-yf0n: the customer originally went through
@@ -591,9 +599,11 @@ function BookingFlowApp() {
                 // landr-yf0n: carry provenance flags through so the
                 // fill-form back path can hop back through the right
                 // upstream intermediate steps with their state.
+                // landr-sbhz.4: also carry isSharedDouble.
                 hotelLocationId: step.hotelLocationId,
                 hadServiceAddons: step.hadServiceAddons,
                 includeHotel: step.includeHotel,
+                isSharedDouble: step.isSharedDouble,
               })
             }
           />
@@ -616,6 +626,7 @@ function BookingFlowApp() {
                 // re-mounts with the prior radio choice restored AND
                 // its own back button still hops back through the
                 // right upstream intermediate steps.
+                // landr-sbhz.4: also carry isSharedDouble.
                 setStep({
                   name: 'pick-pickup',
                   product: step.product,
@@ -628,11 +639,13 @@ function BookingFlowApp() {
                   hotelLocationId: step.hotelLocationId,
                   hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
                 })
               } else {
                 const offering = step.product.hotel_offering ?? 'none'
                 if (step.product.product_kind === 'service' && offering !== 'none') {
                   // landr-yf0n: restore the prior accommodation state.
+                  // landr-sbhz.4: also carry isSharedDouble.
                   setStep({
                     name: 'pick-accommodation',
                     product: step.product,
@@ -643,6 +656,7 @@ function BookingFlowApp() {
                     accommodationRooms: step.accommodationRooms,
                     addons: step.addons,
                     includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
                   })
                 } else if (step.hadServiceAddons) {
                   // landr-yf0n: the customer originally went through

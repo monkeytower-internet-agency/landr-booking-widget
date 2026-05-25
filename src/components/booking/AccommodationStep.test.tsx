@@ -196,6 +196,8 @@ describe('AccommodationStep', () => {
     // landr-yf0n: optional-mode onConfirm now reports includeHotel as a
     // 4th arg so App.tsx can stash it for back-nav restoration. Opt-out
     // → false; mandatory-mode callsites still receive undefined.
+    // landr-sbhz.4: opt-out path doesn't invoke handleContinue so the
+    // 5th isSharedDouble arg is not sent (call has exactly 4 args).
     expect(onConfirm).toHaveBeenCalledWith([], null, [], false)
   })
 
@@ -250,11 +252,14 @@ describe('AccommodationStep', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1)
     // landr-yf0n: mandatory-mode onConfirm receives includeHotel=undefined
     // (the Yes/No gate doesn't apply, so no opt-out state to report).
+    // landr-sbhz.4: 5th arg isSharedDouble=false (single-room, no shared-
+    // double checkbox visible).
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 1 }],
       'hotel-a',
       [],
       undefined,
+      false,
     )
   })
 
@@ -651,11 +656,14 @@ describe('AccommodationStep', () => {
     // Continue without further interaction → confirms the restored cart.
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
+    // landr-sbhz.4: single-room qty=2 → no shared-double checkbox (qty≠1),
+    // so isSharedDouble is false.
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 2 }],
       'hotel-a',
       [],
       undefined,
+      false,
     )
   })
 
@@ -701,11 +709,14 @@ describe('AccommodationStep', () => {
     // Continue → emits the restored room + add-on cart unchanged.
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
+    // landr-sbhz.4: double-room qty=1 → shared-double checkbox visible but
+    // not ticked (initialIsSharedDouble not set → defaults false).
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'double-room', quantity: 1 }],
       'hotel-a',
       [{ productId: 'bf-1', quantity: 3 }],
       undefined,
+      false,
     )
   })
 
@@ -738,7 +749,7 @@ describe('AccommodationStep', () => {
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
   })
 
-  it('renders a stay-window orientation line when a hotel + rooms are loaded (landr-kat8)', async () => {
+  it('renders a stay-window orientation line and payment notice when a hotel + rooms are loaded (landr-kat8 / landr-sbhz.4)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -763,10 +774,234 @@ describe('AccommodationStep', () => {
     expect(stay.textContent).toMatch(/Tue/)
     expect(stay.textContent).toMatch(/Thu/)
     expect(stay.textContent).toMatch(/2 nights/)
-    // The verbose totals + paid-directly notice no longer live in the step.
+    // landr-sbhz.4: payment notice is now shown inside the step (in addition
+    // to the sidebar pill) so the customer reads it while looking at rooms.
     expect(
-      screen.queryByText(/Hotel is paid directly at check-in/i),
-    ).not.toBeInTheDocument()
+      screen.getByTestId('accommodation-payment-notice'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('accommodation-payment-notice').textContent,
+    ).toMatch(/paid directly at check-in.*cash.*card/i)
+    // Verbose hotel total breakdown still lives only in the sidebar.
     expect(screen.queryByText(/Hotel total/i)).not.toBeInTheDocument()
+  })
+
+  // ── landr-sbhz.4: shared-double checkbox ──────────────────────────
+  // The checkbox appears when exactly one double-capacity room is in
+  // the cart. Ticking it sets the isSharedDouble flag reported via
+  // onConfirm. The flag is informational — it does not change the
+  // room line item on submit.
+
+  it('shows shared-double checkbox when a double-capacity room (capacity≥2) is in the cart at qty=1', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    // No checkbox before room is added to cart.
+    expect(
+      screen.queryByTestId('shared-double-checkbox'),
+    ).not.toBeInTheDocument()
+
+    // Add one double room.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+
+    // Checkbox now appears.
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-checkbox')).toBeInTheDocument(),
+    )
+    // Unchecked by default.
+    expect(screen.getByTestId('shared-double-checkbox')).not.toBeChecked()
+
+    // Tick it.
+    fireEvent.click(screen.getByTestId('shared-double-checkbox'))
+    expect(screen.getByTestId('shared-double-checkbox')).toBeChecked()
+
+    // Continue → onConfirm receives isSharedDouble=true.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'double-room', quantity: 1 }],
+      'hotel-a',
+      [],
+      undefined,
+      true,
+    )
+  })
+
+  it('hides shared-double checkbox when double room qty > 1', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    const incBtn = screen.getByRole('button', {
+      name: /Increase Double Room quantity/i,
+    })
+    // Add 2 double rooms.
+    fireEvent.click(incBtn)
+    fireEvent.click(incBtn)
+
+    // At qty=2 the checkbox is hidden (two separate bookings sharing one
+    // double room makes no sense).
+    expect(
+      screen.queryByTestId('shared-double-checkbox'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides shared-double checkbox for a single-capacity room (capacity=1)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+    )
+
+    // No shared-double checkbox for single-capacity rooms.
+    expect(
+      screen.queryByTestId('shared-double-checkbox'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('restores shared-double flag from initialIsSharedDouble on back-nav re-entry', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'double-room', quantity: 1 }]}
+        initialIsSharedDouble={true}
+      />,
+    )
+
+    // Room loads + checkbox renders.
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-checkbox')).toBeInTheDocument(),
+    )
+    // Checkbox is pre-checked from the initialIsSharedDouble prop.
+    expect(screen.getByTestId('shared-double-checkbox')).toBeChecked()
+
+    // Continue → isSharedDouble=true persists.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'double-room', quantity: 1 }],
+      'hotel-a',
+      [],
+      undefined,
+      true,
+    )
+  })
+
+  // ── landr-sbhz.4: premium-includes-breakfast rooms ────────────────
+  // Rooms whose name already contains "Breakfast" should NOT surface the
+  // breakfast add-on row — the add-on is already included in the price.
+
+  it('hides breakfast add-on for premium-with-breakfast room (landr-sbhz.4)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom(
+        'premium-single-room-with-breakfast',
+        'Premium Single Room w/ Breakfast',
+        105,
+        1,
+      ),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorSlug="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Premium Single Room w/ Breakfast'),
+      ).toBeInTheDocument(),
+    )
+    // Add one premium room.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Increase Premium Single Room w\/ Breakfast quantity/i,
+      }),
+    )
+
+    // The breakfast add-on row must NOT appear — the premium room already
+    // includes it.
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-stay-window'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/Add-ons/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Breakfast$/i)).not.toBeInTheDocument()
   })
 })
