@@ -458,3 +458,103 @@ describe('DetailsStep — service_role selector (landr-mg0a)', () => {
     expect(select.value).toBe('passenger')
   })
 })
+
+// landr-gb2f.1: live participant count + names for PriceSidebar.
+describe('DetailsStep — live participant updates (landr-gb2f.1)', () => {
+  it('fires onLiveParticipantsChange with count=1 when the booker first name changes', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    // count=1 (only booker), names=['Ada']
+    expect(onLive).toHaveBeenLastCalledWith(1, ['Ada'])
+  })
+
+  it('fires count=2 when a participant is added via the + button', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    expect(onLive).toHaveBeenLastCalledWith(2, [])
+  })
+
+  it('fires count=1 again when a participant is removed via the − button', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /remove participant/i }))
+    expect(onLive).toHaveBeenLastCalledWith(1, [])
+  })
+
+  it('includes additional participant first names (trimmed, non-empty) in names', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: '  Grace  ' },
+    })
+    expect(onLive).toHaveBeenLastCalledWith(2, ['Ada', 'Grace'])
+  })
+
+  it('omits empty/whitespace-only first names from the names array', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    // participant 2 first name left blank; booker first name also blank
+    expect(onLive).toHaveBeenLastCalledWith(2, [])
+  })
+
+  it('does not break when onLiveParticipantsChange is not provided (backward compat)', () => {
+    // No prop — adding a participant must not throw
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    }).not.toThrow()
+  })
+})

@@ -50,6 +50,16 @@ interface Props {
     booker: BookerDetails,
     participants: ParticipantDetails[],
   ) => void
+  /**
+   * landr-gb2f.1: live participant count + names for the PriceSidebar.
+   * Fires on every booker-field change or additional-count change so the
+   * sidebar updates without waiting for Continue. count = 1 + additional.length;
+   * names = booker first name (trimmed) + additional first names (trimmed,
+   * non-empty). Called from event handlers — NOT from effects — to satisfy
+   * the react-hooks/set-state-in-effect constraint (App.tsx uses the value
+   * to set its own state). Optional so existing tests need no changes.
+   */
+  onLiveParticipantsChange?: (count: number, names: string[]) => void
 }
 
 /**
@@ -109,6 +119,7 @@ export function DetailsStep({
   initialParticipants,
   onBack,
   onConfirm,
+  onLiveParticipantsChange,
 }: Props) {
   const locale = browserLocale()
   // landr-mg0a: defaultRoleCode is the first row served by
@@ -187,23 +198,48 @@ export function DetailsStep({
 
   const totalCount = 1 + additional.length
 
+  // landr-gb2f.1: fire the live-update callback with the latest derived
+  // count + names. Called from event handlers (not effects) so App.tsx can
+  // set its own liveParticipant* state without triggering the
+  // react-hooks/set-state-in-effect rule.
+  const notifyLive = (
+    nextBooker: BookerDetails,
+    nextAdditional: ParticipantDetails[],
+  ) => {
+    if (!onLiveParticipantsChange) return
+    const count = 1 + nextAdditional.length
+    const names = [
+      nextBooker.first_name.trim(),
+      ...nextAdditional.map((p) => p.first_name.trim()),
+    ].filter((n) => n.length > 0)
+    onLiveParticipantsChange(count, names)
+  }
+
   const setAdditionalCount = (next: number) => {
     const clamped = Math.min(MAX_ADDITIONAL, Math.max(0, Math.floor(next)))
     setAdditional((current) => {
       if (clamped === current.length) return current
+      let nextAdditional: ParticipantDetails[]
       if (clamped > current.length) {
         const grown = current.slice()
         for (let i = current.length; i < clamped; i += 1) {
           grown.push(emptyParticipant(defaultRoleCode))
         }
-        return grown
+        nextAdditional = grown
+      } else {
+        nextAdditional = current.slice(0, clamped)
       }
-      return current.slice(0, clamped)
+      notifyLive(booker, nextAdditional)
+      return nextAdditional
     })
   }
 
   const updateBookerField = (key: keyof BookerDetails, value: string) => {
-    setBooker((prev) => ({ ...prev, [key]: value }))
+    setBooker((prev) => {
+      const next = { ...prev, [key]: value }
+      notifyLive(next, additional)
+      return next
+    })
   }
 
   const updateParticipant = (
@@ -216,6 +252,7 @@ export function DetailsStep({
       const row = next[idx]
       if (!row) return prev
       next[idx] = { ...row, [key]: value }
+      notifyLive(booker, next)
       return next
     })
   }
