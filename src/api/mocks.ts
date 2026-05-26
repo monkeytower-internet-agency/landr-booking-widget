@@ -53,6 +53,7 @@ const allMockProducts: Product[] = [
     hotel_location_id: null,
     price_per_unit: null,
     currency: 'EUR',
+    is_publicly_listed: true,
   },
   {
     product_id: '00000000-0000-0000-0000-000000000002',
@@ -79,8 +80,48 @@ const allMockProducts: Product[] = [
     hotel_location_id: null,
     price_per_unit: null,
     currency: 'EUR',
+    is_publicly_listed: true,
   },
 ]
+
+/**
+ * landr-7zc5.3: Draft product returned only in preview mode (when a
+ * valid preview_token is supplied). Mirrors a real draft row — the API
+ * RPC public_get_operator_products filters is_publicly_listed=true for
+ * the live path and omits that filter on the preview path.
+ */
+const mockDraftProducts: Product[] = [
+  {
+    product_id: '00000000-0000-0000-0000-000000000003',
+    slug: 'tandem-vip',
+    name: 'Tandem VIP',
+    name_localized: { en: 'Tandem VIP', de: 'Tandem VIP' },
+    short_description: 'Exclusive VIP tandem experience (draft — not yet published).',
+    short_description_localized: null,
+    description: null,
+    product_kind: 'service',
+    service_time_shape: 'time_slot',
+    is_contiguous: false,
+    duration_minutes: 60,
+    fixed_start_date: null,
+    fixed_end_date: null,
+    product_group_id: null,
+    group_slug: null,
+    group_name: null,
+    sort_order: 99,
+    sport_subcategory_codes: ['paragliding-tandem'],
+    location_ids: [],
+    needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: null,
+    price_per_unit: null,
+    currency: 'EUR',
+    is_publicly_listed: false,
+  },
+]
+
+/** Sentinel used in tests — any non-empty string acts as a preview_token. */
+export const MOCK_PREVIEW_TOKEN = 'mock-preview-token-abc'
 
 const allMockHotelRooms: Product[] = [
   {
@@ -163,9 +204,17 @@ export const mockLocations: Location[] = [
   },
 ]
 
-export const mockProducts = (groupSlug?: string): Product[] => {
-  if (!groupSlug) return allMockProducts
-  return allMockProducts.filter((p) => p.group_slug === groupSlug)
+/**
+ * landr-7zc5.3: when previewToken is non-empty the mock returns both
+ * published and draft products (mirroring the API preview path). Without
+ * a token only published products are returned (live embed behaviour).
+ */
+export const mockProducts = (groupSlug?: string, previewToken?: string): Product[] => {
+  const base = previewToken
+    ? [...allMockProducts, ...mockDraftProducts]
+    : allMockProducts
+  if (!groupSlug) return base
+  return base.filter((p) => p.group_slug === groupSlug)
 }
 
 /**

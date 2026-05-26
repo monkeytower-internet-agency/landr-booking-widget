@@ -691,4 +691,80 @@ describe('App', () => {
       ).not.toBeDisabled()
     })
   })
+
+  // landr-7zc5.3: preview mode — banner + draft badge + absent-token live path.
+  describe('preview mode (landr-7zc5.3)', () => {
+    it('shows the preview-mode banner when ?preview_token= is in the URL', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-xyz`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Published Product', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('preview-mode-banner')).toBeInTheDocument(),
+      )
+      expect(screen.getByText(/Preview mode/i)).toBeInTheDocument()
+    })
+
+    it('does NOT show the preview-mode banner when no preview_token in the URL', async () => {
+      // beforeEach sets /?w=MOCK_TOKEN (no preview_token).
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Published Product', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      expect(screen.queryByTestId('preview-mode-banner')).not.toBeInTheDocument()
+    })
+
+    it('passes preview_token to listProducts when in preview mode', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-abc`)
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() =>
+        expect(mocks.listProducts).toHaveBeenCalledWith(
+          MOCK_TOKEN,
+          expect.objectContaining({ previewToken: 'prev-abc' }),
+        ),
+      )
+    })
+
+    it('does NOT pass preview_token to listProducts when absent from URL', async () => {
+      // beforeEach sets /?w=MOCK_TOKEN — no preview_token.
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() =>
+        expect(mocks.listProducts).toHaveBeenCalledWith(
+          MOCK_TOKEN,
+          expect.not.objectContaining({ previewToken: expect.any(String) }),
+        ),
+      )
+    })
+
+    it('shows the "Draft — preview" badge on products with is_publicly_listed=false', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-xyz`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-pub', name: 'Live Product', is_publicly_listed: true }),
+        makeProduct({ product_id: 'p-draft', name: 'Draft Product', is_publicly_listed: false }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Draft Product')).toBeInTheDocument())
+      // Draft badge is on the draft product card.
+      const badges = screen.getAllByTestId('draft-badge')
+      expect(badges).toHaveLength(1)
+      expect(badges[0]).toHaveTextContent(/Draft — preview/i)
+      // No badge on the published product.
+      expect(screen.getByText('Live Product')).toBeInTheDocument()
+    })
+
+    it('does NOT show any draft badge when is_publicly_listed is true or absent', async () => {
+      // Normal live URL without preview_token.
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+        makeProduct({ product_id: 'p-2', name: 'Product B' }), // no is_publicly_listed field
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.queryByTestId('draft-badge')).not.toBeInTheDocument()
+    })
+  })
 })

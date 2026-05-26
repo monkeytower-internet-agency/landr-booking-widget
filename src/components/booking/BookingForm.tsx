@@ -33,6 +33,12 @@ import { StepBackButton } from './StepBackButton'
 
 interface Props {
   widgetToken: string
+  /**
+   * landr-7zc5.3: operator preview token. When present the submit body
+   * carries preview_token so the API accepts bookings against draft products.
+   * Absent for all normal customer-facing embeds.
+   */
+  previewToken?: string
   product: Product
   selection: BookingSelection
   /**
@@ -166,6 +172,7 @@ const describeSelection = (
  */
 export function BookingForm({
   widgetToken,
+  previewToken,
   product,
   selection,
   booker,
@@ -277,7 +284,10 @@ export function BookingForm({
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
       }
-      const result = await submitBooking(body)
+      // landr-7zc5.3: pass preview_token so the API can accept draft
+      // products during operator preview. The option is harmlessly
+      // ignored when previewToken is undefined (normal customer flow).
+      const result = await submitBooking(body, previewToken ? { previewToken } : undefined)
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {

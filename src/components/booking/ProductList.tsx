@@ -14,12 +14,18 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 
 interface Props {
   operatorToken: string
+  /**
+   * landr-7zc5.3: operator preview token. When present the products
+   * fetch requests the preview path so draft products are included.
+   * Absent in all normal customer-facing embed URLs.
+   */
+  previewToken?: string
   productGroup?: string
   preselectSlug?: string
   onSelect: (product: Product) => void
 }
 
-export function ProductList({ operatorToken, productGroup, preselectSlug, onSelect }: Props) {
+export function ProductList({ operatorToken, previewToken, productGroup, preselectSlug, onSelect }: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()
@@ -28,7 +34,10 @@ export function ProductList({ operatorToken, productGroup, preselectSlug, onSele
     let cancelled = false
     void (async () => {
       try {
-        const list = await listProducts(operatorToken, { group: productGroup })
+        const list = await listProducts(operatorToken, {
+          group: productGroup,
+          previewToken,
+        })
         if (cancelled) return
         setProducts(list)
         if (preselectSlug) {
@@ -43,7 +52,7 @@ export function ProductList({ operatorToken, productGroup, preselectSlug, onSele
     return () => {
       cancelled = true
     }
-  }, [operatorToken, productGroup, preselectSlug, onSelect])
+  }, [operatorToken, previewToken, productGroup, preselectSlug, onSelect])
 
   if (error) {
     return (
@@ -86,10 +95,28 @@ export function ProductList({ operatorToken, productGroup, preselectSlug, onSele
           product.short_description_localized,
           locale,
         )
+        const isDraft = product.is_publicly_listed === false
         return (
           <Card key={product.product_id} className="flex flex-col">
             <CardHeader>
-              <CardTitle>{name}</CardTitle>
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle>{name}</CardTitle>
+                {/*
+                  landr-7zc5.3: Draft badge — visible only in preview mode
+                  (is_publicly_listed=false means the operator hasn't
+                  published this product yet). Customers never see this
+                  because live embeds never have a preview_token in the URL
+                  and the API never returns drafts without one.
+                */}
+                {isDraft ? (
+                  <span
+                    className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                    data-testid="draft-badge"
+                  >
+                    Draft — preview
+                  </span>
+                ) : null}
+              </div>
               {description ? <CardDescription>{description}</CardDescription> : null}
             </CardHeader>
             {product.description ? (
