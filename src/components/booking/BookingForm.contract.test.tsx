@@ -304,4 +304,74 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     const participants = body.participants as unknown[]
     expect(participants).toHaveLength(1)
   })
+
+  // landr-ffyg.2: the submit body always carries is_shared_double — false
+  // for a regular booking, true for the second-pilot-sharing mode.
+  it('sends is_shared_double=false by default (regular booking)', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId="loc-pickup-1"
+        accommodationRooms={[{ productId: 'room-deluxe', quantity: 1 }]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.is_shared_double).toBe(false)
+  })
+
+  it('shared-double mode: is_shared_double=true, NO hotel_room line, pickup is the shared hotel (landr-ffyg.1 contract)', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        // shared-double: the hotel is the pickup; NO accommodationRooms.
+        pickupLocationId="loc-shared-hotel"
+        accommodationRooms={[]}
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+
+    // Top-level marker the API persists + validates (landr-ffyg.1).
+    expect(body.is_shared_double).toBe(true)
+
+    // ONLY the guiding service line — zero hotel_room lines (the API 422s
+    // a shared-double booking that carries a room line).
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products).toHaveLength(1)
+    expect(products[0]).toMatchObject({ product_id: 'svc-main', quantity: 1 })
+
+    // Every participant is collected from the shared hotel (the API 422s a
+    // shared-double booking with no participant pickup_location_id).
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants.length).toBeGreaterThan(0)
+    for (const p of participants) {
+      expect(p.pickup_location_id).toBe('loc-shared-hotel')
+    }
+  })
 })

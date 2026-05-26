@@ -6,7 +6,11 @@ import type {
   BookerDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
-import { sidebarInputsForStep, stepAfterAccommodation } from './appStepMachine'
+import {
+  deriveAccommodationMode,
+  sidebarInputsForStep,
+  stepAfterAccommodation,
+} from './appStepMachine'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -235,5 +239,78 @@ describe('sidebarInputsForStep (landr-8c03 — participant names threaded throug
     // Empty names filtered out.
     expect(inputs?.participantNames).toEqual(['Ada', 'Grace'])
     expect(inputs?.participantCount).toBe(3)
+  })
+})
+
+describe('deriveAccommodationMode (landr-ffyg.2)', () => {
+  it('returns shared-double when the flag is set (regardless of hotel)', () => {
+    expect(deriveAccommodationMode('hotel-1', true)).toBe('shared-double')
+    expect(deriveAccommodationMode(null, true)).toBe('shared-double')
+  })
+
+  it('returns guiding-only when no hotel and not shared', () => {
+    expect(deriveAccommodationMode(null, false)).toBe('guiding-only')
+    expect(deriveAccommodationMode(null, undefined)).toBe('guiding-only')
+  })
+
+  it('returns package when a hotel is set and not shared', () => {
+    expect(deriveAccommodationMode('hotel-1', false)).toBe('package')
+    expect(deriveAccommodationMode('hotel-1', undefined)).toBe('package')
+  })
+})
+
+describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () => {
+  it('shared-double (hotel set, NO rooms) routes straight to fill-form with the hotel as pickup, skipping pick-pickup', () => {
+    // needs_pickup=true would normally route to pick-pickup, but the hotel
+    // is set so the landr-4r80 routing wins and the customer NEVER reaches
+    // the free pickup picker — exactly the shared-double requirement.
+    const product = makeProduct({
+      needs_pickup: true,
+      hotel_offering: 'optional',
+    })
+    const next = stepAfterAccommodation(
+      product,
+      SLOT_SELECTION,
+      ADA,
+      makeParticipants(1),
+      [], // NO room lines for a shared-double booking
+      'loc-shared-hotel',
+      [],
+      false,
+      true, // includeHotel
+      true, // isSharedDouble
+      'shared-double',
+    )
+    expect(next.name).toBe('fill-form')
+    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.pickupLocationId).toBe('loc-shared-hotel')
+    expect(next.accommodationRooms).toEqual([])
+    expect(next.isSharedDouble).toBe(true)
+    expect(next.accommodationMode).toBe('shared-double')
+  })
+
+  it('threads accommodationMode through the guiding-only branch (no hotel, no pickup)', () => {
+    const product = makeProduct({
+      needs_pickup: false,
+      hotel_offering: 'optional',
+    })
+    const next = stepAfterAccommodation(
+      product,
+      SLOT_SELECTION,
+      ADA,
+      makeParticipants(2),
+      [],
+      null,
+      [],
+      false,
+      false,
+      false,
+      'guiding-only',
+    )
+    expect(next.name).toBe('fill-form')
+    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.pickupLocationId).toBeNull()
+    expect(next.isSharedDouble).toBe(false)
+    expect(next.accommodationMode).toBe('guiding-only')
   })
 })

@@ -9,9 +9,9 @@ const { mocks } = vi.hoisted(() => ({
     getHotelsForOperator: vi.fn<(slug: string) => Promise<Hotel[]>>(),
     getHotelRoomsForHotel:
       vi.fn<(slug: string, hotelId: string) => Promise<Product[]>>(),
-    // landr-cip6: AccommodationStep now fetches add-ons per room. Default
-    // mock returns [] so existing tests don't need to thread add-on
-    // catalogue mocks unless they specifically exercise add-on UX.
+    // landr-cip6: AccommodationStep fetches add-ons per room. Default mock
+    // returns [] so existing tests don't need add-on catalogue mocks unless
+    // they specifically exercise add-on UX.
     getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
   },
 }))
@@ -112,7 +112,12 @@ describe('AccommodationStep', () => {
     mocks.getProductAddons.mockResolvedValue([])
   })
 
-  it('mandatory + single hotel auto-selects + shows rooms immediately', async () => {
+  // ── landr-ffyg.2: top-level mode choice ────────────────────────────
+  // The step opens with a mode radio group whenever a hotel is configured.
+  // 'guiding-only' is offered ONLY for an optional offering; 'package' +
+  // 'shared-double' are always offered. 'package' is the default mode.
+
+  it('mandatory offering shows package + shared-double modes (NOT guiding-only)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -128,21 +133,81 @@ describe('AccommodationStep', () => {
       />,
     )
 
-    // The auto-select banner appears once the hotel list resolves
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByTestId('accommodation-mode-package'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('accommodation-mode-shared-double'),
+    ).toBeInTheDocument()
+    // No guiding-only mode for a mandatory hotel offering.
+    expect(
+      screen.queryByTestId('accommodation-mode-guiding-only'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('optional offering shows all three modes including guiding-only', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByTestId('accommodation-mode-guiding-only'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('accommodation-mode-package'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('accommodation-mode-shared-double'),
+    ).toBeInTheDocument()
+  })
+
+  // ── Package mode (the existing hotel + rooms flow) ─────────────────
+
+  it('package + single hotel auto-selects + shows rooms immediately (default mode)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10', '2026-06-11']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    // Package is the default mode → auto-select banner appears.
     await waitFor(() =>
       expect(screen.getByText(/Staying at/i)).toBeInTheDocument(),
     )
-    // Hotel name shown
     expect(screen.getByText('Hotel Mirador')).toBeInTheDocument()
-    // Room appears once room fetch resolves
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
-    // Per-night price chip
     expect(screen.getByText(/49.*\/ night/)).toBeInTheDocument()
   })
 
-  it('mandatory + multiple hotels renders a radio list (no auto-select)', async () => {
+  it('package + multiple hotels renders a radio list (no auto-select)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
 
@@ -161,12 +226,87 @@ describe('AccommodationStep', () => {
     )
     expect(screen.getByText('Hotel Mirador')).toBeInTheDocument()
     expect(screen.getByText('Hotel del Mar')).toBeInTheDocument()
-    // Continue is disabled until a hotel + room is picked
-    const continueBtn = screen.getByRole('button', { name: /Continue/i })
-    expect(continueBtn).toBeDisabled()
+    // Continue disabled until a hotel + room is picked.
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
   })
 
-  it('optional + "No, thanks" auto-advances by firing onConfirm immediately (landr-eiiz)', async () => {
+  it('package mode renders per-room qty steppers and confirms the picked room (optional → includeHotel=true)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+      makeRoom('double-room', 'Double Room', 73),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10', '2026-06-11']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    const plusButtons = screen.getAllByRole('button', {
+      name: /Increase .* quantity/i,
+    })
+    fireEvent.click(plusButtons[0]!)
+
+    const continueBtn = screen.getByRole('button', { name: /Continue/i })
+    expect(continueBtn).not.toBeDisabled()
+    fireEvent.click(continueBtn)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    // landr-ffyg.2: optional + package mode reports includeHotel=true (the
+    // hotel context IS in play); isSharedDouble=false.
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'single-room', quantity: 1 }],
+      'hotel-a',
+      [],
+      true,
+      false,
+    )
+  })
+
+  it('package mode mandatory offering reports includeHotel=undefined', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith(
+      [{ productId: 'single-room', quantity: 1 }],
+      'hotel-a',
+      [],
+      undefined,
+      false,
+    )
+  })
+
+  // ── Guiding-only mode (the former optional "No, thanks" opt-out) ───
+
+  it('guiding-only mode confirms with empty payload + no hotel context', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -184,91 +324,255 @@ describe('AccommodationStep', () => {
     )
 
     await waitFor(() =>
-      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
+      expect(
+        screen.getByTestId('accommodation-mode-guiding-only'),
+      ).toBeInTheDocument(),
     )
-    // landr-eiiz: a single click on "No, thanks" must fire onConfirm with
-    // the empty/no-hotel payload — no second Continue click required. The
-    // previous UX only toggled local state which made the button look
-    // unresponsive ("clicked No but nothing happened").
-    const noBtn = screen.getByRole('button', { name: /No, thanks/i })
-    fireEvent.click(noBtn)
+    // Pick guiding-only.
+    fireEvent.click(
+      screen.getByTestId('accommodation-mode-guiding-only').querySelector('input')!,
+    )
+    // Rooms must not render and no hotel context shows.
+    expect(screen.queryByText('Single Room')).not.toBeInTheDocument()
+    // Continue → empty payload, no hotel, includeHotel=false,
+    // isSharedDouble=false.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    // landr-yf0n: optional-mode onConfirm now reports includeHotel as a
-    // 4th arg so App.tsx can stash it for back-nav restoration. Opt-out
-    // → false; mandatory-mode callsites still receive undefined.
-    // landr-sbhz.4: opt-out path doesn't invoke handleContinue so the
-    // 5th isSharedDouble arg is not sent (call has exactly 4 args).
-    expect(onConfirm).toHaveBeenCalledWith([], null, [], false)
+    expect(onConfirm).toHaveBeenCalledWith([], null, [], false, false)
   })
 
-  it('renders per-room qty steppers and computes nights × price × qty totals', async () => {
+  it('guiding-only mode does not fetch rooms', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
-      makeRoom('double-room', 'Double Room', 73),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-mode-guiding-only'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByTestId('accommodation-mode-guiding-only').querySelector('input')!,
+    )
+    // No rooms render after opting into guiding-only — the hotel context
+    // is cleared so the room list is gone regardless of any eager fetch
+    // the default package mode may have kicked off on mount.
+    await waitFor(() =>
+      expect(screen.queryByText('Single Room')).not.toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('button', { name: /Increase .* quantity/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('guiding-only mode from initialMode never fetches rooms', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialMode="guiding-only"
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-mode-guiding-only'),
+      ).toBeInTheDocument(),
+    )
+    // Starting in guiding-only mode (no eager package fetch) → rooms never
+    // requested.
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+  })
+
+  // ── landr-ffyg.2: shared-double mode ───────────────────────────────
+  // The bypass: no room steppers; hotel picker only when >1 hotel
+  // (auto-select when 1); pickup forced to the hotel (no free pickup);
+  // submit carries is_shared_double=true + zero room lines.
+
+  it('shared-double mode + single hotel: auto-selects, hides room steppers, confirms no rooms + hotel pickup', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
     ])
     const onConfirm = vi.fn()
 
     render(
       <AccommodationStep
         product={makeService('mandatory')}
-        selectedDays={['2026-06-10', '2026-06-11']}
+        selectedDays={['2026-06-10']}
         operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
     )
 
-    // wait for rooms to render
     await waitFor(() =>
-      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+      expect(
+        screen.getByTestId('accommodation-mode-shared-double'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen
+        .getByTestId('accommodation-mode-shared-double')
+        .querySelector('input')!,
     )
 
-    // Bump single-room qty to 1
-    const plusButtons = screen.getAllByRole('button', {
-      name: /Increase .* quantity/i,
-    })
-    fireEvent.click(plusButtons[0]!)
-
-    // Derived stay window: selectedDays 10,11 → check-in 09, out 12, nights 3.
-    // landr-8yaz: check-in/out render with weekday + day + month abbreviation
-    // (via formatDayLabel) rather than the raw ISO string. The exact day/
-    // month ordering and separators are Intl/locale-dependent (en-US
-    // "Tue, Jun 9" vs en-GB "Tue 9 Jun"), so assert on the weekday + day
-    // + month fragments independently within the same text node.
+    // Lone hotel auto-selects → "Staying at" banner + the explanatory notice.
     await waitFor(() =>
-      expect(screen.getByText(/Tue/)).toBeInTheDocument(),
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
     )
-    const checkIn = screen.getByText(/Tue/)
-    expect(checkIn.textContent).toMatch(/Jun/)
-    expect(checkIn.textContent).toMatch(/\b9\b/)
-    const checkOut = screen.getByText(/Fri/)
-    expect(checkOut.textContent).toMatch(/Jun/)
-    expect(checkOut.textContent).toMatch(/\b12\b/)
-    // Continue should fire with the selected line item
+    expect(screen.getByText(/Staying at/i)).toBeInTheDocument()
+    // NO room steppers render in shared-double mode (even if the default
+    // package mode eagerly fetched the room catalogue on mount).
+    expect(screen.queryByText('Double Room')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Increase .* quantity/i }),
+    ).not.toBeInTheDocument()
+
+    // Continue enabled (hotel chosen) → no rooms, hotel pickup,
+    // isSharedDouble=true. Mandatory offering → includeHotel=undefined.
     const continueBtn = screen.getByRole('button', { name: /Continue/i })
     expect(continueBtn).not.toBeDisabled()
     fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    // landr-yf0n: mandatory-mode onConfirm receives includeHotel=undefined
-    // (the Yes/No gate doesn't apply, so no opt-out state to report).
-    // landr-sbhz.4: 5th arg isSharedDouble=false (single-room, no shared-
-    // double checkbox visible).
-    expect(onConfirm).toHaveBeenCalledWith(
-      [{ productId: 'single-room', quantity: 1 }],
-      'hotel-a',
-      [],
-      undefined,
-      false,
-    )
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true)
   })
 
-  // ── Overbook warnings (landr-qpab) ──────────────────────────────────
-  // These tests render the step with a participantCount prop and assert
-  // the non-blocking orange warnings appear (or do not appear) based on
-  // the capacity vs participants and breakfast vs participants compares.
-  // Continue must stay enabled in every overbook case — they're hints,
-  // not gates.
+  it('shared-double mode optional offering reports includeHotel=true', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-mode-shared-double'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen
+        .getByTestId('accommodation-mode-shared-double')
+        .querySelector('input')!,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], true, true)
+  })
+
+  it('shared-double mode + multiple hotels shows the picker (no auto-select); Continue gated until a hotel is chosen', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-mode-shared-double'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen
+        .getByTestId('accommodation-mode-shared-double')
+        .querySelector('input')!,
+    )
+
+    // Hotel picker appears (two hotels → no auto-select).
+    await waitFor(() =>
+      expect(screen.getByText(/Choose your hotel/i)).toBeInTheDocument(),
+    )
+    // Continue disabled until a hotel is chosen.
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+
+    // Pick Hotel del Mar.
+    fireEvent.click(screen.getByDisplayValue('hotel-b'))
+    const continueBtn = screen.getByRole('button', { name: /Continue/i })
+    await waitFor(() => expect(continueBtn).not.toBeDisabled())
+    fireEvent.click(continueBtn)
+    // No rooms, the CHOSEN hotel is the pickup, isSharedDouble=true.
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-b', [], undefined, true)
+    // Rooms never fetched in shared-double mode.
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+  })
+
+  it('switching from package (rooms picked) to shared-double clears rooms and submits zero room lines', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    // Default package mode → pick a room.
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+
+    // Flip to shared-double → the room stepper disappears.
+    fireEvent.click(
+      screen
+        .getByTestId('accommodation-mode-shared-double')
+        .querySelector('input')!,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
+    )
+    expect(screen.queryByText('Double Room')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    // Zero room lines despite having picked a room in package mode first.
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true)
+  })
+
+  // ── Overbook warnings (landr-qpab) — package mode only ─────────────
 
   it('shows capacity warning when participantCount > total room capacity', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
@@ -290,7 +594,6 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
-    // Bump single-room qty to 2 → capacity = 2*1 = 2, participants = 4
     const plusButtons = screen.getAllByRole('button', {
       name: /Increase .* quantity/i,
     })
@@ -305,7 +608,6 @@ describe('AccommodationStep', () => {
     expect(screen.getByTestId('overbook-capacity-warning')).toHaveTextContent(
       /4 people.*only 2 beds/i,
     )
-    // Non-blocking: Continue stays enabled
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
 
@@ -334,9 +636,6 @@ describe('AccommodationStep', () => {
     })
     fireEvent.click(plusButtons[0]!)
 
-    // landr-kat8: the in-step "Hotel total" summary moved into the
-    // PriceSidebar pill — we now wait for the stay-window orientation
-    // line instead to confirm the post-pick rerender flushed.
     await waitFor(() =>
       expect(
         screen.getByTestId('accommodation-stay-window'),
@@ -349,7 +648,6 @@ describe('AccommodationStep', () => {
 
   it('treats null capacity_per_unit as 1 (lenient default)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    // Legacy room without capacity_per_unit set
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('legacy-room', 'Legacy Room', 49, null),
     ])
@@ -373,7 +671,6 @@ describe('AccommodationStep', () => {
     })
     fireEvent.click(plusButtons[0]!)
 
-    // 1 room × 1 (fallback) = 1 < 3 participants → warn
     await waitFor(() =>
       expect(
         screen.getByTestId('overbook-capacity-warning'),
@@ -414,21 +711,17 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Double Room')).toBeInTheDocument(),
     )
-    // Pick 1 double room (capacity 2 = participants 2, no capacity warn)
     const plusButtons = screen.getAllByRole('button', {
       name: /Increase .* quantity/i,
     })
     fireEvent.click(plusButtons[0]!)
 
-    // Breakfast row appears once the room qty > 0; bump it to 5
     await waitFor(() =>
       expect(screen.getByText('Breakfast')).toBeInTheDocument(),
     )
     const breakfastButtons = screen.getAllByRole('button', {
       name: /Increase .* quantity/i,
     })
-    // After picking the room a second "Increase" button appears for the
-    // breakfast add-on (room stepper is index 0, breakfast stepper is 1).
     for (let i = 0; i < 5; i += 1) {
       fireEvent.click(breakfastButtons[1]!)
     }
@@ -441,7 +734,6 @@ describe('AccommodationStep', () => {
     expect(screen.getByTestId('overbook-breakfast-warning')).toHaveTextContent(
       /5 breakfasts for 2 people/i,
     )
-    // Capacity is fine (1*2=2 vs 2 participants) → no capacity warn
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
     ).not.toBeInTheDocument()
@@ -468,7 +760,6 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
-    // No qty bumps. Both warnings stay hidden because totalRoomsPicked === 0.
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
     ).not.toBeInTheDocument()
@@ -478,85 +769,8 @@ describe('AccommodationStep', () => {
   })
 
   // ── Auto-skip single-hotel picker (landr-punc) ─────────────────────
-  // When the operator has exactly one hotel configured, the radio list
-  // is friction (single-item list). The widget auto-selects the lone
-  // hotel and jumps straight to the room picker — both in the mandatory
-  // path (already covered above) and the optional + Yes path.
 
-  it('optional + Yes + single hotel auto-selects and shows rooms (no picker)', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('single-room', 'Single Room', 49),
-    ])
-
-    render(
-      <AccommodationStep
-        product={makeService('optional')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    )
-
-    // Yes/No gate appears on mount with hotels already fetched.
-    await waitFor(() =>
-      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
-    )
-    // Picker radio list should NOT be in the DOM (single-hotel auto-skip).
-    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
-
-    // Click Yes — the auto-select effect fires, jumps straight to rooms.
-    fireEvent.click(screen.getByRole('button', { name: /Yes, add hotel/i }))
-
-    // "Staying at" banner appears (informational, not a picker).
-    await waitFor(() =>
-      expect(screen.getByText(/Staying at/i)).toBeInTheDocument(),
-    )
-    expect(screen.getByText('Hotel Mirador')).toBeInTheDocument()
-    // No radio list rendered even after Yes.
-    expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
-    // Room appears once the room fetch resolves.
-    await waitFor(() =>
-      expect(screen.getByText('Single Room')).toBeInTheDocument(),
-    )
-  })
-
-  it('optional + No + single hotel skips accommodation entirely', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('single-room', 'Single Room', 49),
-    ])
-    const onConfirm = vi.fn()
-
-    render(
-      <AccommodationStep
-        product={makeService('optional')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={onConfirm}
-        onBack={vi.fn()}
-      />,
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
-    )
-    fireEvent.click(screen.getByRole('button', { name: /No, thanks/i }))
-
-    // landr-eiiz: "No, thanks" auto-advances. The opt-out fires onConfirm
-    // with the empty payload on a single click — no second Continue click
-    // needed. The single-hotel landr-punc auto-select must not fire here
-    // because includeHotel stays false (the click also calls changeHotel
-    // (null) which nulls selectedHotelId, and the auto-select effect is
-    // gated on includeHotel). landr-yf0n: opt-out now also reports
-    // includeHotel=false as the 4th arg for back-nav state restoration.
-    expect(onConfirm).toHaveBeenCalledWith([], null, [], false)
-    // Rooms must NOT have been fetched — the customer skipped accommodation.
-    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
-  })
-
-  it('mandatory + single hotel does not render the radio picker', async () => {
+  it('package + single hotel does not render the radio picker', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -575,12 +789,14 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/Staying at/i)).toBeInTheDocument(),
     )
-    // Radio list never appears.
     expect(screen.queryByText(/Choose your hotel/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    // Only the mode radios exist (package + shared-double) — no "hotel" radio.
+    expect(
+      screen.queryByRole('radio', { name: /Hotel Mirador/i }),
+    ).not.toBeInTheDocument()
   })
 
-  it('mandatory + multiple hotels still shows the radio picker (no regression)', async () => {
+  it('package + multiple hotels still shows the radio picker (no regression)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
 
@@ -597,21 +813,12 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/Choose your hotel/i)).toBeInTheDocument(),
     )
-    // Both radios present
-    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    // Two hotel radios (named "hotel") in the picker.
+    expect(screen.getByDisplayValue('hotel-a')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('hotel-b')).toBeInTheDocument()
   })
 
-  // landr-kat8: the in-step "Hotel is paid directly at check-in" notice
-  // moved into the PriceSidebar's at-hotel pill (sidebar is now canonical
-  // for hotel totals + caveat). The step keeps a short stay-window
-  // orientation line so the customer sees which nights the room steppers
-  // below cover — but the totals + paid-directly copy live in the sidebar.
-  // ── Back-nav state restoration (landr-yf0n) ──────────────────────
-  // When the customer hits Back from a downstream step (pick-pickup or
-  // fill-form), App.tsx threads the prior hotel + rooms + add-ons +
-  // includeHotel back as the initial-* props. The step must re-mount
-  // with the steppers + radios + Yes/No toggle restored — NOT reset to
-  // an empty cart.
+  // ── Back-nav state restoration (landr-yf0n / landr-ffyg.2) ─────────
 
   it('restores prior hotel + room selection from initial* props on back-nav re-entry', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
@@ -630,34 +837,27 @@ describe('AccommodationStep', () => {
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
         initialRooms={[{ productId: 'single-room', quantity: 2 }]}
+        initialMode="package"
       />,
     )
 
-    // Hotel pre-selected: rooms fetch fires for hotel-a without a click.
     await waitFor(() =>
       expect(mocks.getHotelRoomsForHotel).toHaveBeenCalledWith(
         'para42',
         'hotel-a',
       ),
     )
-    // Single Room stepper renders with qty=2 already seeded.
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
-    // The qty cell sits adjacent to the +/- buttons with aria-live=polite.
-    // Reading the qty span for Single Room directly is cleanest: it's the
-    // sibling of the "Increase Single Room quantity" button.
     const increaseBtn = screen.getByRole('button', {
       name: /Increase Single Room/i,
     })
     const qtySpan = increaseBtn.previousElementSibling
     expect(qtySpan?.textContent?.trim()).toBe('2')
 
-    // Continue without further interaction → confirms the restored cart.
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    // landr-sbhz.4: single-room qty=2 → no shared-double checkbox (qty≠1),
-    // so isSharedDouble is false.
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'single-room', quantity: 2 }],
       'hotel-a',
@@ -697,20 +897,16 @@ describe('AccommodationStep', () => {
         initialHotelLocationId="hotel-a"
         initialRooms={[{ productId: 'double-room', quantity: 1 }]}
         initialAddons={[{ productId: 'bf-1', quantity: 3 }]}
+        initialMode="package"
       />,
     )
 
-    // Wait for the breakfast row to render (room is already in cart so
-    // its add-on list mounts as soon as the per-room fetch resolves).
     await waitFor(() =>
       expect(screen.getByText('Breakfast')).toBeInTheDocument(),
     )
 
-    // Continue → emits the restored room + add-on cart unchanged.
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    // landr-sbhz.4: double-room qty=1 → shared-double checkbox visible but
-    // not ticked (initialIsSharedDouble not set → defaults false).
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'double-room', quantity: 1 }],
       'hotel-a',
@@ -720,7 +916,7 @@ describe('AccommodationStep', () => {
     )
   })
 
-  it('restores optional-mode "No, thanks" opt-out from initialIncludeHotel=false', async () => {
+  it('restores guiding-only mode from initialMode on back-nav re-entry', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -733,23 +929,97 @@ describe('AccommodationStep', () => {
         operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
-        initialIncludeHotel={false}
+        initialMode="guiding-only"
       />,
     )
 
-    // The Yes/No gate renders with "No, thanks" already the active
-    // variant — verify by checking that the "Yes" button is in outline
-    // mode (not the active variant).
     await waitFor(() =>
-      expect(screen.getByText(/Would you like to add a hotel/i)).toBeInTheDocument(),
+      expect(
+        screen.getByTestId('accommodation-mode-guiding-only'),
+      ).toBeInTheDocument(),
     )
-    // The rooms list must NOT render — the customer opted out.
-    expect(screen.queryByText(/Single Room/i)).not.toBeInTheDocument()
-    // The room fetch must NOT have fired — opt-out → no hotel selected.
+    // guiding-only radio is the selected mode.
+    expect(
+      screen
+        .getByTestId('accommodation-mode-guiding-only')
+        .querySelector('input'),
+    ).toBeChecked()
+    // No rooms render and no room fetch fired.
+    expect(screen.queryByText('Single Room')).not.toBeInTheDocument()
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
   })
 
-  it('renders a stay-window orientation line and payment notice when a hotel + rooms are loaded (landr-kat8 / landr-sbhz.4)', async () => {
+  it('restores shared-double mode from initialMode on back-nav re-entry', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        initialHotelLocationId="hotel-a"
+        initialMode="shared-double"
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
+    )
+    expect(
+      screen
+        .getByTestId('accommodation-mode-shared-double')
+        .querySelector('input'),
+    ).toBeChecked()
+    // No room steppers; room fetch never fires.
+    expect(
+      screen.queryByRole('button', { name: /Increase .* quantity/i }),
+    ).not.toBeInTheDocument()
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true)
+  })
+
+  it('coerces a stale guiding-only initialMode to package on a mandatory offering', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        initialMode="guiding-only"
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    // guiding-only isn't even offered for a mandatory product, so the
+    // mode falls back to package and rooms load.
+    expect(
+      screen.queryByTestId('accommodation-mode-guiding-only'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('accommodation-mode-package').querySelector('input'),
+    ).toBeChecked()
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+  })
+
+  // landr-kat8 / landr-sbhz.4: the in-step "Hotel is paid directly at
+  // check-in" notice + stay-window orientation live in the package mode.
+
+  it('renders a stay-window orientation line and payment notice when a hotel + rooms are loaded (package mode)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49),
@@ -769,184 +1039,20 @@ describe('AccommodationStep', () => {
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
     const stay = screen.getByTestId('accommodation-stay-window')
-    // Stay: <weekday Tue 9 Jun> → <weekday Thu 11 Jun> · 2 nights
     expect(stay.textContent).toMatch(/Stay/)
     expect(stay.textContent).toMatch(/Tue/)
     expect(stay.textContent).toMatch(/Thu/)
     expect(stay.textContent).toMatch(/2 nights/)
-    // landr-sbhz.4: payment notice is now shown inside the step (in addition
-    // to the sidebar pill) so the customer reads it while looking at rooms.
     expect(
       screen.getByTestId('accommodation-payment-notice'),
     ).toBeInTheDocument()
     expect(
       screen.getByTestId('accommodation-payment-notice').textContent,
     ).toMatch(/paid directly at check-in.*cash.*card/i)
-    // Verbose hotel total breakdown still lives only in the sidebar.
     expect(screen.queryByText(/Hotel total/i)).not.toBeInTheDocument()
   })
 
-  // ── landr-sbhz.4: shared-double checkbox ──────────────────────────
-  // The checkbox appears when exactly one double-capacity room is in
-  // the cart. Ticking it sets the isSharedDouble flag reported via
-  // onConfirm. The flag is informational — it does not change the
-  // room line item on submit.
-
-  it('shows shared-double checkbox when a double-capacity room (capacity≥2) is in the cart at qty=1', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('double-room', 'Double Room', 73, 2),
-    ])
-    const onConfirm = vi.fn()
-
-    render(
-      <AccommodationStep
-        product={makeService('mandatory')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={onConfirm}
-        onBack={vi.fn()}
-      />,
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText('Double Room')).toBeInTheDocument(),
-    )
-    // No checkbox before room is added to cart.
-    expect(
-      screen.queryByTestId('shared-double-checkbox'),
-    ).not.toBeInTheDocument()
-
-    // Add one double room.
-    fireEvent.click(
-      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
-    )
-
-    // Checkbox now appears.
-    await waitFor(() =>
-      expect(screen.getByTestId('shared-double-checkbox')).toBeInTheDocument(),
-    )
-    // Unchecked by default.
-    expect(screen.getByTestId('shared-double-checkbox')).not.toBeChecked()
-
-    // Tick it.
-    fireEvent.click(screen.getByTestId('shared-double-checkbox'))
-    expect(screen.getByTestId('shared-double-checkbox')).toBeChecked()
-
-    // Continue → onConfirm receives isSharedDouble=true.
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
-    expect(onConfirm).toHaveBeenCalledWith(
-      [{ productId: 'double-room', quantity: 1 }],
-      'hotel-a',
-      [],
-      undefined,
-      true,
-    )
-  })
-
-  it('hides shared-double checkbox when double room qty > 1', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('double-room', 'Double Room', 73, 2),
-    ])
-
-    render(
-      <AccommodationStep
-        product={makeService('mandatory')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText('Double Room')).toBeInTheDocument(),
-    )
-    const incBtn = screen.getByRole('button', {
-      name: /Increase Double Room quantity/i,
-    })
-    // Add 2 double rooms.
-    fireEvent.click(incBtn)
-    fireEvent.click(incBtn)
-
-    // At qty=2 the checkbox is hidden (two separate bookings sharing one
-    // double room makes no sense).
-    expect(
-      screen.queryByTestId('shared-double-checkbox'),
-    ).not.toBeInTheDocument()
-  })
-
-  it('hides shared-double checkbox for a single-capacity room (capacity=1)', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('single-room', 'Single Room', 49, 1),
-    ])
-
-    render(
-      <AccommodationStep
-        product={makeService('mandatory')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    )
-
-    await waitFor(() =>
-      expect(screen.getByText('Single Room')).toBeInTheDocument(),
-    )
-    fireEvent.click(
-      screen.getByRole('button', { name: /Increase Single Room quantity/i }),
-    )
-
-    // No shared-double checkbox for single-capacity rooms.
-    expect(
-      screen.queryByTestId('shared-double-checkbox'),
-    ).not.toBeInTheDocument()
-  })
-
-  it('restores shared-double flag from initialIsSharedDouble on back-nav re-entry', async () => {
-    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
-    mocks.getHotelRoomsForHotel.mockResolvedValue([
-      makeRoom('double-room', 'Double Room', 73, 2),
-    ])
-    const onConfirm = vi.fn()
-
-    render(
-      <AccommodationStep
-        product={makeService('mandatory')}
-        selectedDays={['2026-06-10']}
-        operatorToken="para42"
-        onConfirm={onConfirm}
-        onBack={vi.fn()}
-        initialHotelLocationId="hotel-a"
-        initialRooms={[{ productId: 'double-room', quantity: 1 }]}
-        initialIsSharedDouble={true}
-      />,
-    )
-
-    // Room loads + checkbox renders.
-    await waitFor(() =>
-      expect(screen.getByTestId('shared-double-checkbox')).toBeInTheDocument(),
-    )
-    // Checkbox is pre-checked from the initialIsSharedDouble prop.
-    expect(screen.getByTestId('shared-double-checkbox')).toBeChecked()
-
-    // Continue → isSharedDouble=true persists.
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
-    expect(onConfirm).toHaveBeenCalledWith(
-      [{ productId: 'double-room', quantity: 1 }],
-      'hotel-a',
-      [],
-      undefined,
-      true,
-    )
-  })
-
   // ── landr-sbhz.4: premium-includes-breakfast rooms ────────────────
-  // Rooms whose name already contains "Breakfast" should NOT surface the
-  // breakfast add-on row — the add-on is already included in the price.
 
   it('hides breakfast add-on for premium-with-breakfast room (landr-sbhz.4)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
@@ -987,15 +1093,12 @@ describe('AccommodationStep', () => {
         screen.getByText('Premium Single Room w/ Breakfast'),
       ).toBeInTheDocument(),
     )
-    // Add one premium room.
     fireEvent.click(
       screen.getByRole('button', {
         name: /Increase Premium Single Room w\/ Breakfast quantity/i,
       }),
     )
 
-    // The breakfast add-on row must NOT appear — the premium room already
-    // includes it.
     await waitFor(() =>
       expect(
         screen.getByTestId('accommodation-stay-window'),
