@@ -71,9 +71,18 @@ export function AddonsList({
 
   if (addons.length === 0) return null
 
+  /**
+   * landr-9p76: Hard-cap for occupancy-linked add-ons (breakfast).
+   * When expectedQty > 1 the add-on is tied to room occupancy, so the
+   * ceiling is min(max_qty ?? Infinity, expectedQty). When expectedQty=1
+   * (service-flow callers) there is no occupancy cap — undefined keeps
+   * the original max_qty-only ceiling in clampAddonQty.
+   */
+  const occupancyCap = expectedQty > 1 ? expectedQty : undefined
+
   function bumpQty(addon: ProductAddon, delta: number) {
     const current = selection[addon.addon_product_id] ?? 0
-    const next = clampAddonQty(addon, current + delta)
+    const next = clampAddonQty(addon, current + delta, occupancyCap)
     const out = { ...selection, [addon.addon_product_id]: next }
     if (next === 0) delete out[addon.addon_product_id]
     onChange(out)
@@ -89,7 +98,10 @@ export function AddonsList({
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
         const deviation = isOverbooked(qty, expectedQty)
         const requiredError = requiredAddonError(addon, qty)
-        const atMax = addon.max_qty !== null && qty >= addon.max_qty
+        // landr-9p76: + button disabled at occupancy cap OR at addon's own max_qty.
+        const atMax =
+          (occupancyCap !== undefined && qty >= occupancyCap) ||
+          (addon.max_qty !== null && qty >= addon.max_qty)
 
         return (
           <div

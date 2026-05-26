@@ -678,7 +678,10 @@ describe('AccommodationStep', () => {
     )
   })
 
-  it('shows breakfast warning when breakfast qty > participantCount', async () => {
+  it('hard-caps breakfast at room occupancy — + disabled at cap, no over-warning (landr-9p76)', async () => {
+    // Double Room (capacity=2, x1 room) → expectedQty=2.
+    // The + button must be disabled once breakfast qty reaches 2;
+    // clicking beyond that has no effect and no over-warning appears.
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('double-room', 'Double Room', 73, 2),
@@ -719,21 +722,21 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Breakfast')).toBeInTheDocument(),
     )
-    const breakfastButtons = screen.getAllByRole('button', {
-      name: /Increase .* quantity/i,
-    })
+
+    // Click + until the button becomes disabled (should cap at expectedQty=2)
+    const getBreakfastPlus = () =>
+      screen.getAllByRole('button', { name: /Increase .* quantity/i })[1]!
+
     for (let i = 0; i < 5; i += 1) {
-      fireEvent.click(breakfastButtons[1]!)
+      fireEvent.click(getBreakfastPlus())
     }
 
-    await waitFor(() =>
-      expect(
-        screen.getByTestId('overbook-breakfast-warning'),
-      ).toBeInTheDocument(),
-    )
-    expect(screen.getByTestId('overbook-breakfast-warning')).toHaveTextContent(
-      /5 breakfasts for 2 people/i,
-    )
+    await waitFor(() => expect(getBreakfastPlus()).toBeDisabled())
+
+    // No over-warning; no breakfast-summary warning; Continue stays enabled.
+    expect(
+      screen.queryByTestId('overbook-breakfast-warning'),
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
     ).not.toBeInTheDocument()
