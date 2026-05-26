@@ -54,14 +54,20 @@ describe('AddonsList (landr-cip6)', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('shows the orange overbook warning when qty > expectedQty', () => {
+  it('shows the orange overbook warning when qty > expectedQty (service-flow, expectedQty=1)', () => {
+    // landr-9p76: for service-flow add-ons (expectedQty=1) there is no
+    // occupancy cap, so the over-warning rendering path is still reachable
+    // (e.g. state hydrated from external source).  Occupancy-linked add-ons
+    // (expectedQty > 1) cannot reach this state via the stepper — the + is
+    // disabled at the ceiling — but the rendering branch is preserved for
+    // defensive display of externally-set state.
     const addon = makeAddon({ addon_product_id: 'a1', name: 'Breakfast' })
     render(
       <AddonsList
         addons={[addon]}
-        selection={{ a1: 3 }}
+        selection={{ a1: 2 }}
         onChange={vi.fn()}
-        expectedQty={2}
+        expectedQty={1}
       />,
     )
     expect(
@@ -169,21 +175,38 @@ describe('AddonsList (landr-cip6)', () => {
     expect(underWarn).toHaveTextContent(/sleeps 2/i)
   })
 
-  it('Double Room x1 (cap=2, expectedQty=2): 3 breakfast => over-warning', () => {
+  it('Double Room x1 (cap=2, expectedQty=2): + button disabled at qty=2 (hard cap)', () => {
+    // landr-9p76: occupancy-linked add-ons cannot exceed expectedQty via the
+    // stepper — the + button must be disabled once qty >= expectedQty=2.
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
     render(
       <AddonsList
         addons={[addon]}
-        selection={{ bf: 3 }}
+        selection={{ bf: 2 }}
         onChange={vi.fn()}
         expectedQty={2}
       />,
     )
+    const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
+    expect(plus).toBeDisabled()
+    // At the cap there is no overbook warning
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
-    const overWarn = screen.getByTestId('addon-overbook-bf')
-    expect(overWarn).toBeInTheDocument()
-    expect(overWarn).toHaveTextContent(/more breakfast/i)
-    expect(overWarn).toHaveTextContent(/sleeps \(2\)/i)
+  })
+
+  it('Double Room x1 (cap=2, expectedQty=2): + enabled at qty=1 (under cap)', () => {
+    // landr-9p76: booking fewer than occupancy is still allowed.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
+    expect(plus).not.toBeDisabled()
   })
 
   it('Single Room x1 (cap=1, expectedQty=1): 1 breakfast => no warning', () => {
@@ -212,6 +235,41 @@ describe('AddonsList (landr-cip6)', () => {
     )
     expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+  })
+
+  it('2 Double Rooms (expectedQty=4): + disabled at qty=4 (hard cap)', () => {
+    // landr-9p76: cap scales with room count — 2 doubles → cap at 4.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 4 }}
+        onChange={vi.fn()}
+        expectedQty={4}
+      />,
+    )
+    const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
+    expect(plus).toBeDisabled()
+  })
+
+  it('generic service add-on (expectedQty=1, max_qty=null): + still enabled above 1 (no occupancy cap)', () => {
+    // landr-9p76: service-flow add-ons (expectedQty=1) must NOT receive an
+    // occupancy hard-cap — they stay incrementable per their own max_qty.
+    const addon = makeAddon({
+      addon_product_id: 'svc',
+      name: 'Video Package',
+      max_qty: null,
+    })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ svc: 5 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    const plus = screen.getByRole('button', { name: /Increase Video Package/i })
+    expect(plus).not.toBeDisabled()
   })
 
   it('service add-on with expectedQty=1: qty=2 shows over-warning, qty=1 is silent', () => {

@@ -51,12 +51,44 @@ describe('addonsState (landr-cip6)', () => {
       expect(clampAddonQty(makeAddon(), -5)).toBe(0)
     })
 
-    it('uncapped when max_qty is null', () => {
+    it('uncapped when max_qty is null and no occupancyCap', () => {
       expect(clampAddonQty(makeAddon({ max_qty: null }), 9999)).toBe(9999)
     })
 
     it('caps at max_qty when set', () => {
       expect(clampAddonQty(makeAddon({ max_qty: 5 }), 10)).toBe(5)
+    })
+
+    // landr-9p76: occupancy-cap (hard ceiling for breakfast-style add-ons)
+    it('Double Room x1 (cap=2): clamp(3) → 2 when occupancyCap=2', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 3, 2)).toBe(2)
+    })
+
+    it('Double Room x1 (cap=2): clamp(2) → 2 (at ceiling)', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 2, 2)).toBe(2)
+    })
+
+    it('Double Room x1 (cap=2): clamp(1) → 1 (under ceiling — allowed)', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 1, 2)).toBe(1)
+    })
+
+    it('2 Double Rooms (expectedQty=4): clamp(5) → 4', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 5, 4)).toBe(4)
+    })
+
+    it('uses min(max_qty, occupancyCap) when max_qty is lower', () => {
+      // max_qty=1 is more restrictive than occupancyCap=2 → ceil at 1
+      expect(clampAddonQty(makeAddon({ max_qty: 1 }), 3, 2)).toBe(1)
+    })
+
+    it('uses min(max_qty, occupancyCap) when occupancyCap is lower', () => {
+      // occupancyCap=2 is more restrictive than max_qty=5 → ceil at 2
+      expect(clampAddonQty(makeAddon({ max_qty: 5 }), 4, 2)).toBe(2)
+    })
+
+    it('generic service add-on (no occupancyCap): uncapped by occupancy', () => {
+      // Service add-ons never receive an occupancyCap; max_qty=null means infinite.
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 9999)).toBe(9999)
     })
   })
 
