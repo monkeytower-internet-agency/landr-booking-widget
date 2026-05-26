@@ -85,15 +85,22 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listProducts(
   operatorToken: string,
-  options?: { group?: string; includeHotelRooms?: boolean },
+  options?: { group?: string; includeHotelRooms?: boolean; previewToken?: string },
 ): Promise<Product[]> {
   let raw: Product[]
   if (mocksEnabled()) {
-    raw = mockProducts(options?.group)
+    raw = mockProducts(options?.group, options?.previewToken)
   } else {
     const qs = new URLSearchParams()
     if (options?.group) {
       qs.append('group', options.group)
+    }
+    // landr-7zc5.3: when a preview_token is present, append it so the API
+    // returns drafts alongside published products for this operator. The
+    // API silently falls back to published-only when the token is absent,
+    // wrong, or cross-operator (no error surfaced to the customer).
+    if (options?.previewToken) {
+      qs.append('preview_token', options.previewToken)
     }
     const path = `/api/public/operators/${encodeURIComponent(operatorToken)}/products`
     raw = await http<Product[]>(qs.toString() ? `${path}?${qs}` : path)
@@ -244,11 +251,19 @@ export async function getProductAddons(
 
 export async function submitBooking(
   body: SubmitBookingBody,
+  options?: { previewToken?: string },
 ): Promise<SubmitBookingResponse> {
   if (mocksEnabled()) return mockSubmit()
+  // landr-7zc5.3: include preview_token in the POST body when present so
+  // the API can accept draft-product bookings during operator preview.
+  // The API ignores this field when absent or when the token doesn't match
+  // the operator (inactive/deleted/foreign products are still rejected).
+  const payload = options?.previewToken
+    ? { ...body, preview_token: options.previewToken }
+    : body
   return http<SubmitBookingResponse>('/api/public/bookings', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   })
 }
 

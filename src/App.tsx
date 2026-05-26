@@ -92,7 +92,12 @@ const PARA42_LANGUAGE_OPTIONS: LanguageOption[] = [
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
-    return { token: null as string | null, product: null as string | null, group: null as string | null }
+    return {
+      token: null as string | null,
+      product: null as string | null,
+      group: null as string | null,
+      previewToken: null as string | null,
+    }
   }
   const params = new URLSearchParams(window.location.search)
   return {
@@ -100,6 +105,10 @@ function readQueryParams() {
     token: params.get('w'),
     product: params.get('product'),
     group: params.get('group'),
+    // landr-7zc5.3: operator preview_token — when present the products
+    // fetch uses the preview path which returns drafts too. Absent in
+    // normal customer-facing embed URLs (published-only behaviour).
+    previewToken: params.get('preview_token'),
   }
 }
 
@@ -127,7 +136,7 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group } = useMemo(() => readQueryParams(), [])
+  const { token, product, group, previewToken } = useMemo(() => readQueryParams(), [])
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -422,9 +431,27 @@ function BookingFlowApp() {
           </div>
         ) : null}
 
+        {/*
+          landr-7zc5.3: preview mode banner — visible to the operator
+          when they follow a preview link (preview_token in the URL).
+          Customers visiting the live embed never see this banner because
+          no preview_token is present in the published embed URL.
+        */}
+        {previewToken ? (
+          <div
+            className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            data-testid="preview-mode-banner"
+            role="status"
+          >
+            <span className="font-semibold">Preview mode</span>
+            <span>— draft products are visible. This link is for operator review only.</span>
+          </div>
+        ) : null}
+
         {step.name === 'pick-product' ? (
           <ProductList
             operatorToken={token!}
+            previewToken={previewToken ?? undefined}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
             onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
@@ -783,6 +810,7 @@ function BookingFlowApp() {
         {step.name === 'fill-form' ? (
           <BookingForm
             widgetToken={token!}
+            previewToken={previewToken ?? undefined}
             product={step.product}
             selection={step.selection}
             booker={step.booker}

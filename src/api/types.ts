@@ -121,6 +121,14 @@ export interface Product {
    * — the lenient default until landr-knm0 backfills the seeds.
    */
   capacity_per_unit?: number | null
+  /**
+   * landr-7zc5.3: publish state. true = published (live), false = draft.
+   * The live products RPC only returns rows where is_publicly_listed=true;
+   * the preview path also returns false rows. Used by ProductList to render
+   * the "Draft — preview" badge when the operator is reviewing unpublished
+   * products. Absent on legacy API responses — treated as published.
+   */
+  is_publicly_listed?: boolean
 }
 
 /**
@@ -297,6 +305,15 @@ export interface SubmitBookingBody {
    * false (omitting it is a regular booking).
    */
   is_shared_double?: boolean
+  /**
+   * landr-7zc5.3: operator preview token — allows the API to accept
+   * bookings against draft products during operator preview. Omitted in
+   * all normal customer-facing submits; only present when the widget was
+   * opened via a preview link (?preview_token=…). The API validates that
+   * the token matches the operator and silently rejects inactive/deleted/
+   * foreign products regardless.
+   */
+  preview_token?: string | null
 }
 
 export interface SubmitBookingResponse {
