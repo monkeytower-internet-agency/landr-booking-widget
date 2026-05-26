@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
+import { HttpError } from '@/api/client'
 import App from './App'
 
 const { mocks } = vi.hoisted(() => ({
@@ -10,6 +11,7 @@ const { mocks } = vi.hoisted(() => ({
       (slug: string, opts?: { group?: string }) => Promise<Product[]>
     >(),
     getOperatorSettings: vi.fn(),
+    getOperatorServiceRoles: vi.fn(),
     getAvailability: vi.fn<
       (id: string, from: string, to: string) => Promise<AvailabilitySlot[]>
     >(),
@@ -19,14 +21,22 @@ const { mocks } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/api/client', () => ({
-  listProducts: mocks.listProducts,
-  getOperatorSettings: mocks.getOperatorSettings,
-  getAvailability: mocks.getAvailability,
-  getFixedDateWindows: mocks.getFixedDateWindows,
-  listLocations: mocks.listLocations,
-  submitBooking: mocks.submitBooking,
-}))
+// landr-il9f.2: HttpError is a real class (not just a mock) so the 404 test
+// can construct a real instance. Re-export it from the real module while
+// keeping all API functions mocked.
+vi.mock('@/api/client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/api/client')>()
+  return {
+    ...real,
+    listProducts: mocks.listProducts,
+    getOperatorSettings: mocks.getOperatorSettings,
+    getOperatorServiceRoles: mocks.getOperatorServiceRoles,
+    getAvailability: mocks.getAvailability,
+    getFixedDateWindows: mocks.getFixedDateWindows,
+    listLocations: mocks.listLocations,
+    submitBooking: mocks.submitBooking,
+  }
+})
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -54,13 +64,21 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
   }
 }
 
+// landr-il9f.2: the widget resolves operator by opaque ?w=<token>.
+// Tests must pass a ?w= param so the app doesn't immediately show the
+// landing page. The mock token 'mock-token-abc' stands in for a real
+// widget_token (which randomises per db-reset in the real dev env).
+const MOCK_TOKEN = 'mock-token-abc'
+
 describe('App', () => {
   beforeEach(() => {
-    window.history.replaceState({}, '', '/')
+    // Default: a valid token so the booking flow renders.
+    window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
     mocks.getOperatorSettings.mockResolvedValue({
       slug: 'para42',
       expose_seats_to_customer: false,
     })
+    mocks.getOperatorServiceRoles.mockResolvedValue([])
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
@@ -70,12 +88,37 @@ describe('App', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the product list for the default operator (landr-711: no widget headline)', async () => {
+  // landr-il9f.2: landing page shown when no ?w= param is present.
+  it('shows the generic landing page when no ?w= param is provided', () => {
+    window.history.replaceState({}, '', '/')
+    render(<App />)
+    expect(screen.getByText(/This is the booking-widget host for Landr/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /www\.landr\.de/i })).toBeInTheDocument()
+    expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+  })
+
+  // landr-il9f.2: landing page shown when the API returns 404 for the token.
+  it('shows the generic landing page when the API returns 404 for the token', async () => {
+    mocks.getOperatorSettings.mockRejectedValue(
+      new HttpError(404, 'Not Found', '{"detail":"operator not found"}'),
+    )
+    mocks.listProducts.mockResolvedValue([])
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByText(/This is the booking-widget host for Landr/i)).toBeInTheDocument()
+    })
+  })
+
+  it('resolves operator by ?w=<token> and renders the product list', async () => {
     mocks.listProducts.mockResolvedValue([
       makeProduct({ product_id: 'p-1', slug: 'tandem-classic', name: 'Tandem Classic' }),
       makeProduct({ product_id: 'p-2', slug: 'tandem-long', name: 'Tandem Long' }),
     ])
     render(<App />)
+    // landr-il9f.2: token is passed through to getOperatorSettings.
+    await waitFor(() => {
+      expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+    })
     // landr-711: widget no longer renders a "Book with {operator}" H1 —
     // operators own the surrounding HTML and its headings.
     expect(screen.queryByText(/Book with/i)).not.toBeInTheDocument()
@@ -85,14 +128,14 @@ describe('App', () => {
     })
   })
 
-  it('honours ?operator= override by fetching that operator\'s products + settings', async () => {
+  it('passes the token to the API calls (?w=<token> → getOperatorSettings + listProducts)', async () => {
     mocks.listProducts.mockResolvedValue([])
-    window.history.replaceState({}, '', '/?operator=acme')
+    window.history.replaceState({}, '', '/?w=acme-token-xyz')
     render(<App />)
     await waitFor(() => {
-      expect(mocks.getOperatorSettings).toHaveBeenCalledWith('acme')
+      expect(mocks.getOperatorSettings).toHaveBeenCalledWith('acme-token-xyz')
       expect(mocks.listProducts).toHaveBeenCalledWith(
-        'acme',
+        'acme-token-xyz',
         expect.any(Object),
       )
     })

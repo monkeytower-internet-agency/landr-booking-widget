@@ -35,7 +35,7 @@ import { StepBackButton } from './StepBackButton'
 interface Props {
   product: Product
   selectedDays: string[]
-  operatorSlug: string
+  operatorToken: string
   /**
    * Number of people travelling, threaded through from ParticipantsStep
    * (landr-mbge). Used by the overbook warning (landr-qpab) to compare
@@ -131,7 +131,7 @@ interface Props {
 export function AccommodationStep({
   product,
   selectedDays,
-  operatorSlug,
+  operatorToken,
   participantCount = 1,
   onConfirm,
   onBack,
@@ -202,7 +202,7 @@ export function AccommodationStep({
     let cancelled = false
     void (async () => {
       try {
-        const list = await getHotelsForOperator(operatorSlug)
+        const list = await getHotelsForOperator(operatorToken)
         if (cancelled) return
         setHotels(list)
         // Auto-select when mandatory + exactly one hotel exists. Skip
@@ -222,7 +222,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [operatorSlug, isMandatory])
+  }, [operatorToken, isMandatory])
 
   // landr-punc: auto-select the lone hotel in the optional + Yes path.
   // The hotel list resolves on mount (effect above) but the customer
@@ -257,7 +257,7 @@ export function AccommodationStep({
     let cancelled = false
     void (async () => {
       try {
-        const list = await getHotelRoomsForHotel(operatorSlug, selectedHotelId)
+        const list = await getHotelRoomsForHotel(operatorToken, selectedHotelId)
         if (cancelled) return
         setRooms(list)
       } catch (err) {
@@ -268,7 +268,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [operatorSlug, selectedHotelId])
+  }, [operatorToken, selectedHotelId])
 
   // Fetch add-ons per room as soon as the rooms list resolves. Done as
   // an N-fetch (one per room) rather than a single bulk call because

@@ -84,7 +84,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function listProducts(
-  operatorSlug: string,
+  operatorToken: string,
   options?: { group?: string; includeHotelRooms?: boolean },
 ): Promise<Product[]> {
   let raw: Product[]
@@ -95,7 +95,7 @@ export async function listProducts(
     if (options?.group) {
       qs.append('group', options.group)
     }
-    const path = `/api/public/operators/${encodeURIComponent(operatorSlug)}/products`
+    const path = `/api/public/operators/${encodeURIComponent(operatorToken)}/products`
     raw = await http<Product[]>(qs.toString() ? `${path}?${qs}` : path)
   }
   // Hotel rooms (landr-vyaz) are surfaced only inside AccommodationStep,
@@ -119,14 +119,16 @@ export async function getAvailability(
 
 /**
  * Operator-level rendering/behaviour flags (landr-e10.9). The widget
- * calls this once on App mount and caches the result in OperatorContext.
+ * calls this once on App mount using the opaque widget_token (landr-il9f).
+ * The response still carries the operator slug (resolved server-side) for
+ * internal logic that is keyed on slug (e.g. Para42 declarations check).
  */
 export async function getOperatorSettings(
-  operatorSlug: string,
+  operatorToken: string,
 ): Promise<OperatorSettings> {
-  if (mocksEnabled()) return mockOperatorSettings(operatorSlug)
+  if (mocksEnabled()) return mockOperatorSettings(operatorToken)
   return http<OperatorSettings>(
-    `/api/public/operators/${encodeURIComponent(operatorSlug)}/settings`,
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/settings`,
   )
 }
 
@@ -140,22 +142,22 @@ export async function getOperatorSettings(
  * full list and DetailsStep shows a dropdown per participant.
  */
 export async function getOperatorServiceRoles(
-  operatorSlug: string,
+  operatorToken: string,
 ): Promise<ServiceRole[]> {
-  if (mocksEnabled()) return mockOperatorServiceRoles(operatorSlug)
+  if (mocksEnabled()) return mockOperatorServiceRoles(operatorToken)
   return http<ServiceRole[]>(
-    `/api/public/operators/${encodeURIComponent(operatorSlug)}/service-roles`,
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/service-roles`,
   )
 }
 
 /**
- * Stub pointing at the future GET /api/public/operators/{slug}/locations endpoint (landr-e10.8).
+ * Stub pointing at the GET /api/public/operators/{token}/locations endpoint (landr-e10.8).
  * Falls back to mock data until the backend lands.
  */
-export async function listLocations(operatorSlug: string): Promise<Location[]> {
+export async function listLocations(operatorToken: string): Promise<Location[]> {
   if (mocksEnabled()) return mockLocations
   return http<Location[]>(
-    `/api/public/operators/${encodeURIComponent(operatorSlug)}/locations`,
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/locations`,
   )
 }
 
@@ -166,9 +168,9 @@ export async function listLocations(operatorSlug: string): Promise<Location[]> {
  * is tiny — a second RPC would cost a migration for no benefit.
  */
 export async function getHotelsForOperator(
-  operatorSlug: string,
+  operatorToken: string,
 ): Promise<Hotel[]> {
-  const locations = await listLocations(operatorSlug)
+  const locations = await listLocations(operatorToken)
   return locations.filter((loc) => loc.role_type?.code === 'hotel')
 }
 
@@ -179,13 +181,13 @@ export async function getHotelsForOperator(
  * getHotelsForOperator.
  */
 export async function getHotelRoomsForHotel(
-  operatorSlug: string,
+  operatorToken: string,
   hotelLocationId: string,
 ): Promise<Product[]> {
   if (mocksEnabled()) return mockHotelRooms(hotelLocationId)
   // opt-in: bypass the default hotel_room filter on listProducts so
   // the AccommodationStep can see the rooms it owns.
-  const products = await listProducts(operatorSlug, { includeHotelRooms: true })
+  const products = await listProducts(operatorToken, { includeHotelRooms: true })
   return products.filter(
     (p) =>
       p.product_kind === 'hotel_room' &&
@@ -292,13 +294,13 @@ export async function cancelBooking(
  * selected_days / participants_count / addon_lines changes.
  */
 export async function estimateBookingPrice(
-  operatorSlug: string,
+  operatorToken: string,
   productId: string,
   body: EstimateRequestBody,
 ): Promise<EstimateResponse> {
   if (mocksEnabled()) return mockEstimate(productId, body)
   return http<EstimateResponse>(
-    `/api/public/operators/${encodeURIComponent(operatorSlug)}/products/${encodeURIComponent(productId)}/estimate`,
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/estimate`,
     {
       method: 'POST',
       body: JSON.stringify(body),

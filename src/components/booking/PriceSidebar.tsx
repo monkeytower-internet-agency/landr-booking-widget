@@ -48,7 +48,7 @@ import {
 } from './priceSidebarHelpers'
 
 interface Props {
-  operatorSlug: string
+  operatorToken: string
   product: Product
   selectedDays: string[]
   participantCount: number
@@ -323,7 +323,7 @@ function explanationHeading(kind: string): string {
 
 export default function PriceSidebar(props: Props) {
   const {
-    operatorSlug,
+    operatorToken,
     product,
     selectedDays,
     participantCount,
@@ -351,7 +351,7 @@ export default function PriceSidebar(props: Props) {
   }, [participantNames])
 
   const estimate = useBookingEstimate({
-    operatorSlug,
+    operatorToken,
     productId: product.product_id,
     selectedDays,
     participantCount,

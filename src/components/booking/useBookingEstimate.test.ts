@@ -35,7 +35,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
       .mockResolvedValue(SAMPLE_ESTIMATE)
     renderHook(() =>
       useBookingEstimate({
-        operatorSlug: 'para42',
+        operatorToken: 'para42',
         productId: 'p-1',
         selectedDays: ['2026-05-23'],
         participantCount: 1,
@@ -54,7 +54,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
       .mockResolvedValue(SAMPLE_ESTIMATE)
     renderHook(() =>
       useBookingEstimate({
-        operatorSlug: 'para42',
+        operatorToken: 'para42',
         productId: null,
         selectedDays: ['2026-05-23'],
         participantCount: 1,
@@ -71,7 +71,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
       .mockResolvedValue(SAMPLE_ESTIMATE)
     const { result } = renderHook(() =>
       useBookingEstimate({
-        operatorSlug: 'para42',
+        operatorToken: 'para42',
         productId: 'p-1',
         selectedDays: ['2026-05-23'],
         participantCount: 1,
@@ -97,7 +97,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
     const { rerender } = renderHook(
       ({ count }: { count: number }) =>
         useBookingEstimate({
-          operatorSlug: 'para42',
+          operatorToken: 'para42',
           productId: 'p-1',
           selectedDays: ['2026-05-23'],
           participantCount: count,
@@ -139,7 +139,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
     )
     const { result } = renderHook(() =>
       useBookingEstimate({
-        operatorSlug: 'para42',
+        operatorToken: 'para42',
         productId: 'p-1',
         selectedDays: ['2026-05-23'],
         participantCount: 1,
@@ -169,7 +169,7 @@ describe('useBookingEstimate (landr-qez0)', () => {
     const { result, rerender } = renderHook(
       ({ count }: { count: number }) =>
         useBookingEstimate({
-          operatorSlug: 'para42',
+          operatorToken: 'para42',
           productId: 'p-1',
           selectedDays: ['2026-05-23'],
           participantCount: count,

@@ -37,7 +37,7 @@ import type {
 import { useDebouncedValue } from './useDebouncedValue'
 
 export interface UseBookingEstimateArgs {
-  operatorSlug: string
+  operatorToken: string
   productId: string | null
   selectedDays: string[]
   participantCount: number
@@ -63,18 +63,18 @@ export interface UseBookingEstimateResult {
  * (<10 entries in practice) and the keys are deterministic.
  */
 function buildKey(
-  operatorSlug: string,
+  operatorToken: string,
   productId: string | null,
   body: EstimateRequestBody,
 ): string {
-  return JSON.stringify({ operatorSlug, productId, ...body })
+  return JSON.stringify({ operatorToken, productId, ...body })
 }
 
 export function useBookingEstimate(
   args: UseBookingEstimateArgs,
 ): UseBookingEstimateResult {
   const {
-    operatorSlug,
+    operatorToken,
     productId,
     selectedDays,
     participantCount,
@@ -96,8 +96,8 @@ export function useBookingEstimate(
   )
 
   const liveKey = useMemo(
-    () => buildKey(operatorSlug, productId, body),
-    [operatorSlug, productId, body],
+    () => buildKey(operatorToken, productId, body),
+    [operatorToken, productId, body],
   )
   const debouncedKey = useDebouncedValue(liveKey, debounceMs)
 
@@ -108,11 +108,11 @@ export function useBookingEstimate(
 
   // Refs that allow the refresh callback to always see the latest values
   // without being listed as hook dependencies (avoiding infinite loops).
-  const operatorSlugRef = useRef(operatorSlug)
+  const operatorTokenRef = useRef(operatorToken)
   const productIdRef = useRef(productId)
   const bodyRef = useRef(body)
   const enabledRef = useRef(enabled)
-  useEffect(() => { operatorSlugRef.current = operatorSlug }, [operatorSlug])
+  useEffect(() => { operatorTokenRef.current = operatorToken }, [operatorToken])
   useEffect(() => { productIdRef.current = productId }, [productId])
   useEffect(() => { bodyRef.current = body }, [body])
   useEffect(() => { enabledRef.current = enabled }, [enabled])
@@ -132,7 +132,7 @@ export function useBookingEstimate(
       setIsLoading(true)
       setError(null)
       try {
-        const res = await estimateBookingPrice(operatorSlug, productId, body)
+        const res = await estimateBookingPrice(operatorToken, productId, body)
         if (cancelled || myId !== requestIdRef.current) return
         setData(res)
         setIsLoading(false)
@@ -146,7 +146,7 @@ export function useBookingEstimate(
       cancelled = true
     }
     // body is intentionally tracked via debouncedKey (a stable
-    // string-serialised form of body+operatorSlug+productId). If we
+    // string-serialised form of body+operatorToken+productId). If we
     // also listed `body` here React's identity check would re-fire on
     // every parent render even when the actual inputs haven't changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,7 +157,7 @@ export function useBookingEstimate(
   // being a dependency of any effect.
   const refresh = useCallback(() => {
     if (!enabledRef.current || !productIdRef.current) return
-    const slug = operatorSlugRef.current
+    const slug = operatorTokenRef.current
     const pid = productIdRef.current
     const b = bodyRef.current
     const myId = ++requestIdRef.current

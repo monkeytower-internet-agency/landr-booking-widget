@@ -2,8 +2,8 @@
 /**
  * Plugin Name: LANDR Booking
  * Plugin URI:  https://github.com/monkeytower-internet-agency/landr-booking-widget
- * Description: Embeds the LANDR booking widget via the [landr_booking operator="..."] shortcode. Widget origin is configurable under Settings → LANDR Booking.
- * Version:     0.3.0
+ * Description: Embeds the LANDR booking widget via the [landr_booking token="..."] shortcode. Widget origin is configurable under Settings → LANDR Booking.
+ * Version:     0.4.0
  * Author:      Monkeytower Internet Agency
  * License:     MIT
  */
@@ -28,7 +28,11 @@ function landr_booking_get_origin() {
 }
 
 /**
- * [landr_booking operator="para42" group="optional-category-slug" product="optional-slug" height="800" src="https://..."]
+ * [landr_booking token="<widget_token>" group="optional-category-slug" product="optional-slug" height="800" src="https://..."]
+ *
+ * `token=` is the opaque, rotatable per-operator widget token (landr-il9f).
+ * It is emitted as the `?w=<token>` URL parameter so the widget can resolve
+ * the operator server-side without exposing the operator slug.
  *
  * `group=` scopes the embed to one product category (a product_groups
  * slug) AND all of its nested sub-categories — the API resolves the
@@ -44,21 +48,22 @@ function landr_booking_get_origin() {
 function landr_booking_shortcode( $atts ) {
     $atts = shortcode_atts(
         array(
-            'operator' => '',
-            'group'    => '',
-            'product'  => '',
-            'height'   => '800',
-            'src'      => '',
+            'token'   => '',
+            'group'   => '',
+            'product' => '',
+            'height'  => '800',
+            'src'     => '',
         ),
         $atts,
         'landr_booking'
     );
 
-    if ( empty( $atts['operator'] ) ) {
-        return '<p><em>LANDR booking: missing required "operator" attribute.</em></p>';
+    if ( empty( $atts['token'] ) ) {
+        return '<p><em>LANDR booking: missing required "token" attribute.</em></p>';
     }
 
-    $query = array( 'operator' => $atts['operator'] );
+    // Convention (landr-il9f): widget URL param is ?w=<widget_token>.
+    $query = array( 'w' => $atts['token'] );
     if ( ! empty( $atts['group'] ) ) {
         $query['group'] = $atts['group'];
     }
@@ -181,7 +186,7 @@ function landr_booking_render_settings_page() {
         </form>
         <h2><?php esc_html_e( 'Shortcode', 'landr-booking' ); ?></h2>
         <p>
-            <code>[landr_booking operator="para42"]</code>
+            <code>[landr_booking token="&lt;widget_token&gt;"]</code>
             &mdash;
             <?php
             printf(
@@ -190,6 +195,9 @@ function landr_booking_render_settings_page() {
                 '<code>' . esc_html( landr_booking_get_origin() ) . '</code>'
             );
             ?>
+        </p>
+        <p>
+            <?php esc_html_e( 'The token= attribute is the opaque widget token from the Dashboard → Embed generator. It maps to ?w=&lt;token&gt; in the iframe src.', 'landr-booking' ); ?>
         </p>
         <p>
             <?php esc_html_e( 'Optional attributes:', 'landr-booking' ); ?>

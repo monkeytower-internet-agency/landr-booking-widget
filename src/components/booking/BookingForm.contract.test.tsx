@@ -78,7 +78,7 @@ const PARTICIPANTS: ParticipantDetails[] = [
 
 /** Fields the FastAPI PublicSubmitBookingIn marks required. */
 const REQUIRED_TOP_LEVEL = [
-  'operator_slug',
+  'widget_token',
   'customer_first_name',
   'customer_email',
   'cancellation_deadline',
@@ -121,7 +121,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   it('POSTs to /api/public/bookings with a body matching PublicSubmitBookingIn (all required fields + correct shapes)', async () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct()}
         selection={SELECTION}
         booker={BOOKER}
@@ -154,7 +154,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     }
 
     // Customer fields flattened from the booker
-    expect(body.operator_slug).toBe('para42')
+    expect(body.widget_token).toBe('para42')
     expect(body.customer_first_name).toBe('Ada')
     expect(body.customer_last_name).toBe('Lovelace')
     expect(body.customer_email).toBe('ada@example.com')
@@ -253,7 +253,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
 
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct()}
         selection={SELECTION}
         booker={BOOKER}
@@ -277,7 +277,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   it('omits no required PublicSubmitBookingIn field when the booking has no rooms / no addons', async () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct()}
         selection={SELECTION}
         booker={BOOKER}
