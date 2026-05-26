@@ -147,6 +147,11 @@ function BookingFlowApp() {
   // (landr-w7pi). Cleared whenever we leave pick-selection so the next
   // visit to that step starts fresh.
   const [liveSelectionDays, setLiveSelectionDays] = useState<string[]>([])
+  // landr-gb2f.1: live participant count + names from DetailsStep before
+  // Continue is pressed. Mirrors the liveSelectionDays pattern. Cleared
+  // when leaving the details step so back-nav starts fresh.
+  const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
+  const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
   // first render never leaks seat counts for opted-out operators.
@@ -214,6 +219,9 @@ function BookingFlowApp() {
     // Clear live selection so that a Back → re-enter cycle shows an
     // empty price sidebar until the user picks days again (landr-w7pi).
     setLiveSelectionDays([])
+    // landr-gb2f.1: also clear live participant state on a full restart.
+    setLiveParticipantCount(0)
+    setLiveParticipantNames([])
     setStep({ name: 'pick-product' })
   }, [])
 
@@ -232,6 +240,11 @@ function BookingFlowApp() {
     // the ephemeral state so it doesn't linger if the user ever navigates
     // back to pick-selection via Back (landr-w7pi).
     setLiveSelectionDays([])
+    // landr-gb2f.1: reset live participant state each time we (re-)enter
+    // DetailsStep so a Back → re-enter cycle shows the committed sidebar
+    // values (from step state) rather than stale live values.
+    setLiveParticipantCount(0)
+    setLiveParticipantNames([])
     setStep({ name: 'details', product, selection })
   }
 
@@ -541,6 +554,13 @@ function BookingFlowApp() {
             onConfirm={(booker, participants) =>
               afterDetails(step.product, step.selection, booker, participants)
             }
+            // landr-gb2f.1: live participant count + names for the sidebar.
+            // Fires on every add/remove/name-change so the price breakdown
+            // updates without waiting for Continue.
+            onLiveParticipantsChange={(count, names) => {
+              setLiveParticipantCount(count)
+              setLiveParticipantNames(names)
+            }}
           />
         ) : null}
 
@@ -942,8 +962,22 @@ function BookingFlowApp() {
                 ? liveSelectionDays
                 : sidebarInputs.selectedDays
             }
-            participantCount={sidebarInputs.participantCount}
-            participantNames={sidebarInputs.participantNames}
+            // landr-gb2f.1: on the details step use live count/names so the
+            // sidebar price breakdown updates as the customer adds/removes
+            // participants, mirroring the liveSelectionDays pattern for dates.
+            // When liveParticipantCount is 0 (no changes yet), fall back to
+            // the committed step-state value (covers back-nav re-entry where
+            // prior data is already in step.participants).
+            participantCount={
+              step.name === 'details' && liveParticipantCount > 0
+                ? liveParticipantCount
+                : sidebarInputs.participantCount
+            }
+            participantNames={
+              step.name === 'details' && liveParticipantCount > 0
+                ? liveParticipantNames
+                : sidebarInputs.participantNames
+            }
             accommodationRooms={sidebarInputs.accommodationRooms}
             addons={sidebarInputs.addons}
             debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
