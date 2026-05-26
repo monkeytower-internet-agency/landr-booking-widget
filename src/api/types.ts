@@ -286,6 +286,17 @@ export interface SubmitBookingBody {
    * Required for operators that enforce a language selection.
    */
   customer_language?: string | null
+  /**
+   * landr-ffyg.1 / landr-ffyg.2: "second pilot in a shared double room"
+   * marker. When true the booker shares another pilot's double room and
+   * the submit MUST NOT include any hotel_room product line (the room is
+   * covered by the first pilot's booking) AND MUST carry a
+   * pickup_location_id on at least one participant (the shared hotel is
+   * the collection point). The API persists this on
+   * bookings.is_shared_double and 422s on either violation. Defaults
+   * false (omitting it is a regular booking).
+   */
+  is_shared_double?: boolean
 }
 
 export interface SubmitBookingResponse {

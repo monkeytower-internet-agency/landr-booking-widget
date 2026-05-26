@@ -70,6 +70,13 @@ interface Props {
    * Required alongside customerDeclarations for enforcing operators.
    */
   customerLanguage?: string | null
+  /**
+   * landr-ffyg.2: "second pilot in a shared double room" mode. When true
+   * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
+   * accommodationRooms is empty (no hotel_room lines), and the
+   * pickupLocationId is the shared hotel. Defaults false.
+   */
+  isSharedDouble?: boolean
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -168,6 +175,7 @@ export function BookingForm({
   addons,
   customerDeclarations,
   customerLanguage,
+  isSharedDouble = false,
   onBack,
   onConfirmed,
 }: Props) {
@@ -262,6 +270,12 @@ export function BookingForm({
         ...(customerLanguage != null
           ? { customer_language: customerLanguage }
           : {}),
+        // landr-ffyg.2: top-level shared-double marker (landr-ffyg.1).
+        // Always sent — true for the second-pilot-sharing mode (in which
+        // case accommodationRooms is empty so no hotel_room line ships and
+        // pickupLocationId is the shared hotel), false for every other
+        // mode. The API persists it on bookings.is_shared_double.
+        is_shared_double: isSharedDouble,
       }
       const result = await submitBooking(body)
       onConfirmed(result, booker.email)

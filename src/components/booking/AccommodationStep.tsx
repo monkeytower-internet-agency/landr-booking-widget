@@ -32,6 +32,27 @@ import {
 import { formatDayLabel } from './dateLabel'
 import { StepBackButton } from './StepBackButton'
 
+/**
+ * landr-ffyg.2: top-level accommodation MODE. Replaces the old
+ * `showSharedDoubleCheckbox` informational-checkbox model (landr-sbhz.4)
+ * with a proper mode choice that matches Para42's real booking form:
+ *
+ *   - 'guiding-only'  — guiding only, the pilot brings their own
+ *     accommodation. ONLY offered when product.hotel_offering ===
+ *     'optional' (this is the existing "No hotel" opt-out path: rooms=[],
+ *     hotelLocationId=null → falls through to the free-pickup picker /
+ *     fill-form). Never offered for 'mandatory' (a hotel stay is required).
+ *   - 'package'       — book accommodation as a package: the existing
+ *     hotel + room-selection flow.
+ *   - 'shared-double' — "I am the second pilot in a shared double room".
+ *     The pilot books NO room (the first pilot's double room covers both
+ *     of them) and is collected from the hotel. We set hotelLocationId so
+ *     the landr-4r80 routing makes the hotel the pickup and SKIPS the
+ *     free-pickup picker, rooms=[], isSharedDouble=true. The customer must
+ *     NEVER reach the free-pickup picker in this mode.
+ */
+export type AccommodationMode = 'guiding-only' | 'package' | 'shared-double'
+
 interface Props {
   product: Product
   selectedDays: string[]
@@ -46,20 +67,22 @@ interface Props {
   participantCount?: number
   /**
    * Called when the customer confirms a room selection. rooms can be
-   * empty when the customer opts out of an `optional` accommodation.
-   * hotelLocationId is null in that case so the booking submit does
-   * not pass a hotel context.
+   * empty when the customer opts out of an `optional` accommodation
+   * (guiding-only mode) or chose the shared-double bypass.
+   * hotelLocationId is null in the guiding-only case so the booking
+   * submit does not pass a hotel context; non-null for both 'package'
+   * (chosen hotel + rooms) and 'shared-double' (chosen hotel, NO rooms)
+   * so the landr-4r80 routing makes the hotel the pickup.
    *
-   * landr-yf0n: the includeHotel boolean reports the optional-mode
-   * Yes/No state at confirm time so App.tsx can stash it in the step
-   * state for back-nav restoration. undefined for the mandatory path.
+   * landr-yf0n: the includeHotel boolean reports whether a hotel context
+   * is in play at confirm time so App.tsx can stash it in the step state
+   * for back-nav restoration. undefined for the mandatory path; false
+   * only in guiding-only mode.
    *
-   * landr-sbhz.4: isSharedDouble is true when the customer checked
-   * "I am the second occupant of a shared double room". This is
-   * informational only — it does not change the submitted product
-   * lines (the double room line still goes through as qty=1 so the
-   * hotel knows one room is occupied by two separate bookings). It is
-   * threaded through the step machine so back-nav restores the tick.
+   * landr-ffyg.2: isSharedDouble is true when the customer chose the
+   * "I am the second pilot in a shared double room" mode. On submit this
+   * becomes the top-level `is_shared_double` boolean (landr-ffyg.1) and
+   * NO hotel_room product lines are sent — only the guiding service line.
    */
   onConfirm: (
     rooms: RoomSelection[],
@@ -80,53 +103,55 @@ interface Props {
    * restored (instead of empty steppers). Each field is independently
    * optional — only what was confirmed comes back.
    *
-   * initialIncludeHotel covers the optional-mode Yes/No gate so a
-   * customer who opted-out doesn't see the gate flip back to "Yes" on
-   * re-entry. undefined → default to the offering-driven initial value.
+   * initialIncludeHotel covers the guiding-only-mode opt-out so a
+   * customer who opted-out doesn't see the mode flip back on re-entry.
+   * undefined → default to the offering-driven initial mode.
    *
-   * initialIsSharedDouble restores the shared-double tick (landr-sbhz.4).
+   * landr-ffyg.2: initialMode restores the chosen top-level accommodation
+   * mode on back-nav re-entry. undefined → default to the offering-driven
+   * initial mode ('package' is the default for both mandatory and
+   * optional offerings; the customer explicitly opts into guiding-only or
+   * shared-double).
    */
   initialHotelLocationId?: string | null
   initialRooms?: RoomSelection[]
   initialAddons?: AddonSelection[]
   initialIncludeHotel?: boolean
-  /** landr-sbhz.4: restore shared-double flag on back-nav re-entry. */
-  initialIsSharedDouble?: boolean
+  /** landr-ffyg.2: restore the chosen accommodation mode on back-nav re-entry. */
+  initialMode?: AccommodationMode
 }
 
 /**
- * AccommodationStep — between pick-selection and pick-pickup/fill-form
- * for service products whose hotel_offering != 'none' (landr-vyaz).
+ * AccommodationStep — between details and pick-pickup/fill-form for
+ * service products whose hotel_offering != 'none' (landr-vyaz).
  *
- * Mandatory flow: customer picks a hotel (auto-selected when only one
- * is configured), then picks at least one room. Optional flow: same
- * but a Yes/No toggle gates the hotel + rooms — answering No skips
- * the hotel context entirely.
+ * landr-ffyg.2: the step now opens with a top-level MODE choice (when at
+ * least one hotel is configured). The modes replace the old optional
+ * Yes/No hotel toggle AND the informational shared-double checkbox:
  *
- * landr-sbhz.4 additions:
- *   - "I am the second occupant of a shared double room" checkbox,
- *     shown when exactly 1 double-capacity room is in the cart. The
- *     checkbox is informational — it doesn't change the booking lines;
- *     the hotel receives one double-room line and knows internally that
- *     two separate bookings share the room. The flag is threaded to
- *     onConfirm so the step machine can restore it on back-nav.
+ *   - 'guiding-only' (optional offering only): no hotel context — rooms=[],
+ *     hotelLocationId=null → free pickup / fill-form.
+ *   - 'package': pick a hotel (auto-selected when only one exists), then
+ *     pick at least one room.
+ *   - 'shared-double': pick a hotel only (auto-selected when only one
+ *     exists), NO room steppers, NO free pickup — the hotel is the pickup.
+ *
+ * landr-ffyg.2 / landr-sbhz.4 history:
+ *   - the previous build modelled "second occupant" as an informational
+ *     checkbox under a qty=1 double room (`showSharedDoubleCheckbox`).
+ *     That checkbox was NOT submitted and still shipped a double-room
+ *     line. It is REMOVED here in favour of the proper top-level mode +
+ *     the persisted `is_shared_double` boolean (landr-ffyg.1).
  *   - "Hotel is paid directly at check-in (cash / card) — not
- *     included in your booking total." notice, shown inside the step
- *     alongside the stay-window orientation line so the customer reads
- *     it while looking at the room list (rather than only in the
- *     sidebar pill).
- *   - Breakfast add-ons are already surfaced via AddonsList per room.
- *     Premium rooms (name includes "with Breakfast" / "incl. breakfast")
- *     are identified by isPremiumIncludesBreakfast() and their add-on
- *     list is hidden to avoid suggesting a duplicate breakfast charge.
+ *     included in your booking total." notice, shown inside the package
+ *     mode alongside the stay-window orientation line.
+ *   - Breakfast add-ons are surfaced via AddonsList per room. Premium
+ *     rooms (name includes "with Breakfast") are identified by
+ *     isPremiumIncludesBreakfast() and their add-on list is hidden.
  *
  * Pricing: the per-night room price is shown for clarity and totals
  * are summed, but the panel makes it explicit that the hotel is paid
  * directly at check-in and is NOT part of the booking gross_total.
- * The pricing engine on the API side still bills the rooms (via the
- * landr-kd5t multiplier) so operators that route hotel revenue
- * through the platform keep that path; the "paid directly" copy is
- * the consumer-facing affordance landr-vyaz scopes to.
  */
 export function AccommodationStep({
   product,
@@ -139,7 +164,7 @@ export function AccommodationStep({
   initialRooms,
   initialAddons,
   initialIncludeHotel,
-  initialIsSharedDouble,
+  initialMode,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -147,15 +172,29 @@ export function AccommodationStep({
 
   const [hotels, setHotels] = useState<Hotel[] | null>(null)
   const [hotelError, setHotelError] = useState<string | null>(null)
-  // landr-yf0n: seed selectedHotelId / includeHotel / selection /
-  // addonSelection from the initial-* props so back-nav re-entry
-  // restores the prior accommodation state instead of resetting.
+  // landr-yf0n: seed selectedHotelId / selection / addonSelection from the
+  // initial-* props so back-nav re-entry restores the prior accommodation
+  // state instead of resetting.
   const [selectedHotelId, setSelectedHotelId] = useState<string | null>(
     initialHotelLocationId ?? null,
   )
-  const [includeHotel, setIncludeHotel] = useState<boolean>(
-    initialIncludeHotel ?? isMandatory,
-  )
+  // landr-ffyg.2: the top-level accommodation mode. Seeded from initialMode
+  // on back-nav re-entry; otherwise inferred from initialIncludeHotel
+  // (false → the customer previously opted into guiding-only) and finally
+  // defaults to 'package' (the customer must explicitly opt into
+  // guiding-only or shared-double). 'guiding-only' is only valid for
+  // optional offerings — a mandatory offering can never opt out of a hotel.
+  const [mode, setMode] = useState<AccommodationMode>(() => {
+    if (initialMode) {
+      // Guard: a stale 'guiding-only' on a mandatory product is invalid.
+      if (initialMode === 'guiding-only' && isMandatory) return 'package'
+      return initialMode
+    }
+    if (offering === 'optional' && initialIncludeHotel === false) {
+      return 'guiding-only'
+    }
+    return 'package'
+  })
   const [rooms, setRooms] = useState<Product[] | null>(null)
   const [roomsError, setRoomsError] = useState<string | null>(null)
   const [selection, setSelection] = useState<Record<string, number>>(() => {
@@ -186,18 +225,14 @@ export function AccommodationStep({
     return seed
   })
 
-  // landr-sbhz.4: shared-double flag. True when the customer ticked "I
-  // am the second occupant of a shared double room". Seeded from
-  // initialIsSharedDouble on back-nav re-entry; reset to false when the
-  // hotel/room selection changes (changeHotel) because a different room
-  // choice may not be a double at all.
-  const [isSharedDouble, setIsSharedDouble] = useState<boolean>(
-    initialIsSharedDouble ?? false,
-  )
+  // landr-ffyg.2: derived mode predicates. A hotel context is needed for
+  // both 'package' (rooms) and 'shared-double' (hotel-only pickup); only
+  // 'guiding-only' skips the hotel entirely.
+  const needsHotel = mode === 'package' || mode === 'shared-double'
 
   // Fetch hotels for the operator. We always do this on mount so the
-  // 'optional' flow can immediately offer the customer a Yes/No choice
-  // without a second loading state after they answer Yes.
+  // mode choice can immediately offer the hotel-bearing modes without a
+  // second loading state once the customer picks a mode.
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -205,15 +240,6 @@ export function AccommodationStep({
         const list = await getHotelsForOperator(operatorToken)
         if (cancelled) return
         setHotels(list)
-        // Auto-select when mandatory + exactly one hotel exists. Skip
-        // the hotel-picker UI entirely in that case so the customer
-        // sees the room list immediately. The optional + Yes case is
-        // handled by a separate effect below so the auto-select fires
-        // when the customer flips includeHotel from false → true (the
-        // hotel list resolves on mount, before the toggle is clicked).
-        if (isMandatory && list.length === 1 && list[0]) {
-          setSelectedHotelId(list[0].location_id)
-        }
       } catch (err) {
         if (cancelled) return
         setHotelError(err instanceof Error ? err.message : String(err))
@@ -222,19 +248,18 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [operatorToken, isMandatory])
+  }, [operatorToken])
 
-  // landr-punc: auto-select the lone hotel in the optional + Yes path.
-  // The hotel list resolves on mount (effect above) but the customer
-  // hasn't clicked "Yes, add hotel" yet, so we re-run when includeHotel
-  // flips. The set lives inside an async IIFE (no synchronous setState
-  // in effect body — see widget-eslint-react-hooks-rules memory).
-  // Idempotent: re-firing with the same id is a no-op because the
-  // selectedHotelId guard short-circuits. Guards against clobbering an
-  // explicit user pick in the (offering=optional, hotels.length>1) path
-  // by gating on the exact-one-hotel condition.
+  // landr-punc / landr-ffyg.2: auto-select the lone hotel whenever a
+  // hotel-bearing mode is active and exactly one hotel is configured.
+  // Covers the mandatory-default, the package mode, and the shared-double
+  // mode uniformly. The set lives inside an async IIFE (no synchronous
+  // setState in effect body — see widget-eslint-react-hooks-rules memory).
+  // Idempotent: re-firing with the same id is a no-op (selectedHotelId
+  // guard short-circuits). Guards against clobbering an explicit user pick
+  // in the multi-hotel path by gating on the exact-one-hotel condition.
   useEffect(() => {
-    if (!includeHotel) return
+    if (!needsHotel) return
     if (!hotels || hotels.length !== 1) return
     if (selectedHotelId) return
     let cancelled = false
@@ -246,13 +271,15 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [includeHotel, hotels, selectedHotelId])
+  }, [needsHotel, hotels, selectedHotelId])
 
-  // Fetch rooms when a hotel is selected. The previous-state cleanup
-  // (rooms→null + selection→{}) happens in the hotel-change handlers
-  // rather than synchronously inside the effect — see react-hooks/
-  // set-state-in-effect. The effect itself only runs the async load.
+  // Fetch rooms when a hotel is selected AND we're in package mode. The
+  // shared-double mode never renders room steppers, so we skip the room
+  // fetch entirely there. The previous-state cleanup (rooms→null +
+  // selection→{}) happens in the hotel-change handlers rather than
+  // synchronously inside the effect — see react-hooks/set-state-in-effect.
   useEffect(() => {
+    if (mode !== 'package') return
     if (!selectedHotelId) return
     let cancelled = false
     void (async () => {
@@ -268,7 +295,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [operatorToken, selectedHotelId])
+  }, [operatorToken, selectedHotelId, mode])
 
   // Fetch add-ons per room as soon as the rooms list resolves. Done as
   // an N-fetch (one per room) rather than a single bulk call because
@@ -300,11 +327,9 @@ export function AccommodationStep({
 
   // Centralised hotel-change handler — resets the room list + selected
   // quantities BEFORE the next render so the effect only handles the
-  // async fetch. Used by the radio onChange and the "No, thanks"
-  // optional opt-out path. Also clears add-on selections so a customer
-  // switching hotels doesn't carry over breakfasts from the previous
-  // hotel's room list. Resets shared-double flag since a different room
-  // selection may not be a double.
+  // async fetch. Used by the radio onChange in package + shared-double
+  // modes. Also clears add-on selections so a customer switching hotels
+  // doesn't carry over breakfasts from the previous hotel's room list.
   function changeHotel(nextId: string | null) {
     setSelectedHotelId(nextId)
     setRooms(null)
@@ -312,7 +337,24 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
-    setIsSharedDouble(false)
+  }
+
+  // landr-ffyg.2: switching mode resets the room/add-on context so a stale
+  // selection from one mode doesn't bleed into another (e.g. picking rooms
+  // in package mode then flipping to shared-double must clear the rooms).
+  // The chosen hotel is preserved across package <-> shared-double switches
+  // (both need a hotel); only guiding-only clears it.
+  function changeMode(next: AccommodationMode) {
+    setMode(next)
+    setRooms(null)
+    setRoomsError(null)
+    setSelection({})
+    setAddonsByRoom({})
+    setAddonSelection({})
+    if (next === 'guiding-only') {
+      // Guiding-only has no hotel context at all.
+      setSelectedHotelId(null)
+    }
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -331,13 +373,11 @@ export function AccommodationStep({
   const productName = pickLocalized(product.name, product.name_localized, locale)
   const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
 
-  // 'optional' + No → no hotel context; confirm immediately on Continue.
-  const optedOut = offering === 'optional' && !includeHotel
-
   // Overbook warning inputs (landr-qpab) — both are non-blocking; the
   // customer can still hit Continue with the warning visible. We compute
   // capacity vs participants and breakfast vs participants from the same
-  // selection state already driving the steppers + add-ons.
+  // selection state already driving the steppers + add-ons. Only relevant
+  // in package mode (the other modes have no room steppers).
   const totalCapacity = useMemo(
     () => totalRoomCapacity(roomSelections, rooms ?? []),
     [roomSelections, rooms],
@@ -359,12 +399,13 @@ export function AccommodationStep({
     return totalBreakfastQty(addonSelection, breakfastIds)
   }, [selection, addonsByRoom, addonSelection])
 
-  // Warning visibility — both gates require at least one room picked so
-  // an empty cart doesn't surface a "0 beds for N people" copy on mount.
+  // Warning visibility — both gates require package mode + at least one
+  // room picked so an empty cart doesn't surface a "0 beds for N people"
+  // copy on mount.
   const showCapacityWarning =
-    !optedOut && totalRoomsPicked > 0 && totalCapacity < participantCount
+    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < participantCount
   const showBreakfastWarning =
-    !optedOut && totalRoomsPicked > 0 && breakfastQty > participantCount
+    mode === 'package' && totalRoomsPicked > 0 && breakfastQty > participantCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
@@ -372,7 +413,7 @@ export function AccommodationStep({
   // picked room's add-on catalogue and surface the first unmet required
   // row; the AddonsList itself renders the per-row helper line.
   const unmetRequiredAddon = useMemo(() => {
-    if (optedOut || totalRoomsPicked === 0) return false
+    if (mode !== 'package' || totalRoomsPicked === 0) return false
     for (const [roomId] of Object.entries(selection)) {
       const list = addonsByRoom[roomId] ?? []
       for (const addon of list) {
@@ -381,57 +422,56 @@ export function AccommodationStep({
       }
     }
     return false
-  }, [optedOut, totalRoomsPicked, selection, addonsByRoom, addonSelection])
+  }, [mode, totalRoomsPicked, selection, addonsByRoom, addonSelection])
 
-  const canContinue = optedOut
-    ? true
-    : Boolean(selectedHotelId) &&
-      totalRoomsPicked > 0 &&
-      !unmetRequiredAddon
+  // Continue enablement per mode:
+  //   guiding-only → always (no further input needed).
+  //   shared-double → a hotel must be chosen (auto when 1; radio when >1).
+  //   package → hotel + ≥1 room + all required add-ons met.
+  const canContinue =
+    mode === 'guiding-only'
+      ? true
+      : mode === 'shared-double'
+        ? Boolean(selectedHotelId)
+        : Boolean(selectedHotelId) &&
+          totalRoomsPicked > 0 &&
+          !unmetRequiredAddon
 
   function bumpQty(productId: string, delta: number) {
     setSelection((prev) => {
       const next = Math.max(0, (prev[productId] ?? 0) + delta)
       const out = { ...prev, [productId]: next }
       if (next === 0) delete out[productId]
-      // Reset shared-double when the qty of any room changes — the
-      // customer may have switched to a different room type.
       return out
     })
-    setIsSharedDouble(false)
   }
 
-  // landr-sbhz.4: determine whether the shared-double checkbox should
-  // be visible. Condition: exactly one double-capacity room in the cart
-  // (qty=1) and the product is not a premium-includes-breakfast type
-  // (those are single-occupancy packages). We detect "double capacity"
-  // via capacity_per_unit >= 2 on the room product; if capacity_per_unit
-  // is null (legacy), we fall back to a slug/name heuristic.
-  const showSharedDoubleCheckbox = useMemo(() => {
-    if (!rooms) return false
-    // Look for any room product with qty=1 and capacity_per_unit >= 2
-    // (or matching the double/doppel heuristic when capacity not set).
-    return rooms.some((room) => {
-      const qty = selection[room.product_id] ?? 0
-      if (qty !== 1) return false
-      // Prefer the structured capacity field.
-      if (room.capacity_per_unit !== null && room.capacity_per_unit !== undefined) {
-        return room.capacity_per_unit >= 2
-      }
-      // Fallback: name/slug heuristic for legacy rooms without capacity set.
-      const combined = `${room.name} ${room.slug ?? ''}`.toLowerCase()
-      return combined.includes('double') || combined.includes('doppel')
-    })
-  }, [rooms, selection])
-
   function handleContinue() {
-    if (optedOut) {
-      // landr-yf0n: report includeHotel=false so App.tsx can stash the
-      // opt-out state for back-nav restoration.
-      onConfirm([], null, [], offering === 'optional' ? false : undefined)
+    // landr-ffyg.2: guiding-only — no hotel context. Report
+    // includeHotel=false so App.tsx stashes the opt-out for back-nav.
+    if (mode === 'guiding-only') {
+      onConfirm([], null, [], false, false)
       return
     }
-    if (!selectedHotelId || roomSelections.length === 0) return
+    if (!selectedHotelId) return
+    // landr-ffyg.2: shared-double — the chosen hotel IS the pickup, NO
+    // room lines, NO add-ons. The landr-4r80 routing sees a non-null
+    // hotelLocationId and skips the free-pickup picker straight to
+    // declarations/fill-form. includeHotel reports the offering-driven
+    // gate: for optional offerings the hotel context IS present so we
+    // report true; for mandatory it's undefined (the gate doesn't apply).
+    if (mode === 'shared-double') {
+      onConfirm(
+        [],
+        selectedHotelId,
+        [],
+        offering === 'optional' ? true : undefined,
+        true,
+      )
+      return
+    }
+    // package mode — rooms required.
+    if (roomSelections.length === 0) return
     // Collapse the add-on selection map into line items (qty > 0 only).
     // Only include add-ons whose parent room is actually in the cart;
     // a customer who picked a Breakfast under "Single Room" and then
@@ -449,10 +489,41 @@ export function AccommodationStep({
       roomSelections,
       selectedHotelId,
       addonLines,
-      offering === 'optional' ? includeHotel : undefined,
-      isSharedDouble,
+      offering === 'optional' ? true : undefined,
+      false,
     )
   }
+
+  // landr-ffyg.2: the mode options shown to the customer. 'guiding-only'
+  // is ONLY offered for an optional offering. 'package' + 'shared-double'
+  // are always offered (a hotel-bearing offering always supports them).
+  const modeOptions: { value: AccommodationMode; label: string; hint: string }[] =
+    [
+      ...(offering === 'optional'
+        ? [
+            {
+              value: 'guiding-only' as const,
+              label: 'Guiding only — I bring my own accommodation',
+              hint: 'No hotel booked through us — straight to pickup.',
+            },
+          ]
+        : []),
+      {
+        value: 'package' as const,
+        label: 'Book accommodation (package)',
+        hint: 'Pick a hotel and rooms for your stay.',
+      },
+      {
+        value: 'shared-double' as const,
+        label: 'I am the second pilot in a shared double room',
+        hint: 'No room booked — another pilot holds the double room. You are collected from the hotel.',
+      },
+    ]
+
+  // The hotel context is shown for package + shared-double modes once a
+  // hotel exists. Auto-select banner when exactly one hotel; radio list
+  // when multiple.
+  const showHotelContext = needsHotel && hotels && hotels.length > 0
 
   return (
     <Card>
@@ -467,56 +538,55 @@ export function AccommodationStep({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* Optional-mode Yes/No gate. Mandatory mode skips this. */}
-        {offering === 'optional' ? (
-          <fieldset className="flex flex-col gap-2">
+        {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
+            when at least one hotel is configured — without a hotel the
+            modes collapse (no package, no shared-double) and we fall back
+            to the "no hotels configured" notice below. */}
+        {hotels && hotels.length > 0 ? (
+          <fieldset
+            className="flex flex-col gap-2"
+            data-testid="accommodation-mode"
+          >
             <legend className="text-sm font-medium">
-              Would you like to add a hotel stay?
+              How would you like to handle accommodation?
             </legend>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={includeHotel ? 'default' : 'outline'}
-                onClick={() => setIncludeHotel(true)}
-              >
-                Yes, add hotel
-              </Button>
-              <Button
-                type="button"
-                variant={!includeHotel ? 'default' : 'outline'}
-                onClick={() => {
-                  // landr-eiiz: "No, thanks" auto-advances. The bare radio-
-                  // toggle UX made the button look unresponsive (it only
-                  // mutated local state and waited for a second Continue
-                  // click). We now fire the same payload Continue would
-                  // fire when opted out — empty rooms + null hotel + empty
-                  // add-ons — so the customer skips straight to the next
-                  // step. Continue still works as a fallback (e.g. if the
-                  // customer toggled Yes→No and the rooms list cleanup
-                  // already ran). The single-hotel auto-skip (landr-punc)
-                  // is gated on includeHotel so this opt-out doesn't fire
-                  // it; the room fetch effect short-circuits on a null
-                  // selectedHotelId regardless.
-                  setIncludeHotel(false)
-                  changeHotel(null)
-                  // landr-yf0n: report includeHotel=false for back-nav
-                  // restoration.
-                  onConfirm([], null, [], false)
-                }}
-              >
-                No, thanks
-              </Button>
-            </div>
+            {modeOptions.map((opt) => {
+              const checked = mode === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  className={[
+                    'flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm transition-colors',
+                    checked
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-muted/40',
+                  ].join(' ')}
+                  data-testid={`accommodation-mode-${opt.value}`}
+                >
+                  <input
+                    type="radio"
+                    name="accommodation-mode"
+                    value={opt.value}
+                    checked={checked}
+                    onChange={() => changeMode(opt.value)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">{opt.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {opt.hint}
+                    </span>
+                  </span>
+                </label>
+              )
+            })}
           </fieldset>
         ) : null}
 
-        {/* Hotel picker — hidden when the customer opted out or only one
-            hotel exists (auto-selected via the effect above). landr-punc:
-            we also auto-skip the picker in the optional + Yes single-hotel
-            path so the customer doesn't have to click through a redundant
-            one-item radio list before reaching the rooms. */}
-        {!optedOut && hotels && hotels.length > 0 ? (
-          hotels.length === 1 && (isMandatory || includeHotel) ? (
+        {/* Hotel picker — package + shared-double modes. Hidden when only
+            one hotel exists (auto-selected via the effect above). */}
+        {showHotelContext ? (
+          hotels.length === 1 ? (
             <p className="text-sm text-muted-foreground">
               Staying at{' '}
               <span className="font-medium text-foreground">
@@ -556,7 +626,7 @@ export function AccommodationStep({
           )
         ) : null}
 
-        {!optedOut && hotels && hotels.length === 0 ? (
+        {needsHotel && hotels && hotels.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No hotels configured for this operator yet.
           </p>
@@ -566,8 +636,22 @@ export function AccommodationStep({
           <p className="text-sm text-destructive">{hotelError}</p>
         ) : null}
 
-        {/* Room list for the selected hotel. */}
-        {!optedOut && selectedHotelId ? (
+        {/* landr-ffyg.2: shared-double explanatory notice. No room steppers
+            render in this mode — the first pilot's double room covers both,
+            and the hotel is the pickup point. */}
+        {mode === 'shared-double' && selectedHotelId ? (
+          <p
+            className="rounded-md border border-border bg-muted/30 p-3 text-sm"
+            data-testid="shared-double-notice"
+          >
+            You are the second pilot sharing a double room. No room is
+            booked through us — the other pilot holds the room — and you
+            will be collected from the hotel.
+          </p>
+        ) : null}
+
+        {/* Room list — package mode only. */}
+        {mode === 'package' && selectedHotelId ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
             <legend className="text-sm font-medium">Rooms</legend>
             {rooms === null && !roomsError ? (
@@ -589,9 +673,8 @@ export function AccommodationStep({
               // Only show add-on rows once at least one of THIS room is
               // in the cart — otherwise an empty room block sprouts an
               // un-actionable list of add-ons.
-              // landr-sbhz.4: premium-with-breakfast rooms already include
-              // breakfast in their price; suppress the breakfast add-on row
-              // to avoid implying a second charge.
+              // Premium-with-breakfast rooms already include breakfast in
+              // their price; suppress the breakfast add-on row.
               const isPremium = isPremiumIncludesBreakfast(room)
               const showAddons = qty > 0 && roomAddons.length > 0 && !isPremium
               return (
@@ -662,39 +745,6 @@ export function AccommodationStep({
         ) : null}
 
         {/*
-          landr-sbhz.4: Shared-double checkbox. Shown when the customer
-          has exactly 1 double-capacity room in their cart. Clicking it
-          acknowledges that another pilot holds the second half of the
-          same room under a separate booking; they each settle their half
-          of the room price directly at check-in.
-
-          The checkbox is informational — it does NOT halve the displayed
-          room cost, because the hotel total is paid externally (not
-          through LANDR) and the hotel keeps its own record of which
-          bookings share a room. The flag is forwarded via onConfirm so
-          the step machine can restore it on back-nav.
-        */}
-        {showSharedDoubleCheckbox ? (
-          <label
-            className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-muted/30 p-3 text-sm"
-            data-testid="shared-double-checkbox-label"
-          >
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 accent-primary"
-              checked={isSharedDouble}
-              onChange={(e) => setIsSharedDouble(e.target.checked)}
-              data-testid="shared-double-checkbox"
-            />
-            <span>
-              I am the second occupant sharing this double room with another
-              booking. I will settle my half of the room price directly at
-              check-in.
-            </span>
-          </label>
-        ) : null}
-
-        {/*
           Overbook warnings (landr-qpab). Non-blocking — Continue stays
           enabled. Orange tone (amber border + background) matches the
           existing "paid directly" notice below so the visual language
@@ -726,15 +776,11 @@ export function AccommodationStep({
 
         {/* landr-kat8: stripped the inline price + totals breakdown — the
             PriceSidebar's "At-hotel total · pay at check-in" pill now
-            owns the canonical hotel summary (check-in/out span, per-line
-            breakdown, subtotal, and the "paid directly at check-in"
-            caveat). We retain a short check-in/out stay window for
-            orientation inside the accommodation step so the customer
-            knows which nights the rooms below cover — and we add a brief
-            payment notice here (landr-sbhz.4) so the customer reads it
-            while looking at the room list (the sidebar pill may be
-            collapsed on mobile or below the fold on desktop). */}
-        {!optedOut && selectedHotelId && rooms && rooms.length > 0 ? (
+            owns the canonical hotel summary. We retain a short check-in/out
+            stay window for orientation inside the package mode so the
+            customer knows which nights the rooms below cover, plus the
+            payment notice so it's read alongside the room list. */}
+        {mode === 'package' && selectedHotelId && rooms && rooms.length > 0 ? (
           <div className="flex flex-col gap-1">
             <p
               className="text-xs text-muted-foreground"

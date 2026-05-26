@@ -4,6 +4,7 @@
  * (App.tsx exports a React component as default — adding non-component
  * exports there would trigger the rule and block CI).
  */
+import type { AccommodationMode } from '@/components/booking/AccommodationStep'
 import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
@@ -64,8 +65,10 @@ export type Step =
   // addons / includeHotel let AccommodationStep re-seed its internal
   // state when the customer hits Back from a downstream step. Undefined
   // on the initial forward visit (no prior data to restore).
-  // landr-sbhz.4: isSharedDouble carries the shared-double checkbox
-  // state so back-nav restores the tick.
+  // landr-ffyg.2: isSharedDouble + accommodationMode carry the top-level
+  // accommodation mode so back-nav restores the chosen mode (guiding-only
+  // / package / shared-double). isSharedDouble is the persisted submit
+  // flag (true only for the shared-double mode).
   | {
       name: 'pick-accommodation'
       product: Product
@@ -77,6 +80,7 @@ export type Step =
       addons?: AddonSelection[]
       includeHotel?: boolean
       isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -107,6 +111,7 @@ export type Step =
       hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -127,6 +132,7 @@ export type Step =
       hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -147,12 +153,34 @@ export type Step =
       hadServiceAddons?: boolean
       includeHotel?: boolean
       isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
       customerLanguage?: string | null
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
+
+/**
+ * landr-ffyg.2: derive the top-level accommodation mode from an
+ * AccommodationStep onConfirm payload, for back-nav restoration. The
+ * three arguments AccommodationStep reports fully determine the mode:
+ *
+ *   - isSharedDouble === true            → 'shared-double' (hotel set, no rooms)
+ *   - hotelLocationId === null           → 'guiding-only'  (opt-out, no hotel)
+ *   - otherwise (hotel set, rooms picked)→ 'package'
+ *
+ * Kept here (not in App.tsx) so App.tsx stays component-only for the
+ * react-refresh/only-export-components rule.
+ */
+export function deriveAccommodationMode(
+  hotelLocationId: string | null,
+  isSharedDouble: boolean | undefined,
+): AccommodationMode {
+  if (isSharedDouble) return 'shared-double'
+  if (hotelLocationId === null) return 'guiding-only'
+  return 'package'
+}
 
 /**
  * Pick the next step after the AccommodationStep returns (or after
@@ -190,8 +218,16 @@ export function stepAfterAccommodation(
   includeHotel: boolean | undefined = undefined,
   // landr-sbhz.4: shared-double flag for back-nav restoration.
   isSharedDouble: boolean | undefined = undefined,
+  // landr-ffyg.2: top-level accommodation mode for back-nav restoration.
+  accommodationMode: AccommodationMode | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
+    // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
+    // covers BOTH the package mode (rooms booked) AND the shared-double
+    // mode (no rooms, but the shared hotel is still the collection point).
+    // Either way we skip the free-pickup picker and go straight to
+    // fill-form/declarations — the shared-double customer must NEVER reach
+    // the free pickup picker.
     return {
       name: 'fill-form',
       product,
@@ -205,6 +241,7 @@ export function stepAfterAccommodation(
       hadServiceAddons,
       includeHotel,
       isSharedDouble,
+      accommodationMode,
     }
   }
   if (product.needs_pickup) {
@@ -220,6 +257,7 @@ export function stepAfterAccommodation(
       hadServiceAddons,
       includeHotel,
       isSharedDouble,
+      accommodationMode,
     }
   }
   return {
@@ -235,6 +273,7 @@ export function stepAfterAccommodation(
     hadServiceAddons,
     includeHotel,
     isSharedDouble,
+    accommodationMode,
   }
 }
 
@@ -262,6 +301,8 @@ export function fillFormOrDeclarations(
     // landr-sbhz.4: thread the shared-double flag through so it survives
     // the declarations → fill-form hop.
     isSharedDouble?: boolean
+    // landr-ffyg.2: thread the accommodation mode through too.
+    accommodationMode?: AccommodationMode
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,
