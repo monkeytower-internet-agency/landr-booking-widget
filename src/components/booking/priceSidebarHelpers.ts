@@ -169,8 +169,10 @@ function buildStreakTierExplanation(
     const length = Number(entry[0])
     const perDay = Number(entry[1])
     if (!Number.isFinite(length) || !Number.isFinite(perDay)) continue
-    const dayNoun = length === 1 ? 'day' : 'days'
-    const base = `${length} consecutive ${dayNoun} · ${formatPerDay(perDay, currency)}`
+    const base =
+      length === 1
+        ? `${length} day · ${formatPerDay(perDay, currency)}`
+        : `${length} consecutive days · ${formatPerDay(perDay, currency)}`
     lines.push(withParticipantSuffix(base, perParticipant, participants))
   }
   return lines

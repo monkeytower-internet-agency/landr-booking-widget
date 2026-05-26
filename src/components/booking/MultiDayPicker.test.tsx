@@ -100,9 +100,9 @@ const availability = makeAvailability(windowStart, 10) // 10..19
 
 describe('MultiDayPicker', () => {
   // -------------------------------------------------------------------------
-  // individual mode (default)
+  // range mode (default as of landr-q2l4)
   // -------------------------------------------------------------------------
-  describe('individual mode (default)', () => {
+  describe('range mode (default)', () => {
     it('tapping a day adds it', () => {
       const spy = vi.fn<(days: Date[]) => void>()
       render(
@@ -116,6 +116,30 @@ describe('MultiDayPicker', () => {
       expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual(['2026-06-12'])
     })
 
+    it('tapping two days fills the range (range is default)', () => {
+      const spy = vi.fn<(days: Date[]) => void>()
+      render(
+        <Harness
+          availability={availability}
+          onChangeSpy={spy}
+          defaultMonth={defaultMonth}
+        />,
+      )
+      clickDay(new Date(2026, 5, 12))
+      clickDay(new Date(2026, 5, 15)) // range fill: 12..15
+      expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([
+        '2026-06-12',
+        '2026-06-13',
+        '2026-06-14',
+        '2026-06-15',
+      ])
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // individual mode (switched via toggle)
+  // -------------------------------------------------------------------------
+  describe('individual mode (switched via toggle)', () => {
     it('tapping a selected day removes it', () => {
       const spy = vi.fn<(days: Date[]) => void>()
       render(
@@ -125,6 +149,7 @@ describe('MultiDayPicker', () => {
           defaultMonth={defaultMonth}
         />,
       )
+      fireEvent.click(screen.getByRole('button', { name: /individual days/i }))
       clickDay(new Date(2026, 5, 12))
       clickDay(new Date(2026, 5, 12)) // tap again to remove
       expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([])
@@ -139,6 +164,7 @@ describe('MultiDayPicker', () => {
           defaultMonth={defaultMonth}
         />,
       )
+      fireEvent.click(screen.getByRole('button', { name: /individual days/i }))
       clickDay(new Date(2026, 5, 12))
       clickDay(new Date(2026, 5, 19)) // non-adjacent
       expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual([
@@ -181,11 +207,11 @@ describe('MultiDayPicker', () => {
           defaultMonth={defaultMonth}
         />,
       )
-      // Start in individual, tap a day
+      // Start in range mode (default), tap a day
       clickDay(new Date(2026, 5, 12))
       expect(spy.mock.calls.at(-1)![0].map(isoOf)).toEqual(['2026-06-12'])
 
-      // Switch to range mid-selection
+      // Re-confirm range mode (already active; no-op but harmless)
       fireEvent.click(screen.getByRole('button', { name: /date range/i }))
 
       // Tap another day — range mode: extends from anchor (12) to 15
@@ -388,7 +414,7 @@ describe('MultiDayPicker', () => {
     )
   })
 
-  it('renders individual-mode help text by default', () => {
+  it('renders range-mode help text by default (landr-q2l4)', () => {
     render(
       <MultiDayPicker
         availability={availability}
@@ -398,11 +424,11 @@ describe('MultiDayPicker', () => {
       />,
     )
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
-      /tap days to add or remove/i,
+      /tap a start date/i,
     )
   })
 
-  it('renders range-mode help text when range mode is active', () => {
+  it('renders individual-mode help text when individual mode is active', () => {
     render(
       <MultiDayPicker
         availability={availability}
@@ -411,9 +437,9 @@ describe('MultiDayPicker', () => {
         defaultMonth={defaultMonth}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /date range/i }))
+    fireEvent.click(screen.getByRole('button', { name: /individual days/i }))
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
-      /tap a start date/i,
+      /tap days to add or remove/i,
     )
   })
 

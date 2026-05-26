@@ -61,8 +61,8 @@ export const DEFAULT_MULTI_DAY_HELP_INDIVIDUAL = 'Tap days to add or remove them
 export const DEFAULT_MULTI_DAY_HELP_RANGE =
   'Tap a start date, then tap another to span the days between.'
 
-// Backwards-compat alias — points to the individual-mode string.
-export const DEFAULT_MULTI_DAY_HELP = DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
+// Backwards-compat alias — points to the range-mode string (default mode is range as of landr-q2l4).
+export const DEFAULT_MULTI_DAY_HELP = DEFAULT_MULTI_DAY_HELP_RANGE
 
 /**
  * Help text shown in contiguous mode (landr-y9k). The any-day-toggle copy
@@ -88,7 +88,7 @@ export function MultiDayPicker({
   }, [availability])
 
   const [anchor, setAnchor] = useState<Date | null>(null)
-  const [mode, setMode] = useState<Mode>('individual')
+  const [mode, setMode] = useState<Mode>('range')
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
 
@@ -234,20 +234,20 @@ export function MultiDayPicker({
           <Button
             type="button"
             size="sm"
-            variant={mode === 'individual' ? 'default' : 'outline'}
-            aria-pressed={mode === 'individual'}
-            onClick={() => setMode('individual')}
-          >
-            Individual days
-          </Button>
-          <Button
-            type="button"
-            size="sm"
             variant={mode === 'range' ? 'default' : 'outline'}
             aria-pressed={mode === 'range'}
             onClick={() => setMode('range')}
           >
             Date range
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === 'individual' ? 'default' : 'outline'}
+            aria-pressed={mode === 'individual'}
+            onClick={() => setMode('individual')}
+          >
+            Individual days
           </Button>
         </div>
       )}
