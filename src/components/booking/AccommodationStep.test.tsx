@@ -678,10 +678,10 @@ describe('AccommodationStep', () => {
     )
   })
 
-  it('hard-caps breakfast at room occupancy — + disabled at cap, no over-warning (landr-9p76)', async () => {
-    // Double Room (capacity=2, x1 room) → expectedQty=2.
-    // The + button must be disabled once breakfast qty reaches 2;
-    // clicking beyond that has no effect and no over-warning appears.
+  it('breakfast + button NOT disabled by occupancy — over-warning fires above expectedQty (landr-yybu)', async () => {
+    // landr-yybu: the occupancy hard-cap is removed. Clicking + beyond
+    // expectedQty(2) is now allowed; the over-warning (addon-overbook-*)
+    // fires instead. The bottom aggregate breakfast warning is gone.
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('double-room', 'Double Room', 73, 2),
@@ -723,27 +723,37 @@ describe('AccommodationStep', () => {
       expect(screen.getByText('Breakfast')).toBeInTheDocument(),
     )
 
-    // Click + until the button becomes disabled (should cap at expectedQty=2)
     const getBreakfastPlus = () =>
       screen.getAllByRole('button', { name: /Increase .* quantity/i })[1]!
 
-    for (let i = 0; i < 5; i += 1) {
+    // Click + 3 times → qty=3 which is above expectedQty(2)
+    for (let i = 0; i < 3; i += 1) {
       fireEvent.click(getBreakfastPlus())
     }
 
-    await waitFor(() => expect(getBreakfastPlus()).toBeDisabled())
+    // + button stays enabled — no occupancy hard cap
+    expect(getBreakfastPlus()).not.toBeDisabled()
 
-    // No over-warning; no breakfast-summary warning; Continue stays enabled.
+    // Over-warning fires because qty(3) > expectedQty(2)
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('addon-overbook-bf-1'),
+      ).toBeInTheDocument(),
+    )
+
+    // Bottom aggregate breakfast warning is gone (landr-yybu).
     expect(
       screen.queryByTestId('overbook-breakfast-warning'),
     ).not.toBeInTheDocument()
+    // Capacity warning: 2 participants, 2 beds → no mismatch
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
     ).not.toBeInTheDocument()
+    // Continue stays enabled
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
 
-  it('shows no warnings when no rooms are picked', async () => {
+  it('shows no capacity warning when no rooms are picked', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('single-room', 'Single Room', 49, 1),
@@ -763,9 +773,11 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByText('Single Room')).toBeInTheDocument(),
     )
+    // No room picked → capacity warning hidden.
     expect(
       screen.queryByTestId('overbook-capacity-warning'),
     ).not.toBeInTheDocument()
+    // Bottom aggregate breakfast warning is gone (landr-yybu).
     expect(
       screen.queryByTestId('overbook-breakfast-warning'),
     ).not.toBeInTheDocument()
@@ -904,9 +916,18 @@ describe('AccommodationStep', () => {
       />,
     )
 
+    // Wait for Breakfast to appear AND for the seeded qty (3) to show.
+    // The seeding effect fires asynchronously after addonsByRoom arrives.
     await waitFor(() =>
       expect(screen.getByText('Breakfast')).toBeInTheDocument(),
     )
+    // The seeded qty=3 should be visible in the stepper.
+    await waitFor(() => {
+      const qtySpan = screen
+        .getByRole('button', { name: /Decrease Breakfast quantity/i })
+        .nextElementSibling
+      expect(qtySpan?.textContent?.trim()).toBe('3')
+    })
 
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
@@ -1109,5 +1130,211 @@ describe('AccommodationStep', () => {
     )
     expect(screen.queryByText(/Add-ons/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/^Breakfast$/i)).not.toBeInTheDocument()
+  })
+
+  // ── landr-yybu: per-room add-on independence ────────────────────────
+
+  it('two rooms sharing a breakfast add-on hold INDEPENDENT quantities (landr-yybu)', async () => {
+    // Para42 scenario: Single Room + Double Room, both linked to the same
+    // breakfast add-on. Editing under Single must NOT change the Double's qty.
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={3}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    // Pick 1 Single Room and 1 Double Room.
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+
+    // Two breakfast add-on rows should now be visible (one per room).
+    await waitFor(() =>
+      expect(screen.getAllByText('Breakfast')).toHaveLength(2),
+    )
+
+    // Increase breakfast under the FIRST room (Single Room) once.
+    const [bfPlus1, bfPlus2] = screen.getAllByRole('button', {
+      name: /Increase Breakfast quantity/i,
+    })
+    fireEvent.click(bfPlus1!)
+
+    // The second room's breakfast stepper should still show 0.
+    // The qty spans sit between the − and + buttons for each add-on row.
+    const bfQtySpans = screen
+      .getAllByRole('button', { name: /Decrease Breakfast quantity/i })
+      .map((btn) => btn.nextElementSibling?.textContent?.trim())
+
+    expect(bfQtySpans[0]).toBe('1')  // Single Room: 1 breakfast
+    expect(bfQtySpans[1]).toBe('0')  // Double Room: still 0
+
+    // Increase Double Room's breakfast twice → independent of Single.
+    fireEvent.click(bfPlus2!)
+    fireEvent.click(bfPlus2!)
+
+    const bfQtySpans2 = screen
+      .getAllByRole('button', { name: /Decrease Breakfast quantity/i })
+      .map((btn) => btn.nextElementSibling?.textContent?.trim())
+
+    expect(bfQtySpans2[0]).toBe('1')  // Single: unchanged
+    expect(bfQtySpans2[1]).toBe('2')  // Double: 2
+
+    // Continue and check the FLATTENED submit payload sums across rooms.
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [rooms, , addons] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
+    expect(rooms).toHaveLength(2)
+    // bf-1 total = 1 (single) + 2 (double) = 3
+    expect(addons).toEqual([{ productId: 'bf-1', quantity: 3 }])
+  })
+
+  it('aggregate breakfast warning is GONE; per-room over-warning fires per room (landr-yybu)', async () => {
+    // Single Room (capacity=1) with 3 breakfasts → per-room over-warning.
+    // The bottom aggregate paragraph (overbook-breakfast-warning) must NOT render.
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Breakfast')).toBeInTheDocument(),
+    )
+
+    // Increment breakfast to 3 (above single-room occupancy of 1)
+    const bfPlus = screen.getByRole('button', {
+      name: /Increase Breakfast quantity/i,
+    })
+    fireEvent.click(bfPlus)
+    fireEvent.click(bfPlus)
+    fireEvent.click(bfPlus)
+
+    // Per-room over-warning fires inside the add-on row
+    await waitFor(() =>
+      expect(screen.getByTestId('addon-overbook-bf-1')).toBeInTheDocument(),
+    )
+
+    // Bottom aggregate breakfast warning MUST NOT be present (landr-yybu removed it)
+    expect(
+      screen.queryByTestId('overbook-breakfast-warning'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('flattened onConfirm sums per addon_product_id across rooms (landr-yybu)', async () => {
+    // Two Single Rooms (capacity=1 each), both linked to the same breakfast.
+    // Room A orders 1 breakfast, Room B orders 2.
+    // onConfirm should receive [{ productId: 'bf-1', quantity: 3 }].
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('room-a', 'Room A', 49, 1),
+      makeRoom('room-b', 'Room B', 49, 1),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Room A')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Increase Room A quantity/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Increase Room B quantity/i }))
+
+    await waitFor(() => expect(screen.getAllByText('Breakfast')).toHaveLength(2))
+
+    const [bfPlusA, bfPlusB] = screen.getAllByRole('button', {
+      name: /Increase Breakfast quantity/i,
+    })
+    // Room A: 1 breakfast
+    fireEvent.click(bfPlusA!)
+    // Room B: 2 breakfasts
+    fireEvent.click(bfPlusB!)
+    fireEvent.click(bfPlusB!)
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, , addonLines] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
+    // Flattened: 1 + 2 = 3
+    expect(addonLines).toEqual([{ productId: 'bf-1', quantity: 3 }])
   })
 })
