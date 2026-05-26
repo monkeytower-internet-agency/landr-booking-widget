@@ -45,7 +45,7 @@ jobs:
             echo "supabase_anon=${SUPABASE_ANON_PROD}"                                   >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
             echo "project=landr-booking-widget-staging"                                  >> "$GITHUB_OUTPUT"
-            echo "api_base=https://api.staging.landr.de"                                 >> "$GITHUB_OUTPUT"
+            echo "api_base=https://landr-api-staging-693721943357.europe-west3.run.app"  >> "$GITHUB_OUTPUT"
             echo "production_branch=staging"                                             >> "$GITHUB_OUTPUT"
             echo "supabase_url=${SUPABASE_URL_STAGING:-https://kong.staging.landr.de}"   >> "$GITHUB_OUTPUT"
             echo "supabase_anon=${SUPABASE_ANON_STAGING}"                                >> "$GITHUB_OUTPUT"
