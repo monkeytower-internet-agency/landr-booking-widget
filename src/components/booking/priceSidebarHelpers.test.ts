@@ -149,7 +149,7 @@ describe('buildDiscountExplanation — per_streak_tier (landr-8s6c)', () => {
     expect(lines[0]).toMatch(/× 2 participants/)
   })
 
-  it('uses the singular day/participant nouns where appropriate', () => {
+  it('uses singular "1 day" (no "consecutive") and singular participant noun (landr-gm29)', () => {
     const rule: EstimateAppliedRule = {
       kind: 'per_streak_tier',
       detail: {
@@ -159,7 +159,8 @@ describe('buildDiscountExplanation — per_streak_tier (landr-8s6c)', () => {
       },
     }
     const lines = buildDiscountExplanation(rule, 'EUR')
-    expect(lines[0]).toMatch(/1 consecutive day\b/)
+    expect(lines[0]).toMatch(/^1 day ·/)
+    expect(lines[0]).not.toMatch(/consecutive/)
     expect(lines[0]).toMatch(/× 1 participant\b/)
   })
 
