@@ -71,18 +71,12 @@ export function AddonsList({
 
   if (addons.length === 0) return null
 
-  /**
-   * landr-9p76: Hard-cap for occupancy-linked add-ons (breakfast).
-   * When expectedQty > 1 the add-on is tied to room occupancy, so the
-   * ceiling is min(max_qty ?? Infinity, expectedQty). When expectedQty=1
-   * (service-flow callers) there is no occupancy cap — undefined keeps
-   * the original max_qty-only ceiling in clampAddonQty.
-   */
-  const occupancyCap = expectedQty > 1 ? expectedQty : undefined
-
+  // landr-yybu: occupancy cap removed — the + button is only disabled by
+  // the add-on's own max_qty. The per-row over/under deviation warning
+  // (isOverbooked) is the sole guard for occupancy mismatches.
   function bumpQty(addon: ProductAddon, delta: number) {
     const current = selection[addon.addon_product_id] ?? 0
-    const next = clampAddonQty(addon, current + delta, occupancyCap)
+    const next = clampAddonQty(addon, current + delta)
     const out = { ...selection, [addon.addon_product_id]: next }
     if (next === 0) delete out[addon.addon_product_id]
     onChange(out)
@@ -98,10 +92,9 @@ export function AddonsList({
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
         const deviation = isOverbooked(qty, expectedQty)
         const requiredError = requiredAddonError(addon, qty)
-        // landr-9p76: + button disabled at occupancy cap OR at addon's own max_qty.
-        const atMax =
-          (occupancyCap !== undefined && qty >= occupancyCap) ||
-          (addon.max_qty !== null && qty >= addon.max_qty)
+        // landr-yybu: + button disabled only at the add-on's own max_qty.
+        // Occupancy is no longer a hard cap — only the per-row warning fires.
+        const atMax = addon.max_qty !== null && qty >= addon.max_qty
 
         return (
           <div

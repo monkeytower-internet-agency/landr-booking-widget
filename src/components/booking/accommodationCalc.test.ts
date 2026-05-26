@@ -3,6 +3,7 @@ import type { Product, ProductAddon } from '@/api/types'
 import {
   deriveStayWindow,
   findBreakfastAddonIds,
+  flattenPerRoomAddons,
   formatCurrency,
   isPremiumIncludesBreakfast,
   roomSubtotal,
@@ -364,5 +365,79 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
     expect(
       isPremiumIncludesBreakfast(makeProduct('Single Room')),
     ).toBe(false)
+  })
+})
+
+describe('flattenPerRoomAddons (landr-yybu)', () => {
+  function makeAddonFor(id: string, name: string): ProductAddon {
+    return makeAddon(id, name)
+  }
+
+  it('sums qty per addon across rooms', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1, 'room-b': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 1 },
+      'room-b': { 'bf-1': 2 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 3 }])
+  })
+
+  it('skips rooms with qty=0 in roomSelection (dropped rooms)', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 0, 'room-b': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 3 },  // room-a dropped → should be excluded
+      'room-b': { 'bf-1': 2 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 2 }])
+  })
+
+  it('excludes add-ons not in the room catalogue (guards carry-over)', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 1, 'stale-id': 5 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 1 }])
+  })
+
+  it('returns empty array when addonSelection is empty', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1 }
+    const result = flattenPerRoomAddons({}, roomSelection, addonsByRoom)
+    expect(result).toEqual([])
+  })
+
+  it('deduplicates the same add-on across multiple rooms and sums', () => {
+    // Both single and double rooms link to 'bf-1'.
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'single': [makeAddonFor('bf-1', 'Breakfast'), makeAddonFor('vid-1', 'Video')],
+      'double': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'single': 1, 'double': 1 }
+    const addonSelection = {
+      'single': { 'bf-1': 1, 'vid-1': 2 },
+      'double': { 'bf-1': 3 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    // Sorted by productId: bf-1(4), vid-1(2)
+    expect(result).toEqual([
+      { productId: 'bf-1', quantity: 4 },
+      { productId: 'vid-1', quantity: 2 },
+    ])
   })
 })

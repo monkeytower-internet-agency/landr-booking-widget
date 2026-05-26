@@ -16,11 +16,10 @@ import {
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import {
   deriveStayWindow,
-  findBreakfastAddonIds,
+  flattenPerRoomAddons,
   formatCurrency,
   isPremiumIncludesBreakfast,
   roomSubtotal,
-  totalBreakfastQty,
   totalRoomCapacity,
   type RoomSelection,
 } from './accommodationCalc'
@@ -210,20 +209,21 @@ export function AccommodationStep({
   const [addonsByRoom, setAddonsByRoom] = useState<
     Record<string, ProductAddon[]>
   >({})
-  // Add-on selection map: addon_product_id → quantity. Shared across
-  // every room because the same add-on (e.g. Breakfast) can be linked
-  // to several rooms and the customer ultimately picks a single total
-  // quantity; collapsing into one map keeps the submit payload free of
-  // duplicate addon line items.
-  // landr-yf0n: seed from initialAddons on back-nav re-entry.
+  // Per-room add-on selection: roomProductId → { addon_product_id → qty }.
+  // landr-yybu: each room holds its own independent add-on map so that the
+  // same add-on linked to multiple rooms (e.g. Para42 Breakfast on Single +
+  // Double) can be ordered independently per room, and the per-room
+  // over/under warning compares against THAT room's occupancy.
+  //
+  // Back-nav seeding (landr-yf0n): initialAddons is still a flat
+  // AddonSelection[] (the onConfirm contract is unchanged). On re-entry we
+  // assign each add-on's qty to the FIRST room in the current catalogue that
+  // links it. This is best-effort — a full per-room restore would require the
+  // submit payload to carry per-room breakdown, which is out of scope here.
+  // Documented as a known limitation.
   const [addonSelection, setAddonSelection] = useState<
-    Record<string, number>
-  >(() => {
-    if (!initialAddons || initialAddons.length === 0) return {}
-    const seed: Record<string, number> = {}
-    for (const line of initialAddons) seed[line.productId] = line.quantity
-    return seed
-  })
+    Record<string, Record<string, number>>
+  >({})
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
   // both 'package' (rooms) and 'shared-double' (hotel-only pickup); only
@@ -325,6 +325,47 @@ export function AccommodationStep({
     }
   }, [rooms])
 
+  // landr-yybu / landr-yf0n: back-nav add-on seeding. Once the per-room
+  // catalogue resolves AND initialAddons has entries, assign each add-on
+  // qty to the first room that links it (best-effort; documented limitation).
+  // We only seed ONCE (when addonSelection is still empty) to avoid
+  // clobbering changes the customer makes after re-entering the step.
+  // The IIFE pattern avoids the react-hooks/set-state-in-effect lint rule.
+  useEffect(() => {
+    if (!initialAddons || initialAddons.length === 0) return
+    if (Object.keys(addonsByRoom).length === 0) return
+    // Only seed when addonSelection is still empty (no customer edits yet).
+    if (Object.keys(addonSelection).length > 0) return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      const next: Record<string, Record<string, number>> = {}
+      for (const line of initialAddons) {
+        if (line.quantity <= 0) continue
+        // Find the first room that has this add-on in its catalogue.
+        for (const [roomId, roomAddons] of Object.entries(addonsByRoom)) {
+          const found = roomAddons.some(
+            (a) => a.addon_product_id === line.productId,
+          )
+          if (found) {
+            next[roomId] = { ...(next[roomId] ?? {}), [line.productId]: line.quantity }
+            break
+          }
+        }
+      }
+      if (cancelled) return
+      if (Object.keys(next).length > 0) setAddonSelection(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonsByRoom])
+  // ^ intentionally excludes `initialAddons` and `addonSelection` from
+  //   dependencies: initialAddons is a prop that never changes after mount;
+  //   addonSelection is the output being written (not a trigger); the
+  //   effect must re-run only when the catalogue arrives.
+
   // Centralised hotel-change handler — resets the room list + selected
   // quantities BEFORE the next render so the effect only handles the
   // async fetch. Used by the radio onChange in package + shared-double
@@ -383,41 +424,27 @@ export function AccommodationStep({
     [roomSelections, rooms],
   )
 
-  // Walk every selected room's add-on catalogue once to identify the
-  // breakfast addon_product_ids in play, then collapse the picked qtys
-  // across them. Same add-on may be linked to multiple rooms (Para42
-  // seeds Breakfast on Single + Double) and the customer picks a single
-  // total quantity — addonSelection is already keyed by addon_product_id
-  // so de-duplication is implicit.
-  const breakfastQty = useMemo(() => {
-    const breakfastIds = new Set<string>()
-    for (const roomId of Object.keys(selection)) {
-      for (const id of findBreakfastAddonIds(addonsByRoom[roomId] ?? [])) {
-        breakfastIds.add(id)
-      }
-    }
-    return totalBreakfastQty(addonSelection, breakfastIds)
-  }, [selection, addonsByRoom, addonSelection])
-
-  // Warning visibility — both gates require package mode + at least one
+  // Warning visibility — capacity gate requires package mode + at least one
   // room picked so an empty cart doesn't surface a "0 beds for N people"
-  // copy on mount.
+  // copy on mount. landr-yybu: the bottom aggregate breakfast warning is
+  // removed; per-room over/under warnings in AddonsList replace it.
   const showCapacityWarning =
     mode === 'package' && totalRoomsPicked > 0 && totalCapacity < participantCount
-  const showBreakfastWarning =
-    mode === 'package' && totalRoomsPicked > 0 && breakfastQty > participantCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
   // is 0, the customer must address it before proceeding. Walk every
   // picked room's add-on catalogue and surface the first unmet required
   // row; the AddonsList itself renders the per-row helper line.
+  // landr-yybu: addonSelection is now per-room, so look up
+  // (addonSelection[roomId] ?? {})[addon_product_id].
   const unmetRequiredAddon = useMemo(() => {
     if (mode !== 'package' || totalRoomsPicked === 0) return false
     for (const [roomId] of Object.entries(selection)) {
       const list = addonsByRoom[roomId] ?? []
+      const roomAddonQtys = addonSelection[roomId] ?? {}
       for (const addon of list) {
-        const qty = addonSelection[addon.addon_product_id] ?? 0
+        const qty = roomAddonQtys[addon.addon_product_id] ?? 0
         if (requiredAddonError(addon, qty) !== null) return true
       }
     }
@@ -472,19 +499,11 @@ export function AccommodationStep({
     }
     // package mode — rooms required.
     if (roomSelections.length === 0) return
-    // Collapse the add-on selection map into line items (qty > 0 only).
-    // Only include add-ons whose parent room is actually in the cart;
-    // a customer who picked a Breakfast under "Single Room" and then
-    // dropped Single Room to 0 should not ship a Breakfast line.
-    const activeAddonIds = new Set<string>()
-    for (const [roomId] of Object.entries(selection)) {
-      for (const addon of addonsByRoom[roomId] ?? []) {
-        activeAddonIds.add(addon.addon_product_id)
-      }
-    }
-    const addonLines: AddonSelection[] = Object.entries(addonSelection)
-      .filter(([id, qty]) => qty > 0 && activeAddonIds.has(id))
-      .map(([productId, quantity]) => ({ productId, quantity }))
+    // landr-yybu: flatten the per-room add-on map back to AddonSelection[].
+    // Sum qty per addon_product_id across rooms, only for rooms still in the
+    // cart and only for add-ons in those rooms' catalogues (guards against
+    // carry-over from a dropped room). flattenPerRoomAddons handles this.
+    const addonLines = flattenPerRoomAddons(addonSelection, selection, addonsByRoom)
     onConfirm(
       roomSelections,
       selectedHotelId,
@@ -730,10 +749,19 @@ export function AccommodationStep({
                     </div>
                   </div>
                   {showAddons ? (
+                    // landr-yybu: each room gets its own slice of addonSelection
+                    // keyed by this room's product_id. The setter merges the
+                    // updated slice back into the top-level per-room map so
+                    // sibling rooms' selections stay independent.
                     <AddonsList
                       addons={roomAddons}
-                      selection={addonSelection}
-                      onChange={setAddonSelection}
+                      selection={addonSelection[room.product_id] ?? {}}
+                      onChange={(next) =>
+                        setAddonSelection((prev) => ({
+                          ...prev,
+                          [room.product_id]: next,
+                        }))
+                      }
                       expectedQty={(room.capacity_per_unit ?? 1) * qty}
                       heading="Add-ons"
                     />
@@ -761,18 +789,8 @@ export function AccommodationStep({
             {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
           </p>
         ) : null}
-        {showBreakfastWarning ? (
-          <p
-            role="alert"
-            data-testid="overbook-breakfast-warning"
-            className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
-          >
-            You ordered {breakfastQty}{' '}
-            {breakfastQty === 1 ? 'breakfast' : 'breakfasts'} for{' '}
-            {participantCount}{' '}
-            {participantCount === 1 ? 'person' : 'people'} — sure?
-          </p>
-        ) : null}
+        {/* landr-yybu: bottom aggregate breakfast warning removed.
+            Per-room over/under warnings in AddonsList replace it. */}
 
         {/* landr-kat8: stripped the inline price + totals breakdown — the
             PriceSidebar's "At-hotel total · pay at check-in" pill now

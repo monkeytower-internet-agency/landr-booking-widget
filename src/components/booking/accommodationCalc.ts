@@ -208,6 +208,46 @@ export function totalBreakfastQty(
 }
 
 /**
+ * Flatten a per-room add-on selection map back to the AddonSelection[] shape
+ * expected by the onConfirm contract (landr-yybu).
+ *
+ * The per-room map is `Record<roomProductId, Record<addon_product_id, qty>>`.
+ * This helper:
+ *   1. Only considers rooms still in the cart (roomSelection[roomId] > 0).
+ *   2. Only includes add-ons that appear in that room's catalogue
+ *      (addonsByRoom[roomId]), so dropped-room add-ons don't leak.
+ *   3. Sums qty per addon_product_id across rooms, deduplicating add-ons
+ *      that are linked to multiple rooms (e.g. Para42 Breakfast on Single +
+ *      Double). The resulting line items are unique by productId.
+ *   4. Omits entries with a summed qty of 0.
+ *
+ * Returns an array of { productId, quantity } sorted by productId for
+ * deterministic ordering (stable for tests and submit payloads).
+ */
+export function flattenPerRoomAddons(
+  addonSelection: Record<string, Record<string, number>>,
+  roomSelection: Record<string, number>,
+  addonsByRoom: Record<string, import('@/api/types').ProductAddon[]>,
+): import('./addonsState').AddonSelection[] {
+  const totals = new Map<string, number>()
+  for (const [roomId, roomQty] of Object.entries(roomSelection)) {
+    if ((roomQty ?? 0) <= 0) continue
+    const roomAddons = addonsByRoom[roomId] ?? []
+    const roomQtys = addonSelection[roomId] ?? {}
+    for (const addon of roomAddons) {
+      const id = addon.addon_product_id
+      const qty = roomQtys[id] ?? 0
+      if (qty <= 0) continue
+      totals.set(id, (totals.get(id) ?? 0) + qty)
+    }
+  }
+  return [...totals.entries()]
+    .filter(([, qty]) => qty > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([productId, quantity]) => ({ productId, quantity }))
+}
+
+/**
  * Returns true when a hotel_room product is a "premium-includes-breakfast"
  * variant — i.e. the room price already bundles breakfast (landr-sbhz.4).
  *

@@ -175,9 +175,11 @@ describe('AddonsList (landr-cip6)', () => {
     expect(underWarn).toHaveTextContent(/sleeps 2/i)
   })
 
-  it('Double Room x1 (cap=2, expectedQty=2): + button disabled at qty=2 (hard cap)', () => {
-    // landr-9p76: occupancy-linked add-ons cannot exceed expectedQty via the
-    // stepper — the + button must be disabled once qty >= expectedQty=2.
+  it('Double Room x1 (expectedQty=2): + NOT disabled at qty=2 — no occupancy hard cap (landr-yybu)', () => {
+    // landr-yybu: the occupancy hard-cap is removed. qty=2 with expectedQty=2
+    // is exactly at parity — no warning and the + button stays enabled so
+    // the customer can order more if they wish (the per-row warning will fire
+    // if they exceed occupancy).
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
     render(
       <AddonsList
@@ -188,8 +190,8 @@ describe('AddonsList (landr-cip6)', () => {
       />,
     )
     const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
-    expect(plus).toBeDisabled()
-    // At the cap there is no overbook warning
+    expect(plus).not.toBeDisabled()
+    // At parity there is no warning
     expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
@@ -237,8 +239,10 @@ describe('AddonsList (landr-cip6)', () => {
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
 
-  it('2 Double Rooms (expectedQty=4): + disabled at qty=4 (hard cap)', () => {
-    // landr-9p76: cap scales with room count — 2 doubles → cap at 4.
+  it('2 Double Rooms (expectedQty=4): + NOT disabled at qty=4 — no occupancy hard cap (landr-yybu)', () => {
+    // landr-yybu: the occupancy hard-cap is removed. Even at qty=4 (parity
+    // with 2 × double-room occupancy) the + button stays enabled. The
+    // over-warning fires if the customer goes above 4.
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
     render(
       <AddonsList
@@ -249,7 +253,10 @@ describe('AddonsList (landr-cip6)', () => {
       />,
     )
     const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
-    expect(plus).toBeDisabled()
+    expect(plus).not.toBeDisabled()
+    // At parity no warning fires
+    expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
+    expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
 
   it('generic service add-on (expectedQty=1, max_qty=null): + still enabled above 1 (no occupancy cap)', () => {
@@ -314,5 +321,69 @@ describe('AddonsList (landr-cip6)', () => {
     )
     expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
+  })
+
+  // ── landr-yybu: no occupancy cap; only max_qty gates the + button ────
+
+  it('breakfast + qty ABOVE expectedQty: + stays enabled (no occupancy hard cap)', () => {
+    // A Single Room (expectedQty=1) with qty=3: the + must NOT be disabled
+    // by occupancy — the over-warning is the only guard.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast', max_qty: null })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 3 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Increase Breakfast/i })).not.toBeDisabled()
+    // Over-warning fires because qty(3) > expectedQty(1)
+    expect(screen.getByTestId('addon-overbook-bf')).toBeInTheDocument()
+  })
+
+  it('+ disabled only when addon.max_qty is set and reached; occupancy alone never disables it', () => {
+    // max_qty=2 for a room with expectedQty=4: cap is at 2, not 4.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast', max_qty: 2 })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 2 }}
+        onChange={vi.fn()}
+        expectedQty={4}
+      />,
+    )
+    // Disabled because qty(2) === max_qty(2), NOT because of occupancy
+    expect(screen.getByRole('button', { name: /Increase Breakfast/i })).toBeDisabled()
+  })
+
+  it('over-warning text includes qty and expectedQty (warning text unchanged)', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 3 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    const warn = screen.getByTestId('addon-overbook-bf')
+    expect(warn).toHaveTextContent(/3/)
+    expect(warn).toHaveTextContent(/sleeps.*2/i)
+  })
+
+  it('under-warning text includes qty and expectedQty (warning text unchanged)', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={3}
+      />,
+    )
+    const warn = screen.getByTestId('addon-underbook-bf')
+    expect(warn).toHaveTextContent(/only 1/i)
+    expect(warn).toHaveTextContent(/sleeps 3/i)
   })
 })
