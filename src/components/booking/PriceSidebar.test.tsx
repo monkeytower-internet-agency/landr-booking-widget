@@ -85,7 +85,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
@@ -135,7 +135,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     )
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23']}
         participantCount={1}
@@ -156,7 +156,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     })
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
@@ -180,7 +180,7 @@ describe('PriceSidebar (landr-qez0)', () => {
     )
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23']}
         participantCount={1}
@@ -206,7 +206,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
@@ -236,7 +236,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         // 25 + 27 skipping 26 — the regression chips guard against.
         selectedDays={['2026-05-25', '2026-05-27']}
@@ -265,7 +265,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         // Guided days 25, 26, 27 → check-in Sun 24, check-out Thu 28
         // (deriveStayWindow shifts ±1 day; 3 days → 4 nights).
@@ -304,7 +304,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     })
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-25', '2026-05-26', '2026-05-27']}
         participantCount={1}
@@ -324,7 +324,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-25']}
         participantCount={2}
@@ -349,7 +349,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
@@ -375,7 +375,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
@@ -405,7 +405,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23']}
         participantCount={1}
@@ -438,7 +438,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     })
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23']}
         participantCount={1}
@@ -496,7 +496,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(streakSample)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={1}
@@ -555,7 +555,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     )
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
         participantCount={2}
@@ -580,7 +580,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
     render(
       <PriceSidebar
-        operatorSlug="para42"
+        operatorToken="para42"
         product={makeProduct()}
         selectedDays={['2026-05-25']}
         participantCount={5}

@@ -13,7 +13,7 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
-  operatorSlug: string
+  operatorToken: string
   productName: string
   /**
    * landr-yf0n: when the customer hits Back from fill-form, App.tsx
@@ -45,7 +45,7 @@ interface Props {
  *      to `loc.location_id` so there's no shared-closure surface.
  */
 export function PickupLocationPicker({
-  operatorSlug,
+  operatorToken,
   productName,
   initialLocationId,
   onBack,
@@ -61,7 +61,7 @@ export function PickupLocationPicker({
 
   useEffect(() => {
     let cancelled = false
-    listLocations(operatorSlug)
+    listLocations(operatorToken)
       .then((locs) => {
         if (!cancelled) setLocations(locs)
       })
@@ -74,7 +74,7 @@ export function PickupLocationPicker({
     return () => {
       cancelled = true
     }
-  }, [operatorSlug])
+  }, [operatorToken])
 
   return (
     <Card>

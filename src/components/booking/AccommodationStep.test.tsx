@@ -122,7 +122,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10', '2026-06-11']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -150,7 +150,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -177,7 +177,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('optional')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
@@ -213,7 +213,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10', '2026-06-11']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
@@ -280,7 +280,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         participantCount={4}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
@@ -319,7 +319,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         participantCount={2}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
@@ -358,7 +358,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         participantCount={3}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
@@ -404,7 +404,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         participantCount={2}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
@@ -458,7 +458,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         participantCount={10}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
@@ -493,7 +493,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('optional')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -533,7 +533,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('optional')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
@@ -566,7 +566,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -588,7 +588,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -625,7 +625,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -691,7 +691,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -730,7 +730,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('optional')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         initialIncludeHotel={false}
@@ -759,7 +759,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -803,7 +803,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
@@ -854,7 +854,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -887,7 +887,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,
@@ -917,7 +917,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={onConfirm}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -976,7 +976,7 @@ describe('AccommodationStep', () => {
       <AccommodationStep
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
-        operatorSlug="para42"
+        operatorToken="para42"
         onConfirm={vi.fn()}
         onBack={vi.fn()}
       />,

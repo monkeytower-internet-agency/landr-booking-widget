@@ -32,7 +32,7 @@ import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
-  operatorSlug: string
+  widgetToken: string
   product: Product
   selection: BookingSelection
   /**
@@ -158,7 +158,7 @@ const describeSelection = (
  * the sidebar.
  */
 export function BookingForm({
-  operatorSlug,
+  widgetToken,
   product,
   selection,
   booker,
@@ -225,7 +225,7 @@ export function BookingForm({
       // doesn't accept it yet (follow-up filed in landr-8c03 handoff).
       // The booker phone goes through as customer_phone as before.
       const body: SubmitBookingBody = {
-        operator_slug: operatorSlug,
+        widget_token: widgetToken,
         customer_first_name: booker.first_name,
         customer_last_name: booker.last_name,
         customer_email: booker.email,

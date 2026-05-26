@@ -76,7 +76,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('renders the "Review your booking" header and the booker + participants summary', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -99,7 +99,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('renders every participant in the summary list', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -135,7 +135,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('does NOT render any form input fields (data flows in via props)', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -152,7 +152,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('renders the hotel block when accommodationRooms is non-empty (landr-iu3s)', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -177,7 +177,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('omits the hotel block when accommodationRooms is empty or absent', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -194,7 +194,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('shows the timezone for time_slot products (landr-iu3s)', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('time_slot')}
         selection={{
           kind: 'slot',
@@ -221,7 +221,7 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   it('hides the timezone for non-time_slot products', () => {
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -252,7 +252,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
 
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -325,7 +325,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     })
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -362,7 +362,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     })
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}
@@ -409,7 +409,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     submitMock.mockRejectedValue(new Error('boom'))
     render(
       <BookingForm
-        operatorSlug="para42"
+        widgetToken="para42"
         product={makeServiceProduct('days_range')}
         selection={DAYS_SELECTION}
         booker={ADA_BOOKER}

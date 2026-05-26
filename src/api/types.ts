@@ -262,7 +262,7 @@ export interface ProductLine {
 }
 
 export interface SubmitBookingBody {
-  operator_slug: string
+  widget_token: string
   customer_first_name: string
   customer_last_name?: string | null
   customer_email: string

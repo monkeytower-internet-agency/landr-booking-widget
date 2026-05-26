@@ -35,6 +35,7 @@ import {
   getOperatorServiceRoles,
   getOperatorSettings,
   getProductAddons,
+  HttpError,
 } from '@/api/client'
 import type { OperatorSettings, Product, ServiceRole } from '@/api/types'
 import {
@@ -44,6 +45,7 @@ import {
   stepAfterAccommodation,
 } from './appStepMachine'
 import { detectRoute } from './detectRoute'
+import { LandingPage } from '@/components/booking/LandingPage'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -86,11 +88,12 @@ const PARA42_LANGUAGE_OPTIONS: LanguageOption[] = [
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
-    return { operator: null as string | null, product: null as string | null, group: null as string | null }
+    return { token: null as string | null, product: null as string | null, group: null as string | null }
   }
   const params = new URLSearchParams(window.location.search)
   return {
-    operator: params.get('operator'),
+    // landr-il9f.2: opaque widget token — no slug fallback.
+    token: params.get('w'),
     product: params.get('product'),
     group: params.get('group'),
   }
@@ -120,9 +123,12 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { operator, product, group } = useMemo(() => readQueryParams(), [])
-  const operatorSlug =
-    operator ?? import.meta.env.VITE_DEFAULT_OPERATOR_SLUG ?? 'para42'
+  const { token, product, group } = useMemo(() => readQueryParams(), [])
+  // landr-il9f.2: no token → landing page immediately (no fetch needed).
+  // Unknown token → landing page after the settings fetch returns 404.
+  // 'unknown' means "no token supplied"; null means "fetch pending";
+  // false means "fetch returned 404".
+  const [showLanding, setShowLanding] = useState<boolean>(!token)
   const [step, setStep] = useState<Step>({ name: 'pick-product' })
   // Live selection from the date pickers before the user presses Continue
   // (landr-w7pi). Cleared whenever we leave pick-selection so the next
@@ -134,8 +140,10 @@ function BookingFlowApp() {
   // landr-yp8x adds branding fields (logo_url, primary_color, name) to
   // the same endpoint; defaults stay null so the widget renders its
   // built-in theme until the fetch resolves.
+  // slug is initialised to '' and replaced by the server-resolved slug
+  // once getOperatorSettings resolves — used for the declarations check.
   const [operatorSettings, setOperatorSettings] = useState<OperatorSettings>({
-    slug: operatorSlug,
+    slug: '',
     expose_seats_to_customer: false,
     logo_url: null,
     primary_color: null,
@@ -149,25 +157,35 @@ function BookingFlowApp() {
   const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
 
   useEffect(() => {
+    if (!token) return
     let cancelled = false
     void (async () => {
       try {
-        const settings = await getOperatorSettings(operatorSlug)
-        if (!cancelled) setOperatorSettings(settings)
-      } catch {
-        // Keep the safe defaults — failing this fetch must not block booking.
+        const settings = await getOperatorSettings(token)
+        if (!cancelled) {
+          setOperatorSettings(settings)
+          setShowLanding(false)
+        }
+      } catch (err) {
+        // 404 → unknown token → show landing page.
+        if (err instanceof HttpError && err.status === 404) {
+          if (!cancelled) setShowLanding(true)
+        }
+        // Any other error: keep the safe defaults — failing the settings
+        // fetch must not block booking when the token is valid.
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [operatorSlug])
+  }, [token])
 
   useEffect(() => {
+    if (!token) return
     let cancelled = false
     void (async () => {
       try {
-        const roles = await getOperatorServiceRoles(operatorSlug)
+        const roles = await getOperatorServiceRoles(token)
         if (!cancelled) setServiceRoles(roles)
       } catch {
         // Empty list is the safe fallback — BookingForm's || 'participant'
@@ -177,7 +195,7 @@ function BookingFlowApp() {
     return () => {
       cancelled = true
     }
-  }, [operatorSlug])
+  }, [token])
 
   const goToProductStep = useCallback(() => {
     // Clear live selection so that a Back → re-enter cycle shows an
@@ -317,7 +335,9 @@ function BookingFlowApp() {
     // so the customer confirms eligibility before the review screen.
     // pick-pickup is left unchanged — the pickup step's onConfirm handler
     // also goes through fillFormOrDeclarations.
-    if (next.name === 'fill-form' && OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug)) {
+    // landr-il9f.2: declarations check now keyed on the server-resolved
+    // slug from settings (operatorSettings.slug), not the URL param.
+    if (next.name === 'fill-form' && OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug)) {
       setStep(fillFormOrDeclarations(next, true))
     } else {
       setStep(next)
@@ -335,6 +355,9 @@ function BookingFlowApp() {
   }
 
   const sidebarInputs = sidebarInputsForStep(step)
+
+  // landr-il9f.2: no token or unknown token → show the generic landing page.
+  if (showLanding) return <LandingPage />
 
   // landr-yp8x — apply the operator's primary colour as a CSS variable
   // override so every component that reads `var(--primary)` (Button,
@@ -393,7 +416,7 @@ function BookingFlowApp() {
 
         {step.name === 'pick-product' ? (
           <ProductList
-            operatorSlug={operatorSlug}
+            operatorToken={token!}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
             onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
@@ -490,7 +513,7 @@ function BookingFlowApp() {
           <AccommodationStep
             product={step.product}
             selectedDays={selectionToDays(step.selection)}
-            operatorSlug={operatorSlug}
+            operatorToken={token!}
             participantCount={step.participants.length}
             // landr-yf0n: thread prior accommodation context back so the
             // step re-mounts with hotel + rooms + add-ons restored
@@ -573,7 +596,7 @@ function BookingFlowApp() {
 
         {step.name === 'pick-pickup' ? (
           <PickupLocationPicker
-            operatorSlug={operatorSlug}
+            operatorToken={token!}
             productName={step.product.name}
             // landr-yf0n: thread the prior pickup choice back so the
             // radio re-mounts with it already selected on back-nav.
@@ -643,7 +666,8 @@ function BookingFlowApp() {
               setStep(
                 fillFormOrDeclarations(
                   fillFormArgs,
-                  OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug),
+                  // landr-il9f.2: keyed on the server-resolved slug.
+                  OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug),
                 ),
               )
             }}
@@ -740,7 +764,7 @@ function BookingFlowApp() {
 
         {step.name === 'fill-form' ? (
           <BookingForm
-            operatorSlug={operatorSlug}
+            widgetToken={token!}
             product={step.product}
             selection={step.selection}
             booker={step.booker}
@@ -755,7 +779,7 @@ function BookingFlowApp() {
               // from fill-form goes to the declarations step (not all
               // the way back to pickup/accommodation) so the customer
               // can review/change declarations without losing context.
-              if (OPERATORS_REQUIRING_DECLARATIONS.has(operatorSlug)) {
+              if (OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug)) {
                 setStep({
                   name: 'declarations',
                   product: step.product,
@@ -858,7 +882,7 @@ function BookingFlowApp() {
         </div>
         {sidebarInputs ? (
           <PriceSidebar
-            operatorSlug={operatorSlug}
+            operatorToken={token!}
             product={sidebarInputs.product}
             selectedDays={
               step.name === 'pick-selection'

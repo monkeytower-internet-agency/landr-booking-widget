@@ -38,7 +38,7 @@ describe('PickupLocationPicker', () => {
 
     render(
       <PickupLocationPicker
-        operatorSlug="para42"
+        operatorToken="para42"
         productName="Tandem Flight"
         onBack={vi.fn()}
         onConfirm={onConfirm}
@@ -73,7 +73,7 @@ describe('PickupLocationPicker', () => {
 
     render(
       <PickupLocationPicker
-        operatorSlug="para42"
+        operatorToken="para42"
         productName="Tandem Flight"
         initialLocationId="loc-b"
         onBack={vi.fn()}
@@ -101,7 +101,7 @@ describe('PickupLocationPicker', () => {
 
     render(
       <PickupLocationPicker
-        operatorSlug="para42"
+        operatorToken="para42"
         productName="Tandem Flight"
         initialLocationId={null}
         onBack={vi.fn()}
