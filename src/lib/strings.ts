@@ -7,8 +7,10 @@ type Bundle = {
 }
 
 const en: Bundle = {
-  multiDayPickerHelp:
-    'Click to pick a date. Click another to make a range. Hold Shift (or Cmd/Ctrl) to toggle individual days.',
+  // landr-4xyd: Shift/Cmd/Ctrl wording removed; mode toggle in the picker
+  // now drives help text. This string is kept for callers that pass it as
+  // a helpText override; MultiDayStep no longer passes it (passes undefined).
+  multiDayPickerHelp: 'Tap days to add or remove them.',
 }
 
 export function pickBundle(locale?: string): Bundle {

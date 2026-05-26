@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card'
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
 import { StepBackButton } from '@/components/booking/StepBackButton'
-import { tr } from '@/lib/strings'
 
 interface Props {
   product: Product
@@ -93,7 +92,7 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
           availability={slots ?? []}
           value={selectedDays}
           onChange={setSelectedDays}
-          helpText={product.is_contiguous ? undefined : tr('multiDayPickerHelp')}
+          helpText={undefined}
           defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
         />

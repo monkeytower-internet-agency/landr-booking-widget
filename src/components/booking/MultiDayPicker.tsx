@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
+import { Button } from '@/components/ui/button'
+
+type Mode = 'individual' | 'range'
 
 interface MultiDayPickerProps {
   availability: AvailabilitySlot[]
   value: Date[]
   onChange: (days: Date[]) => void
   helpText?: string
-  /** Long-press duration in ms; exposed so tests can shrink it. */
-  longPressMs?: number
   /** Initial visible month. Forwarded to react-day-picker; tests rely on this. */
   defaultMonth?: Date
   /**
@@ -17,12 +18,10 @@ interface MultiDayPickerProps {
    * contiguous run of available days. Clicks that would break contiguity
    * (toggle middle days, shift-click far dates) are coerced into a fresh
    * single-day selection, so the user always ends up with a valid range.
-   * When false (default): legacy any-day-toggle behaviour.
+   * When false (default): mode-aware toggle/range behaviour.
    */
   isContiguous?: boolean
 }
-
-const LONG_PRESS_MS = 500
 
 const isoDate = (d: Date) => {
   const y = d.getFullYear()
@@ -57,8 +56,13 @@ function sortedDates(isoSet: Set<string>): Date[] {
 
 // landr-ifcu: v1 is English-only. The German variant of this help text was
 // removed; locale-suffixed names dropped in favour of plain identifiers.
-export const DEFAULT_MULTI_DAY_HELP =
-  'Click to pick a date. Click another to make a range. Hold Shift (or Cmd/Ctrl) to toggle individual days.'
+export const DEFAULT_MULTI_DAY_HELP_INDIVIDUAL = 'Tap days to add or remove them.'
+
+export const DEFAULT_MULTI_DAY_HELP_RANGE =
+  'Tap a start date, then tap another to span the days between.'
+
+// Backwards-compat alias — points to the individual-mode string.
+export const DEFAULT_MULTI_DAY_HELP = DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
 
 /**
  * Help text shown in contiguous mode (landr-y9k). The any-day-toggle copy
@@ -72,7 +76,6 @@ export function MultiDayPicker({
   value,
   onChange,
   helpText,
-  longPressMs = LONG_PRESS_MS,
   defaultMonth,
   isContiguous = false,
 }: MultiDayPickerProps) {
@@ -85,45 +88,9 @@ export function MultiDayPicker({
   }, [availability])
 
   const [anchor, setAnchor] = useState<Date | null>(null)
-  const longPressFiredRef = useRef<Set<string>>(new Set())
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mode, setMode] = useState<Mode>('individual')
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
-
-  const clearLongPressTimer = useCallback(() => {
-    if (longPressTimerRef.current !== null) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
-    }
-  }, [])
-
-  useEffect(() => () => clearLongPressTimer(), [clearLongPressTimer])
-
-  const findDayKey = (target: EventTarget | null): string | null => {
-    if (!(target instanceof Element)) return null
-    const button = target.closest('button[data-day]') as HTMLButtonElement | null
-    const raw = button?.dataset.day
-    if (!raw) return null
-    const parsed = new Date(raw)
-    if (Number.isNaN(parsed.getTime())) return null
-    return isoDate(parsed)
-  }
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return
-    const key = findDayKey(e.target)
-    if (!key || !availableSet.has(key)) return
-    clearLongPressTimer()
-    longPressTimerRef.current = setTimeout(() => {
-      longPressFiredRef.current.add(key)
-      longPressTimerRef.current = null
-    }, longPressMs)
-  }
-
-  const onPointerEndOrLeave = (e: React.PointerEvent) => {
-    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return
-    clearLongPressTimer()
-  }
 
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
@@ -135,7 +102,7 @@ export function MultiDayPicker({
       // gap-free run of available days. A click is honoured as a range
       // extension/trim if every day between the existing run and the
       // clicked date is available; otherwise the selection restarts from
-      // the clicked day. Toggle gestures (shift/ctrl/long-press) are
+      // the clicked day. Toggle gestures (shift/ctrl/modifier) are
       // suppressed — they always restart since they can't preserve the
       // contiguous invariant.
       if (isContiguous) {
@@ -233,30 +200,57 @@ export function MultiDayPicker({
     _modifiers: Modifiers,
     event: React.MouseEvent | React.KeyboardEvent,
   ) => {
-    const key = isoDate(triggerDate)
-    const longPressed = longPressFiredRef.current.has(key)
-    if (longPressed) longPressFiredRef.current.delete(key)
     const mouseEvent = event as Partial<React.MouseEvent>
-    const toggle =
-      longPressed ||
+    // Desktop modifier keys force individual-day toggle regardless of mode.
+    const modifierToggle =
       mouseEvent.shiftKey === true ||
       mouseEvent.ctrlKey === true ||
       mouseEvent.metaKey === true
+    // individual mode: every tap toggles; range mode: taps build a span.
+    // In contiguous mode the toggle UI is not shown; only modifier keys can
+    // trigger the toggle path (which restarts the selection in contiguous mode).
+    const toggle = (!isContiguous && mode === 'individual') || modifierToggle
     applyClick(triggerDate, toggle)
   }
 
+  // Help text: caller override wins; contiguous has fixed copy; otherwise
+  // follows the active mode.
   const text =
     helpText ??
-    (isContiguous ? CONTIGUOUS_MULTI_DAY_HELP : DEFAULT_MULTI_DAY_HELP)
+    (isContiguous
+      ? CONTIGUOUS_MULTI_DAY_HELP
+      : mode === 'individual'
+        ? DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
+        : DEFAULT_MULTI_DAY_HELP_RANGE)
 
   return (
-    <div
-      className="flex flex-col gap-3"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerEndOrLeave}
-      onPointerCancel={onPointerEndOrLeave}
-      onPointerLeave={onPointerEndOrLeave}
-    >
+    <div className="flex flex-col gap-3">
+      {!isContiguous && (
+        <div
+          role="group"
+          aria-label="Selection mode"
+          className="flex flex-row gap-1"
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === 'individual' ? 'default' : 'outline'}
+            aria-pressed={mode === 'individual'}
+            onClick={() => setMode('individual')}
+          >
+            Individual days
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === 'range' ? 'default' : 'outline'}
+            aria-pressed={mode === 'range'}
+            onClick={() => setMode('range')}
+          >
+            Date range
+          </Button>
+        </div>
+      )}
       <Calendar
         mode="multiple"
         selected={value}

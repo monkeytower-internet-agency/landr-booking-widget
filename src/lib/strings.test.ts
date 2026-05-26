@@ -12,12 +12,12 @@ describe('strings (English-only, landr-ifcu)', () => {
     expect(en).toBe(de)
     expect(en).toBe(deDE)
     expect(en).toBe(fr)
-    expect(en.multiDayPickerHelp).toMatch(/^Click to pick a date/)
+    expect(en.multiDayPickerHelp).toMatch(/^Tap days to add or remove/)
   })
 
   it('tr returns the English string for any locale', () => {
-    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Click to pick a date/)
-    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Click to pick a date/)
-    expect(tr('multiDayPickerHelp')).toMatch(/^Click to pick a date/)
+    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Tap days to add or remove/)
+    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Tap days to add or remove/)
+    expect(tr('multiDayPickerHelp')).toMatch(/^Tap days to add or remove/)
   })
 })
