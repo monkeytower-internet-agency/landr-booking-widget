@@ -247,6 +247,22 @@ export interface Participant {
    * omitted when unassigned.
    */
   room_unit_index?: number | null
+  /**
+   * landr-doam.1: per-occupant age band for the hotel (informational only —
+   * no discount is calculated by the widget). 'adult' (default/absent) or
+   * 'child'. null / omitted = adult. Collected in the room-assignment UI
+   * once the participant is assigned to a room unit.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape):
+   * absent/null → adult; 'child' → occupant_age must also be present.
+   */
+  occupant_age_band?: 'adult' | 'child' | null
+  /**
+   * landr-doam.1: the child's age in years (0-17). Present only when
+   * occupant_age_band === 'child'. null / omitted otherwise. Purely
+   * informational for the hotel — the widget never uses it in pricing.
+   */
+  occupant_age?: number | null
 }
 
 /**
@@ -272,6 +288,35 @@ export interface Companion {
   phone?: string | null
   room_product_id?: string | null
   room_unit_index?: number | null
+  /**
+   * landr-doam.1: per-occupant age band for the hotel (informational only).
+   * Mirrors the Participant field exactly — 'adult' (default/absent) or
+   * 'child'. null / omitted = adult. Populated from the room-assignment UI.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   */
+  occupant_age_band?: 'adult' | 'child' | null
+  /**
+   * landr-doam.1: the child's age in years (0-17). Present only when
+   * occupant_age_band === 'child'. null / omitted otherwise.
+   */
+  occupant_age?: number | null
+  /**
+   * landr-doam.1 scope-add: companion participation kind. Determines whether
+   * the companion is a non-participating guest (partner/child/friend) or a
+   * fellow pilot/activity-person who books and pays for their own guiding
+   * separately (a separate booking).
+   *
+   * - 'guest' (default/absent): not doing the activity. Age band applies.
+   * - 'separate_guiding': IS joining the activity but books/pays guiding
+   *   separately. Fills a bed in the room holder's room and appears on the
+   *   hotel rooming list, but is NOT counted in this booking's participants,
+   *   guiding price, or the 6-participant cap.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   * Absent/null treated as 'guest' by the API.
+   */
+  companion_kind?: 'guest' | 'separate_guiding' | null
 }
 
 /**

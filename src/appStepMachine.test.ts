@@ -90,7 +90,7 @@ function makeParticipants(n: number): ParticipantDetails[] {
 function makeCompanions(n: number): CompanionDetails[] {
   const rows: CompanionDetails[] = []
   for (let i = 0; i < n; i += 1) {
-    rows.push({ first_name: `C${i + 1}`, last_name: '', email: '', phone: '' })
+    rows.push({ first_name: `C${i + 1}`, last_name: '', email: '', phone: '', companion_kind: 'guest' as const })
   }
   return rows
 }

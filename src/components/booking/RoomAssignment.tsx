@@ -13,6 +13,8 @@ import {
 import {
   occupantsOfUnit,
   roomUnitKey,
+  type OccupantAgeMap,
+  type OccupantAgeBand,
   type RoomAssignmentMap,
   type RoomUnit,
 } from './accommodationCalc'
@@ -64,6 +66,23 @@ interface Props {
    * unit, or null to move the member back to the unassigned tray.
    */
   onAssign: (memberIndex: number, target: RoomUnit | null) => void
+  /**
+   * landr-doam.1: per-occupant age band + age map (memberIndex → entry).
+   * Only assigned occupants ever appear. Missing key = adult (default).
+   * The component renders an inline Adult/Child toggle + child-age input
+   * next to each occupant chip in a room unit. Unassigned chips (in the
+   * tray) never show the control.
+   */
+  ageMap?: OccupantAgeMap
+  /**
+   * landr-doam.1: called when the user changes an occupant's age band or
+   * child age. The parent owns the map and passes it back down.
+   */
+  onAgeBandChange?: (
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) => void
 }
 
 function participantLabel(names: string[], index: number): string {
@@ -119,6 +138,70 @@ function Chip({
   )
 }
 
+/**
+ * landr-doam.1: inline Adult/Child control shown next to each assigned
+ * occupant chip inside a room unit. Selecting 'child' reveals a small
+ * required age input (0-17). Only renders for assigned occupants — the
+ * unassigned tray never shows this control.
+ */
+function OccupantAgeControl({
+  memberIndex,
+  ageMap = {},
+  onAgeBandChange,
+}: {
+  memberIndex: number
+  ageMap: OccupantAgeMap
+  onAgeBandChange: (
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) => void
+}) {
+  const entry = ageMap[memberIndex]
+  const band = entry?.band ?? 'adult'
+  const age = entry?.age ?? null
+  const isChild = band === 'child'
+  return (
+    <span className="flex items-center gap-1">
+      <select
+        data-testid={`age-band-select-${memberIndex}`}
+        aria-label="Age band"
+        value={band}
+        onChange={(e) => {
+          const next = e.target.value as OccupantAgeBand
+          onAgeBandChange(memberIndex, next, next === 'adult' ? null : age)
+        }}
+        className="rounded border border-border bg-background px-1 py-0.5 text-xs"
+      >
+        <option value="adult">Adult</option>
+        <option value="child">Child</option>
+      </select>
+      {isChild ? (
+        <input
+          type="number"
+          min={0}
+          max={17}
+          data-testid={`child-age-input-${memberIndex}`}
+          aria-label="Child age"
+          placeholder="Age"
+          value={age === null ? '' : String(age)}
+          onChange={(e) => {
+            const raw = e.target.value
+            const parsed = raw === '' ? null : Math.min(17, Math.max(0, parseInt(raw, 10)))
+            onAgeBandChange(memberIndex, 'child', isNaN(parsed as number) ? null : parsed)
+          }}
+          className={[
+            'w-14 rounded border px-1 py-0.5 text-xs',
+            age === null ? 'border-destructive' : 'border-border',
+            'bg-background',
+          ].join(' ')}
+          required
+        />
+      ) : null}
+    </span>
+  )
+}
+
 /** A droppable room-unit slot. */
 function UnitDropZone({
   unit,
@@ -128,6 +211,8 @@ function UnitDropZone({
   selectedChip,
   onTapTarget,
   onAssign,
+  ageMap = {},
+  onAgeBandChange,
 }: {
   unit: RoomUnit
   occupantIndices: number[]
@@ -136,6 +221,12 @@ function UnitDropZone({
   selectedChip: number | null
   onTapTarget: () => void
   onAssign: (participantIndex: number, target: RoomUnit | null) => void
+  ageMap: OccupantAgeMap
+  onAgeBandChange?: (
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) => void
 }) {
   const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
   const { setNodeRef, isOver } = useDroppable({ id: `unit-${key}`, data: { unit } })
@@ -163,23 +254,32 @@ function UnitDropZone({
           {occupantIndices.length}/{unit.capacity}
         </span>
       </div>
-      <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2">
         {occupantIndices.length === 0 ? (
           <span className="text-xs italic text-muted-foreground">Empty</span>
         ) : (
           occupantIndices.map((pIdx) => (
-            <Chip
-              key={pIdx}
-              participantIndex={pIdx}
-              label={participantLabel(participantNames, pIdx)}
-              selected={selectedChip === pIdx}
-              isGuest={guestFlags[pIdx] ?? false}
-              onTap={() =>
-                // Tapping an already-assigned chip removes it from this unit
-                // (back to unassigned) — the fastest way to free a slot.
-                onAssign(pIdx, null)
-              }
-            />
+            <div key={pIdx} className="flex flex-wrap items-center gap-2">
+              <Chip
+                participantIndex={pIdx}
+                label={participantLabel(participantNames, pIdx)}
+                selected={selectedChip === pIdx}
+                isGuest={guestFlags[pIdx] ?? false}
+                onTap={() =>
+                  // Tapping an already-assigned chip removes it from this unit
+                  // (back to unassigned) — the fastest way to free a slot.
+                  onAssign(pIdx, null)
+                }
+              />
+              {/* landr-doam.1: Adult/Child control — only for assigned occupants. */}
+              {onAgeBandChange ? (
+                <OccupantAgeControl
+                  memberIndex={pIdx}
+                  ageMap={ageMap}
+                  onAgeBandChange={onAgeBandChange}
+                />
+              ) : null}
+            </div>
           ))
         )}
       </div>
@@ -205,6 +305,8 @@ export function RoomAssignment({
   guestFlags = [],
   assignment,
   onAssign,
+  ageMap = {},
+  onAgeBandChange,
 }: Props) {
   const selectId = useId()
   // tap-to-place: the currently "picked up" participant index (or null).
@@ -290,6 +392,8 @@ export function RoomAssignment({
                   selectedChip={selectedChip}
                   onTapTarget={() => placeSelected(unit)}
                   onAssign={onAssign}
+                  ageMap={ageMap}
+                  onAgeBandChange={onAgeBandChange}
                 />
               </div>
             )

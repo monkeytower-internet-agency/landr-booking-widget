@@ -8,6 +8,7 @@ import {
   findBreakfastAddonIds,
   flattenPerRoomAddons,
   formatCurrency,
+  hasIncompleteChildAge,
   isPremiumIncludesBreakfast,
   occupancyStatus,
   occupantsOfUnit,
@@ -19,6 +20,7 @@ import {
   totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
+  type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
   type RoomUnit,
@@ -760,5 +762,51 @@ describe('occupancyStatus (landr-87n9.3)', () => {
 
   it('is complete (vacuously) when there are no units and no members', () => {
     expect(occupancyStatus([], 0, {}).complete).toBe(true)
+  })
+})
+
+describe('hasIncompleteChildAge (landr-doam.1)', () => {
+  const assignment: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('returns false when all assigned occupants are adults (empty ageMap)', () => {
+    expect(hasIncompleteChildAge(assignment, {})).toBe(false)
+  })
+
+  it('returns false when all children have a valid age', () => {
+    const ageMap: OccupantAgeMap = {
+      0: { band: 'child', age: 8 },
+      1: { band: 'adult', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(false)
+  })
+
+  it('returns true when a child occupant has no age (null)', () => {
+    const ageMap: OccupantAgeMap = {
+      0: { band: 'child', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(true)
+  })
+
+  it('returns true when a child occupant has negative age (invalid sentinel)', () => {
+    const ageMap: OccupantAgeMap = {
+      1: { band: 'child', age: -1 },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(true)
+  })
+
+  it('ignores unassigned members — they have no ageMap entry', () => {
+    // member 99 is NOT in the assignment map, so the age entry is irrelevant.
+    const ageMap: OccupantAgeMap = {
+      99: { band: 'child', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(false)
+  })
+
+  it('returns false for an empty assignment (no occupants to check)', () => {
+    const ageMap: OccupantAgeMap = { 0: { band: 'child', age: null } }
+    expect(hasIncompleteChildAge({}, ageMap)).toBe(false)
   })
 })

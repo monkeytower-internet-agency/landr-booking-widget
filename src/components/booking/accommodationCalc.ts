@@ -500,6 +500,57 @@ export function occupancyStatus(
   }
 }
 
+// ─── Per-occupant age band (landr-doam.1) ────────────────────────────────────
+
+/**
+ * Age-band value for an assigned room occupant. 'adult' is the default and
+ * requires no further input. 'child' requires a numeric age (0-17) in the
+ * companion field. null is treated as 'adult' at submit time.
+ *
+ * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+ */
+export type OccupantAgeBand = 'adult' | 'child'
+
+/**
+ * Per-party-member age band + age, keyed by the UNIFIED party-member index
+ * (participants 0..P-1, companions P..P+C-1). Only assigned occupants ever
+ * appear in this map — unassigned members are always considered adult (no
+ * input shown in the unassigned tray).
+ *
+ * A missing key means the occupant is adult (the default). A key with band
+ * 'child' and age===null means the child age is still required.
+ */
+export interface OccupantAgeEntry {
+  band: OccupantAgeBand
+  /** The child's age in years (0-17). Required when band==='child'. */
+  age: number | null
+}
+export type OccupantAgeMap = Record<number, OccupantAgeEntry>
+
+/**
+ * Check that every assigned CHILD occupant has a valid age entered (0-17).
+ * Adults need no age. Members absent from the map default to adult → pass.
+ *
+ * Returns true when Continue should be blocked (there is at least one child
+ * with a missing age). Pure — depends only on the assignment + age map.
+ *
+ * Only assigned occupants (present in `assignment`) can ever be child —
+ * unassigned members show no control and are always adult.
+ */
+export function hasIncompleteChildAge(
+  assignment: RoomAssignmentMap,
+  ageMap: OccupantAgeMap,
+): boolean {
+  for (const pidStr of Object.keys(assignment)) {
+    const pid = Number(pidStr)
+    const entry = ageMap[pid]
+    if (entry?.band === 'child' && (entry.age === null || entry.age < 0)) {
+      return true
+    }
+  }
+  return false
+}
+
 /**
  * Returns true when a hotel_room product is a "premium-includes-breakfast"
  * variant — i.e. the room price already bundles breakfast (landr-sbhz.4).

@@ -468,8 +468,8 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
   // assignment map at index participants.length + companionIdx.
   it('sends companions[] as a top-level array with assignment + optional fields', async () => {
     const COMPANIONS: CompanionDetails[] = [
-      { first_name: 'Mia', last_name: 'Berg', email: 'mia@example.com', phone: '' },
-      { first_name: 'Leo', last_name: '', email: '', phone: '+34 600 999' },
+      { first_name: 'Mia', last_name: 'Berg', email: 'mia@example.com', phone: '', companion_kind: 'guest' },
+      { first_name: 'Leo', last_name: '', email: '', phone: '+34 600 999', companion_kind: 'guest' },
     ]
     render(
       <BookingForm

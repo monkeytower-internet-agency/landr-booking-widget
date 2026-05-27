@@ -286,10 +286,10 @@ export function DetailsStep({
     })
   }
 
-  const updateCompanion = (
+  const updateCompanion = <K extends keyof CompanionDetails>(
     idx: number,
-    key: keyof CompanionDetails,
-    value: string,
+    key: K,
+    value: CompanionDetails[K],
   ) => {
     setCompanions((prev) => {
       const next = prev.slice()
@@ -519,22 +519,23 @@ export function DetailsStep({
         </fieldset>
 
         {/* landr-87n9.3: non-guiding companions. Generic copy per
-            landr-genericity-northstar — "not joining the activity", never
-            "not paragliding". Companions occupy hotel beds (whole-party
-            room assignment) but are NOT guiding participants: no role, not
-            counted toward the 6-participant cap or the per-participant
-            guiding price. Only first name is required. */}
+            landr-genericity-northstar. Companions occupy hotel beds (whole-party
+            room assignment) but are NOT counted toward this booking's guiding
+            participants, price, or the 6-participant cap — regardless of whether
+            they do the activity (landr-doam.1: companion_kind).
+            Only first name is required. */}
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"
         >
           <legend className="text-sm font-medium">
-            Others joining (not doing the activity)
+            Others sharing your room
           </legend>
           <p className="text-xs text-muted-foreground">
-            Partners, friends or family who travel with you and need a bed but
-            are not taking part in the activity. They&rsquo;re added to your
-            room assignment and the hotel headcount, but not to the activity.
+            Anyone else sharing your accommodation — partners, friends, family
+            members, or fellow activity participants who book and pay for their
+            own guiding separately. They&rsquo;re added to the hotel headcount
+            and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -574,6 +575,49 @@ export function DetailsStep({
               <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
                 Guest {idx + 1}
               </div>
+              {/* landr-doam.1: companion kind selector — "not joining the
+                  activity" (guest) vs "joining with their own separate guiding
+                  booking" (separate_guiding). Default guest. The kind is
+                  purely informational for the operator / rooming list; it
+                  never affects this booking's price or participant count. */}
+              <fieldset className="sm:col-span-2 flex flex-col gap-1">
+                <legend className="text-xs text-muted-foreground">
+                  How are they joining?
+                </legend>
+                <div className="flex flex-col gap-1">
+                  {(
+                    [
+                      {
+                        value: 'guest',
+                        label: 'Not doing the activity (partner / child / friend)',
+                      },
+                      {
+                        value: 'separate_guiding',
+                        label:
+                          'Joining the activity — booking their own guiding separately',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex cursor-pointer items-center gap-2 text-xs"
+                      data-testid={`companion-kind-${idx}-${opt.value}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`companion_${idx + 1}_kind`}
+                        value={opt.value}
+                        checked={row.companion_kind === opt.value}
+                        onChange={() =>
+                          updateCompanion(idx, 'companion_kind', opt.value)
+                        }
+                        className="h-3.5 w-3.5 accent-primary"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <Field label="First name" htmlFor={`companion-${idx}-first`}>
                 <Input
                   id={`companion-${idx}-first`}

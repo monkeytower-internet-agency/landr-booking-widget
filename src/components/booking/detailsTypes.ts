@@ -60,6 +60,11 @@ export interface ParticipantDetails {
  * Only first_name is required (matches the participant rule, minus the
  * required last_name). email/phone stay optional; all three optional fields
  * are normalised to null on submit so a blank never overwrites server data.
+ *
+ * landr-doam.1 scope-add: companion_kind distinguishes a non-participating
+ * guest (partner/child) from a fellow activity-person who books their guiding
+ * separately. Default 'guest'. See Companion type in api/types.ts for full
+ * semantics.
  */
 export interface CompanionDetails {
   first_name: string
@@ -69,6 +74,13 @@ export interface CompanionDetails {
   email: string
   /** Optional. Empty string when not provided — normalised to null on submit. */
   phone: string
+  /**
+   * landr-doam.1: participation kind. 'guest' (default) = not doing the
+   * activity. 'separate_guiding' = joining the activity but booking guiding
+   * separately. Controls the hint text in DetailsStep and the wire field on
+   * submit. Never affects this booking's price or participant count.
+   */
+  companion_kind: 'guest' | 'separate_guiding'
 }
 
 export function emptyBooker(): BookerDetails {
@@ -77,7 +89,7 @@ export function emptyBooker(): BookerDetails {
 
 /** Empty companion scaffold for a freshly-added "Others joining" row. */
 export function emptyCompanion(): CompanionDetails {
-  return { first_name: '', last_name: '', email: '', phone: '' }
+  return { first_name: '', last_name: '', email: '', phone: '', companion_kind: 'guest' }
 }
 
 /**

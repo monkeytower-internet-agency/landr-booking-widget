@@ -128,3 +128,80 @@ describe('RoomAssignment (landr-gb2f.2)', () => {
     expect(screen.getByTestId('participant-chip-1')).toHaveTextContent('Guest 2')
   })
 })
+
+describe('RoomAssignment — adult/child age controls (landr-doam.1)', () => {
+  const SINGLE_UNIT: RoomUnit[] = [
+    { roomProductId: 'single', unitIndex: 0, capacity: 2, roomName: 'Single Room' },
+  ]
+  const ASSIGNED: RoomAssignmentMap = {
+    0: { roomProductId: 'single', unitIndex: 0 },
+    1: { roomProductId: 'single', unitIndex: 0 },
+  }
+
+  it('renders an Adult/Child selector for each assigned occupant', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        ageMap={{}}
+        onAgeBandChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('age-band-select-0')).toHaveValue('adult')
+    expect(screen.getByTestId('age-band-select-1')).toHaveValue('adult')
+    // No child-age inputs shown by default (all adult).
+    expect(screen.queryByTestId('child-age-input-0')).toBeNull()
+  })
+
+  it('shows a child-age input when band is child', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        ageMap={{ 0: { band: 'child', age: null } }}
+        onAgeBandChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('age-band-select-0')).toHaveValue('child')
+    expect(screen.getByTestId('child-age-input-0')).toBeInTheDocument()
+    // Member 1 is still adult — no age input for them.
+    expect(screen.queryByTestId('child-age-input-1')).toBeNull()
+  })
+
+  it('calls onAgeBandChange when the band select changes', () => {
+    const onAgeBandChange = vi.fn()
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        ageMap={{}}
+        onAgeBandChange={onAgeBandChange}
+      />,
+    )
+    fireEvent.change(screen.getByTestId('age-band-select-0'), {
+      target: { value: 'child' },
+    })
+    expect(onAgeBandChange).toHaveBeenCalledWith(0, 'child', null)
+  })
+
+  it('does not show age controls for unassigned occupants', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace', 'Linus']}
+        assignment={ASSIGNED} // Linus (2) is unassigned
+        onAssign={vi.fn()}
+        ageMap={{}}
+        onAgeBandChange={vi.fn()}
+      />,
+    )
+    // Linus is in the unassigned tray — no age-band select for them.
+    expect(screen.queryByTestId('age-band-select-2')).toBeNull()
+  })
+})
