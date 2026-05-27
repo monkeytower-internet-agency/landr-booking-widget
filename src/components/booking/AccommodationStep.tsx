@@ -882,6 +882,9 @@ export function AccommodationStep({
                         }))
                       }
                       expectedQty={(room.capacity_per_unit ?? 1) * qty}
+                      // landr-yybu: room-linked add-ons are hard-capped at the
+                      // room's occupancy (incl single-occupancy rooms → cap 1).
+                      occupancyLimited
                       heading="Add-ons"
                     />
                   ) : null}
