@@ -453,9 +453,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'en' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       await waitFor(() =>
@@ -541,9 +540,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'en' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       // Now on BookingForm (review screen).
@@ -683,9 +681,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'de' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-de'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       // Land on fill-form (BookingForm review screen).

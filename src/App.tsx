@@ -888,7 +888,9 @@ function BookingFlowApp() {
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
                 customerDeclarations: customerDeclarations.declarations,
-                customerLanguage: customerDeclarations.language,
+                // landr-87n9.4: multi-select languages + free-text other.
+                customerLanguages: customerDeclarations.languages,
+                customerOtherLanguages: customerDeclarations.otherLanguages || null,
               })
             }
           />
@@ -909,7 +911,8 @@ function BookingFlowApp() {
             accommodationRooms={step.accommodationRooms}
             addons={step.addons}
             customerDeclarations={step.customerDeclarations}
-            customerLanguage={step.customerLanguage}
+            customerLanguages={step.customerLanguages}
+            customerOtherLanguages={step.customerOtherLanguages}
             // landr-ffyg.2: thread the shared-double marker into the submit
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
@@ -942,10 +945,12 @@ function BookingFlowApp() {
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
+                  // landr-87n9.4: restore languages[] + otherLanguages on back-nav.
                   initialDeclarations: step.customerDeclarations
                     ? {
                         declarations: step.customerDeclarations,
-                        language: step.customerLanguage ?? '',
+                        languages: step.customerLanguages ?? [],
+                        otherLanguages: step.customerOtherLanguages ?? '',
                       }
                     : undefined,
                 })
