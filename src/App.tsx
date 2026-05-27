@@ -50,6 +50,7 @@ import {
   fillFormOrDeclarations,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepBeforeReview,
 } from './appStepMachine'
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
@@ -155,6 +156,20 @@ function BookingFlowApp() {
   // when leaving the details step so back-nav starts fresh.
   const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
   const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
+  // landr-87n9.2: live-lifted room + per-room add-on selection from
+  // AccommodationStep so the PriceSidebar's "At-hotel total" pill updates
+  // WHILE the customer picks rooms — without waiting for Continue. Mirrors
+  // the liveParticipant* pattern. `touched` is the sentinel that says the
+  // customer has made a live change on this visit; until then we fall back
+  // to the step's restored values (covers back-nav re-entry where prior
+  // rooms live in step.accommodationRooms). All three are cleared whenever
+  // we leave the accommodation step so the next visit starts fresh.
+  const [liveAccommodationRooms, setLiveAccommodationRooms] = useState<
+    RoomSelection[]
+  >([])
+  const [liveAddons, setLiveAddons] = useState<AddonSelection[]>([])
+  const [liveAccommodationTouched, setLiveAccommodationTouched] =
+    useState<boolean>(false)
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
   // first render never leaks seat counts for opted-out operators.
@@ -218,6 +233,16 @@ function BookingFlowApp() {
     }
   }, [token])
 
+  // landr-87n9.2: clear the live-lifted accommodation state. Called on every
+  // transition OUT of pick-accommodation (Back, Continue, full restart) so a
+  // later visit starts fresh and the sidebar falls back to the step's
+  // restored values until the customer makes a new live change.
+  const clearLiveAccommodation = useCallback(() => {
+    setLiveAccommodationRooms([])
+    setLiveAddons([])
+    setLiveAccommodationTouched(false)
+  }, [])
+
   const goToProductStep = useCallback(() => {
     // Clear live selection so that a Back → re-enter cycle shows an
     // empty price sidebar until the user picks days again (landr-w7pi).
@@ -225,8 +250,10 @@ function BookingFlowApp() {
     // landr-gb2f.1: also clear live participant state on a full restart.
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
+    // landr-87n9.2: clear live accommodation state on a full restart.
+    clearLiveAccommodation()
     setStep({ name: 'pick-product' })
-  }, [])
+  }, [clearLiveAccommodation])
 
   /**
    * After date selection, hand off to the DetailsStep (landr-8c03,
@@ -350,6 +377,10 @@ function BookingFlowApp() {
     // landr-gb2f.2: participant → room assignment for the submit payload.
     roomAssignment: RoomAssignmentMap | undefined = undefined,
   ) => {
+    // landr-87n9.2: the selection is now committed into the step state;
+    // clear the live-lift so a later Back into pick-accommodation falls back
+    // to the restored step values rather than stale live values.
+    clearLiveAccommodation()
     const next = stepAfterAccommodation(
       product,
       selection,
@@ -592,7 +623,19 @@ function BookingFlowApp() {
             initialMode={step.accommodationMode}
             // landr-gb2f.2: restore the participant → room assignment.
             initialAssignment={step.roomAssignment}
-            onBack={() =>
+            // landr-87n9.2: live-lift the room + add-on selection so the
+            // sidebar's at-hotel total updates as the customer picks rooms.
+            // Sets the `touched` sentinel so App prefers live values over the
+            // step's restored values from this point on.
+            onLiveAccommodationChange={(rooms, addons) => {
+              setLiveAccommodationRooms(rooms)
+              setLiveAddons(addons)
+              setLiveAccommodationTouched(true)
+            }}
+            onBack={() => {
+              // landr-87n9.2: leaving the step — clear the live-lift so a
+              // later re-entry falls back to the restored step values.
+              clearLiveAccommodation()
               // landr-b3g5: thread the already-collected booker +
               // participants back to DetailsStep so the form re-mounts
               // pre-filled instead of empty.
@@ -603,7 +646,7 @@ function BookingFlowApp() {
                 booker: step.booker,
                 participants: step.participants,
               })
-            }
+            }}
             onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment) =>
               afterAccommodation(
                 step.product,
@@ -761,68 +804,31 @@ function BookingFlowApp() {
             declarationItems={PARA42_DECLARATION_ITEMS}
             languageOptions={PARA42_LANGUAGE_OPTIONS}
             initialDeclarations={step.initialDeclarations}
-            onBack={() => {
-              // Back from declarations returns to the previous step.
-              // If the product needed pickup, go back to pick-pickup;
-              // otherwise go back through the standard accommodation/
-              // addons/details chain.
-              if (step.product.needs_pickup) {
-                setStep({
-                  name: 'pick-pickup',
+            onBack={() =>
+              // landr-87n9.1: mirror the forward step machine. When a hotel
+              // was booked the pickup step was SKIPPED forward, so Back must
+              // return to pick-accommodation (NOT the free-pickup picker the
+              // customer never saw). stepBeforeReview encodes the full
+              // hotel-first routing and reconstructs the upstream step with
+              // its previously confirmed state restored.
+              setStep(
+                stepBeforeReview({
                   product: step.product,
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  pickupLocationId: step.pickupLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
-                  pickupLocationId: step.pickupLocationId,
                   hotelLocationId: step.hotelLocationId,
                   hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
-                })
-              } else {
-                const offering = step.product.hotel_offering ?? 'none'
-                if (
-                  step.product.product_kind === 'service' &&
-                  offering !== 'none'
-                ) {
-                  setStep({
-                    name: 'pick-accommodation',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                    hotelLocationId: step.hotelLocationId,
-                    accommodationRooms: step.accommodationRooms,
-                    addons: step.addons,
-                    includeHotel: step.includeHotel,
-                    isSharedDouble: step.isSharedDouble,
-                    accommodationMode: step.accommodationMode,
-                    roomAssignment: step.roomAssignment,
-                  })
-                } else if (step.hadServiceAddons) {
-                  setStep({
-                    name: 'pick-service-addons',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                    addons: step.addons,
-                  })
-                } else {
-                  setStep({
-                    name: 'details',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                  })
-                }
-              }
-            }}
+                }),
+              )
+            }
             onConfirm={(customerDeclarations: CustomerDeclarations) =>
               setStep({
                 name: 'fill-form',
@@ -899,72 +905,30 @@ function BookingFlowApp() {
                 })
                 return
               }
-              if (step.product.needs_pickup) {
-                // landr-yf0n: thread the prior pickupLocationId +
-                // upstream provenance back so PickupLocationPicker
-                // re-mounts with the prior radio choice restored AND
-                // its own back button still hops back through the
-                // right upstream intermediate steps.
-                // landr-sbhz.4: also carry isSharedDouble.
-                setStep({
-                  name: 'pick-pickup',
+              // landr-87n9.1: non-declaration operators — mirror the forward
+              // step machine via stepBeforeReview. When a hotel was booked the
+              // pickup step was SKIPPED forward, so Back returns to
+              // pick-accommodation rather than the free-pickup picker the
+              // customer never saw (the same latent bug fixed for the
+              // declarations path). All prior provenance + state is threaded
+              // through so the upstream step re-mounts restored.
+              setStep(
+                stepBeforeReview({
                   product: step.product,
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  pickupLocationId: step.pickupLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
-                  pickupLocationId: step.pickupLocationId,
                   hotelLocationId: step.hotelLocationId,
                   hadServiceAddons: step.hadServiceAddons,
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
-                })
-              } else {
-                const offering = step.product.hotel_offering ?? 'none'
-                if (step.product.product_kind === 'service' && offering !== 'none') {
-                  // landr-yf0n: restore the prior accommodation state.
-                  // landr-sbhz.4: also carry isSharedDouble.
-                  setStep({
-                    name: 'pick-accommodation',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                    hotelLocationId: step.hotelLocationId,
-                    accommodationRooms: step.accommodationRooms,
-                    addons: step.addons,
-                    includeHotel: step.includeHotel,
-                    isSharedDouble: step.isSharedDouble,
-                    accommodationMode: step.accommodationMode,
-                    roomAssignment: step.roomAssignment,
-                  })
-                } else if (step.hadServiceAddons) {
-                  // landr-yf0n: the customer originally went through
-                  // ServiceAddonsStep — back-nav must hop back through
-                  // it instead of skipping to DetailsStep.
-                  setStep({
-                    name: 'pick-service-addons',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                    addons: step.addons,
-                  })
-                } else {
-                  // landr-b3g5: preserve booker + participants when
-                  // back-stepping from fill-form into DetailsStep.
-                  setStep({
-                    name: 'details',
-                    product: step.product,
-                    selection: step.selection,
-                    booker: step.booker,
-                    participants: step.participants,
-                  })
-                }
-              }
+                }),
+              )
             }}
             onConfirmed={(response, email) =>
               setStep({ name: 'confirmed', response, email })
@@ -1004,8 +968,22 @@ function BookingFlowApp() {
                 ? liveParticipantNames
                 : sidebarInputs.participantNames
             }
-            accommodationRooms={sidebarInputs.accommodationRooms}
-            addons={sidebarInputs.addons}
+            // landr-87n9.2: on the accommodation step prefer the live-lifted
+            // room + add-on selection so the "At-hotel total" pill updates as
+            // the customer picks rooms (the forward visit's step.accommodation
+            // Rooms is empty — only set on back-nav). Falls back to the step's
+            // restored values until the customer makes a live change (covers
+            // back-nav re-entry where prior rooms live in step.accommodationRooms).
+            accommodationRooms={
+              step.name === 'pick-accommodation' && liveAccommodationTouched
+                ? liveAccommodationRooms
+                : sidebarInputs.accommodationRooms
+            }
+            addons={
+              step.name === 'pick-accommodation' && liveAccommodationTouched
+                ? liveAddons
+                : sidebarInputs.addons
+            }
             debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
           />
         ) : null}

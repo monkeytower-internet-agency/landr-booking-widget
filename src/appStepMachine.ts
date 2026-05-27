@@ -298,6 +298,121 @@ export function stepAfterAccommodation(
 }
 
 /**
+ * landr-87n9.1: pick the step to return to when the customer hits Back
+ * from the review screen (declarations / fill-form). This MIRRORS the
+ * forward stepAfterAccommodation routing so Back retraces exactly the
+ * steps that were shown on the way forward — it must NOT route to a step
+ * that was skipped.
+ *
+ * The bug this fixes: the previous handlers tested `product.needs_pickup`
+ * FIRST and routed to pick-pickup. But when a hotel is booked the pickup
+ * step is SKIPPED on the way forward (stepAfterAccommodation: a non-null
+ * hotelLocationId makes the hotel the pickup and bypasses pick-pickup), so
+ * Back wrongly landed on the free-pickup picker the customer never saw.
+ *
+ * Routing rule (mirrors stepAfterAccommodation, in reverse):
+ *   1. hotelLocationId != null → pickup was SKIPPED forward → Back goes to
+ *      pick-accommodation (the hotel/room page). Covers package AND
+ *      shared-double modes (both set a hotel).
+ *   2. else if product.needs_pickup → pick-pickup actually showed forward
+ *      → Back goes to pick-pickup.
+ *   3. else if a hotel offering exists (service + hotel_offering != 'none')
+ *      → the customer passed through pick-accommodation (guiding-only
+ *      opt-out) → Back goes to pick-accommodation.
+ *   4. else if hadServiceAddons → Back goes to pick-service-addons.
+ *   5. else → details.
+ *
+ * `args` carries every field the upstream steps need to be reconstructed
+ * with their previously-confirmed state restored (the same provenance
+ * bag fill-form / declarations already thread through).
+ */
+export interface StepBeforeReviewArgs {
+  product: Product
+  selection: BookingSelection
+  booker: BookerDetails
+  participants: ParticipantDetails[]
+  pickupLocationId: string | null
+  accommodationRooms: RoomSelection[]
+  addons: AddonSelection[]
+  hotelLocationId?: string | null
+  hadServiceAddons?: boolean
+  includeHotel?: boolean
+  isSharedDouble?: boolean
+  accommodationMode?: AccommodationMode
+  roomAssignment?: RoomAssignmentMap
+}
+
+export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
+  const offering = args.product.hotel_offering ?? 'none'
+  const hasHotelOffering =
+    args.product.product_kind === 'service' && offering !== 'none'
+
+  // 1. A hotel was booked → pickup was skipped forward → return to the
+  //    accommodation page (covers package + shared-double).
+  // 3. A hotel offering exists but no hotel was booked (guiding-only
+  //    opt-out) → the customer still passed THROUGH pick-accommodation, so
+  //    Back returns there. Folded into the same branch as (1) because the
+  //    forward path always inserts pick-accommodation when a hotel offering
+  //    is present, regardless of the booked/opted-out outcome.
+  if (args.hotelLocationId != null || hasHotelOffering) {
+    return {
+      name: 'pick-accommodation',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      hotelLocationId: args.hotelLocationId,
+      accommodationRooms: args.accommodationRooms,
+      addons: args.addons,
+      includeHotel: args.includeHotel,
+      isSharedDouble: args.isSharedDouble,
+      accommodationMode: args.accommodationMode,
+      roomAssignment: args.roomAssignment,
+    }
+  }
+  // 2. No hotel offering, product needs a pickup → pick-pickup showed
+  //    forward → return to it with the prior radio choice restored.
+  if (args.product.needs_pickup) {
+    return {
+      name: 'pick-pickup',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      accommodationRooms: args.accommodationRooms,
+      addons: args.addons,
+      pickupLocationId: args.pickupLocationId,
+      hotelLocationId: args.hotelLocationId,
+      hadServiceAddons: args.hadServiceAddons,
+      includeHotel: args.includeHotel,
+      isSharedDouble: args.isSharedDouble,
+      accommodationMode: args.accommodationMode,
+      roomAssignment: args.roomAssignment,
+    }
+  }
+  // 4. No hotel, no pickup, but the customer went through the service-
+  //    add-ons step → return there with the prior selections restored.
+  if (args.hadServiceAddons) {
+    return {
+      name: 'pick-service-addons',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      addons: args.addons,
+    }
+  }
+  // 5. Neither hotel, pickup, nor service add-ons → straight back to details.
+  return {
+    name: 'details',
+    product: args.product,
+    selection: args.selection,
+    booker: args.booker,
+    participants: args.participants,
+  }
+}
+
+/**
  * Build the step that comes after all pre-review steps are done.
  * When requiresDeclarations is true (operator-specific), inserts the
  * declarations step between the last pre-review step and fill-form.

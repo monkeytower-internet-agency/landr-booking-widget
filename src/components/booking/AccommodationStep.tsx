@@ -115,6 +115,27 @@ interface Props {
    */
   onBack: () => void
   /**
+   * landr-87n9.2: live-lift the room + per-room add-on selection up to
+   * App.tsx so the PriceSidebar's "At-hotel total · pay at check-in" pill
+   * updates WHILE the customer is picking rooms — without waiting for
+   * Continue. Mirrors the liveSelectionDays / liveParticipantCount pattern
+   * (DetailsStep's onLiveParticipantsChange).
+   *
+   * Fires from event handlers (the room steppers + the per-room AddonsList
+   * onChange + mode/hotel switches), NOT from a setState-in-effect — so the
+   * parent's setState batches with this component's and the
+   * react-hooks/set-state-in-effect lint rule stays happy.
+   *
+   * Emits the SAME flattened shapes handleContinue builds: RoomSelection[]
+   * (entries with qty>0) and AddonSelection[] (per-room map folded to flat
+   * lines via flattenPerRoomAddons). In guiding-only / shared-double modes
+   * both arrays are empty (no rooms booked).
+   */
+  onLiveAccommodationChange?: (
+    rooms: RoomSelection[],
+    addons: AddonSelection[],
+  ) => void
+  /**
    * landr-yf0n: when the customer hits Back from a downstream step,
    * App.tsx threads the previously confirmed accommodation context back
    * so the step re-mounts with the prior hotel + rooms + add-ons
@@ -186,6 +207,7 @@ export function AccommodationStep({
   participantNames = [],
   onConfirm,
   onBack,
+  onLiveAccommodationChange,
   initialHotelLocationId,
   initialRooms,
   initialAddons,
@@ -418,6 +440,8 @@ export function AccommodationStep({
     // landr-gb2f.2: a new hotel means a new room list — drop the prior
     // participant→room assignment so it doesn't reference stale units.
     setAssignment({})
+    // landr-87n9.2: switching hotel clears the room cart → live total resets.
+    notifyLiveAccommodation(mode, {}, {})
   }
 
   // landr-ffyg.2: switching mode resets the room/add-on context so a stale
@@ -439,6 +463,9 @@ export function AccommodationStep({
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
     }
+    // landr-87n9.2: a mode switch resets the room/add-on cart → report the
+    // empty selection under the NEW mode (non-package modes emit empty too).
+    notifyLiveAccommodation(next, {}, {})
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -545,11 +572,43 @@ export function AccommodationStep({
           totalRoomsPicked > 0 &&
           !unmetRequiredAddon
 
+  // landr-87n9.2: fire the live-lift callback with the latest flattened
+  // room + add-on lines so App.tsx can feed the PriceSidebar while the
+  // customer is still picking. Called from the event handlers below (NOT an
+  // effect) so the parent's setState batches with this component's update,
+  // keeping the react-hooks/set-state-in-effect rule happy. Builds the SAME
+  // shapes handleContinue emits: roomSelections (qty>0) +
+  // flattenPerRoomAddons(...). Only package mode carries rooms/add-ons — the
+  // other modes book no rooms, so we emit empty arrays (the hotel pill then
+  // collapses, matching the absence of room line items).
+  const notifyLiveAccommodation = (
+    nextMode: AccommodationMode,
+    nextSelection: Record<string, number>,
+    nextAddonSelection: Record<string, Record<string, number>>,
+  ) => {
+    if (!onLiveAccommodationChange) return
+    if (nextMode !== 'package') {
+      onLiveAccommodationChange([], [])
+      return
+    }
+    const rooms: RoomSelection[] = Object.entries(nextSelection)
+      .filter(([, qty]) => qty > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }))
+    const addonLines = flattenPerRoomAddons(
+      nextAddonSelection,
+      nextSelection,
+      addonsByRoom,
+    )
+    onLiveAccommodationChange(rooms, addonLines)
+  }
+
   function bumpQty(productId: string, delta: number) {
     setSelection((prev) => {
       const next = Math.max(0, (prev[productId] ?? 0) + delta)
       const out = { ...prev, [productId]: next }
       if (next === 0) delete out[productId]
+      // landr-87n9.2: report the new room set live (add-on map unchanged).
+      notifyLiveAccommodation(mode, out, addonSelection)
       return out
     })
   }
@@ -876,10 +935,16 @@ export function AccommodationStep({
                       addons={roomAddons}
                       selection={addonSelection[room.product_id] ?? {}}
                       onChange={(next) =>
-                        setAddonSelection((prev) => ({
-                          ...prev,
-                          [room.product_id]: next,
-                        }))
+                        setAddonSelection((prev) => {
+                          const merged = {
+                            ...prev,
+                            [room.product_id]: next,
+                          }
+                          // landr-87n9.2: report the new per-room add-on map
+                          // live so the hotel pill reflects breakfast etc.
+                          notifyLiveAccommodation(mode, selection, merged)
+                          return merged
+                        })
                       }
                       expectedQty={(room.capacity_per_unit ?? 1) * qty}
                       // landr-yybu: room-linked add-ons are hard-capped at the
