@@ -1,0 +1,163 @@
+/**
+ * Shared types for the DetailsStep (landr-8c03). Lives in a sibling .ts
+ * file so DetailsStep.tsx stays compliant with the
+ * react-refresh/only-export-components ESLint rule (widget-eslint-react-hooks-rules).
+ *
+ * BookerDetails: the person paying / receiving the booking confirmation
+ * (matches the customer_* fields on SubmitBookingBody). All four fields
+ * are required up front — the legacy "phone optional" relaxation was
+ * dropped because Para42's operator needs phone for the welcome SMS.
+ *
+ * ParticipantDetails: one entry per traveller. The booker is auto-
+ * mirrored into participants[0] (carrying the same name/email/phone)
+ * so the customer doesn't have to type their own data twice. Additional
+ * participants only need first/last; email + phone are optional.
+ *
+ * NOTE on phone: as of landr-zaan the backend's ParticipantIn accepts a
+ * per-participant `phone` field and the public_submit_booking RPC
+ * persists it to the participant's `contacts.phone` row (same upsert
+ * semantics as the booker's customer_phone). The DetailsStep UI surface
+ * is unchanged — participants 2..N continue to see an optional phone
+ * input — but the value is now sent on submit instead of dropped.
+ */
+export interface BookerDetails {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+}
+
+export interface ParticipantDetails {
+  first_name: string
+  last_name: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  email: string
+  /** Optional per-participant phone. landr-zaan: round-trips to
+   *  `contacts.phone` server-side. Empty string normalised to null on
+   *  submit so a blank field never overwrites a phone already on file. */
+  phone: string
+  /**
+   * Operator-scoped service_roles.code (landr-mg0a). Defaults to the
+   * first ServiceRole returned by getOperatorServiceRoles (typically
+   * 'participant'). When the operator has multiple roles configured
+   * (e.g. 'pilot' / 'passenger' for tandem paragliding) DetailsStep
+   * shows a dropdown per participant so customers can pick.
+   *
+   * Empty string before App-mount finishes fetching the role list —
+   * BookingForm falls back to the first available code on submit so a
+   * race never produces an unknown code.
+   */
+  service_role_code: string
+}
+
+/**
+ * CompanionDetails (landr-87n9.3): one entry per NON-GUIDING companion
+ * collected in the "Others joining" section of DetailsStep. A companion
+ * does NOT take part in the activity — they carry no service_role and are
+ * never counted toward the guiding-participants cap or the per-participant
+ * guiding price. They DO join the whole-party room assignment + occupancy.
+ *
+ * Only first_name is required (matches the participant rule, minus the
+ * required last_name). email/phone stay optional; all three optional fields
+ * are normalised to null on submit so a blank never overwrites server data.
+ *
+ * landr-doam.1 scope-add: companion_kind distinguishes a non-participating
+ * guest (partner/child) from a fellow activity-person who books their guiding
+ * separately. Default 'guest'. See Companion type in api/types.ts for full
+ * semantics.
+ */
+export interface CompanionDetails {
+  first_name: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  last_name: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  email: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  phone: string
+  /**
+   * landr-doam.1: participation kind. 'guest' (default) = not doing the
+   * activity. 'separate_guiding' = joining the activity but booking guiding
+   * separately. Controls the hint text in DetailsStep and the wire field on
+   * submit. Never affects this booking's price or participant count.
+   */
+  companion_kind: 'guest' | 'separate_guiding'
+}
+
+export function emptyBooker(): BookerDetails {
+  return { first_name: '', last_name: '', email: '', phone: '' }
+}
+
+/** Empty companion scaffold for a freshly-added "Others joining" row. */
+export function emptyCompanion(): CompanionDetails {
+  return { first_name: '', last_name: '', email: '', phone: '', companion_kind: 'guest' }
+}
+
+/**
+ * Empty participant scaffold. `serviceRoleCode` defaults to '' so callers
+ * that don't yet have the operator's role list (race on App mount) can
+ * still construct rows; BookingForm fills the gap with the first
+ * available code before submit.
+ */
+export function emptyParticipant(
+  serviceRoleCode: string = '',
+): ParticipantDetails {
+  return {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    service_role_code: serviceRoleCode,
+  }
+}
+
+/**
+ * Mirror the booker into participants[0]. Called after the booker fills
+ * in their own details so the first participant slot is pre-populated.
+ * Subsequent edits to participants[0] are user-driven and not synced
+ * back (the prevBooker ref pattern from landr-iu3s/landr-qs8d lives in
+ * DetailsStep itself).
+ *
+ * landr-mg0a: callers pass the operator's default service_role_code so
+ * the synthesised participants[0] row carries it through to submit.
+ */
+export function bookerToParticipant(
+  b: BookerDetails,
+  serviceRoleCode: string = '',
+): ParticipantDetails {
+  return {
+    first_name: b.first_name,
+    last_name: b.last_name,
+    email: b.email,
+    phone: b.phone,
+    service_role_code: serviceRoleCode,
+  }
+}
+
+/**
+ * Validity check used to enable the Continue button. Booker requires all
+ * four fields; each participant requires first + last (email + phone
+ * stay optional per landr-8c03 spec); each companion (landr-87n9.3)
+ * requires only first name (last/email/phone optional).
+ *
+ * `companions` is optional so existing call-sites (and the count-only
+ * tests) keep working without passing the new section.
+ */
+export function detailsAreComplete(
+  booker: BookerDetails,
+  participants: ParticipantDetails[],
+  companions: CompanionDetails[] = [],
+): boolean {
+  if (!booker.first_name.trim() || !booker.last_name.trim()) return false
+  if (!booker.email.trim() || !booker.phone.trim()) return false
+  // basic email shape — full validation happens via the form library on
+  // submit, but for enable/disable we just want non-empty and an @
+  if (!booker.email.includes('@')) return false
+  for (const p of participants) {
+    if (!p.first_name.trim() || !p.last_name.trim()) return false
+  }
+  // landr-87n9.3: each companion needs at least a first name.
+  for (const c of companions) {
+    if (!c.first_name.trim()) return false
+  }
+  return true
+}

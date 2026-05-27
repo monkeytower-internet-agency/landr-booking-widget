@@ -10,18 +10,30 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
+import { StepBackButton } from '@/components/booking/StepBackButton'
 
 interface Props {
   product: Product
   onBack: () => void
   onConfirm: (slot: AvailabilitySlot) => void
+  /**
+   * landr-e10.9: when false (default), hides the numeric remaining-seat
+   * badge on each slot button. Operators opt in per-tenant via
+   * operators.expose_seats_to_customer to use seats as an urgency lever.
+   */
+  exposeSeatsToCustomer?: boolean
 }
 
 const HORIZON_DAYS = 60
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10)
 
-export function AvailabilityPicker({ product, onBack, onConfirm }: Props) {
+export function AvailabilityPicker({
+  product,
+  onBack,
+  onConfirm,
+  exposeSeatsToCustomer = false,
+}: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
@@ -63,21 +75,18 @@ export function AvailabilityPicker({ product, onBack, onConfirm }: Props) {
   if (error) {
     return (
       <Card>
+        <StepBackButton onBack={onBack} />
         <CardHeader>
           <CardTitle>Could not load availability.</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        </CardContent>
       </Card>
     )
   }
 
   return (
     <Card>
+      <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
         <CardDescription>
@@ -109,19 +118,18 @@ export function AvailabilityPicker({ product, onBack, onConfirm }: Props) {
                     onClick={() => setSelectedSlotId(slot.availability_id)}
                   >
                     {slot.start_time?.slice(0, 5) ?? 'Any time'}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {slot.available_seats} seats
-                    </span>
+                    {exposeSeatsToCustomer ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {slot.available_seats} seats
+                      </span>
+                    ) : null}
                   </Button>
                 ))}
               </div>
             )}
           </div>
         ) : null}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" type="button" onClick={onBack}>
-            Back
-          </Button>
+        <div className="flex justify-end pt-2">
           <Button
             type="button"
             disabled={!selectedSlotId}

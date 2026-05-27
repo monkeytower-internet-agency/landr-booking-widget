@@ -21,6 +21,11 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  // landr-8yaz: default to Monday-first weeks for the European audience.
+  // react-day-picker accepts 0=Sunday … 6=Saturday; callers can still
+  // override per-instance if a locale-driven first day is wired up later
+  // (operator.default_locale is the planned source for v2).
+  weekStartsOn = 1,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -30,6 +35,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      weekStartsOn={weekStartsOn}
       className={cn(
         "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
