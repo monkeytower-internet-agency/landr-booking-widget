@@ -20,12 +20,15 @@ import {
   expandRoomUnits,
   flattenPerRoomAddons,
   formatCurrency,
+  hasIncompleteChildAge,
   isPremiumIncludesBreakfast,
   occupancyStatus,
   partySize,
   pruneAssignments,
   roomSubtotal,
   totalRoomCapacity,
+  type OccupantAgeMap,
+  type OccupantAgeBand,
   type RoomAssignmentMap,
   type RoomSelection,
   type RoomUnit,
@@ -119,6 +122,9 @@ interface Props {
     // modes (no room units). Threaded into BookingForm so each participant
     // carries its assigned room_product_id + room_unit_index on submit.
     roomAssignment?: RoomAssignmentMap,
+    // landr-doam.1: per-occupant age band + age for the hotel. Empty in
+    // guiding-only / shared-double modes. Absent key = adult (default).
+    ageMap?: OccupantAgeMap,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -176,6 +182,12 @@ interface Props {
    * auto-assign once rooms resolve.
    */
   initialAssignment?: RoomAssignmentMap
+  /**
+   * landr-doam.1: restore the per-occupant age band + age map on back-nav
+   * re-entry so the Adult/Child + age selections survive hitting Back.
+   * undefined → all occupants default to adult (no age needed).
+   */
+  initialAgeMap?: OccupantAgeMap
 }
 
 /**
@@ -226,6 +238,7 @@ export function AccommodationStep({
   initialIncludeHotel,
   initialMode,
   initialAssignment,
+  initialAgeMap,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -294,6 +307,15 @@ export function AccommodationStep({
   // and is what flows out through onConfirm.
   const [assignment, setAssignment] = useState<RoomAssignmentMap>(
     () => initialAssignment ?? {},
+  )
+
+  // landr-doam.1: per-occupant age band + age (hotel-informational only).
+  // Seeded from initialAgeMap on back-nav re-entry; otherwise all occupants
+  // default to adult (absent key = adult). This map is only mutated by the
+  // onAgeBandChange handler in RoomAssignment — never by any effect, so the
+  // react-hooks/set-state-in-effect rule stays happy.
+  const [ageMap, setAgeMap] = useState<OccupantAgeMap>(
+    () => initialAgeMap ?? {},
   )
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
@@ -452,6 +474,8 @@ export function AccommodationStep({
     // landr-gb2f.2: a new hotel means a new room list — drop the prior
     // participant→room assignment so it doesn't reference stale units.
     setAssignment({})
+    // landr-doam.1: a new hotel resets the age map too (occupants change).
+    setAgeMap({})
     // landr-87n9.2: switching hotel clears the room cart → live total resets.
     notifyLiveAccommodation(mode, {}, {})
   }
@@ -471,6 +495,8 @@ export function AccommodationStep({
     // landr-gb2f.2: only package mode has room units — clear the assignment
     // when switching modes so a stale package-mode layout doesn't bleed in.
     setAssignment({})
+    // landr-doam.1: mode switch resets the age map too.
+    setAgeMap({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
@@ -632,11 +658,16 @@ export function AccommodationStep({
     return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
   }, [occupancy, partyMemberNames])
 
+  // landr-doam.1: block Continue when any assigned child occupant has no age.
+  // Pure helper — reads the current assignment + ageMap without side effects.
+  const hasChildWithoutAge = hasIncompleteChildAge(assignment, ageMap)
+
   // Continue enablement per mode:
   //   guiding-only → always (no further input needed).
   //   shared-double → a hotel must be chosen (auto when 1; radio when >1).
   //   package → hotel + ≥1 room + all required add-ons met + occupancy
-  //             complete (no empty rooms, everyone assigned — landr-87n9.3).
+  //             complete (no empty rooms, everyone assigned — landr-87n9.3)
+  //             + no child occupant missing an age (landr-doam.1).
   const canContinue =
     mode === 'guiding-only'
       ? true
@@ -645,7 +676,8 @@ export function AccommodationStep({
         : Boolean(selectedHotelId) &&
           totalRoomsPicked > 0 &&
           !unmetRequiredAddon &&
-          occupancy.complete
+          occupancy.complete &&
+          !hasChildWithoutAge
 
   // landr-87n9.2: fire the live-lift callback with the latest flattened
   // room + add-on lines so App.tsx can feed the PriceSidebar while the
@@ -720,11 +752,25 @@ export function AccommodationStep({
     })
   }
 
+  // landr-doam.1: update the age band / age for an assigned occupant.
+  // When the band changes to 'adult' we clear the age (no age needed for adults).
+  // Pure handler — no setState-in-effect.
+  function handleAgeBandChange(
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) {
+    setAgeMap((prev) => ({
+      ...prev,
+      [memberIndex]: { band, age: band === 'adult' ? null : age },
+    }))
+  }
+
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false, {})
+      onConfirm([], null, [], false, false, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -741,6 +787,7 @@ export function AccommodationStep({
         [],
         offering === 'optional' ? true : undefined,
         true,
+        {},
         {},
       )
       return
@@ -763,6 +810,7 @@ export function AccommodationStep({
       offering === 'optional' ? true : undefined,
       false,
       finalAssignment,
+      ageMap,
     )
   }
 
@@ -1050,6 +1098,8 @@ export function AccommodationStep({
               guestFlags={partyGuestFlags}
               assignment={assignment}
               onAssign={assignParticipant}
+              ageMap={ageMap}
+              onAgeBandChange={handleAgeBandChange}
             />
             {/* landr-87n9.3: inline blocking hint — only shown while
                 occupancy is incomplete so the customer knows exactly what to
@@ -1061,6 +1111,18 @@ export function AccommodationStep({
                 className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
               >
                 {occupancyHint}
+              </p>
+            ) : null}
+            {/* landr-doam.1: child-age blocking hint — shown when any
+                assigned occupant is marked Child but has no age entered. */}
+            {occupancy.complete && hasChildWithoutAge ? (
+              <p
+                role="status"
+                data-testid="child-age-hint"
+                className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              >
+                Please enter the age for each child guest — the hotel needs it
+                to prepare the room.
               </p>
             ) : null}
           </fieldset>

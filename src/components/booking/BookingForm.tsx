@@ -11,6 +11,7 @@ import type {
 import {
   deriveStayWindow,
   stayNightIsos,
+  type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
 } from './accommodationCalc'
@@ -119,6 +120,17 @@ interface Props {
    * assignment (PINNED wire contract, landr-87n9.5).
    */
   roomAssignment?: RoomAssignmentMap
+  /**
+   * landr-doam.1: per-occupant age band + age, captured by AccommodationStep
+   * in the room-assignment UI. Unified index space (same as roomAssignment).
+   * Each member with band='child' gets occupant_age_band='child' +
+   * occupant_age=<age> in the submit body; all others get occupant_age_band
+   * omitted (API default = adult). Purely informational for the hotel —
+   * no pricing impact. Defaults to empty (all adults).
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   */
+  occupantAgeMap?: OccupantAgeMap
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -222,6 +234,7 @@ export function BookingForm({
   customerOtherLanguages,
   isSharedDouble = false,
   roomAssignment,
+  occupantAgeMap = {},
   onBack,
   onConfirmed,
 }: Props) {
@@ -296,6 +309,10 @@ export function BookingForm({
           // the map is empty) sends both fields as null. products[] line
           // items are NOT affected.
           const assigned = roomAssignment?.[idx]
+          // landr-doam.1: per-occupant age band + age (hotel informational).
+          // Absent/null = adult (default). Only 'child' sends occupant_age.
+          const ageEntry = occupantAgeMap[idx]
+          const isChild = ageEntry?.band === 'child'
           return {
             first_name: p.first_name,
             last_name: p.last_name || null,
@@ -315,6 +332,14 @@ export function BookingForm({
             pickup_location_id: pickupLocationId ?? null,
             room_product_id: assigned ? assigned.roomProductId : null,
             room_unit_index: assigned ? assigned.unitIndex : null,
+            // landr-doam.1 wire fields (PINNED contract — landr-doam.2):
+            // omit when adult (default) to keep the payload compact.
+            ...(isChild
+              ? {
+                  occupant_age_band: 'child' as const,
+                  occupant_age: ageEntry.age ?? null,
+                }
+              : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -328,7 +353,11 @@ export function BookingForm({
         ...(companions.length > 0
           ? {
               companions: companions.map<Companion>((c, cIdx) => {
-                const assigned = roomAssignment?.[participants.length + cIdx]
+                const memberIdx = participants.length + cIdx
+                const assigned = roomAssignment?.[memberIdx]
+                // landr-doam.1: per-occupant age band + age for companions.
+                const ageEntry = occupantAgeMap[memberIdx]
+                const isChild = ageEntry?.band === 'child'
                 return {
                   first_name: c.first_name,
                   last_name: c.last_name || null,
@@ -336,6 +365,19 @@ export function BookingForm({
                   phone: c.phone || null,
                   room_product_id: assigned ? assigned.roomProductId : null,
                   room_unit_index: assigned ? assigned.unitIndex : null,
+                  // landr-doam.1 wire fields (PINNED contract — landr-doam.2):
+                  // omit when adult (default) to keep the payload compact.
+                  ...(isChild
+                    ? {
+                        occupant_age_band: 'child' as const,
+                        occupant_age: ageEntry.age ?? null,
+                      }
+                    : {}),
+                  // landr-doam.1 scope-add: companion kind (PINNED contract).
+                  // Omit when 'guest' (the API default) to keep payload compact.
+                  ...(c.companion_kind === 'separate_guiding'
+                    ? { companion_kind: 'separate_guiding' as const }
+                    : {}),
                 }
               }),
             }

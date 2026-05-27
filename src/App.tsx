@@ -5,6 +5,7 @@ import {
   type AccommodationMode,
 } from '@/components/booking/AccommodationStep'
 import type {
+  OccupantAgeMap,
   RoomAssignmentMap,
   RoomSelection,
 } from '@/components/booking/accommodationCalc'
@@ -385,6 +386,8 @@ function BookingFlowApp() {
     accommodationMode: AccommodationMode | undefined = undefined,
     // landr-gb2f.2: participant → room assignment for the submit payload.
     roomAssignment: RoomAssignmentMap | undefined = undefined,
+    // landr-doam.1: per-occupant age band + age for the submit payload.
+    occupantAgeMap: OccupantAgeMap | undefined = undefined,
   ) => {
     // landr-87n9.2: the selection is now committed into the step state;
     // clear the live-lift so a later Back into pick-accommodation falls back
@@ -408,6 +411,8 @@ function BookingFlowApp() {
       accommodationMode,
       // landr-gb2f.2: participant → room assignment threads through.
       roomAssignment,
+      // landr-doam.1: per-occupant age band + age threads through.
+      occupantAgeMap,
     )
     // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
     // the operator requires declarations, convert to the declarations step
@@ -650,6 +655,8 @@ function BookingFlowApp() {
             initialMode={step.accommodationMode}
             // landr-gb2f.2: restore the participant → room assignment.
             initialAssignment={step.roomAssignment}
+            // landr-doam.1: restore the per-occupant age map on back-nav.
+            initialAgeMap={step.occupantAgeMap}
             // landr-87n9.2: live-lift the room + add-on selection so the
             // sidebar's at-hotel total updates as the customer picks rooms.
             // Sets the `touched` sentinel so App prefers live values over the
@@ -676,7 +683,7 @@ function BookingFlowApp() {
                 companions: step.companions,
               })
             }}
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -701,6 +708,8 @@ function BookingFlowApp() {
                 deriveAccommodationMode(hotelLocationId, isSharedDouble),
                 // landr-gb2f.2: thread the assignment to the submit step.
                 roomAssignment,
+                // landr-doam.1: thread the age map to the submit step.
+                ageMap,
               )
             }
           />
@@ -773,6 +782,7 @@ function BookingFlowApp() {
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
                 })
               } else if (step.hadServiceAddons) {
                 // landr-yf0n: the customer originally went through
@@ -823,6 +833,7 @@ function BookingFlowApp() {
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
+                occupantAgeMap: step.occupantAgeMap,
               }
               setStep(
                 fillFormOrDeclarations(
@@ -867,6 +878,7 @@ function BookingFlowApp() {
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
                 }),
               )
             }
@@ -887,6 +899,7 @@ function BookingFlowApp() {
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
+                occupantAgeMap: step.occupantAgeMap,
                 customerDeclarations: customerDeclarations.declarations,
                 // landr-87n9.4: multi-select languages + free-text other.
                 customerLanguages: customerDeclarations.languages,
@@ -921,6 +934,9 @@ function BookingFlowApp() {
             // BookingForm attaches room_product_id + room_unit_index per
             // participant on submit.
             roomAssignment={step.roomAssignment}
+            // landr-doam.1: thread the age map so BookingForm attaches
+            // occupant_age_band + occupant_age per occupant on submit.
+            occupantAgeMap={step.occupantAgeMap}
             onBack={() => {
               // landr-sbhz.3: if declarations were collected, back
               // from fill-form goes to the declarations step (not all
@@ -945,6 +961,7 @@ function BookingFlowApp() {
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
                   // landr-87n9.4: restore languages[] + otherLanguages on back-nav.
                   initialDeclarations: step.customerDeclarations
                     ? {
@@ -979,6 +996,7 @@ function BookingFlowApp() {
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
                 }),
               )
             }}

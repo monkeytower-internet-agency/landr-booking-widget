@@ -6,6 +6,7 @@
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
 import type {
+  OccupantAgeMap,
   RoomAssignmentMap,
   RoomSelection,
 } from '@/components/booking/accommodationCalc'
@@ -94,6 +95,8 @@ export type Step =
       // (unified index space: participants 0..P-1, companions P..P+C-1) for
       // back-nav restoration of the chips/units layout.
       roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: per-occupant age band + age for back-nav restoration.
+      occupantAgeMap?: OccupantAgeMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -133,6 +136,8 @@ export type Step =
       // landr-gb2f.2: carry the assignment through the pickup step so the
       // back-nav into pick-accommodation restores it.
       roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: carry the age map through the pickup step.
+      occupantAgeMap?: OccupantAgeMap
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -159,6 +164,8 @@ export type Step =
       // landr-gb2f.2: carry the assignment through declarations so it
       // survives the declarations → fill-form hop and back-nav restores it.
       roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: carry the age map through declarations.
+      occupantAgeMap?: OccupantAgeMap
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -189,6 +196,9 @@ export type Step =
       // onto each participant + companion's room_product_id + room_unit_index
       // on submit (unified index: participants first, companions after).
       roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: per-occupant age band + age threaded to BookingForm
+      // for populating occupant_age_band + occupant_age on submit.
+      occupantAgeMap?: OccupantAgeMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -262,6 +272,8 @@ export function stepAfterAccommodation(
   accommodationMode: AccommodationMode | undefined = undefined,
   // landr-gb2f.2: participant → room assignment, threaded to the submit step.
   roomAssignment: RoomAssignmentMap | undefined = undefined,
+  // landr-doam.1: per-occupant age band + age, threaded to the submit step.
+  occupantAgeMap: OccupantAgeMap | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -286,6 +298,7 @@ export function stepAfterAccommodation(
       isSharedDouble,
       accommodationMode,
       roomAssignment,
+      occupantAgeMap,
     }
   }
   if (product.needs_pickup) {
@@ -304,6 +317,7 @@ export function stepAfterAccommodation(
       isSharedDouble,
       accommodationMode,
       roomAssignment,
+      occupantAgeMap,
     }
   }
   return {
@@ -322,6 +336,7 @@ export function stepAfterAccommodation(
     isSharedDouble,
     accommodationMode,
     roomAssignment,
+    occupantAgeMap,
   }
 }
 
@@ -370,6 +385,8 @@ export interface StepBeforeReviewArgs {
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
   roomAssignment?: RoomAssignmentMap
+  // landr-doam.1: carry the age map back for pick-accommodation restoration.
+  occupantAgeMap?: OccupantAgeMap
 }
 
 export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
@@ -399,6 +416,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       isSharedDouble: args.isSharedDouble,
       accommodationMode: args.accommodationMode,
       roomAssignment: args.roomAssignment,
+      occupantAgeMap: args.occupantAgeMap,
     }
   }
   // 2. No hotel offering, product needs a pickup → pick-pickup showed
@@ -420,6 +438,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       isSharedDouble: args.isSharedDouble,
       accommodationMode: args.accommodationMode,
       roomAssignment: args.roomAssignment,
+      occupantAgeMap: args.occupantAgeMap,
     }
   }
   // 4. No hotel, no pickup, but the customer went through the service-
@@ -476,6 +495,8 @@ export function fillFormOrDeclarations(
     accommodationMode?: AccommodationMode
     // landr-gb2f.2: thread the participant → room assignment through too.
     roomAssignment?: RoomAssignmentMap
+    // landr-doam.1: thread the age map through too.
+    occupantAgeMap?: OccupantAgeMap
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,

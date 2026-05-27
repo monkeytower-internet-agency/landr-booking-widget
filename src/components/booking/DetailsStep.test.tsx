@@ -571,7 +571,7 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     )
     const section = screen.getByTestId('companions-section')
     expect(section).toBeInTheDocument()
-    expect(section).toHaveTextContent(/others joining/i)
+    expect(section).toHaveTextContent(/others sharing your room/i)
     // landr-genericity-northstar: must NOT say "paragliding"/"pilots".
     expect(section).not.toHaveTextContent(/paragliding|pilots/i)
   })
@@ -633,7 +633,7 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
         onBack={vi.fn()}
         onConfirm={vi.fn()}
         initialCompanions={[
-          { first_name: 'Mia', last_name: 'Berg', email: '', phone: '' },
+          { first_name: 'Mia', last_name: 'Berg', email: '', phone: '', companion_kind: 'guest' },
         ]}
       />,
     )
