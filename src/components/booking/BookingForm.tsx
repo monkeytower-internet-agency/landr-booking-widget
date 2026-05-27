@@ -89,10 +89,17 @@ interface Props {
    */
   customerDeclarations?: Record<string, true> | null
   /**
-   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
-   * Required alongside customerDeclarations for enforcing operators.
+   * landr-87n9.4: BCP-47 codes selected by the customer from the offered
+   * language list (multi-select). Replaces the legacy single customerLanguage
+   * prop. Empty array or omitted when no offered language was picked (must be
+   * accompanied by a non-empty customerOtherLanguages in that case).
    */
-  customerLanguage?: string | null
+  customerLanguages?: string[] | null
+  /**
+   * landr-87n9.4: free-text languages spoken not covered by the offered list.
+   * Null / omitted when the free-text was not filled.
+   */
+  customerOtherLanguages?: string | null
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
    * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
@@ -211,7 +218,8 @@ export function BookingForm({
   accommodationRooms,
   addons,
   customerDeclarations,
-  customerLanguage,
+  customerLanguages,
+  customerOtherLanguages,
   isSharedDouble = false,
   roomAssignment,
   onBack,
@@ -332,15 +340,22 @@ export function BookingForm({
               }),
             }
           : {}),
-        // landr-sbhz.3: thread declarations + language through to the
-        // submit payload. Only included when they were collected upstream
-        // by DeclarationsStep (non-null). Omitted for operators that have
-        // not adopted the declarations feature.
+        // landr-sbhz.3: thread declarations through to the submit payload.
+        // Only included when they were collected upstream by DeclarationsStep
+        // (non-null). Omitted for operators that have not adopted the
+        // declarations feature.
         ...(customerDeclarations != null
           ? { customer_declarations: customerDeclarations }
           : {}),
-        ...(customerLanguage != null
-          ? { customer_language: customerLanguage }
+        // landr-87n9.4: multi-select languages + free-text other. Send when
+        // the declarations step was shown (i.e. when customerDeclarations is
+        // non-null — they are always collected together). Omit otherwise so
+        // non-declarations operators get a clean payload.
+        ...(customerDeclarations != null && customerLanguages != null
+          ? { customer_languages: customerLanguages }
+          : {}),
+        ...(customerDeclarations != null && customerOtherLanguages != null
+          ? { customer_other_languages: customerOtherLanguages }
           : {}),
         // landr-ffyg.2: top-level shared-double marker (landr-ffyg.1).
         // Always sent — true for the second-pilot-sharing mode (in which

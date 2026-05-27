@@ -192,7 +192,10 @@ export type Step =
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
-      customerLanguage?: string | null
+      // landr-87n9.4: replaces customerLanguage (single) with the multi-select
+      // BCP-47 list and the free-text "other languages" field.
+      customerLanguages?: string[] | null
+      customerOtherLanguages?: string | null
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 

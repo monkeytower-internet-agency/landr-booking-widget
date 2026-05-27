@@ -343,10 +343,18 @@ export interface SubmitBookingBody {
    */
   customer_declarations?: Record<string, true> | null
   /**
-   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
-   * Required for operators that enforce a language selection.
+   * landr-87n9.4: BCP-47 codes for all languages the customer selected from
+   * the operator's offered list. Replaces the legacy single customer_language
+   * field (kept optional on the API for back-compat but no longer sent by
+   * the widget). Empty array / omitted when no offered language was picked
+   * (must be accompanied by a non-empty customer_other_languages in that case).
    */
-  customer_language?: string | null
+  customer_languages?: string[] | null
+  /**
+   * landr-87n9.4: free-text languages spoken not covered by the offered list
+   * (e.g. "Zulu, Russian"). Null / omitted when the free-text was not filled.
+   */
+  customer_other_languages?: string | null
   /**
    * landr-ffyg.1 / landr-ffyg.2: "second pilot in a shared double room"
    * marker. When true the booker shares another pilot's double room and
