@@ -34,11 +34,16 @@ export function defaultAddonQty(addon: ProductAddon): number {
  * customer can deselect a non-required add-on, but the form's "can
  * continue" gate flags required add-ons whose qty falls below min_qty.
  *
- * occupancyCap (landr-9p76): when provided (> 0), the effective ceiling
- * is also bounded by occupancyCap — i.e. min(max_qty ?? Infinity,
- * occupancyCap). Pass this for occupancy-linked add-ons (breakfast) where
- * expectedQty > 1 (capacity_per_unit × roomQty). Do NOT pass it for
- * service-flow add-ons whose expectedQty is always 1.
+ * landr-yybu: occupancyCap re-introduced. For occupancy-linked room
+ * add-ons (breakfast under a hotel room) the caller passes occupancyCap =
+ * the room's total occupancy (capacity_per_unit × roomQty) so the
+ * quantity is hard-capped at the number of guests the room sleeps —
+ * applied UNIFORMLY, including single-occupancy rooms (cap = 1). Generic
+ * service-flow add-ons (no room context) pass occupancyCap = undefined and
+ * stay uncapped, bounded only by the add-on's own max_qty. The effective
+ * ceiling is min(max_qty ?? Infinity, occupancyCap ?? Infinity). The
+ * per-room over/under deviation WARNING (isOverbooked) still surfaces the
+ * under-case ("one per guest?").
  */
 export function clampAddonQty(
   addon: ProductAddon,

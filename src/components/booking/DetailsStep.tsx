@@ -18,12 +18,19 @@ import {
   bookerToParticipant,
   detailsAreComplete,
   emptyBooker,
+  emptyCompanion,
   emptyParticipant,
   type BookerDetails,
+  type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
 
 const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
+// landr-87n9.3: generous cap on non-guiding companions. Total headcount
+// (participants + companions) can exceed 6 — companions are uncapped by the
+// guiding rule. 12 is a pragmatic upper bound that comfortably covers
+// "6 pilots + 6 partners" without an unbounded input.
+const MAX_COMPANIONS = 12
 
 interface Props {
   product: Product
@@ -45,10 +52,37 @@ interface Props {
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
+  /**
+   * landr-87n9.3: re-entry data for the non-guiding companions section
+   * when the customer hits Back from a downstream step.
+   */
+  initialCompanions?: CompanionDetails[]
   onBack: () => void
   onConfirm: (
     booker: BookerDetails,
     participants: ParticipantDetails[],
+    // landr-87n9.3: non-guiding companions captured in the "Others joining"
+    // section. Empty array when nobody extra joins.
+    companions: CompanionDetails[],
+  ) => void
+  /**
+   * landr-gb2f.1: live participant count + names for the PriceSidebar.
+   * Fires on every booker-field change or additional-count change so the
+   * sidebar updates without waiting for Continue. count = 1 + additional.length;
+   * names = booker first name (trimmed) + additional first names (trimmed,
+   * non-empty). Called from event handlers — NOT from effects — to satisfy
+   * the react-hooks/set-state-in-effect constraint (App.tsx uses the value
+   * to set its own state). Optional so existing tests need no changes.
+   *
+   * landr-87n9.3: a third arg carries the live companion count so App.tsx
+   * can thread it to AccommodationStep (whole-party assignment) while the
+   * customer is still on DetailsStep. The guiding price uses only `count`
+   * (participants) — companions never change participants_count.
+   */
+  onLiveParticipantsChange?: (
+    count: number,
+    names: string[],
+    companionCount: number,
   ) => void
 }
 
@@ -107,8 +141,10 @@ export function DetailsStep({
   serviceRoles = [],
   initialBooker,
   initialParticipants,
+  initialCompanions,
   onBack,
   onConfirm,
+  onLiveParticipantsChange,
 }: Props) {
   const locale = browserLocale()
   // landr-mg0a: defaultRoleCode is the first row served by
@@ -138,6 +174,11 @@ export function DetailsStep({
     }
     return []
   })
+  // landr-87n9.3: non-guiding companions ("Others joining the activity").
+  // Restored from initialCompanions on Back-restore, else empty.
+  const [companions, setCompanions] = useState<CompanionDetails[]>(
+    () => initialCompanions ?? [],
+  )
 
   // If the service-roles fetch resolves AFTER DetailsStep first
   // mounted, swap empty role codes for the new default. Already-picked
@@ -187,23 +228,85 @@ export function DetailsStep({
 
   const totalCount = 1 + additional.length
 
+  // landr-gb2f.1: fire the live-update callback with the latest derived
+  // count + names. Called from event handlers (not effects) so App.tsx can
+  // set its own liveParticipant* state without triggering the
+  // react-hooks/set-state-in-effect rule.
+  const notifyLive = (
+    nextBooker: BookerDetails,
+    nextAdditional: ParticipantDetails[],
+    nextCompanions: CompanionDetails[],
+  ) => {
+    if (!onLiveParticipantsChange) return
+    const count = 1 + nextAdditional.length
+    const names = [
+      nextBooker.first_name.trim(),
+      ...nextAdditional.map((p) => p.first_name.trim()),
+    ].filter((n) => n.length > 0)
+    onLiveParticipantsChange(count, names, nextCompanions.length)
+  }
+
   const setAdditionalCount = (next: number) => {
     const clamped = Math.min(MAX_ADDITIONAL, Math.max(0, Math.floor(next)))
     setAdditional((current) => {
       if (clamped === current.length) return current
+      let nextAdditional: ParticipantDetails[]
       if (clamped > current.length) {
         const grown = current.slice()
         for (let i = current.length; i < clamped; i += 1) {
           grown.push(emptyParticipant(defaultRoleCode))
         }
-        return grown
+        nextAdditional = grown
+      } else {
+        nextAdditional = current.slice(0, clamped)
       }
-      return current.slice(0, clamped)
+      notifyLive(booker, nextAdditional, companions)
+      return nextAdditional
+    })
+  }
+
+  // landr-87n9.3: grow/shrink the companion list. Mirrors the participant
+  // stepper but capped at MAX_COMPANIONS (generous) and with no role code.
+  const setCompanionCount = (next: number) => {
+    const clamped = Math.min(MAX_COMPANIONS, Math.max(0, Math.floor(next)))
+    setCompanions((current) => {
+      if (clamped === current.length) return current
+      let nextCompanions: CompanionDetails[]
+      if (clamped > current.length) {
+        const grown = current.slice()
+        for (let i = current.length; i < clamped; i += 1) {
+          grown.push(emptyCompanion())
+        }
+        nextCompanions = grown
+      } else {
+        nextCompanions = current.slice(0, clamped)
+      }
+      notifyLive(booker, additional, nextCompanions)
+      return nextCompanions
+    })
+  }
+
+  const updateCompanion = <K extends keyof CompanionDetails>(
+    idx: number,
+    key: K,
+    value: CompanionDetails[K],
+  ) => {
+    setCompanions((prev) => {
+      const next = prev.slice()
+      const row = next[idx]
+      if (!row) return prev
+      next[idx] = { ...row, [key]: value }
+      notifyLive(booker, additional, next)
+      return next
     })
   }
 
   const updateBookerField = (key: keyof BookerDetails, value: string) => {
-    setBooker((prev) => ({ ...prev, [key]: value }))
+    setBooker((prev) => {
+      const next = { ...prev, [key]: value }
+      notifyLive(next, additional, companions)
+      return next
+    })
   }
 
   const updateParticipant = (
@@ -216,6 +319,7 @@ export function DetailsStep({
       const row = next[idx]
       if (!row) return prev
       next[idx] = { ...row, [key]: value }
+      notifyLive(booker, next, companions)
       return next
     })
   }
@@ -224,11 +328,15 @@ export function DetailsStep({
     bookerToParticipant(booker, bookerRoleCode),
     ...additional,
   ]
-  const canContinue = detailsAreComplete(booker, participantsForValidation)
+  const canContinue = detailsAreComplete(
+    booker,
+    participantsForValidation,
+    companions,
+  )
 
   const handleContinue = () => {
     if (!canContinue) return
-    onConfirm(booker, participantsForValidation)
+    onConfirm(booker, participantsForValidation, companions)
   }
 
   return (
@@ -406,6 +514,152 @@ export function DetailsStep({
                   />
                 </Field>
               ) : null}
+            </div>
+          ))}
+        </fieldset>
+
+        {/* landr-87n9.3: non-guiding companions. Generic copy per
+            landr-genericity-northstar. Companions occupy hotel beds (whole-party
+            room assignment) but are NOT counted toward this booking's guiding
+            participants, price, or the 6-participant cap — regardless of whether
+            they do the activity (landr-doam.1: companion_kind).
+            Only first name is required. */}
+        <fieldset
+          className="flex flex-col gap-3 border-t pt-4"
+          data-testid="companions-section"
+        >
+          <legend className="text-sm font-medium">
+            Others sharing your room
+          </legend>
+          <p className="text-xs text-muted-foreground">
+            Anyone else sharing your accommodation — partners, friends, family
+            members, or fellow activity participants who book and pay for their
+            own guiding separately. They&rsquo;re added to the hotel headcount
+            and room assignment, but not to this booking&rsquo;s activity or price.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Remove companion"
+              onClick={() => setCompanionCount(companions.length - 1)}
+              disabled={companions.length <= 0}
+            >
+              −
+            </Button>
+            <span className="text-sm tabular-nums w-8 text-center">
+              {companions.length}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Add companion"
+              onClick={() => setCompanionCount(companions.length + 1)}
+              disabled={companions.length >= MAX_COMPANIONS}
+            >
+              +
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              joining (max {MAX_COMPANIONS})
+            </span>
+          </div>
+
+          {companions.map((row, idx) => (
+            <div
+              key={`companion-${idx}`}
+              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              data-testid={`companion-row-${idx}`}
+            >
+              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
+                Guest {idx + 1}
+              </div>
+              {/* landr-doam.1: companion kind selector — "not joining the
+                  activity" (guest) vs "joining with their own separate guiding
+                  booking" (separate_guiding). Default guest. The kind is
+                  purely informational for the operator / rooming list; it
+                  never affects this booking's price or participant count. */}
+              <fieldset className="sm:col-span-2 flex flex-col gap-1">
+                <legend className="text-xs text-muted-foreground">
+                  How are they joining?
+                </legend>
+                <div className="flex flex-col gap-1">
+                  {(
+                    [
+                      {
+                        value: 'guest',
+                        label: 'Not doing the activity (partner / child / friend)',
+                      },
+                      {
+                        value: 'separate_guiding',
+                        label:
+                          'Joining the activity — booking their own guiding separately',
+                      },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex cursor-pointer items-center gap-2 text-xs"
+                      data-testid={`companion-kind-${idx}-${opt.value}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`companion_${idx + 1}_kind`}
+                        value={opt.value}
+                        checked={row.companion_kind === opt.value}
+                        onChange={() =>
+                          updateCompanion(idx, 'companion_kind', opt.value)
+                        }
+                        className="h-3.5 w-3.5 accent-primary"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <Field label="First name" htmlFor={`companion-${idx}-first`}>
+                <Input
+                  id={`companion-${idx}-first`}
+                  name={`companion_${idx + 1}_first_name`}
+                  value={row.first_name}
+                  onChange={(e) =>
+                    updateCompanion(idx, 'first_name', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Last name (optional)" htmlFor={`companion-${idx}-last`}>
+                <Input
+                  id={`companion-${idx}-last`}
+                  name={`companion_${idx + 1}_last_name`}
+                  value={row.last_name}
+                  onChange={(e) =>
+                    updateCompanion(idx, 'last_name', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Email (optional)" htmlFor={`companion-${idx}-email`}>
+                <Input
+                  id={`companion-${idx}-email`}
+                  name={`companion_${idx + 1}_email`}
+                  type="email"
+                  value={row.email}
+                  onChange={(e) =>
+                    updateCompanion(idx, 'email', e.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Phone (optional)" htmlFor={`companion-${idx}-phone`}>
+                <Input
+                  id={`companion-${idx}-phone`}
+                  name={`companion_${idx + 1}_phone`}
+                  type="tel"
+                  value={row.phone}
+                  onChange={(e) =>
+                    updateCompanion(idx, 'phone', e.target.value)
+                  }
+                />
+              </Field>
             </div>
           ))}
         </fieldset>

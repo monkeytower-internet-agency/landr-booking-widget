@@ -458,3 +458,187 @@ describe('DetailsStep — service_role selector (landr-mg0a)', () => {
     expect(select.value).toBe('passenger')
   })
 })
+
+// landr-gb2f.1: live participant count + names for PriceSidebar.
+describe('DetailsStep — live participant updates (landr-gb2f.1)', () => {
+  it('fires onLiveParticipantsChange with count=1 when the booker first name changes', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    // count=1 (only booker), names=['Ada']
+    expect(onLive).toHaveBeenLastCalledWith(1, ['Ada'], 0)
+  })
+
+  it('fires count=2 when a participant is added via the + button', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    expect(onLive).toHaveBeenLastCalledWith(2, [], 0)
+  })
+
+  it('fires count=1 again when a participant is removed via the − button', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /remove participant/i }))
+    expect(onLive).toHaveBeenLastCalledWith(1, [], 0)
+  })
+
+  it('includes additional participant first names (trimmed, non-empty) in names', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: '  Grace  ' },
+    })
+    expect(onLive).toHaveBeenLastCalledWith(2, ['Ada', 'Grace'], 0)
+  })
+
+  it('omits empty/whitespace-only first names from the names array', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    // participant 2 first name left blank; booker first name also blank
+    expect(onLive).toHaveBeenLastCalledWith(2, [], 0)
+  })
+
+  it('does not break when onLiveParticipantsChange is not provided (backward compat)', () => {
+    // No prop — adding a participant must not throw
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    }).not.toThrow()
+  })
+})
+
+describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
+  it('renders the "Others joining" section with generic copy (no activity-specific wording)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('companions-section')
+    expect(section).toBeInTheDocument()
+    expect(section).toHaveTextContent(/others sharing your room/i)
+    // landr-genericity-northstar: must NOT say "paragliding"/"pilots".
+    expect(section).not.toHaveTextContent(/paragliding|pilots/i)
+  })
+
+  it('adds a companion row requiring only a first name, and passes companions to onConfirm', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(screen.getByTestId('companion-row-0')).toBeInTheDocument()
+    // Continue blocked until the companion has a first name.
+    const cont = screen.getByRole('button', { name: /continue/i })
+    expect(cont).toBeDisabled()
+    fireEvent.change(byName('companion_1_first_name'), {
+      target: { value: 'Mia' },
+    })
+    expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    const [, participants, companions] = onConfirm.mock.calls[0]!
+    // Companion is NOT in participants[].
+    expect(participants).toHaveLength(1)
+    expect(companions).toHaveLength(1)
+    expect(companions[0]).toMatchObject({
+      first_name: 'Mia',
+      last_name: '',
+      email: '',
+      phone: '',
+    })
+  })
+
+  it('reports the live companion count as the third callback arg', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    // count=1 (booker), names=[], companionCount=1
+    expect(onLive).toHaveBeenLastCalledWith(1, [], 1)
+  })
+
+  it('restores companions from initialCompanions on back-nav re-entry', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        initialCompanions={[
+          { first_name: 'Mia', last_name: 'Berg', email: '', phone: '', companion_kind: 'guest' },
+        ]}
+      />,
+    )
+    expect(screen.getByTestId('companion-row-0')).toBeInTheDocument()
+    expect(byName('companion_1_first_name')).toHaveValue('Mia')
+    expect(byName('companion_1_last_name')).toHaveValue('Berg')
+  })
+})

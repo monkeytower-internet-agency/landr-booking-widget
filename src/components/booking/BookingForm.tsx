@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HttpError, submitBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
+  Companion,
   Product,
   ProductLine,
   SubmitBookingBody,
@@ -10,11 +11,17 @@ import type {
 import {
   deriveStayWindow,
   stayNightIsos,
+  type OccupantAgeMap,
+  type RoomAssignmentMap,
   type RoomSelection,
 } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel, formatDayRange } from './dateLabel'
-import type { BookerDetails, ParticipantDetails } from './detailsTypes'
+import type {
+  BookerDetails,
+  CompanionDetails,
+  ParticipantDetails,
+} from './detailsTypes'
 
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
@@ -53,6 +60,17 @@ interface Props {
    * Threaded through into the submit payload's participants[] array.
    */
   participants: ParticipantDetails[]
+  /**
+   * landr-87n9.3: non-guiding companions collected by DetailsStep. Sent as
+   * the submit body's top-level `companions: Companion[]` (PINNED wire
+   * contract — landr-87n9.5 on the API builds the same shape). Each
+   * companion's room assignment comes from the whole-party `roomAssignment`
+   * map at index >= participants.length (the unified party index space).
+   * Empty array when nobody extra joins. Companions are NOT in
+   * participants[] — they carry no service_role and are not in the guiding
+   * price. Defaults to empty so legacy call-sites need no change.
+   */
+  companions?: CompanionDetails[]
   pickupLocationId: string | null
   /**
    * Additional hotel_room line items captured by the AccommodationStep
@@ -72,10 +90,17 @@ interface Props {
    */
   customerDeclarations?: Record<string, true> | null
   /**
-   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
-   * Required alongside customerDeclarations for enforcing operators.
+   * landr-87n9.4: BCP-47 codes selected by the customer from the offered
+   * language list (multi-select). Replaces the legacy single customerLanguage
+   * prop. Empty array or omitted when no offered language was picked (must be
+   * accompanied by a non-empty customerOtherLanguages in that case).
    */
-  customerLanguage?: string | null
+  customerLanguages?: string[] | null
+  /**
+   * landr-87n9.4: free-text languages spoken not covered by the offered list.
+   * Null / omitted when the free-text was not filled.
+   */
+  customerOtherLanguages?: string | null
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
    * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
@@ -83,6 +108,29 @@ interface Props {
    * pickupLocationId is the shared hotel. Defaults false.
    */
   isSharedDouble?: boolean
+  /**
+   * landr-gb2f.2 / landr-87n9.3: WHOLE-PARTY → room assignment map
+   * (memberIndex → {roomProductId, unitIndex}), captured by AccommodationStep
+   * in package mode. The index space is unified: indices 0..P-1 are guiding
+   * participants, indices P..P+C-1 are companions (P = participants.length).
+   * Each assigned member gets room_product_id + room_unit_index attached to
+   * its participants[] / companions[] entry on submit; unassigned members
+   * (and all members in guiding-only / shared-double modes) send null/omit.
+   * Defaults to empty — the products[] line items are NOT affected by this
+   * assignment (PINNED wire contract, landr-87n9.5).
+   */
+  roomAssignment?: RoomAssignmentMap
+  /**
+   * landr-doam.1: per-occupant age band + age, captured by AccommodationStep
+   * in the room-assignment UI. Unified index space (same as roomAssignment).
+   * Each member with band='child' gets occupant_age_band='child' +
+   * occupant_age=<age> in the submit body; all others get occupant_age_band
+   * omitted (API default = adult). Purely informational for the hotel —
+   * no pricing impact. Defaults to empty (all adults).
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   */
+  occupantAgeMap?: OccupantAgeMap
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -177,12 +225,16 @@ export function BookingForm({
   selection,
   booker,
   participants,
+  companions = [],
   pickupLocationId,
   accommodationRooms,
   addons,
   customerDeclarations,
-  customerLanguage,
+  customerLanguages,
+  customerOtherLanguages,
   isSharedDouble = false,
+  roomAssignment,
+  occupantAgeMap = {},
   onBack,
   onConfirmed,
 }: Props) {
@@ -249,33 +301,103 @@ export function BookingForm({
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: productLines,
-        participants: participants.map((p) => ({
-          first_name: p.first_name,
-          last_name: p.last_name || null,
-          email: p.email || null,
-          // landr-zaan: per-participant phone now round-trips to
-          // contacts.phone server-side (no longer dropped). Normalised to
-          // null when the field is blank so the RPC's COALESCE-update
-          // never overwrites an existing phone with an empty string.
-          phone: p.phone || null,
-          // landr-mg0a: pick the participant's chosen role (set by
-          // DetailsStep). Falls back to the legacy hardcoded 'participant'
-          // code in the rare race where DetailsStep submitted before the
-          // App-mount service-roles fetch resolved — every operator now
-          // has a 'participant' row seeded by the AFTER INSERT trigger,
-          // so the fallback path stays valid for fresh tenants too.
-          service_role_code: p.service_role_code || 'participant',
-          pickup_location_id: pickupLocationId ?? null,
-        })),
-        // landr-sbhz.3: thread declarations + language through to the
-        // submit payload. Only included when they were collected upstream
-        // by DeclarationsStep (non-null). Omitted for operators that have
-        // not adopted the declarations feature.
+        participants: participants.map((p, idx) => {
+          // landr-gb2f.2: attach the participant's assigned hotel_room unit
+          // (room_product_id + room_unit_index, PINNED wire contract). The
+          // assignment map is keyed by participant index. Unassigned (and
+          // every participant in guiding-only / shared-double modes, where
+          // the map is empty) sends both fields as null. products[] line
+          // items are NOT affected.
+          const assigned = roomAssignment?.[idx]
+          // landr-doam.1: per-occupant age band + age (hotel informational).
+          // Absent/null = adult (default). Only 'child' sends occupant_age.
+          const ageEntry = occupantAgeMap[idx]
+          const isChild = ageEntry?.band === 'child'
+          return {
+            first_name: p.first_name,
+            last_name: p.last_name || null,
+            email: p.email || null,
+            // landr-zaan: per-participant phone now round-trips to
+            // contacts.phone server-side (no longer dropped). Normalised to
+            // null when the field is blank so the RPC's COALESCE-update
+            // never overwrites an existing phone with an empty string.
+            phone: p.phone || null,
+            // landr-mg0a: pick the participant's chosen role (set by
+            // DetailsStep). Falls back to the legacy hardcoded 'participant'
+            // code in the rare race where DetailsStep submitted before the
+            // App-mount service-roles fetch resolved — every operator now
+            // has a 'participant' row seeded by the AFTER INSERT trigger,
+            // so the fallback path stays valid for fresh tenants too.
+            service_role_code: p.service_role_code || 'participant',
+            pickup_location_id: pickupLocationId ?? null,
+            room_product_id: assigned ? assigned.roomProductId : null,
+            room_unit_index: assigned ? assigned.unitIndex : null,
+            // landr-doam.1 wire fields (PINNED contract — landr-doam.2):
+            // omit when adult (default) to keep the payload compact.
+            ...(isChild
+              ? {
+                  occupant_age_band: 'child' as const,
+                  occupant_age: ageEntry.age ?? null,
+                }
+              : {}),
+          }
+        }),
+        // landr-87n9.3: non-guiding companions as the top-level companions[]
+        // (PINNED wire contract — landr-87n9.5 builds the same shape). Each
+        // companion's room assignment lives in the WHOLE-PARTY roomAssignment
+        // map at index participants.length + companionIdx (the unified party
+        // index space: participants first, companions after). Unassigned (and
+        // every companion in guiding-only / shared-double modes, where the
+        // map is empty) sends both room fields as null. Optional fields
+        // normalised to null when blank.
+        ...(companions.length > 0
+          ? {
+              companions: companions.map<Companion>((c, cIdx) => {
+                const memberIdx = participants.length + cIdx
+                const assigned = roomAssignment?.[memberIdx]
+                // landr-doam.1: per-occupant age band + age for companions.
+                const ageEntry = occupantAgeMap[memberIdx]
+                const isChild = ageEntry?.band === 'child'
+                return {
+                  first_name: c.first_name,
+                  last_name: c.last_name || null,
+                  email: c.email || null,
+                  phone: c.phone || null,
+                  room_product_id: assigned ? assigned.roomProductId : null,
+                  room_unit_index: assigned ? assigned.unitIndex : null,
+                  // landr-doam.1 wire fields (PINNED contract — landr-doam.2):
+                  // omit when adult (default) to keep the payload compact.
+                  ...(isChild
+                    ? {
+                        occupant_age_band: 'child' as const,
+                        occupant_age: ageEntry.age ?? null,
+                      }
+                    : {}),
+                  // landr-doam.1 scope-add: companion kind (PINNED contract).
+                  // Omit when 'guest' (the API default) to keep payload compact.
+                  ...(c.companion_kind === 'separate_guiding'
+                    ? { companion_kind: 'separate_guiding' as const }
+                    : {}),
+                }
+              }),
+            }
+          : {}),
+        // landr-sbhz.3: thread declarations through to the submit payload.
+        // Only included when they were collected upstream by DeclarationsStep
+        // (non-null). Omitted for operators that have not adopted the
+        // declarations feature.
         ...(customerDeclarations != null
           ? { customer_declarations: customerDeclarations }
           : {}),
-        ...(customerLanguage != null
-          ? { customer_language: customerLanguage }
+        // landr-87n9.4: multi-select languages + free-text other. Send when
+        // the declarations step was shown (i.e. when customerDeclarations is
+        // non-null — they are always collected together). Omit otherwise so
+        // non-declarations operators get a clean payload.
+        ...(customerDeclarations != null && customerLanguages != null
+          ? { customer_languages: customerLanguages }
+          : {}),
+        ...(customerDeclarations != null && customerOtherLanguages != null
+          ? { customer_other_languages: customerOtherLanguages }
           : {}),
         // landr-ffyg.2: top-level shared-double marker (landr-ffyg.1).
         // Always sent — true for the second-pilot-sharing mode (in which
@@ -378,6 +500,43 @@ export function BookingForm({
             ))}
           </ol>
         </section>
+
+        {/* landr-87n9.3: non-guiding companions summary. Rendered only when
+            the customer added someone in the "Others joining" section. */}
+        {companions.length > 0 ? (
+          <section data-testid="review-companions">
+            <h3 className="mb-2 text-sm font-semibold">
+              Others joining ({companions.length})
+            </h3>
+            <ol className="space-y-1 text-sm">
+              {companions.map((c, idx) => (
+                <li
+                  key={`companion-${idx}`}
+                  className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
+                >
+                  <span>
+                    <span className="font-medium">
+                      {idx + 1}. {c.first_name} {c.last_name}
+                    </span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      guest
+                    </span>
+                    {c.email ? (
+                      <span className="ml-2 text-xs text-muted-foreground break-all">
+                        {c.email}
+                      </span>
+                    ) : null}
+                    {c.phone ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {c.phone}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
 
         {serverError ? (
           <p className="text-sm text-destructive" data-testid="review-error">

@@ -5,11 +5,16 @@
  * exports there would trigger the rule and block CI).
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
-import type { RoomSelection } from '@/components/booking/accommodationCalc'
+import type {
+  OccupantAgeMap,
+  RoomAssignmentMap,
+  RoomSelection,
+} from '@/components/booking/accommodationCalc'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
   BookerDetails,
+  CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
@@ -60,6 +65,8 @@ export type Step =
       selection: BookingSelection
       booker?: BookerDetails
       participants?: ParticipantDetails[]
+      // landr-87n9.3: non-guiding companions carry over on Back-restore.
+      companions?: CompanionDetails[]
     }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
@@ -75,12 +82,21 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: non-guiding companions thread through so the
+      // whole-party room assignment + occupancy gating has them.
+      companions: CompanionDetails[]
       hotelLocationId?: string | null
       accommodationRooms?: RoomSelection[]
       addons?: AddonSelection[]
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2 / landr-87n9.3: persisted WHOLE-PARTY → room assignment
+      // (unified index space: participants 0..P-1, companions P..P+C-1) for
+      // back-nav restoration of the chips/units layout.
+      roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: per-occupant age band + age for back-nav restoration.
+      occupantAgeMap?: OccupantAgeMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -90,6 +106,9 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: carry companions through the service-addons branch
+      // (no room units here, but the roster must survive to fill-form).
+      companions: CompanionDetails[]
       addons?: AddonSelection[]
     }
   // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
@@ -104,6 +123,8 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster threads through.
+      companions: CompanionDetails[]
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
       pickupLocationId?: string | null
@@ -112,6 +133,11 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: carry the assignment through the pickup step so the
+      // back-nav into pick-accommodation restores it.
+      roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: carry the age map through the pickup step.
+      occupantAgeMap?: OccupantAgeMap
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -125,6 +151,8 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster threads through.
+      companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -133,6 +161,11 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: carry the assignment through declarations so it
+      // survives the declarations → fill-form hop and back-nav restores it.
+      roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: carry the age map through declarations.
+      occupantAgeMap?: OccupantAgeMap
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -146,6 +179,11 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster — BookingForm sends it as the
+      // top-level companions[] and maps the assignment-map tail
+      // (indices >= participants.length) onto each companion's
+      // room_product_id + room_unit_index on submit.
+      companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -154,10 +192,20 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2 / landr-87n9.3: WHOLE-PARTY assignment BookingForm maps
+      // onto each participant + companion's room_product_id + room_unit_index
+      // on submit (unified index: participants first, companions after).
+      roomAssignment?: RoomAssignmentMap
+      // landr-doam.1: per-occupant age band + age threaded to BookingForm
+      // for populating occupant_age_band + occupant_age on submit.
+      occupantAgeMap?: OccupantAgeMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
-      customerLanguage?: string | null
+      // landr-87n9.4: replaces customerLanguage (single) with the multi-select
+      // BCP-47 list and the free-text "other languages" field.
+      customerLanguages?: string[] | null
+      customerOtherLanguages?: string | null
     }
   | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
 
@@ -207,6 +255,8 @@ export function stepAfterAccommodation(
   selection: BookingSelection,
   booker: BookerDetails,
   participants: ParticipantDetails[],
+  // landr-87n9.3: companions roster threaded to the submit step.
+  companions: CompanionDetails[],
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: AddonSelection[] = [],
@@ -220,6 +270,10 @@ export function stepAfterAccommodation(
   isSharedDouble: boolean | undefined = undefined,
   // landr-ffyg.2: top-level accommodation mode for back-nav restoration.
   accommodationMode: AccommodationMode | undefined = undefined,
+  // landr-gb2f.2: participant → room assignment, threaded to the submit step.
+  roomAssignment: RoomAssignmentMap | undefined = undefined,
+  // landr-doam.1: per-occupant age band + age, threaded to the submit step.
+  occupantAgeMap: OccupantAgeMap | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -234,6 +288,7 @@ export function stepAfterAccommodation(
       selection,
       booker,
       participants,
+      companions,
       pickupLocationId: hotelLocationId,
       accommodationRooms,
       addons,
@@ -242,6 +297,8 @@ export function stepAfterAccommodation(
       includeHotel,
       isSharedDouble,
       accommodationMode,
+      roomAssignment,
+      occupantAgeMap,
     }
   }
   if (product.needs_pickup) {
@@ -251,6 +308,7 @@ export function stepAfterAccommodation(
       selection,
       booker,
       participants,
+      companions,
       accommodationRooms,
       addons,
       hotelLocationId: null,
@@ -258,6 +316,8 @@ export function stepAfterAccommodation(
       includeHotel,
       isSharedDouble,
       accommodationMode,
+      roomAssignment,
+      occupantAgeMap,
     }
   }
   return {
@@ -266,6 +326,7 @@ export function stepAfterAccommodation(
     selection,
     booker,
     participants,
+    companions,
     pickupLocationId: null,
     accommodationRooms,
     addons,
@@ -274,6 +335,133 @@ export function stepAfterAccommodation(
     includeHotel,
     isSharedDouble,
     accommodationMode,
+    roomAssignment,
+    occupantAgeMap,
+  }
+}
+
+/**
+ * landr-87n9.1: pick the step to return to when the customer hits Back
+ * from the review screen (declarations / fill-form). This MIRRORS the
+ * forward stepAfterAccommodation routing so Back retraces exactly the
+ * steps that were shown on the way forward — it must NOT route to a step
+ * that was skipped.
+ *
+ * The bug this fixes: the previous handlers tested `product.needs_pickup`
+ * FIRST and routed to pick-pickup. But when a hotel is booked the pickup
+ * step is SKIPPED on the way forward (stepAfterAccommodation: a non-null
+ * hotelLocationId makes the hotel the pickup and bypasses pick-pickup), so
+ * Back wrongly landed on the free-pickup picker the customer never saw.
+ *
+ * Routing rule (mirrors stepAfterAccommodation, in reverse):
+ *   1. hotelLocationId != null → pickup was SKIPPED forward → Back goes to
+ *      pick-accommodation (the hotel/room page). Covers package AND
+ *      shared-double modes (both set a hotel).
+ *   2. else if product.needs_pickup → pick-pickup actually showed forward
+ *      → Back goes to pick-pickup.
+ *   3. else if a hotel offering exists (service + hotel_offering != 'none')
+ *      → the customer passed through pick-accommodation (guiding-only
+ *      opt-out) → Back goes to pick-accommodation.
+ *   4. else if hadServiceAddons → Back goes to pick-service-addons.
+ *   5. else → details.
+ *
+ * `args` carries every field the upstream steps need to be reconstructed
+ * with their previously-confirmed state restored (the same provenance
+ * bag fill-form / declarations already thread through).
+ */
+export interface StepBeforeReviewArgs {
+  product: Product
+  selection: BookingSelection
+  booker: BookerDetails
+  participants: ParticipantDetails[]
+  // landr-87n9.3: companions roster restored on back-nav.
+  companions: CompanionDetails[]
+  pickupLocationId: string | null
+  accommodationRooms: RoomSelection[]
+  addons: AddonSelection[]
+  hotelLocationId?: string | null
+  hadServiceAddons?: boolean
+  includeHotel?: boolean
+  isSharedDouble?: boolean
+  accommodationMode?: AccommodationMode
+  roomAssignment?: RoomAssignmentMap
+  // landr-doam.1: carry the age map back for pick-accommodation restoration.
+  occupantAgeMap?: OccupantAgeMap
+}
+
+export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
+  const offering = args.product.hotel_offering ?? 'none'
+  const hasHotelOffering =
+    args.product.product_kind === 'service' && offering !== 'none'
+
+  // 1. A hotel was booked → pickup was skipped forward → return to the
+  //    accommodation page (covers package + shared-double).
+  // 3. A hotel offering exists but no hotel was booked (guiding-only
+  //    opt-out) → the customer still passed THROUGH pick-accommodation, so
+  //    Back returns there. Folded into the same branch as (1) because the
+  //    forward path always inserts pick-accommodation when a hotel offering
+  //    is present, regardless of the booked/opted-out outcome.
+  if (args.hotelLocationId != null || hasHotelOffering) {
+    return {
+      name: 'pick-accommodation',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      companions: args.companions,
+      hotelLocationId: args.hotelLocationId,
+      accommodationRooms: args.accommodationRooms,
+      addons: args.addons,
+      includeHotel: args.includeHotel,
+      isSharedDouble: args.isSharedDouble,
+      accommodationMode: args.accommodationMode,
+      roomAssignment: args.roomAssignment,
+      occupantAgeMap: args.occupantAgeMap,
+    }
+  }
+  // 2. No hotel offering, product needs a pickup → pick-pickup showed
+  //    forward → return to it with the prior radio choice restored.
+  if (args.product.needs_pickup) {
+    return {
+      name: 'pick-pickup',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      companions: args.companions,
+      accommodationRooms: args.accommodationRooms,
+      addons: args.addons,
+      pickupLocationId: args.pickupLocationId,
+      hotelLocationId: args.hotelLocationId,
+      hadServiceAddons: args.hadServiceAddons,
+      includeHotel: args.includeHotel,
+      isSharedDouble: args.isSharedDouble,
+      accommodationMode: args.accommodationMode,
+      roomAssignment: args.roomAssignment,
+      occupantAgeMap: args.occupantAgeMap,
+    }
+  }
+  // 4. No hotel, no pickup, but the customer went through the service-
+  //    add-ons step → return there with the prior selections restored.
+  if (args.hadServiceAddons) {
+    return {
+      name: 'pick-service-addons',
+      product: args.product,
+      selection: args.selection,
+      booker: args.booker,
+      participants: args.participants,
+      companions: args.companions,
+      addons: args.addons,
+    }
+  }
+  // 5. Neither hotel, pickup, nor service add-ons → straight back to details.
+  return {
+    name: 'details',
+    product: args.product,
+    selection: args.selection,
+    booker: args.booker,
+    participants: args.participants,
+    companions: args.companions,
   }
 }
 
@@ -292,6 +480,8 @@ export function fillFormOrDeclarations(
     selection: BookingSelection
     booker: BookerDetails
     participants: ParticipantDetails[]
+    // landr-87n9.3: companions roster threads through to the submit step.
+    companions: CompanionDetails[]
     pickupLocationId: string | null
     accommodationRooms: RoomSelection[]
     addons: AddonSelection[]
@@ -303,6 +493,10 @@ export function fillFormOrDeclarations(
     isSharedDouble?: boolean
     // landr-ffyg.2: thread the accommodation mode through too.
     accommodationMode?: AccommodationMode
+    // landr-gb2f.2: thread the participant → room assignment through too.
+    roomAssignment?: RoomAssignmentMap
+    // landr-doam.1: thread the age map through too.
+    occupantAgeMap?: OccupantAgeMap
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,

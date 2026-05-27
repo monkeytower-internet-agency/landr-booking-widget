@@ -1,16 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  autoAssignParticipants,
+  autoAssignParty,
   deriveStayWindow,
+  expandRoomUnits,
   findBreakfastAddonIds,
+  flattenPerRoomAddons,
   formatCurrency,
+  hasIncompleteChildAge,
   isPremiumIncludesBreakfast,
+  occupancyStatus,
+  occupantsOfUnit,
+  partySize,
+  pruneAssignments,
   roomSubtotal,
+  roomUnitKey,
   stayNightIsos,
   totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
+  type OccupantAgeMap,
+  type RoomAssignmentMap,
   type RoomSelection,
+  type RoomUnit,
 } from './accommodationCalc'
 
 function makeRoom(
@@ -364,5 +377,436 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
     expect(
       isPremiumIncludesBreakfast(makeProduct('Single Room')),
     ).toBe(false)
+  })
+})
+
+describe('flattenPerRoomAddons (landr-yybu)', () => {
+  function makeAddonFor(id: string, name: string): ProductAddon {
+    return makeAddon(id, name)
+  }
+
+  it('sums qty per addon across rooms', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1, 'room-b': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 1 },
+      'room-b': { 'bf-1': 2 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 3 }])
+  })
+
+  it('skips rooms with qty=0 in roomSelection (dropped rooms)', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+      'room-b': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 0, 'room-b': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 3 },  // room-a dropped → should be excluded
+      'room-b': { 'bf-1': 2 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 2 }])
+  })
+
+  it('excludes add-ons not in the room catalogue (guards carry-over)', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1 }
+    const addonSelection = {
+      'room-a': { 'bf-1': 1, 'stale-id': 5 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    expect(result).toEqual([{ productId: 'bf-1', quantity: 1 }])
+  })
+
+  it('returns empty array when addonSelection is empty', () => {
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'room-a': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'room-a': 1 }
+    const result = flattenPerRoomAddons({}, roomSelection, addonsByRoom)
+    expect(result).toEqual([])
+  })
+
+  it('deduplicates the same add-on across multiple rooms and sums', () => {
+    // Both single and double rooms link to 'bf-1'.
+    const addonsByRoom: Record<string, ProductAddon[]> = {
+      'single': [makeAddonFor('bf-1', 'Breakfast'), makeAddonFor('vid-1', 'Video')],
+      'double': [makeAddonFor('bf-1', 'Breakfast')],
+    }
+    const roomSelection = { 'single': 1, 'double': 1 }
+    const addonSelection = {
+      'single': { 'bf-1': 1, 'vid-1': 2 },
+      'double': { 'bf-1': 3 },
+    }
+    const result = flattenPerRoomAddons(addonSelection, roomSelection, addonsByRoom)
+    // Sorted by productId: bf-1(4), vid-1(2)
+    expect(result).toEqual([
+      { productId: 'bf-1', quantity: 4 },
+      { productId: 'vid-1', quantity: 2 },
+    ])
+  })
+})
+
+// ── landr-gb2f.2: participant → room assignment helpers ──────────────
+
+describe('expandRoomUnits (landr-gb2f.2)', () => {
+  it('expands each picked room into per-unit slots with capacity + name', () => {
+    const products = [
+      makeRoom('single', 49, 'EUR', 1),
+      makeRoom('double', 73, 'EUR', 2),
+    ]
+    const rooms: RoomSelection[] = [
+      { productId: 'single', quantity: 1 },
+      { productId: 'double', quantity: 2 },
+    ]
+    const units = expandRoomUnits(rooms, products)
+    expect(units).toEqual([
+      { roomProductId: 'single', unitIndex: 0, capacity: 1, roomName: 'single' },
+      { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'double' },
+      { roomProductId: 'double', unitIndex: 1, capacity: 2, roomName: 'double' },
+    ])
+  })
+
+  it('treats missing capacity_per_unit as 1', () => {
+    const products = [makeRoom('legacy', 49, 'EUR', null)]
+    const units = expandRoomUnits([{ productId: 'legacy', quantity: 2 }], products)
+    expect(units.map((u) => u.capacity)).toEqual([1, 1])
+  })
+
+  it('skips rooms whose product is not in the catalogue (still loading)', () => {
+    const products = [makeRoom('single', 49, 'EUR', 1)]
+    const units = expandRoomUnits(
+      [
+        { productId: 'single', quantity: 1 },
+        { productId: 'ghost', quantity: 3 },
+      ],
+      products,
+    )
+    expect(units).toHaveLength(1)
+    expect(units[0]!.roomProductId).toBe('single')
+  })
+
+  it('emits nothing for qty<=0', () => {
+    const products = [makeRoom('single', 49, 'EUR', 1)]
+    expect(expandRoomUnits([{ productId: 'single', quantity: 0 }], products)).toEqual(
+      [],
+    )
+  })
+})
+
+describe('roomUnitKey (landr-gb2f.2)', () => {
+  it('builds a stable composite key', () => {
+    expect(roomUnitKey('double', 1)).toBe('double::1')
+  })
+})
+
+describe('autoAssignParticipants (landr-gb2f.2)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+
+  it('auto-assigns 2 participants to a single double room (both fit)', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const result = autoAssignParticipants(units, 2)
+    expect(result).toEqual({
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    })
+  })
+
+  it('fills units in order up to capacity_per_unit', () => {
+    // two singles → each sleeps 1 → two participants go to separate units.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const result = autoAssignParticipants(units, 2)
+    expect(result).toEqual({
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+    })
+  })
+
+  it('leaves overflow participants unassigned when units are full', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const result = autoAssignParticipants(units, 3)
+    // only 1 bed → only participant 0 placed; 1 and 2 left unassigned.
+    expect(result).toEqual({ 0: { roomProductId: 'single', unitIndex: 0 } })
+  })
+
+  it('never clobbers an existing manual assignment, and respects its capacity', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    // participant 1 manually pinned to the double's only unit (1 of 2 used).
+    const existing: RoomAssignmentMap = {
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const result = autoAssignParticipants(units, 3, existing)
+    // participant 0 fills the remaining bed; participant 1 stays put;
+    // participant 2 overflows (no beds left) → unassigned.
+    expect(result).toEqual({
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    })
+  })
+
+  it('re-runs after a room qty drop, evicting the stranded participant', () => {
+    // Start: 2 singles, both participants assigned.
+    const before = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assigned = autoAssignParticipants(before, 2)
+    expect(Object.keys(assigned)).toHaveLength(2)
+    // Drop to 1 single → re-run prunes the participant on unit 1 and
+    // leaves them unassigned (no remaining bed).
+    const after = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const rerun = autoAssignParticipants(after, 2, assigned)
+    expect(rerun).toEqual({ 0: { roomProductId: 'single', unitIndex: 0 } })
+  })
+
+  it('tops up newly-added capacity without disturbing assigned participants', () => {
+    const oneSingle = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const first = autoAssignParticipants(oneSingle, 2) // p0 in, p1 overflow
+    expect(first).toEqual({ 0: { roomProductId: 'single', unitIndex: 0 } })
+    // Add a second single → re-run should place p1 in the new unit, p0 stays.
+    const twoSingles = expandRoomUnits(
+      [{ productId: 'single', quantity: 2 }],
+      [single],
+    )
+    const second = autoAssignParticipants(twoSingles, 2, first)
+    expect(second).toEqual({
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+    })
+  })
+
+  it('returns {} when there are no units', () => {
+    expect(autoAssignParticipants([], 2)).toEqual({})
+  })
+})
+
+describe('pruneAssignments (landr-gb2f.2)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+
+  it('drops assignments referencing units that no longer exist', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 }, // valid
+      1: { roomProductId: 'single', unitIndex: 1 }, // unit removed
+      2: { roomProductId: 'ghost', unitIndex: 0 }, // room gone
+    }
+    expect(pruneAssignments(assignment, units)).toEqual({
+      0: { roomProductId: 'single', unitIndex: 0 },
+    })
+  })
+
+  it('returns {} when no units remain', () => {
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+    }
+    expect(pruneAssignments(assignment, [])).toEqual({})
+  })
+})
+
+describe('occupantsOfUnit (landr-gb2f.2)', () => {
+  it('lists the participant indices assigned to a given unit, sorted', () => {
+    const unit: RoomUnit = {
+      roomProductId: 'double',
+      unitIndex: 0,
+      capacity: 2,
+      roomName: 'double',
+    }
+    const assignment: RoomAssignmentMap = {
+      2: { roomProductId: 'double', unitIndex: 0 },
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 0 }, // different unit
+    }
+    expect(occupantsOfUnit(assignment, unit)).toEqual([0, 2])
+  })
+})
+
+describe('partySize (landr-87n9.3)', () => {
+  it('sums participants + companions', () => {
+    expect(partySize(6, 6)).toBe(12)
+    expect(partySize(1, 0)).toBe(1)
+    expect(partySize(0, 3)).toBe(3)
+  })
+})
+
+describe('autoAssignParty (landr-87n9.3)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+
+  it('assigns participants first (0..P-1) then companions (P..P+C-1) by capacity', () => {
+    // 1 participant + 1 companion, two single units → participant gets unit
+    // 0, companion gets unit 1 (companion index = P = 1).
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const result = autoAssignParty(units, 1, 1)
+    expect(result).toEqual({
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+    })
+  })
+
+  it('packs a participant + companion into one double (capacity 2)', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const result = autoAssignParty(units, 1, 1)
+    expect(result).toEqual({
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    })
+  })
+
+  it('supports a party LARGER than the 6-participant cap (6 + 6 = 12)', () => {
+    // 6 doubles → 6 units capacity 2 = 12 beds. 6 participants + 6
+    // companions all fit, two per unit (one participant + ... greedy pack).
+    const units = expandRoomUnits([{ productId: 'double', quantity: 6 }], [double])
+    const result = autoAssignParty(units, 6, 6)
+    // every one of the 12 members is assigned.
+    expect(Object.keys(result)).toHaveLength(12)
+    // each unit has exactly 2 occupants.
+    for (let u = 0; u < 6; u += 1) {
+      const occ = occupantsOfUnit(result, {
+        roomProductId: 'double',
+        unitIndex: u,
+        capacity: 2,
+        roomName: 'double',
+      })
+      expect(occ).toHaveLength(2)
+    }
+  })
+
+  it('never clobbers a manual assignment of a companion', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    // companion (index 1) manually pinned to unit 1.
+    const existing: RoomAssignmentMap = {
+      1: { roomProductId: 'single', unitIndex: 1 },
+    }
+    const result = autoAssignParty(units, 1, 1, existing)
+    expect(result).toEqual({
+      1: { roomProductId: 'single', unitIndex: 1 }, // stays put
+      0: { roomProductId: 'single', unitIndex: 0 }, // participant fills the other
+    })
+  })
+
+  it('leaves overflow members unassigned when beds run out', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    // 1 participant + 2 companions, 1 bed → only the participant is placed.
+    const result = autoAssignParty(units, 1, 2)
+    expect(result).toEqual({ 0: { roomProductId: 'single', unitIndex: 0 } })
+  })
+})
+
+describe('occupancyStatus (landr-87n9.3)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+
+  it('is complete when every unit has an occupant AND everyone is assigned', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment = autoAssignParty(units, 2, 0)
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+    expect(status.emptyUnits).toEqual([])
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('flags a truly UNOCCUPIED booked room (empty room blocks)', () => {
+    // 2 single units but only 1 person → unit 1 is empty.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 1, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toHaveLength(1)
+    expect(status.emptyUnits[0]!.unitIndex).toBe(1)
+    // the one person IS assigned, so no unassigned members.
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('flags an unassigned person (someone with no room blocks)', () => {
+    // 1 double (capacity 2) occupied by 1 person; a 2nd person unassigned.
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toEqual([]) // the room HAS an occupant
+    expect(status.unassignedMembers).toEqual([1])
+  })
+
+  it('the "room booked for a companion" case is valid once she is assigned', () => {
+    // 1 participant in a single, 1 companion in a second single booked "for
+    // her". Both units occupied, both members assigned → complete.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 }, // participant
+      1: { roomProductId: 'single', unitIndex: 1 }, // companion (index P=1)
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+  })
+
+  it('treats an assignment to a no-longer-existing unit as unassigned', () => {
+    // room qty dropped from 2→1; member 1 still references the gone unit 1.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 }, // gone
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.unassignedMembers).toEqual([1])
+  })
+
+  it('is complete (vacuously) when there are no units and no members', () => {
+    expect(occupancyStatus([], 0, {}).complete).toBe(true)
+  })
+})
+
+describe('hasIncompleteChildAge (landr-doam.1)', () => {
+  const assignment: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('returns false when all assigned occupants are adults (empty ageMap)', () => {
+    expect(hasIncompleteChildAge(assignment, {})).toBe(false)
+  })
+
+  it('returns false when all children have a valid age', () => {
+    const ageMap: OccupantAgeMap = {
+      0: { band: 'child', age: 8 },
+      1: { band: 'adult', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(false)
+  })
+
+  it('returns true when a child occupant has no age (null)', () => {
+    const ageMap: OccupantAgeMap = {
+      0: { band: 'child', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(true)
+  })
+
+  it('returns true when a child occupant has negative age (invalid sentinel)', () => {
+    const ageMap: OccupantAgeMap = {
+      1: { band: 'child', age: -1 },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(true)
+  })
+
+  it('ignores unassigned members — they have no ageMap entry', () => {
+    // member 99 is NOT in the assignment map, so the age entry is irrelevant.
+    const ageMap: OccupantAgeMap = {
+      99: { band: 'child', age: null },
+    }
+    expect(hasIncompleteChildAge(assignment, ageMap)).toBe(false)
+  })
+
+  it('returns false for an empty assignment (no occupants to check)', () => {
+    const ageMap: OccupantAgeMap = { 0: { band: 'child', age: null } }
+    expect(hasIncompleteChildAge({}, ageMap)).toBe(false)
   })
 })

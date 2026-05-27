@@ -228,6 +228,95 @@ export interface Participant {
   phone?: string | null
   service_role_code: string
   pickup_location_id?: string | null
+  /**
+   * landr-gb2f.2: participant → room assignment. The hotel_room product
+   * this participant is assigned to (package mode only). null / omitted
+   * when the participant is unassigned, or in guiding-only / shared-double
+   * modes (no room units). Paired with room_unit_index to disambiguate
+   * which physical unit of a qty>1 room product they occupy.
+   *
+   * WIRE CONTRACT (PINNED — landr-gb2f.3/.4 on the API build to the same
+   * shape): room_product_id is one of the products[] hotel_room line item
+   * product_ids; products[] line items are NOT changed by this assignment.
+   */
+  room_product_id?: string | null
+  /**
+   * landr-gb2f.2: 0-based index of the physical unit WITHIN room_product_id
+   * (0..quantity-1). Disambiguates a qty>1 room: a qty=2 double room has
+   * unit 0 and unit 1, each sleeping capacity_per_unit people. null /
+   * omitted when unassigned.
+   */
+  room_unit_index?: number | null
+  /**
+   * landr-doam.1: per-occupant age band for the hotel (informational only —
+   * no discount is calculated by the widget). 'adult' (default/absent) or
+   * 'child'. null / omitted = adult. Collected in the room-assignment UI
+   * once the participant is assigned to a room unit.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape):
+   * absent/null → adult; 'child' → occupant_age must also be present.
+   */
+  occupant_age_band?: 'adult' | 'child' | null
+  /**
+   * landr-doam.1: the child's age in years (0-17). Present only when
+   * occupant_age_band === 'child'. null / omitted otherwise. Purely
+   * informational for the hotel — the widget never uses it in pricing.
+   */
+  occupant_age?: number | null
+}
+
+/**
+ * landr-87n9.3: a NON-GUIDING companion — a partner/friend who joins the
+ * party (and occupies a hotel bed) but does NOT take part in the guided
+ * activity. Companions carry NO service_role, are NOT counted toward the
+ * guiding-participants cap (6) NOR the per-participant guiding price, and
+ * total headcount (participants + companions) CAN exceed 6.
+ *
+ * WIRE CONTRACT (PINNED — the API ticket landr-87n9.5 builds the SAME
+ * shape): the submit body gains a top-level `companions: Companion[]`.
+ * first_name is required; the rest are optional and normalised to null
+ * when blank. room_product_id + room_unit_index mirror the guiding
+ * Participant fields exactly — a companion is assigned to a hotel_room
+ * unit the same way (whole-party assignment), so the assignment map
+ * round-trips 1:1. Both are null/omitted when the companion is unassigned
+ * (or in guiding-only / shared-double modes that have no room units).
+ */
+export interface Companion {
+  first_name: string
+  last_name?: string | null
+  email?: string | null
+  phone?: string | null
+  room_product_id?: string | null
+  room_unit_index?: number | null
+  /**
+   * landr-doam.1: per-occupant age band for the hotel (informational only).
+   * Mirrors the Participant field exactly — 'adult' (default/absent) or
+   * 'child'. null / omitted = adult. Populated from the room-assignment UI.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   */
+  occupant_age_band?: 'adult' | 'child' | null
+  /**
+   * landr-doam.1: the child's age in years (0-17). Present only when
+   * occupant_age_band === 'child'. null / omitted otherwise.
+   */
+  occupant_age?: number | null
+  /**
+   * landr-doam.1 scope-add: companion participation kind. Determines whether
+   * the companion is a non-participating guest (partner/child/friend) or a
+   * fellow pilot/activity-person who books and pays for their own guiding
+   * separately (a separate booking).
+   *
+   * - 'guest' (default/absent): not doing the activity. Age band applies.
+   * - 'separate_guiding': IS joining the activity but books/pays guiding
+   *   separately. Fills a bed in the room holder's room and appears on the
+   *   hotel rooming list, but is NOT counted in this booking's participants,
+   *   guiding price, or the 6-participant cap.
+   *
+   * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
+   * Absent/null treated as 'guest' by the API.
+   */
+  companion_kind?: 'guest' | 'separate_guiding' | null
 }
 
 /**
@@ -283,6 +372,15 @@ export interface SubmitBookingBody {
   products: ProductLine[]
   participants: Participant[]
   /**
+   * landr-87n9.3: non-guiding companions (partners/friends who join the
+   * party + occupy a hotel bed but do NOT take part in the activity).
+   * Empty / omitted when nobody extra joins. Companions are NOT in
+   * participants[] (no service_role, not in the guiding price); they only
+   * count toward whole-party room assignment + occupancy. PINNED wire
+   * contract — landr-87n9.5 on the API builds the same shape.
+   */
+  companions?: Companion[]
+  /**
    * landr-sbhz.3: customer eligibility declarations. Dict of key→true
    * for each confirmed declaration. Only sent when the operator requires
    * pre-booking declarations (e.g. Para42). Omitted for operators that
@@ -290,10 +388,18 @@ export interface SubmitBookingBody {
    */
   customer_declarations?: Record<string, true> | null
   /**
-   * landr-sbhz.3: customer's chosen spoken language (BCP-47 code).
-   * Required for operators that enforce a language selection.
+   * landr-87n9.4: BCP-47 codes for all languages the customer selected from
+   * the operator's offered list. Replaces the legacy single customer_language
+   * field (kept optional on the API for back-compat but no longer sent by
+   * the widget). Empty array / omitted when no offered language was picked
+   * (must be accompanied by a non-empty customer_other_languages in that case).
    */
-  customer_language?: string | null
+  customer_languages?: string[] | null
+  /**
+   * landr-87n9.4: free-text languages spoken not covered by the offered list
+   * (e.g. "Zulu, Russian"). Null / omitted when the free-text was not filled.
+   */
+  customer_other_languages?: string | null
   /**
    * landr-ffyg.1 / landr-ffyg.2: "second pilot in a shared double room"
    * marker. When true the booker shares another pilot's double room and

@@ -15,16 +15,26 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import {
+  autoAssignParty,
   deriveStayWindow,
-  findBreakfastAddonIds,
+  expandRoomUnits,
+  flattenPerRoomAddons,
   formatCurrency,
+  hasIncompleteChildAge,
   isPremiumIncludesBreakfast,
+  occupancyStatus,
+  partySize,
+  pruneAssignments,
   roomSubtotal,
-  totalBreakfastQty,
   totalRoomCapacity,
+  type OccupantAgeMap,
+  type OccupantAgeBand,
+  type RoomAssignmentMap,
   type RoomSelection,
+  type RoomUnit,
 } from './accommodationCalc'
 import { AddonsList } from './AddonsList'
+import { RoomAssignment } from './RoomAssignment'
 import {
   requiredAddonError,
   type AddonSelection,
@@ -66,6 +76,23 @@ interface Props {
    */
   participantCount?: number
   /**
+   * landr-gb2f.2: participant display names (first names), indexed by
+   * participant index, threaded from DetailsStep. Drives the draggable
+   * NAME chips in the room-assignment UI (package mode). Defaults to an
+   * empty array — when empty the assignment UI falls back to "Guest N"
+   * labels so the chips still render for legacy call sites.
+   */
+  participantNames?: string[]
+  /**
+   * landr-87n9.3: NON-GUIDING companions joining the party. They occupy
+   * hotel beds (whole-party room assignment + occupancy gating) but are
+   * NOT guiding participants — never counted toward participantCount or
+   * the guiding price. The room-assignment UI appends them after the
+   * participants in the unified party-member index space and badges them
+   * as "guest". Defaults to empty (no companions).
+   */
+  companionNames?: string[]
+  /**
    * Called when the customer confirms a room selection. rooms can be
    * empty when the customer opts out of an `optional` accommodation
    * (guiding-only mode) or chose the shared-double bypass.
@@ -90,12 +117,41 @@ interface Props {
     addons: AddonSelection[],
     includeHotel?: boolean,
     isSharedDouble?: boolean,
+    // landr-gb2f.2: participant → room assignment map (participantIndex →
+    // {roomProductId, unitIndex}). Empty in guiding-only / shared-double
+    // modes (no room units). Threaded into BookingForm so each participant
+    // carries its assigned room_product_id + room_unit_index on submit.
+    roomAssignment?: RoomAssignmentMap,
+    // landr-doam.1: per-occupant age band + age for the hotel. Empty in
+    // guiding-only / shared-double modes. Absent key = adult (default).
+    ageMap?: OccupantAgeMap,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
    * (date selection). Mirrors the other booking steps' Back affordance.
    */
   onBack: () => void
+  /**
+   * landr-87n9.2: live-lift the room + per-room add-on selection up to
+   * App.tsx so the PriceSidebar's "At-hotel total · pay at check-in" pill
+   * updates WHILE the customer is picking rooms — without waiting for
+   * Continue. Mirrors the liveSelectionDays / liveParticipantCount pattern
+   * (DetailsStep's onLiveParticipantsChange).
+   *
+   * Fires from event handlers (the room steppers + the per-room AddonsList
+   * onChange + mode/hotel switches), NOT from a setState-in-effect — so the
+   * parent's setState batches with this component's and the
+   * react-hooks/set-state-in-effect lint rule stays happy.
+   *
+   * Emits the SAME flattened shapes handleContinue builds: RoomSelection[]
+   * (entries with qty>0) and AddonSelection[] (per-room map folded to flat
+   * lines via flattenPerRoomAddons). In guiding-only / shared-double modes
+   * both arrays are empty (no rooms booked).
+   */
+  onLiveAccommodationChange?: (
+    rooms: RoomSelection[],
+    addons: AddonSelection[],
+  ) => void
   /**
    * landr-yf0n: when the customer hits Back from a downstream step,
    * App.tsx threads the previously confirmed accommodation context back
@@ -119,6 +175,19 @@ interface Props {
   initialIncludeHotel?: boolean
   /** landr-ffyg.2: restore the chosen accommodation mode on back-nav re-entry. */
   initialMode?: AccommodationMode
+  /**
+   * landr-gb2f.2: restore the participant → room assignment on back-nav
+   * re-entry so the chips/units re-render with the customer's prior layout
+   * instead of re-running a fresh auto-assign. undefined → seed via
+   * auto-assign once rooms resolve.
+   */
+  initialAssignment?: RoomAssignmentMap
+  /**
+   * landr-doam.1: restore the per-occupant age band + age map on back-nav
+   * re-entry so the Adult/Child + age selections survive hitting Back.
+   * undefined → all occupants default to adult (no age needed).
+   */
+  initialAgeMap?: OccupantAgeMap
 }
 
 /**
@@ -158,13 +227,18 @@ export function AccommodationStep({
   selectedDays,
   operatorToken,
   participantCount = 1,
+  participantNames = [],
+  companionNames = [],
   onConfirm,
   onBack,
+  onLiveAccommodationChange,
   initialHotelLocationId,
   initialRooms,
   initialAddons,
   initialIncludeHotel,
   initialMode,
+  initialAssignment,
+  initialAgeMap,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -210,20 +284,39 @@ export function AccommodationStep({
   const [addonsByRoom, setAddonsByRoom] = useState<
     Record<string, ProductAddon[]>
   >({})
-  // Add-on selection map: addon_product_id → quantity. Shared across
-  // every room because the same add-on (e.g. Breakfast) can be linked
-  // to several rooms and the customer ultimately picks a single total
-  // quantity; collapsing into one map keeps the submit payload free of
-  // duplicate addon line items.
-  // landr-yf0n: seed from initialAddons on back-nav re-entry.
+  // Per-room add-on selection: roomProductId → { addon_product_id → qty }.
+  // landr-yybu: each room holds its own independent add-on map so that the
+  // same add-on linked to multiple rooms (e.g. Para42 Breakfast on Single +
+  // Double) can be ordered independently per room, and the per-room
+  // over/under warning compares against THAT room's occupancy.
+  //
+  // Back-nav seeding (landr-yf0n): initialAddons is still a flat
+  // AddonSelection[] (the onConfirm contract is unchanged). On re-entry we
+  // assign each add-on's qty to the FIRST room in the current catalogue that
+  // links it. This is best-effort — a full per-room restore would require the
+  // submit payload to carry per-room breakdown, which is out of scope here.
+  // Documented as a known limitation.
   const [addonSelection, setAddonSelection] = useState<
-    Record<string, number>
-  >(() => {
-    if (!initialAddons || initialAddons.length === 0) return {}
-    const seed: Record<string, number> = {}
-    for (const line of initialAddons) seed[line.productId] = line.quantity
-    return seed
-  })
+    Record<string, Record<string, number>>
+  >({})
+
+  // landr-gb2f.2: participant → room assignment. participantIndex →
+  // {roomProductId, unitIndex}. Seeded from initialAssignment on back-nav
+  // re-entry; otherwise auto-assigned by the effect below once rooms +
+  // selection resolve. The map is the source of truth for the chips/units
+  // and is what flows out through onConfirm.
+  const [assignment, setAssignment] = useState<RoomAssignmentMap>(
+    () => initialAssignment ?? {},
+  )
+
+  // landr-doam.1: per-occupant age band + age (hotel-informational only).
+  // Seeded from initialAgeMap on back-nav re-entry; otherwise all occupants
+  // default to adult (absent key = adult). This map is only mutated by the
+  // onAgeBandChange handler in RoomAssignment — never by any effect, so the
+  // react-hooks/set-state-in-effect rule stays happy.
+  const [ageMap, setAgeMap] = useState<OccupantAgeMap>(
+    () => initialAgeMap ?? {},
+  )
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
   // both 'package' (rooms) and 'shared-double' (hotel-only pickup); only
@@ -325,6 +418,47 @@ export function AccommodationStep({
     }
   }, [rooms])
 
+  // landr-yybu / landr-yf0n: back-nav add-on seeding. Once the per-room
+  // catalogue resolves AND initialAddons has entries, assign each add-on
+  // qty to the first room that links it (best-effort; documented limitation).
+  // We only seed ONCE (when addonSelection is still empty) to avoid
+  // clobbering changes the customer makes after re-entering the step.
+  // The IIFE pattern avoids the react-hooks/set-state-in-effect lint rule.
+  useEffect(() => {
+    if (!initialAddons || initialAddons.length === 0) return
+    if (Object.keys(addonsByRoom).length === 0) return
+    // Only seed when addonSelection is still empty (no customer edits yet).
+    if (Object.keys(addonSelection).length > 0) return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      const next: Record<string, Record<string, number>> = {}
+      for (const line of initialAddons) {
+        if (line.quantity <= 0) continue
+        // Find the first room that has this add-on in its catalogue.
+        for (const [roomId, roomAddons] of Object.entries(addonsByRoom)) {
+          const found = roomAddons.some(
+            (a) => a.addon_product_id === line.productId,
+          )
+          if (found) {
+            next[roomId] = { ...(next[roomId] ?? {}), [line.productId]: line.quantity }
+            break
+          }
+        }
+      }
+      if (cancelled) return
+      if (Object.keys(next).length > 0) setAddonSelection(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonsByRoom])
+  // ^ intentionally excludes `initialAddons` and `addonSelection` from
+  //   dependencies: initialAddons is a prop that never changes after mount;
+  //   addonSelection is the output being written (not a trigger); the
+  //   effect must re-run only when the catalogue arrives.
+
   // Centralised hotel-change handler — resets the room list + selected
   // quantities BEFORE the next render so the effect only handles the
   // async fetch. Used by the radio onChange in package + shared-double
@@ -337,6 +471,13 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    // landr-gb2f.2: a new hotel means a new room list — drop the prior
+    // participant→room assignment so it doesn't reference stale units.
+    setAssignment({})
+    // landr-doam.1: a new hotel resets the age map too (occupants change).
+    setAgeMap({})
+    // landr-87n9.2: switching hotel clears the room cart → live total resets.
+    notifyLiveAccommodation(mode, {}, {})
   }
 
   // landr-ffyg.2: switching mode resets the room/add-on context so a stale
@@ -351,10 +492,18 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    // landr-gb2f.2: only package mode has room units — clear the assignment
+    // when switching modes so a stale package-mode layout doesn't bleed in.
+    setAssignment({})
+    // landr-doam.1: mode switch resets the age map too.
+    setAgeMap({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
     }
+    // landr-87n9.2: a mode switch resets the room/add-on cart → report the
+    // empty selection under the NEW mode (non-package modes emit empty too).
+    notifyLiveAccommodation(next, {}, {})
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -370,6 +519,52 @@ export function AccommodationStep({
     [selection],
   )
 
+  // landr-gb2f.2: expand picked rooms into per-unit slots (a qty=2 double
+  // → 2 units). Only meaningful in package mode; empty elsewhere. Depends
+  // on the resolved room catalogue for capacity_per_unit + display names,
+  // so it's empty until `rooms` loads.
+  const roomUnits: RoomUnit[] = useMemo(
+    () => (mode === 'package' ? expandRoomUnits(roomSelections, rooms ?? []) : []),
+    [mode, roomSelections, rooms],
+  )
+
+  // landr-87n9.3: total party headcount = participants + companions. This
+  // is the unified index space the assignment map + auto-assign operate on
+  // (participants 0..P-1, companions P..P+C-1). Companions DO occupy beds /
+  // count toward occupancy but NOT toward the guiding price.
+  const companionCount = companionNames.length
+  const partyCount = partySize(participantCount, companionCount)
+
+  // landr-gb2f.2 / landr-87n9.3: re-run whole-party auto-assign whenever the
+  // set of units OR the party size changes (room added/removed/qty bumped,
+  // companion added/removed). The pure helper never clobbers an existing
+  // manual assignment and prunes references to units that no longer exist;
+  // members without a slot are left unassigned (a leftover chip). The
+  // IIFE-in-effect pattern keeps the react-hooks/set-state-in-effect lint
+  // rule happy (no synchronous setState in the effect body). Keyed on a
+  // stable signature of the unit set + partyCount so it doesn't re-fire on
+  // unrelated re-renders.
+  const unitSignature = roomUnits
+    .map((u) => `${u.roomProductId}:${u.unitIndex}:${u.capacity}`)
+    .join('|')
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      setAssignment((prev) =>
+        autoAssignParty(roomUnits, participantCount, companionCount, prev),
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitSignature, participantCount, companionCount])
+  // ^ keyed on unitSignature (a stable string) + participantCount +
+  //   companionCount rather than the roomUnits array identity (which changes
+  //   every render). The setAssignment functional update reads the latest
+  //   map, so these are the only real triggers.
+
   const productName = pickLocalized(product.name, product.name_localized, locale)
   const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
 
@@ -383,51 +578,96 @@ export function AccommodationStep({
     [roomSelections, rooms],
   )
 
-  // Walk every selected room's add-on catalogue once to identify the
-  // breakfast addon_product_ids in play, then collapse the picked qtys
-  // across them. Same add-on may be linked to multiple rooms (Para42
-  // seeds Breakfast on Single + Double) and the customer picks a single
-  // total quantity — addonSelection is already keyed by addon_product_id
-  // so de-duplication is implicit.
-  const breakfastQty = useMemo(() => {
-    const breakfastIds = new Set<string>()
-    for (const roomId of Object.keys(selection)) {
-      for (const id of findBreakfastAddonIds(addonsByRoom[roomId] ?? [])) {
-        breakfastIds.add(id)
-      }
-    }
-    return totalBreakfastQty(addonSelection, breakfastIds)
-  }, [selection, addonsByRoom, addonSelection])
-
-  // Warning visibility — both gates require package mode + at least one
+  // Warning visibility — capacity gate requires package mode + at least one
   // room picked so an empty cart doesn't surface a "0 beds for N people"
-  // copy on mount.
+  // copy on mount. landr-yybu: the bottom aggregate breakfast warning is
+  // removed; per-room over/under warnings in AddonsList replace it.
+  // landr-87n9.3: the capacity check now compares against the WHOLE PARTY
+  // (partyCount = participants + companions) since companions occupy beds.
   const showCapacityWarning =
-    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < participantCount
-  const showBreakfastWarning =
-    mode === 'package' && totalRoomsPicked > 0 && breakfastQty > participantCount
+    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < partyCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
   // is 0, the customer must address it before proceeding. Walk every
   // picked room's add-on catalogue and surface the first unmet required
   // row; the AddonsList itself renders the per-row helper line.
+  // landr-yybu: addonSelection is now per-room, so look up
+  // (addonSelection[roomId] ?? {})[addon_product_id].
   const unmetRequiredAddon = useMemo(() => {
     if (mode !== 'package' || totalRoomsPicked === 0) return false
     for (const [roomId] of Object.entries(selection)) {
       const list = addonsByRoom[roomId] ?? []
+      const roomAddonQtys = addonSelection[roomId] ?? {}
       for (const addon of list) {
-        const qty = addonSelection[addon.addon_product_id] ?? 0
+        const qty = roomAddonQtys[addon.addon_product_id] ?? 0
         if (requiredAddonError(addon, qty) !== null) return true
       }
     }
     return false
   }, [mode, totalRoomsPicked, selection, addonsByRoom, addonSelection])
 
+  // landr-87n9.3: OCCUPANCY GATING (package mode). Continue is blocked until
+  // EVERY booked room unit has >= 1 occupant AND every party member
+  // (participant + companion) is assigned to a unit. The pure helper returns
+  // a structured status so the inline hint below can name exactly what's
+  // blocking. Only computed in package mode (the other modes have no units).
+  const occupancy = useMemo(
+    () => occupancyStatus(roomUnits, partyCount, assignment),
+    [roomUnits, partyCount, assignment],
+  )
+
+  // landr-87n9.3: build the unified party-member chip arrays for
+  // RoomAssignment. Index space: participants 0..P-1, companions P..P+C-1.
+  // Names fall back to '' (the chip renders "Guest N"); guestFlags marks the
+  // companion tail so those chips show the muted "guest" badge.
+  const partyMemberNames = useMemo(() => {
+    const participants =
+      participantNames.length > 0
+        ? participantNames.slice(0, participantCount)
+        : Array.from({ length: participantCount }, () => '')
+    return [...participants, ...companionNames]
+  }, [participantNames, participantCount, companionNames])
+  const partyGuestFlags = useMemo(
+    () => [
+      ...Array.from({ length: participantCount }, () => false),
+      ...Array.from({ length: companionCount }, () => true),
+    ],
+    [participantCount, companionCount],
+  )
+
+  // landr-87n9.3: human-readable hint naming exactly what's blocking
+  // Continue. Empty rooms take priority (they need a person); otherwise the
+  // unassigned-people message. Member labels use the chip names ("Guest N"
+  // fallback) so the hint matches what the customer sees.
+  const occupancyHint = useMemo(() => {
+    if (occupancy.complete) return ''
+    if (occupancy.emptyUnits.length > 0) {
+      const labels = occupancy.emptyUnits.map(
+        (u) => `${u.roomName} #${u.unitIndex + 1}`,
+      )
+      const list = labels.join(', ')
+      return occupancy.emptyUnits.length === 1
+        ? `${list} has no guests yet — assign someone or remove the room.`
+        : `These rooms have no guests yet: ${list}. Assign someone to each, or remove the empty rooms.`
+    }
+    const names = occupancy.unassignedMembers.map((i) => {
+      const n = (partyMemberNames[i] ?? '').trim()
+      return n.length > 0 ? n : `Guest ${i + 1}`
+    })
+    return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
+  }, [occupancy, partyMemberNames])
+
+  // landr-doam.1: block Continue when any assigned child occupant has no age.
+  // Pure helper — reads the current assignment + ageMap without side effects.
+  const hasChildWithoutAge = hasIncompleteChildAge(assignment, ageMap)
+
   // Continue enablement per mode:
   //   guiding-only → always (no further input needed).
   //   shared-double → a hotel must be chosen (auto when 1; radio when >1).
-  //   package → hotel + ≥1 room + all required add-ons met.
+  //   package → hotel + ≥1 room + all required add-ons met + occupancy
+  //             complete (no empty rooms, everyone assigned — landr-87n9.3)
+  //             + no child occupant missing an age (landr-doam.1).
   const canContinue =
     mode === 'guiding-only'
       ? true
@@ -435,22 +675,102 @@ export function AccommodationStep({
         ? Boolean(selectedHotelId)
         : Boolean(selectedHotelId) &&
           totalRoomsPicked > 0 &&
-          !unmetRequiredAddon
+          !unmetRequiredAddon &&
+          occupancy.complete &&
+          !hasChildWithoutAge
+
+  // landr-87n9.2: fire the live-lift callback with the latest flattened
+  // room + add-on lines so App.tsx can feed the PriceSidebar while the
+  // customer is still picking. Called from the event handlers below (NOT an
+  // effect) so the parent's setState batches with this component's update,
+  // keeping the react-hooks/set-state-in-effect rule happy. Builds the SAME
+  // shapes handleContinue emits: roomSelections (qty>0) +
+  // flattenPerRoomAddons(...). Only package mode carries rooms/add-ons — the
+  // other modes book no rooms, so we emit empty arrays (the hotel pill then
+  // collapses, matching the absence of room line items).
+  const notifyLiveAccommodation = (
+    nextMode: AccommodationMode,
+    nextSelection: Record<string, number>,
+    nextAddonSelection: Record<string, Record<string, number>>,
+  ) => {
+    if (!onLiveAccommodationChange) return
+    if (nextMode !== 'package') {
+      onLiveAccommodationChange([], [])
+      return
+    }
+    const rooms: RoomSelection[] = Object.entries(nextSelection)
+      .filter(([, qty]) => qty > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }))
+    const addonLines = flattenPerRoomAddons(
+      nextAddonSelection,
+      nextSelection,
+      addonsByRoom,
+    )
+    onLiveAccommodationChange(rooms, addonLines)
+  }
 
   function bumpQty(productId: string, delta: number) {
     setSelection((prev) => {
       const next = Math.max(0, (prev[productId] ?? 0) + delta)
       const out = { ...prev, [productId]: next }
       if (next === 0) delete out[productId]
+      // landr-87n9.2: report the new room set live (add-on map unchanged).
+      notifyLiveAccommodation(mode, out, addonSelection)
       return out
     })
+  }
+
+  // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
+  // unassigns. We honour the unit capacity here so a manual drop onto a
+  // full unit is a no-op (the chip stays put) — the only place capacity is
+  // enforced as a hard cap; auto-assign already respects it. Assigning a
+  // participant who was elsewhere moves them (single-unit membership).
+  function assignParticipant(participantIndex: number, target: RoomUnit | null) {
+    setAssignment((prev) => {
+      const next = { ...prev }
+      if (target === null) {
+        delete next[participantIndex]
+        return next
+      }
+      // Count current occupants of the target unit, excluding the mover.
+      let occupants = 0
+      for (const [pid, entry] of Object.entries(next)) {
+        if (Number(pid) === participantIndex) continue
+        if (
+          entry.roomProductId === target.roomProductId &&
+          entry.unitIndex === target.unitIndex
+        ) {
+          occupants += 1
+        }
+      }
+      if (occupants >= target.capacity) return prev // full — reject the drop
+      next[participantIndex] = {
+        roomProductId: target.roomProductId,
+        unitIndex: target.unitIndex,
+      }
+      return next
+    })
+  }
+
+  // landr-doam.1: update the age band / age for an assigned occupant.
+  // When the band changes to 'adult' we clear the age (no age needed for adults).
+  // Pure handler — no setState-in-effect.
+  function handleAgeBandChange(
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) {
+    setAgeMap((prev) => ({
+      ...prev,
+      [memberIndex]: { band, age: band === 'adult' ? null : age },
+    }))
   }
 
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false)
+      onConfirm([], null, [], false, false, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -467,30 +787,30 @@ export function AccommodationStep({
         [],
         offering === 'optional' ? true : undefined,
         true,
+        {},
+        {},
       )
       return
     }
     // package mode — rooms required.
     if (roomSelections.length === 0) return
-    // Collapse the add-on selection map into line items (qty > 0 only).
-    // Only include add-ons whose parent room is actually in the cart;
-    // a customer who picked a Breakfast under "Single Room" and then
-    // dropped Single Room to 0 should not ship a Breakfast line.
-    const activeAddonIds = new Set<string>()
-    for (const [roomId] of Object.entries(selection)) {
-      for (const addon of addonsByRoom[roomId] ?? []) {
-        activeAddonIds.add(addon.addon_product_id)
-      }
-    }
-    const addonLines: AddonSelection[] = Object.entries(addonSelection)
-      .filter(([id, qty]) => qty > 0 && activeAddonIds.has(id))
-      .map(([productId, quantity]) => ({ productId, quantity }))
+    // landr-yybu: flatten the per-room add-on map back to AddonSelection[].
+    // Sum qty per addon_product_id across rooms, only for rooms still in the
+    // cart and only for add-ons in those rooms' catalogues (guards against
+    // carry-over from a dropped room). flattenPerRoomAddons handles this.
+    const addonLines = flattenPerRoomAddons(addonSelection, selection, addonsByRoom)
+    // landr-gb2f.2: prune the assignment to the units actually present at
+    // confirm time (guards against a dangling reference if a room was just
+    // dropped between the last auto-assign and Continue).
+    const finalAssignment = pruneAssignments(assignment, roomUnits)
     onConfirm(
       roomSelections,
       selectedHotelId,
       addonLines,
       offering === 'optional' ? true : undefined,
       false,
+      finalAssignment,
+      ageMap,
     )
   }
 
@@ -730,17 +1050,81 @@ export function AccommodationStep({
                     </div>
                   </div>
                   {showAddons ? (
+                    // landr-yybu: each room gets its own slice of addonSelection
+                    // keyed by this room's product_id. The setter merges the
+                    // updated slice back into the top-level per-room map so
+                    // sibling rooms' selections stay independent.
                     <AddonsList
                       addons={roomAddons}
-                      selection={addonSelection}
-                      onChange={setAddonSelection}
+                      selection={addonSelection[room.product_id] ?? {}}
+                      onChange={(next) =>
+                        setAddonSelection((prev) => {
+                          const merged = {
+                            ...prev,
+                            [room.product_id]: next,
+                          }
+                          // landr-87n9.2: report the new per-room add-on map
+                          // live so the hotel pill reflects breakfast etc.
+                          notifyLiveAccommodation(mode, selection, merged)
+                          return merged
+                        })
+                      }
                       expectedQty={(room.capacity_per_unit ?? 1) * qty}
+                      // landr-yybu: room-linked add-ons are hard-capped at the
+                      // room's occupancy (incl single-occupancy rooms → cap 1).
+                      occupancyLimited
                       heading="Add-ons"
                     />
                   ) : null}
                 </div>
               )
             })}
+          </fieldset>
+        ) : null}
+
+        {/* landr-gb2f.2 / landr-87n9.3: whole-party → room assignment.
+            Package mode only, shown once at least one room unit exists.
+            Auto-assign has already seeded the map. The chips cover the WHOLE
+            PARTY: guiding participants (0..P-1) then non-guiding companions
+            (P..P+C-1), with companions badged as "guest". Continue is now
+            GATED on occupancy completeness (every room occupied + everyone
+            assigned — see the occupancy hint + canContinue above). */}
+        {mode === 'package' && roomUnits.length > 0 && partyCount > 0 ? (
+          <fieldset className="flex flex-col gap-3 border-t pt-3">
+            <legend className="text-sm font-medium">Room assignment</legend>
+            <RoomAssignment
+              units={roomUnits}
+              participantNames={partyMemberNames}
+              guestFlags={partyGuestFlags}
+              assignment={assignment}
+              onAssign={assignParticipant}
+              ageMap={ageMap}
+              onAgeBandChange={handleAgeBandChange}
+            />
+            {/* landr-87n9.3: inline blocking hint — only shown while
+                occupancy is incomplete so the customer knows exactly what to
+                fix before Continue enables. */}
+            {!occupancy.complete ? (
+              <p
+                role="status"
+                data-testid="occupancy-hint"
+                className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              >
+                {occupancyHint}
+              </p>
+            ) : null}
+            {/* landr-doam.1: child-age blocking hint — shown when any
+                assigned occupant is marked Child but has no age entered. */}
+            {occupancy.complete && hasChildWithoutAge ? (
+              <p
+                role="status"
+                data-testid="child-age-hint"
+                className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              >
+                Please enter the age for each child guest — the hotel needs it
+                to prepare the room.
+              </p>
+            ) : null}
           </fieldset>
         ) : null}
 
@@ -756,23 +1140,13 @@ export function AccommodationStep({
             data-testid="overbook-capacity-warning"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            You have {participantCount}{' '}
-            {participantCount === 1 ? 'person' : 'people'} but only{' '}
+            You have {partyCount}{' '}
+            {partyCount === 1 ? 'person' : 'people'} but only{' '}
             {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
           </p>
         ) : null}
-        {showBreakfastWarning ? (
-          <p
-            role="alert"
-            data-testid="overbook-breakfast-warning"
-            className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
-          >
-            You ordered {breakfastQty}{' '}
-            {breakfastQty === 1 ? 'breakfast' : 'breakfasts'} for{' '}
-            {participantCount}{' '}
-            {participantCount === 1 ? 'person' : 'people'} — sure?
-          </p>
-        ) : null}
+        {/* landr-yybu: bottom aggregate breakfast warning removed.
+            Per-room over/under warnings in AddonsList replace it. */}
 
         {/* landr-kat8: stripped the inline price + totals breakdown — the
             PriceSidebar's "At-hotel total · pay at check-in" pill now

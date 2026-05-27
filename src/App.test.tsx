@@ -18,6 +18,12 @@ const { mocks } = vi.hoisted(() => ({
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     listLocations: vi.fn(),
     submitBooking: vi.fn(),
+    // landr-87n9: hotel-flow + price-estimate mocks for the at-hotel
+    // back-nav + live-total tests.
+    getHotelsForOperator: vi.fn(),
+    getHotelRoomsForHotel: vi.fn(),
+    getProductAddons: vi.fn(),
+    estimateBookingPrice: vi.fn(),
   },
 }))
 
@@ -35,6 +41,10 @@ vi.mock('@/api/client', async (importOriginal) => {
     getFixedDateWindows: mocks.getFixedDateWindows,
     listLocations: mocks.listLocations,
     submitBooking: mocks.submitBooking,
+    getHotelsForOperator: mocks.getHotelsForOperator,
+    getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
+    getProductAddons: mocks.getProductAddons,
+    estimateBookingPrice: mocks.estimateBookingPrice,
   }
 })
 
@@ -82,6 +92,20 @@ describe('App', () => {
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
+    // landr-87n9: safe hotel-flow + estimate defaults so any test that
+    // mounts the PriceSidebar / AccommodationStep doesn't hit the real
+    // client. Per-test overrides supply richer data where needed.
+    mocks.getHotelsForOperator.mockResolvedValue([])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    mocks.getProductAddons.mockResolvedValue([])
+    mocks.estimateBookingPrice.mockResolvedValue({
+      line_items: [],
+      operator_total: '0.00',
+      hotel_total: '0.00',
+      grand_total: '0.00',
+      currency: 'EUR',
+      applied_rules: [],
+    })
   })
 
   afterEach(() => {
@@ -429,9 +453,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'en' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       await waitFor(() =>
@@ -517,9 +540,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'en' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       // Now on BookingForm (review screen).
@@ -659,9 +681,8 @@ describe('App', () => {
       for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
         fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
       }
-      fireEvent.change(screen.getByTestId('language-select'), {
-        target: { value: 'de' },
-      })
+      // landr-87n9.4: multi-select language — click at least one checkbox.
+      fireEvent.click(screen.getByTestId('lang-checkbox-de'))
       fireEvent.click(screen.getByTestId('declarations-continue'))
 
       // Land on fill-form (BookingForm review screen).
@@ -689,6 +710,197 @@ describe('App', () => {
       expect(
         screen.getByRole('button', { name: /Continue/i }),
       ).not.toBeDisabled()
+    })
+  })
+
+  // landr-87n9.1 + .2: hotel-booking flow. A needs_pickup product with a
+  // hotel offering SKIPS the free-pickup step on the way forward (the hotel
+  // is the pickup), so Back from the review/declarations screen must return
+  // to the accommodation page, NOT the pickup picker. The same flow also
+  // proves the live at-hotel total reaches the PriceSidebar while the
+  // customer is picking rooms (before Continue).
+  describe('hotel-booking back-nav + live at-hotel total (landr-87n9.1/.2)', () => {
+    async function pickFirstProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]!)
+    }
+
+    function setupHotelFlow() {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Guided Para Week',
+          // needs_pickup=true would normally route to pick-pickup, but a
+          // booked hotel makes the hotel the pickup → pick-pickup is SKIPPED.
+          needs_pickup: true,
+          hotel_offering: 'mandatory',
+          price_per_unit: 90,
+          currency: 'EUR',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getHotelsForOperator.mockResolvedValue([
+        {
+          location_id: 'hotel-mirador',
+          name: 'Hotel Mirador',
+          name_localized: null,
+          parent_id: null,
+          role_type: { code: 'hotel', label: 'Hotel' },
+        },
+      ])
+      mocks.getHotelRoomsForHotel.mockResolvedValue([
+        {
+          ...makeProduct({
+            product_id: 'room-double',
+            name: 'Double Room',
+            product_kind: 'hotel_room',
+            service_time_shape: null,
+          }),
+          price_per_unit: 80,
+          currency: 'EUR',
+          capacity_per_unit: 2,
+        } as Product,
+      ])
+      // Estimate: when a hotel room line is present, return a hotel line
+      // item + non-zero hotel_total so the "At-hotel total" pill renders.
+      mocks.estimateBookingPrice.mockImplementation(
+        async (_token: string, _productId: string, body: { addon_lines: { product_id: string; qty: number }[] }) => {
+          const roomLine = body.addon_lines.find((l) => l.product_id === 'room-double')
+          const hotelTotal = roomLine ? roomLine.qty * 80 : 0
+          return {
+            line_items: [
+              {
+                product_id: 'svc-1',
+                label: 'Guided Para Week',
+                qty: 1,
+                units: 1,
+                unit_price: '90.00',
+                line_total: '90.00',
+                paid_to: 'operator' as const,
+              },
+              ...(roomLine
+                ? [
+                    {
+                      product_id: 'room-double',
+                      label: 'Double Room',
+                      qty: roomLine.qty,
+                      units: 1,
+                      unit_price: '80.00',
+                      line_total: `${hotelTotal}.00`,
+                      paid_to: 'hotel' as const,
+                    },
+                  ]
+                : []),
+            ],
+            operator_total: '90.00',
+            hotel_total: `${hotelTotal}.00`,
+            grand_total: `${90 + hotelTotal}.00`,
+            currency: 'EUR',
+            applied_rules: [],
+          }
+        },
+      )
+    }
+
+    async function advanceToAccommodation() {
+      await pickFirstProduct('Guided Para Week')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // AccommodationStep — auto-selects the lone hotel + lists rooms.
+      await waitFor(() =>
+        expect(screen.getByText('Double Room')).toBeInTheDocument(),
+      )
+    }
+
+    it('shows the live at-hotel total in the sidebar as a room is picked (.2)', async () => {
+      setupHotelFlow()
+      render(<App />)
+      await advanceToAccommodation()
+
+      // Before picking a room: no hotel section in the sidebar.
+      expect(
+        screen.queryByTestId('price-sidebar-hotel-section'),
+      ).not.toBeInTheDocument()
+
+      // Pick one double room.
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+      )
+
+      // The live at-hotel total pill appears with the room subtotal (€80).
+      await waitFor(() =>
+        expect(
+          screen.getAllByTestId('price-sidebar-hotel-section').length,
+        ).toBeGreaterThan(0),
+      )
+      const hotelTotals = screen.getAllByTestId('price-sidebar-hotel-total')
+      expect(hotelTotals.some((el) => /80/.test(el.textContent ?? ''))).toBe(true)
+    })
+
+    it('Back from declarations returns to the accommodation page, NOT the skipped pickup picker (.1)', async () => {
+      setupHotelFlow()
+      render(<App />)
+      await advanceToAccommodation()
+
+      // Pick a room + Continue.
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+
+      // The hotel is the pickup → pick-pickup is SKIPPED → declarations next
+      // (para42 requires them). We must NOT see the pickup picker.
+      await waitFor(() =>
+        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+      )
+
+      // Back from declarations → accommodation page (Double Room visible),
+      // NOT the pickup picker.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText('Double Room')).toBeInTheDocument(),
+      )
+      // Sanity: we did not land on a pickup picker.
+      expect(screen.queryByText(/pickup/i)).not.toBeInTheDocument()
+      // The room qty is restored (the stepper shows 1).
+      expect(screen.getByText('Accommodation')).toBeInTheDocument()
     })
   })
 
