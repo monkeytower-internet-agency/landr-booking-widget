@@ -10,6 +10,7 @@ import {
   deriveAccommodationMode,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepBeforeReview,
 } from './appStepMachine'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
@@ -189,6 +190,133 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
         expect(next.participants).toHaveLength(5)
         expect(next.booker).toEqual(ADA)
       }
+    }
+  })
+})
+
+describe('stepBeforeReview (landr-87n9.1 — back-nav mirrors the forward machine)', () => {
+  const baseArgs = (overrides: Record<string, unknown> = {}) => ({
+    product: makeProduct({ needs_pickup: true, hotel_offering: 'optional' }),
+    selection: SLOT_SELECTION,
+    booker: ADA,
+    participants: makeParticipants(2),
+    pickupLocationId: null as string | null,
+    accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
+    addons: [],
+    ...overrides,
+  })
+
+  it('REGRESSION: a booked hotel + needs_pickup product → Back returns to pick-accommodation (NOT pick-pickup, which was skipped forward)', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        // hotel was booked → forward path made the hotel the pickup and
+        // SKIPPED pick-pickup. pickupLocationId is the hotel's location id.
+        hotelLocationId: 'loc-hotel-mirador',
+        pickupLocationId: 'loc-hotel-mirador',
+      }),
+    )
+    expect(prev.name).toBe('pick-accommodation')
+    if (prev.name !== 'pick-accommodation') throw new Error('narrowing')
+    // rooms + hotel restored for the re-mount.
+    expect(prev.hotelLocationId).toBe('loc-hotel-mirador')
+    expect(prev.accommodationRooms).toEqual([
+      { productId: 'room-1', quantity: 1 },
+    ])
+    expect(prev.participants).toHaveLength(2)
+  })
+
+  it('shared-double (hotel set, no rooms) → Back also returns to pick-accommodation', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        hotelLocationId: 'loc-shared',
+        pickupLocationId: 'loc-shared',
+        accommodationRooms: [],
+        isSharedDouble: true,
+        accommodationMode: 'shared-double',
+      }),
+    )
+    expect(prev.name).toBe('pick-accommodation')
+    if (prev.name !== 'pick-accommodation') throw new Error('narrowing')
+    expect(prev.isSharedDouble).toBe(true)
+    expect(prev.accommodationMode).toBe('shared-double')
+  })
+
+  it('guiding-only opt-out on a hotel-offering product → Back returns to pick-accommodation (the customer passed through it)', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        product: makeProduct({ needs_pickup: true, hotel_offering: 'optional' }),
+        hotelLocationId: null,
+        pickupLocationId: 'loc-free-pickup',
+        accommodationRooms: [],
+        includeHotel: false,
+        accommodationMode: 'guiding-only',
+      }),
+    )
+    expect(prev.name).toBe('pick-accommodation')
+  })
+
+  it('no hotel offering + needs_pickup → Back returns to pick-pickup with the prior choice restored', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        product: makeProduct({ needs_pickup: true, hotel_offering: 'none' }),
+        hotelLocationId: null,
+        pickupLocationId: 'loc-hauptplatz',
+        accommodationRooms: [],
+      }),
+    )
+    expect(prev.name).toBe('pick-pickup')
+    if (prev.name !== 'pick-pickup') throw new Error('narrowing')
+    expect(prev.pickupLocationId).toBe('loc-hauptplatz')
+  })
+
+  it('no hotel, no pickup, but service add-ons were shown → Back returns to pick-service-addons', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
+        hotelLocationId: null,
+        accommodationRooms: [],
+        addons: [{ productId: 'addon-1', quantity: 1 }],
+        hadServiceAddons: true,
+      }),
+    )
+    expect(prev.name).toBe('pick-service-addons')
+    if (prev.name !== 'pick-service-addons') throw new Error('narrowing')
+    expect(prev.addons).toEqual([{ productId: 'addon-1', quantity: 1 }])
+  })
+
+  it('no hotel, no pickup, no service add-ons → Back returns to details', () => {
+    const prev = stepBeforeReview(
+      baseArgs({
+        product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
+        hotelLocationId: null,
+        accommodationRooms: [],
+        hadServiceAddons: false,
+      }),
+    )
+    expect(prev.name).toBe('details')
+  })
+
+  it('back-target mirrors stepAfterAccommodation: whatever forward skipped, Back skips too', () => {
+    // For each forward case, the step Back lands on must be a step the
+    // forward machine would actually have rendered.
+    const cases = [
+      { hotelLocationId: 'h-1', needs_pickup: true, hotel_offering: 'optional', back: 'pick-accommodation' },
+      { hotelLocationId: null, needs_pickup: true, hotel_offering: 'optional', back: 'pick-accommodation' },
+      { hotelLocationId: null, needs_pickup: true, hotel_offering: 'none', back: 'pick-pickup' },
+      { hotelLocationId: null, needs_pickup: false, hotel_offering: 'none', back: 'details' },
+    ] as const
+    for (const c of cases) {
+      const prev = stepBeforeReview(
+        baseArgs({
+          product: makeProduct({
+            needs_pickup: c.needs_pickup,
+            hotel_offering: c.hotel_offering,
+          }),
+          hotelLocationId: c.hotelLocationId,
+          accommodationRooms: c.hotelLocationId ? [{ productId: 'r', quantity: 1 }] : [],
+        }),
+      )
+      expect(prev.name).toBe(c.back)
     }
   })
 })

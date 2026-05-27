@@ -1344,4 +1344,116 @@ describe('AccommodationStep', () => {
     // Flattened: 1 + 2 = 3
     expect(addonLines).toEqual([{ productId: 'bf-1', quantity: 3 }])
   })
+
+  // ── landr-87n9.2: live-lift room + add-on selection ─────────────────
+  // onLiveAccommodationChange fires WHILE the customer picks (not just at
+  // Continue) so the App can feed the PriceSidebar's at-hotel total live.
+  describe('onLiveAccommodationChange (landr-87n9.2)', () => {
+    it('fires the same flattened room lines as the customer bumps a room qty', async () => {
+      mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+      mocks.getHotelRoomsForHotel.mockResolvedValue([
+        makeRoom('single-room', 'Single Room', 49),
+      ])
+      const onLive = vi.fn()
+
+      render(
+        <AccommodationStep
+          product={makeService('mandatory')}
+          selectedDays={['2026-06-10', '2026-06-11']}
+          operatorToken="para42"
+          onConfirm={vi.fn()}
+          onBack={vi.fn()}
+          onLiveAccommodationChange={onLive}
+        />,
+      )
+
+      await waitFor(() =>
+        expect(screen.getByText('Single Room')).toBeInTheDocument(),
+      )
+      const plus = screen.getByRole('button', {
+        name: /Increase Single Room quantity/i,
+      })
+      fireEvent.click(plus)
+      expect(onLive).toHaveBeenLastCalledWith(
+        [{ productId: 'single-room', quantity: 1 }],
+        [],
+      )
+      fireEvent.click(plus)
+      expect(onLive).toHaveBeenLastCalledWith(
+        [{ productId: 'single-room', quantity: 2 }],
+        [],
+      )
+    })
+
+    it('fires the flattened add-on lines as the customer bumps a per-room breakfast', async () => {
+      mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+      mocks.getHotelRoomsForHotel.mockResolvedValue([
+        makeRoom('single-room', 'Single Room', 49, 1),
+      ])
+      const breakfastAddon: ProductAddon = {
+        product_addon_id: 'pa-bf',
+        addon_product_id: 'bf-1',
+        name: 'Breakfast',
+        name_localized: null,
+        is_required: false,
+        min_qty: 0,
+        max_qty: null,
+        sort_order: 10,
+        price_per_unit: 10,
+        currency: 'EUR',
+      }
+      mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+      const onLive = vi.fn()
+
+      render(
+        <AccommodationStep
+          product={makeService('mandatory')}
+          selectedDays={['2026-06-10']}
+          operatorToken="para42"
+          onConfirm={vi.fn()}
+          onBack={vi.fn()}
+          onLiveAccommodationChange={onLive}
+        />,
+      )
+
+      await waitFor(() =>
+        expect(screen.getByText('Single Room')).toBeInTheDocument(),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+      )
+      await waitFor(() => expect(screen.getByText('Breakfast')).toBeInTheDocument())
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Breakfast quantity/i }),
+      )
+      expect(onLive).toHaveBeenLastCalledWith(
+        [{ productId: 'single-room', quantity: 1 }],
+        [{ productId: 'bf-1', quantity: 1 }],
+      )
+    })
+
+    it('emits empty arrays in shared-double mode (no rooms booked)', async () => {
+      mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+      const onLive = vi.fn()
+
+      render(
+        <AccommodationStep
+          product={makeService('mandatory')}
+          selectedDays={['2026-06-10']}
+          operatorToken="para42"
+          onConfirm={vi.fn()}
+          onBack={vi.fn()}
+          onLiveAccommodationChange={onLive}
+        />,
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('accommodation-mode-shared-double'),
+        ).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('accommodation-mode-shared-double'))
+      expect(onLive).toHaveBeenLastCalledWith([], [])
+    })
+  })
 })
