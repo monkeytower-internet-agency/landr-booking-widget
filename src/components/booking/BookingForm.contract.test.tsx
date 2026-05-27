@@ -19,7 +19,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
-import type { BookerDetails, ParticipantDetails } from './detailsTypes'
+import type {
+  BookerDetails,
+  CompanionDetails,
+  ParticipantDetails,
+} from './detailsTypes'
 
 vi.stubEnv('VITE_USE_MOCKS', '0')
 vi.stubEnv('VITE_API_BASE_URL', 'http://api.test.invalid')
@@ -455,5 +459,99 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     // Unassigned participant → both fields present and null (not omitted).
     expect(participants[1].room_product_id).toBeNull()
     expect(participants[1].room_unit_index).toBeNull()
+  })
+
+  // landr-87n9.3: PINNED wire contract — non-guiding companions are sent as
+  // a top-level companions[] (NOT in participants[]), each carrying
+  // first_name (required) + optional last_name/email/phone + the whole-party
+  // room assignment (room_product_id + room_unit_index) read from the
+  // assignment map at index participants.length + companionIdx.
+  it('sends companions[] as a top-level array with assignment + optional fields', async () => {
+    const COMPANIONS: CompanionDetails[] = [
+      { first_name: 'Mia', last_name: 'Berg', email: 'mia@example.com', phone: '' },
+      { first_name: 'Leo', last_name: '', email: '', phone: '+34 600 999' },
+    ]
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={PARTICIPANTS}
+        companions={COMPANIONS}
+        pickupLocationId="loc-pickup-1"
+        accommodationRooms={[{ productId: 'room-double', quantity: 2 }]}
+        // Unified party index: participants 0,1 then companions 2,3.
+        // p0→unit0, p1→unit0, companion0(idx2)→unit1, companion1(idx3)→unit1.
+        roomAssignment={{
+          0: { roomProductId: 'room-double', unitIndex: 0 },
+          1: { roomProductId: 'room-double', unitIndex: 0 },
+          2: { roomProductId: 'room-double', unitIndex: 1 },
+          3: { roomProductId: 'room-double', unitIndex: 1 },
+        }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+
+    // companions[] is top-level and NOT merged into participants[].
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants).toHaveLength(2)
+
+    const companions = body.companions as Array<Record<string, unknown>>
+    expect(companions).toHaveLength(2)
+
+    // first_name required; optional fields normalised to null when blank.
+    expect(companions[0]).toMatchObject({
+      first_name: 'Mia',
+      last_name: 'Berg',
+      email: 'mia@example.com',
+      phone: null,
+      room_product_id: 'room-double',
+      room_unit_index: 1,
+    })
+    expect(companions[1]).toMatchObject({
+      first_name: 'Leo',
+      last_name: null,
+      email: null,
+      phone: '+34 600 999',
+      room_product_id: 'room-double',
+      room_unit_index: 1,
+    })
+
+    // Companions carry NO service_role (they are not guiding participants).
+    expect(companions[0]).not.toHaveProperty('service_role_code')
+  })
+
+  it('omits the companions field entirely when there are no companions', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('companions')
   })
 })

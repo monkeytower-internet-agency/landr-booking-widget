@@ -250,6 +250,31 @@ export interface Participant {
 }
 
 /**
+ * landr-87n9.3: a NON-GUIDING companion — a partner/friend who joins the
+ * party (and occupies a hotel bed) but does NOT take part in the guided
+ * activity. Companions carry NO service_role, are NOT counted toward the
+ * guiding-participants cap (6) NOR the per-participant guiding price, and
+ * total headcount (participants + companions) CAN exceed 6.
+ *
+ * WIRE CONTRACT (PINNED — the API ticket landr-87n9.5 builds the SAME
+ * shape): the submit body gains a top-level `companions: Companion[]`.
+ * first_name is required; the rest are optional and normalised to null
+ * when blank. room_product_id + room_unit_index mirror the guiding
+ * Participant fields exactly — a companion is assigned to a hotel_room
+ * unit the same way (whole-party assignment), so the assignment map
+ * round-trips 1:1. Both are null/omitted when the companion is unassigned
+ * (or in guiding-only / shared-double modes that have no room units).
+ */
+export interface Companion {
+  first_name: string
+  last_name?: string | null
+  email?: string | null
+  phone?: string | null
+  room_product_id?: string | null
+  room_unit_index?: number | null
+}
+
+/**
  * Operator-scoped participant role surfaced by
  * GET /api/public/operators/{slug}/service-roles (landr-mg0a). The widget
  * fetches this list once on App mount and:
@@ -301,6 +326,15 @@ export interface SubmitBookingBody {
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
+  /**
+   * landr-87n9.3: non-guiding companions (partners/friends who join the
+   * party + occupy a hotel bed but do NOT take part in the activity).
+   * Empty / omitted when nobody extra joins. Companions are NOT in
+   * participants[] (no service_role, not in the guiding price); they only
+   * count toward whole-party room assignment + occupancy. PINNED wire
+   * contract — landr-87n9.5 on the API builds the same shape.
+   */
+  companions?: Companion[]
   /**
    * landr-sbhz.3: customer eligibility declarations. Dict of key→true
    * for each confirmed declaration. Only sent when the operator requires

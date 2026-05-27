@@ -43,15 +43,27 @@ const UNASSIGNED_DROP_ID = '__unassigned__'
 interface Props {
   /** All assignable room units (expanded from the picked rooms). */
   units: RoomUnit[]
-  /** Display names for participants, indexed by participant index. */
+  /**
+   * Display names for the WHOLE PARTY (landr-87n9.3), indexed by the
+   * unified party-member index: guiding participants first (0..P-1), then
+   * companions (P..P+C-1). The component is agnostic about the split — it
+   * just renders one chip per name + uses `guestFlags` to badge companions.
+   */
   participantNames: string[]
-  /** Current assignment map (participantIndex → unit). */
+  /**
+   * landr-87n9.3: parallel boolean array — `guestFlags[i] === true` marks
+   * member i as a non-guiding companion so its chip renders a muted style
+   * + a "guest" badge. Defaults to all-false (every chip is a participant)
+   * so legacy call-sites need no change.
+   */
+  guestFlags?: boolean[]
+  /** Current assignment map (memberIndex → unit). */
   assignment: RoomAssignmentMap
   /**
-   * Called when a participant is (re)assigned. `target` is the destination
-   * unit, or null to move the participant back to the unassigned tray.
+   * Called when a party member is (re)assigned. `target` is the destination
+   * unit, or null to move the member back to the unassigned tray.
    */
-  onAssign: (participantIndex: number, target: RoomUnit | null) => void
+  onAssign: (memberIndex: number, target: RoomUnit | null) => void
 }
 
 function participantLabel(names: string[], index: number): string {
@@ -59,16 +71,18 @@ function participantLabel(names: string[], index: number): string {
   return name.length > 0 ? name : `Guest ${index + 1}`
 }
 
-/** A draggable participant name chip. */
+/** A draggable party-member name chip. Companions render a muted "guest" badge. */
 function Chip({
   participantIndex,
   label,
   selected,
+  isGuest = false,
   onTap,
 }: {
   participantIndex: number
   label: string
   selected: boolean
+  isGuest?: boolean
   onTap: () => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -83,16 +97,24 @@ function Chip({
       {...attributes}
       onClick={onTap}
       data-testid={`participant-chip-${participantIndex}`}
+      data-guest={isGuest ? 'true' : undefined}
       aria-pressed={selected}
       className={[
         'inline-flex cursor-grab items-center gap-1 rounded-full border px-3 py-1 text-sm transition-colors touch-none select-none',
         isDragging ? 'opacity-40' : '',
         selected
           ? 'border-primary bg-primary text-primary-foreground'
-          : 'border-border bg-muted/40 hover:bg-muted',
+          : isGuest
+            ? 'border-dashed border-border bg-muted/20 text-muted-foreground hover:bg-muted/40'
+            : 'border-border bg-muted/40 hover:bg-muted',
       ].join(' ')}
     >
       {label}
+      {isGuest && !selected ? (
+        <span className="rounded-sm bg-muted px-1 text-[10px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+          guest
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -102,6 +124,7 @@ function UnitDropZone({
   unit,
   occupantIndices,
   participantNames,
+  guestFlags,
   selectedChip,
   onTapTarget,
   onAssign,
@@ -109,6 +132,7 @@ function UnitDropZone({
   unit: RoomUnit
   occupantIndices: number[]
   participantNames: string[]
+  guestFlags: boolean[]
   selectedChip: number | null
   onTapTarget: () => void
   onAssign: (participantIndex: number, target: RoomUnit | null) => void
@@ -149,6 +173,7 @@ function UnitDropZone({
               participantIndex={pIdx}
               label={participantLabel(participantNames, pIdx)}
               selected={selectedChip === pIdx}
+              isGuest={guestFlags[pIdx] ?? false}
               onTap={() =>
                 // Tapping an already-assigned chip removes it from this unit
                 // (back to unassigned) — the fastest way to free a slot.
@@ -177,6 +202,7 @@ function UnitDropZone({
 export function RoomAssignment({
   units,
   participantNames,
+  guestFlags = [],
   assignment,
   onAssign,
 }: Props) {
@@ -238,6 +264,7 @@ export function RoomAssignment({
         <UnassignedTray
           unassignedIndices={unassignedIndices}
           participantNames={participantNames}
+          guestFlags={guestFlags}
           units={units}
           assignment={assignment}
           selectedChip={selectedChip}
@@ -259,6 +286,7 @@ export function RoomAssignment({
                   unit={unit}
                   occupantIndices={occupants}
                   participantNames={participantNames}
+                  guestFlags={guestFlags}
                   selectedChip={selectedChip}
                   onTapTarget={() => placeSelected(unit)}
                   onAssign={onAssign}
@@ -286,7 +314,14 @@ export function RoomAssignment({
                   key={pIdx}
                   className="flex items-center justify-between gap-2 text-sm"
                 >
-                  <span>{participantLabel(participantNames, pIdx)}</span>
+                  <span>
+                    {participantLabel(participantNames, pIdx)}
+                    {guestFlags[pIdx] ? (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        (guest)
+                      </span>
+                    ) : null}
+                  </span>
                   <select
                     data-testid={`assign-select-${pIdx}`}
                     value={currentKey}
@@ -325,6 +360,7 @@ export function RoomAssignment({
 function UnassignedTray({
   unassignedIndices,
   participantNames,
+  guestFlags,
   selectedChip,
   selectId,
   onSelectChip,
@@ -335,6 +371,7 @@ function UnassignedTray({
 }: {
   unassignedIndices: number[]
   participantNames: string[]
+  guestFlags: boolean[]
   selectedChip: number | null
   selectId: string
   onSelectChip: (idx: number) => void
@@ -371,6 +408,7 @@ function UnassignedTray({
                 participantIndex={pIdx}
                 label={participantLabel(participantNames, pIdx)}
                 selected={selectedChip === pIdx}
+                isGuest={guestFlags[pIdx] ?? false}
                 onTap={() => onSelectChip(pIdx)}
               />
               {/* inline dropdown next to each unassigned chip for the most

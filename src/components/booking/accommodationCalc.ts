@@ -406,6 +406,101 @@ export function autoAssignParticipants(
 }
 
 /**
+ * landr-87n9.3: whole-party assignment + occupancy gating.
+ *
+ * The assignment map is keyed by a UNIFIED party-member index. The party
+ * is laid out as [guiding participants (0..P-1)] followed by [companions
+ * (P..P+C-1)], where P = participantCount and C = companionCount. This lets
+ * autoAssignParticipants / occupantsOfUnit / pruneAssignments operate on a
+ * single integer index space without distinguishing the two kinds — the
+ * caller folds the result back to the two arrays via the P boundary.
+ *
+ * `partySize(P, C)` is just `P + C`, named for readability at call-sites.
+ */
+export function partySize(participantCount: number, companionCount: number): number {
+  return participantCount + companionCount
+}
+
+/**
+ * Auto-assign the WHOLE PARTY (participants + companions) to room units by
+ * capacity. Thin wrapper over autoAssignParticipants using the unified
+ * index space (P + C members). Participants fill first (indices 0..P-1),
+ * then companions (P..P+C-1), in expansion order across the units — never
+ * over-filling a unit beyond its capacity, never clobbering an existing
+ * manual assignment (the `existing` map is honoured + pruned to the units).
+ *
+ * Pure + re-runnable: pass the current map after a room-qty / party-size
+ * change and it tops up the still-unassigned members without disturbing the
+ * assigned ones. Members that don't fit (units full) stay unassigned.
+ */
+export function autoAssignParty(
+  units: RoomUnit[],
+  participantCount: number,
+  companionCount: number,
+  existing: RoomAssignmentMap = {},
+): RoomAssignmentMap {
+  return autoAssignParticipants(
+    units,
+    partySize(participantCount, companionCount),
+    existing,
+  )
+}
+
+/**
+ * Occupancy-completeness check (landr-87n9.3) — the gate that enables
+ * Continue in package mode. Returns a structured result so the UI can show
+ * a precise inline hint of exactly what's blocking.
+ *
+ * Two independent rules must BOTH hold:
+ *   1. EVERY booked room unit has >= 1 occupant (a truly UNOCCUPIED booked
+ *      room blocks — an empty room "for nobody" is wrong). A room booked
+ *      "for a companion" is fine the moment she's assigned to it.
+ *   2. EVERY party member (participant OR companion) is assigned to a unit
+ *      (no unassigned person).
+ *
+ * `complete` is true only when both `emptyUnits` and `unassignedMembers`
+ * are empty. The two arrays let the caller render specific copy
+ * ("Room 2 has no guests", "Assign everyone to a room") rather than a
+ * generic "incomplete" message.
+ *
+ * Pure: depends only on its inputs. `partyCount` is the unified member
+ * count (participants + companions). Member indices below `partyCount` that
+ * are absent from `assignment` are reported as unassigned.
+ */
+export interface OccupancyStatus {
+  complete: boolean
+  /** Room units with zero occupants (truly unoccupied — blocks Continue). */
+  emptyUnits: RoomUnit[]
+  /** Party-member indices not assigned to any unit (blocks Continue). */
+  unassignedMembers: number[]
+}
+
+export function occupancyStatus(
+  units: RoomUnit[],
+  partyCount: number,
+  assignment: RoomAssignmentMap,
+): OccupancyStatus {
+  // Rule 1: any unit with zero occupants is an empty booked room.
+  const emptyUnits = units.filter(
+    (unit) => occupantsOfUnit(assignment, unit).length === 0,
+  )
+  // Rule 2: any member index without a (valid) assignment is unassigned.
+  // Prune first so an assignment pointing at a no-longer-existing unit
+  // (e.g. a room qty was just dropped) counts the member as unassigned.
+  const pruned = pruneAssignments(assignment, units)
+  const assignedSet = new Set(Object.keys(pruned).map(Number))
+  const unassignedMembers: number[] = []
+  for (let i = 0; i < partyCount; i += 1) {
+    if (!assignedSet.has(i)) unassignedMembers.push(i)
+  }
+  return {
+    complete: emptyUnits.length === 0 && unassignedMembers.length === 0,
+    emptyUnits,
+    unassignedMembers,
+  }
+}
+
+/**
  * Returns true when a hotel_room product is a "premium-includes-breakfast"
  * variant — i.e. the room price already bundles breakfast (landr-sbhz.4).
  *

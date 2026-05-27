@@ -27,6 +27,7 @@ import {
 } from '@/components/booking/DeclarationsStep'
 import type {
   BookerDetails,
+  CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
@@ -298,6 +299,8 @@ function BookingFlowApp() {
     selection: BookingSelection,
     booker: BookerDetails,
     participants: ParticipantDetails[],
+    // landr-87n9.3: non-guiding companions collected by DetailsStep.
+    companions: CompanionDetails[],
   ) => {
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
@@ -307,6 +310,7 @@ function BookingFlowApp() {
         selection,
         booker,
         participants,
+        companions,
       })
       return
     }
@@ -326,6 +330,7 @@ function BookingFlowApp() {
             selection,
             booker,
             participants,
+            companions,
           })
         } else {
           // landr-yf0n: hadServiceAddons=false here — the customer
@@ -335,6 +340,7 @@ function BookingFlowApp() {
             selection,
             booker,
             participants,
+            companions,
             [],
             null,
             [],
@@ -351,6 +357,7 @@ function BookingFlowApp() {
       selection,
       booker,
       participants,
+      companions,
       [],
       null,
       [],
@@ -363,6 +370,8 @@ function BookingFlowApp() {
     selection: BookingSelection,
     booker: BookerDetails,
     participants: ParticipantDetails[],
+    // landr-87n9.3: companions roster threads to the submit step.
+    companions: CompanionDetails[],
     accommodationRooms: RoomSelection[],
     hotelLocationId: string | null,
     addons: AddonSelection[] = [],
@@ -386,6 +395,8 @@ function BookingFlowApp() {
       selection,
       booker,
       participants,
+      // landr-87n9.3: companions roster threaded to the submit step.
+      companions,
       accommodationRooms,
       hotelLocationId,
       addons,
@@ -586,15 +597,28 @@ function BookingFlowApp() {
             serviceRoles={serviceRoles}
             initialBooker={step.booker}
             initialParticipants={step.participants}
+            // landr-87n9.3: restore the non-guiding companions on Back.
+            initialCompanions={step.companions}
             onBack={() =>
               setStep({ name: 'pick-selection', product: step.product })
             }
-            onConfirm={(booker, participants) =>
-              afterDetails(step.product, step.selection, booker, participants)
+            onConfirm={(booker, participants, companions) =>
+              afterDetails(
+                step.product,
+                step.selection,
+                booker,
+                participants,
+                companions,
+              )
             }
             // landr-gb2f.1: live participant count + names for the sidebar.
             // Fires on every add/remove/name-change so the price breakdown
             // updates without waiting for Continue.
+            // landr-87n9.3: the callback now also reports a live companion
+            // count, but companions never feed the guiding price
+            // (participants_count) and aren't needed for any live sidebar
+            // state on this step (the committed companions land in step state
+            // on Continue), so we intentionally ignore the third arg here.
             onLiveParticipantsChange={(count, names) => {
               setLiveParticipantCount(count)
               setLiveParticipantNames(names)
@@ -611,6 +635,9 @@ function BookingFlowApp() {
             // landr-gb2f.2: participant first names drive the draggable
             // assignment chips. We pass first names (trimmed) per index.
             participantNames={step.participants.map((p) => p.first_name)}
+            // landr-87n9.3: non-guiding companions join the whole-party
+            // room assignment (appended after participants, badged "guest").
+            companionNames={step.companions.map((c) => c.first_name)}
             // landr-yf0n: thread prior accommodation context back so the
             // step re-mounts with hotel + rooms + add-ons restored
             // instead of empty steppers. Each field is independently
@@ -645,6 +672,8 @@ function BookingFlowApp() {
                 selection: step.selection,
                 booker: step.booker,
                 participants: step.participants,
+                // landr-87n9.3: carry companions back to DetailsStep.
+                companions: step.companions,
               })
             }}
             onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment) =>
@@ -653,6 +682,8 @@ function BookingFlowApp() {
                 step.selection,
                 step.booker,
                 step.participants,
+                // landr-87n9.3: companions roster threads to the submit step.
+                step.companions,
                 rooms,
                 hotelLocationId,
                 addons,
@@ -691,6 +722,8 @@ function BookingFlowApp() {
                 selection: step.selection,
                 booker: step.booker,
                 participants: step.participants,
+                // landr-87n9.3: carry companions back to DetailsStep.
+                companions: step.companions,
               })
             }
             onConfirm={(addons) =>
@@ -699,6 +732,8 @@ function BookingFlowApp() {
                 step.selection,
                 step.booker,
                 step.participants,
+                // landr-87n9.3: companions roster threads to the submit step.
+                step.companions,
                 [],
                 null,
                 addons,
@@ -730,6 +765,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                   hotelLocationId: step.hotelLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
@@ -748,6 +784,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                   addons: step.addons,
                 })
               } else {
@@ -759,6 +796,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                 })
               }
             }}
@@ -770,6 +808,8 @@ function BookingFlowApp() {
                 selection: step.selection,
                 booker: step.booker,
                 participants: step.participants,
+                // landr-87n9.3: companions roster threads to the submit step.
+                companions: step.companions,
                 pickupLocationId: locationId,
                 accommodationRooms: step.accommodationRooms,
                 addons: step.addons,
@@ -817,6 +857,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                   pickupLocationId: step.pickupLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
@@ -836,6 +877,7 @@ function BookingFlowApp() {
                 selection: step.selection,
                 booker: step.booker,
                 participants: step.participants,
+                companions: step.companions,
                 pickupLocationId: step.pickupLocationId,
                 accommodationRooms: step.accommodationRooms,
                 addons: step.addons,
@@ -860,6 +902,9 @@ function BookingFlowApp() {
             selection={step.selection}
             booker={step.booker}
             participants={step.participants}
+            // landr-87n9.3: non-guiding companions for the submit body's
+            // top-level companions[] + whole-party room assignment.
+            companions={step.companions}
             pickupLocationId={step.pickupLocationId}
             accommodationRooms={step.accommodationRooms}
             addons={step.addons}
@@ -885,6 +930,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                   pickupLocationId: step.pickupLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,
@@ -918,6 +964,7 @@ function BookingFlowApp() {
                   selection: step.selection,
                   booker: step.booker,
                   participants: step.participants,
+                  companions: step.companions,
                   pickupLocationId: step.pickupLocationId,
                   accommodationRooms: step.accommodationRooms,
                   addons: step.addons,

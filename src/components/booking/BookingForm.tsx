@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HttpError, submitBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
+  Companion,
   Product,
   ProductLine,
   SubmitBookingBody,
@@ -15,7 +16,11 @@ import {
 } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel, formatDayRange } from './dateLabel'
-import type { BookerDetails, ParticipantDetails } from './detailsTypes'
+import type {
+  BookerDetails,
+  CompanionDetails,
+  ParticipantDetails,
+} from './detailsTypes'
 
 export type BookingSelection =
   | { kind: 'slot'; slot: AvailabilitySlot }
@@ -54,6 +59,17 @@ interface Props {
    * Threaded through into the submit payload's participants[] array.
    */
   participants: ParticipantDetails[]
+  /**
+   * landr-87n9.3: non-guiding companions collected by DetailsStep. Sent as
+   * the submit body's top-level `companions: Companion[]` (PINNED wire
+   * contract — landr-87n9.5 on the API builds the same shape). Each
+   * companion's room assignment comes from the whole-party `roomAssignment`
+   * map at index >= participants.length (the unified party index space).
+   * Empty array when nobody extra joins. Companions are NOT in
+   * participants[] — they carry no service_role and are not in the guiding
+   * price. Defaults to empty so legacy call-sites need no change.
+   */
+  companions?: CompanionDetails[]
   pickupLocationId: string | null
   /**
    * Additional hotel_room line items captured by the AccommodationStep
@@ -85,13 +101,15 @@ interface Props {
    */
   isSharedDouble?: boolean
   /**
-   * landr-gb2f.2: participant → room assignment map (participantIndex →
-   * {roomProductId, unitIndex}), captured by AccommodationStep in package
-   * mode. Each assigned participant gets room_product_id + room_unit_index
-   * attached to its participants[] entry on submit; unassigned participants
-   * (and all participants in guiding-only / shared-double modes) send
-   * null/omit. Defaults to empty — the products[] line items are NOT
-   * affected by this assignment (PINNED wire contract, landr-gb2f.3/.4).
+   * landr-gb2f.2 / landr-87n9.3: WHOLE-PARTY → room assignment map
+   * (memberIndex → {roomProductId, unitIndex}), captured by AccommodationStep
+   * in package mode. The index space is unified: indices 0..P-1 are guiding
+   * participants, indices P..P+C-1 are companions (P = participants.length).
+   * Each assigned member gets room_product_id + room_unit_index attached to
+   * its participants[] / companions[] entry on submit; unassigned members
+   * (and all members in guiding-only / shared-double modes) send null/omit.
+   * Defaults to empty — the products[] line items are NOT affected by this
+   * assignment (PINNED wire contract, landr-87n9.5).
    */
   roomAssignment?: RoomAssignmentMap
   onBack: () => void
@@ -188,6 +206,7 @@ export function BookingForm({
   selection,
   booker,
   participants,
+  companions = [],
   pickupLocationId,
   accommodationRooms,
   addons,
@@ -290,6 +309,29 @@ export function BookingForm({
             room_unit_index: assigned ? assigned.unitIndex : null,
           }
         }),
+        // landr-87n9.3: non-guiding companions as the top-level companions[]
+        // (PINNED wire contract — landr-87n9.5 builds the same shape). Each
+        // companion's room assignment lives in the WHOLE-PARTY roomAssignment
+        // map at index participants.length + companionIdx (the unified party
+        // index space: participants first, companions after). Unassigned (and
+        // every companion in guiding-only / shared-double modes, where the
+        // map is empty) sends both room fields as null. Optional fields
+        // normalised to null when blank.
+        ...(companions.length > 0
+          ? {
+              companions: companions.map<Companion>((c, cIdx) => {
+                const assigned = roomAssignment?.[participants.length + cIdx]
+                return {
+                  first_name: c.first_name,
+                  last_name: c.last_name || null,
+                  email: c.email || null,
+                  phone: c.phone || null,
+                  room_product_id: assigned ? assigned.roomProductId : null,
+                  room_unit_index: assigned ? assigned.unitIndex : null,
+                }
+              }),
+            }
+          : {}),
         // landr-sbhz.3: thread declarations + language through to the
         // submit payload. Only included when they were collected upstream
         // by DeclarationsStep (non-null). Omitted for operators that have
@@ -401,6 +443,43 @@ export function BookingForm({
             ))}
           </ol>
         </section>
+
+        {/* landr-87n9.3: non-guiding companions summary. Rendered only when
+            the customer added someone in the "Others joining" section. */}
+        {companions.length > 0 ? (
+          <section data-testid="review-companions">
+            <h3 className="mb-2 text-sm font-semibold">
+              Others joining ({companions.length})
+            </h3>
+            <ol className="space-y-1 text-sm">
+              {companions.map((c, idx) => (
+                <li
+                  key={`companion-${idx}`}
+                  className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
+                >
+                  <span>
+                    <span className="font-medium">
+                      {idx + 1}. {c.first_name} {c.last_name}
+                    </span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      guest
+                    </span>
+                    {c.email ? (
+                      <span className="ml-2 text-xs text-muted-foreground break-all">
+                        {c.email}
+                      </span>
+                    ) : null}
+                    {c.phone ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {c.phone}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
 
         {serverError ? (
           <p className="text-sm text-destructive" data-testid="review-error">

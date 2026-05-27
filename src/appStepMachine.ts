@@ -13,6 +13,7 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
   BookerDetails,
+  CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
@@ -63,6 +64,8 @@ export type Step =
       selection: BookingSelection
       booker?: BookerDetails
       participants?: ParticipantDetails[]
+      // landr-87n9.3: non-guiding companions carry over on Back-restore.
+      companions?: CompanionDetails[]
     }
   // landr-yf0n: optional initialHotelLocationId / accommodationRooms /
   // addons / includeHotel let AccommodationStep re-seed its internal
@@ -78,14 +81,18 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: non-guiding companions thread through so the
+      // whole-party room assignment + occupancy gating has them.
+      companions: CompanionDetails[]
       hotelLocationId?: string | null
       accommodationRooms?: RoomSelection[]
       addons?: AddonSelection[]
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
-      // landr-gb2f.2: persisted participant → room assignment for back-nav
-      // restoration of the chips/units layout.
+      // landr-gb2f.2 / landr-87n9.3: persisted WHOLE-PARTY → room assignment
+      // (unified index space: participants 0..P-1, companions P..P+C-1) for
+      // back-nav restoration of the chips/units layout.
       roomAssignment?: RoomAssignmentMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
@@ -96,6 +103,9 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: carry companions through the service-addons branch
+      // (no room units here, but the roster must survive to fill-form).
+      companions: CompanionDetails[]
       addons?: AddonSelection[]
     }
   // landr-yf0n: optional pickupLocationId lets PickupLocationPicker re-
@@ -110,6 +120,8 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster threads through.
+      companions: CompanionDetails[]
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
       pickupLocationId?: string | null
@@ -134,6 +146,8 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster threads through.
+      companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -158,6 +172,11 @@ export type Step =
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
+      // landr-87n9.3: companions roster — BookingForm sends it as the
+      // top-level companions[] and maps the assignment-map tail
+      // (indices >= participants.length) onto each companion's
+      // room_product_id + room_unit_index on submit.
+      companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
       addons: AddonSelection[]
@@ -166,8 +185,9 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
-      // landr-gb2f.2: the assignment BookingForm maps onto each
-      // participant's room_product_id + room_unit_index on submit.
+      // landr-gb2f.2 / landr-87n9.3: WHOLE-PARTY assignment BookingForm maps
+      // onto each participant + companion's room_product_id + room_unit_index
+      // on submit (unified index: participants first, companions after).
       roomAssignment?: RoomAssignmentMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
@@ -222,6 +242,8 @@ export function stepAfterAccommodation(
   selection: BookingSelection,
   booker: BookerDetails,
   participants: ParticipantDetails[],
+  // landr-87n9.3: companions roster threaded to the submit step.
+  companions: CompanionDetails[],
   accommodationRooms: RoomSelection[],
   hotelLocationId: string | null,
   addons: AddonSelection[] = [],
@@ -251,6 +273,7 @@ export function stepAfterAccommodation(
       selection,
       booker,
       participants,
+      companions,
       pickupLocationId: hotelLocationId,
       accommodationRooms,
       addons,
@@ -269,6 +292,7 @@ export function stepAfterAccommodation(
       selection,
       booker,
       participants,
+      companions,
       accommodationRooms,
       addons,
       hotelLocationId: null,
@@ -285,6 +309,7 @@ export function stepAfterAccommodation(
     selection,
     booker,
     participants,
+    companions,
     pickupLocationId: null,
     accommodationRooms,
     addons,
@@ -331,6 +356,8 @@ export interface StepBeforeReviewArgs {
   selection: BookingSelection
   booker: BookerDetails
   participants: ParticipantDetails[]
+  // landr-87n9.3: companions roster restored on back-nav.
+  companions: CompanionDetails[]
   pickupLocationId: string | null
   accommodationRooms: RoomSelection[]
   addons: AddonSelection[]
@@ -361,6 +388,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       selection: args.selection,
       booker: args.booker,
       participants: args.participants,
+      companions: args.companions,
       hotelLocationId: args.hotelLocationId,
       accommodationRooms: args.accommodationRooms,
       addons: args.addons,
@@ -379,6 +407,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       selection: args.selection,
       booker: args.booker,
       participants: args.participants,
+      companions: args.companions,
       accommodationRooms: args.accommodationRooms,
       addons: args.addons,
       pickupLocationId: args.pickupLocationId,
@@ -399,6 +428,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       selection: args.selection,
       booker: args.booker,
       participants: args.participants,
+      companions: args.companions,
       addons: args.addons,
     }
   }
@@ -409,6 +439,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
     selection: args.selection,
     booker: args.booker,
     participants: args.participants,
+    companions: args.companions,
   }
 }
 
@@ -427,6 +458,8 @@ export function fillFormOrDeclarations(
     selection: BookingSelection
     booker: BookerDetails
     participants: ParticipantDetails[]
+    // landr-87n9.3: companions roster threads through to the submit step.
+    companions: CompanionDetails[]
     pickupLocationId: string | null
     accommodationRooms: RoomSelection[]
     addons: AddonSelection[]
