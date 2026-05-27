@@ -47,12 +47,13 @@ describe('addonsState (landr-cip6)', () => {
   })
 
   describe('clampAddonQty', () => {
-    // landr-yybu: occupancyCap argument removed. Only max_qty limits the qty.
+    // landr-yybu: optional occupancyCap arg caps room-linked add-ons at the
+    // room's occupancy; omitted for service-flow add-ons (uncapped beyond max_qty).
     it('clamps at 0 floor', () => {
       expect(clampAddonQty(makeAddon(), -5)).toBe(0)
     })
 
-    it('uncapped when max_qty is null', () => {
+    it('uncapped when max_qty is null and no occupancyCap', () => {
       expect(clampAddonQty(makeAddon({ max_qty: null }), 9999)).toBe(9999)
     })
 
@@ -60,9 +61,22 @@ describe('addonsState (landr-cip6)', () => {
       expect(clampAddonQty(makeAddon({ max_qty: 5 }), 10)).toBe(5)
     })
 
-    it('breakfast add-on with max_qty=null is NOT capped by occupancy (landr-yybu)', () => {
-      // No occupancyCap argument exists any more. A qty higher than room
-      // occupancy is allowed — only the per-row warning fires.
+    it('caps at occupancyCap when provided (single room: cap=1)', () => {
+      // The reported bug: a 1-person room must clamp breakfast to 1.
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 5, 1)).toBe(1)
+    })
+
+    it('caps at occupancyCap for a double room (cap=2)', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: null }), 5, 2)).toBe(2)
+    })
+
+    it('uses the lower of max_qty and occupancyCap', () => {
+      expect(clampAddonQty(makeAddon({ max_qty: 2 }), 5, 4)).toBe(2)
+      expect(clampAddonQty(makeAddon({ max_qty: 5 }), 9, 3)).toBe(3)
+    })
+
+    it('breakfast add-on with max_qty=null is NOT capped when no occupancyCap (service flow)', () => {
+      // Service-flow callers pass no occupancyCap — qty stays uncapped.
       expect(clampAddonQty(makeAddon({ max_qty: null }), 5)).toBe(5)
     })
 

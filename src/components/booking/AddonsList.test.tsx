@@ -175,11 +175,9 @@ describe('AddonsList (landr-cip6)', () => {
     expect(underWarn).toHaveTextContent(/sleeps 2/i)
   })
 
-  it('Double Room x1 (expectedQty=2): + NOT disabled at qty=2 — no occupancy hard cap (landr-yybu)', () => {
-    // landr-yybu: the occupancy hard-cap is removed. qty=2 with expectedQty=2
-    // is exactly at parity — no warning and the + button stays enabled so
-    // the customer can order more if they wish (the per-row warning will fire
-    // if they exceed occupancy).
+  it('Double Room x1 (occupancyLimited, expectedQty=2): + DISABLED at qty=2 — occupancy hard cap (landr-yybu)', () => {
+    // landr-yybu: room-linked add-ons are hard-capped at occupancy. qty=2 with
+    // expectedQty=2 is at the cap, so the + button disables (no over-booking).
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
     render(
       <AddonsList
@@ -187,10 +185,11 @@ describe('AddonsList (landr-cip6)', () => {
         selection={{ bf: 2 }}
         onChange={vi.fn()}
         expectedQty={2}
+        occupancyLimited
       />,
     )
     const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
-    expect(plus).not.toBeDisabled()
+    expect(plus).toBeDisabled()
     // At parity there is no warning
     expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
@@ -239,10 +238,9 @@ describe('AddonsList (landr-cip6)', () => {
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
 
-  it('2 Double Rooms (expectedQty=4): + NOT disabled at qty=4 — no occupancy hard cap (landr-yybu)', () => {
-    // landr-yybu: the occupancy hard-cap is removed. Even at qty=4 (parity
-    // with 2 × double-room occupancy) the + button stays enabled. The
-    // over-warning fires if the customer goes above 4.
+  it('2 Double Rooms (occupancyLimited, expectedQty=4): + DISABLED at qty=4 — occupancy hard cap (landr-yybu)', () => {
+    // landr-yybu: room-linked add-ons cap at total occupancy (2 × 2 = 4).
+    // At qty=4 the + button disables.
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
     render(
       <AddonsList
@@ -250,10 +248,11 @@ describe('AddonsList (landr-cip6)', () => {
         selection={{ bf: 4 }}
         onChange={vi.fn()}
         expectedQty={4}
+        occupancyLimited
       />,
     )
     const plus = screen.getByRole('button', { name: /Increase Breakfast/i })
-    expect(plus).not.toBeDisabled()
+    expect(plus).toBeDisabled()
     // At parity no warning fires
     expect(screen.queryByTestId('addon-overbook-bf')).toBeNull()
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
@@ -323,27 +322,26 @@ describe('AddonsList (landr-cip6)', () => {
     expect(screen.queryByTestId('addon-underbook-bf')).toBeNull()
   })
 
-  // ── landr-yybu: no occupancy cap; only max_qty gates the + button ────
+  // ── landr-yybu: room-linked add-ons cap at occupancy (incl single rooms) ──
 
-  it('breakfast + qty ABOVE expectedQty: + stays enabled (no occupancy hard cap)', () => {
-    // A Single Room (expectedQty=1) with qty=3: the + must NOT be disabled
-    // by occupancy — the over-warning is the only guard.
+  it('Single Room (occupancyLimited, expectedQty=1): + DISABLED at qty=1 — caps at 1 (landr-yybu)', () => {
+    // THE reported bug: a 1-person room must not accept more than 1 breakfast.
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast', max_qty: null })
     render(
       <AddonsList
         addons={[addon]}
-        selection={{ bf: 3 }}
+        selection={{ bf: 1 }}
         onChange={vi.fn()}
         expectedQty={1}
+        occupancyLimited
       />,
     )
-    expect(screen.getByRole('button', { name: /Increase Breakfast/i })).not.toBeDisabled()
-    // Over-warning fires because qty(3) > expectedQty(1)
-    expect(screen.getByTestId('addon-overbook-bf')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Increase Breakfast/i })).toBeDisabled()
   })
 
-  it('+ disabled only when addon.max_qty is set and reached; occupancy alone never disables it', () => {
-    // max_qty=2 for a room with expectedQty=4: cap is at 2, not 4.
+  it('max_qty binds before occupancy when lower (occupancyLimited, max_qty=2 < expectedQty=4)', () => {
+    // landr-yybu: ceiling = min(max_qty, occupancy). max_qty=2 is lower than
+    // the room's occupancy=4, so the + disables at 2.
     const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast', max_qty: 2 })
     render(
       <AddonsList
@@ -351,9 +349,9 @@ describe('AddonsList (landr-cip6)', () => {
         selection={{ bf: 2 }}
         onChange={vi.fn()}
         expectedQty={4}
+        occupancyLimited
       />,
     )
-    // Disabled because qty(2) === max_qty(2), NOT because of occupancy
     expect(screen.getByRole('button', { name: /Increase Breakfast/i })).toBeDisabled()
   })
 
