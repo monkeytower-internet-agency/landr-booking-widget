@@ -228,6 +228,25 @@ export interface Participant {
   phone?: string | null
   service_role_code: string
   pickup_location_id?: string | null
+  /**
+   * landr-gb2f.2: participant → room assignment. The hotel_room product
+   * this participant is assigned to (package mode only). null / omitted
+   * when the participant is unassigned, or in guiding-only / shared-double
+   * modes (no room units). Paired with room_unit_index to disambiguate
+   * which physical unit of a qty>1 room product they occupy.
+   *
+   * WIRE CONTRACT (PINNED — landr-gb2f.3/.4 on the API build to the same
+   * shape): room_product_id is one of the products[] hotel_room line item
+   * product_ids; products[] line items are NOT changed by this assignment.
+   */
+  room_product_id?: string | null
+  /**
+   * landr-gb2f.2: 0-based index of the physical unit WITHIN room_product_id
+   * (0..quantity-1). Disambiguates a qty>1 room: a qty=2 double room has
+   * unit 0 and unit 1, each sleeping capacity_per_unit people. null /
+   * omitted when unassigned.
+   */
+  room_unit_index?: number | null
 }
 
 /**

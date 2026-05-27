@@ -5,7 +5,10 @@
  * exports there would trigger the rule and block CI).
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
-import type { RoomSelection } from '@/components/booking/accommodationCalc'
+import type {
+  RoomAssignmentMap,
+  RoomSelection,
+} from '@/components/booking/accommodationCalc'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
@@ -81,6 +84,9 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: persisted participant → room assignment for back-nav
+      // restoration of the chips/units layout.
+      roomAssignment?: RoomAssignmentMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -112,6 +118,9 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: carry the assignment through the pickup step so the
+      // back-nav into pick-accommodation restores it.
+      roomAssignment?: RoomAssignmentMap
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -133,6 +142,9 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: carry the assignment through declarations so it
+      // survives the declarations → fill-form hop and back-nav restores it.
+      roomAssignment?: RoomAssignmentMap
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -154,6 +166,9 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
+      // landr-gb2f.2: the assignment BookingForm maps onto each
+      // participant's room_product_id + room_unit_index on submit.
+      roomAssignment?: RoomAssignmentMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -220,6 +235,8 @@ export function stepAfterAccommodation(
   isSharedDouble: boolean | undefined = undefined,
   // landr-ffyg.2: top-level accommodation mode for back-nav restoration.
   accommodationMode: AccommodationMode | undefined = undefined,
+  // landr-gb2f.2: participant → room assignment, threaded to the submit step.
+  roomAssignment: RoomAssignmentMap | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -242,6 +259,7 @@ export function stepAfterAccommodation(
       includeHotel,
       isSharedDouble,
       accommodationMode,
+      roomAssignment,
     }
   }
   if (product.needs_pickup) {
@@ -258,6 +276,7 @@ export function stepAfterAccommodation(
       includeHotel,
       isSharedDouble,
       accommodationMode,
+      roomAssignment,
     }
   }
   return {
@@ -274,6 +293,7 @@ export function stepAfterAccommodation(
     includeHotel,
     isSharedDouble,
     accommodationMode,
+    roomAssignment,
   }
 }
 
@@ -303,6 +323,8 @@ export function fillFormOrDeclarations(
     isSharedDouble?: boolean
     // landr-ffyg.2: thread the accommodation mode through too.
     accommodationMode?: AccommodationMode
+    // landr-gb2f.2: thread the participant → room assignment through too.
+    roomAssignment?: RoomAssignmentMap
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,
