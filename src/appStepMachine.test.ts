@@ -4,6 +4,7 @@ import type { Product } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
   BookerDetails,
+  CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import {
@@ -85,6 +86,15 @@ function makeParticipants(n: number): ParticipantDetails[] {
   return rows
 }
 
+// landr-87n9.3: non-guiding companions helper for the step-machine tests.
+function makeCompanions(n: number): CompanionDetails[] {
+  const rows: CompanionDetails[] = []
+  for (let i = 0; i < n; i += 1) {
+    rows.push({ first_name: `C${i + 1}`, last_name: '', email: '', phone: '' })
+  }
+  return rows
+}
+
 describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
   it('routes to fill-form with pickup_location_id pre-set when a hotel was booked, skipping pick-pickup', () => {
     const product = makeProduct({
@@ -96,6 +106,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       SLOT_SELECTION,
       ADA,
       makeParticipants(1),
+      [],
       [{ productId: 'room-1', quantity: 2 }],
       'loc-hotel-mirador',
     )
@@ -120,6 +131,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       ADA,
       makeParticipants(3),
       [],
+      [],
       null,
     )
     expect(next.name).toBe('pick-pickup')
@@ -139,6 +151,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       ADA,
       makeParticipants(2),
       [],
+      [],
       null,
     )
     expect(next.name).toBe('fill-form')
@@ -157,6 +170,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
       SLOT_SELECTION,
       ADA,
       makeParticipants(4),
+      [],
       [{ productId: 'room-1', quantity: 1 }],
       'loc-hotel-x',
     )
@@ -183,6 +197,7 @@ describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
         ADA,
         makeParticipants(5),
         [],
+        [],
         c.hotelLocationId,
       )
       expect(next.name).toBe(c.expected)
@@ -200,6 +215,7 @@ describe('stepBeforeReview (landr-87n9.1 — back-nav mirrors the forward machin
     selection: SLOT_SELECTION,
     booker: ADA,
     participants: makeParticipants(2),
+    companions: makeCompanions(0),
     pickupLocationId: null as string | null,
     accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
     addons: [],
@@ -340,6 +356,7 @@ describe('sidebarInputsForStep (landr-8c03 — participant names threaded throug
       product,
       selection: SLOT_SELECTION,
       booker: ADA,
+      companions: [],
       participants: [
         {
           first_name: 'Ada',
@@ -401,6 +418,7 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       SLOT_SELECTION,
       ADA,
       makeParticipants(1),
+      [], // companions
       [], // NO room lines for a shared-double booking
       'loc-shared-hotel',
       [],
@@ -427,6 +445,7 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
       SLOT_SELECTION,
       ADA,
       makeParticipants(2),
+      [], // companions
       [],
       null,
       [],

@@ -50,7 +50,33 @@ export interface ParticipantDetails {
   service_role_code: string
 }
 
+/**
+ * CompanionDetails (landr-87n9.3): one entry per NON-GUIDING companion
+ * collected in the "Others joining" section of DetailsStep. A companion
+ * does NOT take part in the activity — they carry no service_role and are
+ * never counted toward the guiding-participants cap or the per-participant
+ * guiding price. They DO join the whole-party room assignment + occupancy.
+ *
+ * Only first_name is required (matches the participant rule, minus the
+ * required last_name). email/phone stay optional; all three optional fields
+ * are normalised to null on submit so a blank never overwrites server data.
+ */
+export interface CompanionDetails {
+  first_name: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  last_name: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  email: string
+  /** Optional. Empty string when not provided — normalised to null on submit. */
+  phone: string
+}
+
 export function emptyBooker(): BookerDetails {
+  return { first_name: '', last_name: '', email: '', phone: '' }
+}
+
+/** Empty companion scaffold for a freshly-added "Others joining" row. */
+export function emptyCompanion(): CompanionDetails {
   return { first_name: '', last_name: '', email: '', phone: '' }
 }
 
@@ -98,11 +124,16 @@ export function bookerToParticipant(
 /**
  * Validity check used to enable the Continue button. Booker requires all
  * four fields; each participant requires first + last (email + phone
- * stay optional per landr-8c03 spec).
+ * stay optional per landr-8c03 spec); each companion (landr-87n9.3)
+ * requires only first name (last/email/phone optional).
+ *
+ * `companions` is optional so existing call-sites (and the count-only
+ * tests) keep working without passing the new section.
  */
 export function detailsAreComplete(
   booker: BookerDetails,
   participants: ParticipantDetails[],
+  companions: CompanionDetails[] = [],
 ): boolean {
   if (!booker.first_name.trim() || !booker.last_name.trim()) return false
   if (!booker.email.trim() || !booker.phone.trim()) return false
@@ -111,6 +142,10 @@ export function detailsAreComplete(
   if (!booker.email.includes('@')) return false
   for (const p of participants) {
     if (!p.first_name.trim() || !p.last_name.trim()) return false
+  }
+  // landr-87n9.3: each companion needs at least a first name.
+  for (const c of companions) {
+    if (!c.first_name.trim()) return false
   }
   return true
 }

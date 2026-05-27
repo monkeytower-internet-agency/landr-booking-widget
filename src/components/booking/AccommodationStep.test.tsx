@@ -613,7 +613,12 @@ describe('AccommodationStep', () => {
     expect(screen.getByTestId('overbook-capacity-warning')).toHaveTextContent(
       /4 people.*only 2 beds/i,
     )
-    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+    // landr-87n9.3: the capacity warning itself stays advisory ("sure?"),
+    // but the new OCCUPANCY GATE blocks Continue here — 4 people cannot all
+    // be assigned to 2 single-bed units, so 2 stay unassigned and the gate
+    // keeps Continue disabled with an inline hint.
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+    expect(screen.getByTestId('occupancy-hint')).toBeInTheDocument()
   })
 
   it('hides capacity warning when capacity meets participantCount', async () => {
@@ -847,6 +852,9 @@ describe('AccommodationStep', () => {
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
         operatorToken="para42"
+        // landr-87n9.3: 2 people so both restored single-room units get an
+        // occupant — the occupancy gate then passes and Continue enables.
+        participantCount={2}
         onConfirm={onConfirm}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -870,9 +878,11 @@ describe('AccommodationStep', () => {
     const qtySpan = increaseBtn.previousElementSibling
     expect(qtySpan?.textContent?.trim()).toBe('2')
 
-    // landr-gb2f.2: wait for the auto-assign effect to settle (the lone
-    // participant lands in a unit, emptying the unassigned tray) before
-    // confirming so the assignment is captured deterministically.
+    // landr-gb2f.2 / landr-87n9.3: wait for the whole-party auto-assign
+    // effect to settle (both participants land in the two units, emptying
+    // the unassigned tray + occupying every room) before confirming so the
+    // occupancy gate is satisfied and the assignment is captured
+    // deterministically.
     await waitFor(() =>
       expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
     )
@@ -885,8 +895,11 @@ describe('AccommodationStep', () => {
       [],
       undefined,
       false,
-      // landr-gb2f.2: lone participant auto-assigned to the first unit.
-      { 0: { roomProductId: 'single-room', unitIndex: 0 } },
+      // landr-87n9.3: both participants auto-assigned, one per unit.
+      {
+        0: { roomProductId: 'single-room', unitIndex: 0 },
+        1: { roomProductId: 'single-room', unitIndex: 1 },
+      },
     )
   })
 
@@ -1317,6 +1330,11 @@ describe('AccommodationStep', () => {
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
         operatorToken="para42"
+        // landr-87n9.3: 3 people so the greedy whole-party auto-assign
+        // spreads across BOTH capacity-2 units (Room A gets 2, Room B gets
+        // 1) — every booked unit then has an occupant + everyone is
+        // assigned, so the occupancy gate passes and Continue enables.
+        participantCount={3}
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,
@@ -1337,6 +1355,11 @@ describe('AccommodationStep', () => {
     fireEvent.click(bfPlusB!)
     fireEvent.click(bfPlusB!)
 
+    // landr-87n9.3: wait for the whole-party auto-assign to occupy both
+    // units so the occupancy gate enables Continue.
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
     expect(onConfirm).toHaveBeenCalledTimes(1)
@@ -1454,6 +1477,128 @@ describe('AccommodationStep', () => {
       )
       fireEvent.click(screen.getByTestId('accommodation-mode-shared-double'))
       expect(onLive).toHaveBeenLastCalledWith([], [])
+    })
+  })
+})
+
+describe('AccommodationStep — companions + occupancy gating (landr-87n9.3)', () => {
+  beforeEach(() => {
+    mocks.getProductAddons.mockResolvedValue([])
+  })
+
+  it('renders companion chips (badged "guest") alongside participant chips', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Ada']}
+        companionNames={['Mia']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    // Participant chip (index 0) + companion chip (index 1, party space).
+    await waitFor(() =>
+      expect(screen.getByTestId('participant-chip-0')).toBeInTheDocument(),
+    )
+    const companionChip = screen.getByTestId('participant-chip-1')
+    expect(companionChip).toHaveTextContent('Mia')
+    // The companion chip is badged as a guest.
+    expect(companionChip).toHaveAttribute('data-guest', 'true')
+    // The participant chip is NOT a guest.
+    expect(screen.getByTestId('participant-chip-0')).not.toHaveAttribute(
+      'data-guest',
+    )
+  })
+
+  it('blocks Continue while a booked room is unoccupied, with an inline hint', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Ada']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // Book TWO single units for a single person → unit 1 ends up empty.
+    const plus = screen.getByRole('button', {
+      name: /Increase Single Room quantity/i,
+    })
+    fireEvent.click(plus)
+    fireEvent.click(plus)
+    await waitFor(() =>
+      expect(screen.getByTestId('occupancy-hint')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('occupancy-hint')).toHaveTextContent(
+      /no guests/i,
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+  })
+
+  it('whole-party occupancy: a companion filling the extra room unblocks Continue', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49, 1),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        // 1 participant + 1 companion = a 2-person party.
+        participantCount={1}
+        participantNames={['Ada']}
+        companionNames={['Mia']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // Two single units → participant in unit 0, companion in unit 1.
+    const plus = screen.getByRole('button', {
+      name: /Increase Single Room quantity/i,
+    })
+    fireEvent.click(plus)
+    fireEvent.click(plus)
+    // Auto-assign settles → everyone has a room, no empty rooms → enabled.
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('occupancy-hint')).not.toBeInTheDocument()
+    const cont = screen.getByRole('button', { name: /Continue/i })
+    expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    // The whole-party assignment map covers participant 0 + companion 1.
+    const [, , , , , roomAssignment] = onConfirm.mock.calls[0]!
+    expect(roomAssignment).toEqual({
+      0: { roomProductId: 'single-room', unitIndex: 0 },
+      1: { roomProductId: 'single-room', unitIndex: 1 },
     })
   })
 })

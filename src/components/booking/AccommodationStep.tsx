@@ -15,12 +15,14 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import {
-  autoAssignParticipants,
+  autoAssignParty,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
   formatCurrency,
   isPremiumIncludesBreakfast,
+  occupancyStatus,
+  partySize,
   pruneAssignments,
   roomSubtotal,
   totalRoomCapacity,
@@ -78,6 +80,15 @@ interface Props {
    * labels so the chips still render for legacy call sites.
    */
   participantNames?: string[]
+  /**
+   * landr-87n9.3: NON-GUIDING companions joining the party. They occupy
+   * hotel beds (whole-party room assignment + occupancy gating) but are
+   * NOT guiding participants — never counted toward participantCount or
+   * the guiding price. The room-assignment UI appends them after the
+   * participants in the unified party-member index space and badges them
+   * as "guest". Defaults to empty (no companions).
+   */
+  companionNames?: string[]
   /**
    * Called when the customer confirms a room selection. rooms can be
    * empty when the customer opts out of an `optional` accommodation
@@ -205,6 +216,7 @@ export function AccommodationStep({
   operatorToken,
   participantCount = 1,
   participantNames = [],
+  companionNames = [],
   onConfirm,
   onBack,
   onLiveAccommodationChange,
@@ -490,14 +502,22 @@ export function AccommodationStep({
     [mode, roomSelections, rooms],
   )
 
-  // landr-gb2f.2: re-run auto-assign whenever the set of units changes
-  // (room added/removed/qty bumped). The pure helper never clobbers an
-  // existing manual assignment and prunes references to units that no
-  // longer exist; participants without a slot are left unassigned (a
-  // leftover chip). The IIFE-in-effect pattern keeps the
-  // react-hooks/set-state-in-effect lint rule happy (no synchronous
-  // setState in the effect body). Keyed on a stable signature of the unit
-  // set so it doesn't re-fire on unrelated re-renders.
+  // landr-87n9.3: total party headcount = participants + companions. This
+  // is the unified index space the assignment map + auto-assign operate on
+  // (participants 0..P-1, companions P..P+C-1). Companions DO occupy beds /
+  // count toward occupancy but NOT toward the guiding price.
+  const companionCount = companionNames.length
+  const partyCount = partySize(participantCount, companionCount)
+
+  // landr-gb2f.2 / landr-87n9.3: re-run whole-party auto-assign whenever the
+  // set of units OR the party size changes (room added/removed/qty bumped,
+  // companion added/removed). The pure helper never clobbers an existing
+  // manual assignment and prunes references to units that no longer exist;
+  // members without a slot are left unassigned (a leftover chip). The
+  // IIFE-in-effect pattern keeps the react-hooks/set-state-in-effect lint
+  // rule happy (no synchronous setState in the effect body). Keyed on a
+  // stable signature of the unit set + partyCount so it doesn't re-fire on
+  // unrelated re-renders.
   const unitSignature = roomUnits
     .map((u) => `${u.roomProductId}:${u.unitIndex}:${u.capacity}`)
     .join('|')
@@ -506,18 +526,18 @@ export function AccommodationStep({
     void (async () => {
       if (cancelled) return
       setAssignment((prev) =>
-        autoAssignParticipants(roomUnits, participantCount, prev),
+        autoAssignParty(roomUnits, participantCount, companionCount, prev),
       )
     })()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitSignature, participantCount])
-  // ^ keyed on unitSignature (a stable string) + participantCount rather
-  //   than the roomUnits array identity (which changes every render). The
-  //   setAssignment functional update reads the latest map, so roomUnits/
-  //   participantCount are the only real triggers.
+  }, [unitSignature, participantCount, companionCount])
+  // ^ keyed on unitSignature (a stable string) + participantCount +
+  //   companionCount rather than the roomUnits array identity (which changes
+  //   every render). The setAssignment functional update reads the latest
+  //   map, so these are the only real triggers.
 
   const productName = pickLocalized(product.name, product.name_localized, locale)
   const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
@@ -536,8 +556,10 @@ export function AccommodationStep({
   // room picked so an empty cart doesn't surface a "0 beds for N people"
   // copy on mount. landr-yybu: the bottom aggregate breakfast warning is
   // removed; per-room over/under warnings in AddonsList replace it.
+  // landr-87n9.3: the capacity check now compares against the WHOLE PARTY
+  // (partyCount = participants + companions) since companions occupy beds.
   const showCapacityWarning =
-    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < participantCount
+    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < partyCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
@@ -559,10 +581,62 @@ export function AccommodationStep({
     return false
   }, [mode, totalRoomsPicked, selection, addonsByRoom, addonSelection])
 
+  // landr-87n9.3: OCCUPANCY GATING (package mode). Continue is blocked until
+  // EVERY booked room unit has >= 1 occupant AND every party member
+  // (participant + companion) is assigned to a unit. The pure helper returns
+  // a structured status so the inline hint below can name exactly what's
+  // blocking. Only computed in package mode (the other modes have no units).
+  const occupancy = useMemo(
+    () => occupancyStatus(roomUnits, partyCount, assignment),
+    [roomUnits, partyCount, assignment],
+  )
+
+  // landr-87n9.3: build the unified party-member chip arrays for
+  // RoomAssignment. Index space: participants 0..P-1, companions P..P+C-1.
+  // Names fall back to '' (the chip renders "Guest N"); guestFlags marks the
+  // companion tail so those chips show the muted "guest" badge.
+  const partyMemberNames = useMemo(() => {
+    const participants =
+      participantNames.length > 0
+        ? participantNames.slice(0, participantCount)
+        : Array.from({ length: participantCount }, () => '')
+    return [...participants, ...companionNames]
+  }, [participantNames, participantCount, companionNames])
+  const partyGuestFlags = useMemo(
+    () => [
+      ...Array.from({ length: participantCount }, () => false),
+      ...Array.from({ length: companionCount }, () => true),
+    ],
+    [participantCount, companionCount],
+  )
+
+  // landr-87n9.3: human-readable hint naming exactly what's blocking
+  // Continue. Empty rooms take priority (they need a person); otherwise the
+  // unassigned-people message. Member labels use the chip names ("Guest N"
+  // fallback) so the hint matches what the customer sees.
+  const occupancyHint = useMemo(() => {
+    if (occupancy.complete) return ''
+    if (occupancy.emptyUnits.length > 0) {
+      const labels = occupancy.emptyUnits.map(
+        (u) => `${u.roomName} #${u.unitIndex + 1}`,
+      )
+      const list = labels.join(', ')
+      return occupancy.emptyUnits.length === 1
+        ? `${list} has no guests yet — assign someone or remove the room.`
+        : `These rooms have no guests yet: ${list}. Assign someone to each, or remove the empty rooms.`
+    }
+    const names = occupancy.unassignedMembers.map((i) => {
+      const n = (partyMemberNames[i] ?? '').trim()
+      return n.length > 0 ? n : `Guest ${i + 1}`
+    })
+    return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
+  }, [occupancy, partyMemberNames])
+
   // Continue enablement per mode:
   //   guiding-only → always (no further input needed).
   //   shared-double → a hotel must be chosen (auto when 1; radio when >1).
-  //   package → hotel + ≥1 room + all required add-ons met.
+  //   package → hotel + ≥1 room + all required add-ons met + occupancy
+  //             complete (no empty rooms, everyone assigned — landr-87n9.3).
   const canContinue =
     mode === 'guiding-only'
       ? true
@@ -570,7 +644,8 @@ export function AccommodationStep({
         ? Boolean(selectedHotelId)
         : Boolean(selectedHotelId) &&
           totalRoomsPicked > 0 &&
-          !unmetRequiredAddon
+          !unmetRequiredAddon &&
+          occupancy.complete
 
   // landr-87n9.2: fire the live-lift callback with the latest flattened
   // room + add-on lines so App.tsx can feed the PriceSidebar while the
@@ -959,24 +1034,35 @@ export function AccommodationStep({
           </fieldset>
         ) : null}
 
-        {/* landr-gb2f.2: participant → room assignment. Package mode only,
-            shown once at least one room unit exists. Auto-assign has
-            already seeded the map; the customer can drag/tap/select to
-            adjust. The assignment is purely organisational (non-blocking)
-            — Continue does not gate on everyone being assigned. */}
-        {mode === 'package' && roomUnits.length > 0 && participantCount > 0 ? (
+        {/* landr-gb2f.2 / landr-87n9.3: whole-party → room assignment.
+            Package mode only, shown once at least one room unit exists.
+            Auto-assign has already seeded the map. The chips cover the WHOLE
+            PARTY: guiding participants (0..P-1) then non-guiding companions
+            (P..P+C-1), with companions badged as "guest". Continue is now
+            GATED on occupancy completeness (every room occupied + everyone
+            assigned — see the occupancy hint + canContinue above). */}
+        {mode === 'package' && roomUnits.length > 0 && partyCount > 0 ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
             <legend className="text-sm font-medium">Room assignment</legend>
             <RoomAssignment
               units={roomUnits}
-              participantNames={
-                participantNames.length > 0
-                  ? participantNames.slice(0, participantCount)
-                  : Array.from({ length: participantCount }, () => '')
-              }
+              participantNames={partyMemberNames}
+              guestFlags={partyGuestFlags}
               assignment={assignment}
               onAssign={assignParticipant}
             />
+            {/* landr-87n9.3: inline blocking hint — only shown while
+                occupancy is incomplete so the customer knows exactly what to
+                fix before Continue enables. */}
+            {!occupancy.complete ? (
+              <p
+                role="status"
+                data-testid="occupancy-hint"
+                className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              >
+                {occupancyHint}
+              </p>
+            ) : null}
           </fieldset>
         ) : null}
 
@@ -992,8 +1078,8 @@ export function AccommodationStep({
             data-testid="overbook-capacity-warning"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            You have {participantCount}{' '}
-            {participantCount === 1 ? 'person' : 'people'} but only{' '}
+            You have {partyCount}{' '}
+            {partyCount === 1 ? 'person' : 'people'} but only{' '}
             {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
           </p>
         ) : null}

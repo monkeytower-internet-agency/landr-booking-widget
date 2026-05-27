@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
   autoAssignParticipants,
+  autoAssignParty,
   deriveStayWindow,
   expandRoomUnits,
   findBreakfastAddonIds,
   flattenPerRoomAddons,
   formatCurrency,
   isPremiumIncludesBreakfast,
+  occupancyStatus,
   occupantsOfUnit,
+  partySize,
   pruneAssignments,
   roomSubtotal,
   roomUnitKey,
@@ -617,5 +620,145 @@ describe('occupantsOfUnit (landr-gb2f.2)', () => {
       1: { roomProductId: 'single', unitIndex: 0 }, // different unit
     }
     expect(occupantsOfUnit(assignment, unit)).toEqual([0, 2])
+  })
+})
+
+describe('partySize (landr-87n9.3)', () => {
+  it('sums participants + companions', () => {
+    expect(partySize(6, 6)).toBe(12)
+    expect(partySize(1, 0)).toBe(1)
+    expect(partySize(0, 3)).toBe(3)
+  })
+})
+
+describe('autoAssignParty (landr-87n9.3)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+
+  it('assigns participants first (0..P-1) then companions (P..P+C-1) by capacity', () => {
+    // 1 participant + 1 companion, two single units → participant gets unit
+    // 0, companion gets unit 1 (companion index = P = 1).
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const result = autoAssignParty(units, 1, 1)
+    expect(result).toEqual({
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+    })
+  })
+
+  it('packs a participant + companion into one double (capacity 2)', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const result = autoAssignParty(units, 1, 1)
+    expect(result).toEqual({
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    })
+  })
+
+  it('supports a party LARGER than the 6-participant cap (6 + 6 = 12)', () => {
+    // 6 doubles → 6 units capacity 2 = 12 beds. 6 participants + 6
+    // companions all fit, two per unit (one participant + ... greedy pack).
+    const units = expandRoomUnits([{ productId: 'double', quantity: 6 }], [double])
+    const result = autoAssignParty(units, 6, 6)
+    // every one of the 12 members is assigned.
+    expect(Object.keys(result)).toHaveLength(12)
+    // each unit has exactly 2 occupants.
+    for (let u = 0; u < 6; u += 1) {
+      const occ = occupantsOfUnit(result, {
+        roomProductId: 'double',
+        unitIndex: u,
+        capacity: 2,
+        roomName: 'double',
+      })
+      expect(occ).toHaveLength(2)
+    }
+  })
+
+  it('never clobbers a manual assignment of a companion', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    // companion (index 1) manually pinned to unit 1.
+    const existing: RoomAssignmentMap = {
+      1: { roomProductId: 'single', unitIndex: 1 },
+    }
+    const result = autoAssignParty(units, 1, 1, existing)
+    expect(result).toEqual({
+      1: { roomProductId: 'single', unitIndex: 1 }, // stays put
+      0: { roomProductId: 'single', unitIndex: 0 }, // participant fills the other
+    })
+  })
+
+  it('leaves overflow members unassigned when beds run out', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    // 1 participant + 2 companions, 1 bed → only the participant is placed.
+    const result = autoAssignParty(units, 1, 2)
+    expect(result).toEqual({ 0: { roomProductId: 'single', unitIndex: 0 } })
+  })
+})
+
+describe('occupancyStatus (landr-87n9.3)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+
+  it('is complete when every unit has an occupant AND everyone is assigned', () => {
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment = autoAssignParty(units, 2, 0)
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+    expect(status.emptyUnits).toEqual([])
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('flags a truly UNOCCUPIED booked room (empty room blocks)', () => {
+    // 2 single units but only 1 person → unit 1 is empty.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 1, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toHaveLength(1)
+    expect(status.emptyUnits[0]!.unitIndex).toBe(1)
+    // the one person IS assigned, so no unassigned members.
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('flags an unassigned person (someone with no room blocks)', () => {
+    // 1 double (capacity 2) occupied by 1 person; a 2nd person unassigned.
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toEqual([]) // the room HAS an occupant
+    expect(status.unassignedMembers).toEqual([1])
+  })
+
+  it('the "room booked for a companion" case is valid once she is assigned', () => {
+    // 1 participant in a single, 1 companion in a second single booked "for
+    // her". Both units occupied, both members assigned → complete.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 2 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 }, // participant
+      1: { roomProductId: 'single', unitIndex: 1 }, // companion (index P=1)
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+  })
+
+  it('treats an assignment to a no-longer-existing unit as unassigned', () => {
+    // room qty dropped from 2→1; member 1 still references the gone unit 1.
+    const units = expandRoomUnits([{ productId: 'single', quantity: 1 }], [single])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 }, // gone
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.unassignedMembers).toEqual([1])
+  })
+
+  it('is complete (vacuously) when there are no units and no members', () => {
+    expect(occupancyStatus([], 0, {}).complete).toBe(true)
   })
 })
