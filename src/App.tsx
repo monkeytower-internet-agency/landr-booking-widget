@@ -4,7 +4,10 @@ import {
   AccommodationStep,
   type AccommodationMode,
 } from '@/components/booking/AccommodationStep'
-import type { RoomSelection } from '@/components/booking/accommodationCalc'
+import type {
+  RoomAssignmentMap,
+  RoomSelection,
+} from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
 import {
@@ -344,6 +347,8 @@ function BookingFlowApp() {
     isSharedDouble: boolean | undefined = undefined,
     // landr-ffyg.2: top-level accommodation mode for back-nav restoration.
     accommodationMode: AccommodationMode | undefined = undefined,
+    // landr-gb2f.2: participant → room assignment for the submit payload.
+    roomAssignment: RoomAssignmentMap | undefined = undefined,
   ) => {
     const next = stepAfterAccommodation(
       product,
@@ -359,6 +364,8 @@ function BookingFlowApp() {
       isSharedDouble,
       // landr-ffyg.2: accommodation mode threads through for back-nav.
       accommodationMode,
+      // landr-gb2f.2: participant → room assignment threads through.
+      roomAssignment,
     )
     // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
     // the operator requires declarations, convert to the declarations step
@@ -570,6 +577,9 @@ function BookingFlowApp() {
             selectedDays={selectionToDays(step.selection)}
             operatorToken={token!}
             participantCount={step.participants.length}
+            // landr-gb2f.2: participant first names drive the draggable
+            // assignment chips. We pass first names (trimmed) per index.
+            participantNames={step.participants.map((p) => p.first_name)}
             // landr-yf0n: thread prior accommodation context back so the
             // step re-mounts with hotel + rooms + add-ons restored
             // instead of empty steppers. Each field is independently
@@ -580,6 +590,8 @@ function BookingFlowApp() {
             initialAddons={step.addons}
             initialIncludeHotel={step.includeHotel}
             initialMode={step.accommodationMode}
+            // landr-gb2f.2: restore the participant → room assignment.
+            initialAssignment={step.roomAssignment}
             onBack={() =>
               // landr-b3g5: thread the already-collected booker +
               // participants back to DetailsStep so the form re-mounts
@@ -592,7 +604,7 @@ function BookingFlowApp() {
                 participants: step.participants,
               })
             }
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -613,6 +625,8 @@ function BookingFlowApp() {
                 // flag is set; guiding-only when no hotel context; package
                 // otherwise (hotel + rooms).
                 deriveAccommodationMode(hotelLocationId, isSharedDouble),
+                // landr-gb2f.2: thread the assignment to the submit step.
+                roomAssignment,
               )
             }
           />
@@ -679,6 +693,7 @@ function BookingFlowApp() {
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
                 })
               } else if (step.hadServiceAddons) {
                 // landr-yf0n: the customer originally went through
@@ -724,6 +739,7 @@ function BookingFlowApp() {
                 includeHotel: step.includeHotel,
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
+                roomAssignment: step.roomAssignment,
               }
               setStep(
                 fillFormOrDeclarations(
@@ -765,6 +781,7 @@ function BookingFlowApp() {
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
                 })
               } else {
                 const offering = step.product.hotel_offering ?? 'none'
@@ -784,6 +801,7 @@ function BookingFlowApp() {
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
                   })
                 } else if (step.hadServiceAddons) {
                   setStep({
@@ -820,6 +838,7 @@ function BookingFlowApp() {
                 includeHotel: step.includeHotel,
                 isSharedDouble: step.isSharedDouble,
                 accommodationMode: step.accommodationMode,
+                roomAssignment: step.roomAssignment,
                 customerDeclarations: customerDeclarations.declarations,
                 customerLanguage: customerDeclarations.language,
               })
@@ -844,6 +863,10 @@ function BookingFlowApp() {
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
             isSharedDouble={step.isSharedDouble}
+            // landr-gb2f.2: thread the participant → room assignment so
+            // BookingForm attaches room_product_id + room_unit_index per
+            // participant on submit.
+            roomAssignment={step.roomAssignment}
             onBack={() => {
               // landr-sbhz.3: if declarations were collected, back
               // from fill-form goes to the declarations step (not all
@@ -866,6 +889,7 @@ function BookingFlowApp() {
                   // fill-form → declarations back hop.
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
                   initialDeclarations: step.customerDeclarations
                     ? {
                         declarations: step.customerDeclarations,
@@ -896,6 +920,7 @@ function BookingFlowApp() {
                   includeHotel: step.includeHotel,
                   isSharedDouble: step.isSharedDouble,
                   accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
                 })
               } else {
                 const offering = step.product.hotel_offering ?? 'none'
@@ -914,6 +939,7 @@ function BookingFlowApp() {
                     includeHotel: step.includeHotel,
                     isSharedDouble: step.isSharedDouble,
                     accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
                   })
                 } else if (step.hadServiceAddons) {
                   // landr-yf0n: the customer originally went through

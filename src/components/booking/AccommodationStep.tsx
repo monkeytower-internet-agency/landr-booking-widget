@@ -15,15 +15,21 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import {
+  autoAssignParticipants,
   deriveStayWindow,
+  expandRoomUnits,
   flattenPerRoomAddons,
   formatCurrency,
   isPremiumIncludesBreakfast,
+  pruneAssignments,
   roomSubtotal,
   totalRoomCapacity,
+  type RoomAssignmentMap,
   type RoomSelection,
+  type RoomUnit,
 } from './accommodationCalc'
 import { AddonsList } from './AddonsList'
+import { RoomAssignment } from './RoomAssignment'
 import {
   requiredAddonError,
   type AddonSelection,
@@ -65,6 +71,14 @@ interface Props {
    */
   participantCount?: number
   /**
+   * landr-gb2f.2: participant display names (first names), indexed by
+   * participant index, threaded from DetailsStep. Drives the draggable
+   * NAME chips in the room-assignment UI (package mode). Defaults to an
+   * empty array — when empty the assignment UI falls back to "Guest N"
+   * labels so the chips still render for legacy call sites.
+   */
+  participantNames?: string[]
+  /**
    * Called when the customer confirms a room selection. rooms can be
    * empty when the customer opts out of an `optional` accommodation
    * (guiding-only mode) or chose the shared-double bypass.
@@ -89,6 +103,11 @@ interface Props {
     addons: AddonSelection[],
     includeHotel?: boolean,
     isSharedDouble?: boolean,
+    // landr-gb2f.2: participant → room assignment map (participantIndex →
+    // {roomProductId, unitIndex}). Empty in guiding-only / shared-double
+    // modes (no room units). Threaded into BookingForm so each participant
+    // carries its assigned room_product_id + room_unit_index on submit.
+    roomAssignment?: RoomAssignmentMap,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -118,6 +137,13 @@ interface Props {
   initialIncludeHotel?: boolean
   /** landr-ffyg.2: restore the chosen accommodation mode on back-nav re-entry. */
   initialMode?: AccommodationMode
+  /**
+   * landr-gb2f.2: restore the participant → room assignment on back-nav
+   * re-entry so the chips/units re-render with the customer's prior layout
+   * instead of re-running a fresh auto-assign. undefined → seed via
+   * auto-assign once rooms resolve.
+   */
+  initialAssignment?: RoomAssignmentMap
 }
 
 /**
@@ -157,6 +183,7 @@ export function AccommodationStep({
   selectedDays,
   operatorToken,
   participantCount = 1,
+  participantNames = [],
   onConfirm,
   onBack,
   initialHotelLocationId,
@@ -164,6 +191,7 @@ export function AccommodationStep({
   initialAddons,
   initialIncludeHotel,
   initialMode,
+  initialAssignment,
 }: Props) {
   const locale = browserLocale()
   const offering = product.hotel_offering ?? 'none'
@@ -224,6 +252,15 @@ export function AccommodationStep({
   const [addonSelection, setAddonSelection] = useState<
     Record<string, Record<string, number>>
   >({})
+
+  // landr-gb2f.2: participant → room assignment. participantIndex →
+  // {roomProductId, unitIndex}. Seeded from initialAssignment on back-nav
+  // re-entry; otherwise auto-assigned by the effect below once rooms +
+  // selection resolve. The map is the source of truth for the chips/units
+  // and is what flows out through onConfirm.
+  const [assignment, setAssignment] = useState<RoomAssignmentMap>(
+    () => initialAssignment ?? {},
+  )
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
   // both 'package' (rooms) and 'shared-double' (hotel-only pickup); only
@@ -378,6 +415,9 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    // landr-gb2f.2: a new hotel means a new room list — drop the prior
+    // participant→room assignment so it doesn't reference stale units.
+    setAssignment({})
   }
 
   // landr-ffyg.2: switching mode resets the room/add-on context so a stale
@@ -392,6 +432,9 @@ export function AccommodationStep({
     setSelection({})
     setAddonsByRoom({})
     setAddonSelection({})
+    // landr-gb2f.2: only package mode has room units — clear the assignment
+    // when switching modes so a stale package-mode layout doesn't bleed in.
+    setAssignment({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
@@ -410,6 +453,44 @@ export function AccommodationStep({
         .map(([productId, quantity]) => ({ productId, quantity })),
     [selection],
   )
+
+  // landr-gb2f.2: expand picked rooms into per-unit slots (a qty=2 double
+  // → 2 units). Only meaningful in package mode; empty elsewhere. Depends
+  // on the resolved room catalogue for capacity_per_unit + display names,
+  // so it's empty until `rooms` loads.
+  const roomUnits: RoomUnit[] = useMemo(
+    () => (mode === 'package' ? expandRoomUnits(roomSelections, rooms ?? []) : []),
+    [mode, roomSelections, rooms],
+  )
+
+  // landr-gb2f.2: re-run auto-assign whenever the set of units changes
+  // (room added/removed/qty bumped). The pure helper never clobbers an
+  // existing manual assignment and prunes references to units that no
+  // longer exist; participants without a slot are left unassigned (a
+  // leftover chip). The IIFE-in-effect pattern keeps the
+  // react-hooks/set-state-in-effect lint rule happy (no synchronous
+  // setState in the effect body). Keyed on a stable signature of the unit
+  // set so it doesn't re-fire on unrelated re-renders.
+  const unitSignature = roomUnits
+    .map((u) => `${u.roomProductId}:${u.unitIndex}:${u.capacity}`)
+    .join('|')
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      setAssignment((prev) =>
+        autoAssignParticipants(roomUnits, participantCount, prev),
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitSignature, participantCount])
+  // ^ keyed on unitSignature (a stable string) + participantCount rather
+  //   than the roomUnits array identity (which changes every render). The
+  //   setAssignment functional update reads the latest map, so roomUnits/
+  //   participantCount are the only real triggers.
 
   const productName = pickLocalized(product.name, product.name_localized, locale)
   const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
@@ -473,11 +554,43 @@ export function AccommodationStep({
     })
   }
 
+  // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
+  // unassigns. We honour the unit capacity here so a manual drop onto a
+  // full unit is a no-op (the chip stays put) — the only place capacity is
+  // enforced as a hard cap; auto-assign already respects it. Assigning a
+  // participant who was elsewhere moves them (single-unit membership).
+  function assignParticipant(participantIndex: number, target: RoomUnit | null) {
+    setAssignment((prev) => {
+      const next = { ...prev }
+      if (target === null) {
+        delete next[participantIndex]
+        return next
+      }
+      // Count current occupants of the target unit, excluding the mover.
+      let occupants = 0
+      for (const [pid, entry] of Object.entries(next)) {
+        if (Number(pid) === participantIndex) continue
+        if (
+          entry.roomProductId === target.roomProductId &&
+          entry.unitIndex === target.unitIndex
+        ) {
+          occupants += 1
+        }
+      }
+      if (occupants >= target.capacity) return prev // full — reject the drop
+      next[participantIndex] = {
+        roomProductId: target.roomProductId,
+        unitIndex: target.unitIndex,
+      }
+      return next
+    })
+  }
+
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false)
+      onConfirm([], null, [], false, false, {})
       return
     }
     if (!selectedHotelId) return
@@ -494,6 +607,7 @@ export function AccommodationStep({
         [],
         offering === 'optional' ? true : undefined,
         true,
+        {},
       )
       return
     }
@@ -504,12 +618,17 @@ export function AccommodationStep({
     // cart and only for add-ons in those rooms' catalogues (guards against
     // carry-over from a dropped room). flattenPerRoomAddons handles this.
     const addonLines = flattenPerRoomAddons(addonSelection, selection, addonsByRoom)
+    // landr-gb2f.2: prune the assignment to the units actually present at
+    // confirm time (guards against a dangling reference if a room was just
+    // dropped between the last auto-assign and Continue).
+    const finalAssignment = pruneAssignments(assignment, roomUnits)
     onConfirm(
       roomSelections,
       selectedHotelId,
       addonLines,
       offering === 'optional' ? true : undefined,
       false,
+      finalAssignment,
     )
   }
 
@@ -769,6 +888,27 @@ export function AccommodationStep({
                 </div>
               )
             })}
+          </fieldset>
+        ) : null}
+
+        {/* landr-gb2f.2: participant → room assignment. Package mode only,
+            shown once at least one room unit exists. Auto-assign has
+            already seeded the map; the customer can drag/tap/select to
+            adjust. The assignment is purely organisational (non-blocking)
+            — Continue does not gate on everyone being assigned. */}
+        {mode === 'package' && roomUnits.length > 0 && participantCount > 0 ? (
+          <fieldset className="flex flex-col gap-3 border-t pt-3">
+            <legend className="text-sm font-medium">Room assignment</legend>
+            <RoomAssignment
+              units={roomUnits}
+              participantNames={
+                participantNames.length > 0
+                  ? participantNames.slice(0, participantCount)
+                  : Array.from({ length: participantCount }, () => '')
+              }
+              assignment={assignment}
+              onAssign={assignParticipant}
+            />
           </fieldset>
         ) : null}
 

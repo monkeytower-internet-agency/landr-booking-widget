@@ -248,6 +248,164 @@ export function flattenPerRoomAddons(
 }
 
 /**
+ * landr-gb2f.2: participant → room assignment helpers.
+ *
+ * A picked room with qty>1 is expanded into per-UNIT slots — a qty=2
+ * double room becomes 2 separately-assignable units. Each unit sleeps
+ * `capacity` people (the room's capacity_per_unit, lenient default 1).
+ *
+ * RoomUnit identifies a single physical unit by (roomProductId, unitIndex)
+ * where unitIndex is 0-based WITHIN that room product. This pair is exactly
+ * the wire contract the submit payload carries per participant
+ * (room_product_id + room_unit_index), so the assignment map round-trips
+ * 1:1 to the API without translation.
+ */
+export interface RoomUnit {
+  /** The hotel_room product this unit belongs to. */
+  roomProductId: string
+  /** 0-based index of this unit within its room product (0..qty-1). */
+  unitIndex: number
+  /** How many people the unit sleeps (capacity_per_unit, default 1). */
+  capacity: number
+  /** Display name of the room product (for the drop-zone label). */
+  roomName: string
+}
+
+/**
+ * A participant's room assignment, keyed by the participant's index in the
+ * `participants` array. Absent key (or null entry) → unassigned. The pair
+ * mirrors the wire contract fields (room_product_id + room_unit_index).
+ */
+export interface RoomAssignmentEntry {
+  roomProductId: string
+  unitIndex: number
+}
+export type RoomAssignmentMap = Record<number, RoomAssignmentEntry>
+
+/** Stable string key for a unit — handy for React keys + drop-zone ids. */
+export function roomUnitKey(roomProductId: string, unitIndex: number): string {
+  return `${roomProductId}::${unitIndex}`
+}
+
+/**
+ * Expand the picked rooms into per-unit slots. For each RoomSelection we
+ * emit `quantity` units (unitIndex 0..quantity-1), each carrying the room's
+ * capacity_per_unit (NULL → 1, the lenient default used elsewhere in this
+ * file). Rooms whose product_id isn't found in `products` are skipped (the
+ * catalogue may still be loading); rooms with qty<=0 emit nothing.
+ *
+ * Output order is stable: rooms in the order they appear in `rooms`, units
+ * ascending by unitIndex. Auto-assign fills units in exactly this order.
+ */
+export function expandRoomUnits(
+  rooms: RoomSelection[],
+  products: Product[],
+): RoomUnit[] {
+  const byId = new Map(products.map((p) => [p.product_id, p]))
+  const units: RoomUnit[] = []
+  for (const room of rooms) {
+    const product = byId.get(room.productId)
+    if (!product) continue
+    const capacity = product.capacity_per_unit ?? 1
+    const roomName = product.name
+    for (let unitIndex = 0; unitIndex < room.quantity; unitIndex += 1) {
+      units.push({ roomProductId: room.productId, unitIndex, capacity, roomName })
+    }
+  }
+  return units
+}
+
+/**
+ * Drop any assignment that no longer maps onto an existing unit. Called
+ * before auto-assign when room quantities change so that, e.g., dropping a
+ * room qty from 2→1 evicts the participant who was on unitIndex 1 (now gone)
+ * instead of stranding a dangling reference. Returns a NEW map (pure).
+ */
+export function pruneAssignments(
+  assignment: RoomAssignmentMap,
+  units: RoomUnit[],
+): RoomAssignmentMap {
+  const valid = new Set(units.map((u) => roomUnitKey(u.roomProductId, u.unitIndex)))
+  const out: RoomAssignmentMap = {}
+  for (const [pid, entry] of Object.entries(assignment)) {
+    if (valid.has(roomUnitKey(entry.roomProductId, entry.unitIndex))) {
+      out[Number(pid)] = entry
+    }
+  }
+  return out
+}
+
+/** Count how many participants are currently assigned to a given unit. */
+export function occupantsOfUnit(
+  assignment: RoomAssignmentMap,
+  unit: RoomUnit,
+): number[] {
+  const out: number[] = []
+  for (const [pid, entry] of Object.entries(assignment)) {
+    if (
+      entry.roomProductId === unit.roomProductId &&
+      entry.unitIndex === unit.unitIndex
+    ) {
+      out.push(Number(pid))
+    }
+  }
+  return out.sort((a, b) => a - b)
+}
+
+/**
+ * Auto-assign unassigned participants to units by capacity, filling units in
+ * order up to each unit's capacity. NEVER clobbers an explicit assignment
+ * already present in `existing` — those participants keep their unit and the
+ * capacity they occupy is respected. Re-runnable: pass the current map after
+ * a room-qty change and it tops up the still-unassigned participants without
+ * disturbing the assigned ones.
+ *
+ * `participantCount` is the number of people (participants array length).
+ * Participants are referenced by their 0-based index. Any participant index
+ * that can't fit (units full) is simply left unassigned — the UI then shows
+ * them as a leftover chip; this is non-blocking by design.
+ *
+ * Returns a NEW map (pure). The input `existing` is first pruned to the
+ * given units so stale references don't consume capacity.
+ */
+export function autoAssignParticipants(
+  units: RoomUnit[],
+  participantCount: number,
+  existing: RoomAssignmentMap = {},
+): RoomAssignmentMap {
+  const next = pruneAssignments(existing, units)
+  // Remaining capacity per unit after honouring existing assignments.
+  const remaining = new Map<string, number>()
+  for (const unit of units) {
+    remaining.set(roomUnitKey(unit.roomProductId, unit.unitIndex), unit.capacity)
+  }
+  const assignedParticipants = new Set<number>()
+  for (const [pid, entry] of Object.entries(next)) {
+    assignedParticipants.add(Number(pid))
+    const key = roomUnitKey(entry.roomProductId, entry.unitIndex)
+    remaining.set(key, (remaining.get(key) ?? 0) - 1)
+  }
+  // Walk participants in index order; place each unassigned one into the
+  // first unit (in expansion order) that still has remaining capacity.
+  let unitCursor = 0
+  for (let pIdx = 0; pIdx < participantCount; pIdx += 1) {
+    if (assignedParticipants.has(pIdx)) continue
+    while (unitCursor < units.length) {
+      const unit = units[unitCursor]!
+      const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
+      if ((remaining.get(key) ?? 0) > 0) {
+        next[pIdx] = { roomProductId: unit.roomProductId, unitIndex: unit.unitIndex }
+        remaining.set(key, (remaining.get(key) ?? 0) - 1)
+        break
+      }
+      unitCursor += 1
+    }
+    if (unitCursor >= units.length) break // units exhausted — leave the rest unassigned
+  }
+  return next
+}
+
+/**
  * Returns true when a hotel_room product is a "premium-includes-breakfast"
  * variant — i.e. the room price already bundles breakfast (landr-sbhz.4).
  *

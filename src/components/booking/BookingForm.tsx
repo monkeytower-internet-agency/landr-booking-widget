@@ -10,6 +10,7 @@ import type {
 import {
   deriveStayWindow,
   stayNightIsos,
+  type RoomAssignmentMap,
   type RoomSelection,
 } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
@@ -83,6 +84,16 @@ interface Props {
    * pickupLocationId is the shared hotel. Defaults false.
    */
   isSharedDouble?: boolean
+  /**
+   * landr-gb2f.2: participant → room assignment map (participantIndex →
+   * {roomProductId, unitIndex}), captured by AccommodationStep in package
+   * mode. Each assigned participant gets room_product_id + room_unit_index
+   * attached to its participants[] entry on submit; unassigned participants
+   * (and all participants in guiding-only / shared-double modes) send
+   * null/omit. Defaults to empty — the products[] line items are NOT
+   * affected by this assignment (PINNED wire contract, landr-gb2f.3/.4).
+   */
+  roomAssignment?: RoomAssignmentMap
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -183,6 +194,7 @@ export function BookingForm({
   customerDeclarations,
   customerLanguage,
   isSharedDouble = false,
+  roomAssignment,
   onBack,
   onConfirmed,
 }: Props) {
@@ -249,24 +261,35 @@ export function BookingForm({
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: productLines,
-        participants: participants.map((p) => ({
-          first_name: p.first_name,
-          last_name: p.last_name || null,
-          email: p.email || null,
-          // landr-zaan: per-participant phone now round-trips to
-          // contacts.phone server-side (no longer dropped). Normalised to
-          // null when the field is blank so the RPC's COALESCE-update
-          // never overwrites an existing phone with an empty string.
-          phone: p.phone || null,
-          // landr-mg0a: pick the participant's chosen role (set by
-          // DetailsStep). Falls back to the legacy hardcoded 'participant'
-          // code in the rare race where DetailsStep submitted before the
-          // App-mount service-roles fetch resolved — every operator now
-          // has a 'participant' row seeded by the AFTER INSERT trigger,
-          // so the fallback path stays valid for fresh tenants too.
-          service_role_code: p.service_role_code || 'participant',
-          pickup_location_id: pickupLocationId ?? null,
-        })),
+        participants: participants.map((p, idx) => {
+          // landr-gb2f.2: attach the participant's assigned hotel_room unit
+          // (room_product_id + room_unit_index, PINNED wire contract). The
+          // assignment map is keyed by participant index. Unassigned (and
+          // every participant in guiding-only / shared-double modes, where
+          // the map is empty) sends both fields as null. products[] line
+          // items are NOT affected.
+          const assigned = roomAssignment?.[idx]
+          return {
+            first_name: p.first_name,
+            last_name: p.last_name || null,
+            email: p.email || null,
+            // landr-zaan: per-participant phone now round-trips to
+            // contacts.phone server-side (no longer dropped). Normalised to
+            // null when the field is blank so the RPC's COALESCE-update
+            // never overwrites an existing phone with an empty string.
+            phone: p.phone || null,
+            // landr-mg0a: pick the participant's chosen role (set by
+            // DetailsStep). Falls back to the legacy hardcoded 'participant'
+            // code in the rare race where DetailsStep submitted before the
+            // App-mount service-roles fetch resolved — every operator now
+            // has a 'participant' row seeded by the AFTER INSERT trigger,
+            // so the fallback path stays valid for fresh tenants too.
+            service_role_code: p.service_role_code || 'participant',
+            pickup_location_id: pickupLocationId ?? null,
+            room_product_id: assigned ? assigned.roomProductId : null,
+            room_unit_index: assigned ? assigned.unitIndex : null,
+          }
+        }),
         // landr-sbhz.3: thread declarations + language through to the
         // submit payload. Only included when they were collected upstream
         // by DeclarationsStep (non-null). Omitted for operators that have
