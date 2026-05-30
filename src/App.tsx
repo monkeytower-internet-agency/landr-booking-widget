@@ -56,6 +56,7 @@ import {
 } from './appStepMachine'
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
+import { TierBadge } from '@/components/TierBadge'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -131,14 +132,24 @@ function App() {
   )
   if (route.kind === 'cancel') {
     return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-          <CancelPage bookingId={route.bookingId} />
+      <>
+        {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
+        <TierBadge />
+        <div className="min-h-screen bg-background text-foreground">
+          <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <CancelPage bookingId={route.bookingId} />
+          </div>
         </div>
-      </div>
+      </>
     )
   }
-  return <BookingFlowApp />
+  return (
+    <>
+      {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
+      <TierBadge />
+      <BookingFlowApp />
+    </>
+  )
 }
 
 function BookingFlowApp() {

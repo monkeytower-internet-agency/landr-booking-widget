@@ -43,18 +43,21 @@ jobs:
             echo "production_branch=main"                                                >> "$GITHUB_OUTPUT"
             echo "supabase_url=${SUPABASE_URL_PROD:-https://supabase.landr.de}"          >> "$GITHUB_OUTPUT"
             echo "supabase_anon=${SUPABASE_ANON_PROD}"                                   >> "$GITHUB_OUTPUT"
+            echo "deploy_tier=prod"                                                       >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
             echo "project=landr-booking-widget-staging"                                  >> "$GITHUB_OUTPUT"
             echo "api_base=https://landr-api-staging-693721943357.europe-west3.run.app"  >> "$GITHUB_OUTPUT"
             echo "production_branch=staging"                                             >> "$GITHUB_OUTPUT"
             echo "supabase_url=${SUPABASE_URL_STAGING:-https://kong.staging.landr.de}"   >> "$GITHUB_OUTPUT"
             echo "supabase_anon=${SUPABASE_ANON_STAGING}"                                >> "$GITHUB_OUTPUT"
+            echo "deploy_tier=staging"                                                    >> "$GITHUB_OUTPUT"
           else
             echo "project=landr-booking-widget-dev"                                      >> "$GITHUB_OUTPUT"
             echo "api_base=https://api-dev.landr.de"                                     >> "$GITHUB_OUTPUT"
             echo "production_branch=dev"                                                  >> "$GITHUB_OUTPUT"
             echo "supabase_url=https://kong.dev.landr.de"                                >> "$GITHUB_OUTPUT"
             echo "supabase_anon=${SUPABASE_ANON_DEV}"                                    >> "$GITHUB_OUTPUT"
+            echo "deploy_tier=dev"                                                        >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build
@@ -64,6 +67,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ steps.env.outputs.supabase_anon }}
           VITE_DEFAULT_OPERATOR_SLUG: ${{ vars.VITE_DEFAULT_OPERATOR_SLUG || 'para42' }}
           VITE_USE_MOCKS: '0'
+          # landr-7dya.20: inject deploy tier so TierBadge renders in dev/staging iframes
+          VITE_DEPLOY_TIER: ${{ steps.env.outputs.deploy_tier }}
         run: npm run build
 
       - name: Ensure Cloudflare Pages project exists (idempotent)
