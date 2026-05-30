@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { SingleDatePicker } from './SingleDatePicker'
@@ -84,6 +84,17 @@ function makeAvailability(dates: Date[]): AvailabilitySlot[] {
 describe('SingleDatePicker (landr-y9k)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Freeze "today" to a stable mid-month date so `tomorrow = today+1` and
+    // `twoDaysOut = today+2` stay inside the same calendar month — the picker
+    // only renders the current month by default, so without this the tests
+    // fail with "No day button for <next-month-date>" whenever the system
+    // clock advances past ~the 28th. Only Date is faked; setTimeout etc. stay
+    // real so React's waitFor + animations behave normally.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders the calendar and the Continue button starts disabled', async () => {
