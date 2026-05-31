@@ -30,10 +30,12 @@ npm run preview            # serve dist/
 
 ## Embedding
 
-The widget is loaded by Para42's WordPress site via the shortcode `[landr_booking operator="para42"]` (plugin lives in `wp-plugin/`). Query params understood by the widget:
+The widget is loaded by Para42's WordPress site via the shortcode `[landr_booking token="<widget_token>"]` (plugin lives in `wp-plugin/`). The token is the opaque, rotatable per-operator widget token (landr-il9f) issued from **Dashboard → Embed generator**; the API resolves the operator server-side so the slug never appears in the URL. Query params understood by the widget:
 
-- `operator` — operator slug (defaults to `VITE_DEFAULT_OPERATOR_SLUG`)
-- `product` — optional pre-selected product slug
+- `w` — opaque widget token (required; no token → generic landing page)
+- `group` — optional product-category slug; scopes the embed to that category and all its sub-categories
+- `product` — optional pre-selected product slug (wins over `group` when both are present)
+- `preview_token` — optional operator preview token; surfaces draft products during operator preview
 
 ## Repo layout
 
