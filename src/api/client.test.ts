@@ -87,7 +87,7 @@ describe('preview mode (landr-7zc5.3)', () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', reference: 'R-1', state: 'pending' }), { status: 200 }),
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }),
     )
     const baseBody: SubmitBookingBody = {
       widget_token: 'tok-abc',
@@ -106,7 +106,7 @@ describe('preview mode (landr-7zc5.3)', () => {
     vi.stubEnv('VITE_USE_MOCKS', '0')
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ booking_id: 'b-1', reference: 'R-1', state: 'pending' }), { status: 200 }),
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), { status: 200 }),
     )
     const baseBody: SubmitBookingBody = {
       widget_token: 'tok-abc',

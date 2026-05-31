@@ -13,8 +13,7 @@ import type { SubmitBookingResponse } from '@/api/types'
 function baseResponse(overrides: Partial<SubmitBookingResponse> = {}): SubmitBookingResponse {
   return {
     booking_id: '00000000-0000-0000-0000-0000000000bb',
-    reference: 'BK-0001',
-    state: 'awaiting_general_approval',
+    semantic_state: 'pending',
     ...overrides,
   }
 }

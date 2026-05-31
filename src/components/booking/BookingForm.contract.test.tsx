@@ -110,8 +110,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
       new Response(
         JSON.stringify({
           booking_id: 'b-1',
-          reference: 'REF-1',
-          state: 'pending',
+          semantic_state: 'pending',
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
       ),

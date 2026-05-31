@@ -347,9 +347,14 @@ export const mockProductAddons = (productId: string): ProductAddon[] => {
 }
 
 export const mockSubmit = (): SubmitBookingResponse => ({
+  // Mirror the real public_submit_booking jsonb response so dev/storybook
+  // mode renders the same fields the live API returns (no `reference`,
+  // and `semantic_state` rather than `state`).
   booking_id: '00000000-0000-0000-0000-0000000000bb',
-  reference: 'P42-MOCK-0001',
-  state: 'pending',
+  semantic_state: 'pending',
+  stage_code: 'awaiting_payment',
+  next_steps: 'Awaiting operator approval',
+  approval_outcome: 'auto_approved',
   // landr-3vr5: mock the per-booking iCal URL so storybook/dev mode
   // exercises the "Add to calendar" anchor branch in Confirmation.tsx.
   ical_url:
