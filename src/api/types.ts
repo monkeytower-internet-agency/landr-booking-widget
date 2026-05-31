@@ -424,8 +424,19 @@ export interface SubmitBookingBody {
 
 export interface SubmitBookingResponse {
   booking_id: string
-  reference: string
-  state: string
+  /**
+   * Booking lifecycle state, e.g. 'pending'. This is the API's
+   * `semantic_state` field — the previous `state` name never existed on
+   * the wire (only the mock supplied it), so the success page rendered a
+   * blank. Mirrors public_submit_booking's jsonb response.
+   */
+  semantic_state: string
+  /** Pipeline stage code, e.g. 'awaiting_payment'. */
+  stage_code?: string
+  /** Human-readable next-steps hint, e.g. 'Awaiting operator approval'. */
+  next_steps?: string
+  /** Approval-engine outcome, e.g. 'auto_approved'. */
+  approval_outcome?: string
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
