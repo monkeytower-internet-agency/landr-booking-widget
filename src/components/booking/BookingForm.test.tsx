@@ -245,8 +245,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({
       booking_id: 'b-1',
-      reference: 'REF-1',
-      state: 'pending',
+      semantic_state: 'pending',
     })
     const onConfirmed = vi.fn()
 
@@ -310,7 +309,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     ])
     await waitFor(() =>
       expect(onConfirmed).toHaveBeenCalledWith(
-        expect.objectContaining({ reference: 'REF-1' }),
+        expect.objectContaining({ booking_id: 'b-1', semantic_state: 'pending' }),
         'ada@example.com',
       ),
     )
@@ -320,8 +319,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({
       booking_id: 'b-2',
-      reference: 'REF-2',
-      state: 'pending',
+      semantic_state: 'pending',
     })
     render(
       <BookingForm
@@ -357,8 +355,7 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({
       booking_id: 'b-zaan',
-      reference: 'REF-ZAAN',
-      state: 'pending',
+      semantic_state: 'pending',
     })
     render(
       <BookingForm

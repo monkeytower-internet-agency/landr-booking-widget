@@ -19,17 +19,14 @@ export function Confirmation({ response, onRestart }: Props) {
       <CardHeader>
         <CardTitle>Booking received</CardTitle>
         <CardDescription>
-          Reference <span className="font-mono">{response.reference}</span>
+          Reference <span className="font-mono">{response.booking_id}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm">
           You will receive a confirmation email shortly with the next steps. The booking
-          is currently <span className="font-medium">{response.state}</span> while the
+          is currently <span className="font-medium">{response.semantic_state}</span> while the
           operator confirms capacity.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Booking ID <span className="font-mono">{response.booking_id}</span>
         </p>
         {/*
           landr-3vr5: customer-facing "Add to calendar" link backed by the
