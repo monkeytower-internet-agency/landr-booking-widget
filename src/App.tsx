@@ -197,6 +197,12 @@ function BookingFlowApp() {
     logo_url: null,
     primary_color: null,
     name: null,
+    // landr-nils — embed copy null until the fetch resolves.
+    widget_headline: null,
+    widget_description: null,
+    widget_footer: null,
+    // landr-atwy — account-link prompt off until the operator opts in.
+    offer_account_link: false,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -481,32 +487,47 @@ function BookingFlowApp() {
       <div className="mx-auto flex max-w-5xl flex-col md:flex-row md:items-start gap-6 p-6">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
         {/*
-          landr-yp8x — operator brand header. We deliberately keep this
-          tight (logo + name, no <h1>) because the widget is embedded
-          inside the operator's own page and they own the surrounding
-          HTML including any <h1>. The header gives the customer a
-          visual anchor inside the embed (especially when the iframe
-          host page is busy) without competing with the operator's
-          page title. Falls back to a text-only header when no logo is
-          uploaded; renders nothing at all when both logo and name are
-          unset (defensive — public_get_operator_settings always
-          projects `name`).
+          landr-yp8x / landr-nils — operator brand + intro header. The
+          widget is embedded inside the operator's own page, so they own
+          this copy. Three independent, optional parts, top to bottom:
+            • logo (if uploaded) — NO operator-name fallback: when the
+              logo is removed the header shows nothing in its place
+              (landr-nils; the old `name` text fallback was dropped).
+            • headline (operator-written, e.g. "Book with us")
+            • description (operator-written; may carry legal/intro copy)
+          `name` is kept only as the logo's alt text. The whole block
+          renders only when at least one part is present. Plain text with
+          line breaks preserved — never HTML (XSS-safe inside the embed).
         */}
-        {(operatorSettings.logo_url || operatorSettings.name) ? (
-          <div className="flex items-center gap-3">
+        {(operatorSettings.logo_url ||
+          operatorSettings.widget_headline ||
+          operatorSettings.widget_description) ? (
+          <header className="flex flex-col gap-2">
             {operatorSettings.logo_url ? (
               <img
                 src={operatorSettings.logo_url}
                 alt={operatorSettings.name ?? operatorSettings.slug}
                 className="h-10 w-auto max-w-[160px] object-contain"
+                data-testid="widget-logo"
               />
             ) : null}
-            {operatorSettings.name && !operatorSettings.logo_url ? (
-              <span className="text-lg font-semibold">
-                {operatorSettings.name}
-              </span>
+            {operatorSettings.widget_headline ? (
+              <h1
+                className="text-xl font-semibold"
+                data-testid="widget-headline"
+              >
+                {operatorSettings.widget_headline}
+              </h1>
             ) : null}
-          </div>
+            {operatorSettings.widget_description ? (
+              <p
+                className="text-muted-foreground text-sm whitespace-pre-line"
+                data-testid="widget-description"
+              >
+                {operatorSettings.widget_description}
+              </p>
+            ) : null}
+          </header>
         ) : null}
 
         {/*
@@ -1020,7 +1041,11 @@ function BookingFlowApp() {
         {step.name === 'confirmed' ? (
           <>
             <Confirmation response={step.response} onRestart={goToProductStep} />
-            <AccountLinkPrompt email={step.email} />
+            {/* landr-atwy: the account-link prompt creates a real LANDR
+                account, so it only shows when the operator opts in. */}
+            {operatorSettings.offer_account_link ? (
+              <AccountLinkPrompt operatorToken={token!} email={step.email} />
+            ) : null}
           </>
         ) : null}
         </div>
@@ -1069,6 +1094,22 @@ function BookingFlowApp() {
           />
         ) : null}
       </div>
+      {/*
+        landr-nils — operator footer copy below the booking widget. No
+        headline (by design): a single optional block for legal lines,
+        contact info, etc. Full-width, centred to match the content
+        column. Plain text with line breaks preserved (never HTML).
+      */}
+      {operatorSettings.widget_footer ? (
+        <footer
+          className="border-border mx-auto max-w-5xl border-t px-6 pb-8 pt-4"
+          data-testid="widget-footer"
+        >
+          <p className="text-muted-foreground text-xs whitespace-pre-line">
+            {operatorSettings.widget_footer}
+          </p>
+        </footer>
+      ) : null}
     </div>
   )
 }

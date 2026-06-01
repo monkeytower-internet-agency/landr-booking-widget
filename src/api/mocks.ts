@@ -265,6 +265,12 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   logo_url: null,
   primary_color: null,
   name: operatorSlug,
+  // landr-nils — embed copy null by default (operator hasn't written any).
+  widget_headline: null,
+  widget_description: null,
+  widget_footer: null,
+  // landr-atwy — account-link prompt off by default (opt-in per operator).
+  offer_account_link: false,
 })
 
 /**
