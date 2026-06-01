@@ -184,7 +184,7 @@ describe('App', () => {
       })
     })
 
-    it('renders the operator name as a fallback header when logo_url is null', async () => {
+    it('does NOT render the operator name when no logo is set (landr-nils — blank, no name fallback)', async () => {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'para42',
         expose_seats_to_customer: false,
@@ -195,8 +195,11 @@ describe('App', () => {
       mocks.listProducts.mockResolvedValue([])
       render(<App />)
       await waitFor(() => {
-        expect(screen.getByText('Para42')).toBeInTheDocument()
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
       })
+      // No logo and no operator-written headline/description → the brand
+      // header is absent and the name is never shown as a text fallback.
+      expect(screen.queryByText('Para42')).not.toBeInTheDocument()
       expect(screen.queryByAltText('Para42')).not.toBeInTheDocument()
     })
 
@@ -232,6 +235,90 @@ describe('App', () => {
       })
       const root = container.firstElementChild as HTMLElement
       expect(root.style.getPropertyValue('--primary')).toBe('')
+    })
+  })
+
+  // landr-nils — operator-configurable copy around the embed: header
+  // headline + description (above the widget) and a footer (below it).
+  describe('operator embed text (landr-nils)', () => {
+    it('renders the operator headline and description above the widget', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+        widget_headline: 'Book with us',
+        widget_description: 'Subject to our terms & conditions.',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-headline')).toHaveTextContent(
+          'Book with us',
+        )
+      })
+      expect(screen.getByTestId('widget-description')).toHaveTextContent(
+        'Subject to our terms & conditions.',
+      )
+    })
+
+    it('renders the headline alongside the logo when both are set', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: null,
+        name: 'Para42',
+        widget_headline: 'Book with us',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-logo')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('widget-headline')).toHaveTextContent(
+        'Book with us',
+      )
+    })
+
+    it('renders the footer below the widget when widget_footer is set', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+        widget_footer: '© Para42. VAT ESX1234567Z.',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-footer')).toHaveTextContent(
+          '© Para42. VAT ESX1234567Z.',
+        )
+      })
+    })
+
+    it('renders no brand header and no footer when logo + all embed text are unset', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+        widget_headline: null,
+        widget_description: null,
+        widget_footer: null,
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId('widget-headline')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('widget-description')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('widget-footer')).not.toBeInTheDocument()
     })
   })
 

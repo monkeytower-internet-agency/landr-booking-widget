@@ -151,12 +151,24 @@ export interface OperatorSettings {
    * operator-logos storage bucket (null when the operator hasn't
    * uploaded one yet). primary_color is a 7-char hex (#RRGGBB) used to
    * override the widget's --primary CSS variable; null = keep the
-   * widget's default theme. name is the operator's display name
-   * (rendered alongside / as a fallback for the logo header).
+   * widget's default theme. name is the operator's display name (used
+   * for the logo's alt text — NOT rendered as a text header; landr-nils
+   * removed the name fallback so a missing logo shows nothing).
    */
   logo_url?: string | null
   primary_color?: string | null
   name?: string | null
+  /**
+   * landr-nils — operator-configurable copy rendered around the embed.
+   * widget_headline + widget_description sit above the widget (header
+   * block, in addition to or instead of the logo; the operator may put
+   * legal info in the description). widget_footer sits below the widget
+   * (no headline). All null by default. Plain text — the widget renders
+   * them with line breaks preserved and never as HTML (XSS-safe).
+   */
+  widget_headline?: string | null
+  widget_description?: string | null
+  widget_footer?: string | null
   /**
    * landr-atwy — per-operator opt-in for the post-booking "Track this
    * booking in the LANDR app" account-link prompt. Default false: the
