@@ -197,6 +197,8 @@ function BookingFlowApp() {
     logo_url: null,
     primary_color: null,
     name: null,
+    // landr-atwy — account-link prompt off until the operator opts in.
+    offer_account_link: false,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -1020,7 +1022,11 @@ function BookingFlowApp() {
         {step.name === 'confirmed' ? (
           <>
             <Confirmation response={step.response} onRestart={goToProductStep} />
-            <AccountLinkPrompt email={step.email} />
+            {/* landr-atwy: the account-link prompt creates a real LANDR
+                account, so it only shows when the operator opts in. */}
+            {operatorSettings.offer_account_link ? (
+              <AccountLinkPrompt email={step.email} />
+            ) : null}
           </>
         ) : null}
         </div>

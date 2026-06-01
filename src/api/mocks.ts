@@ -265,6 +265,8 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   logo_url: null,
   primary_color: null,
   name: operatorSlug,
+  // landr-atwy — account-link prompt off by default (opt-in per operator).
+  offer_account_link: false,
 })
 
 /**

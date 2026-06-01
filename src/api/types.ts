@@ -157,6 +157,14 @@ export interface OperatorSettings {
   logo_url?: string | null
   primary_color?: string | null
   name?: string | null
+  /**
+   * landr-atwy — per-operator opt-in for the post-booking "Track this
+   * booking in the LANDR app" account-link prompt. Default false: the
+   * prompt (which creates a real LANDR auth account via signInWithOtp)
+   * is hidden unless the operator turns it on. Optional for back-compat
+   * with older API responses that predate the flag (treated as false).
+   */
+  offer_account_link?: boolean
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
