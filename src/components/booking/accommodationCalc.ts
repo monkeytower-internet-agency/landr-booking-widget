@@ -584,3 +584,32 @@ export function isPremiumIncludesBreakfast(product: Product): boolean {
   }
   return false
 }
+
+/**
+ * landr-rc4l: per-party-member accent hues for the room-assignment chips.
+ * A fixed palette of evenly-spaced, visually distinct hues (degrees on the
+ * HSL wheel) so adjacent chips never read as "the same colour", indexed by
+ * the unified party-member index (participants 0..P-1 then companions) and
+ * wrapped modulo the palette length once the party is larger than the
+ * palette. Order is hand-tuned (blue → green → orange → purple → …) so the
+ * first handful of guests — the common case — land on maximally-separated
+ * hues rather than neighbouring ones.
+ *
+ * Kept here rather than in RoomAssignment.tsx so the component file keeps
+ * its single named-component export (react-refresh/only-export-components,
+ * see the header note in that file) and so the palette stays unit-testable
+ * in isolation.
+ */
+export const CHIP_HUES = [210, 145, 28, 280, 330, 50, 175, 0, 255, 95] as const
+
+/**
+ * Stable accent hue (0–359) for a party member by chip index. Deterministic
+ * — the same member index always resolves to the same hue across renders so
+ * a chip's colour never flickers as the assignment map changes. Defensive
+ * double-modulo keeps it in range for any integer input.
+ */
+export function chipHue(memberIndex: number): number {
+  const len = CHIP_HUES.length
+  const i = ((memberIndex % len) + len) % len
+  return CHIP_HUES[i]!
+}

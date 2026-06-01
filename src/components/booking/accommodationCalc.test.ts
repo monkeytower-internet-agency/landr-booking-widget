@@ -3,6 +3,8 @@ import type { Product, ProductAddon } from '@/api/types'
 import {
   autoAssignParticipants,
   autoAssignParty,
+  CHIP_HUES,
+  chipHue,
   deriveStayWindow,
   expandRoomUnits,
   findBreakfastAddonIds,
@@ -808,5 +810,31 @@ describe('hasIncompleteChildAge (landr-doam.1)', () => {
   it('returns false for an empty assignment (no occupants to check)', () => {
     const ageMap: OccupantAgeMap = { 0: { band: 'child', age: null } }
     expect(hasIncompleteChildAge({}, ageMap)).toBe(false)
+  })
+})
+
+describe('chipHue (landr-rc4l — colourful assignment chips)', () => {
+  it('gives the first several members distinct hues', () => {
+    // The common case (a handful of guests) must never collide.
+    const hues = [0, 1, 2, 3, 4].map(chipHue)
+    expect(new Set(hues).size).toBe(hues.length)
+  })
+
+  it('is deterministic — same index always maps to the same hue', () => {
+    expect(chipHue(2)).toBe(chipHue(2))
+    expect(chipHue(0)).toBe(CHIP_HUES[0])
+  })
+
+  it('wraps modulo the palette length for large parties', () => {
+    expect(chipHue(CHIP_HUES.length)).toBe(chipHue(0))
+    expect(chipHue(CHIP_HUES.length + 3)).toBe(chipHue(3))
+  })
+
+  it('always returns a valid hue (0–359) for any index', () => {
+    for (const i of [0, 1, 7, 13, 99]) {
+      const h = chipHue(i)
+      expect(h).toBeGreaterThanOrEqual(0)
+      expect(h).toBeLessThan(360)
+    }
   })
 })
