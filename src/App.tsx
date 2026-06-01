@@ -1025,7 +1025,7 @@ function BookingFlowApp() {
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
             {operatorSettings.offer_account_link ? (
-              <AccountLinkPrompt email={step.email} />
+              <AccountLinkPrompt operatorToken={token!} email={step.email} />
             ) : null}
           </>
         ) : null}

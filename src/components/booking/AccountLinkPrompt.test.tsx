@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountLinkPrompt } from './AccountLinkPrompt'
 
 const EMAIL = 'customer@example.com'
+const TOKEN = 'widget-token-abc'
 
 const requestMagicLinkMock = vi.fn()
 
@@ -24,14 +25,17 @@ describe('AccountLinkPrompt', () => {
   it('accept flow calls requestMagicLink with the right email and shows success state', async () => {
     requestMagicLinkMock.mockResolvedValueOnce(undefined)
 
-    render(<AccountLinkPrompt email={EMAIL} />)
+    render(<AccountLinkPrompt operatorToken={TOKEN} email={EMAIL} />)
 
     fireEvent.click(screen.getByRole('button', { name: /yes, send me a link/i }))
 
     await waitFor(() => {
       expect(requestMagicLinkMock).toHaveBeenCalledTimes(1)
     })
-    expect(requestMagicLinkMock).toHaveBeenCalledWith({ email: EMAIL })
+    expect(requestMagicLinkMock).toHaveBeenCalledWith({
+      operatorToken: TOKEN,
+      email: EMAIL,
+    })
 
     expect(await screen.findByText(/check your inbox/i)).toBeInTheDocument()
     // Booking confirmation siblings are untouched — this component just
@@ -39,7 +43,7 @@ describe('AccountLinkPrompt', () => {
   })
 
   it('decline flow dismisses the prompt without calling the auth API', async () => {
-    render(<AccountLinkPrompt email={EMAIL} />)
+    render(<AccountLinkPrompt operatorToken={TOKEN} email={EMAIL} />)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     fireEvent.click(
@@ -55,7 +59,7 @@ describe('AccountLinkPrompt', () => {
   it('failure path shows an inline error and keeps the prompt visible', async () => {
     requestMagicLinkMock.mockRejectedValueOnce(new Error('rate limited'))
 
-    render(<AccountLinkPrompt email={EMAIL} />)
+    render(<AccountLinkPrompt operatorToken={TOKEN} email={EMAIL} />)
 
     fireEvent.click(screen.getByRole('button', { name: /yes, send me a link/i }))
 
