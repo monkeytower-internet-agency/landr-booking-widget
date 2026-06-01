@@ -115,6 +115,26 @@ describe('RoomAssignment (landr-gb2f.2)', () => {
     expect(onAssign).toHaveBeenCalledWith(0, null)
   })
 
+  it('gives each chip a distinct accent colour (landr-rc4l)', () => {
+    render(
+      <RoomAssignment
+        units={UNITS}
+        participantNames={NAMES}
+        assignment={{}}
+        onAssign={vi.fn()}
+      />,
+    )
+    const hues = [0, 1, 2].map((i) =>
+      screen.getByTestId(`participant-chip-${i}`).getAttribute('data-hue'),
+    )
+    // Every chip carries a hue and no two adjacent chips share one — so the
+    // tray is "a bit colourful" rather than a wall of identical pills.
+    expect(hues.every((h) => h !== null && h !== '')).toBe(true)
+    expect(new Set(hues).size).toBe(hues.length)
+    // The colour is applied as an inline background tint, not just an attr.
+    expect(screen.getByTestId('participant-chip-0').style.backgroundColor).not.toBe('')
+  })
+
   it('falls back to "Guest N" labels when a name is blank', () => {
     render(
       <RoomAssignment

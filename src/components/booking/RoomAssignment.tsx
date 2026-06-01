@@ -1,6 +1,7 @@
-import { useId, useState } from 'react'
+import { useId, useState, type CSSProperties } from 'react'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -9,8 +10,10 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
+  chipHue,
   occupantsOfUnit,
   roomUnitKey,
   type OccupantAgeMap,
@@ -90,6 +93,69 @@ function participantLabel(names: string[], index: number): string {
   return name.length > 0 ? name : `Guest ${index + 1}`
 }
 
+/**
+ * landr-rc4l: per-chip accent colour. Each party member gets a stable hue
+ * from chipHue(index) so the chips are "a bit colourful" and visually
+ * distinct rather than a wall of identical grey pills.
+ *
+ *   - resting:  a translucent tint of the member's hue (so it reads fine on
+ *               both the light card and a dark-mode card — the alpha lets
+ *               whatever's behind it show through) + a saturated border.
+ *   - selected / lifted: a SOLID saturated fill of the hue with white text.
+ *               Used both for the tap-to-place "picked up" state and for the
+ *               floating DragOverlay clone, so the active card stands out
+ *               and stays readable over any page content while dragging.
+ *   - guest:    same hue, fainter tint, paired with the dashed border below.
+ */
+function chipStyle(
+  hue: number,
+  selected: boolean,
+  isGuest: boolean,
+): CSSProperties {
+  if (selected) {
+    return {
+      backgroundColor: `hsl(${hue}, 65%, 45%)`,
+      borderColor: `hsl(${hue}, 65%, 38%)`,
+      color: '#ffffff',
+    }
+  }
+  return {
+    backgroundColor: `hsla(${hue}, 70%, 55%, ${isGuest ? 0.08 : 0.16})`,
+    borderColor: `hsla(${hue}, 65%, 50%, ${isGuest ? 0.4 : 0.6})`,
+  }
+}
+
+/** Shared layout classes for the chip face — reused by the draggable chip
+ *  and the DragOverlay clone so the floating card matches exactly. */
+function chipClassName(isGuest: boolean): string {
+  return [
+    'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-medium select-none',
+    isGuest ? 'border-dashed' : '',
+  ].join(' ')
+}
+
+/** Inner content of a chip: the label + the optional muted "guest" badge. */
+function ChipInner({
+  label,
+  isGuest,
+  selected,
+}: {
+  label: string
+  isGuest: boolean
+  selected: boolean
+}) {
+  return (
+    <>
+      {label}
+      {isGuest && !selected ? (
+        <span className="rounded-sm bg-black/10 px-1 text-[10px] font-medium uppercase leading-tight tracking-wide">
+          guest
+        </span>
+      ) : null}
+    </>
+  )
+}
+
 /** A draggable party-member name chip. Companions render a muted "guest" badge. */
 function Chip({
   participantIndex,
@@ -108,6 +174,7 @@ function Chip({
     id: `chip-${participantIndex}`,
     data: { participantIndex },
   })
+  const hue = chipHue(participantIndex)
   return (
     <button
       ref={setNodeRef}
@@ -117,23 +184,19 @@ function Chip({
       onClick={onTap}
       data-testid={`participant-chip-${participantIndex}`}
       data-guest={isGuest ? 'true' : undefined}
+      data-hue={hue}
       aria-pressed={selected}
+      style={chipStyle(hue, selected, isGuest)}
       className={[
-        'inline-flex cursor-grab items-center gap-1 rounded-full border px-3 py-1 text-sm transition-colors touch-none select-none',
-        isDragging ? 'opacity-40' : '',
-        selected
-          ? 'border-primary bg-primary text-primary-foreground'
-          : isGuest
-            ? 'border-dashed border-border bg-muted/20 text-muted-foreground hover:bg-muted/40'
-            : 'border-border bg-muted/40 hover:bg-muted',
+        chipClassName(isGuest),
+        // While this chip is the drag source it fades to a faint ghost in
+        // place — the tilted DragOverlay clone is what follows the cursor
+        // (landr-rc4l), so the customer always sees the card being moved.
+        'cursor-grab touch-none transition-transform hover:-translate-y-0.5',
+        isDragging ? 'opacity-30' : '',
       ].join(' ')}
     >
-      {label}
-      {isGuest && !selected ? (
-        <span className="rounded-sm bg-muted px-1 text-[10px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
-          guest
-        </span>
-      ) : null}
+      <ChipInner label={label} isGuest={isGuest} selected={selected} />
     </button>
   )
 }
@@ -311,6 +374,10 @@ export function RoomAssignment({
   const selectId = useId()
   // tap-to-place: the currently "picked up" participant index (or null).
   const [selectedChip, setSelectedChip] = useState<number | null>(null)
+  // landr-rc4l: the participant index currently being DRAGGED (or null).
+  // Drives the tilted DragOverlay clone so the customer sees the card move
+  // instead of dragging "blindly" while the source chip fades in place.
+  const [activeChip, setActiveChip] = useState<number | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -331,8 +398,23 @@ export function RoomAssignment({
     units.map((u) => [roomUnitKey(u.roomProductId, u.unitIndex), u]),
   )
 
+  function handleDragStart(event: DragStartEvent) {
+    const participantIndex = event.active.data.current?.participantIndex as
+      | number
+      | undefined
+    setActiveChip(participantIndex ?? null)
+    // Starting a drag supersedes any tap-to-place selection so the two
+    // "picked up" affordances don't fight each other.
+    setSelectedChip(null)
+  }
+
+  function handleDragCancel() {
+    setActiveChip(null)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setSelectedChip(null)
+    setActiveChip(null)
     const participantIndex = event.active.data.current?.participantIndex as
       | number
       | undefined
@@ -355,7 +437,12 @@ export function RoomAssignment({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       <div className="flex flex-col gap-3" data-testid="room-assignment">
         <p className="text-sm font-medium">Who stays where?</p>
         <p className="text-xs text-muted-foreground">
@@ -456,6 +543,34 @@ export function RoomAssignment({
           </div>
         </details>
       </div>
+
+      {/* landr-rc4l: the floating drag clone. Rendered OUTSIDE the normal
+          flow and tilted ~6° with a lift + shadow — the "Trello card" look —
+          so the customer can see exactly which name they're moving instead
+          of dragging an invisible chip. Solid saturated fill (selected
+          style) keeps it readable over any page content. */}
+      <DragOverlay dropAnimation={null}>
+        {activeChip !== null ? (
+          <div
+            data-testid="chip-drag-overlay"
+            style={{
+              ...chipStyle(chipHue(activeChip), true, guestFlags[activeChip] ?? false),
+              transform: 'rotate(6deg) scale(1.06)',
+              cursor: 'grabbing',
+            }}
+            className={[
+              chipClassName(guestFlags[activeChip] ?? false),
+              'shadow-xl shadow-black/30',
+            ].join(' ')}
+          >
+            <ChipInner
+              label={participantLabel(participantNames, activeChip)}
+              isGuest={guestFlags[activeChip] ?? false}
+              selected
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   )
 }
