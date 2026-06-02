@@ -180,30 +180,32 @@ export function DetailsStep({
     () => initialCompanions ?? [],
   )
 
-  // If the service-roles fetch resolves AFTER DetailsStep first
-  // mounted, swap empty role codes for the new default. Already-picked
-  // roles (from a Back-restore) stay untouched.
+  // If the service-roles fetch resolves AFTER DetailsStep first mounted,
+  // backfill empty role codes with the new default on the first render
+  // where defaultRoleCode becomes non-empty. Already-picked roles (from a
+  // Back-restore) are left untouched because we only fill empty strings.
   //
-  // landr-sbhz.4: this is a legitimate "backfill editable local state
-  // once async-arriving prop data lands" effect — the role codes are
-  // user-editable after this, so they can't be plain derived render
-  // values, and the updater functions are idempotent (a re-fire with
-  // the same defaultRoleCode is a no-op because each branch only fills
-  // EMPTY codes). A render-time refactor would need to track an
-  // "already-backfilled" flag and risk clobbering a Back-restored pick,
-  // so we keep the effect and scope-disable the rule (per-setState, as
-  // the rule reports at each call site) rather than relax it
-  // project-wide.
-  useEffect(() => {
-    if (!defaultRoleCode) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBookerRoleCode((prev) => prev || defaultRoleCode)
-    setAdditional((prev) =>
-      prev.map((p) =>
-        p.service_role_code ? p : { ...p, service_role_code: defaultRoleCode },
-      ),
-    )
-  }, [defaultRoleCode])
+  // This uses the React-recommended "store previous prop" pattern
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
+  // store the last-seen defaultRoleCode in state; when it changes from ''
+  // to a real value, apply the backfill during the same render pass so
+  // there is no stale-paint window or eslint-disable needed. The state
+  // setter guard (prev || defaultRoleCode / only-empty-codes check) ensures
+  // user-picked or Back-restored codes are never clobbered.
+  const [prevDefaultRoleCode, setPrevDefaultRoleCode] = useState(defaultRoleCode)
+  if (defaultRoleCode !== prevDefaultRoleCode) {
+    setPrevDefaultRoleCode(defaultRoleCode)
+    if (defaultRoleCode) {
+      if (!bookerRoleCode) setBookerRoleCode(defaultRoleCode)
+      if (additional.some((p) => !p.service_role_code)) {
+        setAdditional((prev) =>
+          prev.map((p) =>
+            p.service_role_code ? p : { ...p, service_role_code: defaultRoleCode },
+          ),
+        )
+      }
+    }
+  }
 
   // Mirror the booker into participants[0] while the customer hasn't
   // overridden individual fields. We track the previous booker values
