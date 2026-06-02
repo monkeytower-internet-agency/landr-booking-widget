@@ -450,6 +450,32 @@ export interface SubmitBookingBody {
   preview_token?: string | null
 }
 
+/**
+ * Parsed calendar event data returned alongside ical_url (landr-acew).
+ * Mirrors the first VEVENT the ICS service emits — all-day semantics,
+ * so dates are ISO-8601 date strings (no time component). The widget
+ * uses these fields to build Google Calendar and Outlook deep-link URLs
+ * without any additional API call.
+ *
+ * Optional because:
+ *   - Older API deploys (pre-landr-acew) do not include the field.
+ *   - Bookings whose products carry no date information (e.g. products
+ *     awaiting schedule assignment) yield no VEVENT and therefore no
+ *     calendar_event block.
+ */
+export interface BookingCalendarEvent {
+  /** Event display title, e.g. "Tandem Classic — Para42". */
+  title: string
+  /** First day of the booking (ISO-8601, YYYY-MM-DD). */
+  start_date: string
+  /** Last day of the booking (ISO-8601, YYYY-MM-DD; inclusive). */
+  end_date: string
+  /** Plain-text event body shown inside the calendar entry. */
+  description?: string | null
+  /** Location string, typically the operator name or venue. */
+  location?: string | null
+}
+
 export interface SubmitBookingResponse {
   booking_id: string
   /**
@@ -473,6 +499,13 @@ export interface SubmitBookingResponse {
    * Optional because older API deploys (pre-landr-3vr5) omit the field.
    */
   ical_url?: string
+  /**
+   * Parsed calendar event data for building Google Calendar and Outlook
+   * deep-link URLs client-side (landr-acew). Present when ical_url is
+   * also present and the booking carries at least one dated product.
+   * Absent on older API deploys or date-less products.
+   */
+  calendar_event?: BookingCalendarEvent | null
 }
 
 /**
