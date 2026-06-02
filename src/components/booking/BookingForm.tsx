@@ -501,8 +501,10 @@ export function BookingForm({
           </ol>
         </section>
 
-        {/* landr-87n9.3: non-guiding companions summary. Rendered only when
-            the customer added someone in the "Others joining" section. */}
+        {/* landr-87n9.3 / landr-wv0m: non-guiding companions summary. Rendered
+            only when the customer added someone in the "Others joining" section.
+            companion_kind distinguishes a non-participating guest from a
+            self-paying activity participant (separate_guiding). */}
         {companions.length > 0 ? (
           <section data-testid="review-companions">
             <h3 className="mb-2 text-sm font-semibold">
@@ -518,9 +520,21 @@ export function BookingForm({
                     <span className="font-medium">
                       {idx + 1}. {c.first_name} {c.last_name}
                     </span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      guest
-                    </span>
+                    {c.companion_kind === 'separate_guiding' ? (
+                      <span
+                        className="ml-2 text-xs text-primary font-medium"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        joining the activity (separate guiding)
+                      </span>
+                    ) : (
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        not doing the activity
+                      </span>
+                    )}
                     {c.email ? (
                       <span className="ml-2 text-xs text-muted-foreground break-all">
                         {c.email}

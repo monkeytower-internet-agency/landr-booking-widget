@@ -234,6 +234,48 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     const desc = screen.getByText(/Guided day/)
     expect(desc.textContent?.match(/·/g)?.length).toBe(1)
   })
+
+  // landr-wv0m: companion_kind label in the review step's "Others joining"
+  // section. 'separate_guiding' must render distinctly from 'guest'.
+  it('labels a separate_guiding companion as "joining the activity" in the review screen', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Sophie',
+            last_name: 'Müller',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+          {
+            first_name: 'Tim',
+            last_name: 'Müller',
+            email: '',
+            phone: '',
+            companion_kind: 'guest',
+          },
+        ]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const companions = screen.getByTestId('review-companions')
+    expect(companions).toHaveTextContent('Sophie Müller')
+    expect(companions).toHaveTextContent('Tim Müller')
+    // Self-paying participant gets the "joining the activity" label.
+    const sophieLabel = screen.getByTestId('companion-kind-label-0')
+    expect(sophieLabel).toHaveTextContent(/joining the activity/i)
+    // Non-participating guest gets the "not doing the activity" label.
+    const timLabel = screen.getByTestId('companion-kind-label-1')
+    expect(timLabel).toHaveTextContent(/not doing the activity/i)
+  })
 })
 
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
