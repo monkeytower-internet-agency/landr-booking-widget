@@ -129,6 +129,14 @@ export interface Product {
    * products. Absent on legacy API responses — treated as published.
    */
   is_publicly_listed?: boolean
+  /**
+   * landr-5mvw: structural flag. When true, breakfast is bundled into the
+   * room rate and the breakfast add-on MUST NOT be offered as a separate
+   * line item in the AccommodationStep. Replaces the name-heuristic
+   * isPremiumIncludesBreakfast. Defaults to false for backwards
+   * compatibility with API responses that predate this field.
+   */
+  includes_breakfast?: boolean
 }
 
 /**
@@ -493,6 +501,12 @@ export interface EstimateLineItem {
  * in the sidebar. Other rule kinds (per_day_base, …) are included for
  * transparency but only the tier/discount kinds get a tag. The detail
  * payload is an opaque object — its shape depends on `kind`.
+ *
+ * landr-qj1g: for per_streak_tier and per_total_days_tier, detail may
+ * carry base_tier: { threshold_min: number; amount_per_unit: number } —
+ * the first (short-stay) bracket of the schedule. The widget uses this
+ * to show "save €X/day vs standard rate" alongside the applied per-day
+ * rate. Absent when the applied tier IS the base tier (no savings).
  */
 export interface EstimateAppliedRule {
   kind: string
