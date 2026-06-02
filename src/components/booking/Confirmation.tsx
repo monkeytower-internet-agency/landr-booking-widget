@@ -7,6 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  buildGoogleCalendarUrl,
+  buildOutlookUrl,
+} from '@/lib/calendarLinks'
 
 interface Props {
   response: SubmitBookingResponse
@@ -14,6 +18,22 @@ interface Props {
 }
 
 export function Confirmation({ response, onRestart }: Props) {
+  /**
+   * landr-acew: build Google Calendar and Outlook deep-link URLs from
+   * the calendar_event block returned by the API alongside ical_url.
+   * Both are present together when the booking carries at least one
+   * dated product; when absent we fall back to the ICS-only path so
+   * older API deploys keep working without change.
+   */
+  const googleUrl =
+    response.calendar_event
+      ? buildGoogleCalendarUrl(response.calendar_event)
+      : null
+  const outlookUrl =
+    response.calendar_event
+      ? buildOutlookUrl(response.calendar_event)
+      : null
+
   return (
     <Card>
       <CardHeader>
@@ -29,21 +49,51 @@ export function Confirmation({ response, onRestart }: Props) {
           operator confirms capacity.
         </p>
         {/*
-          landr-3vr5: customer-facing "Add to calendar" link backed by the
-          per-booking .ics endpoint. Rendered as an anchor (not a button)
-          because the response is a file download — anchors give native
-          right-click / long-press behaviour on every platform without
-          extra JS. Hidden gracefully when the API omits ical_url (older
-          deploys, or when no booking-products carry dates yet).
+          landr-3vr5 + landr-acew: "Add to calendar" group.
+
+          When calendar_event is present (landr-acew API) we show all
+          three options: Google · Outlook · Download .ics. When only
+          ical_url is available (older API deploys, or bookings without
+          dated products) we fall back to the single Download .ics
+          anchor so the feature degrades gracefully.
+
+          Each option is a plain anchor so the browser's native
+          right-click / long-press save behaviour works everywhere.
+          Google and Outlook open the provider's compose form in a new
+          tab; the .ics link downloads the file.
          */}
         {response.ical_url ? (
-          <div>
+          <div className="flex flex-wrap gap-2">
+            {googleUrl ? (
+              <Button asChild type="button" variant="outline">
+                <a
+                  href={googleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Add to Google Calendar"
+                >
+                  Google Calendar
+                </a>
+              </Button>
+            ) : null}
+            {outlookUrl ? (
+              <Button asChild type="button" variant="outline">
+                <a
+                  href={outlookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Add to Outlook Calendar"
+                >
+                  Outlook
+                </a>
+              </Button>
+            ) : null}
             <Button asChild type="button" variant="outline">
               <a
                 href={response.ical_url}
                 download={`landr-booking-${response.booking_id}.ics`}
               >
-                Add to calendar
+                Download .ics
               </a>
             </Button>
           </div>

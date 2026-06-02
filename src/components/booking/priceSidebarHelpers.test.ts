@@ -272,3 +272,89 @@ describe('buildDiscountExplanation — non-explainable kinds (landr-8s6c)', () =
     )
   })
 })
+
+describe('buildDiscountExplanation — savings line (landr-qj1g)', () => {
+  it('appends a savings line for per_streak_tier when base_tier is present', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [[3, 75.0]],
+        per_participant: false,
+        participants: null,
+        base_tier: { threshold_min: 1, amount_per_unit: 90.0 },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    // Line 0: the applied rate explanation.
+    expect(lines[0]).toMatch(/3 consecutive days/)
+    expect(lines[0]).toMatch(/75/)
+    // Line 1: the savings line (90 − 75 = 15).
+    expect(lines).toHaveLength(2)
+    expect(lines[1]).toMatch(/save/)
+    expect(lines[1]).toMatch(/15/)
+    expect(lines[1]).toMatch(/vs standard rate/)
+  })
+
+  it('does not append a savings line for per_streak_tier when base_tier is absent', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [[1, 90.0]],
+        per_participant: false,
+        participants: null,
+        // no base_tier — customer is on the base tier already
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toMatch(/save/)
+  })
+
+  it('appends a savings line for per_total_days_tier when base_tier is present', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_total_days_tier',
+      detail: {
+        days: 3,
+        per_participant: false,
+        participants: null,
+        tier: {
+          threshold_min: 3,
+          threshold_max: null,
+          amount_per_unit: 80.0,
+          amount_total: null,
+        },
+        base_tier: { threshold_min: 1, amount_per_unit: 100.0 },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    // Line 0: the applied rate explanation.
+    expect(lines[0]).toMatch(/3 days/)
+    expect(lines[0]).toMatch(/80/)
+    // Line 1: the savings line (100 − 80 = 20).
+    expect(lines).toHaveLength(2)
+    expect(lines[1]).toMatch(/save/)
+    expect(lines[1]).toMatch(/20/)
+    expect(lines[1]).toMatch(/vs standard rate/)
+  })
+
+  it('does not append a savings line for per_total_days_tier when base_tier absent', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_total_days_tier',
+      detail: {
+        days: 1,
+        per_participant: false,
+        participants: null,
+        tier: {
+          threshold_min: 1,
+          threshold_max: 2,
+          amount_per_unit: 100.0,
+          amount_total: null,
+        },
+        // no base_tier — customer is already on the base tier
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toMatch(/save/)
+  })
+})

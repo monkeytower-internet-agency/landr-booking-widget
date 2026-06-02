@@ -569,12 +569,15 @@ export function hasIncompleteChildAge(
  * name heuristic is a pragmatic starter that keeps the widget correct for
  * Para42 without blocking on a schema migration.
  */
-export function isPremiumIncludesBreakfast(product: Product): boolean {
-  // Check the default display name first.
+export function roomIncludesBreakfast(product: Product): boolean {
+  // Structural flag is the canonical source of truth (landr-5mvw).
+  if (product.includes_breakfast !== undefined) {
+    return product.includes_breakfast
+  }
+  // Fallback: name heuristic for legacy API responses without the field.
   if (/breakfast|frühstück|desayuno|petit-déjeuner/i.test(product.name)) {
     return true
   }
-  // Also check any localised variants stored in name_localized.
   if (product.name_localized) {
     for (const localeName of Object.values(product.name_localized)) {
       if (/breakfast|frühstück|desayuno|petit-déjeuner/i.test(localeName)) {

@@ -16,6 +16,7 @@ import {
   type RoomSelection,
 } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
+import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import type {
   BookerDetails,
@@ -131,6 +132,20 @@ interface Props {
    * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
    */
   occupantAgeMap?: OccupantAgeMap
+  /**
+   * landr-gb2f.5: raw per-room add-on selection map from AccommodationStep.
+   * Keyed by roomProductId → { addon_product_id → qty }. Used in the review
+   * to show per-room breakfast status ("Single Room 1 — with breakfast" etc).
+   * Absent / empty → no per-room breakfast section rendered (guiding-only,
+   * shared-double, or no add-ons configured).
+   */
+  perRoomAddons?: PerRoomAddons
+  /**
+   * landr-gb2f.5: room product display names from AccommodationStep, keyed
+   * by product_id. Used to label room units as "Single Room 1 — …" in the
+   * per-room breakfast section. Falls back to the product_id when absent.
+   */
+  roomProductNames?: Record<string, string>
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -235,6 +250,8 @@ export function BookingForm({
   isSharedDouble = false,
   roomAssignment,
   occupantAgeMap = {},
+  perRoomAddons,
+  roomProductNames,
   onBack,
   onConfirmed,
 }: Props) {
@@ -252,6 +269,68 @@ export function BookingForm({
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
   const stay = hasRooms ? deriveStayWindow(selectedDays) : null
   const showTimezone = product.service_time_shape === 'time_slot'
+
+  // landr-gb2f.4 / gb2f.5: build the per-room-unit breakfast breakdown for
+  // the review. Only rendered when we have rooms AND a perRoomAddons map
+  // (i.e. the customer booked in package mode with add-ons configured).
+  //
+  // For each booked room type we expand the qty into N unit slots, then
+  // distribute the total breakfast qty across units in index order
+  // (first units get breakfast). This gives a deterministic "which unit
+  // has breakfast" split that matches what the AccommodationStep shows
+  // — e.g. 2 Single Rooms, breakfast qty=1 → unit 0 "with breakfast",
+  // unit 1 "without breakfast". The occupants from roomAssignment are
+  // listed next to each unit so the booker can verify the pairing.
+  //
+  // Skipped when perRoomAddons is absent or empty (guiding-only,
+  // shared-double, or no add-ons configured).
+  const perRoomBreakfastRows: {
+    label: string
+    hasBreakfast: boolean
+    occupantNames: string[]
+  }[] = (() => {
+    if (!perRoomAddons || !hasRooms || !accommodationRooms) return []
+    // Only show this section when at least one room type has any add-on qty.
+    const hasAnyAddons = Object.values(perRoomAddons).some((qtys) =>
+      Object.values(qtys).some((q) => q > 0),
+    )
+    if (!hasAnyAddons) return []
+
+    const allPartyNames = [
+      ...participants.map((p) => p.first_name || '?'),
+      ...companions.map((c) => c.first_name || '?'),
+    ]
+    const rows: { label: string; hasBreakfast: boolean; occupantNames: string[] }[] = []
+    for (const room of accommodationRooms) {
+      const roomName = roomProductNames?.[room.productId] ?? room.productId
+      const roomAddonQtys = perRoomAddons[room.productId] ?? {}
+      // Sum total add-on qty for this room type (breakfast is the only
+      // per-room add-on today; if more are added we sum all of them).
+      const totalAddonQty = Object.values(roomAddonQtys).reduce((a, b) => a + b, 0)
+      for (let unitIndex = 0; unitIndex < room.quantity; unitIndex += 1) {
+        // Build unit label: "Single Room 1" (1-based) or "Single Room" when qty=1.
+        const label =
+          room.quantity > 1 ? `${roomName} ${unitIndex + 1}` : roomName
+        // Distribute breakfast sequentially: first totalAddonQty units get it.
+        const hasBreakfast = unitIndex < totalAddonQty
+        // Collect occupant first names from the assignment map.
+        const occupantNames: string[] = []
+        if (roomAssignment) {
+          for (const [memberIdxStr, entry] of Object.entries(roomAssignment)) {
+            if (
+              entry.roomProductId === room.productId &&
+              entry.unitIndex === unitIndex
+            ) {
+              const name = allPartyNames[Number(memberIdxStr)]
+              if (name) occupantNames.push(name)
+            }
+          }
+        }
+        rows.push({ label, hasBreakfast, occupantNames })
+      }
+    }
+    return rows
+  })()
 
   const onConfirm = async () => {
     setServerError(null)
@@ -501,8 +580,10 @@ export function BookingForm({
           </ol>
         </section>
 
-        {/* landr-87n9.3: non-guiding companions summary. Rendered only when
-            the customer added someone in the "Others joining" section. */}
+        {/* landr-87n9.3 / landr-wv0m: non-guiding companions summary. Rendered
+            only when the customer added someone in the "Others joining" section.
+            companion_kind distinguishes a non-participating guest from a
+            self-paying activity participant (separate_guiding). */}
         {companions.length > 0 ? (
           <section data-testid="review-companions">
             <h3 className="mb-2 text-sm font-semibold">
@@ -518,9 +599,21 @@ export function BookingForm({
                     <span className="font-medium">
                       {idx + 1}. {c.first_name} {c.last_name}
                     </span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      guest
-                    </span>
+                    {c.companion_kind === 'separate_guiding' ? (
+                      <span
+                        className="ml-2 text-xs text-primary font-medium"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        joining the activity (separate guiding)
+                      </span>
+                    ) : (
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        not doing the activity
+                      </span>
+                    )}
                     {c.email ? (
                       <span className="ml-2 text-xs text-muted-foreground break-all">
                         {c.email}
@@ -529,6 +622,47 @@ export function BookingForm({
                     {c.phone ? (
                       <span className="ml-2 text-xs text-muted-foreground">
                         {c.phone}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {/* landr-gb2f.4 / gb2f.5: per-room breakfast summary. Shown when the
+            customer booked rooms in package mode with add-ons (typically
+            breakfast). Lists each room unit with its breakfast status and,
+            when a room assignment is present, the occupants so the booker
+            can confirm the pairing ("Single Room 1 — with breakfast · Ada,
+            Grace"). Placed here (after the party roster, before Confirm) so
+            it reads naturally alongside the participant list. */}
+        {perRoomBreakfastRows.length > 0 ? (
+          <section data-testid="review-per-room-breakfast">
+            <h3 className="mb-2 text-sm font-semibold">Room breakfast</h3>
+            <ol className="space-y-1 text-sm">
+              {perRoomBreakfastRows.map((row, idx) => (
+                <li
+                  key={`room-unit-${idx}`}
+                  className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
+                >
+                  <span>
+                    <span className="font-medium">{row.label}</span>
+                    <span
+                      className={[
+                        'ml-2 text-xs font-medium',
+                        row.hasBreakfast
+                          ? 'text-primary'
+                          : 'text-muted-foreground',
+                      ].join(' ')}
+                      data-testid={`room-breakfast-status-${idx}`}
+                    >
+                      {row.hasBreakfast ? 'with breakfast' : 'without breakfast'}
+                    </span>
+                    {row.occupantNames.length > 0 ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        · {row.occupantNames.join(', ')}
                       </span>
                     ) : null}
                   </span>

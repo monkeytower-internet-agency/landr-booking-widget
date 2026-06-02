@@ -21,7 +21,7 @@ import {
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
-  isPremiumIncludesBreakfast,
+  roomIncludesBreakfast,
   occupancyStatus,
   partySize,
   pruneAssignments,
@@ -125,6 +125,15 @@ interface Props {
     // landr-doam.1: per-occupant age band + age for the hotel. Empty in
     // guiding-only / shared-double modes. Absent key = adult (default).
     ageMap?: OccupantAgeMap,
+    // landr-gb2f.5: raw per-room add-on selection (NOT flattened). Carried
+    // through to BookingForm so the review can show which room unit has
+    // breakfast vs not — the flattened addons[] can't reconstruct this.
+    // Empty in guiding-only / shared-double modes.
+    perRoomAddons?: Record<string, Record<string, number>>,
+    // landr-gb2f.5: room product display names keyed by product_id. Carried
+    // through to BookingForm so the per-room breakfast labels in the review
+    // can say "Single Room 1 — with breakfast" rather than an opaque ID.
+    roomProductNames?: Record<string, string>,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -172,6 +181,14 @@ interface Props {
   initialHotelLocationId?: string | null
   initialRooms?: RoomSelection[]
   initialAddons?: AddonSelection[]
+  /**
+   * landr-gb2f.5: restore the raw per-room add-on selection on back-nav
+   * re-entry. When present this takes priority over `initialAddons` (which
+   * is the flattened list and can't reconstruct per-room split). The map
+   * is keyed by roomProductId → { addon_product_id → qty }. If absent,
+   * falls back to the existing best-effort seeding from initialAddons.
+   */
+  initialPerRoomAddons?: Record<string, Record<string, number>>
   initialIncludeHotel?: boolean
   /** landr-ffyg.2: restore the chosen accommodation mode on back-nav re-entry. */
   initialMode?: AccommodationMode
@@ -216,7 +233,8 @@ interface Props {
  *     mode alongside the stay-window orientation line.
  *   - Breakfast add-ons are surfaced via AddonsList per room. Premium
  *     rooms (name includes "with Breakfast") are identified by
- *     isPremiumIncludesBreakfast() and their add-on list is hidden.
+ *     roomIncludesBreakfast() (structural flag includes_breakfast,
+ *     landr-5mvw) and their add-on list is hidden.
  *
  * Pricing: the per-night room price is shown for clarity and totals
  * are summed, but the panel makes it explicit that the hotel is paid
@@ -235,6 +253,7 @@ export function AccommodationStep({
   initialHotelLocationId,
   initialRooms,
   initialAddons,
+  initialPerRoomAddons,
   initialIncludeHotel,
   initialMode,
   initialAssignment,
@@ -418,17 +437,49 @@ export function AccommodationStep({
     }
   }, [rooms])
 
-  // landr-yybu / landr-yf0n: back-nav add-on seeding. Once the per-room
-  // catalogue resolves AND initialAddons has entries, assign each add-on
-  // qty to the first room that links it (best-effort; documented limitation).
+  // landr-yybu / landr-yf0n / landr-gb2f.5: back-nav add-on seeding.
+  // Once the per-room catalogue resolves AND we have initial add-on data,
+  // seed the per-room selection state. Two strategies:
+  //
+  //   1. initialPerRoomAddons present (landr-gb2f.5): the exact per-room
+  //      map from the previous forward visit. Only retain entries for rooms
+  //      still in the catalogue (guards against stale ids). This is the
+  //      CORRECT restore path — no per-room split is lost.
+  //
+  //   2. initialAddons fallback (landr-yf0n): the flattened list. Assign
+  //      each add-on qty to the first room that links it (best-effort —
+  //      documented limitation for the legacy path).
+  //
   // We only seed ONCE (when addonSelection is still empty) to avoid
   // clobbering changes the customer makes after re-entering the step.
   // The IIFE pattern avoids the react-hooks/set-state-in-effect lint rule.
   useEffect(() => {
-    if (!initialAddons || initialAddons.length === 0) return
     if (Object.keys(addonsByRoom).length === 0) return
     // Only seed when addonSelection is still empty (no customer edits yet).
     if (Object.keys(addonSelection).length > 0) return
+
+    // Strategy 1: exact per-room restore (landr-gb2f.5).
+    if (initialPerRoomAddons && Object.keys(initialPerRoomAddons).length > 0) {
+      let cancelled = false
+      void (async () => {
+        if (cancelled) return
+        // Filter to rooms present in the current catalogue.
+        const next: Record<string, Record<string, number>> = {}
+        for (const [roomId, qtys] of Object.entries(initialPerRoomAddons)) {
+          if (addonsByRoom[roomId]) {
+            next[roomId] = qtys
+          }
+        }
+        if (cancelled) return
+        if (Object.keys(next).length > 0) setAddonSelection(next)
+      })()
+      return () => {
+        cancelled = true
+      }
+    }
+
+    // Strategy 2: best-effort fallback from the flattened list.
+    if (!initialAddons || initialAddons.length === 0) return
     let cancelled = false
     void (async () => {
       if (cancelled) return
@@ -770,7 +821,7 @@ export function AccommodationStep({
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false, {}, {})
+      onConfirm([], null, [], false, false, {}, {}, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -789,6 +840,8 @@ export function AccommodationStep({
         true,
         {},
         {},
+        {},
+        {},
       )
       return
     }
@@ -803,6 +856,21 @@ export function AccommodationStep({
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
     const finalAssignment = pruneAssignments(assignment, roomUnits)
+    // landr-gb2f.5: build a name map for the rooms in the cart so the
+    // review can label units as "Single Room 1 — with breakfast" etc.
+    // Uses the localized name (pickLocalized with the current locale) for
+    // consistency with how room names are shown in AccommodationStep itself.
+    const roomProductNames: Record<string, string> = {}
+    for (const rs of roomSelections) {
+      const product = (rooms ?? []).find((r) => r.product_id === rs.productId)
+      if (product) {
+        roomProductNames[rs.productId] = pickLocalized(
+          product.name,
+          product.name_localized,
+          locale,
+        )
+      }
+    }
     onConfirm(
       roomSelections,
       selectedHotelId,
@@ -811,6 +879,12 @@ export function AccommodationStep({
       false,
       finalAssignment,
       ageMap,
+      // landr-gb2f.5: pass the raw per-room add-on selection so the review
+      // can show breakfast status per room unit. Only consider rooms still
+      // in the cart (guards against carry-over from a dropped room).
+      addonSelection,
+      // landr-gb2f.5: room product names for the review labels.
+      roomProductNames,
     )
   }
 
@@ -995,7 +1069,7 @@ export function AccommodationStep({
               // un-actionable list of add-ons.
               // Premium-with-breakfast rooms already include breakfast in
               // their price; suppress the breakfast add-on row.
-              const isPremium = isPremiumIncludesBreakfast(room)
+              const isPremium = roomIncludesBreakfast(room)
               const showAddons = qty > 0 && roomAddons.length > 0 && !isPremium
               return (
                 <div
@@ -1070,6 +1144,10 @@ export function AccommodationStep({
                         })
                       }
                       expectedQty={(room.capacity_per_unit ?? 1) * qty}
+                      // landr-0geh: tell AddonsList how many room units are
+                      // booked so it can pick the correct hint copy (singular
+                      // "a room" vs plural "N rooms (M guests)").
+                      roomQty={qty}
                       // landr-yybu: room-linked add-ons are hard-capped at the
                       // room's occupancy (incl single-occupancy rooms → cap 1).
                       occupancyLimited

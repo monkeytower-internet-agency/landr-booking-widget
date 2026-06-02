@@ -12,6 +12,7 @@ import type {
 } from '@/components/booking/accommodationCalc'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
+
 import type {
   BookerDetails,
   CompanionDetails,
@@ -19,6 +20,15 @@ import type {
 } from '@/components/booking/detailsTypes'
 import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
 import type { Product, SubmitBookingResponse } from '@/api/types'
+
+/**
+ * landr-gb2f.5: the raw per-room add-on selection carried through the step
+ * machine. Keyed by roomProductId → { addon_product_id → qty }. This is the
+ * UNFLATTENED form from AccommodationStep's internal addonSelection state, so
+ * the review screen can reconstruct which room unit has breakfast vs not.
+ * Empty map for guiding-only / shared-double modes (no room add-ons).
+ */
+export type PerRoomAddons = Record<string, Record<string, number>>
 
 /**
  * Inputs for the persistent PriceSidebar (landr-qez0). Returns null
@@ -50,6 +60,13 @@ export interface SidebarInputs {
 export type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
+  // landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
+  // a SOLD-OUT product. The product is always rendered (informational "Fully
+  // booked" state), but with NO date picker and NO Select CTA — there is
+  // nothing to book. Only reachable via a deep link; the catalogue overview
+  // hides sold-out products (or shows them as inline cards when the embed
+  // opts in via show_sold_out), never as this standalone step.
+  | { name: 'fully-booked'; product: Product }
   // landr-8c03 (was 'participants' / landr-mbge): collects full booker
   // + participant details right after dates. The booker fields and the
   // participants array thread through every downstream step + the
@@ -97,6 +114,10 @@ export type Step =
       roomAssignment?: RoomAssignmentMap
       // landr-doam.1: per-occupant age band + age for back-nav restoration.
       occupantAgeMap?: OccupantAgeMap
+      // landr-gb2f.5: raw per-room add-on selection for back-nav restoration.
+      perRoomAddons?: PerRoomAddons
+      // landr-gb2f.5: room product display names for the review labels.
+      roomProductNames?: Record<string, string>
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -138,6 +159,10 @@ export type Step =
       roomAssignment?: RoomAssignmentMap
       // landr-doam.1: carry the age map through the pickup step.
       occupantAgeMap?: OccupantAgeMap
+      // landr-gb2f.5: carry the per-room add-on map through the pickup step.
+      perRoomAddons?: PerRoomAddons
+      // landr-gb2f.5: room product display names for the review labels.
+      roomProductNames?: Record<string, string>
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -166,6 +191,10 @@ export type Step =
       roomAssignment?: RoomAssignmentMap
       // landr-doam.1: carry the age map through declarations.
       occupantAgeMap?: OccupantAgeMap
+      // landr-gb2f.5: carry the per-room add-on map through declarations.
+      perRoomAddons?: PerRoomAddons
+      // landr-gb2f.5: room product display names for the review labels.
+      roomProductNames?: Record<string, string>
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -199,6 +228,11 @@ export type Step =
       // landr-doam.1: per-occupant age band + age threaded to BookingForm
       // for populating occupant_age_band + occupant_age on submit.
       occupantAgeMap?: OccupantAgeMap
+      // landr-gb2f.5: raw per-room add-on map threaded to BookingForm so
+      // the review can show which room unit has breakfast vs not.
+      perRoomAddons?: PerRoomAddons
+      // landr-gb2f.5: room product display names for the review labels.
+      roomProductNames?: Record<string, string>
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -274,6 +308,10 @@ export function stepAfterAccommodation(
   roomAssignment: RoomAssignmentMap | undefined = undefined,
   // landr-doam.1: per-occupant age band + age, threaded to the submit step.
   occupantAgeMap: OccupantAgeMap | undefined = undefined,
+  // landr-gb2f.5: raw per-room add-on map, threaded to the review screen.
+  perRoomAddons: PerRoomAddons | undefined = undefined,
+  // landr-gb2f.5: room product display names for the review labels.
+  roomProductNames: Record<string, string> | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -299,6 +337,8 @@ export function stepAfterAccommodation(
       accommodationMode,
       roomAssignment,
       occupantAgeMap,
+      perRoomAddons,
+      roomProductNames,
     }
   }
   if (product.needs_pickup) {
@@ -318,6 +358,8 @@ export function stepAfterAccommodation(
       accommodationMode,
       roomAssignment,
       occupantAgeMap,
+      perRoomAddons,
+      roomProductNames,
     }
   }
   return {
@@ -337,6 +379,8 @@ export function stepAfterAccommodation(
     accommodationMode,
     roomAssignment,
     occupantAgeMap,
+    perRoomAddons,
+    roomProductNames,
   }
 }
 
@@ -387,6 +431,10 @@ export interface StepBeforeReviewArgs {
   roomAssignment?: RoomAssignmentMap
   // landr-doam.1: carry the age map back for pick-accommodation restoration.
   occupantAgeMap?: OccupantAgeMap
+  // landr-gb2f.5: carry the per-room add-on map back for review restoration.
+  perRoomAddons?: PerRoomAddons
+  // landr-gb2f.5: room product display names for the review labels.
+  roomProductNames?: Record<string, string>
 }
 
 export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
@@ -417,6 +465,8 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       accommodationMode: args.accommodationMode,
       roomAssignment: args.roomAssignment,
       occupantAgeMap: args.occupantAgeMap,
+      perRoomAddons: args.perRoomAddons,
+      roomProductNames: args.roomProductNames,
     }
   }
   // 2. No hotel offering, product needs a pickup → pick-pickup showed
@@ -439,6 +489,8 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       accommodationMode: args.accommodationMode,
       roomAssignment: args.roomAssignment,
       occupantAgeMap: args.occupantAgeMap,
+      perRoomAddons: args.perRoomAddons,
+      roomProductNames: args.roomProductNames,
     }
   }
   // 4. No hotel, no pickup, but the customer went through the service-
@@ -497,6 +549,10 @@ export function fillFormOrDeclarations(
     roomAssignment?: RoomAssignmentMap
     // landr-doam.1: thread the age map through too.
     occupantAgeMap?: OccupantAgeMap
+    // landr-gb2f.5: thread the per-room add-on map through too.
+    perRoomAddons?: PerRoomAddons
+    // landr-gb2f.5: thread the room product names through too.
+    roomProductNames?: Record<string, string>
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,
@@ -533,8 +589,10 @@ function namesFrom(participants: ParticipantDetails[]): string[] {
 
 export function sidebarInputsForStep(step: Step): SidebarInputs | null {
   switch (step.name) {
+    // landr-7jgo: 'fully-booked' has nothing to price (sold-out) — no sidebar.
     case 'pick-product':
     case 'confirmed':
+    case 'fully-booked':
       return null
     case 'pick-selection':
       if (step.product.product_kind !== 'service') return null

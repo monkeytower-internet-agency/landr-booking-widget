@@ -54,6 +54,8 @@ const allMockProducts: Product[] = [
     price_per_unit: null,
     currency: 'EUR',
     is_publicly_listed: true,
+    // landr-7jgo: server-computed bookability (mock = has future open dates).
+    bookable: true,
   },
   {
     product_id: '00000000-0000-0000-0000-000000000002',
@@ -81,6 +83,37 @@ const allMockProducts: Product[] = [
     price_per_unit: null,
     currency: 'EUR',
     is_publicly_listed: true,
+    bookable: true,
+  },
+  {
+    // landr-7jgo: a sold-out product so offline dev exercises the hide /
+    // "Fully booked" overview states + the sold-out deep-link path.
+    product_id: '00000000-0000-0000-0000-000000000004',
+    slug: 'sold-out-trip',
+    name: 'Sold-Out Trip',
+    name_localized: { en: 'Sold-Out Trip' },
+    short_description: 'Fully booked — no upcoming dates.',
+    short_description_localized: null,
+    description: null,
+    product_kind: 'service',
+    service_time_shape: 'fixed_window',
+    is_contiguous: false,
+    duration_minutes: null,
+    fixed_start_date: null,
+    fixed_end_date: null,
+    product_group_id: '22222222-2222-2222-2222-222222222222',
+    group_slug: 'guided-days',
+    group_name: 'Guided Days',
+    sort_order: 3,
+    sport_subcategory_codes: ['paragliding-tandem'],
+    location_ids: [],
+    needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: null,
+    price_per_unit: null,
+    currency: 'EUR',
+    is_publicly_listed: true,
+    bookable: false,
   },
 ]
 
@@ -365,6 +398,17 @@ export const mockSubmit = (): SubmitBookingResponse => ({
   // exercises the "Add to calendar" anchor branch in Confirmation.tsx.
   ical_url:
     'https://api.dev.landr.de/api/public/bookings/00000000-0000-0000-0000-0000000000bb/calendar.ics',
+  // landr-acew: parsed calendar event data so the confirmation screen can
+  // build Google Calendar and Outlook deep-link URLs without an extra
+  // API call. Mirrors the first VEVENT the ICS service would emit for
+  // a mock Tandem Classic booking on 2026-06-15.
+  calendar_event: {
+    title: 'Tandem Classic — Para42',
+    start_date: '2026-06-15',
+    end_date: '2026-06-15',
+    description: 'Booking for Jane Doe. Confirmed via Para42. Please arrive on time and bring your confirmation email.',
+    location: 'Para42',
+  },
 })
 
 /**

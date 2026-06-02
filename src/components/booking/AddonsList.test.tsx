@@ -384,4 +384,98 @@ describe('AddonsList (landr-cip6)', () => {
     expect(warn).toHaveTextContent(/only 1/i)
     expect(warn).toHaveTextContent(/sleeps 3/i)
   })
+
+  // ── landr-0geh: multi-room hint copy ──
+
+  it('2× Single Room (roomQty=2, expectedQty=2): 1 breakfast → multi-room under-hint', () => {
+    // "Only 1 breakfast for 2 rooms (2 guests) — one per room?"
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+        roomQty={2}
+      />,
+    )
+    const warn = screen.getByTestId('addon-underbook-bf')
+    expect(warn).toHaveTextContent(/only 1/i)
+    expect(warn).toHaveTextContent(/2 rooms/i)
+    expect(warn).toHaveTextContent(/2 guests/i)
+    expect(warn).toHaveTextContent(/one per room/i)
+    // must NOT say "a room that sleeps"
+    expect(warn).not.toHaveTextContent(/a room that sleeps/i)
+  })
+
+  it('2× Single Room (roomQty=2, expectedQty=2): under-hint does NOT say "a room that sleeps"', () => {
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+        roomQty={2}
+      />,
+    )
+    expect(screen.getByTestId('addon-underbook-bf')).not.toHaveTextContent(
+      /a room that sleeps/i,
+    )
+  })
+
+  it('3× Double Room (roomQty=3, expectedQty=6): 4 breakfast → multi-room over-hint', () => {
+    // "More breakfast (4) than these 3 rooms sleep (6) — bringing extras?"
+    // Note: qty=4 < expectedQty=6 so this is actually under, not over.
+    // Use qty=7 to trigger over-warning.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 7 }}
+        onChange={vi.fn()}
+        expectedQty={6}
+        roomQty={3}
+      />,
+    )
+    const warn = screen.getByTestId('addon-overbook-bf')
+    expect(warn).toHaveTextContent(/7/)
+    expect(warn).toHaveTextContent(/3 rooms/i)
+    expect(warn).toHaveTextContent(/6/i)
+    expect(warn).toHaveTextContent(/bringing extras/i)
+    expect(warn).not.toHaveTextContent(/this room sleeps/i)
+  })
+
+  it('roomQty=1 (default): singular hint copy preserved', () => {
+    // Regression: single room still says "a room that sleeps N — one per guest?"
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+        roomQty={1}
+      />,
+    )
+    const warn = screen.getByTestId('addon-underbook-bf')
+    expect(warn).toHaveTextContent(/a room that sleeps 2/i)
+    expect(warn).toHaveTextContent(/one per guest/i)
+  })
+
+  it('roomQty omitted (default=1): singular hint copy preserved', () => {
+    // Same regression check when roomQty is not passed at all.
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={2}
+      />,
+    )
+    const warn = screen.getByTestId('addon-underbook-bf')
+    expect(warn).toHaveTextContent(/a room that sleeps 2/i)
+    expect(warn).toHaveTextContent(/one per guest/i)
+  })
 })

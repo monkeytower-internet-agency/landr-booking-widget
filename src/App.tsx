@@ -37,6 +37,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
+import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
@@ -48,6 +49,7 @@ import {
 import type { OperatorSettings, Product, ServiceRole } from '@/api/types'
 import {
   type Step,
+  type PerRoomAddons,
   deriveAccommodationMode,
   fillFormOrDeclarations,
   sidebarInputsForStep,
@@ -57,6 +59,7 @@ import {
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
+import { browserLocale, pickLocalized } from '@/lib/locale'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -104,6 +107,7 @@ function readQueryParams() {
       product: null as string | null,
       group: null as string | null,
       previewToken: null as string | null,
+      showSoldOut: false,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -116,6 +120,15 @@ function readQueryParams() {
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
     previewToken: params.get('preview_token'),
+    // landr-7jgo: per-embed opt-in to SHOW sold-out products in the
+    // catalogue overview (as informational "Fully booked" cards, no CTA)
+    // instead of hiding them. Default false. Truthy only for the explicit
+    // string 'true' (or '1') so a bare `?show_sold_out` or any other value
+    // keeps the safe hide-by-default behaviour. Has NO effect on a
+    // single-product deep link (?product=) — that product always renders.
+    showSoldOut:
+      params.get('show_sold_out') === 'true' ||
+      params.get('show_sold_out') === '1',
   }
 }
 
@@ -153,7 +166,10 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken } = useMemo(() => readQueryParams(), [])
+  const { token, product, group, previewToken, showSoldOut } = useMemo(
+    () => readQueryParams(),
+    [],
+  )
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -405,6 +421,10 @@ function BookingFlowApp() {
     roomAssignment: RoomAssignmentMap | undefined = undefined,
     // landr-doam.1: per-occupant age band + age for the submit payload.
     occupantAgeMap: OccupantAgeMap | undefined = undefined,
+    // landr-gb2f.5: raw per-room add-on map for the review display.
+    perRoomAddons: PerRoomAddons | undefined = undefined,
+    // landr-gb2f.5: room product display names for the review labels.
+    roomProductNames: Record<string, string> | undefined = undefined,
   ) => {
     // landr-87n9.2: the selection is now committed into the step state;
     // clear the live-lift so a later Back into pick-accommodation falls back
@@ -430,6 +450,10 @@ function BookingFlowApp() {
       roomAssignment,
       // landr-doam.1: per-occupant age band + age threads through.
       occupantAgeMap,
+      // landr-gb2f.5: per-room add-on map threads through to the review.
+      perRoomAddons,
+      // landr-gb2f.5: room product names thread through to the review.
+      roomProductNames,
     )
     // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
     // the operator requires declarations, convert to the declarations step
@@ -553,7 +577,39 @@ function BookingFlowApp() {
             previewToken={previewToken ?? undefined}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
+            // landr-7jgo: per-embed opt-in to show sold-out products as
+            // "Fully booked" cards in the overview. Default false (hidden).
+            // Ignored when a single-product deep link is in play (the deep
+            // link always renders its product, sold-out or not).
+            showSoldOut={showSoldOut}
             onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
+            // landr-7jgo: a deep-linked product that is sold out drops into the
+            // standalone "Fully booked" state instead of a picker with no dates.
+            onPreselectSoldOut={(p) =>
+              setStep({ name: 'fully-booked', product: p })
+            }
+          />
+        ) : null}
+
+        {/*
+          landr-7jgo: standalone "Fully booked" state for a single-product
+          deep link (?product=<slug>) that resolved to a sold-out product.
+          No date picker, no Select CTA — there is nothing to book. Back
+          returns to the (filtered) catalogue overview.
+        */}
+        {step.name === 'fully-booked' ? (
+          <FullyBookedNotice
+            name={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            description={pickLocalized(
+              step.product.short_description,
+              step.product.short_description_localized,
+              browserLocale(),
+            ) || null}
+            onBack={goToProductStep}
           />
         ) : null}
 
@@ -683,6 +739,9 @@ function BookingFlowApp() {
             initialHotelLocationId={step.hotelLocationId}
             initialRooms={step.accommodationRooms}
             initialAddons={step.addons}
+            // landr-gb2f.5: restore the exact per-room add-on map on back-nav
+            // so the breakfast split survives Back→Forward correctly.
+            initialPerRoomAddons={step.perRoomAddons}
             initialIncludeHotel={step.includeHotel}
             initialMode={step.accommodationMode}
             // landr-gb2f.2: restore the participant → room assignment.
@@ -715,7 +774,7 @@ function BookingFlowApp() {
                 companions: step.companions,
               })
             }}
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap, perRoomAddons, roomProductNames) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -742,6 +801,11 @@ function BookingFlowApp() {
                 roomAssignment,
                 // landr-doam.1: thread the age map to the submit step.
                 ageMap,
+                // landr-gb2f.5: thread the per-room add-on map so the
+                // review can show breakfast status per room unit.
+                perRoomAddons,
+                // landr-gb2f.5: thread room product names for review labels.
+                roomProductNames,
               )
             }
           />
@@ -815,6 +879,8 @@ function BookingFlowApp() {
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
                 })
               } else if (step.hadServiceAddons) {
                 // landr-yf0n: the customer originally went through
@@ -866,6 +932,8 @@ function BookingFlowApp() {
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
                 occupantAgeMap: step.occupantAgeMap,
+                perRoomAddons: step.perRoomAddons,
+                roomProductNames: step.roomProductNames,
               }
               setStep(
                 fillFormOrDeclarations(
@@ -911,6 +979,8 @@ function BookingFlowApp() {
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
                 }),
               )
             }
@@ -932,6 +1002,8 @@ function BookingFlowApp() {
                 accommodationMode: step.accommodationMode,
                 roomAssignment: step.roomAssignment,
                 occupantAgeMap: step.occupantAgeMap,
+                perRoomAddons: step.perRoomAddons,
+                roomProductNames: step.roomProductNames,
                 customerDeclarations: customerDeclarations.declarations,
                 // landr-87n9.4: multi-select languages + free-text other.
                 customerLanguages: customerDeclarations.languages,
@@ -969,6 +1041,11 @@ function BookingFlowApp() {
             // landr-doam.1: thread the age map so BookingForm attaches
             // occupant_age_band + occupant_age per occupant on submit.
             occupantAgeMap={step.occupantAgeMap}
+            // landr-gb2f.5: thread the per-room add-on map so BookingForm
+            // can show breakfast status per room unit in the review.
+            perRoomAddons={step.perRoomAddons}
+            // landr-gb2f.5: thread room product names for the review labels.
+            roomProductNames={step.roomProductNames}
             onBack={() => {
               // landr-sbhz.3: if declarations were collected, back
               // from fill-form goes to the declarations step (not all
@@ -994,6 +1071,8 @@ function BookingFlowApp() {
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
                   // landr-87n9.4: restore languages[] + otherLanguages on back-nav.
                   initialDeclarations: step.customerDeclarations
                     ? {
@@ -1029,6 +1108,8 @@ function BookingFlowApp() {
                   accommodationMode: step.accommodationMode,
                   roomAssignment: step.roomAssignment,
                   occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
                 }),
               )
             }}

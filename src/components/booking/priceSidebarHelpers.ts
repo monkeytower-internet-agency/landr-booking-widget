@@ -149,9 +149,10 @@ function withParticipantSuffix(
 
 /**
  * per_streak_tier detail = { streaks: [[length, perDay], ...],
- * per_participant, participants }. One line per consecutive run, e.g.
- * "3 consecutive days · €75.00/day". A booking with two separate runs
- * (25–27 + 29–30) yields two lines so the customer sees each rate.
+ * per_participant, participants, base_tier? }. One line per consecutive
+ * run, e.g. "3 consecutive days · €75.00/day". When base_tier is present
+ * (landr-qj1g), appends a savings line: "save €15.00/day vs standard rate".
+ * A booking with two separate runs (25–27 + 29–30) yields two run lines.
  */
 function buildStreakTierExplanation(
   detail: Record<string, unknown> | undefined,
@@ -175,15 +176,35 @@ function buildStreakTierExplanation(
         : `${length} consecutive days · ${formatPerDay(perDay, currency)}`
     lines.push(withParticipantSuffix(base, perParticipant, participants))
   }
+  // landr-qj1g: if a base_tier was provided and its rate differs from every
+  // applied rate, append one savings line. We show the highest applied rate
+  // (from the last [length, perDay] in streaks) for the comparison.
+  const baseTier =
+    detail.base_tier && typeof detail.base_tier === 'object'
+      ? (detail.base_tier as Record<string, unknown>)
+      : null
+  if (baseTier && typeof baseTier.amount_per_unit === 'number' && streaks.length > 0) {
+    const lastEntry = streaks[streaks.length - 1]
+    if (Array.isArray(lastEntry) && lastEntry.length >= 2) {
+      const appliedPerDay = Number(lastEntry[1])
+      const basePerDay = baseTier.amount_per_unit
+      const saving = basePerDay - appliedPerDay
+      if (Number.isFinite(saving) && saving > 0.005) {
+        lines.push(`save ${formatPerDay(saving, currency)} vs standard rate`)
+      }
+    }
+  }
   return lines
 }
 
 /**
  * per_total_days_tier detail = { days, matched?, per_participant,
- * participants, tier: { amount_per_unit, amount_total, ... } }. The
- * per-day rate comes from tier.amount_per_unit; if the tier was priced
- * as a flat total (amount_per_unit null) we derive per-day from
- * amount_total / days so the customer still gets a per-day figure.
+ * participants, tier: { amount_per_unit, amount_total, ... },
+ * base_tier?: { threshold_min, amount_per_unit } }. The per-day rate comes
+ * from tier.amount_per_unit; if the tier was priced as a flat total
+ * (amount_per_unit null) we derive per-day from amount_total / days so the
+ * customer still gets a per-day figure. When base_tier is present (landr-qj1g),
+ * appends a savings line: "save €20.00/day vs standard rate".
  * Returns [] when no tier matched (matched === false / no tier).
  */
 function buildTotalDaysTierExplanation(
@@ -212,5 +233,19 @@ function buildTotalDaysTierExplanation(
     typeof detail.participants === 'number' ? detail.participants : null
   const dayNoun = days === 1 ? 'day' : 'days'
   const base = `${days} ${dayNoun} · ${formatPerDay(perDay, currency)}`
-  return [withParticipantSuffix(base, perParticipant, participants)]
+  const lines = [withParticipantSuffix(base, perParticipant, participants)]
+  // landr-qj1g: append a savings line when the API returned a base_tier
+  // (the short-stay bracket) that is more expensive than the applied rate.
+  const baseTier =
+    detail.base_tier && typeof detail.base_tier === 'object'
+      ? (detail.base_tier as Record<string, unknown>)
+      : null
+  if (baseTier && typeof baseTier.amount_per_unit === 'number') {
+    const basePerDay = baseTier.amount_per_unit
+    const saving = basePerDay - perDay
+    if (Number.isFinite(saving) && saving > 0.005) {
+      lines.push(`save ${formatPerDay(saving, currency)} vs standard rate`)
+    }
+  }
+  return lines
 }

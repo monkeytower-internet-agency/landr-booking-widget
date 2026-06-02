@@ -129,6 +129,28 @@ export interface Product {
    * products. Absent on legacy API responses — treated as published.
    */
   is_publicly_listed?: boolean
+  /**
+   * landr-5mvw: structural flag. When true, breakfast is bundled into the
+   * room rate and the breakfast add-on MUST NOT be offered as a separate
+   * line item in the AccommodationStep. Replaces the name-heuristic
+   * isPremiumIncludesBreakfast. Defaults to false for backwards
+   * compatibility with API responses that predate this field.
+   */
+  includes_breakfast?: boolean
+  /**
+   * landr-7jgo: server-computed bookability. true = the product has at
+   * least one FUTURE date a customer could pick with capacity remaining
+   * (an open product_availability row OR a non-full fixed-date window);
+   * false = sold out / no upcoming dates. The catalogue overview hides
+   * non-bookable products by default; a deep-linked single product that
+   * is non-bookable renders a "Fully booked" state (no picker, no CTA).
+   *
+   * Optional for back-compat with API responses that predate the flag —
+   * `isBookable()` treats an ABSENT flag as bookable (fail-open) so an
+   * older API never accidentally hides a whole catalogue. Non-service
+   * (shop) kinds are always reported bookable by the API.
+   */
+  bookable?: boolean
 }
 
 /**
@@ -442,6 +464,32 @@ export interface SubmitBookingBody {
   preview_token?: string | null
 }
 
+/**
+ * Parsed calendar event data returned alongside ical_url (landr-acew).
+ * Mirrors the first VEVENT the ICS service emits — all-day semantics,
+ * so dates are ISO-8601 date strings (no time component). The widget
+ * uses these fields to build Google Calendar and Outlook deep-link URLs
+ * without any additional API call.
+ *
+ * Optional because:
+ *   - Older API deploys (pre-landr-acew) do not include the field.
+ *   - Bookings whose products carry no date information (e.g. products
+ *     awaiting schedule assignment) yield no VEVENT and therefore no
+ *     calendar_event block.
+ */
+export interface BookingCalendarEvent {
+  /** Event display title, e.g. "Tandem Classic — Para42". */
+  title: string
+  /** First day of the booking (ISO-8601, YYYY-MM-DD). */
+  start_date: string
+  /** Last day of the booking (ISO-8601, YYYY-MM-DD; inclusive). */
+  end_date: string
+  /** Plain-text event body shown inside the calendar entry. */
+  description?: string | null
+  /** Location string, typically the operator name or venue. */
+  location?: string | null
+}
+
 export interface SubmitBookingResponse {
   booking_id: string
   /**
@@ -465,6 +513,13 @@ export interface SubmitBookingResponse {
    * Optional because older API deploys (pre-landr-3vr5) omit the field.
    */
   ical_url?: string
+  /**
+   * Parsed calendar event data for building Google Calendar and Outlook
+   * deep-link URLs client-side (landr-acew). Present when ical_url is
+   * also present and the booking carries at least one dated product.
+   * Absent on older API deploys or date-less products.
+   */
+  calendar_event?: BookingCalendarEvent | null
 }
 
 /**
@@ -493,6 +548,12 @@ export interface EstimateLineItem {
  * in the sidebar. Other rule kinds (per_day_base, …) are included for
  * transparency but only the tier/discount kinds get a tag. The detail
  * payload is an opaque object — its shape depends on `kind`.
+ *
+ * landr-qj1g: for per_streak_tier and per_total_days_tier, detail may
+ * carry base_tier: { threshold_min: number; amount_per_unit: number } —
+ * the first (short-stay) bracket of the schedule. The widget uses this
+ * to show "save €X/day vs standard rate" alongside the applied per-day
+ * rate. Absent when the applied tier IS the base tier (no savings).
  */
 export interface EstimateAppliedRule {
   kind: string
