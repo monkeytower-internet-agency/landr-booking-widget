@@ -11,7 +11,7 @@ import {
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
-  isPremiumIncludesBreakfast,
+  roomIncludesBreakfast,
   occupancyStatus,
   occupantsOfUnit,
   partySize,
@@ -316,7 +316,7 @@ describe('totalBreakfastQty (landr-qpab)', () => {
   })
 })
 
-describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
+describe('roomIncludesBreakfast (landr-5mvw)', () => {
   function makeProduct(name: string, nameLocalized?: Record<string, string>): Product {
     return {
       product_id: 'p-1',
@@ -343,19 +343,19 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns true for Para42 "Premium Single Room w/ Breakfast"', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Premium Single Room w/ Breakfast')),
+      roomIncludesBreakfast(makeProduct('Premium Single Room w/ Breakfast')),
     ).toBe(true)
   })
 
   it('returns true for Para42 "Premium Double Room w/ Breakfast"', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Premium Double Room w/ Breakfast')),
+      roomIncludesBreakfast(makeProduct('Premium Double Room w/ Breakfast')),
     ).toBe(true)
   })
 
   it('returns true when matched in a localised name variant (de: Frühstück)', () => {
     expect(
-      isPremiumIncludesBreakfast(
+      roomIncludesBreakfast(
         makeProduct('Premium Einzelzimmer', { de: 'Premium Einzelzimmer mit Frühstück', en: 'Premium Single Room' }),
       ),
     ).toBe(true)
@@ -363,7 +363,7 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns true when matched in a localised name variant (es: desayuno)', () => {
     expect(
-      isPremiumIncludesBreakfast(
+      roomIncludesBreakfast(
         makeProduct('Habitación individual', { es: 'Habitación individual prémium con desayuno' }),
       ),
     ).toBe(true)
@@ -371,14 +371,31 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns false for a plain Double Room', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Double Room')),
+      roomIncludesBreakfast(makeProduct('Double Room')),
     ).toBe(false)
   })
 
   it('returns false for a plain Single Room', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Single Room')),
+      roomIncludesBreakfast(makeProduct('Single Room')),
     ).toBe(false)
+  })
+
+  it('returns true when includes_breakfast=true, regardless of name (landr-5mvw structural flag)', () => {
+    const room: Product = { ...makeProduct('Plain Room'), includes_breakfast: true }
+    expect(roomIncludesBreakfast(room)).toBe(true)
+  })
+
+  it('returns false when includes_breakfast=false, even if name would match heuristic', () => {
+    const room: Product = { ...makeProduct('Room with Breakfast'), includes_breakfast: false }
+    expect(roomIncludesBreakfast(room)).toBe(false)
+  })
+
+  it('falls back to name heuristic when includes_breakfast is absent (legacy API response)', () => {
+    const room = makeProduct('Premium Room with Breakfast')
+    // makeProduct does not set includes_breakfast, so the key should be absent.
+    expect('includes_breakfast' in room).toBe(false)
+    expect(roomIncludesBreakfast(room)).toBe(true)
   })
 })
 
