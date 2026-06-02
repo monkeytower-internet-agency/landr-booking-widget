@@ -276,6 +276,114 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     const timLabel = screen.getByTestId('companion-kind-label-1')
     expect(timLabel).toHaveTextContent(/not doing the activity/i)
   })
+
+  // landr-gb2f.4 / gb2f.5: per-room breakfast display in the review.
+  describe('per-room breakfast section (landr-gb2f.4)', () => {
+    it('shows the room breakfast section when perRoomAddons has qty > 0', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[
+            bookerAsParticipant(ADA_BOOKER),
+            {
+              first_name: 'Grace',
+              last_name: 'Hopper',
+              email: '',
+              phone: '',
+              service_role_code: '',
+            },
+          ]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
+          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomProductNames={{ 'single-room': 'Single Room' }}
+          roomAssignment={{
+            0: { roomProductId: 'single-room', unitIndex: 0 },
+            1: { roomProductId: 'single-room', unitIndex: 1 },
+          }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      const section = screen.getByTestId('review-per-room-breakfast')
+      expect(section).toBeInTheDocument()
+      // Unit 0 gets breakfast (qty=1, first unit).
+      const status0 = screen.getByTestId('room-breakfast-status-0')
+      expect(status0).toHaveTextContent('with breakfast')
+      // Unit 1 has no breakfast.
+      const status1 = screen.getByTestId('room-breakfast-status-1')
+      expect(status1).toHaveTextContent('without breakfast')
+      // Room names are shown.
+      expect(section).toHaveTextContent('Single Room 1')
+      expect(section).toHaveTextContent('Single Room 2')
+      // Occupant names are shown.
+      expect(section).toHaveTextContent('Ada')
+      expect(section).toHaveTextContent('Grace')
+    })
+
+    it('hides the per-room breakfast section when perRoomAddons is absent', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'single-room', quantity: 1 }]}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('review-per-room-breakfast')).toBeNull()
+    })
+
+    it('hides the per-room breakfast section when all add-on quantities are 0', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'single-room', quantity: 1 }]}
+          perRoomAddons={{ 'single-room': { 'bf-1': 0 } }}
+          roomProductNames={{ 'single-room': 'Single Room' }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      expect(screen.queryByTestId('review-per-room-breakfast')).toBeNull()
+    })
+
+    it('shows a single room without a number suffix when qty=1', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+          perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+          roomProductNames={{ 'double-room': 'Double Room' }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      const section = screen.getByTestId('review-per-room-breakfast')
+      // Single unit → no "1" suffix.
+      expect(section).toHaveTextContent('Double Room')
+      expect(section).not.toHaveTextContent('Double Room 1')
+      const status0 = screen.getByTestId('room-breakfast-status-0')
+      expect(status0).toHaveTextContent('with breakfast')
+    })
+  })
 })
 
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
