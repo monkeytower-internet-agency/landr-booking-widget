@@ -64,6 +64,14 @@ interface Props {
    */
   occupancyLimited?: boolean
   /**
+   * landr-0geh: number of room units of this type booked (default 1).
+   * When > 1 the quantity-deviation hints switch to multi-room copy
+   * ("rooms" instead of "a room") so the wording is accurate for e.g.
+   * 2× Single Rooms where expectedQty = 2 × 1 = 2 total guests but
+   * phrasing "a room that sleeps 2" would be misleading.
+   */
+  roomQty?: number
+  /**
    * Optional label rendered above the list (e.g. "Add-ons" inside a
    * room block). The caller usually owns this from a <fieldset
    * legend>, so leaving it null hides the heading entirely.
@@ -77,6 +85,7 @@ export function AddonsList({
   onChange,
   expectedQty,
   occupancyLimited = false,
+  roomQty = 1,
   heading,
 }: Props) {
   const locale = browserLocale()
@@ -175,8 +184,9 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-overbook-${addon.addon_product_id}`}
               >
-                More {addonName.toLowerCase()} ({qty}) than this room sleeps (
-                {expectedQty}) — bringing extras?
+                {roomQty > 1
+                  ? `More ${addonName.toLowerCase()} (${qty}) than these ${roomQty} rooms sleep (${expectedQty}) — bringing extras?`
+                  : `More ${addonName.toLowerCase()} (${qty}) than this room sleeps (${expectedQty}) — bringing extras?`}
               </p>
             ) : null}
             {deviation === 'under' ? (
@@ -184,8 +194,9 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-underbook-${addon.addon_product_id}`}
               >
-                Only {qty} {addonName.toLowerCase()} for a room that sleeps{' '}
-                {expectedQty} — one per guest?
+                {roomQty > 1
+                  ? `Only ${qty} ${addonName.toLowerCase()} for ${roomQty} rooms (${expectedQty} guests) — one per room?`
+                  : `Only ${qty} ${addonName.toLowerCase()} for a room that sleeps ${expectedQty} — one per guest?`}
               </p>
             ) : null}
             {requiredError ? (
