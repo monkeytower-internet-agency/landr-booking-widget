@@ -129,6 +129,14 @@ export interface Product {
    * products. Absent on legacy API responses — treated as published.
    */
   is_publicly_listed?: boolean
+  /**
+   * landr-5mvw: structural flag. When true, breakfast is bundled into the
+   * room rate and the breakfast add-on MUST NOT be offered as a separate
+   * line item in the AccommodationStep. Replaces the name-heuristic
+   * isPremiumIncludesBreakfast. Defaults to false for backwards
+   * compatibility with API responses that predate this field.
+   */
+  includes_breakfast?: boolean
 }
 
 /**

@@ -21,7 +21,7 @@ import {
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
-  isPremiumIncludesBreakfast,
+  roomIncludesBreakfast,
   occupancyStatus,
   partySize,
   pruneAssignments,
@@ -216,7 +216,8 @@ interface Props {
  *     mode alongside the stay-window orientation line.
  *   - Breakfast add-ons are surfaced via AddonsList per room. Premium
  *     rooms (name includes "with Breakfast") are identified by
- *     isPremiumIncludesBreakfast() and their add-on list is hidden.
+ *     roomIncludesBreakfast() (structural flag includes_breakfast,
+ *     landr-5mvw) and their add-on list is hidden.
  *
  * Pricing: the per-night room price is shown for clarity and totals
  * are summed, but the panel makes it explicit that the hotel is paid
@@ -995,7 +996,7 @@ export function AccommodationStep({
               // un-actionable list of add-ons.
               // Premium-with-breakfast rooms already include breakfast in
               // their price; suppress the breakfast add-on row.
-              const isPremium = isPremiumIncludesBreakfast(room)
+              const isPremium = roomIncludesBreakfast(room)
               const showAddons = qty > 0 && roomAddons.length > 0 && !isPremium
               return (
                 <div
