@@ -34,8 +34,9 @@ The widget is loaded by Para42's WordPress site via the shortcode `[landr_bookin
 
 - `w` — opaque widget token (required; no token → generic landing page)
 - `group` — optional product-category slug; scopes the embed to that category and all its sub-categories
-- `product` — optional pre-selected product slug (wins over `group` when both are present)
+- `product` — optional pre-selected product slug (wins over `group` when both are present). A single-product deep link ALWAYS renders that product; if it is sold out it shows a "Fully booked" state (no date picker, no Select CTA)
 - `preview_token` — optional operator preview token; surfaces draft products during operator preview
+- `show_sold_out` — optional; `true` (or `1`) makes the catalogue / category overview SHOW sold-out products as informational "Fully booked" cards (no Select CTA) instead of hiding them. Default off: sold-out products are hidden from the overview. (landr-7jgo)
 
 ## Repo layout
 

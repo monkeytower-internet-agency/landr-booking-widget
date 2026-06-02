@@ -11,6 +11,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { showDateModelDetail } from '@/lib/tier'
+import { isBookable } from '@/components/booking/bookability'
+import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 
 interface Props {
   operatorToken: string
@@ -22,10 +25,33 @@ interface Props {
   previewToken?: string
   productGroup?: string
   preselectSlug?: string
+  /**
+   * landr-7jgo: when true, sold-out (non-bookable) products are SHOWN in the
+   * catalogue overview as informational "Fully booked" cards (no Select CTA)
+   * rather than hidden. Default false: sold-out products are hidden entirely.
+   * Driven by the embed's `show_sold_out=true` param so an operator can opt a
+   * given embed into showing them.
+   */
+  showSoldOut?: boolean
   onSelect: (product: Product) => void
+  /**
+   * landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
+   * a SOLD-OUT product. We never auto-select it (there's nothing to pick), and
+   * we never silently drop it either — the deep-linked product is ALWAYS
+   * rendered, just as "Fully booked". App handles that standalone state.
+   */
+  onPreselectSoldOut?: (product: Product) => void
 }
 
-export function ProductList({ operatorToken, previewToken, productGroup, preselectSlug, onSelect }: Props) {
+export function ProductList({
+  operatorToken,
+  previewToken,
+  productGroup,
+  preselectSlug,
+  showSoldOut = false,
+  onSelect,
+  onPreselectSoldOut,
+}: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()
@@ -42,7 +68,17 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
         setProducts(list)
         if (preselectSlug) {
           const match = list.find((p) => p.slug === preselectSlug)
-          if (match) onSelect(match)
+          if (match) {
+            // landr-7jgo: a deep link ALWAYS surfaces its product. When it's
+            // bookable we drop straight into the picker (existing behaviour);
+            // when it's sold out we hand it to App's "Fully booked" state
+            // instead of auto-selecting into a picker with no dates.
+            if (isBookable(match)) {
+              onSelect(match)
+            } else {
+              onPreselectSoldOut?.(match)
+            }
+          }
         }
       } catch (err) {
         if (cancelled) return
@@ -52,7 +88,14 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
     return () => {
       cancelled = true
     }
-  }, [operatorToken, previewToken, productGroup, preselectSlug, onSelect])
+  }, [
+    operatorToken,
+    previewToken,
+    productGroup,
+    preselectSlug,
+    onSelect,
+    onPreselectSoldOut,
+  ])
 
   if (error) {
     return (
@@ -75,7 +118,14 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
     )
   }
 
-  if (products.length === 0) {
+  // landr-7jgo: split bookable vs sold-out. Bookable products always show.
+  // Sold-out products are HIDDEN by default and only rendered (as "Fully
+  // booked" cards, no CTA) when the embed opted in via show_sold_out=true.
+  const bookable = products.filter((p) => isBookable(p))
+  const soldOut = showSoldOut ? products.filter((p) => !isBookable(p)) : []
+  const visible = [...bookable, ...soldOut]
+
+  if (visible.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -88,13 +138,28 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {products.map((product) => {
+      {visible.map((product) => {
         const name = pickLocalized(product.name, product.name_localized, locale)
         const description = pickLocalized(
           product.short_description,
           product.short_description_localized,
           locale,
         )
+
+        // landr-7jgo: sold-out card — informational only, no picker / CTA.
+        // Only reachable here when showSoldOut is true (soldOut is empty
+        // otherwise), so we never hide a bookable product behind this branch.
+        if (!isBookable(product)) {
+          return (
+            <FullyBookedNotice
+              key={product.product_id}
+              name={name}
+              description={description || null}
+              compact
+            />
+          )
+        }
+
         const isDraft = product.is_publicly_listed === false
         return (
           <Card key={product.product_id} className="flex flex-col">
@@ -126,10 +191,19 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
             ) : null}
             <CardContent className="mt-auto flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
+                {/*
+                  landr-7jgo: the per-product DATE-MODEL detail (single date /
+                  days range / fixed window) is an operator-facing config aid,
+                  shown only in dev + staging. In production this chip falls
+                  back to duration (or the product kind) so customers never see
+                  the internal scheduling-shape vocabulary.
+                */}
                 {product.duration_minutes
                   ? `${product.duration_minutes} min`
                   : product.product_kind === 'service'
-                    ? (product.service_time_shape ?? 'service').replace('_', ' ')
+                    ? showDateModelDetail()
+                      ? (product.service_time_shape ?? 'service').replace('_', ' ')
+                      : 'service'
                     : product.product_kind.replace('_', ' ')}
               </span>
               <Button type="button" onClick={() => onSelect(product)}>

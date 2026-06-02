@@ -137,6 +137,20 @@ export interface Product {
    * compatibility with API responses that predate this field.
    */
   includes_breakfast?: boolean
+  /**
+   * landr-7jgo: server-computed bookability. true = the product has at
+   * least one FUTURE date a customer could pick with capacity remaining
+   * (an open product_availability row OR a non-full fixed-date window);
+   * false = sold out / no upcoming dates. The catalogue overview hides
+   * non-bookable products by default; a deep-linked single product that
+   * is non-bookable renders a "Fully booked" state (no picker, no CTA).
+   *
+   * Optional for back-compat with API responses that predate the flag —
+   * `isBookable()` treats an ABSENT flag as bookable (fail-open) so an
+   * older API never accidentally hides a whole catalogue. Non-service
+   * (shop) kinds are always reported bookable by the API.
+   */
+  bookable?: boolean
 }
 
 /**

@@ -50,6 +50,13 @@ export interface SidebarInputs {
 export type Step =
   | { name: 'pick-product' }
   | { name: 'pick-selection'; product: Product }
+  // landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
+  // a SOLD-OUT product. The product is always rendered (informational "Fully
+  // booked" state), but with NO date picker and NO Select CTA — there is
+  // nothing to book. Only reachable via a deep link; the catalogue overview
+  // hides sold-out products (or shows them as inline cards when the embed
+  // opts in via show_sold_out), never as this standalone step.
+  | { name: 'fully-booked'; product: Product }
   // landr-8c03 (was 'participants' / landr-mbge): collects full booker
   // + participant details right after dates. The booker fields and the
   // participants array thread through every downstream step + the
@@ -533,8 +540,10 @@ function namesFrom(participants: ParticipantDetails[]): string[] {
 
 export function sidebarInputsForStep(step: Step): SidebarInputs | null {
   switch (step.name) {
+    // landr-7jgo: 'fully-booked' has nothing to price (sold-out) — no sidebar.
     case 'pick-product':
     case 'confirmed':
+    case 'fully-booked':
       return null
     case 'pick-selection':
       if (step.product.product_kind !== 'service') return null

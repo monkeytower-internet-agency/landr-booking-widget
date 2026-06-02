@@ -1066,4 +1066,79 @@ describe('App', () => {
       expect(screen.queryByTestId('draft-badge')).not.toBeInTheDocument()
     })
   })
+
+  // landr-7jgo: hide sold-out products in the overview; deep-link a sold-out
+  // product to a standalone "Fully booked" state; per-embed show_sold_out opt-in.
+  describe('bookability / sold-out (landr-7jgo)', () => {
+    it('hides non-bookable products from the catalogue overview by default', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-ok', name: 'Bookable Tandem', bookable: true }),
+        makeProduct({ product_id: 'p-out', name: 'Sold Out Trip', bookable: false }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Bookable Tandem')).toBeInTheDocument(),
+      )
+      expect(screen.queryByText('Sold Out Trip')).not.toBeInTheDocument()
+    })
+
+    it('shows sold-out products as "Fully booked" when ?show_sold_out=true', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&show_sold_out=true`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-ok', name: 'Bookable Tandem', bookable: true }),
+        makeProduct({ product_id: 'p-out', name: 'Sold Out Trip', bookable: false }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Sold Out Trip')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument()
+      // Only the bookable product carries a Select CTA.
+      expect(screen.getAllByRole('button', { name: 'Select' })).toHaveLength(1)
+    })
+
+    it('renders a sold-out single-product deep link as "Fully booked" (no picker / CTA)', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=sold-out-trip`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-out',
+          slug: 'sold-out-trip',
+          name: 'Sold Out Trip',
+          service_time_shape: 'fixed_window',
+          bookable: false,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument(),
+      )
+      expect(screen.getByText('Sold Out Trip')).toBeInTheDocument()
+      // No date picker spun up + no Select CTA.
+      expect(screen.queryByText(/Pick a date/i)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Select' }),
+      ).not.toBeInTheDocument()
+      // A sold-out fixed_window deep link must not fetch windows/availability.
+      expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
+      expect(mocks.getAvailability).not.toHaveBeenCalled()
+    })
+
+    it('still deep-links a BOOKABLE single product straight into its picker', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=open-tandem`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-ok',
+          slug: 'open-tandem',
+          name: 'Open Tandem',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('fully-booked-badge')).not.toBeInTheDocument()
+    })
+  })
 })
