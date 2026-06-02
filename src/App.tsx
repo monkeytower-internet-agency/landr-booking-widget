@@ -37,6 +37,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
+import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
@@ -57,6 +58,7 @@ import {
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
+import { browserLocale, pickLocalized } from '@/lib/locale'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -104,6 +106,7 @@ function readQueryParams() {
       product: null as string | null,
       group: null as string | null,
       previewToken: null as string | null,
+      showSoldOut: false,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -116,6 +119,15 @@ function readQueryParams() {
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
     previewToken: params.get('preview_token'),
+    // landr-7jgo: per-embed opt-in to SHOW sold-out products in the
+    // catalogue overview (as informational "Fully booked" cards, no CTA)
+    // instead of hiding them. Default false. Truthy only for the explicit
+    // string 'true' (or '1') so a bare `?show_sold_out` or any other value
+    // keeps the safe hide-by-default behaviour. Has NO effect on a
+    // single-product deep link (?product=) — that product always renders.
+    showSoldOut:
+      params.get('show_sold_out') === 'true' ||
+      params.get('show_sold_out') === '1',
   }
 }
 
@@ -153,7 +165,10 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken } = useMemo(() => readQueryParams(), [])
+  const { token, product, group, previewToken, showSoldOut } = useMemo(
+    () => readQueryParams(),
+    [],
+  )
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -553,7 +568,39 @@ function BookingFlowApp() {
             previewToken={previewToken ?? undefined}
             productGroup={group ?? undefined}
             preselectSlug={product ?? undefined}
+            // landr-7jgo: per-embed opt-in to show sold-out products as
+            // "Fully booked" cards in the overview. Default false (hidden).
+            // Ignored when a single-product deep link is in play (the deep
+            // link always renders its product, sold-out or not).
+            showSoldOut={showSoldOut}
             onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
+            // landr-7jgo: a deep-linked product that is sold out drops into the
+            // standalone "Fully booked" state instead of a picker with no dates.
+            onPreselectSoldOut={(p) =>
+              setStep({ name: 'fully-booked', product: p })
+            }
+          />
+        ) : null}
+
+        {/*
+          landr-7jgo: standalone "Fully booked" state for a single-product
+          deep link (?product=<slug>) that resolved to a sold-out product.
+          No date picker, no Select CTA — there is nothing to book. Back
+          returns to the (filtered) catalogue overview.
+        */}
+        {step.name === 'fully-booked' ? (
+          <FullyBookedNotice
+            name={pickLocalized(
+              step.product.name,
+              step.product.name_localized,
+              browserLocale(),
+            )}
+            description={pickLocalized(
+              step.product.short_description,
+              step.product.short_description_localized,
+              browserLocale(),
+            ) || null}
+            onBack={goToProductStep}
           />
         ) : null}
 
