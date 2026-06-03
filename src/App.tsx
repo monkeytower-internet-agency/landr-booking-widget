@@ -45,8 +45,9 @@ import {
   getOperatorSettings,
   getProductAddons,
   HttpError,
+  listProductGroups,
 } from '@/api/client'
-import type { OperatorSettings, Product, ServiceRole } from '@/api/types'
+import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api/types'
 import {
   type Step,
   type PerRoomAddons,
@@ -60,6 +61,10 @@ import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { CategoryStep } from '@/components/booking/CategoryStep'
+import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
+import { VariantProvider } from '@/lib/variant.tsx'
+import { variantFromLocation } from '@/lib/variant'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -145,7 +150,7 @@ function App() {
   )
   if (route.kind === 'cancel') {
     return (
-      <>
+      <VariantProvider value={variantFromLocation()}>
         {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
         <TierBadge />
         <div className="min-h-screen bg-background text-foreground">
@@ -153,15 +158,15 @@ function App() {
             <CancelPage bookingId={route.bookingId} />
           </div>
         </div>
-      </>
+      </VariantProvider>
     )
   }
   return (
-    <>
+    <VariantProvider value={variantFromLocation()}>
       {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
       <TierBadge />
       <BookingFlowApp />
-    </>
+    </VariantProvider>
   )
 }
 
@@ -199,6 +204,16 @@ function BookingFlowApp() {
   const [liveAddons, setLiveAddons] = useState<AddonSelection[]>([])
   const [liveAccommodationTouched, setLiveAccommodationTouched] =
     useState<boolean>(false)
+  // landr-d8rg.4: product groups fetched at boot for the category entrance.
+  // null = fetch not yet attempted; [] = fetch done (empty or error fallback).
+  // Populated by the useEffect below, which silently falls back to []
+  // on 404/network error so the widget degrades to pick-product unscoped.
+  const [productGroups, setProductGroups] = useState<ProductGroup[] | null>(null)
+  // landr-d8rg.4: slug of the group the user picked from pick-category.
+  // Passed as productGroup to ProductList so the list is scoped to that group.
+  // Cleared when the user returns to pick-category (back-nav).
+  const [pickedGroupSlug, setPickedGroupSlug] = useState<string | null>(null)
+
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
   // first render never leaks seat counts for opted-out operators.
@@ -268,6 +283,53 @@ function BookingFlowApp() {
     }
   }, [token])
 
+  /**
+   * landr-d8rg.4: fetch product groups for the category entrance. Called
+   * once per mount (token is stable). On 404/any error falls back silently
+   * to [] so the widget renders pick-product unscoped — the real groups
+   * endpoint ships in landr-d8rg.1; until then the API returns 404 and the
+   * widget degrades gracefully. Also skipped when a ?group= or ?product=
+   * deep link is in the URL (those paths don't need category data).
+   *
+   * When >1 non-empty group is returned, the step is promoted to
+   * pick-category (inside the async callback so the setState is not
+   * synchronous within the effect body, satisfying the eslint rule).
+   */
+  useEffect(() => {
+    if (!token) return
+    // Deep links bypass the category step entirely — leave productGroups as
+    // null (never fetch) so we stay on pick-product unscoped.
+    if (group || product) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const groups = await listProductGroups(token, {
+          previewToken: previewToken ?? undefined,
+        })
+        if (cancelled) return
+        setProductGroups(groups)
+        // Route to pick-category when the operator has >1 non-empty group
+        // AND the widget is still on the initial pick-product step.
+        const nonEmpty = groups.filter((g) => g.product_count > 0)
+        if (nonEmpty.length > 1) {
+          setStep((current) =>
+            current.name === 'pick-product'
+              ? { name: 'pick-category', groups }
+              : current,
+          )
+        }
+      } catch {
+        // 404 from the pre-landing API, network error, etc. — degrade
+        // gracefully to the unscoped pick-product list.
+        if (!cancelled) setProductGroups([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
   // landr-87n9.2: clear the live-lifted accommodation state. Called on every
   // transition OUT of pick-accommodation (Back, Continue, full restart) so a
   // later visit starts fresh and the sidebar falls back to the step's
@@ -278,17 +340,24 @@ function BookingFlowApp() {
     setLiveAccommodationTouched(false)
   }, [])
 
-  const goToProductStep = useCallback(() => {
-    // Clear live selection so that a Back → re-enter cycle shows an
-    // empty price sidebar until the user picks days again (landr-w7pi).
-    setLiveSelectionDays([])
-    // landr-gb2f.1: also clear live participant state on a full restart.
-    setLiveParticipantCount(0)
-    setLiveParticipantNames([])
-    // landr-87n9.2: clear live accommodation state on a full restart.
-    clearLiveAccommodation()
-    setStep({ name: 'pick-product' })
-  }, [clearLiveAccommodation])
+  const goToProductStep = useCallback(
+    (productGroupSlug?: string) => {
+      // Clear live selection so that a Back → re-enter cycle shows an
+      // empty price sidebar until the user picks days again (landr-w7pi).
+      setLiveSelectionDays([])
+      // landr-gb2f.1: also clear live participant state on a full restart.
+      setLiveParticipantCount(0)
+      setLiveParticipantNames([])
+      // landr-87n9.2: clear live accommodation state on a full restart.
+      clearLiveAccommodation()
+      // landr-d8rg.4: when restarting after a booking, go back to pick-product
+      // (unscoped or scoped) — not to pick-category. This preserves the
+      // existing goToProductStep behavior for post-booking restart.
+      setStep({ name: 'pick-product' })
+      void productGroupSlug // reserved for future use
+    },
+    [clearLiveAccommodation],
+  )
 
   /**
    * After date selection, hand off to the DetailsStep (landr-8c03,
@@ -571,23 +640,112 @@ function BookingFlowApp() {
           </div>
         ) : null}
 
+        {/*
+          landr-d8rg.4: category entrance — shown when the operator has >1
+          non-empty group AND no deep link is set. Selecting a group scopes
+          pick-product to that group.
+        */}
+        {step.name === 'pick-category' ? (
+          <CategoryStep
+            groups={step.groups}
+            onPick={(g) => {
+              // Scope the product list to the chosen group via state, then
+              // transition to pick-product. ProductList reads pickedGroupSlug
+              // as its productGroup prop (below) so only that group's products
+              // are listed.
+              setPickedGroupSlug(g.slug)
+              setStep({ name: 'pick-product' })
+            }}
+          />
+        ) : null}
+
+        {/*
+          landr-d8rg.4: when the user navigated here from pick-category,
+          show a "Back to categories" link above the product list so they
+          can return to the category entrance without touching ProductList.
+          Hidden when no categories were shown (no group was picked, i.e.
+          the user is in the flat unscoped list or came from a ?group= link).
+        */}
+        {step.name === 'pick-product' && pickedGroupSlug && productGroups ? (
+          <button
+            type="button"
+            className="text-primary text-sm underline-offset-2 hover:underline self-start"
+            onClick={() => {
+              setPickedGroupSlug(null)
+              setStep({ name: 'pick-category', groups: productGroups })
+            }}
+            data-testid="back-to-categories"
+          >
+            ← All categories
+          </button>
+        ) : null}
+
         {step.name === 'pick-product' ? (
           <ProductList
             operatorToken={token!}
             previewToken={previewToken ?? undefined}
-            productGroup={group ?? undefined}
+            // landr-d8rg.4: if the user came from pick-category, scope the
+            // list to the chosen group. The URL ?group= param takes priority
+            // (deep-link case); pickedGroupSlug handles the in-app navigation.
+            productGroup={group ?? pickedGroupSlug ?? undefined}
             preselectSlug={product ?? undefined}
             // landr-7jgo: per-embed opt-in to show sold-out products as
             // "Fully booked" cards in the overview. Default false (hidden).
             // Ignored when a single-product deep link is in play (the deep
             // link always renders its product, sold-out or not).
             showSoldOut={showSoldOut}
-            onSelect={(p) => setStep({ name: 'pick-selection', product: p })}
+            // landr-d8rg.4: card click → product-detail step (not directly
+            // to pick-selection). The groups context is threaded through so
+            // the detail page's Back button can return to the scoped list.
+            onSelect={(p) => {
+              // Preselect path for ?product= deep link: ProductList calls
+              // onSelect immediately after resolving the product. In that
+              // case we also go to product-detail (not pick-selection),
+              // so the deep link shows the detail page first.
+              setStep({ name: 'product-detail', product: p })
+            }}
             // landr-7jgo: a deep-linked product that is sold out drops into the
             // standalone "Fully booked" state instead of a picker with no dates.
             onPreselectSoldOut={(p) =>
               setStep({ name: 'fully-booked', product: p })
             }
+          />
+        ) : null}
+
+        {/*
+          landr-d8rg.4: product detail page — shown after a card is selected
+          from pick-product (or via a ?product= deep link). The Book CTA
+          enters the existing afterSelection flow via pick-selection.
+          Back returns to pick-product (preserving group scope when applicable)
+          or to pick-category when categories were shown and there is no
+          scoped group (i.e. the user deep-linked straight to product-detail).
+        */}
+        {step.name === 'product-detail' ? (
+          <ProductDetailStep
+            product={step.product}
+            onBook={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
+            onBack={() => {
+              // landr-d8rg.4 Back nav:
+              //   - If we have a picked group slug, return to the scoped product list.
+              //   - If we have multiple non-empty groups (categories were shown)
+              //     and no group scope, return to pick-category.
+              //   - Otherwise return to pick-product unscoped.
+              const nonEmptyGroups = (productGroups ?? []).filter(
+                (g) => g.product_count > 0,
+              )
+              if (pickedGroupSlug) {
+                // Back to scoped list (group scope preserved via pickedGroupSlug state).
+                setStep({ name: 'pick-product' })
+              } else if (nonEmptyGroups.length > 1 && productGroups) {
+                // Categories were shown but no group was picked (e.g. ?product= deep link
+                // that bypasses categories). Return to pick-category.
+                setStep({ name: 'pick-category', groups: productGroups })
+              } else {
+                setStep({ name: 'pick-product' })
+              }
+            }}
           />
         ) : null}
 
