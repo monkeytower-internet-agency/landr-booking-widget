@@ -11,11 +11,12 @@
  *  - a deep-link to a BOOKABLE product calls onSelect (existing behaviour)
  *  - the date-model chip is gated by showDateModelDetail()
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { ProductList } from './ProductList'
+import { VIEW_MODE_STORAGE_KEY } from './browse/useViewMode'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -82,14 +83,20 @@ describe('ProductList — bookability visibility (landr-7jgo)', () => {
   })
 
   it('treats an absent bookable flag as bookable (back-compat)', async () => {
+    const onSelect = vi.fn()
     mocks.listProducts.mockResolvedValue([
       makeProduct({ product_id: 'a', name: 'Legacy Product' }), // no bookable
     ])
-    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    render(<ProductList operatorToken="tok" onSelect={onSelect} />)
     await waitFor(() =>
       expect(screen.getByText('Legacy Product')).toBeInTheDocument(),
     )
-    expect(screen.getByRole('button', { name: 'Select' })).toBeInTheDocument()
+    // landr-d8rg.6: the whole card is the selectable affordance (role=button,
+    // labelled by the product name) — the per-card "Select" button is gone.
+    const card = screen.getByRole('button', { name: 'Legacy Product' })
+    expect(card).toBeInTheDocument()
+    card.click()
+    expect(onSelect).toHaveBeenCalledTimes(1)
   })
 
   it('shows sold-out products as "Fully booked" (no Select) when showSoldOut=true', async () => {
@@ -106,9 +113,15 @@ describe('ProductList — bookability visibility (landr-7jgo)', () => {
     expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
       /fully booked/i,
     )
-    // The bookable product has a Select CTA; the sold-out one does not, so
-    // exactly one Select button is present.
-    expect(screen.getAllByRole('button', { name: 'Select' })).toHaveLength(1)
+    // landr-d8rg.6: the bookable product renders a selectable card (role=button
+    // labelled by its name); the sold-out one renders a FullyBookedNotice with
+    // NO selectable card. So exactly the bookable product is clickable.
+    expect(
+      screen.getByRole('button', { name: 'Open Product' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Sold Out Product' }),
+    ).not.toBeInTheDocument()
   })
 
   it('renders an empty-state when every product is sold out and showSoldOut is off', async () => {
@@ -118,8 +131,9 @@ describe('ProductList — bookability visibility (landr-7jgo)', () => {
     ])
     render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
     await waitFor(() =>
+      // landr-d8rg.6: empty-state copy is now category-scoped.
       expect(
-        screen.getByText(/No products available right now/i),
+        screen.getByText(/No products in this category/i),
       ).toBeInTheDocument(),
     )
     expect(screen.queryByText('Sold Out A')).not.toBeInTheDocument()
@@ -209,5 +223,199 @@ describe('ProductList — date-model chip env gate (landr-7jgo)', () => {
     expect(screen.queryByText('days range')).not.toBeInTheDocument()
     // Falls back to the generic 'service' label instead of the date-model chip.
     expect(screen.getByText('service')).toBeInTheDocument()
+  })
+})
+
+describe('ProductList — grid/list toggle (landr-d8rg.6)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    // jsdom has no matchMedia ⇒ default view resolves to grid.
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
+
+  it('switches layout when the toggle is used and persists the choice', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({ product_id: 'a', slug: 'open', name: 'Open Product', bookable: true }),
+    ])
+    const { unmount } = render(
+      <ProductList operatorToken="tok" onSelect={vi.fn()} />,
+    )
+    // Default (no stored pref, no matchMedia) is grid.
+    await waitFor(() =>
+      expect(screen.getByTestId('product-grid')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('product-list')).not.toBeInTheDocument()
+
+    // Flip to list.
+    fireEvent.click(screen.getByTestId('view-toggle-list'))
+    expect(screen.getByTestId('product-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('product-grid')).not.toBeInTheDocument()
+    // Persisted to localStorage under the contract key.
+    expect(window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)).toBe('list')
+
+    // A fresh mount reads the persisted preference (list), not the default.
+    unmount()
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() =>
+      expect(screen.getByTestId('product-list')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('product-grid')).not.toBeInTheDocument()
+  })
+})
+
+describe('ProductList — card content (landr-d8rg.6)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
+
+  it('renders a "from €X" price when price_from is set', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a',
+        slug: 'priced',
+        name: 'Priced',
+        bookable: true,
+        price_from: '59.00',
+        currency: 'EUR',
+      }),
+    ])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Priced')).toBeInTheDocument())
+    expect(screen.getByText(/from .*59/)).toBeInTheDocument()
+  })
+
+  it('hides the price when price_from is null', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a',
+        slug: 'free',
+        name: 'No Price',
+        bookable: true,
+        price_from: null,
+        currency: 'EUR',
+      }),
+    ])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('No Price')).toBeInTheDocument())
+    expect(screen.queryByText(/from/i)).not.toBeInTheDocument()
+  })
+
+  it('hides the price when price_from is undefined (rolling deploy)', async () => {
+    mocks.listProducts.mockResolvedValue([
+      // price_from omitted entirely (pre-d8rg.1 API).
+      makeProduct({ product_id: 'a', slug: 'legacy', name: 'Legacy', bookable: true }),
+    ])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Legacy')).toBeInTheDocument())
+    expect(screen.queryByText(/from/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the uploaded thumbnail when thumb_url is set', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a',
+        slug: 'with-img',
+        name: 'With Image',
+        bookable: true,
+        thumb_url: 'https://cdn.example/thumb.webp',
+        images: [
+          {
+            thumb_url: 'https://cdn.example/thumb.webp',
+            hero_url: 'https://cdn.example/hero.webp',
+            alt: 'A lovely flight',
+          },
+        ],
+      }),
+    ])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() =>
+      expect(screen.getByText('With Image')).toBeInTheDocument(),
+    )
+    const img = screen.getByAltText('A lovely flight')
+    expect(img).toHaveAttribute('src', 'https://cdn.example/thumb.webp')
+  })
+
+  it('falls back to the designed ProductArt when no thumb_url (no <img>)', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a',
+        slug: 'no-img',
+        name: 'No Image',
+        bookable: true,
+        thumb_url: null,
+        images: [],
+      }),
+    ])
+    const { container } = render(
+      <ProductList operatorToken="tok" onSelect={vi.fn()} />,
+    )
+    await waitFor(() => expect(screen.getByText('No Image')).toBeInTheDocument())
+    // No <img> tag — the SVG ProductArt fallback is used instead.
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+})
+
+describe('ProductList — sold-out across layouts (landr-d8rg.6)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
+
+  function soldOutFixture() {
+    return [
+      makeProduct({ product_id: 'a', slug: 'open', name: 'Open Product', bookable: true }),
+      makeProduct({ product_id: 'b', slug: 'gone', name: 'Sold Out Product', bookable: false }),
+    ]
+  }
+
+  it('renders the "Fully booked" card in GRID layout', async () => {
+    // Default layout is grid (no stored pref, no matchMedia).
+    mocks.listProducts.mockResolvedValue(soldOutFixture())
+    render(<ProductList operatorToken="tok" showSoldOut onSelect={vi.fn()} />)
+    await waitFor(() =>
+      expect(screen.getByTestId('product-grid')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
+      /fully booked/i,
+    )
+    // Sold-out has no selectable card; the bookable one does.
+    expect(
+      screen.getByRole('button', { name: 'Open Product' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Sold Out Product' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the "Fully booked" card in LIST layout', async () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+    mocks.listProducts.mockResolvedValue(soldOutFixture())
+    render(<ProductList operatorToken="tok" showSoldOut onSelect={vi.fn()} />)
+    await waitFor(() =>
+      expect(screen.getByTestId('product-list')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent(
+      /fully booked/i,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Open Product' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Sold Out Product' }),
+    ).not.toBeInTheDocument()
   })
 })

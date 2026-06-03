@@ -330,10 +330,9 @@ describe('App', () => {
   describe('step machine branching (landr-y9k)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      // Find the Select button inside the matching Card; just click the
-      // first Select since each test only seeds one product.
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: the whole product card is the click target (role=button
+      // labelled by the product name) — the per-card "Select" button is gone.
+      fireEvent.click(screen.getByRole('button', { name }))
       // landr-d8rg.4: card click now shows ProductDetailStep first.
       // Click the Book CTA to enter the existing picker flow.
       const bookBtn = await screen.findByTestId('product-detail-book-cta')
@@ -457,8 +456,8 @@ describe('App', () => {
   describe('details step (landr-8c03, replacing landr-mbge participants count)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
       // landr-d8rg.4: card click now shows ProductDetailStep first.
       const bookBtn = await screen.findByTestId('product-detail-book-cta')
       fireEvent.click(bookBtn)
@@ -687,8 +686,8 @@ describe('App', () => {
   describe('back-nav state restoration (landr-yf0n)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
       // landr-d8rg.4: card click now shows ProductDetailStep first.
       const bookBtn = await screen.findByTestId('product-detail-book-cta')
       fireEvent.click(bookBtn)
@@ -824,7 +823,8 @@ describe('App', () => {
   describe('hotel-booking back-nav + live at-hotel total (landr-87n9.1/.2)', () => {
     async function pickFirstProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
       // landr-d8rg.4: card click now shows ProductDetailStep first.
       const bookBtn = await screen.findByTestId('product-detail-book-cta')
       fireEvent.click(bookBtn)
@@ -1111,8 +1111,15 @@ describe('App', () => {
         expect(screen.getByText('Sold Out Trip')).toBeInTheDocument(),
       )
       expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument()
-      // Only the bookable product carries a Select CTA.
-      expect(screen.getAllByRole('button', { name: 'Select' })).toHaveLength(1)
+      // landr-d8rg.6: only the bookable product is a selectable card (role=button
+      // labelled by its name); the sold-out one is a non-interactive
+      // FullyBookedNotice.
+      expect(
+        screen.getByRole('button', { name: 'Bookable Tandem' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Sold Out Trip' }),
+      ).not.toBeInTheDocument()
     })
 
     it('renders a sold-out single-product deep link as "Fully booked" (no picker / CTA)', async () => {
@@ -1309,7 +1316,8 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByText('Tandem Classic')).toBeInTheDocument(),
       )
-      fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name: 'Tandem Classic' }))
       // Step 3: product-detail.
       await waitFor(() =>
         expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
