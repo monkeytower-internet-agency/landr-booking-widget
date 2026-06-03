@@ -17,6 +17,24 @@ interface Props {
   onRestart: () => void
 }
 
+/**
+ * landr-y31z: derive the email status notice to render on the confirmation
+ * screen, based on the confirmation_email_status field added by landr-2js5.
+ *
+ * 'sent' | 'captured' → success copy (email is on its way / captured in dev).
+ * 'failed'            → amber alert: booking saved, email failed; contact operator.
+ * 'pending' | absent  → neutral copy (awaiting operator action, or old API).
+ */
+type EmailStatusKind = 'success' | 'failed' | 'neutral'
+
+function resolveEmailStatusKind(
+  status: SubmitBookingResponse['confirmation_email_status'],
+): EmailStatusKind {
+  if (status === 'sent' || status === 'captured') return 'success'
+  if (status === 'failed') return 'failed'
+  return 'neutral'
+}
+
 export function Confirmation({ response, onRestart }: Props) {
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
@@ -38,6 +56,9 @@ export function Confirmation({ response, onRestart }: Props) {
   const googleUrl = calendarEvent ? buildGoogleCalendarUrl(calendarEvent) : null
   const outlookUrl = calendarEvent ? buildOutlookUrl(calendarEvent) : null
 
+  // landr-y31z: email status
+  const emailStatusKind = resolveEmailStatusKind(response.confirmation_email_status)
+
   return (
     <Card>
       <CardHeader>
@@ -47,11 +68,40 @@ export function Confirmation({ response, onRestart }: Props) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="text-sm">
-          You will receive a confirmation email shortly with the next steps. The booking
-          is currently <span className="font-medium">{response.semantic_state}</span> while the
-          operator confirms capacity.
-        </p>
+        {emailStatusKind === 'failed' ? (
+          /*
+           * landr-y31z: amber notice when the confirmation email could not
+           * be sent. Booking IS saved (reference is shown in the CardDescription
+           * above). Ask the customer to contact the operator directly.
+           * role="status" makes screen readers announce this without requiring
+           * focus, matching the urgency of the message without being assertive.
+           */
+          <div
+            role="status"
+            className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            <p className="font-medium">Your booking is confirmed — but we could not send the confirmation email.</p>
+            <p className="mt-1">
+              {/*
+               * Operator name/contact: SubmitBookingResponse does not carry
+               * operator fields in the current API contract (operator metadata
+               * lives in OperatorSettings, fetched separately). A future API
+               * iteration may surface operator_name here; for now we use the
+               * safe generic fallback. See landr-y31z spec note.
+               */}
+              Please contact the operator directly to confirm your booking details.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm">
+            {emailStatusKind === 'success'
+              ? 'A confirmation email has been sent with your booking details.'
+              : 'You will receive a confirmation email shortly with the next steps.'}{' '}
+            The booking is currently{' '}
+            <span className="font-medium">{response.semantic_state}</span> while the
+            operator confirms capacity.
+          </p>
+        )}
         {/*
           landr-3vr5 + landr-acew: "Add to calendar" group.
 
