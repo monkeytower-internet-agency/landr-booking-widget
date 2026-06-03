@@ -82,7 +82,9 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
   const countChip = (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        // landr-d8rg.8: chip radius from the variant token (alpine squares it).
+        'inline-flex items-center px-2 py-0.5 text-xs font-medium',
+        tokens.chipRadius,
         variant === 'aurora'
           ? 'bg-white/20 text-white backdrop-blur-sm'
           : 'bg-muted text-muted-foreground',
@@ -94,11 +96,13 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
   )
 
   // Shared interaction chrome for every variant's <button>.
+  // landr-d8rg.8: focus ring now comes from the shared token (tokens.focusRing)
+  // so every interactive surface across the three steps rings identically.
   const baseButton = cn(
     'group relative block w-full overflow-hidden text-left',
-    'outline-none cursor-pointer',
+    'cursor-pointer',
     'transition-all duration-200 ease-out motion-reduce:transition-none',
-    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    tokens.focusRing,
     'hover:-translate-y-0.5 focus-visible:-translate-y-0.5 motion-reduce:hover:translate-y-0 motion-reduce:focus-visible:translate-y-0',
     tokens.cardRadius,
   )
@@ -115,7 +119,7 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
       >
         {media}
         <div
-          className={cn('pointer-events-none absolute inset-0', tokens.tileOverlay)}
+          className={cn('pointer-events-none absolute inset-0', tokens.overlayScrim)}
           aria-hidden="true"
         />
         <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 text-white">

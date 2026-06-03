@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_VARIANT,
   VARIANTS,
   VARIANT_TOKENS,
   parseVariant,
+  previewEnabledFromSearch,
+  writeVariantToUrl,
   type Variant,
   type VariantTokens,
 } from './variant'
@@ -41,7 +43,7 @@ describe('parseVariant (landr-d8rg.3)', () => {
   })
 })
 
-describe('VARIANT_TOKENS (landr-d8rg.3)', () => {
+describe('VARIANT_TOKENS (landr-d8rg.3 / landr-d8rg.8)', () => {
   const tokenKeys: (keyof VariantTokens)[] = [
     'tileAspect',
     'tileOverlay',
@@ -50,6 +52,24 @@ describe('VARIANT_TOKENS (landr-d8rg.3)', () => {
     'cardDensity',
     'heroTreatment',
     'typeAccent',
+    // landr-d8rg.8 cohesion tokens.
+    'chipRadius',
+    'thumbRadius',
+    'selectionRing',
+    'focusRing',
+    'overlayScrim',
+  ]
+
+  // landr-d8rg.8: tokens that are DELIBERATELY shared across variants for
+  // cross-surface cohesion — the focus affordance and the AA text-over-image
+  // scrim must read identically regardless of the visual direction. The tile
+  // overlay is the same AA scrim (the immersive treatment differs by LAYOUT,
+  // not by scrim strength). These are exempt from the "differs across
+  // variants" assertion below.
+  const intentionallySharedKeys: (keyof VariantTokens)[] = [
+    'focusRing',
+    'overlayScrim',
+    'tileOverlay',
   ]
 
   it('defines a token set for all three variants', () => {
@@ -74,10 +94,66 @@ describe('VARIANT_TOKENS (landr-d8rg.3)', () => {
     expect(new Set(serialized).size).toBe(VARIANTS.length)
   })
 
-  it('each individual token differs across at least two variants', () => {
+  it('each direction-defining token differs across at least two variants', () => {
     for (const key of tokenKeys) {
+      if (intentionallySharedKeys.includes(key)) continue
       const values = VARIANTS.map((v) => VARIANT_TOKENS[v][key])
       expect(new Set(values).size).toBeGreaterThan(1)
     }
+  })
+
+  it('the intentionally-shared tokens are identical across all variants', () => {
+    for (const key of intentionallySharedKeys) {
+      const values = VARIANTS.map((v) => VARIANT_TOKENS[v][key])
+      expect(new Set(values).size).toBe(1)
+    }
+  })
+})
+
+describe('previewEnabledFromSearch (landr-d8rg.8)', () => {
+  it('is true for the explicit ?preview=1 design-review flag', () => {
+    expect(previewEnabledFromSearch('?preview=1')).toBe(true)
+    expect(previewEnabledFromSearch('preview=1')).toBe(true)
+    expect(previewEnabledFromSearch('?preview=true')).toBe(true)
+  })
+
+  it('is true when an operator preview_token is present', () => {
+    expect(previewEnabledFromSearch('?preview_token=abc123')).toBe(true)
+    expect(previewEnabledFromSearch('?w=tok&preview_token=xyz')).toBe(true)
+  })
+
+  it('is false for a plain customer-facing embed URL', () => {
+    expect(previewEnabledFromSearch('')).toBe(false)
+    expect(previewEnabledFromSearch('?w=token&variant=summit')).toBe(false)
+    // A bare ?preview without a truthy value stays customer-safe.
+    expect(previewEnabledFromSearch('?preview')).toBe(false)
+    expect(previewEnabledFromSearch('?preview=0')).toBe(false)
+    expect(previewEnabledFromSearch('?preview_token=')).toBe(false)
+  })
+})
+
+describe('writeVariantToUrl (landr-d8rg.8)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('replaces the URL state with the variant param set (no reload)', () => {
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    writeVariantToUrl('alpine')
+    expect(replaceState).toHaveBeenCalledTimes(1)
+    const urlArg = String(replaceState.mock.calls[0][2])
+    expect(urlArg).toContain('variant=alpine')
+  })
+
+  it('overwrites an existing variant param rather than appending', () => {
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    // Seed a URL that already carries variant=aurora.
+    window.history.replaceState(null, '', '/?w=tok&variant=aurora')
+    writeVariantToUrl('summit')
+    const urlArg = String(replaceState.mock.calls.at(-1)?.[2])
+    expect(urlArg).toContain('variant=summit')
+    expect(urlArg).not.toContain('variant=aurora')
+    // The unrelated param survives.
+    expect(urlArg).toContain('w=tok')
   })
 })

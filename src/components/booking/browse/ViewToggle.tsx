@@ -47,7 +47,11 @@ export function ViewToggle({ value, onChange }: Props) {
             data-active={active ? 'true' : 'false'}
             onClick={() => onChange(mode)}
             className={cn(
-              'inline-flex size-8 items-center justify-center rounded-[inherit] transition-colors outline-none focus-visible:ring-[2px] focus-visible:ring-ring/50',
+              // landr-d8rg.8: shared focus-ring token (was ring-[2px]/50) +
+              // a ≥40px tap target (was size-8 / 32px — under the mobile
+              // touch-target floor).
+              'inline-flex size-10 items-center justify-center rounded-[inherit] transition-colors',
+              tokens.focusRing,
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',

@@ -80,7 +80,11 @@ export function ProductGallery({ images, seed, name }: Props) {
           <>
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent"
+              // landr-d8rg.8: shared AA-safe scrim token — identical to the
+              // aurora category tile overlay, so the immersive text-on-image
+              // treatment reads the same across browse + detail and stays ≥AA
+              // under white text regardless of the operator's --primary.
+              className={cn('pointer-events-none absolute inset-0', tokens.overlayScrim)}
             />
             <h2
               className={cn(
@@ -114,9 +118,15 @@ export function ProductGallery({ images, seed, name }: Props) {
                 data-testid="product-gallery-thumb"
                 data-active={selected ? 'true' : 'false'}
                 className={cn(
-                  'h-16 w-20 shrink-0 overflow-hidden rounded-md ring-offset-2 ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  // landr-d8rg.8: radius + selection ring + focus ring now
+                  // resolve from the variant tokens so the thumb strip matches
+                  // the active direction (sharp in alpine, rounded in aurora)
+                  // and uses the one shared focus-ring recipe.
+                  'h-16 w-20 shrink-0 overflow-hidden transition',
+                  tokens.thumbRadius,
+                  tokens.focusRing,
                   selected
-                    ? 'ring-2 ring-primary'
+                    ? tokens.selectionRing
                     : 'ring-1 ring-border opacity-80 hover:opacity-100',
                 )}
               >

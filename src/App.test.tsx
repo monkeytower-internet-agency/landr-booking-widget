@@ -1085,6 +1085,41 @@ describe('App', () => {
     })
   })
 
+  // landr-d8rg.8: the floating preview variant switcher is gated on preview
+  // mode (?preview=1 or a preview_token) — it must NEVER ship to a
+  // customer-facing embed.
+  describe('variant switcher gating (landr-d8rg.8)', () => {
+    it('renders the switcher when ?preview=1 is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview=1`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
+    })
+
+    it('renders the switcher when a preview_token is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-xyz`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
+    })
+
+    it('does NOT render the switcher on a plain customer-facing embed', async () => {
+      // beforeEach sets /?w=MOCK_TOKEN — no preview flag / token.
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.queryByTestId('variant-switcher')).not.toBeInTheDocument()
+    })
+  })
+
   // landr-7jgo: hide sold-out products in the overview; deep-link a sold-out
   // product to a standalone "Fully booked" state; per-embed show_sold_out opt-in.
   describe('bookability / sold-out (landr-7jgo)', () => {

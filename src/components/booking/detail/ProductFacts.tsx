@@ -7,6 +7,8 @@
  */
 import { Clock, BedDouble, MapPin, Tag, type LucideIcon } from 'lucide-react'
 import type { Product } from '@/api/types'
+import { cn } from '@/lib/utils'
+import { useVariant } from '@/lib/variant'
 import { deriveProductFacts, type FactIcon } from './productFacts'
 
 const ICONS: Record<FactIcon, LucideIcon> = {
@@ -17,6 +19,9 @@ const ICONS: Record<FactIcon, LucideIcon> = {
 }
 
 export function ProductFacts({ product }: { product: Product }) {
+  // landr-d8rg.8: fact chips track the variant chip radius (alpine squares
+  // them) so the detail surface matches the browse cards' chip language.
+  const { tokens } = useVariant()
   const facts = deriveProductFacts(product)
   if (facts.length === 0) return null
 
@@ -32,7 +37,10 @@ export function ProductFacts({ product }: { product: Product }) {
           <li
             key={`${fact.icon}-${fact.label}`}
             data-testid="product-fact"
-            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground"
+            className={cn(
+              'inline-flex items-center gap-1.5 bg-muted px-3 py-1 text-sm text-muted-foreground',
+              tokens.chipRadius,
+            )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             <span>{fact.label}</span>
