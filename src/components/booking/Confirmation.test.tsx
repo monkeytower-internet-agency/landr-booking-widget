@@ -200,4 +200,37 @@ describe('Confirmation', () => {
     expect(screen.getByRole('link', { name: /outlook/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /download .ics/i })).toBeInTheDocument()
   })
+
+  it('does NOT blank the page when calendar_event is malformed (missing start_date/end_date)', () => {
+    // landr-9ut4 regression: the API once emitted { start, end } instead of
+    // { start_date, end_date }. The old code called buildGoogleCalendarUrl on
+    // that object, which threw on `undefined.split('-')` during render and —
+    // with no error boundary — unmounted the whole widget, blanking the
+    // confirmation screen. A malformed event must now degrade to ICS-only.
+    const malformed = {
+      title: 'Tandem Classic — Para42',
+      start: '2026-06-15',
+      end: '2026-06-15',
+      location: 'Para42',
+    } as unknown as BookingCalendarEvent
+    const response = baseResponse({
+      ical_url: MOCK_ICAL_URL,
+      calendar_event: malformed,
+    })
+
+    expect(() =>
+      render(<Confirmation response={response} onRestart={vi.fn()} />),
+    ).not.toThrow()
+    // Card + ICS still render; the calendar deep-links are simply skipped.
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /download .ics/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /google calendar/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /outlook/i }),
+    ).not.toBeInTheDocument()
+  })
 })
