@@ -587,6 +587,18 @@ export interface SubmitBookingResponse {
    * Absent on older API deploys or date-less products.
    */
   calendar_event?: BookingCalendarEvent | null
+  /**
+   * landr-y31z: outcome of the post-booking confirmation email send.
+   * 'sent'     → Gmail delivery confirmed.
+   * 'captured' → dev-fallback path (sent_via='dev_fallback'); email saved
+   *              but not dispatched externally — treat as success for display.
+   * 'failed'   → outbound_emails row exists but send failed (no Gmail
+   *              configured, or SMTP error); booking IS saved.
+   * 'pending'  → non-auto-approved booking (awaiting operator action), or
+   *              enqueue failed before any row was created.
+   * Absent on API responses that predate landr-2js5 — treat as 'pending'.
+   */
+  confirmation_email_status?: 'sent' | 'captured' | 'failed' | 'pending'
 }
 
 /**

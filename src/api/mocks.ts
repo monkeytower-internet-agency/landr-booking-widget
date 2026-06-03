@@ -550,6 +550,9 @@ export const mockSubmit = (): SubmitBookingResponse => ({
     description: 'Booking for Jane Doe. Confirmed via Para42. Please arrive on time and bring your confirmation email.',
     location: 'Para42',
   },
+  // landr-y31z: default mock to 'sent' — exercises the success copy path in
+  // dev mode (the most common happy-path outcome for auto-approved bookings).
+  confirmation_email_status: 'sent',
 })
 
 /**
