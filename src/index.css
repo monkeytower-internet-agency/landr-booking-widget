@@ -82,3 +82,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * landr-d8rg.8: subtle step-enter motion. Fade in + an 8px upward translate
+ * over 200ms — applied by <StepTransition> (re-mounted per step via a key).
+ * Honours prefers-reduced-motion: under that setting the element appears
+ * instantly with no transform (the class becomes a no-op), satisfying the
+ * a11y requirement without any JS branching.
+ */
+@keyframes step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-enter {
+  animation: step-enter 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-enter {
+    animation: none;
+  }
+}

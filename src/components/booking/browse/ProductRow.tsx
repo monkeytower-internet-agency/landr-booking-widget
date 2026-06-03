@@ -29,9 +29,14 @@ interface Props {
   onSelect: (product: Product) => void
 }
 
-function Chip({ children }: { children: ReactNode }) {
+function Chip({ children, radius }: { children: ReactNode; radius: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+    <span
+      className={cn(
+        'inline-flex items-center bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground',
+        radius,
+      )}
+    >
       {children}
     </span>
   )
@@ -62,8 +67,10 @@ export function ProductRow({ product, locale, showDateModel, onSelect }: Props) 
         }
       }}
       className={cn(
-        'group flex cursor-pointer items-center gap-4 border border-border bg-card p-3 text-left transition-all outline-none',
-        'hover:shadow-md focus-visible:ring-[2px] focus-visible:ring-ring/50',
+        'group flex cursor-pointer items-center gap-4 border border-border bg-card p-3 text-left transition-all',
+        // landr-d8rg.8: shared focus-ring token (was an ad-hoc ring-[2px]/50).
+        'hover:shadow-md',
+        tokens.focusRing,
         tokens.cardRadius,
         tokens.cardShadow,
       )}
@@ -110,8 +117,8 @@ export function ProductRow({ product, locale, showDateModel, onSelect }: Props) 
 
         {meta || kind ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            {meta ? <Chip>{meta}</Chip> : null}
-            {kind ? <Chip>{kind}</Chip> : null}
+            {meta ? <Chip radius={tokens.chipRadius}>{meta}</Chip> : null}
+            {kind ? <Chip radius={tokens.chipRadius}>{kind}</Chip> : null}
           </div>
         ) : null}
       </div>

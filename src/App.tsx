@@ -64,7 +64,9 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
-import { variantFromLocation } from '@/lib/variant'
+import { variantFromLocation, previewEnabledFromLocation } from '@/lib/variant'
+import { VariantSwitcher } from '@/components/booking/VariantSwitcher'
+import { StepTransition } from '@/components/booking/StepTransition'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
 // v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
@@ -150,7 +152,10 @@ function App() {
   )
   if (route.kind === 'cancel') {
     return (
-      <VariantProvider value={variantFromLocation()}>
+      <VariantProvider
+        value={variantFromLocation()}
+        previewEnabled={previewEnabledFromLocation()}
+      >
         {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
         <TierBadge />
         <div className="min-h-screen bg-background text-foreground">
@@ -158,14 +163,21 @@ function App() {
             <CancelPage bookingId={route.bookingId} />
           </div>
         </div>
+        {/* landr-d8rg.8: live variant switcher (preview links only). */}
+        <VariantSwitcher />
       </VariantProvider>
     )
   }
   return (
-    <VariantProvider value={variantFromLocation()}>
+    <VariantProvider
+      value={variantFromLocation()}
+      previewEnabled={previewEnabledFromLocation()}
+    >
       {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
       <TierBadge />
       <BookingFlowApp />
+      {/* landr-d8rg.8: live variant switcher (preview links only). */}
+      <VariantSwitcher />
     </VariantProvider>
   )
 }
@@ -640,6 +652,16 @@ function BookingFlowApp() {
           </div>
         ) : null}
 
+        {/*
+          landr-d8rg.8: wrap the step-machine branches in StepTransition,
+          keyed by step.name, so each step change replays the subtle
+          fade+8px-translate enter motion (suppressed under
+          prefers-reduced-motion). The persistent header / preview banner
+          above stay OUTSIDE the wrapper so they don't re-animate per step.
+          The "back to categories" link is part of the pick-product surface,
+          so it lives inside.
+        */}
+        <StepTransition stepKey={step.name}>
         {/*
           landr-d8rg.4: category entrance — shown when the operator has >1
           non-empty group AND no deep link is set. Selecting a group scopes
@@ -1287,6 +1309,7 @@ function BookingFlowApp() {
             ) : null}
           </>
         ) : null}
+        </StepTransition>
         </div>
         {sidebarInputs ? (
           <PriceSidebar
