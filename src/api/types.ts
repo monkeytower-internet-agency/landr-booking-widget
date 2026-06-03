@@ -192,14 +192,21 @@ export interface Product {
    * null when the operator has not yet uploaded any imagery. The widget
    * uses this as the cheap preview source for catalogue cards; hero_url
    * is used on the product detail page.
+   *
+   * OPTIONAL (rolling deploy): the API ships these fields in
+   * landr-d8rg.1; until that lands on the dev/prod API, product payloads
+   * arrive WITHOUT them. Consumers must treat undefined as null/empty.
+   * This also keeps the dozens of existing Product test factories valid
+   * (CI type-checks test files via `tsc -b` — see PR #79 red run).
    */
-  thumb_url: string | null
+  thumb_url?: string | null
   /**
    * landr-d8rg, epic contract D: sorted list of WebP rendition pairs
    * for this product (max 4, by sort_order ASC). Empty array when no
    * images have been uploaded. Used by the product detail gallery.
+   * Optional during rolling deploy (see thumb_url note).
    */
-  images: ProductImage[]
+  images?: ProductImage[]
   /**
    * landr-d8rg, epic contract D: cheapest derivable single-day/base rate
    * as a decimal string ("€" not included, e.g. "59.00"). Computed
@@ -207,9 +214,10 @@ export interface Product {
    * per_day_base or fixed_total rule). null when the rate cannot be
    * derived (e.g. tier-only schemes with no base rate, or hotel_room
    * kinds where the rate varies by occupancy). The widget renders
-   * "from €{price_from}" on catalogue cards; the field is hidden when null.
+   * "from €{price_from}" on catalogue cards; the field is hidden when
+   * null. Optional during rolling deploy (see thumb_url note).
    */
-  price_from: string | null
+  price_from?: string | null
 }
 
 /**

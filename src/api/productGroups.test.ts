@@ -157,14 +157,14 @@ describe('mock shape consistency — new Product fields (landr-d8rg contract D)'
 
   it('at least two products have non-empty images array', () => {
     const products = mockProducts()
-    const withImages = products.filter((p) => p.images.length > 0)
+    const withImages = products.filter((p) => (p.images ?? []).length > 0)
     expect(withImages.length).toBeGreaterThanOrEqual(2)
   })
 
   it('each ProductImage in images[] has thumb_url, hero_url (string) and alt (string|null)', () => {
     const products = mockProducts()
     for (const p of products) {
-      for (const img of p.images) {
+      for (const img of p.images ?? []) {
         expect(typeof img.thumb_url).toBe('string')
         expect(typeof img.hero_url).toBe('string')
         expect(img.alt === null || typeof img.alt === 'string').toBe(true)
@@ -174,10 +174,10 @@ describe('mock shape consistency — new Product fields (landr-d8rg contract D)'
 
   it('product with images has thumb_url matching the first image thumb_url', () => {
     const products = mockProducts()
-    const withImages = products.filter((p) => p.images.length > 0)
+    const withImages = products.filter((p) => (p.images ?? []).length > 0)
     expect(withImages.length).toBeGreaterThan(0)
     for (const p of withImages) {
-      expect(p.thumb_url).toBe(p.images[0]!.thumb_url)
+      expect(p.thumb_url).toBe(p.images![0]!.thumb_url)
     }
   })
 })
