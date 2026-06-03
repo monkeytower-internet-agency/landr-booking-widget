@@ -25,14 +25,18 @@ export function Confirmation({ response, onRestart }: Props) {
    * dated product; when absent we fall back to the ICS-only path so
    * older API deploys keep working without change.
    */
-  const googleUrl =
-    response.calendar_event
-      ? buildGoogleCalendarUrl(response.calendar_event)
+  // landr-9ut4: only build deep-links when the API supplied a calendar_event
+  // carrying BOTH ISO dates. Guarding on the dates here (rather than trusting
+  // the payload shape) means a field-name skew or partial payload degrades to
+  // the ICS-only path instead of throwing inside buildGoogleCalendarUrl during
+  // render — a throw here unmounts the whole widget (no error boundary) and
+  // blanks the confirmation screen, which is exactly the bug this guards.
+  const calendarEvent =
+    response.calendar_event?.start_date && response.calendar_event?.end_date
+      ? response.calendar_event
       : null
-  const outlookUrl =
-    response.calendar_event
-      ? buildOutlookUrl(response.calendar_event)
-      : null
+  const googleUrl = calendarEvent ? buildGoogleCalendarUrl(calendarEvent) : null
+  const outlookUrl = calendarEvent ? buildOutlookUrl(calendarEvent) : null
 
   return (
     <Card>
