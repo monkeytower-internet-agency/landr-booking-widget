@@ -8,6 +8,7 @@ import type {
   OperatorSettings,
   Product,
   ProductAddon,
+  ProductGroup,
   ServiceRole,
   SubmitBookingBody,
   SubmitBookingResponse,
@@ -21,6 +22,7 @@ import {
   mockOperatorServiceRoles,
   mockOperatorSettings,
   mockProductAddons,
+  mockProductGroups,
   mockProducts,
   mockSubmit,
 } from './mocks'
@@ -110,6 +112,25 @@ export async function listProducts(
   // getHotelRoomsForHotel which opts in via includeHotelRooms.
   if (options?.includeHotelRooms) return raw
   return raw.filter((p) => p.product_kind !== 'hotel_room')
+}
+
+/**
+ * Product groups (categories) for the operator (landr-d8rg, epic contract E).
+ * Returns active + non-deleted groups ordered by sort_order. product_count
+ * reflects bookable products in each group subtree. Mirrors the pattern of
+ * listProducts: mock switch, identical error handling via http().
+ */
+export async function listProductGroups(
+  operatorToken: string,
+  options?: { previewToken?: string },
+): Promise<ProductGroup[]> {
+  if (mocksEnabled()) return mockProductGroups(operatorToken, options?.previewToken)
+  const qs = new URLSearchParams()
+  if (options?.previewToken) {
+    qs.append('preview_token', options.previewToken)
+  }
+  const path = `/api/public/operators/${encodeURIComponent(operatorToken)}/product-groups`
+  return http<ProductGroup[]>(qs.toString() ? `${path}?${qs}` : path)
 }
 
 export async function getAvailability(
