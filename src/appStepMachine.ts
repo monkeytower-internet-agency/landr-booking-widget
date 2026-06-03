@@ -19,7 +19,7 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
-import type { Product, SubmitBookingResponse } from '@/api/types'
+import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
 
 /**
  * landr-gb2f.5: the raw per-room add-on selection carried through the step
@@ -59,6 +59,24 @@ export interface SidebarInputs {
 
 export type Step =
   | { name: 'pick-product' }
+  /**
+   * landr-d8rg.4: category entrance — shown when the operator has more than
+   * one non-empty product group AND no ?group= / ?product= deep link is set.
+   * The groups array comes from listProductGroups (landr-d8rg.1) fetched at
+   * boot. Selecting a group transitions to pick-product scoped to that group.
+   * sidebarInputsForStep returns null (no product chosen yet, no price).
+   */
+  | { name: 'pick-category'; groups: ProductGroup[] }
+  /**
+   * landr-d8rg.4: product detail page — shown when a card is selected from
+   * pick-product (or via a ?product= deep link). The customer can review the
+   * product and hit the "Book" CTA to enter the existing afterSelection flow.
+   * sidebarInputsForStep returns null (no date/selection yet — landr-hpyn
+   * convention: price only after dates are committed).
+   * groups is optional (set when the user came from a category, so Back can
+   * return to the scoped pick-product with the same group filter).
+   */
+  | { name: 'product-detail'; product: Product; groups?: ProductGroup[] }
   | { name: 'pick-selection'; product: Product }
   // landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
   // a SOLD-OUT product. The product is always rendered (informational "Fully
@@ -590,7 +608,11 @@ function namesFrom(participants: ParticipantDetails[]): string[] {
 export function sidebarInputsForStep(step: Step): SidebarInputs | null {
   switch (step.name) {
     // landr-7jgo: 'fully-booked' has nothing to price (sold-out) — no sidebar.
+    // landr-d8rg.4: pick-category and product-detail return null — no price
+    // before a date/selection is committed (landr-hpyn convention).
     case 'pick-product':
+    case 'pick-category':
+    case 'product-detail':
     case 'confirmed':
     case 'fully-booked':
       return null
