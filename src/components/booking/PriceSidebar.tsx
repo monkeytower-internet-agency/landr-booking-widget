@@ -350,15 +350,40 @@ export default function PriceSidebar(props: Props) {
     return `For ${head} + ${rest} other${rest === 1 ? '' : 's'}`
   }, [participantNames])
 
+  // landr-hpyn: never price an empty selection. selectedDays only ever
+  // arrives empty on the pick-selection step BEFORE the customer has
+  // chosen anything (every later step derives ≥1 day from the committed
+  // selection — see selectionToDays). The estimate endpoint happily
+  // returns the product's base price for selected_days=[], which made a
+  // fixed-window course with zero upcoming windows render "No upcoming
+  // windows" next to a €450 Booking overview. Gate BOTH the fetch
+  // (enabled) and the render (`visible` below) — the hook deliberately
+  // keeps the previous response for stale-while-loading, so deselecting
+  // the last day would otherwise leave the old price on screen.
+  const hasSelection = selectedDays.length > 0
+
   const estimate = useBookingEstimate({
     operatorToken,
     productId: product.product_id,
     selectedDays,
     participantCount,
     addonLines,
-    enabled: true,
+    enabled: hasSelection,
     debounceMs,
   })
+
+  // What the UI is allowed to show: identical to `estimate` while a
+  // selection exists; collapses to the no-data empty state ("Pick your
+  // options to see the price.") when nothing is selected.
+  const visible: typeof estimate = hasSelection
+    ? estimate
+    : {
+        data: null,
+        isLoading: false,
+        isStale: false,
+        error: null,
+        refresh: estimate.refresh,
+      }
 
   // Mobile drawer open state — collapsed by default so the customer
   // sees just the grand total + a tap target. Resetting it to false on
@@ -384,12 +409,12 @@ export default function PriceSidebar(props: Props) {
   // only — what the customer pays now at checkout). The hotel charge is
   // surfaced as a separate "+ €X at hotel" sub-line so the customer sees
   // it exists without conflating it into the checkout number.
-  const bookingTotalLabel = estimate.data
-    ? formatMoney(estimate.data.operator_total, estimate.data.currency)
+  const bookingTotalLabel = visible.data
+    ? formatMoney(visible.data.operator_total, visible.data.currency)
     : '—'
   const atHotelLabel =
-    estimate.data && Number(estimate.data.hotel_total) > 0
-      ? formatMoney(estimate.data.hotel_total, estimate.data.currency)
+    visible.data && Number(visible.data.hotel_total) > 0
+      ? formatMoney(visible.data.hotel_total, visible.data.currency)
       : null
 
   return (
@@ -402,10 +427,10 @@ export default function PriceSidebar(props: Props) {
         <div className="sticky top-6 rounded-md border bg-card p-4 shadow-sm">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="text-base font-semibold">Booking overview</h3>
-            {estimate.isStale ? (
+            {visible.isStale ? (
               <button
                 type="button"
-                onClick={estimate.refresh}
+                onClick={visible.refresh}
                 title="Update price"
                 data-testid="price-sidebar-refresh"
                 className="text-muted-foreground transition-colors hover:text-foreground"
@@ -424,7 +449,7 @@ export default function PriceSidebar(props: Props) {
           ) : (
             <div className="mb-3" />
           )}
-          <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
+          <BookingOverviewBody {...visible} selectedDays={selectedDays} />
         </div>
       </aside>
 
@@ -465,7 +490,7 @@ export default function PriceSidebar(props: Props) {
             id="price-sidebar-mobile-panel"
             className="max-h-[60vh] overflow-y-auto border-t bg-card px-4 py-4"
           >
-            <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
+            <BookingOverviewBody {...visible} selectedDays={selectedDays} />
           </div>
         ) : null}
       </div>
