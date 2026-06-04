@@ -168,3 +168,26 @@ describe('CategoryStep (landr-d8rg.5)', () => {
     expect(screen.getByText(/No categories are available/i)).toBeInTheDocument()
   })
 })
+
+// User report 2026-06-04: with an operator widget_headline configured
+// (Settings → Branding), the built-in entrance heading stacked beneath it
+// as duplicate copy. App passes hideHeading when a headline exists.
+describe('CategoryStep heading suppression', () => {
+  it('shows the default heading without the flag', () => {
+    render(
+      <CategoryStep groups={[makeGroup({})]} onPick={() => {}} />,
+    )
+    expect(screen.getByText('What are you looking for?')).toBeInTheDocument()
+  })
+
+  it('hides the default heading when hideHeading is set', () => {
+    render(
+      <CategoryStep groups={[makeGroup({})]} onPick={() => {}} hideHeading />,
+    )
+    expect(
+      screen.queryByText('What are you looking for?'),
+    ).not.toBeInTheDocument()
+    // Tiles still render.
+    expect(screen.getByTestId('category-step')).toBeInTheDocument()
+  })
+})
