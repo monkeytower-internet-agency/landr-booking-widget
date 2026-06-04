@@ -97,7 +97,9 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
           isContiguous={product.is_contiguous}
         />
         {selectedDays.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
+          // landr-3mo4: selection count surfaced as a tinted chip (committed
+          // state), not muted helper text.
+          <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground">
             {selectedDays.length === 1
               ? `1 day selected`
               : `${selectedDays.length} days selected`}
