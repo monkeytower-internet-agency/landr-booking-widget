@@ -36,6 +36,7 @@ import {
 import { AddonsList } from './AddonsList'
 import { RoomAssignment } from './RoomAssignment'
 import {
+  clampAddonQty,
   requiredAddonError,
   type AddonSelection,
 } from './addonsState'
@@ -761,14 +762,47 @@ export function AccommodationStep({
   }
 
   function bumpQty(productId: string, delta: number) {
-    setSelection((prev) => {
-      const next = Math.max(0, (prev[productId] ?? 0) + delta)
-      const out = { ...prev, [productId]: next }
-      if (next === 0) delete out[productId]
-      // landr-87n9.2: report the new room set live (add-on map unchanged).
-      notifyLiveAccommodation(mode, out, addonSelection)
-      return out
-    })
+    const next = Math.max(0, (selection[productId] ?? 0) + delta)
+    const out = { ...selection, [productId]: next }
+    if (next === 0) delete out[productId]
+
+    // landr-u4fl: shrinking the room count must also shrink its linked
+    // add-ons. The occupancy cap (capacity_per_unit × qty) only gates the
+    // + stepper inside AddonsList, so a selection made at 2 rooms survived
+    // a reduction to 1 (e.g. 2 breakfasts on a single room) even though it
+    // could never be re-created. Re-clamp this room's add-on slice against
+    // the NEW cap via the same clampAddonQty the stepper uses; a cap of 0
+    // (room removed) clears the slice entirely.
+    let nextAddonSelection = addonSelection
+    if (delta < 0) {
+      const slice = addonSelection[productId]
+      if (slice && Object.keys(slice).length > 0) {
+        const room = (rooms ?? []).find((r) => r.product_id === productId)
+        const cap = (room?.capacity_per_unit ?? 1) * next
+        const roomAddons = addonsByRoom[productId] ?? []
+        const clamped: Record<string, number> = {}
+        let changed = false
+        for (const [addonId, qty] of Object.entries(slice)) {
+          const addon = roomAddons.find(
+            (a) => a.addon_product_id === addonId,
+          )
+          const clampedQty = addon
+            ? clampAddonQty(addon, qty, cap)
+            : Math.min(qty, cap)
+          if (clampedQty !== qty) changed = true
+          if (clampedQty > 0) clamped[addonId] = clampedQty
+        }
+        if (changed) {
+          nextAddonSelection = { ...addonSelection, [productId]: clamped }
+          setAddonSelection(nextAddonSelection)
+        }
+      }
+    }
+
+    setSelection(out)
+    // landr-87n9.2: report the new room set live (with the re-clamped
+    // add-on map so the hotel pill drops the trimmed breakfasts too).
+    notifyLiveAccommodation(mode, out, nextAddonSelection)
   }
 
   // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
