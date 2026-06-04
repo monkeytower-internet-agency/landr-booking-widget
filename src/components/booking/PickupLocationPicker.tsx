@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Check, MapPin } from 'lucide-react'
 import { listLocations } from '@/api/client'
 import type { Location } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { useVariant } from '@/lib/variant'
+import { cn } from '@/lib/utils'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
@@ -58,6 +61,7 @@ export function PickupLocationPicker({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const locale = browserLocale()
+  const { tokens } = useVariant()
 
   useEffect(() => {
     let cancelled = false
@@ -103,14 +107,22 @@ export function PickupLocationPicker({
               const name = pickLocalized(loc.name, loc.name_localized, locale)
               const isSelected = selected === loc.location_id
               return (
+                // landr-3mo4: pickup locations as option-cards — leading pin
+                // tile (check when selected), raised surface, shared brand
+                // selected state, ≥44px tap height.
                 <label
                   key={loc.location_id}
-                  className={[
-                    'flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors',
+                  className={cn(
+                    'tap-44 flex cursor-pointer items-center gap-3 border p-3 transition-[background-color,border-color,box-shadow]',
+                    tokens.optionCardRadius,
+                    tokens.focusRing,
                     isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/40',
-                  ].join(' ')}
+                      ? tokens.optionSelected
+                      : cn(
+                          'border-border bg-surface-raised hover:border-primary/40',
+                          tokens.optionCardShadow,
+                        ),
+                  )}
                 >
                   <input
                     type="radio"
@@ -120,6 +132,21 @@ export function PickupLocationPicker({
                     onChange={() => setSelected(loc.location_id)}
                     className="h-4 w-4 accent-primary"
                   />
+                  <span
+                    className={cn(
+                      'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                      isSelected
+                        ? 'bg-primary/15 text-foreground'
+                        : 'bg-surface-well text-muted-foreground',
+                    )}
+                    aria-hidden
+                  >
+                    {isSelected ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <MapPin className="size-4" />
+                    )}
+                  </span>
                   <span className="text-sm">{name}</span>
                 </label>
               )
