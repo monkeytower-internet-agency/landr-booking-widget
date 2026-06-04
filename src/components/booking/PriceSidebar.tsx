@@ -504,8 +504,11 @@ export default function PriceSidebar(props: Props) {
         ) : null}
       </div>
       {/* Spacer so the mobile fixed bar never covers the last bit of
-          step content. Matches the bar's collapsed height (~60px). */}
-      <div aria-hidden className="md:hidden h-16" />
+          step content. landr-3mo4: bumped h-16→h-20 — the bar's collapsed
+          height grew (larger total + the optional "+ €X at hotel" sub-line),
+          so the spacer reserves enough room that the fixed bar never overlaps
+          the last step content at 360px. */}
+      <div aria-hidden className="md:hidden h-20" />
     </>
   )
 }
