@@ -234,7 +234,7 @@ function OccupantAgeControl({
           const next = e.target.value as OccupantAgeBand
           onAgeBandChange(memberIndex, next, next === 'adult' ? null : age)
         }}
-        className="rounded border border-border bg-background px-1 py-0.5 text-xs"
+        className="rounded border border-border bg-surface-page px-1 py-0.5 text-xs"
       >
         <option value="adult">Adult</option>
         <option value="child">Child</option>
@@ -301,12 +301,15 @@ function UnitDropZone({
       role="group"
       aria-label={`${unit.roomName} — unit ${unit.unitIndex + 1}`}
       className={[
-        'flex flex-col gap-2 rounded-md border p-3 transition-colors',
+        // landr-3mo4: occupied/full units read as a settled well; an empty
+        // unit keeps its dashed "drop here" affordance; an active drop-over
+        // lights up brand-tinted.
+        'flex flex-col gap-2 rounded-lg border p-3 transition-colors',
         isOver
-          ? 'border-primary bg-primary/10'
+          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
           : full
-            ? 'border-border bg-muted/30'
-            : 'border-dashed border-border',
+            ? 'border-border bg-surface-well shadow-well'
+            : 'border-dashed border-border bg-surface-raised',
       ].join(' ')}
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -608,8 +611,12 @@ function UnassignedTray({
       ref={setNodeRef}
       data-testid="unassigned-tray"
       className={[
-        'flex flex-col gap-2 rounded-md border p-3 transition-colors',
-        isOver ? 'border-primary bg-primary/10' : 'border-border bg-muted/20',
+        // landr-3mo4: the unassigned tray is a recessed well so it reads as
+        // the "holding area" the chips lift out of.
+        'flex flex-col gap-2 rounded-lg border p-3 transition-colors',
+        isOver
+          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+          : 'border-border bg-surface-well shadow-well',
       ].join(' ')}
     >
       <span className="text-xs font-medium text-muted-foreground">

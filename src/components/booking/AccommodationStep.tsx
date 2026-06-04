@@ -14,6 +14,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { useVariant } from '@/lib/variant'
+import { cn } from '@/lib/utils'
 import {
   autoAssignParty,
   deriveStayWindow,
@@ -261,6 +263,7 @@ export function AccommodationStep({
   initialAgeMap,
 }: Props) {
   const locale = browserLocale()
+  const { tokens } = useVariant()
   const offering = product.hotel_offering ?? 'none'
   const isMandatory = offering === 'mandatory'
 
@@ -981,14 +984,21 @@ export function AccommodationStep({
             {modeOptions.map((opt) => {
               const checked = mode === opt.value
               return (
+                // landr-3mo4: each mode is an option-card — raised surface,
+                // brand-tinted selected state + ring, ≥44px tap height.
                 <label
                   key={opt.value}
-                  className={[
-                    'flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm transition-colors',
+                  className={cn(
+                    'tap-44 flex cursor-pointer items-start gap-3 border p-3 text-sm transition-[background-color,border-color,box-shadow]',
+                    tokens.optionCardRadius,
+                    tokens.focusRing,
                     checked
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/40',
-                  ].join(' ')}
+                      ? tokens.optionSelected
+                      : cn(
+                          'border-border bg-surface-raised hover:border-primary/40',
+                          tokens.optionCardShadow,
+                        ),
+                  )}
                   data-testid={`accommodation-mode-${opt.value}`}
                 >
                   <input
@@ -1029,14 +1039,21 @@ export function AccommodationStep({
                 const checked = selectedHotelId === hotel.location_id
                 const name = pickLocalized(hotel.name, hotel.name_localized, locale)
                 return (
+                  // landr-3mo4: hotel choice as an option-card, matching the
+                  // mode cards above.
                   <label
                     key={hotel.location_id}
-                    className={[
-                      'flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors',
+                    className={cn(
+                      'tap-44 flex cursor-pointer items-center gap-3 border p-3 text-sm transition-[background-color,border-color,box-shadow]',
+                      tokens.optionCardRadius,
+                      tokens.focusRing,
                       checked
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:bg-muted/40',
-                    ].join(' ')}
+                        ? tokens.optionSelected
+                        : cn(
+                            'border-border bg-surface-raised hover:border-primary/40',
+                            tokens.optionCardShadow,
+                          ),
+                    )}
                   >
                     <input
                       type="radio"
@@ -1069,7 +1086,7 @@ export function AccommodationStep({
             and the hotel is the pickup point. */}
         {mode === 'shared-double' && selectedHotelId ? (
           <p
-            className="rounded-md border border-border bg-muted/30 p-3 text-sm"
+            className="rounded-lg border border-border bg-surface-well p-3 text-sm shadow-well"
             data-testid="shared-double-notice"
           >
             You are the second pilot sharing a double room. No room is
@@ -1106,9 +1123,15 @@ export function AccommodationStep({
               const isPremium = roomIncludesBreakfast(room)
               const showAddons = qty > 0 && roomAddons.length > 0 && !isPremium
               return (
+                // landr-3mo4: image-less room card with depth — a raised
+                // sub-card so the room reads as a distinct, selectable block.
                 <div
                   key={room.product_id}
-                  className="flex flex-col gap-2 rounded-md border border-border p-3"
+                  className={cn(
+                    'flex flex-col gap-2 border border-border bg-surface-raised p-3',
+                    tokens.optionCardRadius,
+                    qty > 0 ? 'shadow-elev-2 ring-1 ring-primary/20' : 'shadow-elev-1',
+                  )}
                 >
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <div className="flex flex-col gap-1">
@@ -1125,32 +1148,38 @@ export function AccommodationStep({
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={qty <= 0}
-                        onClick={() => bumpQty(room.product_id, -1)}
-                        aria-label={`Decrease ${roomName} quantity`}
-                      >
-                        −
-                      </Button>
-                      <span
-                        className="w-6 text-center text-sm tabular-nums"
-                        aria-live="polite"
-                      >
-                        {qty}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => bumpQty(room.product_id, 1)}
-                        aria-label={`Increase ${roomName} quantity`}
-                      >
-                        +
-                      </Button>
-                      <span className="ml-2 w-20 text-right text-sm tabular-nums text-muted-foreground">
+                      {/* landr-3mo4: tinted ≥44px qty controls grouped in a
+                          well so the stepper reads as one control. */}
+                      <div className="flex items-center gap-1 rounded-full bg-surface-well p-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                          disabled={qty <= 0}
+                          onClick={() => bumpQty(room.product_id, -1)}
+                          aria-label={`Decrease ${roomName} quantity`}
+                        >
+                          −
+                        </Button>
+                        <span
+                          className="w-6 text-center text-sm font-semibold tabular-nums"
+                          aria-live="polite"
+                        >
+                          {qty}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                          onClick={() => bumpQty(room.product_id, 1)}
+                          aria-label={`Increase ${roomName} quantity`}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      <span className="ml-1 w-20 text-right text-sm font-medium tabular-nums text-muted-foreground">
                         {subtotal > 0
                           ? formatCurrency(subtotal, room.currency)
                           : '—'}
