@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { expandWindowDays } from './expandWindowDays'
@@ -11,6 +12,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { useVariant } from '@/lib/variant'
+import { cn } from '@/lib/utils'
 
 interface Props {
   product: Product
@@ -67,6 +70,7 @@ export function FixedDateWindowPicker({
   exposeSeats = true,
   onLiveDaysChange,
 }: Props) {
+  const { tokens } = useVariant()
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -120,7 +124,7 @@ export function FixedDateWindowPicker({
             No upcoming windows for this course. Please check back later.
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2.5">
             {windows.map((window) => {
               const available = Math.max(
                 0,
@@ -130,6 +134,12 @@ export function FixedDateWindowPicker({
               const isSelected = selectedId === window.id
               return (
                 <li key={window.id}>
+                  {/* landr-3mo4: window rows are now proper OPTION-CARDS —
+                      a leading calendar-range icon in a tinted tile, the date
+                      range as the label, a borderless seat-state chip, and a
+                      brand-tinted selected state with a check. The card is a
+                      raised surface that lifts off the step card; selection
+                      adds the shared brand well + ring. ≥44px tap target. */}
                   <button
                     type="button"
                     disabled={isFull}
@@ -138,22 +148,52 @@ export function FixedDateWindowPicker({
                       onLiveDaysChange?.(expandWindowDays(window))
                     }}
                     aria-pressed={isSelected}
-                    className={`w-full rounded-md border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={cn(
+                      'tap-44 flex w-full items-center gap-3 border p-3 text-left transition-[background-color,border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-60',
+                      tokens.optionCardRadius,
+                      tokens.focusRing,
                       isSelected
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/40'
-                    }`}
+                        ? tokens.optionSelected
+                        : cn(
+                            'border-border bg-surface-raised hover:border-primary/40',
+                            !isFull && tokens.optionCardShadow,
+                          ),
+                    )}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">{rangeLabel(window)}</div>
-                      <div className="text-xs text-muted-foreground">
+                    <span
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                        isSelected
+                          ? 'bg-primary/15 text-foreground'
+                          : 'bg-surface-well text-muted-foreground',
+                      )}
+                      aria-hidden
+                    >
+                      {isSelected ? (
+                        <Check className="size-4" />
+                      ) : (
+                        <CalendarRange className="size-4" />
+                      )}
+                    </span>
+                    <span className="flex flex-1 items-center justify-between gap-3">
+                      <span className="font-medium tabular-nums">
+                        {rangeLabel(window)}
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          isFull
+                            ? 'bg-muted text-muted-foreground'
+                            : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
+                        )}
+                      >
                         {isFull
                           ? 'Full'
                           : exposeSeats
                             ? `${available} seat${available === 1 ? '' : 's'} left`
                             : 'Available'}
-                      </div>
-                    </div>
+                      </span>
+                    </span>
                   </button>
                 </li>
               )

@@ -266,7 +266,12 @@ export function MultiDayPicker({
         // "continuous range" visual is meaningless here — the user picks
         // discrete days, even when they happen to be adjacent.
       />
-      <p className="text-xs text-muted-foreground" data-testid="multi-day-help">
+      {/* landr-3mo4: help text recessed into a faint well so it reads as a
+          quiet hint beneath the calendar rather than floating loose copy. */}
+      <p
+        className="rounded-lg bg-surface-well px-3 py-2 text-xs text-muted-foreground shadow-well"
+        data-testid="multi-day-help"
+      >
         {text}
       </p>
     </div>

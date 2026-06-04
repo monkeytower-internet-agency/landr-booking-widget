@@ -123,7 +123,10 @@ export function AddonsList({
         return (
           <div
             key={addon.product_addon_id}
-            className="flex flex-col gap-1 rounded-md border border-border bg-muted/20 p-2"
+            // landr-3mo4: add-on rows are inset wells (recessed inside the
+            // room sub-card) so the add-on hierarchy reads one level deeper
+            // than the room it belongs to.
+            className="flex flex-col gap-1 rounded-lg border border-border bg-surface-well p-2 shadow-well"
             data-testid={`addon-row-${addon.addon_product_id}`}
           >
             <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -150,11 +153,14 @@ export function AddonsList({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              {/* landr-3mo4: tinted ≥44px qty controls grouped in a raised
+                  pill so the stepper lifts off the recessed add-on well. */}
+              <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={qty <= 0}
                   onClick={() => bumpQty(addon, -1)}
                   aria-label={`Decrease ${addonName} quantity`}
@@ -162,15 +168,16 @@ export function AddonsList({
                   −
                 </Button>
                 <span
-                  className="w-6 text-center text-sm tabular-nums"
+                  className="w-6 text-center text-sm font-semibold tabular-nums"
                   aria-live="polite"
                 >
                   {qty}
                 </span>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={atMax}
                   onClick={() => bumpQty(addon, 1)}
                   aria-label={`Increase ${addonName} quantity`}
