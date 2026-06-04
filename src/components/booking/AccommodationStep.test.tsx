@@ -769,6 +769,70 @@ describe('AccommodationStep', () => {
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
 
+  it('reducing room qty re-clamps linked add-ons to the new occupancy cap (landr-u4fl)', async () => {
+    // landr-u4fl (reported bug): 2 single rooms + 2 breakfasts, then
+    // reducing rooms to 1 left the breakfast count at 2 — a state the
+    // stepper itself could never create (the + cap is 1 at one room).
+    // bumpQty must re-clamp the room's add-on slice on decrease.
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 98, 1),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('Single Room')).toBeInTheDocument(),
+    )
+    // Book TWO single rooms.
+    const roomPlus = () =>
+      screen.getAllByRole('button', { name: /Increase .* quantity/i })[0]!
+    fireEvent.click(roomPlus())
+    await waitFor(() =>
+      expect(screen.getByText('Breakfast')).toBeInTheDocument(),
+    )
+    fireEvent.click(roomPlus())
+
+    // Two breakfasts — allowed while 2 rooms × capacity 1 = cap 2.
+    const breakfastPlus = () =>
+      screen.getAllByRole('button', { name: /Increase .* quantity/i })[1]!
+    fireEvent.click(breakfastPlus())
+    fireEvent.click(breakfastPlus())
+    const breakfastRow = () => screen.getByTestId('addon-row-bf-1')
+    await waitFor(() => expect(breakfastRow()).toHaveTextContent(/\b2\b/))
+
+    // Reduce rooms 2 → 1: the breakfast slice must clamp 2 → 1 with it.
+    const roomMinus = screen.getByRole('button', {
+      name: /Decrease Single Room quantity/i,
+    })
+    fireEvent.click(roomMinus)
+    await waitFor(() => expect(breakfastRow()).toHaveTextContent(/\b1\b/))
+    // And the + button sits disabled at the new cap — state is coherent.
+    await waitFor(() => expect(breakfastPlus()).toBeDisabled())
+  })
+
   it('shows no capacity warning when no rooms are picked', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
