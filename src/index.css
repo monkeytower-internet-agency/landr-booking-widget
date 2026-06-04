@@ -8,6 +8,25 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  /*
+   * landr-3mo4: 3-level surface system. A booking step is no longer flat
+   * white-on-white; depth is expressed as three resolved surface tints plus
+   * an inset "well". Exposed as Tailwind colour utilities (bg-surface-page,
+   * bg-surface-card, bg-surface-raised, bg-surface-well) so any step can opt
+   * an element up or down a level. These are NEUTRAL (operator-brand-agnostic)
+   * — the brand colour lives in --primary and is layered on top as tints, so a
+   * pale operator brand can never sink a surface below AA.
+   *
+   *   surface-page   — the page/canvas behind the cards (slightly tinted).
+   *   surface-card   — an elevated card sitting on the page (the default card).
+   *   surface-raised — an INTERACTIVE element one level lighter than its card
+   *                    container (option-cards, steppers, room rows).
+   *   surface-well   — a RECESSED region (price summary rows, inset panels).
+   */
+  --color-surface-page: var(--surface-page);
+  --color-surface-card: var(--surface-card);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-well: var(--surface-well);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -31,10 +50,36 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  /*
+   * landr-3mo4: the page canvas carries a faint neutral tint (was pure white)
+   * so an elevated white card visibly separates from it — the foundation of
+   * the 3-level depth system. --background is repointed at the same tint so
+   * the widget root (which paints bg-background) and the surface-page utility
+   * agree.
+   */
+  --background: oklch(0.985 0.001 286);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
+
+  /* landr-3mo4: resolved surface levels (light). page < card; raised is the
+   * brightest (interactive, sits on a card); well is recessed (darker than the
+   * card it's cut into). */
+  --surface-page: oklch(0.985 0.001 286);
+  --surface-card: oklch(1 0 0);
+  --surface-raised: oklch(0.995 0.0008 286);
+  --surface-well: oklch(0.965 0.002 286);
+
+  /* landr-3mo4: elevation shadow scale L0–L3 + an inset well shadow. Soft,
+   * premium-neutral (low-alpha black), tuned for a light page. Variant tokens
+   * pick which level a card/option uses. */
+  --elev-0: 0 0 0 0 rgb(0 0 0 / 0);
+  --elev-1: 0 1px 2px 0 rgb(17 24 39 / 0.06), 0 1px 3px 0 rgb(17 24 39 / 0.05);
+  --elev-2:
+    0 2px 4px -1px rgb(17 24 39 / 0.07), 0 4px 8px -2px rgb(17 24 39 / 0.08);
+  --elev-3:
+    0 4px 8px -2px rgb(17 24 39 / 0.08), 0 12px 24px -4px rgb(17 24 39 / 0.12);
+  --elev-inset: inset 0 1px 2px 0 rgb(17 24 39 / 0.07);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
@@ -57,6 +102,21 @@
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
+
+  /* landr-3mo4: dark-mode surface levels. In dark mode "raised" is LIGHTER
+   * than the card (elevation = lighter), "well" is darker than the card. */
+  --surface-page: oklch(0.145 0 0);
+  --surface-card: oklch(0.205 0 0);
+  --surface-raised: oklch(0.245 0 0);
+  --surface-well: oklch(0.175 0 0);
+
+  /* landr-3mo4: dark elevation scale — stronger black so shadows read against
+   * a dark page; the inset well uses a faint top highlight + shadow. */
+  --elev-0: 0 0 0 0 rgb(0 0 0 / 0);
+  --elev-1: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.35);
+  --elev-2: 0 2px 4px -1px rgb(0 0 0 / 0.45), 0 4px 8px -2px rgb(0 0 0 / 0.5);
+  --elev-3: 0 4px 8px -2px rgb(0 0 0 / 0.5), 0 12px 24px -4px rgb(0 0 0 / 0.6);
+  --elev-inset: inset 0 1px 2px 0 rgb(0 0 0 / 0.5);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
@@ -81,6 +141,39 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/*
+ * landr-3mo4: elevation shadow utilities mapping the L0–L3 + inset well vars
+ * to Tailwind classes. Used across the booking steps so cards/option-cards
+ * pick a depth level by name (shadow-elev-1 …) and price-summary rows get a
+ * recessed inset (shadow-well). Pairing a level with bg-surface-* gives the
+ * "lighter-as-it-rises" reading from the reference video.
+ */
+@utility shadow-elev-0 {
+  box-shadow: var(--elev-0);
+}
+@utility shadow-elev-1 {
+  box-shadow: var(--elev-1);
+}
+@utility shadow-elev-2 {
+  box-shadow: var(--elev-2);
+}
+@utility shadow-elev-3 {
+  box-shadow: var(--elev-3);
+}
+@utility shadow-well {
+  box-shadow: var(--elev-inset);
+}
+
+/*
+ * landr-3mo4: minimum 44px touch target helper (Apple HIG / WCAG 2.5.5). The
+ * widget's compact steppers and option rows apply this on mobile so taps land
+ * reliably; it never shrinks an element that's already larger.
+ */
+@utility tap-44 {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
 }
 
 /*

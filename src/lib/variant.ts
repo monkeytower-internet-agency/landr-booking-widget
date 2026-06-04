@@ -105,6 +105,33 @@ export interface VariantTokens {
   selectionRing: string
   focusRing: string
   overlayScrim: string
+  /*
+   * landr-3mo4: depth-pass tokens. The 3-level SURFACE LOGIC is shared (every
+   * variant uses bg-surface-card / -raised / -well + the shadow-elev scale);
+   * what differs per variant is only the radius + elevation INTENSITY, so the
+   * three directions keep their personalities through the booking steps.
+   *
+   *   optionCardRadius — rounding for the selectable option-cards the form
+   *                      rows became (date windows, pickup locations, hotel
+   *                      modes). Tracks cardRadius one notch softer.
+   *   optionCardShadow — resting elevation for an UNSELECTED option-card.
+   *                      aurora floats them (elev-1), summit keeps them flat
+   *                      (border only), alpine stays crisp (elev-0 + border).
+   *   optionSelected   — the selected-state treatment for an option-card:
+   *                      a brand tint well + ring. Brand-aware via --primary
+   *                      but always paired with a border so a pale brand still
+   *                      reads as "chosen".
+   *   wellRadius       — rounding for inset wells (price summary block, the
+   *                      recessed total row). Slightly tighter than the card.
+   *   stepperControl   — the qty +/- control treatment: a raised, tinted,
+   *                      ≥44px-on-mobile tap target. Shared sizing; radius
+   *                      tracks the variant.
+   */
+  optionCardRadius: string
+  optionCardShadow: string
+  optionSelected: string
+  wellRadius: string
+  stepperControl: string
 }
 
 /**
@@ -123,6 +150,17 @@ const SHARED_FOCUS_RING =
  * text below AA. Shared by the aurora category tile + the detail hero overlay.
  */
 const AA_SCRIM = 'bg-gradient-to-t from-black/70 via-black/25 to-transparent'
+
+/*
+ * landr-3mo4: the shared selected-option recipe. An option-card the customer
+ * has picked gets a brand-tinted well + a 2px brand ring + a brand border, so
+ * the chosen state reads clearly regardless of the operator's --primary
+ * (the border guarantees an edge even when the tint is pale). Variant-agnostic
+ * — selection affordance must be consistent across the three directions; only
+ * the corner radius (optionCardRadius) varies the personality.
+ */
+const SHARED_OPTION_SELECTED =
+  'border-primary bg-primary/10 ring-1 ring-primary/40'
 
 export const VARIANT_TOKENS: Record<Variant, VariantTokens> = {
   // aurora — brand-gradient immersive, rounded, soft-glass.
@@ -144,6 +182,13 @@ export const VARIANT_TOKENS: Record<Variant, VariantTokens> = {
     selectionRing: 'ring-2 ring-primary',
     focusRing: SHARED_FOCUS_RING,
     overlayScrim: AA_SCRIM,
+    // landr-3mo4: aurora floats its option-cards (soft elevation, generous
+    // radius) to match its immersive, rounded language.
+    optionCardRadius: 'rounded-xl',
+    optionCardShadow: 'shadow-elev-1',
+    optionSelected: SHARED_OPTION_SELECTED,
+    wellRadius: 'rounded-xl',
+    stepperControl: 'rounded-lg',
   },
   // summit — editorial, image-forward, whitespace, serif accent.
   summit: {
@@ -159,6 +204,13 @@ export const VARIANT_TOKENS: Record<Variant, VariantTokens> = {
     selectionRing: 'ring-2 ring-foreground',
     focusRing: SHARED_FOCUS_RING,
     overlayScrim: AA_SCRIM,
+    // landr-3mo4: summit stays editorial-flat — option-cards carry a border
+    // instead of a float, so the whitespace + type do the work.
+    optionCardRadius: 'rounded-lg',
+    optionCardShadow: 'shadow-elev-0',
+    optionSelected: SHARED_OPTION_SELECTED,
+    wellRadius: 'rounded-lg',
+    stepperControl: 'rounded-md',
   },
   // alpine — crisp classic, dense, sharp radius, strong borders.
   alpine: {
@@ -175,6 +227,13 @@ export const VARIANT_TOKENS: Record<Variant, VariantTokens> = {
     selectionRing: 'ring-2 ring-foreground',
     focusRing: SHARED_FOCUS_RING,
     overlayScrim: AA_SCRIM,
+    // landr-3mo4: alpine keeps its utilitarian crispness — sharp radius, no
+    // float, a strong border carries the edges.
+    optionCardRadius: 'rounded-sm',
+    optionCardShadow: 'shadow-elev-0',
+    optionSelected: SHARED_OPTION_SELECTED,
+    wellRadius: 'rounded-sm',
+    stepperControl: 'rounded-sm',
   },
 }
 
