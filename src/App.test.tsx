@@ -1366,4 +1366,97 @@ describe('App', () => {
       expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
     })
   })
+
+  // landr-jb1k.2: variant resolution precedence tests.
+  // Precedence: explicit ?variant= URL param > operatorSettings.widget_variant > aurora.
+  // The settings-driven default must NOT clobber a URL param NOR a switcher choice.
+  describe('variant resolution precedence (landr-jb1k.2)', () => {
+    function makeGroup(overrides: Partial<{ id: string; slug: string; name: string; product_count: number }> = {}) {
+      return {
+        id: 'g-1',
+        slug: 'tandemfluege',
+        name: 'Tandemflüge',
+        name_localized: null,
+        description: null,
+        description_localized: null,
+        image_url: null,
+        sort_order: 10,
+        parent_id: null,
+        product_count: 2,
+        ...overrides,
+      }
+    }
+
+    async function renderWithCategoryStep() {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'tandem', name: 'Tandem', product_count: 2 }),
+        makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses', product_count: 1 }),
+      ])
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      return screen.getByTestId('category-step')
+    }
+
+    it('uses aurora (default) when no URL param and operator has no widget_variant', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_variant: null,
+      })
+      const step = await renderWithCategoryStep()
+      // After settings resolve, still aurora (no variant configured).
+      await waitFor(() => {
+        expect(step.dataset.variant).toBe('aurora')
+      })
+    })
+
+    it('applies operatorSettings.widget_variant when no URL param is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_variant: 'summit',
+      })
+      const step = await renderWithCategoryStep()
+      // After settings resolve, the step switches to the operator's variant.
+      await waitFor(() => {
+        expect(step.dataset.variant).toBe('summit')
+      })
+    })
+
+    it('URL param beats operatorSettings.widget_variant', async () => {
+      // Explicit ?variant=alpine in the URL — should win over operator's summit.
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&variant=alpine`)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_variant: 'summit',
+      })
+      const step = await renderWithCategoryStep()
+      // Wait for settings to arrive — must stay alpine, NOT flip to summit.
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      // Give React one more tick to process the effect.
+      await waitFor(() => {
+        expect(step.dataset.variant).toBe('alpine')
+      })
+    })
+
+    it('aurora fallback when widget_variant is null (no URL param)', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_variant: null,
+      })
+      const step = await renderWithCategoryStep()
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      await waitFor(() => {
+        expect(step.dataset.variant).toBe('aurora')
+      })
+    })
+  })
 })

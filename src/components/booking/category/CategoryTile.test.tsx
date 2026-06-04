@@ -105,3 +105,62 @@ describe('CategoryTile (landr-d8rg.5)', () => {
     expect(container.querySelector('svg')).toBeNull()
   })
 })
+
+// landr-jb1k.2: tile font and title case applied to the tile <h3>.
+describe('CategoryTile font and case props (landr-jb1k.2)', () => {
+  it('applies titleFontStyle as inline fontFamily on the h3', () => {
+    render(
+      <CategoryTile
+        group={makeGroup({ name: 'Tandem Flights' })}
+        locale="en"
+        onPick={vi.fn()}
+        titleFontStyle="'Playfair Display', Georgia, serif"
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.style.fontFamily).toContain('Playfair Display')
+  })
+
+  it('applies titleCaseClass as a class on the h3', () => {
+    render(
+      <CategoryTile
+        group={makeGroup({ name: 'Tandem Flights' })}
+        locale="en"
+        onPick={vi.fn()}
+        titleCaseClass="uppercase"
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.className).toContain('uppercase')
+  })
+
+  it('applies no inline style and no extra class when props are absent', () => {
+    render(
+      <CategoryTile
+        group={makeGroup({ name: 'Tandem Flights' })}
+        locale="en"
+        onPick={vi.fn()}
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.style.fontFamily).toBe('')
+    expect(h3.className).not.toContain('uppercase')
+    expect(h3.className).not.toContain('lowercase')
+    expect(h3.className).not.toContain('capitalize')
+  })
+
+  it('applies both font and case simultaneously', () => {
+    render(
+      <CategoryTile
+        group={makeGroup({ name: 'Tandem Flights' })}
+        locale="en"
+        onPick={vi.fn()}
+        titleFontStyle="'Caveat', cursive"
+        titleCaseClass="capitalize"
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.style.fontFamily).toContain('Caveat')
+    expect(h3.className).toContain('capitalize')
+  })
+})

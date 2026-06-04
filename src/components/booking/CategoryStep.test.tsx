@@ -191,3 +191,200 @@ describe('CategoryStep heading suppression', () => {
     expect(screen.getByTestId('category-step')).toBeInTheDocument()
   })
 })
+
+// landr-jb1k.2: operator-configurable grid columns.
+describe('CategoryStep column override (landr-jb1k.2)', () => {
+  it('applies md:grid-cols-2 when columns=2', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[makeGroup({ id: 'g-1' }), makeGroup({ id: 'g-2', slug: 'courses' })]}
+        columns={2}
+        onPick={vi.fn()}
+      />,
+    )
+    const ul = container.querySelector('ul')!
+    expect(ul.className).toContain('md:grid-cols-2')
+  })
+
+  it('applies md:grid-cols-4 when columns=4', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[makeGroup({ id: 'g-1' }), makeGroup({ id: 'g-2', slug: 'courses' })]}
+        columns={4}
+        onPick={vi.fn()}
+      />,
+    )
+    const ul = container.querySelector('ul')!
+    expect(ul.className).toContain('md:grid-cols-4')
+  })
+
+  it('clamps columns below 1 to md:grid-cols-1', () => {
+    const { container } = render(
+      <CategoryStep groups={[makeGroup({})]} columns={0} onPick={vi.fn()} />,
+    )
+    const ul = container.querySelector('ul')!
+    expect(ul.className).toContain('md:grid-cols-1')
+    // Must NOT contain a columns-based class for other values.
+    expect(ul.className).not.toContain('md:grid-cols-5')
+  })
+
+  it('clamps columns above 4 to md:grid-cols-4', () => {
+    const { container } = render(
+      <CategoryStep groups={[makeGroup({})]} columns={9} onPick={vi.fn()} />,
+    )
+    const ul = container.querySelector('ul')!
+    expect(ul.className).toContain('md:grid-cols-4')
+  })
+
+  it('null columns uses auto logic (no explicit md:grid-cols- at low count)', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[
+          makeGroup({ id: 'g-1', slug: 'a' }),
+          makeGroup({ id: 'g-2', slug: 'b' }),
+        ]}
+        columns={null}
+        onPick={vi.fn()}
+      />,
+    )
+    const ul = container.querySelector('ul')!
+    // With 2 groups and no explicit columns, auto uses md:grid-cols-2.
+    expect(ul.className).toContain('md:grid-cols-2')
+  })
+})
+
+// landr-jb1k.2: 3-group auto-column fix.
+describe('CategoryStep 3-group auto-column (landr-jb1k.2)', () => {
+  it('adds lg:grid-cols-3 when exactly 3 visible groups and no explicit columns', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[
+          makeGroup({ id: 'g-1', slug: 'a' }),
+          makeGroup({ id: 'g-2', slug: 'b' }),
+          makeGroup({ id: 'g-3', slug: 'c' }),
+        ]}
+        columns={null}
+        onPick={vi.fn()}
+      />,
+    )
+    const ul = container.querySelector('ul')!
+    expect(ul.className).toContain('lg:grid-cols-3')
+  })
+
+  it('does NOT add lg:grid-cols-3 for 2 visible groups (auto stays at md:grid-cols-2)', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[
+          makeGroup({ id: 'g-1', slug: 'a' }),
+          makeGroup({ id: 'g-2', slug: 'b' }),
+        ]}
+        columns={null}
+        onPick={vi.fn()}
+      />,
+    )
+    const ul = container.querySelector('ul')!
+    // 2 groups: no lg:grid-cols-3 (that would be triggered only by exactly-3 or >=5)
+    expect(ul.className).not.toContain('lg:grid-cols-3')
+  })
+})
+
+// landr-jb1k.2: tile font — heading and tile title font-family.
+describe('CategoryStep tileFont (landr-jb1k.2)', () => {
+  it('sets fontFamily on the heading when tileFont is playfair', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem' })]}
+        tileFont="playfair"
+        onPick={vi.fn()}
+      />,
+    )
+    const heading = screen.getByText('What are you looking for?')
+    // Check the inline style attribute contains the expected font name.
+    expect(heading.style.fontFamily).toContain('Playfair Display')
+  })
+
+  it('sets fontFamily on tile title h3 when tileFont is montserrat', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        tileFont="montserrat"
+        onPick={vi.fn()}
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.style.fontFamily).toContain('Montserrat')
+  })
+
+  it('applies no inline fontFamily when tileFont is null (system default)', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        tileFont={null}
+        onPick={vi.fn()}
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3).not.toHaveAttribute('style')
+  })
+
+  it('applies no inline fontFamily when tileFont is "system"', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        tileFont="system"
+        onPick={vi.fn()}
+      />,
+    )
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3).not.toHaveAttribute('style')
+  })
+})
+
+// landr-jb1k.2: title case — heading and tile title text-transform.
+describe('CategoryStep titleCase (landr-jb1k.2)', () => {
+  it.each([
+    ['uppercase', 'uppercase'],
+    ['lowercase', 'lowercase'],
+    ['capitalize', 'capitalize'],
+  ] as const)('applies %s class to the heading and tile titles', (titleCase, expectedClass) => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        titleCase={titleCase}
+        onPick={vi.fn()}
+      />,
+    )
+    const heading = screen.getByText('What are you looking for?')
+    expect(heading.className).toContain(expectedClass)
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.className).toContain(expectedClass)
+  })
+
+  it('applies no case class when titleCase is null', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        titleCase={null}
+        onPick={vi.fn()}
+      />,
+    )
+    const heading = screen.getByText('What are you looking for?')
+    expect(heading.className).not.toContain('uppercase')
+    expect(heading.className).not.toContain('lowercase')
+    expect(heading.className).not.toContain('capitalize')
+  })
+
+  it('hideHeading=true still applies case class and font to tile titles only', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
+        titleCase="uppercase"
+        hideHeading
+        onPick={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('What are you looking for?')).not.toBeInTheDocument()
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.className).toContain('uppercase')
+  })
+})
