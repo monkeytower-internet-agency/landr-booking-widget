@@ -254,6 +254,12 @@ function BookingFlowApp() {
     widget_category_columns: null,
     widget_tile_font: null as TileFontKey | null,
     widget_title_case: null,
+    // landr-jb1k.4 — tile-style options null until the fetch resolves.
+    // Null = "use the variant token defaults" (current/auto behaviour).
+    widget_tile_radius: null,
+    widget_tile_aspect: null,
+    widget_tile_scrim: null,
+    widget_tile_hover: null,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -705,6 +711,10 @@ function BookingFlowApp() {
             columns={operatorSettings.widget_category_columns ?? null}
             tileFont={(operatorSettings.widget_tile_font as TileFontKey | null) ?? null}
             titleCase={operatorSettings.widget_title_case ?? null}
+            tileRadius={operatorSettings.widget_tile_radius ?? null}
+            tileAspect={operatorSettings.widget_tile_aspect ?? null}
+            tileScrim={operatorSettings.widget_tile_scrim ?? null}
+            tileHover={operatorSettings.widget_tile_hover ?? null}
             onPick={(g) => {
               // Scope the product list to the chosen group via state, then
               // transition to pick-product. ProductList reads pickedGroupSlug

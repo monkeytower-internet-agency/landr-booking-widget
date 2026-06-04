@@ -388,3 +388,82 @@ describe('CategoryStep titleCase (landr-jb1k.2)', () => {
     expect(h3.className).toContain('uppercase')
   })
 })
+
+// landr-jb1k.4: tile-style props resolve from their static maps and thread
+// down to the tiles. Each null leaves the variant token in place.
+describe('CategoryStep tile-style options (landr-jb1k.4)', () => {
+  it('resolves tileRadius and applies the radius class on the tile button', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem' })]}
+        tileRadius="round"
+        onPick={vi.fn()}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('rounded-3xl')
+  })
+
+  it('resolves tileAspect and applies the aspect class on the media frame', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', image_url: 'https://x.test/c.jpg' })]}
+        tileAspect="wide"
+        onPick={vi.fn()}
+      />,
+    )
+    const frame = container.querySelector('img')?.parentElement
+    expect(frame?.className).toContain('aspect-video')
+  })
+
+  it('resolves tileHover=zoom: image scales, button does not lift', () => {
+    const { container } = render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'tandem', image_url: 'https://x.test/c.jpg' })]}
+        tileHover="zoom"
+        onPick={vi.fn()}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).not.toContain('hover:-translate-y-0.5')
+    expect(container.querySelector('img')?.className).toContain('group-hover:scale-105')
+  })
+
+  it('resolves tileScrim=light on aurora: white gradient + dark title text (AA)', () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryStep
+          groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights', image_url: 'https://x.test/c.jpg' })]}
+          tileScrim="light"
+          onPick={vi.fn()}
+        />
+      </VariantProvider>,
+    )
+    const scrim = screen.getByTestId('category-scrim')
+    expect(scrim.className).toContain('from-white/85')
+    const overlay = screen.getByText('Tandem Flights').closest('.absolute')
+    expect(overlay?.className).toContain('text-foreground')
+  })
+
+  it('all tile-style props null leaves the aurora variant tokens unchanged', () => {
+    const { container } = render(
+      <VariantProvider value="aurora">
+        <CategoryStep
+          groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights', image_url: 'https://x.test/c.jpg' })]}
+          tileRadius={null}
+          tileAspect={null}
+          tileScrim={null}
+          tileHover={null}
+          onPick={vi.fn()}
+        />
+      </VariantProvider>,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('rounded-2xl') // aurora default radius
+    expect(tile.className).toContain('hover:-translate-y-0.5') // default lift
+    const frame = container.querySelector('img')?.parentElement
+    expect(frame?.className).toContain('aspect-[4/3]') // aurora default aspect
+    const scrim = screen.getByTestId('category-scrim')
+    expect(scrim.className).toContain('from-black/70') // aurora default scrim
+  })
+})

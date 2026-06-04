@@ -31,6 +31,18 @@ import { useVariant } from '@/lib/variant'
 import { browserLocale } from '@/lib/locale'
 import { cn } from '@/lib/utils'
 import { TILE_FONT_FAMILY_MAP, type TileFontKey } from '@/lib/tileFont'
+import {
+  TILE_RADIUS_CLASS_MAP,
+  TILE_ASPECT_CLASS_MAP,
+  TILE_SCRIM_MAP,
+  TILE_HOVER_MAP,
+  type TileRadiusKey,
+  type TileAspectKey,
+  type TileScrimKey,
+  type TileHoverKey,
+  type TileScrimResolved,
+  type TileHoverResolved,
+} from '@/lib/tileStyle'
 
 /**
  * landr-jb1k.2: static column-count → Tailwind class map (md+ breakpoint;
@@ -88,6 +100,26 @@ export interface CategoryStepProps {
    * the CategoryStep heading. Null/undefined → no transform.
    */
   titleCase?: 'uppercase' | 'lowercase' | 'capitalize' | null
+  /**
+   * landr-jb1k.4: operator-configured tile corner radius. OVERRIDES the
+   * variant token radius for tiles only. Null/undefined → variant default.
+   */
+  tileRadius?: TileRadiusKey | null
+  /**
+   * landr-jb1k.4: operator-configured tile aspect ratio. OVERRIDES the variant
+   * token aspect for tiles only. Null/undefined → variant default.
+   */
+  tileAspect?: TileAspectKey | null
+  /**
+   * landr-jb1k.4: operator-configured scrim tint for text-over-image titles
+   * (aurora layout only). Null/undefined → variant token scrim (current dark).
+   */
+  tileScrim?: TileScrimKey | null
+  /**
+   * landr-jb1k.4: operator-configured tile hover interaction. Null/undefined →
+   * 'lift' (current behaviour).
+   */
+  tileHover?: TileHoverKey | null
 }
 
 export function CategoryStep({
@@ -97,6 +129,10 @@ export function CategoryStep({
   columns = null,
   tileFont = null,
   titleCase = null,
+  tileRadius = null,
+  tileAspect = null,
+  tileScrim = null,
+  tileHover = null,
 }: CategoryStepProps) {
   const { variant, tokens } = useVariant()
   // Resolve the viewer locale once; CategoryTile localizes name/description.
@@ -145,6 +181,18 @@ export function CategoryStep({
   const titleCaseClass: string | undefined =
     titleCase ? TITLE_CASE_CLASS_MAP[titleCase] : undefined
 
+  // landr-jb1k.4: resolve the tile-style overrides from their static maps.
+  // Each null/undefined leaves the value undefined so CategoryTile keeps the
+  // variant token (current/auto behaviour) — untouched embeds never shift.
+  const tileRadiusClass: string | undefined =
+    tileRadius ? TILE_RADIUS_CLASS_MAP[tileRadius] : undefined
+  const tileAspectClass: string | undefined =
+    tileAspect ? TILE_ASPECT_CLASS_MAP[tileAspect] : undefined
+  const tileScrimResolved: TileScrimResolved | undefined =
+    tileScrim ? TILE_SCRIM_MAP[tileScrim] : undefined
+  // hover defaults to 'lift' (current behaviour) when unset.
+  const tileHoverResolved: TileHoverResolved = TILE_HOVER_MAP[tileHover ?? 'lift']
+
   if (visible.length === 0) {
     // Defensive: App only promotes to pick-category when >1 non-empty group
     // exists, so this should not render in practice — but never blow up.
@@ -192,6 +240,10 @@ export function CategoryStep({
               onPick={onPick}
               titleFontStyle={titleFontStyle}
               titleCaseClass={titleCaseClass}
+              tileRadiusClass={tileRadiusClass}
+              tileAspectClass={tileAspectClass}
+              tileScrim={tileScrimResolved}
+              tileHover={tileHoverResolved}
             />
           </li>
         ))}

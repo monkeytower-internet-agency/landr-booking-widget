@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ProductGroup } from '@/api/types'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { CategoryTile } from './CategoryTile'
+import { TILE_HOVER_MAP, TILE_SCRIM_MAP } from '@/lib/tileStyle'
 
 function makeGroup(overrides: Partial<ProductGroup> = {}): ProductGroup {
   return {
@@ -162,5 +163,176 @@ describe('CategoryTile font and case props (landr-jb1k.2)', () => {
     const h3 = screen.getByText('Tandem Flights')
     expect(h3.style.fontFamily).toContain('Caveat')
     expect(h3.className).toContain('capitalize')
+  })
+})
+
+// landr-jb1k.4: creative tile-style options (radius / aspect / scrim / hover).
+// Each option OVERRIDES the variant token for tiles only; absent = current/auto
+// behaviour so untouched embeds never shift.
+describe('CategoryTile tile-style options (landr-jb1k.4)', () => {
+  // --- radius: overrides the variant token corner radius on the button ---
+  it('applies tileRadiusClass on the tile button, overriding the variant radius', () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup()}
+          locale="en"
+          onPick={vi.fn()}
+          tileRadiusClass="rounded-3xl"
+        />
+      </VariantProvider>,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('rounded-3xl')
+    // The aurora variant default radius (rounded-2xl) must be gone — overridden.
+    expect(tile.className).not.toContain('rounded-2xl')
+  })
+
+  it('keeps the variant token radius when tileRadiusClass is absent (null = unchanged)', () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryTile group={makeGroup()} locale="en" onPick={vi.fn()} />
+      </VariantProvider>,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('rounded-2xl') // aurora default
+  })
+
+  // --- aspect: overrides the variant token aspect on the media frame ---
+  it('applies tileAspectClass on the media frame, overriding the variant aspect', () => {
+    const { container } = render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+          locale="en"
+          onPick={vi.fn()}
+          tileAspectClass="aspect-video"
+        />
+      </VariantProvider>,
+    )
+    const frame = container.querySelector('img')?.parentElement
+    expect(frame?.className).toContain('aspect-video')
+    // aurora default tileAspect (aspect-[4/3]) is overridden.
+    expect(frame?.className).not.toContain('aspect-[4/3]')
+  })
+
+  it('keeps the variant token aspect when tileAspectClass is absent', () => {
+    const { container } = render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+          locale="en"
+          onPick={vi.fn()}
+        />
+      </VariantProvider>,
+    )
+    const frame = container.querySelector('img')?.parentElement
+    expect(frame?.className).toContain('aspect-[4/3]') // aurora default
+  })
+
+  // --- hover: split between button (lift) and image (zoom) ---
+  it("hover='lift' lifts the button (translate) and does NOT scale the image", () => {
+    const { container } = render(
+      <CategoryTile
+        group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+        locale="en"
+        onPick={vi.fn()}
+        tileHover={TILE_HOVER_MAP.lift}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('hover:-translate-y-0.5')
+    const img = container.querySelector('img')
+    expect(img?.className).not.toContain('group-hover:scale-105')
+  })
+
+  it("hover='zoom' scales the image and does NOT lift the button", () => {
+    const { container } = render(
+      <CategoryTile
+        group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+        locale="en"
+        onPick={vi.fn()}
+        tileHover={TILE_HOVER_MAP.zoom}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).not.toContain('hover:-translate-y-0.5')
+    const img = container.querySelector('img')
+    expect(img?.className).toContain('group-hover:scale-105')
+  })
+
+  it("hover='none' neither lifts the button nor scales the image", () => {
+    const { container } = render(
+      <CategoryTile
+        group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+        locale="en"
+        onPick={vi.fn()}
+        tileHover={TILE_HOVER_MAP.none}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).not.toContain('hover:-translate-y-0.5')
+    const img = container.querySelector('img')
+    expect(img?.className).not.toContain('group-hover:scale-105')
+  })
+
+  it('defaults to the lift hover when tileHover is absent (null = unchanged)', () => {
+    render(<CategoryTile group={makeGroup()} locale="en" onPick={vi.fn()} />)
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile.className).toContain('hover:-translate-y-0.5')
+  })
+
+  // --- scrim: aurora-only; light flips title text to dark (AA) ---
+  it('aurora applies the brand scrim overlay and keeps white title text', () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+          locale="en"
+          onPick={vi.fn()}
+          tileScrim={TILE_SCRIM_MAP.brand}
+        />
+      </VariantProvider>,
+    )
+    const scrim = screen.getByTestId('category-scrim')
+    expect(scrim.className).toContain('from-primary/80')
+    const overlay = screen.getByText('Tandem Flights').closest('.absolute')
+    expect(overlay?.className).toContain('text-white')
+  })
+
+  it("aurora 'light' scrim uses a white gradient AND flips title text to dark (AA)", () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+          locale="en"
+          onPick={vi.fn()}
+          tileScrim={TILE_SCRIM_MAP.light}
+        />
+      </VariantProvider>,
+    )
+    const scrim = screen.getByTestId('category-scrim')
+    expect(scrim.className).toContain('from-white/85')
+    const overlay = screen.getByText('Tandem Flights').closest('.absolute')
+    // Dark title text container — NOT white — so white-on-white never happens.
+    expect(overlay?.className).toContain('text-foreground')
+    expect(overlay?.className).not.toContain('text-white')
+  })
+
+  it('aurora keeps the variant token (black) scrim with white text when tileScrim is absent', () => {
+    render(
+      <VariantProvider value="aurora">
+        <CategoryTile
+          group={makeGroup({ image_url: 'https://x.test/c.jpg' })}
+          locale="en"
+          onPick={vi.fn()}
+        />
+      </VariantProvider>,
+    )
+    const scrim = screen.getByTestId('category-scrim')
+    // aurora token overlayScrim is the black AA gradient.
+    expect(scrim.className).toContain('from-black/70')
+    const overlay = screen.getByText('Tandem Flights').closest('.absolute')
+    expect(overlay?.className).toContain('text-white')
   })
 })

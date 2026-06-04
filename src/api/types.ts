@@ -303,6 +303,33 @@ export interface OperatorSettings {
    * Optional for rolling deploy.
    */
   widget_title_case?: 'uppercase' | 'lowercase' | 'capitalize' | null
+  /**
+   * landr-jb1k.4: operator-configured tile corner radius. Overrides the
+   * variant token radius for category tiles only. Null / absent → variant
+   * default (current behaviour). Values kept in sync with TileRadiusKey in
+   * lib/tileStyle.ts. Optional for rolling deploy.
+   */
+  widget_tile_radius?: 'sharp' | 'rounded' | 'round' | null
+  /**
+   * landr-jb1k.4: operator-configured tile aspect ratio (1:1 / 4:3 / 16:9).
+   * Overrides the variant token aspect for category tiles only. Null / absent
+   * → variant default. Values kept in sync with TileAspectKey. Optional.
+   */
+  widget_tile_aspect?: 'square' | 'landscape' | 'wide' | null
+  /**
+   * landr-jb1k.4: operator-configured scrim tint behind text-over-image tile
+   * titles (text-overlay / aurora layout only — the other variants have no
+   * scrim). 'dark' = black gradient (current default), 'brand' = primary-tinted
+   * gradient, 'light' = white gradient WITH dark title text (AA enforced).
+   * Null / absent → current behaviour (dark). Values in sync with TileScrimKey.
+   */
+  widget_tile_scrim?: 'dark' | 'brand' | 'light' | null
+  /**
+   * landr-jb1k.4: operator-configured tile hover interaction. 'lift' = the
+   * current card translate, 'zoom' = image scale-up, 'none' = no motion.
+   * Null / absent → current behaviour (lift). Values in sync with TileHoverKey.
+   */
+  widget_tile_hover?: 'lift' | 'zoom' | 'none' | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
