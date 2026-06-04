@@ -64,8 +64,10 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
-import { variantFromLocation, previewEnabledFromLocation } from '@/lib/variant'
+import { variantFromLocation, previewEnabledFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
 import { VariantSwitcher } from '@/components/booking/VariantSwitcher'
+import { loadTileFont } from '@/lib/tileFont'
+import type { TileFontKey } from '@/lib/tileFont'
 import { StepTransition } from '@/components/booking/StepTransition'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
@@ -246,6 +248,12 @@ function BookingFlowApp() {
     widget_footer: null,
     // landr-atwy — account-link prompt off until the operator opts in.
     offer_account_link: false,
+    // landr-jb1k — variant + category config null until the fetch resolves.
+    // Null = "use built-in defaults" (aurora, auto column logic, system font).
+    widget_variant: null,
+    widget_category_columns: null,
+    widget_tile_font: null as TileFontKey | null,
+    widget_title_case: null,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -263,6 +271,9 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-jb1k.2: lazy-load the operator's configured font once, if
+          // non-system. The import() is no-op for 'system' and for null.
+          void loadTileFont(settings.widget_tile_font as TileFontKey | null | undefined)
         }
       } catch (err) {
         // 404 → unknown token → show landing page.
@@ -294,6 +305,26 @@ function BookingFlowApp() {
       cancelled = true
     }
   }, [token])
+
+  // landr-jb1k.2: apply operator's widget_variant once settings resolve.
+  // Resolution precedence (highest to lowest):
+  //   1. Explicit ?variant= URL param (set at boot OR by the preview switcher
+  //      — the switcher writes to the URL via writeVariantToUrl, so
+  //      hasVariantInLocation() returns true after any switcher interaction).
+  //   2. operatorSettings.widget_variant (this effect — only when no URL param).
+  //   3. aurora (the VariantProvider's built-in seed / DEFAULT_VARIANT).
+  const { setVariant } = useVariant()
+  useEffect(() => {
+    if (!operatorSettings.widget_variant) return
+    // URL param (initial or switcher-written) takes priority — never clobber it.
+    if (hasVariantInLocation()) return
+    setVariant(operatorSettings.widget_variant)
+  // setVariant is stable (comes from useState setter via the context) — safe
+  // to omit from deps. hasVariantInLocation reads window.location.search which
+  // is always fresh at effect-run time. The only meaningful dep is the resolved
+  // field from the settings object.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operatorSettings.widget_variant])
 
   /**
    * landr-d8rg.4: fetch product groups for the category entrance. Called
@@ -671,6 +702,9 @@ function BookingFlowApp() {
           <CategoryStep
             groups={step.groups}
             hideHeading={Boolean(operatorSettings.widget_headline)}
+            columns={operatorSettings.widget_category_columns ?? null}
+            tileFont={(operatorSettings.widget_tile_font as TileFontKey | null) ?? null}
+            titleCase={operatorSettings.widget_title_case ?? null}
             onPick={(g) => {
               // Scope the product list to the chosen group via state, then
               // transition to pick-product. ProductList reads pickedGroupSlug

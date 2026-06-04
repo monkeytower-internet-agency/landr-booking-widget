@@ -34,9 +34,21 @@ export interface CategoryTileProps {
   group: ProductGroup
   locale: string
   onPick: (group: ProductGroup) => void
+  /**
+   * landr-jb1k.2: resolved CSS font-family string from TILE_FONT_FAMILY_MAP.
+   * Applied as an inline fontFamily style on every tile title <h3>. Undefined
+   * when the operator hasn't configured a font (system default wins).
+   */
+  titleFontStyle?: string
+  /**
+   * landr-jb1k.2: resolved Tailwind text-transform class (from
+   * TITLE_CASE_CLASS_MAP in CategoryStep). Applied to every tile title <h3>.
+   * Undefined when no transform is configured.
+   */
+  titleCaseClass?: string
 }
 
-export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
+export function CategoryTile({ group, locale, onPick, titleFontStyle, titleCaseClass }: CategoryTileProps) {
   const { variant, tokens } = useVariant()
 
   const name = pickLocalized(group.name, group.name_localized, locale)
@@ -107,6 +119,9 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
     tokens.cardRadius,
   )
 
+  // landr-jb1k.2: inline style for operator-configured font-family on titles.
+  const h3Style = titleFontStyle ? { fontFamily: titleFontStyle } : undefined
+
   // --- aurora: text-on-image with a brand gradient scrim. ---
   if (variant === 'aurora') {
     return (
@@ -124,7 +139,12 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
         />
         <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 text-white">
           <div className="flex items-center justify-between gap-2">
-            <h3 className={cn('text-lg', tokens.typeAccent)}>{name}</h3>
+            <h3
+              className={cn('text-lg', tokens.typeAccent, titleCaseClass)}
+              style={h3Style}
+            >
+              {name}
+            </h3>
             {countChip}
           </div>
           {description ? (
@@ -148,7 +168,12 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
         {media}
         <div className="flex flex-col gap-2 p-6">
           <div className="flex items-baseline justify-between gap-3">
-            <h3 className={cn('text-xl', tokens.typeAccent)}>{name}</h3>
+            <h3
+              className={cn('text-xl', tokens.typeAccent, titleCaseClass)}
+              style={h3Style}
+            >
+              {name}
+            </h3>
             {countChip}
           </div>
           {description ? (
@@ -173,7 +198,12 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
       {media}
       <div className="flex flex-col gap-1 p-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className={cn('text-sm', tokens.typeAccent)}>{name}</h3>
+          <h3
+            className={cn('text-sm', tokens.typeAccent, titleCaseClass)}
+            style={h3Style}
+          >
+            {name}
+          </h3>
           {countChip}
         </div>
         {description ? (
