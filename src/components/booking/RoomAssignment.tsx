@@ -1,4 +1,5 @@
 import { useId, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
   DragOverlay,
@@ -552,7 +553,11 @@ export function RoomAssignment({
           so the customer can see exactly which name they're moving instead
           of dragging an invisible chip. Solid saturated fill (selected
           style) keeps it readable over any page content. */}
-      <DragOverlay dropAnimation={null}>
+      {/* Portal to <body>: position:fixed breaks under transformed
+          ancestors (StepTransition animates one); the portal makes the
+          overlay viewport-anchored no matter what wraps this step. */}
+      {createPortal(
+        <DragOverlay dropAnimation={null}>
         {activeChip !== null ? (
           <div
             data-testid="chip-drag-overlay"
@@ -573,7 +578,9 @@ export function RoomAssignment({
             />
           </div>
         ) : null}
-      </DragOverlay>
+        </DragOverlay>,
+        document.body,
+      )}
     </DndContext>
   )
 }

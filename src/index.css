@@ -195,7 +195,13 @@
 }
 
 .step-enter {
-  animation: step-enter 200ms ease-out both;
+  /* NO fill-mode: `both` kept the final keyframe's transform applied
+   * forever, making this wrapper a CONTAINING BLOCK for position:fixed
+   * descendants — dnd-kit's DragOverlay then anchored to the step
+   * container instead of the viewport (chip floated half a screen above
+   * the cursor; user report 2026-06-04). With no fill the computed
+   * transform returns to `none` when the 200ms entrance ends. */
+  animation: step-enter 200ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
