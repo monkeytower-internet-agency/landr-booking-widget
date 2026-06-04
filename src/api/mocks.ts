@@ -445,6 +445,12 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   widget_footer: null,
   // landr-atwy — account-link prompt off by default (opt-in per operator).
   offer_account_link: false,
+  // landr-jb1k.4 — tile-style options null by default (operator hasn't picked
+  // any; widget keeps the variant token defaults / current behaviour).
+  widget_tile_radius: null,
+  widget_tile_aspect: null,
+  widget_tile_scrim: null,
+  widget_tile_hover: null,
 })
 
 /**
