@@ -670,6 +670,7 @@ function BookingFlowApp() {
         {step.name === 'pick-category' ? (
           <CategoryStep
             groups={step.groups}
+            hideHeading={Boolean(operatorSettings.widget_headline)}
             onPick={(g) => {
               // Scope the product list to the chosen group via state, then
               // transition to pick-product. ProductList reads pickedGroupSlug
