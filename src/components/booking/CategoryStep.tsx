@@ -34,9 +34,17 @@ import { cn } from '@/lib/utils'
 export interface CategoryStepProps {
   groups: ProductGroup[]
   onPick: (group: ProductGroup) => void
+  /**
+   * Suppress the built-in "What are you looking for?" heading. App passes
+   * true when the operator configured a widget_headline (Settings →
+   * Branding) — that headline already renders in the widget header right
+   * above this step, and stacking both reads as duplicate copy
+   * (user report 2026-06-04).
+   */
+  hideHeading?: boolean
 }
 
-export function CategoryStep({ groups, onPick }: CategoryStepProps) {
+export function CategoryStep({ groups, onPick, hideHeading = false }: CategoryStepProps) {
   const { variant, tokens } = useVariant()
   // Resolve the viewer locale once; CategoryTile localizes name/description.
   const locale = browserLocale()
@@ -67,7 +75,9 @@ export function CategoryStep({ groups, onPick }: CategoryStepProps) {
         data-testid="category-step"
         data-variant={variant}
       >
-        <h2 className={cn('text-lg', tokens.typeAccent)}>What are you looking for?</h2>
+        {hideHeading ? null : (
+          <h2 className={cn('text-lg', tokens.typeAccent)}>What are you looking for?</h2>
+        )}
         <p className="text-sm text-muted-foreground">
           No categories are available right now.
         </p>
@@ -81,7 +91,9 @@ export function CategoryStep({ groups, onPick }: CategoryStepProps) {
       data-testid="category-step"
       data-variant={variant}
     >
-      <h2 className={cn('text-lg', tokens.typeAccent)}>What are you looking for?</h2>
+      {hideHeading ? null : (
+        <h2 className={cn('text-lg', tokens.typeAccent)}>What are you looking for?</h2>
+      )}
       <ul className={cn('grid list-none', gridCols, gridGap)}>
         {visible.map((group) => (
           <li key={group.id}>
