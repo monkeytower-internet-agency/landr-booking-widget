@@ -206,3 +206,39 @@ describe('ProductDetailStep', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+// User report 2026-06-04: products with ONLY a short_description (no long
+// description) showed no copy at all on the detail page — the page rendered
+// product.description exclusively. Long wins when present; short is the
+// fallback; localized variants are picked like everywhere else.
+describe('ProductDetailStep description fallback', () => {
+  it('falls back to short_description when description is null', () => {
+    renderStep(
+      makeProduct({ description: null, short_description: 'A great flight.' }),
+    )
+    expect(
+      screen.getByTestId('product-detail-description'),
+    ).toHaveTextContent('A great flight.')
+  })
+
+  it('prefers the long description when both exist', () => {
+    renderStep(
+      makeProduct({
+        description: 'Long form **copy**.',
+        short_description: 'Short.',
+      }),
+    )
+    const el = screen.getByTestId('product-detail-description')
+    expect(el).toHaveTextContent('Long form copy.')
+    expect(el).not.toHaveTextContent('Short.')
+  })
+
+  it('renders nothing when neither description exists', () => {
+    renderStep(
+      makeProduct({ description: null, short_description: null }),
+    )
+    expect(
+      screen.queryByTestId('product-detail-description'),
+    ).not.toBeInTheDocument()
+  })
+})

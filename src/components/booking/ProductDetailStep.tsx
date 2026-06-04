@@ -73,6 +73,23 @@ export function ProductDetailStep({
   const bookable = isBookable(product)
   const priceLabel = formatPriceFrom(product.price_from, product.currency)
   const images = product.images ?? []
+  // landr-u4fl follow-up (user report): the detail page rendered ONLY the
+  // long `description`, so products carrying just a `short_description`
+  // (most operator catalogues start that way) showed no copy at all between
+  // the gallery and the facts chips. Long description wins when present;
+  // the card's short description is the fallback — and both go through the
+  // locale pick like every other text on this page.
+  // NOTE: the public products payload carries no description_localized
+  // today (only short_description is localized) — when the translations
+  // editor lands (landr-14s4) and the API adds it, extend this pick.
+  const description =
+    product.description ||
+    pickLocalized(
+      product.short_description,
+      product.short_description_localized,
+      locale,
+    ) ||
+    null
 
   // aurora overlays the title on the hero (ProductGallery) — so we hide
   // the standalone heading there to avoid showing the name twice. summit
@@ -87,9 +104,9 @@ export function ProductDetailStep({
     return (
       <div className="flex flex-col gap-4" data-testid="product-detail-step">
         <ProductGallery images={images} seed={product.slug} name={name} />
-        {product.description ? (
+        {description ? (
           <div className={PROSE_CLASSES}>
-            <ReactMarkdown>{product.description}</ReactMarkdown>
+            <ReactMarkdown>{description}</ReactMarkdown>
           </div>
         ) : null}
         <ProductFacts product={product} />
@@ -123,9 +140,9 @@ export function ProductDetailStep({
 
       <ProductFacts product={product} />
 
-      {product.description ? (
+      {description ? (
         <div className={PROSE_CLASSES} data-testid="product-detail-description">
-          <ReactMarkdown>{product.description}</ReactMarkdown>
+          <ReactMarkdown>{description}</ReactMarkdown>
         </div>
       ) : null}
 
