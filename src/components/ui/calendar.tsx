@@ -37,7 +37,10 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       weekStartsOn={weekStartsOn}
       className={cn(
-        "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        // landr-3mo4: day cells are 44px on mobile (WCAG 2.5.5 touch target),
+        // tightening to the original 36px from sm upward where pointer input
+        // is precise and horizontal space is tighter inside the card.
+        "group/calendar bg-background p-3 [--cell-size:--spacing(11)] sm:[--cell-size:--spacing(9)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
