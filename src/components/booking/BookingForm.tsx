@@ -512,7 +512,7 @@ export function BookingForm({
         </CardDescription>
         {stay && stay.checkInIso && stay.checkOutIso ? (
           <div
-            className="bg-muted/40 mt-2 rounded-md border px-3 py-2 text-sm"
+            className="mt-2 rounded-lg border bg-surface-well px-3 py-2 text-sm shadow-well"
             data-testid="hotel-stay-block"
           >
             {/* landr-8yaz: weekday-prefixed dates ("Sun 24 May → Wed 28 May,
@@ -529,8 +529,13 @@ export function BookingForm({
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {/* Booker summary — pulled from DetailsStep upstream. */}
-        <section data-testid="review-booker">
+        {/* Booker summary — pulled from DetailsStep upstream.
+            landr-3mo4: review sections are raised sub-cards so each block of
+            the summary reads as a discrete, scannable card. */}
+        <section
+          data-testid="review-booker"
+          className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+        >
           <h3 className="mb-2 text-sm font-semibold">Your contact</h3>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
             <dt className="text-muted-foreground">Name</dt>
@@ -550,7 +555,10 @@ export function BookingForm({
 
         {/* Participants summary. participants[0] mirrors the booker, so
             we render the heading + a clear row-per-person list. */}
-        <section data-testid="review-participants">
+        <section
+          data-testid="review-participants"
+          className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+        >
           <h3 className="mb-2 text-sm font-semibold">
             Participants ({participants.length})
           </h3>
@@ -585,7 +593,10 @@ export function BookingForm({
             companion_kind distinguishes a non-participating guest from a
             self-paying activity participant (separate_guiding). */}
         {companions.length > 0 ? (
-          <section data-testid="review-companions">
+          <section
+            data-testid="review-companions"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
             <h3 className="mb-2 text-sm font-semibold">
               Others joining ({companions.length})
             </h3>
@@ -639,7 +650,10 @@ export function BookingForm({
             Grace"). Placed here (after the party roster, before Confirm) so
             it reads naturally alongside the participant list. */}
         {perRoomBreakfastRows.length > 0 ? (
-          <section data-testid="review-per-room-breakfast">
+          <section
+            data-testid="review-per-room-breakfast"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
             <h3 className="mb-2 text-sm font-semibold">Room breakfast</h3>
             <ol className="space-y-1 text-sm">
               {perRoomBreakfastRows.map((row, idx) => (

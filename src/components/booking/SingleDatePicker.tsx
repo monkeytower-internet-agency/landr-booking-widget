@@ -117,7 +117,12 @@ export function SingleDatePicker({ product, onBack, onConfirm, onLiveDaysChange 
           defaultMonth={today}
         />
         {selected ? (
-          <p className="text-sm text-muted-foreground" data-testid="single-date-selected">
+          // landr-3mo4: selected date confirmed in a tinted (borderless) chip
+          // so the choice reads as committed, not as muted helper text.
+          <p
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground"
+            data-testid="single-date-selected"
+          >
             Selected: {isoDate(selected)}
           </p>
         ) : null}

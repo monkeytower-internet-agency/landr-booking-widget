@@ -10,6 +10,7 @@ const { mocks } = vi.hoisted(() => ({
     listProducts: vi.fn<
       (slug: string, opts?: { group?: string }) => Promise<Product[]>
     >(),
+    listProductGroups: vi.fn(),
     getOperatorSettings: vi.fn(),
     getOperatorServiceRoles: vi.fn(),
     getAvailability: vi.fn<
@@ -35,6 +36,7 @@ vi.mock('@/api/client', async (importOriginal) => {
   return {
     ...real,
     listProducts: mocks.listProducts,
+    listProductGroups: mocks.listProductGroups,
     getOperatorSettings: mocks.getOperatorSettings,
     getOperatorServiceRoles: mocks.getOperatorServiceRoles,
     getAvailability: mocks.getAvailability,
@@ -89,6 +91,9 @@ describe('App', () => {
       expose_seats_to_customer: false,
     })
     mocks.getOperatorServiceRoles.mockResolvedValue([])
+    // landr-d8rg.4: default to empty groups so existing tests don't trigger
+    // pick-category. Tests that need the category flow override this.
+    mocks.listProductGroups.mockResolvedValue([])
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
@@ -325,10 +330,13 @@ describe('App', () => {
   describe('step machine branching (landr-y9k)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      // Find the Select button inside the matching Card; just click the
-      // first Select since each test only seeds one product.
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: the whole product card is the click target (role=button
+      // labelled by the product name) — the per-card "Select" button is gone.
+      fireEvent.click(screen.getByRole('button', { name }))
+      // landr-d8rg.4: card click now shows ProductDetailStep first.
+      // Click the Book CTA to enter the existing picker flow.
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
     }
 
     it('product_kind=service + service_time_shape=time_slot → AvailabilityPicker', async () => {
@@ -448,8 +456,11 @@ describe('App', () => {
   describe('details step (landr-8c03, replacing landr-mbge participants count)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
+      // landr-d8rg.4: card click now shows ProductDetailStep first.
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
     }
 
     it('inserts a DetailsStep between pick-selection and fill-form for a service product with no hotel/pickup/addons', async () => {
@@ -675,8 +686,11 @@ describe('App', () => {
   describe('back-nav state restoration (landr-yf0n)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      const selectBtns = screen.getAllByRole('button', { name: 'Select' })
-      fireEvent.click(selectBtns[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
+      // landr-d8rg.4: card click now shows ProductDetailStep first.
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
     }
 
     it('restores the PickupLocationPicker radio choice when back-navigating from fill-form', async () => {
@@ -809,7 +823,11 @@ describe('App', () => {
   describe('hotel-booking back-nav + live at-hotel total (landr-87n9.1/.2)', () => {
     async function pickFirstProduct(name: string) {
       await waitFor(() => screen.getByText(name))
-      fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]!)
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name }))
+      // landr-d8rg.4: card click now shows ProductDetailStep first.
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
     }
 
     function setupHotelFlow() {
@@ -1067,6 +1085,41 @@ describe('App', () => {
     })
   })
 
+  // landr-d8rg.8: the floating preview variant switcher is gated on preview
+  // mode (?preview=1 or a preview_token) — it must NEVER ship to a
+  // customer-facing embed.
+  describe('variant switcher gating (landr-d8rg.8)', () => {
+    it('renders the switcher when ?preview=1 is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview=1`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
+    })
+
+    it('renders the switcher when a preview_token is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-xyz`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
+    })
+
+    it('does NOT render the switcher on a plain customer-facing embed', async () => {
+      // beforeEach sets /?w=MOCK_TOKEN — no preview flag / token.
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
+      expect(screen.queryByTestId('variant-switcher')).not.toBeInTheDocument()
+    })
+  })
+
   // landr-7jgo: hide sold-out products in the overview; deep-link a sold-out
   // product to a standalone "Fully booked" state; per-embed show_sold_out opt-in.
   describe('bookability / sold-out (landr-7jgo)', () => {
@@ -1093,8 +1146,15 @@ describe('App', () => {
         expect(screen.getByText('Sold Out Trip')).toBeInTheDocument(),
       )
       expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument()
-      // Only the bookable product carries a Select CTA.
-      expect(screen.getAllByRole('button', { name: 'Select' })).toHaveLength(1)
+      // landr-d8rg.6: only the bookable product is a selectable card (role=button
+      // labelled by its name); the sold-out one is a non-interactive
+      // FullyBookedNotice.
+      expect(
+        screen.getByRole('button', { name: 'Bookable Tandem' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Sold Out Trip' }),
+      ).not.toBeInTheDocument()
     })
 
     it('renders a sold-out single-product deep link as "Fully booked" (no picker / CTA)', async () => {
@@ -1123,7 +1183,7 @@ describe('App', () => {
       expect(mocks.getAvailability).not.toHaveBeenCalled()
     })
 
-    it('still deep-links a BOOKABLE single product straight into its picker', async () => {
+    it('deep-links a BOOKABLE single product to product-detail first (landr-d8rg.4)', async () => {
       window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=open-tandem`)
       mocks.listProducts.mockResolvedValue([
         makeProduct({
@@ -1135,10 +1195,175 @@ describe('App', () => {
         }),
       ])
       render(<App />)
+      // landr-d8rg.4: a ?product= deep link now lands on ProductDetailStep first.
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByText('Open Tandem')).toBeInTheDocument()
+      expect(screen.queryByTestId('fully-booked-badge')).not.toBeInTheDocument()
+      // Clicking Book enters the picker.
+      fireEvent.click(screen.getByTestId('product-detail-book-cta'))
       await waitFor(() =>
         expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
       )
-      expect(screen.queryByTestId('fully-booked-badge')).not.toBeInTheDocument()
+    })
+  })
+
+  // landr-d8rg.4: category entrance + product-detail routing.
+  describe('category entrance + product-detail (landr-d8rg.4)', () => {
+    function makeGroup(overrides: Partial<{
+      id: string; slug: string; name: string; product_count: number
+    }> = {}) {
+      return {
+        id: 'g-1',
+        slug: 'tandemfluege',
+        name: 'Tandemflüge',
+        name_localized: null,
+        description: null,
+        description_localized: null,
+        image_url: null,
+        sort_order: 10,
+        parent_id: null,
+        product_count: 2,
+        ...overrides,
+      }
+    }
+
+    it('shows pick-category when operator has >1 non-empty group and no deep link', async () => {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'tandemfluege', name: 'Tandemflüge', product_count: 2 }),
+        makeGroup({ id: 'g-2', slug: 'kurse', name: 'Kurse', product_count: 1 }),
+      ])
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByText('Tandemflüge')).toBeInTheDocument()
+      expect(screen.getByText('Kurse')).toBeInTheDocument()
+    })
+
+    it('skips pick-category and goes straight to pick-product for a single non-empty group operator', async () => {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'tandemfluege', name: 'Tandemflüge', product_count: 3 }),
+      ])
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Tandem Classic')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('falls back to pick-product (unscoped) when the groups fetch errors', async () => {
+      mocks.listProductGroups.mockRejectedValue(new Error('404 Not Found'))
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Solo Flight' }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Solo Flight')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?group= deep link skips pick-category and shows pick-product scoped', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&group=tandemfluege`)
+      // listProductGroups should NOT be called when ?group= is set
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic', group_slug: 'tandemfluege' }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Tandem Classic')).toBeInTheDocument(),
+      )
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?product= deep link goes to product-detail (not directly to picker)', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=tandem-classic`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          name: 'Tandem Classic',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      // listProductGroups should NOT be called for a ?product= deep link
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+    })
+
+    it('selecting a group from pick-category scopes the product list to that group', async () => {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'tandemfluege', name: 'Tandemflüge', product_count: 2 }),
+        makeGroup({ id: 'g-2', slug: 'kurse', name: 'Kurse', product_count: 1 }),
+      ])
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      // Click "Tandemflüge" group button.
+      fireEvent.click(screen.getByTestId('category-btn-tandemfluege'))
+      // Should now show pick-product with scoped list.
+      await waitFor(() =>
+        expect(screen.getByText('Tandem Classic')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+      // listProducts called with the group slug.
+      expect(mocks.listProducts).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        expect.objectContaining({ group: 'tandemfluege' }),
+      )
+    })
+
+    it('card click → product-detail → Book → picker (end-to-end category flow)', async () => {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'tandemfluege', name: 'Tandemflüge', product_count: 2 }),
+        makeGroup({ id: 'g-2', slug: 'kurse', name: 'Kurse', product_count: 1 }),
+      ])
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          name: 'Tandem Classic',
+          service_time_shape: 'time_slot',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      // Step 1: pick-category.
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('category-btn-tandemfluege'))
+      // Step 2: pick-product (scoped list).
+      await waitFor(() =>
+        expect(screen.getByText('Tandem Classic')).toBeInTheDocument(),
+      )
+      // landr-d8rg.6: whole-card click target (role=button labelled by name).
+      fireEvent.click(screen.getByRole('button', { name: 'Tandem Classic' }))
+      // Step 3: product-detail.
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      // Step 4: Book → picker (AvailabilityPicker for time_slot).
+      fireEvent.click(screen.getByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(mocks.getAvailability).toHaveBeenCalled(),
+      )
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
     })
   })
 })

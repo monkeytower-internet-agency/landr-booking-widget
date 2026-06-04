@@ -200,4 +200,102 @@ describe('Confirmation', () => {
     expect(screen.getByRole('link', { name: /outlook/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /download .ics/i })).toBeInTheDocument()
   })
+
+  it('does NOT blank the page when calendar_event is malformed (missing start_date/end_date)', () => {
+    // landr-9ut4 regression: the API once emitted { start, end } instead of
+    // { start_date, end_date }. The old code called buildGoogleCalendarUrl on
+    // that object, which threw on `undefined.split('-')` during render and —
+    // with no error boundary — unmounted the whole widget, blanking the
+    // confirmation screen. A malformed event must now degrade to ICS-only.
+    const malformed = {
+      title: 'Tandem Classic — Para42',
+      start: '2026-06-15',
+      end: '2026-06-15',
+      location: 'Para42',
+    } as unknown as BookingCalendarEvent
+    const response = baseResponse({
+      ical_url: MOCK_ICAL_URL,
+      calendar_event: malformed,
+    })
+
+    expect(() =>
+      render(<Confirmation response={response} onRestart={vi.fn()} />),
+    ).not.toThrow()
+    // Card + ICS still render; the calendar deep-links are simply skipped.
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /download .ics/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /google calendar/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: /outlook/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-y31z: confirmation_email_status four-state messaging
+  // ------------------------------------------------------------------
+
+  it('shows success copy when confirmation_email_status is "sent"', () => {
+    const response = baseResponse({ confirmation_email_status: 'sent' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/confirmation email has been sent/i)).toBeInTheDocument()
+    // Must NOT show the failure panel.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    // Card must still render — never blank.
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    // Reference still visible.
+    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+  })
+
+  it('shows success copy when confirmation_email_status is "captured"', () => {
+    const response = baseResponse({ confirmation_email_status: 'captured' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/confirmation email has been sent/i)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+  })
+
+  it('shows amber failure panel with role="status" when confirmation_email_status is "failed"', () => {
+    const response = baseResponse({ confirmation_email_status: 'failed' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const panel = screen.getByRole('status')
+    expect(panel).toBeInTheDocument()
+    // Must communicate that the booking IS confirmed.
+    expect(panel).toHaveTextContent(/booking is confirmed/i)
+    // Must instruct customer to contact the operator.
+    expect(panel).toHaveTextContent(/contact/i)
+    // The regular "confirmation email" paragraph must NOT appear.
+    expect(screen.queryByText(/you will receive a confirmation email/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/confirmation email has been sent/i)).not.toBeInTheDocument()
+    // Card must still render — never blank; reference visible.
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    // "Make another booking" button still present.
+    expect(screen.getByRole('button', { name: /make another booking/i })).toBeInTheDocument()
+  })
+
+  it('shows neutral "will receive" copy when confirmation_email_status is "pending"', () => {
+    const response = baseResponse({ confirmation_email_status: 'pending' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+  })
+
+  it('shows neutral "will receive" copy when confirmation_email_status is absent (old API, back-compat)', () => {
+    // Explicitly omit the field — simulates a pre-landr-2js5 API response.
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+  })
 })

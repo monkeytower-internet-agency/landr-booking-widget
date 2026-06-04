@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Product } from '@/api/types'
+import type { Product, ProductGroup } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
   BookerDetails,
@@ -459,5 +459,70 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
     expect(next.pickupLocationId).toBeNull()
     expect(next.isSharedDouble).toBe(false)
     expect(next.accommodationMode).toBe('guiding-only')
+  })
+})
+
+// landr-d8rg.4: new steps pick-category and product-detail.
+
+function makeGroup(overrides: Partial<ProductGroup> = {}): ProductGroup {
+  return {
+    id: 'g-1',
+    slug: 'tandemfluege',
+    name: 'Tandemflüge',
+    name_localized: null,
+    description: null,
+    description_localized: null,
+    image_url: null,
+    sort_order: 10,
+    parent_id: null,
+    product_count: 2,
+    ...overrides,
+  }
+}
+
+describe('sidebarInputsForStep — new steps (landr-d8rg.4)', () => {
+  it('returns null for pick-category (no product chosen yet, no price)', () => {
+    const groups = [makeGroup(), makeGroup({ id: 'g-2', slug: 'kurse', product_count: 1 })]
+    const inputs = sidebarInputsForStep({ name: 'pick-category', groups })
+    expect(inputs).toBeNull()
+  })
+
+  it('returns null for product-detail (no date/selection committed yet — landr-hpyn)', () => {
+    const product = makeProduct()
+    const inputs = sidebarInputsForStep({ name: 'product-detail', product })
+    expect(inputs).toBeNull()
+  })
+
+  it('returns null for product-detail even when groups context is present', () => {
+    const product = makeProduct()
+    const groups = [makeGroup()]
+    const inputs = sidebarInputsForStep({ name: 'product-detail', product, groups })
+    expect(inputs).toBeNull()
+  })
+})
+
+describe('Step type completeness (landr-d8rg.4 — pick-category and product-detail exist in the Step union)', () => {
+  it('pick-category step carries the groups array', () => {
+    const groups = [makeGroup()]
+    const step = { name: 'pick-category' as const, groups }
+    expect(step.name).toBe('pick-category')
+    expect(step.groups).toHaveLength(1)
+    expect(step.groups[0]!.slug).toBe('tandemfluege')
+  })
+
+  it('product-detail step carries the product (groups is optional)', () => {
+    const product = makeProduct()
+    const step = { name: 'product-detail' as const, product }
+    expect(step.name).toBe('product-detail')
+    expect(step.product.slug).toBe('p-1')
+    // groups is optional — no groups field here
+    expect('groups' in step).toBe(false)
+  })
+
+  it('product-detail step can optionally carry groups for back-nav context', () => {
+    const product = makeProduct()
+    const groups = [makeGroup()]
+    const step = { name: 'product-detail' as const, product, groups }
+    expect(step.groups).toHaveLength(1)
   })
 })

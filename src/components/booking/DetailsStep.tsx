@@ -422,42 +422,52 @@ export function DetailsStep({
           <legend className="text-sm font-medium">
             Other participants ({totalCount} total)
           </legend>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Remove participant"
-              onClick={() => setAdditionalCount(additional.length - 1)}
-              disabled={additional.length <= 0}
-            >
-              −
-            </Button>
-            <span className="text-sm tabular-nums w-8 text-center">
-              {additional.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Add participant"
-              onClick={() => setAdditionalCount(additional.length + 1)}
-              disabled={additional.length >= MAX_ADDITIONAL}
-            >
-              +
-            </Button>
+          {/* landr-3mo4: stepper grouped into a raised pill with tinted,
+              ≥44px-on-mobile +/− controls so it reads as one quantity control
+              and lands reliable taps. */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                aria-label="Remove participant"
+                onClick={() => setAdditionalCount(additional.length - 1)}
+                disabled={additional.length <= 0}
+              >
+                −
+              </Button>
+              <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                {additional.length}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                aria-label="Add participant"
+                onClick={() => setAdditionalCount(additional.length + 1)}
+                disabled={additional.length >= MAX_ADDITIONAL}
+              >
+                +
+              </Button>
+            </div>
             <span className="text-sm text-muted-foreground">
               additional (max {MAX_ADDITIONAL})
             </span>
           </div>
 
           {additional.map((row, idx) => (
+            // landr-3mo4: each added participant is a raised sub-card (one
+            // level lighter than the step card) so the nested form group
+            // reads as its own block.
             <div
               key={`participant-${idx}`}
-              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`participant-row-${idx + 2}`}
             >
-              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
+              <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Participant {idx + 2}
               </div>
               <Field label="First name" htmlFor={`p-${idx}-first`}>
@@ -539,42 +549,50 @@ export function DetailsStep({
             own guiding separately. They&rsquo;re added to the hotel headcount
             and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Remove companion"
-              onClick={() => setCompanionCount(companions.length - 1)}
-              disabled={companions.length <= 0}
-            >
-              −
-            </Button>
-            <span className="text-sm tabular-nums w-8 text-center">
-              {companions.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Add companion"
-              onClick={() => setCompanionCount(companions.length + 1)}
-              disabled={companions.length >= MAX_COMPANIONS}
-            >
-              +
-            </Button>
+          {/* landr-3mo4: companion stepper mirrors the participant stepper —
+              raised pill, tinted ≥44px controls. */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                aria-label="Remove companion"
+                onClick={() => setCompanionCount(companions.length - 1)}
+                disabled={companions.length <= 0}
+              >
+                −
+              </Button>
+              <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                {companions.length}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
+                aria-label="Add companion"
+                onClick={() => setCompanionCount(companions.length + 1)}
+                disabled={companions.length >= MAX_COMPANIONS}
+              >
+                +
+              </Button>
+            </div>
             <span className="text-sm text-muted-foreground">
               joining (max {MAX_COMPANIONS})
             </span>
           </div>
 
           {companions.map((row, idx) => (
+            // landr-3mo4: companion rows are raised sub-cards, matching the
+            // participant rows.
             <div
               key={`companion-${idx}`}
-              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`companion-row-${idx}`}
             >
-              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
+              <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Guest {idx + 1}
               </div>
               {/* landr-doam.1: companion kind selector — "not joining the
@@ -724,7 +742,7 @@ function RoleSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={testId}
-      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {serviceRoles.map((role) => (
         <option key={role.id} value={role.code}>
