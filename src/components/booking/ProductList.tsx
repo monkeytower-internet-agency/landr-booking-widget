@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listProducts } from '@/api/client'
+import { explainFetchError, listProducts } from '@/api/client'
 import type { Product } from '@/api/types'
 import {
   Card,
@@ -86,7 +86,7 @@ export function ProductList({
         }
       } catch (err) {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : String(err))
+        setError(explainFetchError(err))
       }
     })()
     return () => {
