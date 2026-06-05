@@ -6,6 +6,7 @@ import {
   parseVariant,
   previewEnabledFromSearch,
   writeVariantToUrl,
+  hasVariantInSearch,
   type Variant,
   type VariantTokens,
 } from './variant'
@@ -129,6 +130,28 @@ describe('previewEnabledFromSearch (landr-d8rg.8)', () => {
     expect(previewEnabledFromSearch('?preview')).toBe(false)
     expect(previewEnabledFromSearch('?preview=0')).toBe(false)
     expect(previewEnabledFromSearch('?preview_token=')).toBe(false)
+  })
+})
+
+describe('hasVariantInSearch (landr-jb1k.2)', () => {
+  it('returns true when the URL carries a valid ?variant= param', () => {
+    expect(hasVariantInSearch('?variant=aurora')).toBe(true)
+    expect(hasVariantInSearch('?variant=summit')).toBe(true)
+    expect(hasVariantInSearch('?variant=alpine')).toBe(true)
+    // bare search string (no leading ?)
+    expect(hasVariantInSearch('variant=summit')).toBe(true)
+  })
+
+  it('returns false when ?variant= is absent or invalid', () => {
+    expect(hasVariantInSearch('')).toBe(false)
+    expect(hasVariantInSearch('?foo=bar')).toBe(false)
+    expect(hasVariantInSearch('?variant=neon')).toBe(false)
+    expect(hasVariantInSearch('?variant=')).toBe(false)
+  })
+
+  it('returns true case-insensitively for known variants', () => {
+    expect(hasVariantInSearch('?variant=ALPINE')).toBe(true)
+    expect(hasVariantInSearch('?variant=Summit')).toBe(true)
   })
 })
 

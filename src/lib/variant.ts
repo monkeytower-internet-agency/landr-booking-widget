@@ -60,6 +60,25 @@ export function variantFromLocation(): Variant {
 }
 
 /**
+ * landr-jb1k.2: returns true when the URL carries an explicit, valid
+ * ?variant= param. Used by App to decide whether operator settings may
+ * override the active variant: the URL param ALWAYS wins (preview / deep
+ * link intent), so when this returns true the settings-driven default is
+ * never applied. Guards for non-browser environments.
+ */
+export function hasVariantInLocation(): boolean {
+  if (typeof window === 'undefined') return false
+  return hasVariantInSearch(window.location.search)
+}
+
+/** Pure form of hasVariantInLocation — testable without a window. */
+export function hasVariantInSearch(search: string): boolean {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const raw = params.get('variant')?.trim().toLowerCase()
+  return Boolean(raw && isVariant(raw))
+}
+
+/**
  * Per-variant design tokens, expressed as Tailwind v4 class strings so later
  * slices can spread them straight onto elements (via `cn(...)`). Each token is
  * a *direction*, not a finished component — slices compose these with their own

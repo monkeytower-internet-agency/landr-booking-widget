@@ -266,6 +266,70 @@ export interface OperatorSettings {
    * with older API responses that predate the flag (treated as false).
    */
   offer_account_link?: boolean
+  /**
+   * landr-jb1k: operator-configured default visual variant for the widget
+   * ('aurora' | 'summit' | 'alpine'). Null means "use the built-in default
+   * (aurora)". Resolution precedence: explicit ?variant= URL param ALWAYS
+   * wins; else this value (once settings resolve); else aurora.
+   * Optional for rolling deploy — absent API responses treated as null.
+   */
+  widget_variant?: 'aurora' | 'summit' | 'alpine' | null
+  /**
+   * landr-jb1k: operator-configured category grid column count (1..4).
+   * Null means "use improved auto-logic" (count-aware: exactly 3 visible
+   * groups → 3 cols on lg; otherwise the built-in responsive default).
+   * Optional for rolling deploy — absent API responses treated as null.
+   */
+  widget_category_columns?: number | null
+  /**
+   * landr-jb1k: operator-configured font key for category tile titles and
+   * the CategoryStep entrance heading. Each non-system value triggers a
+   * lazy @fontsource CSS import (GDPR-safe; no CDN; latin 400+700 only).
+   * 'system' = no override (current behavior). Null / absent → system
+   * default. Optional for rolling deploy.
+   *
+   * Values are kept in sync with TileFontKey in lib/tileFont.ts (separate
+   * to avoid a circular import between types.ts and the fontsource module).
+   */
+  widget_tile_font?: 'system' | 'playfair' | 'montserrat' | 'bebas' | 'space-grotesk' | 'caveat' | null
+  /**
+   * landr-jb1k: operator-configured text-transform for category tile
+   * titles and the CategoryStep entrance heading. Applied as a Tailwind
+   * utility class from a static map (no dynamic class names):
+   *   'uppercase'  → uppercase
+   *   'lowercase'  → lowercase
+   *   'capitalize' → capitalize
+   * Null / absent → no transform (inherited / none).
+   * Optional for rolling deploy.
+   */
+  widget_title_case?: 'uppercase' | 'lowercase' | 'capitalize' | null
+  /**
+   * landr-jb1k.4: operator-configured tile corner radius. Overrides the
+   * variant token radius for category tiles only. Null / absent → variant
+   * default (current behaviour). Values kept in sync with TileRadiusKey in
+   * lib/tileStyle.ts. Optional for rolling deploy.
+   */
+  widget_tile_radius?: 'sharp' | 'rounded' | 'round' | null
+  /**
+   * landr-jb1k.4: operator-configured tile aspect ratio (1:1 / 4:3 / 16:9).
+   * Overrides the variant token aspect for category tiles only. Null / absent
+   * → variant default. Values kept in sync with TileAspectKey. Optional.
+   */
+  widget_tile_aspect?: 'square' | 'landscape' | 'wide' | null
+  /**
+   * landr-jb1k.4: operator-configured scrim tint behind text-over-image tile
+   * titles (text-overlay / aurora layout only — the other variants have no
+   * scrim). 'dark' = black gradient (current default), 'brand' = primary-tinted
+   * gradient, 'light' = white gradient WITH dark title text (AA enforced).
+   * Null / absent → current behaviour (dark). Values in sync with TileScrimKey.
+   */
+  widget_tile_scrim?: 'dark' | 'brand' | 'light' | null
+  /**
+   * landr-jb1k.4: operator-configured tile hover interaction. 'lift' = the
+   * current card translate, 'zoom' = image scale-up, 'none' = no motion.
+   * Null / absent → current behaviour (lift). Values in sync with TileHoverKey.
+   */
+  widget_tile_hover?: 'lift' | 'zoom' | 'none' | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

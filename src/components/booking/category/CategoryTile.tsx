@@ -29,14 +29,62 @@ import { useVariant } from '@/lib/variant'
 import { pickLocalized } from '@/lib/locale'
 import { cn } from '@/lib/utils'
 import { offerCountLabel } from './categoryCopy'
+import { TILE_HOVER_MAP, type TileScrimResolved, type TileHoverResolved } from '@/lib/tileStyle'
 
 export interface CategoryTileProps {
   group: ProductGroup
   locale: string
   onPick: (group: ProductGroup) => void
+  /**
+   * landr-jb1k.2: resolved CSS font-family string from TILE_FONT_FAMILY_MAP.
+   * Applied as an inline fontFamily style on every tile title <h3>. Undefined
+   * when the operator hasn't configured a font (system default wins).
+   */
+  titleFontStyle?: string
+  /**
+   * landr-jb1k.2: resolved Tailwind text-transform class (from
+   * TITLE_CASE_CLASS_MAP in CategoryStep). Applied to every tile title <h3>.
+   * Undefined when no transform is configured.
+   */
+  titleCaseClass?: string
+  /**
+   * landr-jb1k.4: resolved tile corner-radius class (from TILE_RADIUS_CLASS_MAP).
+   * OVERRIDES the variant token radius (tokens.cardRadius) on the tile <button>
+   * only. Undefined → keep the variant default (current behaviour).
+   */
+  tileRadiusClass?: string
+  /**
+   * landr-jb1k.4: resolved tile aspect-ratio class (from TILE_ASPECT_CLASS_MAP).
+   * OVERRIDES the variant token aspect (tokens.tileAspect) on the media frame
+   * only. Undefined → variant default.
+   */
+  tileAspectClass?: string
+  /**
+   * landr-jb1k.4: resolved scrim treatment (from TILE_SCRIM_MAP) for the
+   * text-over-image (aurora) layout. Undefined → variant token scrim with white
+   * text (current dark behaviour). Ignored by summit/alpine (no scrim there).
+   */
+  tileScrim?: TileScrimResolved
+  /**
+   * landr-jb1k.4: resolved hover treatment (from TILE_HOVER_MAP), split into the
+   * button (lift) and image (zoom) class strings. CategoryStep always resolves
+   * this; when omitted (isolated renders / older callers) it defaults to 'lift'
+   * — the current behaviour.
+   */
+  tileHover?: TileHoverResolved
 }
 
-export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
+export function CategoryTile({
+  group,
+  locale,
+  onPick,
+  titleFontStyle,
+  titleCaseClass,
+  tileRadiusClass,
+  tileAspectClass,
+  tileScrim,
+  tileHover = TILE_HOVER_MAP.lift,
+}: CategoryTileProps) {
   const { variant, tokens } = useVariant()
 
   const name = pickLocalized(group.name, group.name_localized, locale)
@@ -49,10 +97,22 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
   // image_url is OPTIONAL on the wire; undefined is treated as "no image".
   const hasImage = Boolean(group.image_url)
 
+  // landr-jb1k.4: the operator-configured aspect OVERRIDES the variant token
+  // (tiles only); undefined keeps the variant default. The hover image-scale
+  // comes from the resolved hover treatment (empty string when hover is 'lift'
+  // or 'none' — only 'zoom' scales the image).
+  const mediaAspect = tileAspectClass ?? tokens.tileAspect
+
+  // landr-jb1k.4: aurora scrim override. Undefined → variant token scrim with
+  // white text (current behaviour). The 'light' scrim is a white gradient, so
+  // the title/description/count-chip flip to dark text to stay ≥AA.
+  const scrimOverlay = tileScrim?.overlay ?? tokens.overlayScrim
+  const scrimTitleDark = tileScrim?.titleDark ?? false
+
   // The media block — uploaded cover when present, else brand-aware fallback
   // art. Shared across variants; the *frame* differs per variant below.
   const media = (
-    <div className={cn('relative w-full overflow-hidden', tokens.tileAspect)}>
+    <div className={cn('relative w-full overflow-hidden', mediaAspect)}>
       {hasImage ? (
         <img
           src={group.image_url ?? undefined}
@@ -62,7 +122,7 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
           className={cn(
             'h-full w-full object-cover',
             'transition-transform duration-200 ease-out motion-reduce:transition-none',
-            'group-hover:scale-105 group-focus-visible:scale-105',
+            tileHover.image,
           )}
         />
       ) : (
@@ -72,22 +132,26 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
           className={cn(
             'h-full w-full',
             'transition-transform duration-200 ease-out motion-reduce:transition-none',
-            'group-hover:scale-105 group-focus-visible:scale-105',
+            tileHover.image,
           )}
         />
       )}
     </div>
   )
 
+  // landr-jb1k.4: on aurora, the count chip sits inside the scrim. With the
+  // 'light' (white) scrim it must use a dark-on-light treatment to stay legible;
+  // the dark/brand scrims keep the white-on-glass chip.
+  const auroraChipClass = scrimTitleDark
+    ? 'bg-foreground/10 text-foreground backdrop-blur-sm'
+    : 'bg-white/20 text-white backdrop-blur-sm'
   const countChip = (
     <span
       className={cn(
         // landr-d8rg.8: chip radius from the variant token (alpine squares it).
         'inline-flex items-center px-2 py-0.5 text-xs font-medium',
         tokens.chipRadius,
-        variant === 'aurora'
-          ? 'bg-white/20 text-white backdrop-blur-sm'
-          : 'bg-muted text-muted-foreground',
+        variant === 'aurora' ? auroraChipClass : 'bg-muted text-muted-foreground',
       )}
       data-testid="category-count-chip"
     >
@@ -98,14 +162,20 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
   // Shared interaction chrome for every variant's <button>.
   // landr-d8rg.8: focus ring now comes from the shared token (tokens.focusRing)
   // so every interactive surface across the three steps rings identically.
+  // landr-jb1k.4: the button lift comes from the resolved hover treatment
+  // (tileHover.button — empty for 'zoom'/'none'); the radius is the operator
+  // override when set, else the variant token.
   const baseButton = cn(
     'group relative block w-full overflow-hidden text-left',
     'cursor-pointer',
     'transition-all duration-200 ease-out motion-reduce:transition-none',
     tokens.focusRing,
-    'hover:-translate-y-0.5 focus-visible:-translate-y-0.5 motion-reduce:hover:translate-y-0 motion-reduce:focus-visible:translate-y-0',
-    tokens.cardRadius,
+    tileHover.button,
+    tileRadiusClass ?? tokens.cardRadius,
   )
+
+  // landr-jb1k.2: inline style for operator-configured font-family on titles.
+  const h3Style = titleFontStyle ? { fontFamily: titleFontStyle } : undefined
 
   // --- aurora: text-on-image with a brand gradient scrim. ---
   if (variant === 'aurora') {
@@ -119,16 +189,36 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
       >
         {media}
         <div
-          className={cn('pointer-events-none absolute inset-0', tokens.overlayScrim)}
+          className={cn('pointer-events-none absolute inset-0', scrimOverlay)}
           aria-hidden="true"
+          data-testid="category-scrim"
         />
-        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 text-white">
+        <div
+          className={cn(
+            'absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4',
+            // landr-jb1k.4: white text on dark/brand scrims; dark text on the
+            // 'light' (white) scrim to stay ≥AA.
+            scrimTitleDark ? 'text-foreground' : 'text-white',
+          )}
+        >
           <div className="flex items-center justify-between gap-2">
-            <h3 className={cn('text-lg', tokens.typeAccent)}>{name}</h3>
+            <h3
+              className={cn('text-lg', tokens.typeAccent, titleCaseClass)}
+              style={h3Style}
+            >
+              {name}
+            </h3>
             {countChip}
           </div>
           {description ? (
-            <p className="line-clamp-2 text-sm text-white/90">{description}</p>
+            <p
+              className={cn(
+                'line-clamp-2 text-sm',
+                scrimTitleDark ? 'text-foreground/80' : 'text-white/90',
+              )}
+            >
+              {description}
+            </p>
           ) : null}
         </div>
       </button>
@@ -148,7 +238,12 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
         {media}
         <div className="flex flex-col gap-2 p-6">
           <div className="flex items-baseline justify-between gap-3">
-            <h3 className={cn('text-xl', tokens.typeAccent)}>{name}</h3>
+            <h3
+              className={cn('text-xl', tokens.typeAccent, titleCaseClass)}
+              style={h3Style}
+            >
+              {name}
+            </h3>
             {countChip}
           </div>
           {description ? (
@@ -173,7 +268,12 @@ export function CategoryTile({ group, locale, onPick }: CategoryTileProps) {
       {media}
       <div className="flex flex-col gap-1 p-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className={cn('text-sm', tokens.typeAccent)}>{name}</h3>
+          <h3
+            className={cn('text-sm', tokens.typeAccent, titleCaseClass)}
+            style={h3Style}
+          >
+            {name}
+          </h3>
           {countChip}
         </div>
         {description ? (
