@@ -43,6 +43,37 @@ const apiBase = (): string =>
  * the underlying contract mismatch is visible instead of the opaque
  * native fetch "Failed to fetch" string. Filed under landr-piyv.
  */
+/**
+ * Human-readable explanation for a failed widget API call (landr-brge
+ * follow-up, user report 2026-06-05: the bare native "Failed to fetch"
+ * gave operators nothing to act on). Distinguishes the three failure
+ * classes a browser can produce and names the API host involved:
+ *   - HttpError 404      → the widget link/token is wrong or outdated
+ *   - HttpError other    → service responded with an error status
+ *   - TypeError (native) → network unreachable OR the embedding site is
+ *     not in the API's CORS allowlist — the two are indistinguishable
+ *     from JS, so both are named.
+ */
+export function explainFetchError(err: unknown): string {
+  let host = 'the booking service'
+  try {
+    const base = apiBase()
+    if (base) host = new URL(base).host
+  } catch {
+    /* keep generic label */
+  }
+  if (err instanceof HttpError) {
+    if (err.status === 404) {
+      return `The booking service at ${host} did not recognise this booking link (404). The widget token may be wrong or outdated.`
+    }
+    return `The booking service at ${host} responded with an error (${err.status} ${err.statusText}).`
+  }
+  if (err instanceof TypeError) {
+    return `Could not reach the booking service at ${host}. This usually means a network problem — or the site embedding this widget is not on the booking service's allowed-origins (CORS) list.`
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
 export class HttpError extends Error {
   status: number
   statusText: string
