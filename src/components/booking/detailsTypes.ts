@@ -134,13 +134,19 @@ export function bookerToParticipant(
 }
 
 /**
- * Validity check used to enable the Continue button. Booker requires all
- * four fields; each participant requires first + last (email + phone
- * stay optional per landr-8c03 spec); each companion (landr-87n9.3)
- * requires only first name (last/email/phone optional).
+ * Validity check used to enable the Continue button.
  *
- * `companions` is optional so existing call-sites (and the count-only
- * tests) keep working without passing the new section.
+ * - Booker: all four fields required (first, last, email, phone).
+ * - Participants (additional, i.e. participants[1..N] in the final array):
+ *     first + last + phone required (landr-nkbi); email stays optional.
+ *     participants[0] is the booker, already validated above.
+ * - Companions (landr-87n9.3): only first name required; phone is optional.
+ *
+ * `companions` is optional so existing call-sites keep working.
+ *
+ * NOTE: `participants` here is the FULL list including the booker at [0].
+ * The booker's phone is validated via the booker fields above, so we skip
+ * index 0 and validate indices 1..N (the "additional" rows).
  */
 export function detailsAreComplete(
   booker: BookerDetails,
@@ -152,10 +158,15 @@ export function detailsAreComplete(
   // basic email shape — full validation happens via the form library on
   // submit, but for enable/disable we just want non-empty and an @
   if (!booker.email.includes('@')) return false
-  for (const p of participants) {
+  // participants[0] is the booker (mirrored) — skip; validate 1..N
+  for (let i = 0; i < participants.length; i++) {
+    const p = participants[i]!
     if (!p.first_name.trim() || !p.last_name.trim()) return false
+    // landr-nkbi: every participant (other than the booker who is validated
+    // separately above) must supply a non-empty phone number.
+    if (i > 0 && !p.phone.trim()) return false
   }
-  // landr-87n9.3: each companion needs at least a first name.
+  // landr-87n9.3: each companion needs at least a first name; phone optional.
   for (const c of companions) {
     if (!c.first_name.trim()) return false
   }

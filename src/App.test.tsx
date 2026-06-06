@@ -629,6 +629,8 @@ describe('App', () => {
       )
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
+      // landr-nkbi: participant phone is now required — supply it so Continue is enabled.
+      setInput('participant_2_phone', '+34600000002')
 
       // Continue → DeclarationsStep (landr-sbhz.3: para42 requires declarations).
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
@@ -670,9 +672,11 @@ describe('App', () => {
       expect(value('booker_last_name')).toBe('Lovelace')
       expect(value('booker_email')).toBe('ada@example.com')
       expect(value('booker_phone')).toBe('+34 600000000')
-      // Additional participant row restored with both name fields filled.
+      // Additional participant row restored with all required fields filled.
       expect(value('participant_2_first_name')).toBe('Grace')
       expect(value('participant_2_last_name')).toBe('Hopper')
+      // landr-nkbi: phone round-trips through back-nav.
+      expect(value('participant_2_phone')).toBe('+34600000002')
     })
   })
 
