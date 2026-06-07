@@ -501,7 +501,8 @@ export function DetailsStep({
                   }
                 />
               </Field>
-              <Field label="Phone (optional)" htmlFor={`p-${idx}-phone`}>
+              {/* landr-nkbi: phone is required for every participant. */}
+              <Field label="Phone" htmlFor={`p-${idx}-phone`}>
                 <Input
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}

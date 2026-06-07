@@ -129,7 +129,7 @@ describe('DetailsStep (landr-8c03)', () => {
     })
   })
 
-  it('reveals an additional participant row when + is clicked, requiring first+last', () => {
+  it('reveals an additional participant row when + is clicked, requiring first+last+phone (landr-nkbi)', () => {
     const onConfirm = vi.fn()
     render(
       <DetailsStep
@@ -142,7 +142,7 @@ describe('DetailsStep (landr-8c03)', () => {
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
-    // Continue must now be disabled until participant 2 has first+last.
+    // Continue must now be disabled until participant 2 has first+last+phone.
     const cont = screen.getByRole('button', { name: /continue/i })
     expect(cont).toBeDisabled()
 
@@ -151,6 +151,12 @@ describe('DetailsStep (landr-8c03)', () => {
     })
     fireEvent.change(byName('participant_2_last_name'), {
       target: { value: 'Hopper' },
+    })
+    // landr-nkbi: still disabled because phone is missing.
+    expect(cont).toBeDisabled()
+
+    fireEvent.change(byName('participant_2_phone'), {
+      target: { value: '+34600000002' },
     })
     expect(cont).not.toBeDisabled()
 
@@ -161,11 +167,11 @@ describe('DetailsStep (landr-8c03)', () => {
       first_name: 'Grace',
       last_name: 'Hopper',
       email: '',
-      phone: '',
+      phone: '+34600000002',
     })
   })
 
-  it('allows participant email + phone to remain empty (both optional)', () => {
+  it('allows participant email to remain empty (email optional) but requires phone (landr-nkbi)', () => {
     const onConfirm = vi.fn()
     render(
       <DetailsStep
@@ -183,9 +189,27 @@ describe('DetailsStep (landr-8c03)', () => {
     fireEvent.change(byName('participant_2_last_name'), {
       target: { value: 'Hopper' },
     })
-    // intentionally leave participant_2_email and _phone blank
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    // landr-nkbi: participant phone is now required — Continue stays
+    // disabled while phone is empty.
+    const cont = screen.getByRole('button', { name: /continue/i })
+    expect(cont).toBeDisabled()
+
+    // Supplying the phone enables Continue.
+    fireEvent.change(byName('participant_2_phone'), {
+      target: { value: '+34600000002' },
+    })
+    expect(cont).not.toBeDisabled()
+
+    // Email can remain empty — that's fine.
+    fireEvent.click(cont)
     expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, participants] = onConfirm.mock.calls[0]!
+    expect(participants[1]).toMatchObject({
+      first_name: 'Grace',
+      last_name: 'Hopper',
+      phone: '+34600000002',
+      email: '',
+    })
   })
 
   it('caps additional participants at 5 (total 6)', () => {
@@ -283,7 +307,9 @@ describe('DetailsStep (landr-8c03)', () => {
             first_name: 'Grace',
             last_name: 'Hopper',
             email: '',
-            phone: '',
+            // landr-nkbi: participant phone required — supply a value so
+            // Back-restore re-entry leaves Continue enabled.
+            phone: '+34 600 000 002',
             service_role_code: '',
           },
         ]}
@@ -294,6 +320,7 @@ describe('DetailsStep (landr-8c03)', () => {
     expect(byName('booker_first_name').value).toBe('Ada')
     expect(byName('participant_2_first_name').value).toBe('Grace')
     expect(byName('participant_2_last_name').value).toBe('Hopper')
+    expect(byName('participant_2_phone').value).toBe('+34 600 000 002')
   })
 })
 
@@ -415,6 +442,10 @@ describe('DetailsStep — service_role selector (landr-mg0a)', () => {
     })
     fireEvent.change(byName('participant_2_last_name'), {
       target: { value: 'Hopper' },
+    })
+    // landr-nkbi: participant phone is now required — supply it so Continue is enabled.
+    fireEvent.change(byName('participant_2_phone'), {
+      target: { value: '+34600000002' },
     })
     const p2Select = screen.getByTestId(
       'participant-role-select-2',
@@ -640,5 +671,43 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     expect(screen.getByTestId('companion-row-0')).toBeInTheDocument()
     expect(byName('companion_1_first_name')).toHaveValue('Mia')
     expect(byName('companion_1_last_name')).toHaveValue('Berg')
+  })
+
+  // landr-nkbi: companion phone is OPTIONAL — Continue must not be blocked
+  // when a companion row has a blank phone field.
+  it('does NOT require a phone for companions (companion phone exempt, landr-nkbi)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    fireEvent.change(byName('companion_1_first_name'), {
+      target: { value: 'Mia' },
+    })
+    // Deliberately leave companion phone empty — Continue should still be enabled.
+    const cont = screen.getByRole('button', { name: /continue/i })
+    expect(cont).not.toBeDisabled()
+  })
+
+  // landr-nkbi: companion phone label must read "Phone (optional)" to signal
+  // it is not required (in contrast to participant phone which reads "Phone").
+  it('labels companion phone as "Phone (optional)" (not required)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const companionRow = screen.getByTestId('companion-row-0')
+    // The label "Phone (optional)" should appear within the companion row.
+    expect(companionRow).toHaveTextContent(/phone \(optional\)/i)
   })
 })
