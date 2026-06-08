@@ -11,6 +11,7 @@ import {
   buildGoogleCalendarUrl,
   buildOutlookUrl,
 } from '@/lib/calendarLinks'
+import { useStaffMode } from '@/lib/staffMode'
 
 interface Props {
   response: SubmitBookingResponse
@@ -59,10 +60,15 @@ export function Confirmation({ response, onRestart }: Props) {
   // landr-y31z: email status
   const emailStatusKind = resolveEmailStatusKind(response.confirmation_email_status)
 
+  // landr-aoak.2 [S3].4: operator-on-behalf framing. The customer-facing
+  // "you will receive an email" copy makes no sense for a staff booking, so we
+  // swap to operator-framed copy. Inactive ⇒ original customer copy verbatim.
+  const staff = useStaffMode()
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Booking received</CardTitle>
+        <CardTitle>{staff.active ? 'Booking created' : 'Booking received'}</CardTitle>
         <CardDescription>
           Reference <span className="font-mono">{response.booking_id}</span>
         </CardDescription>
@@ -92,6 +98,14 @@ export function Confirmation({ response, onRestart }: Props) {
               Please contact the operator directly to confirm your booking details.
             </p>
           </div>
+        ) : staff.active ? (
+          // landr-aoak.2 [S3].4: operator-framed copy — the operator booked on
+          // behalf, so "you will receive an email" / "operator confirms" copy is
+          // dropped. The reference + state are what the operator needs.
+          <p className="text-sm">
+            Booking created on behalf of the customer. It is currently{' '}
+            <span className="font-medium">{response.semantic_state}</span>.
+          </p>
         ) : (
           <p className="text-sm">
             {emailStatusKind === 'success'

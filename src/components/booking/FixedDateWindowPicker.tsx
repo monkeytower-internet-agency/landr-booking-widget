@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
+import { useStaffMode } from '@/lib/staffMode'
+import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -23,8 +25,14 @@ interface Props {
    * knows AvailabilitySlot. We synthesise a slot from the picked window where
    * `date` = start_date and capacity figures mirror the window. The booking
    * submit path then expands selected_days across the full window range.
+   * landr-aoak.2: `forced` is true when the operator (staff mode) selected a
+   * FULL window via the capacity-override path (false / undefined otherwise).
    */
-  onConfirm: (slot: AvailabilitySlot, window: FixedDateWindow) => void
+  onConfirm: (
+    slot: AvailabilitySlot,
+    window: FixedDateWindow,
+    forced?: boolean,
+  ) => void
   /** Operator's expose_seats_to_customer flag (landr-e10.9). When false the
    * picker hides exact seat counts and just shows Available / Full. */
   exposeSeats?: boolean
@@ -71,6 +79,10 @@ export function FixedDateWindowPicker({
   onLiveDaysChange,
 }: Props) {
   const { tokens } = useVariant()
+  const staff = useStaffMode()
+  // landr-aoak.2: force-book a FULL window only when staff mode is active AND
+  // the session carries the force_book power. Otherwise normal behaviour.
+  const canForce = staff.active && staff.powers.includes('force_book')
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -94,6 +106,13 @@ export function FixedDateWindowPicker({
     () => windows?.find((w) => w.id === selectedId) ?? null,
     [windows, selectedId],
   )
+
+  // landr-aoak.2: true when the picked window has zero remaining capacity —
+  // i.e. the operator force-booked a FULL window. Drives the forced submit flag.
+  const selectedForced = useMemo(() => {
+    if (!selectedWindow) return false
+    return selectedWindow.capacity - selectedWindow.capacity_reserved <= 0
+  }, [selectedWindow])
 
   if (error) {
     return (
@@ -142,8 +161,22 @@ export function FixedDateWindowPicker({
                       adds the shared brand well + ring. ≥44px tap target. */}
                   <button
                     type="button"
-                    disabled={isFull}
+                    // landr-aoak.2: a FULL window stays clickable in staff mode
+                    // (operator override). Normal customers keep disabled={isFull}.
+                    disabled={isFull && !canForce}
                     onClick={() => {
+                      // Confirm the operator-override intent for a full window.
+                      // NB: `window` here is the FixedDateWindow loop variable,
+                      // so reach the browser dialog via globalThis.confirm.
+                      if (isFull && canForce) {
+                        if (
+                          !globalThis.confirm(
+                            'Force-book this full course window on behalf of the customer?',
+                          )
+                        ) {
+                          return
+                        }
+                      }
                       setSelectedId(window.id)
                       onLiveDaysChange?.(expandWindowDays(window))
                     }}
@@ -179,20 +212,26 @@ export function FixedDateWindowPicker({
                       <span className="font-medium tabular-nums">
                         {rangeLabel(window)}
                       </span>
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          isFull
-                            ? 'bg-muted text-muted-foreground'
-                            : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
-                        )}
-                      >
-                        {isFull
-                          ? 'Full'
-                          : exposeSeats
-                            ? `${available} seat${available === 1 ? '' : 's'} left`
-                            : 'Available'}
-                      </span>
+                      {isFull && canForce ? (
+                        // landr-aoak.2: a full window in staff mode shows the
+                        // operator-override badge instead of a dead "Full" chip.
+                        <OperatorOverrideBadge />
+                      ) : (
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            isFull
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
+                          )}
+                        >
+                          {isFull
+                            ? 'Full'
+                            : exposeSeats
+                              ? `${available} seat${available === 1 ? '' : 's'} left`
+                              : 'Available'}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
@@ -207,7 +246,11 @@ export function FixedDateWindowPicker({
             disabled={!selectedWindow}
             onClick={() => {
               if (selectedWindow) {
-                onConfirm(windowToSlot(selectedWindow), selectedWindow)
+                onConfirm(
+                  windowToSlot(selectedWindow),
+                  selectedWindow,
+                  selectedForced,
+                )
               }
             }}
           >

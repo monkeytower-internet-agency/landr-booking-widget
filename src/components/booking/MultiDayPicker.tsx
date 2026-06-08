@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
+import { useStaffMode } from '@/lib/staffMode'
+import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 
 type Mode = 'individual' | 'range'
 
@@ -21,6 +23,14 @@ interface MultiDayPickerProps {
    * When false (default): mode-aware toggle/range behaviour.
    */
   isContiguous?: boolean
+  /**
+   * landr-aoak.2 [S3]: called when the set of force-booked (zero-availability)
+   * days inside the current selection changes. Only ever fires non-empty in
+   * staff mode; the normal customer path never selects an unavailable day so
+   * this stays []. Lets the parent step thread the forced days into the submit
+   * adapter's capacity-override flag.
+   */
+  onForcedDaysChange?: (forcedIsoDays: string[]) => void
 }
 
 const isoDate = (d: Date) => {
@@ -78,7 +88,13 @@ export function MultiDayPicker({
   helpText,
   defaultMonth,
   isContiguous = false,
+  onForcedDaysChange,
 }: MultiDayPickerProps) {
+  const staff = useStaffMode()
+  // landr-aoak.2: force-book only when staff mode is active AND the session
+  // carries the force_book power. Otherwise this is the normal customer picker.
+  const canForce = staff.active && staff.powers.includes('force_book')
+
   const availableSet = useMemo(() => {
     return new Set(
       availability
@@ -92,10 +108,36 @@ export function MultiDayPicker({
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
 
+  // landr-aoak.2: the force-booked subset of the current selection — selected
+  // days that have zero availability. Empty for every normal selection.
+  const forcedDays = useMemo(
+    () => value.map(isoDate).filter((iso) => !availableSet.has(iso)).sort(),
+    [value, availableSet],
+  )
+
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
       const key = isoDate(day)
-      if (!availableSet.has(key)) return
+      // landr-aoak.2: in staff mode an unavailable day is the operator-override
+      // path — confirm, then toggle it into the selection like an individual
+      // day. Normal customers (canForce false) keep the original early-return,
+      // so a sold-out day is never selectable for them.
+      if (!availableSet.has(key)) {
+        if (!canForce) return
+        if (
+          !window.confirm(
+            'Force-book this full / blocked day on behalf of the customer?',
+          )
+        ) {
+          return
+        }
+        const forcedNext = new Set(valueSet)
+        if (forcedNext.has(key)) forcedNext.delete(key)
+        else forcedNext.add(key)
+        setAnchor(day)
+        onChange(sortedDates(forcedNext))
+        return
+      }
       const next = new Set(valueSet)
 
       // Contiguous mode (landr-y9k): the selection must always be a single
@@ -191,7 +233,7 @@ export function MultiDayPicker({
       }
       onChange(sortedDates(next))
     },
-    [anchor, availableSet, isContiguous, onChange, valueSet],
+    [anchor, availableSet, canForce, isContiguous, onChange, valueSet],
   )
 
   const handleSelect = (
@@ -212,6 +254,13 @@ export function MultiDayPicker({
     const toggle = (!isContiguous && mode === 'individual') || modifierToggle
     applyClick(triggerDate, toggle)
   }
+
+  // landr-aoak.2: keep the parent's forced-day set in sync with the selection.
+  // Fires [] in the normal path (no unavailable day is ever selectable), so the
+  // submit adapter receives an empty force set and behaves byte-identically.
+  useEffect(() => {
+    onForcedDaysChange?.(forcedDays)
+  }, [forcedDays, onForcedDaysChange])
 
   // Help text: caller override wins; contiguous has fixed copy; otherwise
   // follows the active mode.
@@ -255,7 +304,12 @@ export function MultiDayPicker({
         mode="multiple"
         selected={value}
         onSelect={handleSelect}
-        disabled={(date) => !availableSet.has(isoDate(date))}
+        // landr-aoak.2: in staff mode every day stays selectable so the
+        // operator can force-book a sold-out / blocked day. Normal customers
+        // keep the original predicate (only available days are clickable).
+        disabled={
+          canForce ? undefined : (date) => !availableSet.has(isoDate(date))
+        }
         defaultMonth={defaultMonth}
         // landr-711: do NOT pass range_start / range_middle / range_end
         // modifiers. CalendarDayButton paints range_middle with bg-accent
@@ -266,6 +320,17 @@ export function MultiDayPicker({
         // "continuous range" visual is meaningless here — the user picks
         // discrete days, even when they happen to be adjacent.
       />
+      {/* landr-aoak.2: surface the operator-override badge whenever the staff
+          selection includes any force-booked (sold-out / blocked) day. */}
+      {forcedDays.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <OperatorOverrideBadge />
+          <span className="text-xs text-muted-foreground">
+            {forcedDays.length} forced{' '}
+            {forcedDays.length === 1 ? 'day' : 'days'} (past capacity)
+          </span>
+        </div>
+      ) : null}
       {/* landr-3mo4: help text recessed into a faint well so it reads as a
           quiet hint beneath the calendar rather than floating loose copy. */}
       <p
