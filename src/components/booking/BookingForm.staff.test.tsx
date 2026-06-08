@@ -11,20 +11,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import type { StaffSubmitBody } from './staffSubmitAdapter'
-import { submitBooking } from '@/api/client'
+import { submitBooking, submitStaffBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>()
-  return { ...actual, submitBooking: vi.fn() }
+  return { ...actual, submitBooking: vi.fn(), submitStaffBooking: vi.fn() }
 })
+
+const OPERATOR_ID = 'a1b2c3d4-0001-0001-0001-000000000002'
 
 const STAFF: StaffSession = {
   active: true,
   token: 'staff.signed.token',
   powers: ALL_STAFF_POWERS,
+  operatorId: OPERATOR_ID,
 }
 
 function makeServiceProduct(): Product {
@@ -75,9 +78,10 @@ function renderForm(
   selection: BookingSelection,
   staffActive: boolean,
   onConfirmed = vi.fn(),
+  staffSession: StaffSession = STAFF,
 ) {
   return render(
-    <StaffModeProvider value={staffActive ? STAFF : undefined}>
+    <StaffModeProvider value={staffActive ? staffSession : undefined}>
       <BookingForm
         widgetToken="op-x"
         product={makeServiceProduct()}
@@ -106,9 +110,18 @@ const FORCED_DAYS: BookingSelection = {
 describe('BookingForm — staff mode', () => {
   beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
+    vi.mocked(submitStaffBooking).mockReset()
     vi.mocked(submitBooking).mockResolvedValue({
-      booking_id: 'bk-staff-1',
+      booking_id: 'bk-public-1',
       semantic_state: 'awaiting_payment',
+    })
+    // landr-aoak.4: a staff submit lands on the staff RPC (semantic_state
+    // 'pending', stage 'awaiting_payment', approval 'staff_authorized').
+    vi.mocked(submitStaffBooking).mockResolvedValue({
+      booking_id: 'bk-staff-1',
+      semantic_state: 'pending',
+      stage_code: 'awaiting_payment',
+      approval_outcome: 'staff_authorized',
     })
   })
   afterEach(() => {
@@ -120,7 +133,7 @@ describe('BookingForm — staff mode', () => {
     expect(screen.queryByTestId('staff-price-override')).not.toBeInTheDocument()
   })
 
-  it('shows the price-override field in staff mode and flows the value through the adapter', async () => {
+  it('routes the staff submit to the STAFF endpoint with the operator id + override (string), NOT the public path', async () => {
     renderForm(DAYS, true)
     expect(screen.getByTestId('staff-price-override')).toBeInTheDocument()
 
@@ -134,12 +147,21 @@ describe('BookingForm — staff mode', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
-    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+    // The public endpoint must NOT be hit for a staff submit.
+    expect(submitBooking).not.toHaveBeenCalled()
 
-    const body = vi.mocked(submitBooking).mock.calls[0]![0] as StaffSubmitBody
+    const [operatorId, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [
+      string,
+      StaffSubmitBody,
+    ]
+    expect(operatorId).toBe(OPERATOR_ID)
     expect(body.staff_session).toBe('staff.signed.token')
-    expect(body.channel).toBe('staff')
-    expect(body.override_gross_total).toBe(199.95)
+    // aoak.1 contract: no widget_token, channel forced to agent_dashboard,
+    // override sent as a 2-decimal STRING.
+    expect(body).not.toHaveProperty('widget_token')
+    expect(body.booking_channel).toBe('agent_dashboard')
+    expect(body.override_gross_total).toBe('199.95')
     expect(body.override_reason).toBe('loyalty discount')
   })
 
@@ -151,19 +173,23 @@ describe('BookingForm — staff mode', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
+    expect(submitStaffBooking).not.toHaveBeenCalled()
     expect(submitBooking).not.toHaveBeenCalled()
     expect(screen.getByTestId('review-error')).toHaveTextContent(/reason/i)
   })
 
-  it('raises ignore_capacity for a forced selection + shows the override summary', async () => {
+  it('raises ignore_capacity on the STAFF endpoint for a forced selection', async () => {
     renderForm(FORCED_DAYS, true)
     expect(screen.getByTestId('review-forced')).toBeInTheDocument()
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
-    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
-    const body = vi.mocked(submitBooking).mock.calls[0]![0] as StaffSubmitBody
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+    const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [
+      string,
+      StaffSubmitBody,
+    ]
     expect(body.ignore_capacity).toBe(true)
   })
 
@@ -179,16 +205,28 @@ describe('BookingForm — staff mode', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
     })
-    await waitFor(() => expect(submitBooking).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
 
     expect(postSpy).toHaveBeenCalledTimes(1)
     const [payload, targetOrigin] = postSpy.mock.calls[0]!
+    // booking_id comes straight off the staff RPC response (mapped via
+    // SubmitBookingResponse) — proves the response → completion wiring.
     expect(payload).toEqual({
       type: 'landr:booking-created',
       booking_id: 'bk-staff-1',
     })
     expect(targetOrigin).not.toBe('*')
     parentSpy.mockRestore()
+  })
+
+  it('without an operator id, a staff submit is blocked (no silent downgrade to the public path)', async () => {
+    renderForm(DAYS, true, vi.fn(), { ...STAFF, operatorId: null })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    expect(submitStaffBooking).not.toHaveBeenCalled()
+    expect(submitBooking).not.toHaveBeenCalled()
+    expect(screen.getByTestId('review-error')).toHaveTextContent(/operator/i)
   })
 
   it('does NOT post to the parent in the normal (non-staff) flow', async () => {

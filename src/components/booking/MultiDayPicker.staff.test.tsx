@@ -17,6 +17,7 @@ const STAFF: StaffSession = {
   active: true,
   token: 'staff.token',
   powers: ALL_STAFF_POWERS,
+  operatorId: 'op-uuid-1',
 }
 
 const isoOf = (d: Date) =>

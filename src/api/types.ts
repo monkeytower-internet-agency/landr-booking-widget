@@ -596,6 +596,34 @@ export interface SubmitBookingBody {
 }
 
 /**
+ * Body the STAFF submit endpoint accepts (landr-aoak.4, contract verified
+ * against the merged `staff_bookings_submit.py` StaffSubmitBookingIn model).
+ * The staff route — POST /api/staff/operators/{operator_id}/bookings/submit —
+ * is SEPARATE from the public one: it carries NO `widget_token` (the signed
+ * `staff_session` is the credential) and no `preview_token`. Everything else
+ * mirrors SubmitBookingBody; the operator-only power fields are added on top.
+ * Built by augmentStaffSubmit (src/components/booking/staffSubmitAdapter.ts);
+ * POSTed by submitStaffBooking (src/api/client.ts).
+ */
+export type StaffSubmitBody = Omit<
+  SubmitBookingBody,
+  'widget_token' | 'preview_token'
+> & {
+  /** The server-signed staff session token (aoak.1 [S1]) — the credential. */
+  staff_session: string
+  /** Force past full / blocked days + fixed-date windows (force_book power). */
+  ignore_capacity?: boolean
+  /** Human reason for the force-book — written to the audit_log row. */
+  force_book_reason?: string
+  /** Effective gross override as a 2-decimal STRING, e.g. "199.95". */
+  override_gross_total?: string
+  /** Mandatory reason whenever override_gross_total is set. */
+  override_reason?: string
+  /** Booking channel (server forces 'agent_dashboard' regardless). */
+  booking_channel?: string
+}
+
+/**
  * Parsed calendar event data returned alongside ical_url (landr-acew).
  * Mirrors the first VEVENT the ICS service emits — all-day semantics,
  * so dates are ISO-8601 date strings (no time component). The widget

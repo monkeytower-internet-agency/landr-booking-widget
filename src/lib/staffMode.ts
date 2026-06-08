@@ -49,12 +49,58 @@ export interface StaffSession {
   token: string | null
   /** Operator-only powers this session claims. Empty when inactive. */
   powers: readonly StaffPower[]
+  /**
+   * The operator UUID this session is scoped to (landr-aoak.4). REQUIRED to
+   * build the staff submit path POST /api/staff/operators/{operator_id}/
+   * bookings/submit. Resolved from the staff-init message's explicit
+   * `operator_id` when present, otherwise decoded from the (opaque) token's
+   * own signed payload (`operator_id`). Null when inactive OR when the token
+   * payload could not be decoded (in which case the widget cannot route the
+   * staff submit and falls back — see staffSubmitAdapter).
+   */
+  operatorId: string | null
 }
 
 export const INACTIVE_STAFF_SESSION: StaffSession = {
   active: false,
   token: null,
   powers: [],
+  operatorId: null,
+}
+
+/**
+ * Decode the `operator_id` embedded in a signed staff session token WITHOUT
+ * verifying the signature (the server is the sole signature authority — see
+ * landr-aoak.1). The token format (aoak.1 [S1]) is:
+ *
+ *   <b64url(payload_json)>.<sig_hex>
+ *
+ * where the canonical payload JSON carries `operator_id`. We read it only to
+ * build the operator-scoped staff submit PATH; tampering is irrelevant here
+ * because the server re-verifies the HMAC and binds the session to the path
+ * operator anyway (a mismatch → 403). Returns null on any malformation so the
+ * caller can fall back gracefully. The token stays opaque to the rest of the
+ * widget — this is the one place that peeks inside it.
+ */
+export function operatorIdFromStaffToken(token: string): string | null {
+  if (!token) return null
+  const dot = token.indexOf('.')
+  const payloadB64 = dot === -1 ? token : token.slice(0, dot)
+  if (!payloadB64) return null
+  try {
+    // base64url → base64, then decode. atob is available in browsers + jsdom.
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const json = atob(b64 + pad)
+    const payload: unknown = JSON.parse(json)
+    if (payload && typeof payload === 'object') {
+      const opId = (payload as Record<string, unknown>).operator_id
+      if (typeof opId === 'string' && opId.length > 0) return opId
+    }
+  } catch {
+    // Malformed token / payload — fall through to null.
+  }
+  return null
 }
 
 const STAFF_SESSION_PARAM = 'staff_session'
@@ -78,7 +124,14 @@ export function parseStaffSession(search: string): StaffSession {
   )
   const token = params.get(STAFF_SESSION_PARAM)?.trim()
   if (!token) return INACTIVE_STAFF_SESSION
-  return { active: true, token, powers: ALL_STAFF_POWERS }
+  // operator_id is decoded from the token payload (the URL entry path carries
+  // no separate operator_id field). Needed to build the staff submit path.
+  return {
+    active: true,
+    token,
+    powers: ALL_STAFF_POWERS,
+    operatorId: operatorIdFromStaffToken(token),
+  }
 }
 
 /**
@@ -101,6 +154,13 @@ export interface StaffInitMessage {
   type: 'landr:staff-init'
   token: string
   powers?: StaffPower[]
+  /**
+   * landr-aoak.4: the operator UUID the session was minted for. OPTIONAL on the
+   * wire — the dashboard (aoak.3) has it from the [S1] mint response and SHOULD
+   * send it, but when omitted the widget decodes it from the token payload, so
+   * an older dashboard still routes the staff submit correctly.
+   */
+  operator_id?: string
 }
 
 export const STAFF_INIT_MESSAGE_TYPE = 'landr:staff-init'
@@ -129,7 +189,14 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
           ALL_STAFF_POWERS.includes(p as StaffPower),
         )
       : ALL_STAFF_POWERS
-  return { active: true, token: msg.token, powers }
+  // Prefer the explicit operator_id the dashboard sends; fall back to decoding
+  // it from the token payload so an older dashboard (no operator_id field) and
+  // the URL-param path both resolve the operator for the staff submit route.
+  const operatorId =
+    typeof msg.operator_id === 'string' && msg.operator_id.length > 0
+      ? msg.operator_id
+      : operatorIdFromStaffToken(msg.token)
+  return { active: true, token: msg.token, powers, operatorId }
 }
 
 /**

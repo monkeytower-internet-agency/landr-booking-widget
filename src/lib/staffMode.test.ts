@@ -4,11 +4,31 @@ import {
   INACTIVE_STAFF_SESSION,
   isAllowedStaffOrigin,
   isStaffInitMessage,
+  operatorIdFromStaffToken,
   parseStaffSession,
   resolveParentTargetOrigin,
   staffInitFromMessage,
   STAFF_ORIGIN_ALLOWLIST,
 } from './staffMode'
+
+/**
+ * Build a fake staff session token in aoak.1's `<b64url(payload)>.<sig>` shape
+ * carrying the given operator_id. Only the payload half matters for decoding;
+ * the signature is opaque to the widget (the server verifies it).
+ */
+function fakeStaffToken(operatorId: string): string {
+  const payload = JSON.stringify({
+    channel: 'staff',
+    operator_id: operatorId,
+    powers: ['force_book', 'price_override', 'skip_customer_email'],
+    user_id: 'staff-user-1',
+  })
+  const b64url = btoa(payload)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+  return `${b64url}.deadbeefsig`
+}
 
 describe('parseStaffSession', () => {
   it('returns the inactive session when no staff_session param is present', () => {
@@ -26,6 +46,19 @@ describe('parseStaffSession', () => {
     expect(s.active).toBe(true)
     expect(s.token).toBe('signed.token.abc')
     expect(s.powers).toEqual(ALL_STAFF_POWERS)
+  })
+
+  it('decodes the operator_id from a real-shaped token payload (URL entry path)', () => {
+    const token = fakeStaffToken('op-uuid-from-url')
+    const s = parseStaffSession(`?staff_session=${encodeURIComponent(token)}`)
+    expect(s.active).toBe(true)
+    expect(s.operatorId).toBe('op-uuid-from-url')
+  })
+
+  it('leaves operatorId null when the token payload is undecodable', () => {
+    const s = parseStaffSession('?staff_session=not-a-real-token')
+    expect(s.active).toBe(true)
+    expect(s.operatorId).toBeNull()
   })
 
   it('tolerates a leading-? or bare search string', () => {
@@ -51,9 +84,14 @@ describe('isStaffInitMessage', () => {
 })
 
 describe('staffInitFromMessage', () => {
-  it('defaults to all powers when the parent omits them', () => {
+  it('defaults to all powers + null operatorId when the parent omits them', () => {
     const s = staffInitFromMessage({ type: 'landr:staff-init', token: 't' })
-    expect(s).toEqual({ active: true, token: 't', powers: ALL_STAFF_POWERS })
+    expect(s).toEqual({
+      active: true,
+      token: 't',
+      powers: ALL_STAFF_POWERS,
+      operatorId: null,
+    })
   })
 
   it('keeps only valid power codes when supplied', () => {
@@ -64,6 +102,40 @@ describe('staffInitFromMessage', () => {
       powers: ['force_book', 'nope', 'price_override'],
     })
     expect(s.powers).toEqual(['force_book', 'price_override'])
+  })
+
+  it('prefers the explicit operator_id from the message (aoak.4)', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: fakeStaffToken('op-in-token'),
+      operator_id: 'op-explicit',
+    })
+    expect(s.operatorId).toBe('op-explicit')
+  })
+
+  it('falls back to decoding operator_id from the token when not sent explicitly', () => {
+    const s = staffInitFromMessage({
+      type: 'landr:staff-init',
+      token: fakeStaffToken('op-in-token'),
+    })
+    expect(s.operatorId).toBe('op-in-token')
+  })
+})
+
+describe('operatorIdFromStaffToken', () => {
+  it('decodes operator_id from the signed payload half', () => {
+    expect(operatorIdFromStaffToken(fakeStaffToken('op-9'))).toBe('op-9')
+  })
+
+  it('returns null for an empty / malformed / payload-less token', () => {
+    expect(operatorIdFromStaffToken('')).toBeNull()
+    expect(operatorIdFromStaffToken('not-base64.sig')).toBeNull()
+    // valid base64url JSON but no operator_id field
+    const noOp = btoa(JSON.stringify({ channel: 'staff' }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+    expect(operatorIdFromStaffToken(`${noOp}.sig`)).toBeNull()
   })
 })
 
