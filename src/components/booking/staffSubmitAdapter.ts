@@ -1,20 +1,31 @@
 /**
- * landr-aoak.2 [S3].6: THE single reconciliation point with the API contract.
+ * landr-aoak.2 [S3].6 → RECONCILED in landr-aoak.4: THE single reconciliation
+ * point with the API contract.
  *
- * The api worker (landr-aoak.1) finalises the EXACT staff-submit wire shape in
- * its handoff. We build contract-first against the epic's [S2] claim
- * (staff_session token + ignore_capacity force flag + override_gross_total /
- * override_reason + channel:'staff'). When the real handoff lands, reconciling
- * field names / nesting touches ONLY this file — every staff branch in the
- * pickers, BookingForm and App routes through `augmentStaffSubmit` / the
- * StaffSubmitExtras carrier, so nothing else needs to change.
+ * Verified against the MERGED api worker (landr-aoak.1)
+ * `app/routers/staff_bookings_submit.py` StaffSubmitBookingIn model. The staff
+ * submit is a SEPARATE operator-scoped endpoint
+ * (POST /api/staff/operators/{operator_id}/bookings/submit) — NOT an extension
+ * of /api/public/bookings — so this adapter shapes the body for that endpoint:
+ *   - drops widget_token + preview_token (the signed staff_session is the
+ *     credential; the staff route has no such fields),
+ *   - carries staff_session + ignore_capacity (force_book) + force_book_reason,
+ *   - sends override_gross_total as a STRING decimal (e.g. "199.95") +
+ *     override_reason,
+ *   - forces booking_channel='agent_dashboard' (the old channel:'staff' guess
+ *     was ignored server-side and is removed).
+ * The CALLER (BookingForm) routes a staff-shaped body to submitStaffBooking()
+ * and a normal body to submitBooking(); reconciling wire field names touches
+ * ONLY this file + the StaffSubmitBody type (src/api/types.ts).
  *
  * THE INVARIANT: with no staff session, augmentStaffSubmit returns the body
  * UNCHANGED (referentially identical), so the normal customer submit is 100%
  * byte-identical to today.
  */
-import type { SubmitBookingBody } from '@/api/types'
+import type { StaffSubmitBody, SubmitBookingBody } from '@/api/types'
 import type { StaffSession } from '@/lib/staffMode'
+
+export type { StaffSubmitBody }
 
 /**
  * Operator price-override captured on the review step in staff mode.
@@ -47,43 +58,49 @@ export interface StaffSubmitExtras {
 }
 
 /**
- * Submit-body shape that may carry staff-only fields. These are additive and
- * optional — the API only honors them behind a valid staff session
- * (landr-aoak.1 [S2]); a public widget_token submit that somehow carried them
- * is rejected/ignored server-side. Modeled as a superset of SubmitBookingBody
- * so the augmented body still satisfies the submit client's parameter type.
+ * The StaffSubmitBody wire shape lives in src/api/types.ts (next to
+ * SubmitBookingBody) and is re-exported above so existing importers keep
+ * working. It is a SEPARATE shape — NOT a superset of SubmitBookingBody — that
+ * drops widget_token + preview_token (the staff route uses the signed
+ * staff_session as the credential) and adds the operator-only power fields.
  */
-export type StaffSubmitBody = SubmitBookingBody & {
-  /** The server-signed staff session token (epic [S1]). */
-  staff_session?: string
-  /** Force past full / blocked days + fixed-date windows (epic [S2]). */
-  ignore_capacity?: boolean
-  /** Operator price-override at create (epic [S2]; matches the post-hoc shape). */
-  override_gross_total?: number
-  override_reason?: string
-  /** Booking channel marker — 'staff' for an operator-on-behalf booking. */
-  channel?: string
+
+/**
+ * Format a numeric gross total as the 2-decimal STRING the staff endpoint's
+ * Decimal field expects (aoak.1 handoff: override_gross_total: "42.00"). The
+ * server re-derives pricing; this value only stamps the effective gross.
+ */
+function formatOverrideTotal(grossTotal: number): string {
+  return grossTotal.toFixed(2)
 }
 
 /**
- * Augment a normal submit body with the staff-only fields when (and only when)
- * a staff session is active. Returns the body UNCHANGED when inactive — this is
- * the guard that preserves the byte-identical normal path.
+ * Shape a normal submit body into the STAFF submit body when (and only when) a
+ * staff session is active. Returns the body UNCHANGED (referentially identical)
+ * when inactive — the guard that preserves the byte-identical normal customer
+ * path. When active it strips widget_token + preview_token (the staff endpoint
+ * rejects/ignores them) and adds the staff_session + power fields.
  *
- * RECONCILIATION NOTE: field names here are the contract-first guess from the
- * epic [S2]. When landr-aoak.1's handoff pins the real names, edit this
- * function only.
+ * The CALLER decides WHERE to POST this: an active session ⇒ the staff endpoint
+ * (see submitStaffBooking in src/api/client.ts), an inactive one ⇒ the public
+ * endpoint, exactly as today. This function only shapes the body.
  */
 export function augmentStaffSubmit(
   body: SubmitBookingBody,
   extras: StaffSubmitExtras | null | undefined,
-): SubmitBookingBody {
+): SubmitBookingBody | StaffSubmitBody {
   if (!extras || !extras.session.active || !extras.session.token) return body
 
+  // Start from a copy of the public body, then strip the public-only
+  // credentials — the staff endpoint has no widget_token / preview_token field.
+  const shaped: Partial<SubmitBookingBody> = { ...body }
+  delete shaped.widget_token
+  delete shaped.preview_token
+
   const staffBody: StaffSubmitBody = {
-    ...body,
+    ...(shaped as Omit<SubmitBookingBody, 'widget_token' | 'preview_token'>),
     staff_session: extras.session.token,
-    channel: 'staff',
+    booking_channel: 'agent_dashboard',
   }
 
   if (extras.forced) {
@@ -91,9 +108,24 @@ export function augmentStaffSubmit(
   }
 
   if (extras.priceOverride) {
-    staffBody.override_gross_total = extras.priceOverride.grossTotal
+    staffBody.override_gross_total = formatOverrideTotal(
+      extras.priceOverride.grossTotal,
+    )
     staffBody.override_reason = extras.priceOverride.reason
   }
 
   return staffBody
+}
+
+/**
+ * Type-guard distinguishing the staff body (carries `staff_session`) from a
+ * plain public body. Used by the submit client to pick the endpoint.
+ */
+export function isStaffSubmitBody(
+  body: SubmitBookingBody | StaffSubmitBody,
+): body is StaffSubmitBody {
+  return (
+    typeof (body as StaffSubmitBody).staff_session === 'string' &&
+    (body as StaffSubmitBody).staff_session.length > 0
+  )
 }

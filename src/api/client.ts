@@ -10,6 +10,7 @@ import type {
   ProductAddon,
   ProductGroup,
   ServiceRole,
+  StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
@@ -317,6 +318,44 @@ export async function submitBooking(
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Staff-authorized booking submit (landr-aoak.4, reconciling the drift the
+ * aoak.3 dashboard worker found). In STAFF/agent mode the booking does NOT go
+ * to the public endpoint — it goes to a SEPARATE, operator-scoped route the
+ * api worker (landr-aoak.1 [S2]) added:
+ *
+ *   POST /api/staff/operators/{operator_id}/bookings/submit
+ *
+ * which takes NO widget_token and treats the signed `staff_session` in the body
+ * as the credential. ONLY this route honours the operator powers (force-book,
+ * price override, skip-approval, skip-customer-email); the public route
+ * silently ignores them. Posting a staff submit to /api/public/bookings was the
+ * bug — the powers were dropped server-side and the booking ran the normal
+ * capacity + approval engine.
+ *
+ * The response is the staff RPC's jsonb (booking_id + semantic_state:'pending' +
+ * stage_code:'awaiting_payment' + approval_outcome:'staff_authorized' + the
+ * extra forced/price_overridden flags), which is a superset of
+ * SubmitBookingResponse — so the widget's confirmation page + the
+ * `landr:booking-created` postMessage read `booking_id` etc. unchanged.
+ *
+ * Mocks: in mock mode there is no staff RPC; we return the same mockSubmit()
+ * shape so the embedded demo flow still resolves (parity with submitBooking).
+ */
+export async function submitStaffBooking(
+  operatorId: string,
+  body: StaffSubmitBody,
+): Promise<SubmitBookingResponse> {
+  if (mocksEnabled()) return mockSubmit()
+  return http<SubmitBookingResponse>(
+    `/api/staff/operators/${encodeURIComponent(operatorId)}/bookings/submit`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
 }
 
 /**

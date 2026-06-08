@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HttpError, submitBooking } from '@/api/client'
+import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
   Companion,
@@ -63,6 +63,7 @@ import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import {
   augmentStaffSubmit,
+  isStaffSubmitBody,
   type PriceOverride,
 } from './staffSubmitAdapter'
 
@@ -555,10 +556,34 @@ export function BookingForm({
         forced,
         priceOverride,
       })
-      // landr-7zc5.3: pass preview_token so the API can accept draft
-      // products during operator preview. The option is harmlessly
-      // ignored when previewToken is undefined (normal customer flow).
-      const result = await submitBooking(submitBody, previewToken ? { previewToken } : undefined)
+      // landr-aoak.4: a staff submit goes to the SEPARATE operator-scoped staff
+      // endpoint (POST /api/staff/operators/{operator_id}/bookings/submit) where
+      // the signed staff_session unlocks the operator powers. The public
+      // endpoint silently drops force-book / price-override, so routing a staff
+      // body there was a no-op of the whole feature. A non-staff body stays on
+      // the public path, byte-identically to before.
+      let result: SubmitBookingResponse
+      if (isStaffSubmitBody(submitBody)) {
+        if (!staff.operatorId) {
+          // The staff endpoint is operator-path-scoped; without the operator id
+          // we cannot route it. Fail loudly rather than silently downgrading to
+          // the public path (which would drop the operator powers).
+          setServerError(
+            'Could not determine the operator for this staff booking. Reopen the booking modal and try again.',
+          )
+          setSubmitting(false)
+          return
+        }
+        result = await submitStaffBooking(staff.operatorId, submitBody)
+      } else {
+        // landr-7zc5.3: pass preview_token so the API can accept draft
+        // products during operator preview. The option is harmlessly
+        // ignored when previewToken is undefined (normal customer flow).
+        result = await submitBooking(
+          submitBody,
+          previewToken ? { previewToken } : undefined,
+        )
+      }
       // landr-aoak.2 [S3].5: notify the embedding dashboard parent so it can
       // refetch + open the new booking. Only fires in staff mode (active
       // session); a normal customer embed never posts to its parent.
