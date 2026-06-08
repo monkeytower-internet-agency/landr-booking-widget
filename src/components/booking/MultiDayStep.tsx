@@ -15,7 +15,11 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 interface Props {
   product: Product
   onBack: () => void
-  onConfirm: (selectedDays: string[]) => void
+  /**
+   * landr-aoak.2: `forcedDays` carries the subset of selectedDays the operator
+   * force-booked past zero availability (staff mode only; empty otherwise).
+   */
+  onConfirm: (selectedDays: string[], forcedDays?: string[]) => void
   /**
    * Called whenever the user's day selection changes so App.tsx can feed
    * the live selection into PriceSidebar before the user presses Continue
@@ -37,6 +41,9 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedDays, setSelectedDays] = useState<Date[]>([])
+  // landr-aoak.2: force-booked (zero-availability) ISO days inside the current
+  // selection. Always [] in the normal customer path.
+  const [forcedDays, setForcedDays] = useState<string[]>([])
 
   const { fromIso, toIso } = useMemo(() => {
     const from = new Date()
@@ -92,6 +99,7 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
           availability={slots ?? []}
           value={selectedDays}
           onChange={setSelectedDays}
+          onForcedDaysChange={setForcedDays}
           helpText={undefined}
           defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
@@ -109,7 +117,7 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
           <Button
             type="button"
             disabled={selectedDays.length === 0}
-            onClick={() => onConfirm(selectedDays.map(isoDate))}
+            onClick={() => onConfirm(selectedDays.map(isoDate), forcedDays)}
           >
             Continue
           </Button>
