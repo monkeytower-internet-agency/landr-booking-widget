@@ -29,6 +29,12 @@ interface Props {
    * selection into PriceSidebar before Continue is pressed (landr-w7pi).
    */
   onLiveDaysChange?: (isoDays: string[]) => void
+  /**
+   * landr (breadcrumb): previously-committed ISO day (single-element array),
+   * restored when the customer navigates BACK so the prior pick is pre-selected
+   * instead of empty. Empty/undefined on the first visit.
+   */
+  initialSelectedDays?: string[]
 }
 
 const HORIZON_DAYS = 60
@@ -40,6 +46,11 @@ const isoDate = (d: Date) => {
   return `${y}-${m}-${day}`
 }
 
+const dateFromIso = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y!, (m ?? 1) - 1, d ?? 1)
+}
+
 /**
  * Picker for service products with service_time_shape='single_date' (landr-y9k).
  *
@@ -47,14 +58,25 @@ const isoDate = (d: Date) => {
  * zero availability are disabled. Reuses the same /availability endpoint the
  * MultiDayPicker uses — the only difference is one-click-only semantics.
  */
-export function SingleDatePicker({ product, onBack, onConfirm, onLiveDaysChange }: Props) {
+export function SingleDatePicker({
+  product,
+  onBack,
+  onConfirm,
+  onLiveDaysChange,
+  initialSelectedDays,
+}: Props) {
   const staff = useStaffMode()
   // landr-aoak.2: force-book is only offered when staff mode is active AND the
   // session carries the force_book power. Otherwise this is the normal picker.
   const canForce = staff.active && staff.powers.includes('force_book')
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Date | null>(null)
+  // landr (breadcrumb): seed from the restored ISO day on back-nav re-entry.
+  const [selected, setSelected] = useState<Date | null>(() =>
+    initialSelectedDays && initialSelectedDays[0]
+      ? dateFromIso(initialSelectedDays[0])
+      : null,
+  )
   // True when the currently-selected date had zero availability and was picked
   // via the operator-override path (drives the badge + the forced submit flag).
   const [selectedForced, setSelectedForced] = useState(false)
@@ -81,6 +103,14 @@ export function SingleDatePicker({ product, onBack, onConfirm, onLiveDaysChange 
       cancelled = true
     }
   }, [product.product_id, fromIso, toIso])
+
+  // landr (breadcrumb): surface a restored selection in the live sidebar once
+  // on mount, so the price preview reflects the prior pick immediately.
+  useEffect(() => {
+    if (selected) onLiveDaysChange?.([isoDate(selected)])
+    // Fire once for the initial restored value only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const availableSet = useMemo(() => {
     return new Set(

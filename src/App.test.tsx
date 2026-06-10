@@ -950,6 +950,12 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      // The hotel room is a capacity-2 Double Room; the occupancy gate now
+      // requires both spots filled, so add a second guest before continuing.
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // AccommodationStep — auto-selects the lone hotel + lists rooms.
@@ -1008,8 +1014,13 @@ describe('App', () => {
       )
       // Sanity: we did not land on a pickup picker.
       expect(screen.queryByText(/pickup/i)).not.toBeInTheDocument()
-      // The room qty is restored (the stepper shows 1).
-      expect(screen.getByText('Accommodation')).toBeInTheDocument()
+      // The room qty is restored (the stepper shows 1). Target the card title
+      // specifically — the breadcrumb also renders an "Accommodation" crumb.
+      expect(
+        screen.getByText('Accommodation', {
+          selector: '[data-slot="card-title"]',
+        }),
+      ).toBeInTheDocument()
     })
   })
 
@@ -1461,6 +1472,81 @@ describe('App', () => {
       await waitFor(() => {
         expect(step.dataset.variant).toBe('aurora')
       })
+    })
+  })
+
+  // landr (breadcrumb): the back affordance becomes a full clickable trail, and
+  // jumping back to an earlier step restores its previously-entered state.
+  describe('breadcrumb navigation + date restore (landr)', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getByRole('button', { name }))
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
+    }
+
+    it('shows a breadcrumb on funnel steps and restores the prior date when jumping back to Dates', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Tandem Flight')
+
+      // SingleDatePicker → pick the (only) available day → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // DetailsStep → the breadcrumb is now visible with both prior steps.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const breadcrumb = screen.getByTestId('step-breadcrumb')
+      expect(breadcrumb).toHaveTextContent('Dates')
+      expect(breadcrumb).toHaveTextContent('Your details')
+
+      // Jump back to the Dates step via the breadcrumb (its penultimate crumb
+      // carries the canonical step-back-button hook).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      // Back on the date picker, with the previously chosen date restored so it
+      // can be edited rather than re-picked from scratch.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      expect(
+        screen.getByRole('button', { name: /continue/i }),
+      ).not.toBeDisabled()
     })
   })
 })

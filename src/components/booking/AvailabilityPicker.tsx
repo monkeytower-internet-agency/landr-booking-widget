@@ -22,22 +22,39 @@ interface Props {
    * operators.expose_seats_to_customer to use seats as an urgency lever.
    */
   exposeSeatsToCustomer?: boolean
+  /**
+   * landr (breadcrumb): the previously-committed slot, restored when the
+   * customer navigates BACK so the prior date + time is pre-selected instead of
+   * empty. Undefined on the first visit.
+   */
+  initialSlot?: AvailabilitySlot
 }
 
 const HORIZON_DAYS = 60
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10)
 
+const dateFromIso = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y!, (m ?? 1) - 1, d ?? 1)
+}
+
 export function AvailabilityPicker({
   product,
   onBack,
   onConfirm,
   exposeSeatsToCustomer = false,
+  initialSlot,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>()
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  // landr (breadcrumb): seed date + slot from the restored selection.
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
+    initialSlot ? dateFromIso(initialSlot.date) : undefined,
+  )
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
+    initialSlot ? initialSlot.availability_id : null,
+  )
 
   const { fromIso, toIso } = useMemo(() => {
     const from = new Date()

@@ -26,9 +26,25 @@ interface Props {
    * (landr-w7pi). Optional — omitting it has no effect on the picker UX.
    */
   onLiveDaysChange?: (isoDays: string[]) => void
+  /**
+   * landr (breadcrumb): previously-committed ISO days, restored when the
+   * customer navigates BACK to this step so they can edit their prior choice
+   * instead of starting from scratch. Empty/undefined on the first visit.
+   */
+  initialSelectedDays?: string[]
 }
 
 const HORIZON_DAYS = 60
+
+// Stable empty reference for the availability prop while slots are still
+// loading. Handing MultiDayPicker a fresh `[]` (i.e. `slots ?? []`) every
+// render made its availableSet/forcedDays memos recompute each render and its
+// onForcedDaysChange effect re-fire → setForcedDays here → re-render → new
+// `[]` … an infinite render loop that blocked the event loop, so the
+// availability fetch never resolved to break it (the App.test pickers hung for
+// the full 6h CI timeout). A module-level constant keeps the reference stable
+// until real slots arrive.
+const EMPTY_SLOTS: AvailabilitySlot[] = []
 
 const isoDate = (d: Date) => {
   const y = d.getFullYear()
@@ -37,10 +53,23 @@ const isoDate = (d: Date) => {
   return `${y}-${m}-${day}`
 }
 
-export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: Props) {
+const dateFromIso = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y!, (m ?? 1) - 1, d ?? 1)
+}
+
+export function MultiDayStep({
+  product,
+  onBack,
+  onConfirm,
+  onLiveDaysChange,
+  initialSelectedDays,
+}: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDays, setSelectedDays] = useState<Date[]>([])
+  const [selectedDays, setSelectedDays] = useState<Date[]>(() =>
+    (initialSelectedDays ?? []).map(dateFromIso),
+  )
   // landr-aoak.2: force-booked (zero-availability) ISO days inside the current
   // selection. Always [] in the normal customer path.
   const [forcedDays, setForcedDays] = useState<string[]>([])
@@ -96,7 +125,7 @@ export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: P
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <MultiDayPicker
-          availability={slots ?? []}
+          availability={slots ?? EMPTY_SLOTS}
           value={selectedDays}
           onChange={setSelectedDays}
           onForcedDaysChange={setForcedDays}
