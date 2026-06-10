@@ -36,6 +36,16 @@ interface Props {
 
 const HORIZON_DAYS = 60
 
+// Stable empty reference for the availability prop while slots are still
+// loading. Handing MultiDayPicker a fresh `[]` (i.e. `slots ?? []`) every
+// render made its availableSet/forcedDays memos recompute each render and its
+// onForcedDaysChange effect re-fire → setForcedDays here → re-render → new
+// `[]` … an infinite render loop that blocked the event loop, so the
+// availability fetch never resolved to break it (the App.test pickers hung for
+// the full 6h CI timeout). A module-level constant keeps the reference stable
+// until real slots arrive.
+const EMPTY_SLOTS: AvailabilitySlot[] = []
+
 const isoDate = (d: Date) => {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -115,7 +125,7 @@ export function MultiDayStep({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <MultiDayPicker
-          availability={slots ?? []}
+          availability={slots ?? EMPTY_SLOTS}
           value={selectedDays}
           onChange={setSelectedDays}
           onForcedDaysChange={setForcedDays}
