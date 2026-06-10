@@ -8,10 +8,13 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import {
+  buildBreadcrumb,
   deriveAccommodationMode,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepBefore,
   stepBeforeReview,
+  type Step,
 } from './appStepMachine'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
@@ -524,5 +527,136 @@ describe('Step type completeness (landr-d8rg.4 — pick-category and product-det
     const groups = [makeGroup()]
     const step = { name: 'product-detail' as const, product, groups }
     expect(step.groups).toHaveLength(1)
+  })
+})
+
+describe('breadcrumb navigation (landr)', () => {
+  const NO_DECL = { requiresDeclarations: false }
+  const WITH_DECL = { requiresDeclarations: true }
+
+  function fillForm(overrides: Partial<Extract<Step, { name: 'fill-form' }>> = {}): Step {
+    return {
+      name: 'fill-form',
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(2),
+      companions: makeCompanions(0),
+      pickupLocationId: null,
+      accommodationRooms: [],
+      addons: [],
+      ...overrides,
+    }
+  }
+
+  it('builds [Overview, Dates, Your details, Review] for a plain product', () => {
+    const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'fill-form',
+    ])
+    expect(crumbs.map((c) => c.label)).toEqual([
+      'Overview',
+      'Dates',
+      'Your details',
+      'Review',
+    ])
+    // The current (last) crumb is non-clickable; the rest carry targets.
+    expect(crumbs.at(-1)!.current).toBe(true)
+    expect(crumbs.at(-1)!.target).toBeNull()
+    expect(crumbs.slice(0, -1).every((c) => c.target !== null)).toBe(true)
+  })
+
+  it('uses the product label for the Overview crumb when provided', () => {
+    const crumbs = buildBreadcrumb(fillForm(), {
+      ...NO_DECL,
+      productLabel: 'Tandem Flight',
+    })
+    expect(crumbs[0]!.label).toBe('Tandem Flight')
+  })
+
+  it('includes Accommodation (and skips Pickup) when a hotel was booked', () => {
+    const step = fillForm({
+      product: makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
+      hotelLocationId: 'hotel-1',
+      pickupLocationId: 'hotel-1',
+      accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
+    })
+    const crumbs = buildBreadcrumb(step, NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'pick-accommodation',
+      'fill-form',
+    ])
+    // The pickup picker was skipped on the way forward → not a crumb.
+    expect(crumbs.some((c) => c.name === 'pick-pickup')).toBe(false)
+  })
+
+  it('includes Pickup when no hotel and the product needs a pickup', () => {
+    const step = fillForm({
+      product: makeProduct({ hotel_offering: 'none', needs_pickup: true }),
+      pickupLocationId: 'loc-9',
+    })
+    const crumbs = buildBreadcrumb(step, NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'pick-pickup',
+      'fill-form',
+    ])
+  })
+
+  it('includes Declarations when the operator requires them', () => {
+    const crumbs = buildBreadcrumb(fillForm(), WITH_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'declarations',
+      'fill-form',
+    ])
+    // The penultimate crumb (one step back) targets the declarations step.
+    expect(crumbs.at(-2)!.target!.name).toBe('declarations')
+  })
+
+  it('returns no crumbs for non-funnel steps (catalog/confirmation)', () => {
+    expect(buildBreadcrumb({ name: 'pick-product' }, NO_DECL)).toEqual([])
+    expect(
+      buildBreadcrumb(
+        { name: 'product-detail', product: makeProduct() },
+        NO_DECL,
+      ),
+    ).toEqual([])
+  })
+
+  it('restores the committed dates when going back from details to pick-selection', () => {
+    const detailsStep: Step = {
+      name: 'details',
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(1),
+      companions: makeCompanions(0),
+    }
+    const prev = stepBefore(detailsStep, NO_DECL)
+    expect(prev?.name).toBe('pick-selection')
+    expect(prev && 'selection' in prev ? prev.selection : null).toEqual(
+      SLOT_SELECTION,
+    )
+  })
+
+  it('the breadcrumb pick-selection target carries the selection for date restore', () => {
+    const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
+    const datesCrumb = crumbs.find((c) => c.name === 'pick-selection')!
+    const target = datesCrumb.target!
+    expect(target.name).toBe('pick-selection')
+    expect(target.name === 'pick-selection' ? target.selection : null).toEqual(
+      SLOT_SELECTION,
+    )
   })
 })

@@ -1010,6 +1010,9 @@ describe('AccommodationStep', () => {
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
         operatorToken="para42"
+        // Two guests fully occupy the capacity-2 double so the occupancy gate
+        // (a double needs both spots filled) lets Continue enable.
+        participantCount={2}
         onConfirm={onConfirm}
         onBack={vi.fn()}
         initialHotelLocationId="hotel-a"
@@ -1040,8 +1043,11 @@ describe('AccommodationStep', () => {
       [{ productId: 'bf-1', quantity: 3 }],
       undefined,
       false,
-      // landr-gb2f.2: lone participant auto-assigned to the double room unit.
-      { 0: { roomProductId: 'double-room', unitIndex: 0 } },
+      // Both guests auto-assigned to the double room's only unit → it is full.
+      {
+        0: { roomProductId: 'double-room', unitIndex: 0 },
+        1: { roomProductId: 'double-room', unitIndex: 0 },
+      },
       // landr-doam.1: no age overrides → empty ageMap.
       {},
       // landr-gb2f.5: per-room add-on map (seeded from initialAddons → bf-1=3
@@ -1419,11 +1425,11 @@ describe('AccommodationStep', () => {
         product={makeService('mandatory')}
         selectedDays={['2026-06-10']}
         operatorToken="para42"
-        // landr-87n9.3: 3 people so the greedy whole-party auto-assign
-        // spreads across BOTH capacity-2 units (Room A gets 2, Room B gets
-        // 1) — every booked unit then has an occupant + everyone is
-        // assigned, so the occupancy gate passes and Continue enables.
-        participantCount={3}
+        // landr (full-occupancy): 4 people so the greedy whole-party
+        // auto-assign FILLS both capacity-2 units (Room A gets 2, Room B gets
+        // 2). Every booked unit is fully occupied + everyone is assigned, so
+        // the occupancy gate passes and Continue enables.
+        participantCount={4}
         onConfirm={onConfirm}
         onBack={vi.fn()}
       />,

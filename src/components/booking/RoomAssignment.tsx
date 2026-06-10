@@ -350,16 +350,19 @@ function UnitDropZone({
           ))
         )}
       </div>
-      {/* Tap-to-place target affordance — visible only while a chip is
-          selected and this unit has room. Keeps the non-drag flow obvious. */}
-      {selectedChip !== null && !full ? (
+      {/* Tap-to-place target affordance — visible while a chip is selected.
+          A full unit still accepts a placement: it ROTATES the selected member
+          in at the front and bumps the last occupant out (matching the drag
+          behaviour), so the copy switches to "Swap in here". Keeps the non-drag
+          flow at parity with drag-and-drop. */}
+      {selectedChip !== null && !occupantIndices.includes(selectedChip) ? (
         <button
           type="button"
           onClick={onTapTarget}
           data-testid={`assign-here-${key}`}
           className="self-start rounded-md border border-primary px-2 py-1 text-xs text-primary hover:bg-primary/5"
         >
-          Place here
+          {full ? 'Swap in here' : 'Place here'}
         </button>
       ) : null}
     </div>

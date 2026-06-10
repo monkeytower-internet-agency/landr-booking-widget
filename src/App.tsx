@@ -51,12 +51,14 @@ import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api
 import {
   type Step,
   type PerRoomAddons,
+  buildBreadcrumb,
   deriveAccommodationMode,
   fillFormOrDeclarations,
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepBeforeReview,
 } from './appStepMachine'
+import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
@@ -606,6 +608,46 @@ function BookingFlowApp() {
 
   const sidebarInputs = sidebarInputsForStep(step)
 
+  // landr (breadcrumb): jump back to any prior step with its state restored.
+  // navigateTo clears the ephemeral live-selection state (mirroring the back
+  // handlers) before swapping to the reconstructed target step, which already
+  // carries the previously-confirmed values.
+  const navigateTo = useCallback(
+    (target: Step) => {
+      setLiveSelectionDays([])
+      setLiveParticipantCount(0)
+      setLiveParticipantNames([])
+      clearLiveAccommodation()
+      setStep(target)
+    },
+    [clearLiveAccommodation],
+  )
+
+  // landr (breadcrumb): the ordered crumb trail for the current step. Empty for
+  // non-funnel steps (catalog, confirmation, …) so StepBackButton falls back to
+  // the single back affordance there. Memoised on the step (+ the declarations
+  // flag) so the context value stays referentially stable while the step is
+  // unchanged — otherwise every App re-render would rebuild the trail and force
+  // all breadcrumb consumers to re-render.
+  const requiresDeclarations = OPERATORS_REQUIRING_DECLARATIONS.has(
+    operatorSettings.slug,
+  )
+  const breadcrumbItems = useMemo(() => {
+    const productLabel =
+      'product' in step
+        ? pickLocalized(
+            step.product.name,
+            step.product.name_localized,
+            browserLocale(),
+          )
+        : undefined
+    return buildBreadcrumb(step, { requiresDeclarations, productLabel })
+  }, [step, requiresDeclarations])
+  const breadcrumbNav = useMemo(
+    () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
+    [breadcrumbItems, navigateTo],
+  )
+
   // landr-il9f.2: no token or unknown token → show the generic landing page.
   if (showLanding) return <LandingPage />
 
@@ -705,6 +747,7 @@ function BookingFlowApp() {
           The "back to categories" link is part of the pick-product surface,
           so it lives inside.
         */}
+        <BreadcrumbNavContext.Provider value={breadcrumbNav}>
         <StepTransition stepKey={step.name}>
         {/*
           landr-d8rg.4: category entrance — shown when the operator has >1
@@ -866,6 +909,10 @@ function BookingFlowApp() {
             product={step.product}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={goToProductStep}
+            // landr (breadcrumb): restore the prior slot on back-nav re-entry.
+            initialSlot={
+              step.selection?.kind === 'slot' ? step.selection.slot : undefined
+            }
             onConfirm={(slot) =>
               afterSelection(step.product, { kind: 'slot', slot })
             }
@@ -879,6 +926,13 @@ function BookingFlowApp() {
             product={step.product}
             exposeSeats={operatorSettings.expose_seats_to_customer}
             onBack={goToProductStep}
+            // landr (breadcrumb): the committed window id rides on the restored
+            // slot's availability_id — re-select it on back-nav re-entry.
+            initialWindowId={
+              step.selection?.kind === 'slot'
+                ? step.selection.slot.availability_id
+                : undefined
+            }
             onConfirm={(_slot, window, forced) => {
               const days = expandWindowDays(window)
               afterSelection(step.product, {
@@ -899,6 +953,12 @@ function BookingFlowApp() {
           <MultiDayStep
             product={step.product}
             onBack={goToProductStep}
+            // landr (breadcrumb): restore the prior day selection on re-entry.
+            initialSelectedDays={
+              step.selection?.kind === 'days'
+                ? step.selection.selectedDays
+                : undefined
+            }
             onConfirm={(selectedDays, forcedDays) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -917,6 +977,12 @@ function BookingFlowApp() {
           <SingleDatePicker
             product={step.product}
             onBack={goToProductStep}
+            // landr (breadcrumb): restore the prior single-date pick on re-entry.
+            initialSelectedDays={
+              step.selection?.kind === 'days'
+                ? step.selection.selectedDays
+                : undefined
+            }
             onConfirm={(selectedDays, forcedDays) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -939,7 +1005,13 @@ function BookingFlowApp() {
             // landr-87n9.3: restore the non-guiding companions on Back.
             initialCompanions={step.companions}
             onBack={() =>
-              setStep({ name: 'pick-selection', product: step.product })
+              // landr (breadcrumb): carry the committed selection back so the
+              // date picker re-mounts showing the customer's prior dates.
+              setStep({
+                name: 'pick-selection',
+                product: step.product,
+                selection: step.selection,
+              })
             }
             onConfirm={(booker, participants, companions) =>
               afterDetails(
@@ -1376,6 +1448,7 @@ function BookingFlowApp() {
           </>
         ) : null}
         </StepTransition>
+        </BreadcrumbNavContext.Provider>
         </div>
         {sidebarInputs ? (
           <PriceSidebar
