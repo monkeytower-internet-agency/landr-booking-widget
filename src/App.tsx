@@ -65,6 +65,7 @@ import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { variantFromLocation, previewEnabledFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
+import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import { VariantSwitcher } from '@/components/booking/VariantSwitcher'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
@@ -158,15 +159,18 @@ function App() {
         value={variantFromLocation()}
         previewEnabled={previewEnabledFromLocation()}
       >
-        {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
-        <TierBadge />
-        <div className="min-h-screen bg-background text-foreground">
-          <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-            <CancelPage bookingId={route.bookingId} />
+        {/* landr-aoak.2: staff session context (inactive ⇒ normal widget). */}
+        <StaffModeProvider>
+          {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
+          <TierBadge />
+          <div className="min-h-screen bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+              <CancelPage bookingId={route.bookingId} />
+            </div>
           </div>
-        </div>
-        {/* landr-d8rg.8: live variant switcher (preview links only). */}
-        <VariantSwitcher />
+          {/* landr-d8rg.8: live variant switcher (preview links only). */}
+          <VariantSwitcher />
+        </StaffModeProvider>
       </VariantProvider>
     )
   }
@@ -175,11 +179,14 @@ function App() {
       value={variantFromLocation()}
       previewEnabled={previewEnabledFromLocation()}
     >
-      {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
-      <TierBadge />
-      <BookingFlowApp />
-      {/* landr-d8rg.8: live variant switcher (preview links only). */}
-      <VariantSwitcher />
+      {/* landr-aoak.2: staff session context (inactive ⇒ normal widget). */}
+      <StaffModeProvider>
+        {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
+        <TierBadge />
+        <BookingFlowApp />
+        {/* landr-d8rg.8: live variant switcher (preview links only). */}
+        <VariantSwitcher />
+      </StaffModeProvider>
     </VariantProvider>
   )
 }
@@ -872,12 +879,16 @@ function BookingFlowApp() {
             product={step.product}
             exposeSeats={operatorSettings.expose_seats_to_customer}
             onBack={goToProductStep}
-            onConfirm={(_slot, window) =>
+            onConfirm={(_slot, window, forced) => {
+              const days = expandWindowDays(window)
               afterSelection(step.product, {
                 kind: 'days',
-                selectedDays: expandWindowDays(window),
+                selectedDays: days,
+                // landr-aoak.2: a force-booked full window marks ALL its days
+                // as forced so the submit adapter raises ignore_capacity.
+                ...(forced ? { forcedDays: days } : {}),
               })
-            }
+            }}
             onLiveDaysChange={setLiveSelectionDays}
           />
         ) : null}
@@ -888,8 +899,13 @@ function BookingFlowApp() {
           <MultiDayStep
             product={step.product}
             onBack={goToProductStep}
-            onConfirm={(selectedDays) =>
-              afterSelection(step.product, { kind: 'days', selectedDays })
+            onConfirm={(selectedDays, forcedDays) =>
+              afterSelection(step.product, {
+                kind: 'days',
+                selectedDays,
+                // landr-aoak.2: carry the force-booked subset (staff mode only).
+                ...(forcedDays && forcedDays.length > 0 ? { forcedDays } : {}),
+              })
             }
             onLiveDaysChange={setLiveSelectionDays}
           />
@@ -901,8 +917,13 @@ function BookingFlowApp() {
           <SingleDatePicker
             product={step.product}
             onBack={goToProductStep}
-            onConfirm={(selectedDays) =>
-              afterSelection(step.product, { kind: 'days', selectedDays })
+            onConfirm={(selectedDays, forcedDays) =>
+              afterSelection(step.product, {
+                kind: 'days',
+                selectedDays,
+                // landr-aoak.2: carry the force-booked day (staff mode only).
+                ...(forcedDays && forcedDays.length > 0 ? { forcedDays } : {}),
+              })
             }
             onLiveDaysChange={setLiveSelectionDays}
           />

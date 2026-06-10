@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HttpError, submitBooking } from '@/api/client'
+import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
   Companion,
@@ -25,8 +25,27 @@ import type {
 } from './detailsTypes'
 
 export type BookingSelection =
-  | { kind: 'slot'; slot: AvailabilitySlot }
-  | { kind: 'days'; selectedDays: string[] }
+  | {
+      kind: 'slot'
+      slot: AvailabilitySlot
+      /**
+       * landr-aoak.2 [S3]: set when an operator (staff mode) force-booked a
+       * full / blocked fixed-date window. Carried through to the submit adapter
+       * which raises the booking-level ignore_capacity flag. Undefined / false
+       * for every normal customer selection (the byte-identical path).
+       */
+      forced?: boolean
+    }
+  | {
+      kind: 'days'
+      selectedDays: string[]
+      /**
+       * landr-aoak.2 [S3]: the subset of selectedDays the operator force-booked
+       * past zero availability (blocked / sold-out days). Empty / undefined for
+       * normal customer selections. Drives the submit adapter's force flag.
+       */
+      forcedDays?: string[]
+    }
 
 import { Button } from '@/components/ui/button'
 import {
@@ -36,8 +55,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
+import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
+import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import {
+  augmentStaffSubmit,
+  isStaffSubmitBody,
+  type PriceOverride,
+} from './staffSubmitAdapter'
 
 interface Props {
   widgetToken: string
@@ -259,6 +287,26 @@ export function BookingForm({
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
   const timezone = browserTimezone()
+
+  // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
+  // branches below render and the submit body is byte-identical to today.
+  const staff = useStaffMode()
+  const canOverridePrice =
+    staff.active && staff.powers.includes('price_override')
+  // Operator price-override inputs (amount + reason). Empty strings ⇒ no
+  // override. Only ever shown / read in staff mode.
+  const [overrideAmount, setOverrideAmount] = useState('')
+  const [overrideReason, setOverrideReason] = useState('')
+
+  // landr-aoak.2: did the operator force-book past capacity? Derived from the
+  // forced markers the pickers attached to the selection. Always false for a
+  // normal customer selection (no forced fields present).
+  const forced =
+    selection.kind === 'slot'
+      ? selection.forced === true
+      : (selection.forcedDays?.length ?? 0) > 0
+  const forcedDays =
+    selection.kind === 'days' ? (selection.forcedDays ?? []) : []
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -485,10 +533,66 @@ export function BookingForm({
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
       }
-      // landr-7zc5.3: pass preview_token so the API can accept draft
-      // products during operator preview. The option is harmlessly
-      // ignored when previewToken is undefined (normal customer flow).
-      const result = await submitBooking(body, previewToken ? { previewToken } : undefined)
+      // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
+      // route the whole body through the SINGLE staff adapter. With no staff
+      // session augmentStaffSubmit returns `body` unchanged (byte-identical).
+      let priceOverride: PriceOverride | null = null
+      if (canOverridePrice && overrideAmount.trim() !== '') {
+        const grossTotal = Number(overrideAmount)
+        if (!Number.isFinite(grossTotal) || grossTotal < 0) {
+          setServerError('Override price must be a non-negative number.')
+          setSubmitting(false)
+          return
+        }
+        if (overrideReason.trim() === '') {
+          setServerError('Please give a reason for the price override.')
+          setSubmitting(false)
+          return
+        }
+        priceOverride = { grossTotal, reason: overrideReason.trim() }
+      }
+      const submitBody = augmentStaffSubmit(body, {
+        session: staff,
+        forced,
+        priceOverride,
+      })
+      // landr-aoak.4: a staff submit goes to the SEPARATE operator-scoped staff
+      // endpoint (POST /api/staff/operators/{operator_id}/bookings/submit) where
+      // the signed staff_session unlocks the operator powers. The public
+      // endpoint silently drops force-book / price-override, so routing a staff
+      // body there was a no-op of the whole feature. A non-staff body stays on
+      // the public path, byte-identically to before.
+      let result: SubmitBookingResponse
+      if (isStaffSubmitBody(submitBody)) {
+        if (!staff.operatorId) {
+          // The staff endpoint is operator-path-scoped; without the operator id
+          // we cannot route it. Fail loudly rather than silently downgrading to
+          // the public path (which would drop the operator powers).
+          setServerError(
+            'Could not determine the operator for this staff booking. Reopen the booking modal and try again.',
+          )
+          setSubmitting(false)
+          return
+        }
+        result = await submitStaffBooking(staff.operatorId, submitBody)
+      } else {
+        // landr-7zc5.3: pass preview_token so the API can accept draft
+        // products during operator preview. The option is harmlessly
+        // ignored when previewToken is undefined (normal customer flow).
+        result = await submitBooking(
+          submitBody,
+          previewToken ? { previewToken } : undefined,
+        )
+      }
+      // landr-aoak.2 [S3].5: notify the embedding dashboard parent so it can
+      // refetch + open the new booking. Only fires in staff mode (active
+      // session); a normal customer embed never posts to its parent.
+      if (staff.active && typeof window !== 'undefined' && window.parent !== window) {
+        window.parent.postMessage(
+          { type: 'landr:booking-created', booking_id: result.booking_id },
+          resolveParentTargetOrigin(),
+        )
+      }
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
@@ -683,6 +787,69 @@ export function BookingForm({
                 </li>
               ))}
             </ol>
+          </section>
+        ) : null}
+
+        {/* landr-aoak.2 [S3]: force-book summary — shown only when the operator
+            (staff mode) pushed this booking past capacity. Makes the override
+            explicit on the review screen before Confirm. */}
+        {forced ? (
+          <section
+            data-testid="review-forced"
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <OperatorOverrideBadge />
+            </div>
+            <p className="text-amber-900 dark:text-amber-100">
+              {forcedDays.length > 0
+                ? `${forcedDays.length} day${forcedDays.length === 1 ? '' : 's'} booked past capacity.`
+                : 'This window was booked past capacity.'}{' '}
+              Capacity will be exceeded for this booking.
+            </p>
+          </section>
+        ) : null}
+
+        {/* landr-aoak.2 [S3].3: operator price-override (staff mode only).
+            Sets override_gross_total + override_reason via the submit adapter.
+            Hidden entirely for normal customers. */}
+        {canOverridePrice ? (
+          <section
+            data-testid="staff-price-override"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
+            <h3 className="mb-2 text-sm font-semibold">Override price (operator)</h3>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Leave blank to use the calculated total. When set, this gross total
+              replaces the computed price for this booking.
+            </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="override-amount">New gross total</Label>
+                <Input
+                  id="override-amount"
+                  data-testid="override-amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 250.00"
+                  value={overrideAmount}
+                  onChange={(e) => setOverrideAmount(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="override-reason">Reason</Label>
+                <Input
+                  id="override-reason"
+                  data-testid="override-reason"
+                  type="text"
+                  placeholder="Reason for the override (required when set)"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+              </div>
+            </div>
           </section>
         ) : null}
 
