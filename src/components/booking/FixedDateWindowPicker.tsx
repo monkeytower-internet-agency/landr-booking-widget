@@ -41,6 +41,13 @@ interface Props {
    * expanded days into PriceSidebar before Continue is pressed (landr-w7pi).
    */
   onLiveDaysChange?: (isoDays: string[]) => void
+  /**
+   * landr (breadcrumb): id of the previously-picked window, restored when the
+   * customer navigates BACK so the prior window is pre-selected (the committed
+   * BookingSelection carries it as slot.availability_id). Undefined on the
+   * first visit.
+   */
+  initialWindowId?: string
 }
 
 function fmtDate(iso: string): string {
@@ -77,6 +84,7 @@ export function FixedDateWindowPicker({
   onConfirm,
   exposeSeats = true,
   onLiveDaysChange,
+  initialWindowId,
 }: Props) {
   const { tokens } = useVariant()
   const staff = useStaffMode()
@@ -85,7 +93,10 @@ export function FixedDateWindowPicker({
   const canForce = staff.active && staff.powers.includes('force_book')
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // landr (breadcrumb): seed from the restored window id on back-nav re-entry.
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialWindowId ?? null,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -106,6 +117,14 @@ export function FixedDateWindowPicker({
     () => windows?.find((w) => w.id === selectedId) ?? null,
     [windows, selectedId],
   )
+
+  // landr (breadcrumb): once the windows load, surface a restored selection in
+  // the live sidebar so the price preview reflects the prior pick immediately.
+  useEffect(() => {
+    if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow))
+    // Fire only when the resolved window changes (i.e. the restore resolves).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWindow])
 
   // landr-aoak.2: true when the picked window has zero remaining capacity —
   // i.e. the operator force-booked a FULL window. Drives the forced submit flag.

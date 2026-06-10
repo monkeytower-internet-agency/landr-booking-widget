@@ -77,7 +77,12 @@ export type Step =
    * return to the scoped pick-product with the same group filter).
    */
   | { name: 'product-detail'; product: Product; groups?: ProductGroup[] }
-  | { name: 'pick-selection'; product: Product }
+  // landr (breadcrumb): `selection` carries the previously-committed dates/slot
+  // when the customer navigates BACK to this step (via the breadcrumb or the
+  // back affordance). The date pickers re-seed from it so the customer sees and
+  // can edit their prior choice instead of starting from scratch. Undefined on
+  // the initial forward visit (no prior selection to restore).
+  | { name: 'pick-selection'; product: Product; selection?: BookingSelection }
   // landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
   // a SOLD-OUT product. The product is always rendered (informational "Fully
   // booked" state), but with NO date picker and NO Select CTA — there is
@@ -677,4 +682,238 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         addons: step.addons,
       }
   }
+}
+
+// ─── Breadcrumb navigation (landr) ───────────────────────────────────────────
+
+/**
+ * One crumb in the step breadcrumb. `target` is the fully-reconstructed step to
+ * navigate to when the crumb is clicked (with all previously-entered state
+ * restored); null for the active (current) crumb, which is not clickable.
+ */
+export interface BreadcrumbItem {
+  name: Step['name']
+  label: string
+  current: boolean
+  target: Step | null
+}
+
+export interface BreadcrumbOptions {
+  /** Operator requires the declarations step (inserted before review). */
+  requiresDeclarations: boolean
+  /** Display label for the product crumb (localized product name). */
+  productLabel?: string
+}
+
+const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
+  'product-detail': 'Overview',
+  'pick-selection': 'Dates',
+  details: 'Your details',
+  'pick-accommodation': 'Accommodation',
+  'pick-service-addons': 'Add-ons',
+  'pick-pickup': 'Pickup',
+  declarations: 'Declarations',
+  'fill-form': 'Review',
+}
+
+/** The funnel steps that render a breadcrumb (everything from dates onward). */
+const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
+  'pick-selection',
+  'details',
+  'pick-accommodation',
+  'pick-service-addons',
+  'pick-pickup',
+  'declarations',
+  'fill-form',
+])
+
+/**
+ * The funnel step that preceded pick-pickup on the way forward, reconstructed
+ * with its prior state. Mirrors the forward routing in App.tsx's pickup
+ * back-nav handler: hotel offering → accommodation; else service add-ons →
+ * that step; else straight back to details.
+ */
+function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
+  const offering = step.product.hotel_offering ?? 'none'
+  if (step.product.product_kind === 'service' && offering !== 'none') {
+    return {
+      name: 'pick-accommodation',
+      product: step.product,
+      selection: step.selection,
+      booker: step.booker,
+      participants: step.participants,
+      companions: step.companions,
+      hotelLocationId: step.hotelLocationId,
+      accommodationRooms: step.accommodationRooms,
+      addons: step.addons,
+      includeHotel: step.includeHotel,
+      isSharedDouble: step.isSharedDouble,
+      accommodationMode: step.accommodationMode,
+      roomAssignment: step.roomAssignment,
+      occupantAgeMap: step.occupantAgeMap,
+      perRoomAddons: step.perRoomAddons,
+      roomProductNames: step.roomProductNames,
+    }
+  }
+  if (step.hadServiceAddons) {
+    return {
+      name: 'pick-service-addons',
+      product: step.product,
+      selection: step.selection,
+      booker: step.booker,
+      participants: step.participants,
+      companions: step.companions,
+      addons: step.addons,
+    }
+  }
+  return {
+    name: 'details',
+    product: step.product,
+    selection: step.selection,
+    booker: step.booker,
+    participants: step.participants,
+    companions: step.companions,
+  }
+}
+
+/**
+ * The funnel step immediately PRECEDING `step` (one "back"), reconstructed with
+ * its previously-confirmed state restored, or null when `step` is the first
+ * funnel step (or not a funnel step at all). Mirrors the forward routing so it
+ * only ever returns a step that was actually shown on the way forward, and
+ * reuses stepBeforeReview for the review steps so the hotel-skips-pickup
+ * routing lives in one place.
+ */
+export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
+  switch (step.name) {
+    case 'pick-selection':
+      return { name: 'product-detail', product: step.product }
+    case 'details':
+      return {
+        name: 'pick-selection',
+        product: step.product,
+        selection: step.selection,
+      }
+    case 'pick-accommodation':
+    case 'pick-service-addons':
+      return {
+        name: 'details',
+        product: step.product,
+        selection: step.selection,
+        booker: step.booker,
+        participants: step.participants,
+        companions: step.companions,
+      }
+    case 'pick-pickup':
+      return stepBeforePickup(step)
+    case 'declarations':
+      return stepBeforeReview({
+        product: step.product,
+        selection: step.selection,
+        booker: step.booker,
+        participants: step.participants,
+        companions: step.companions,
+        pickupLocationId: step.pickupLocationId,
+        accommodationRooms: step.accommodationRooms,
+        addons: step.addons,
+        hotelLocationId: step.hotelLocationId,
+        hadServiceAddons: step.hadServiceAddons,
+        includeHotel: step.includeHotel,
+        isSharedDouble: step.isSharedDouble,
+        accommodationMode: step.accommodationMode,
+        roomAssignment: step.roomAssignment,
+        occupantAgeMap: step.occupantAgeMap,
+        perRoomAddons: step.perRoomAddons,
+        roomProductNames: step.roomProductNames,
+      })
+    case 'fill-form':
+      // Mirror App.tsx's fill-form back handler: with declarations enforced,
+      // one step back is the declarations step (rebuilt from the confirmed
+      // declarations); otherwise stepBeforeReview's hotel-aware routing.
+      if (opts.requiresDeclarations) {
+        return {
+          name: 'declarations',
+          product: step.product,
+          selection: step.selection,
+          booker: step.booker,
+          participants: step.participants,
+          companions: step.companions,
+          pickupLocationId: step.pickupLocationId,
+          accommodationRooms: step.accommodationRooms,
+          addons: step.addons,
+          hotelLocationId: step.hotelLocationId,
+          hadServiceAddons: step.hadServiceAddons,
+          includeHotel: step.includeHotel,
+          isSharedDouble: step.isSharedDouble,
+          accommodationMode: step.accommodationMode,
+          roomAssignment: step.roomAssignment,
+          occupantAgeMap: step.occupantAgeMap,
+          perRoomAddons: step.perRoomAddons,
+          roomProductNames: step.roomProductNames,
+          initialDeclarations: step.customerDeclarations
+            ? {
+                declarations: step.customerDeclarations,
+                languages: step.customerLanguages ?? [],
+                otherLanguages: step.customerOtherLanguages ?? '',
+              }
+            : undefined,
+        }
+      }
+      return stepBeforeReview({
+        product: step.product,
+        selection: step.selection,
+        booker: step.booker,
+        participants: step.participants,
+        companions: step.companions,
+        pickupLocationId: step.pickupLocationId,
+        accommodationRooms: step.accommodationRooms,
+        addons: step.addons,
+        hotelLocationId: step.hotelLocationId,
+        hadServiceAddons: step.hadServiceAddons,
+        includeHotel: step.includeHotel,
+        isSharedDouble: step.isSharedDouble,
+        accommodationMode: step.accommodationMode,
+        roomAssignment: step.roomAssignment,
+        occupantAgeMap: step.occupantAgeMap,
+        perRoomAddons: step.perRoomAddons,
+        roomProductNames: step.roomProductNames,
+      })
+    default:
+      return null
+  }
+}
+
+/**
+ * Build the ordered breadcrumb trail for the current step: the chain of steps
+ * actually shown on the way here, each (except the current) clickable to jump
+ * back with its prior state restored. Returns [] for non-funnel steps (catalog,
+ * confirmation, etc.) so the caller falls back to a plain back affordance.
+ *
+ * The trail is derived by walking stepBefore() backwards from the current step,
+ * so it stays consistent with the real forward routing (skipped steps — e.g.
+ * the pickup picker when a hotel is booked — never appear).
+ */
+export function buildBreadcrumb(
+  step: Step,
+  opts: BreadcrumbOptions,
+): BreadcrumbItem[] {
+  if (!BREADCRUMB_STEPS.has(step.name)) return []
+  const chain: Step[] = [step]
+  let cursor: Step = step
+  // Guard against an accidental cycle — the funnel is at most ~8 deep.
+  for (let guard = 0; guard < 16; guard += 1) {
+    const prev = stepBefore(cursor, opts)
+    if (!prev) break
+    chain.unshift(prev)
+    cursor = prev
+  }
+  const lastIndex = chain.length - 1
+  return chain.map((s, i) => {
+    const current = i === lastIndex
+    const label =
+      s.name === 'product-detail'
+        ? (opts.productLabel ?? BREADCRUMB_LABELS['product-detail']!)
+        : (BREADCRUMB_LABELS[s.name] ?? s.name)
+    return { name: s.name, label, current, target: current ? null : s }
+  })
 }

@@ -26,6 +26,12 @@ interface Props {
    * (landr-w7pi). Optional — omitting it has no effect on the picker UX.
    */
   onLiveDaysChange?: (isoDays: string[]) => void
+  /**
+   * landr (breadcrumb): previously-committed ISO days, restored when the
+   * customer navigates BACK to this step so they can edit their prior choice
+   * instead of starting from scratch. Empty/undefined on the first visit.
+   */
+  initialSelectedDays?: string[]
 }
 
 const HORIZON_DAYS = 60
@@ -37,10 +43,23 @@ const isoDate = (d: Date) => {
   return `${y}-${m}-${day}`
 }
 
-export function MultiDayStep({ product, onBack, onConfirm, onLiveDaysChange }: Props) {
+const dateFromIso = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y!, (m ?? 1) - 1, d ?? 1)
+}
+
+export function MultiDayStep({
+  product,
+  onBack,
+  onConfirm,
+  onLiveDaysChange,
+  initialSelectedDays,
+}: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDays, setSelectedDays] = useState<Date[]>([])
+  const [selectedDays, setSelectedDays] = useState<Date[]>(() =>
+    (initialSelectedDays ?? []).map(dateFromIso),
+  )
   // landr-aoak.2: force-booked (zero-availability) ISO days inside the current
   // selection. Always [] in the normal customer path.
   const [forcedDays, setForcedDays] = useState<string[]>([])

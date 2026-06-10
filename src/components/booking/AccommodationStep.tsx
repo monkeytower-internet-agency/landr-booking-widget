@@ -17,12 +17,14 @@ import { browserLocale, pickLocalized } from '@/lib/locale'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import {
+  applyAssignment,
   autoAssignParty,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
+  occupantsOfUnit,
   roomIncludesBreakfast,
   occupancyStatus,
   partySize,
@@ -706,12 +708,33 @@ export function AccommodationStep({
         ? `${list} has no guests yet — assign someone or remove the room.`
         : `These rooms have no guests yet: ${list}. Assign someone to each, or remove the empty rooms.`
     }
+    // A booked unit holding fewer guests than its capacity (e.g. a double room
+    // with a single person) blocks Continue until it is filled or swapped for a
+    // smaller room.
+    if (occupancy.partialUnits.length > 0) {
+      const labels = occupancy.partialUnits.map((u) => {
+        const need = u.capacity - occupantsOfUnit(assignment, u).length
+        return `${u.roomName} #${u.unitIndex + 1} needs ${need} more ${
+          need === 1 ? 'guest' : 'guests'
+        }`
+      })
+      const list = labels.join('; ')
+      return occupancy.partialUnits.length === 1
+        ? `${list} — add ${
+            occupancy.partialUnits[0]!.capacity -
+              occupantsOfUnit(assignment, occupancy.partialUnits[0]!).length ===
+            1
+              ? 'another guest'
+              : 'more guests'
+          } or book a smaller room.`
+        : `${list}. Fill each room or book smaller rooms.`
+    }
     const names = occupancy.unassignedMembers.map((i) => {
       const n = (partyMemberNames[i] ?? '').trim()
       return n.length > 0 ? n : `Guest ${i + 1}`
     })
     return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
-  }, [occupancy, partyMemberNames])
+  }, [occupancy, partyMemberNames, assignment])
 
   // landr-doam.1: block Continue when any assigned child occupant has no age.
   // Pure helper — reads the current assignment + ageMap without side effects.
@@ -809,35 +832,14 @@ export function AccommodationStep({
   }
 
   // landr-gb2f.2: manual (re)assignment from RoomAssignment. target=null
-  // unassigns. We honour the unit capacity here so a manual drop onto a
-  // full unit is a no-op (the chip stays put) — the only place capacity is
-  // enforced as a hard cap; auto-assign already respects it. Assigning a
-  // participant who was elsewhere moves them (single-unit membership).
+  // unassigns. Delegates to the pure applyAssignment helper:
+  //   • a drop onto a unit with spare capacity appends the member there;
+  //   • a drop onto a FULL unit ROTATES — the member takes the first slot, the
+  //     existing occupants shift down a slot, and the one bumped off the last
+  //     slot moves to the member's previous unit (the swap source). Repeating
+  //     cycles the evicted person so the same two are not endlessly swapped.
   function assignParticipant(participantIndex: number, target: RoomUnit | null) {
-    setAssignment((prev) => {
-      const next = { ...prev }
-      if (target === null) {
-        delete next[participantIndex]
-        return next
-      }
-      // Count current occupants of the target unit, excluding the mover.
-      let occupants = 0
-      for (const [pid, entry] of Object.entries(next)) {
-        if (Number(pid) === participantIndex) continue
-        if (
-          entry.roomProductId === target.roomProductId &&
-          entry.unitIndex === target.unitIndex
-        ) {
-          occupants += 1
-        }
-      }
-      if (occupants >= target.capacity) return prev // full — reject the drop
-      next[participantIndex] = {
-        roomProductId: target.roomProductId,
-        unitIndex: target.unitIndex,
-      }
-      return next
-    })
+    setAssignment((prev) => applyAssignment(prev, participantIndex, target))
   }
 
   // landr-doam.1: update the age band / age for an assigned occupant.

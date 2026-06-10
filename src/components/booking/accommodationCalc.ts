@@ -273,12 +273,25 @@ export interface RoomUnit {
 
 /**
  * A participant's room assignment, keyed by the participant's index in the
- * `participants` array. Absent key (or null entry) → unassigned. The pair
- * mirrors the wire contract fields (room_product_id + room_unit_index).
+ * `participants` array. Absent key (or null entry) → unassigned. The
+ * roomProductId + unitIndex pair mirrors the wire contract fields
+ * (room_product_id + room_unit_index).
+ *
+ * landr (breadcrumb/cycling): `slot` is the 0-based position of this occupant
+ * WITHIN its unit. It is UI-only — the submit payload never sends it (the wire
+ * contract is just room_product_id + room_unit_index, and multiple occupants
+ * legitimately share one unit_index). The slot gives the chips a stable,
+ * rotatable order so dropping a person onto a FULL unit can push the existing
+ * occupants down a position and evict the LAST one — rotating which person is
+ * displaced each time instead of always bumping the same one. Absent slot →
+ * the occupant is ordered after slotted ones, tie-broken by member index (the
+ * legacy behaviour, so old assignment maps still render deterministically).
  */
 export interface RoomAssignmentEntry {
   roomProductId: string
   unitIndex: number
+  /** 0-based position within the unit (UI-only; never submitted). */
+  slot?: number
 }
 export type RoomAssignmentMap = Record<number, RoomAssignmentEntry>
 
@@ -335,21 +348,153 @@ export function pruneAssignments(
   return out
 }
 
-/** Count how many participants are currently assigned to a given unit. */
+/**
+ * Member indices assigned to a given (roomProductId, unitIndex), ordered by
+ * `slot` ascending (the in-unit position), falling back to member index for
+ * entries without a slot. This ordering is what the chips render in, and what
+ * the rotation logic in applyAssignment treats as "first spot … last spot".
+ */
+function orderedOccupantsByKey(
+  assignment: RoomAssignmentMap,
+  roomProductId: string,
+  unitIndex: number,
+): number[] {
+  const out: { idx: number; slot: number }[] = []
+  for (const [pid, entry] of Object.entries(assignment)) {
+    if (entry.roomProductId === roomProductId && entry.unitIndex === unitIndex) {
+      out.push({ idx: Number(pid), slot: entry.slot ?? Number.MAX_SAFE_INTEGER })
+    }
+  }
+  out.sort((a, b) => a.slot - b.slot || a.idx - b.idx)
+  return out.map((o) => o.idx)
+}
+
+/** Member indices currently assigned to a given unit, in display (slot) order. */
 export function occupantsOfUnit(
   assignment: RoomAssignmentMap,
   unit: RoomUnit,
 ): number[] {
-  const out: number[] = []
+  return orderedOccupantsByKey(assignment, unit.roomProductId, unit.unitIndex)
+}
+
+/**
+ * Re-pack a unit's slots to a contiguous 0..k-1 run in current display order.
+ * Mutates `map` in place. Called after any move so "the last slot" is always
+ * well-defined for the next rotation. Pure w.r.t. ordering — it only rewrites
+ * the slot numbers, never which unit an occupant is in.
+ */
+function renormalizeUnitSlots(
+  map: RoomAssignmentMap,
+  roomProductId: string,
+  unitIndex: number,
+): void {
+  const ordered = orderedOccupantsByKey(map, roomProductId, unitIndex)
+  ordered.forEach((idx, position) => {
+    const entry = map[idx]
+    if (entry) map[idx] = { ...entry, slot: position }
+  })
+}
+
+/**
+ * Apply a single (re)assignment of one member to a target unit (or null to
+ * unassign). Pure — returns a NEW map, never mutates the input.
+ *
+ * Behaviour by case:
+ *   • target === null            → unassign the member; re-pack its old unit.
+ *   • member already in target   → no-op.
+ *   • target has spare capacity  → place the member at the END of the target;
+ *                                  re-pack the old + new units.
+ *   • target is FULL             → ROTATE: insert the member at the FRONT,
+ *                                  shift the existing occupants one slot down,
+ *                                  and evict the occupant in the LAST slot to
+ *                                  the member's PREVIOUS unit (the swap source),
+ *                                  or to the unassigned tray if the member came
+ *                                  from there. Repeating cycles the evicted
+ *                                  person, so the same two are not endlessly
+ *                                  swapped.
+ *
+ * Worked example (the double-room cycle): single S=[Matthias], double
+ * D=[Olaf, Alida]. Drop Matthias → D=[Matthias, Olaf], S=[Alida]. Drop Alida
+ * → D=[Alida, Matthias], S=[Olaf]. Drop Olaf → D=[Olaf, Alida], S=[Matthias].
+ */
+export function applyAssignment(
+  assignment: RoomAssignmentMap,
+  memberIndex: number,
+  target: RoomUnit | null,
+): RoomAssignmentMap {
+  const next: RoomAssignmentMap = {}
   for (const [pid, entry] of Object.entries(assignment)) {
-    if (
-      entry.roomProductId === unit.roomProductId &&
-      entry.unitIndex === unit.unitIndex
-    ) {
-      out.push(Number(pid))
-    }
+    next[Number(pid)] = { ...entry }
   }
-  return out.sort((a, b) => a - b)
+  const prev = assignment[memberIndex]
+
+  // Unassign.
+  if (target === null) {
+    if (prev) {
+      delete next[memberIndex]
+      renormalizeUnitSlots(next, prev.roomProductId, prev.unitIndex)
+    }
+    return next
+  }
+
+  // Already in the target unit → nothing to do.
+  if (
+    prev &&
+    prev.roomProductId === target.roomProductId &&
+    prev.unitIndex === target.unitIndex
+  ) {
+    return assignment
+  }
+
+  // Give the target's current occupants contiguous slots (0..k-1) in their
+  // existing display order before we insert. This anchors "the last slot" even
+  // when the unit was filled by auto-assign (slot-less, index-ordered), so both
+  // the append and the rotation below place the mover predictably.
+  renormalizeUnitSlots(next, target.roomProductId, target.unitIndex)
+
+  const occupants = orderedOccupantsByKey(
+    next,
+    target.roomProductId,
+    target.unitIndex,
+  ).filter((i) => i !== memberIndex)
+
+  if (occupants.length < target.capacity) {
+    // Spare capacity → append the member at the end of the target unit.
+    next[memberIndex] = {
+      roomProductId: target.roomProductId,
+      unitIndex: target.unitIndex,
+      slot: occupants.length,
+    }
+    if (prev) renormalizeUnitSlots(next, prev.roomProductId, prev.unitIndex)
+    renormalizeUnitSlots(next, target.roomProductId, target.unitIndex)
+    return next
+  }
+
+  // FULL → rotate the member in at the front and evict the last occupant.
+  const evicted = occupants[target.capacity - 1]!
+  const kept = occupants.slice(0, target.capacity - 1)
+  const newOrder = [memberIndex, ...kept]
+  newOrder.forEach((idx, position) => {
+    next[idx] = {
+      roomProductId: target.roomProductId,
+      unitIndex: target.unitIndex,
+      slot: position,
+    }
+  })
+  if (prev) {
+    // Evicted occupant takes the spot the mover just vacated (swap source).
+    next[evicted] = {
+      roomProductId: prev.roomProductId,
+      unitIndex: prev.unitIndex,
+      slot: prev.slot ?? 0,
+    }
+    renormalizeUnitSlots(next, prev.roomProductId, prev.unitIndex)
+  } else {
+    // Mover came from the unassigned tray → evicted goes back to the tray.
+    delete next[evicted]
+  }
+  renormalizeUnitSlots(next, target.roomProductId, target.unitIndex)
+  return next
 }
 
 /**
@@ -386,7 +531,11 @@ export function autoAssignParticipants(
     remaining.set(key, (remaining.get(key) ?? 0) - 1)
   }
   // Walk participants in index order; place each unassigned one into the
-  // first unit (in expansion order) that still has remaining capacity.
+  // first unit (in expansion order) that still has remaining capacity. Fresh
+  // auto-assigned entries carry no explicit slot — occupantsOfUnit falls back
+  // to member-index order for them, which is the natural initial layout. Slots
+  // are introduced lazily by applyAssignment the first time a unit is edited,
+  // so the rotation has a stable order to cycle through from then on.
   let unitCursor = 0
   for (let pIdx = 0; pIdx < participantCount; pIdx += 1) {
     if (assignedParticipants.has(pIdx)) continue
@@ -451,17 +600,21 @@ export function autoAssignParty(
  * Continue in package mode. Returns a structured result so the UI can show
  * a precise inline hint of exactly what's blocking.
  *
- * Two independent rules must BOTH hold:
+ * Three independent rules must ALL hold:
  *   1. EVERY booked room unit has >= 1 occupant (a truly UNOCCUPIED booked
- *      room blocks — an empty room "for nobody" is wrong). A room booked
- *      "for a companion" is fine the moment she's assigned to it.
- *   2. EVERY party member (participant OR companion) is assigned to a unit
+ *      room blocks — an empty room "for nobody" is wrong).
+ *   2. EVERY booked room unit is FILLED TO CAPACITY. A capacity-2 double room
+ *      with only one person assigned blocks Continue — the customer must add a
+ *      second guest or book a smaller room. (Over-capacity can't happen: every
+ *      assignment path caps occupancy at the unit capacity.) This is the rule
+ *      that makes "a double needs two people" enforceable.
+ *   3. EVERY party member (participant OR companion) is assigned to a unit
  *      (no unassigned person).
  *
- * `complete` is true only when both `emptyUnits` and `unassignedMembers`
- * are empty. The two arrays let the caller render specific copy
- * ("Room 2 has no guests", "Assign everyone to a room") rather than a
- * generic "incomplete" message.
+ * `complete` is true only when `emptyUnits`, `partialUnits` and
+ * `unassignedMembers` are all empty. The arrays let the caller render specific
+ * copy ("Room 2 has no guests", "Double Room #1 needs 1 more guest", "Assign
+ * everyone to a room") rather than a generic "incomplete" message.
  *
  * Pure: depends only on its inputs. `partyCount` is the unified member
  * count (participants + companions). Member indices below `partyCount` that
@@ -471,6 +624,11 @@ export interface OccupancyStatus {
   complete: boolean
   /** Room units with zero occupants (truly unoccupied — blocks Continue). */
   emptyUnits: RoomUnit[]
+  /**
+   * Room units with at least one but fewer occupants than their capacity
+   * (e.g. a double room holding only one person — blocks Continue).
+   */
+  partialUnits: RoomUnit[]
   /** Party-member indices not assigned to any unit (blocks Continue). */
   unassignedMembers: number[]
 }
@@ -480,22 +638,31 @@ export function occupancyStatus(
   partyCount: number,
   assignment: RoomAssignmentMap,
 ): OccupancyStatus {
-  // Rule 1: any unit with zero occupants is an empty booked room.
-  const emptyUnits = units.filter(
-    (unit) => occupantsOfUnit(assignment, unit).length === 0,
-  )
-  // Rule 2: any member index without a (valid) assignment is unassigned.
   // Prune first so an assignment pointing at a no-longer-existing unit
-  // (e.g. a room qty was just dropped) counts the member as unassigned.
+  // (e.g. a room qty was just dropped) doesn't count toward occupancy and
+  // its member is reported as unassigned.
   const pruned = pruneAssignments(assignment, units)
+  // Rules 1 + 2: classify every booked unit by how full it is.
+  const emptyUnits: RoomUnit[] = []
+  const partialUnits: RoomUnit[] = []
+  for (const unit of units) {
+    const count = occupantsOfUnit(pruned, unit).length
+    if (count === 0) emptyUnits.push(unit)
+    else if (count < unit.capacity) partialUnits.push(unit)
+  }
+  // Rule 3: any member index without a (valid) assignment is unassigned.
   const assignedSet = new Set(Object.keys(pruned).map(Number))
   const unassignedMembers: number[] = []
   for (let i = 0; i < partyCount; i += 1) {
     if (!assignedSet.has(i)) unassignedMembers.push(i)
   }
   return {
-    complete: emptyUnits.length === 0 && unassignedMembers.length === 0,
+    complete:
+      emptyUnits.length === 0 &&
+      partialUnits.length === 0 &&
+      unassignedMembers.length === 0,
     emptyUnits,
+    partialUnits,
     unassignedMembers,
   }
 }

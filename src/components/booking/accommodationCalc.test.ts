@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  applyAssignment,
   autoAssignParticipants,
   autoAssignParty,
   CHIP_HUES,
@@ -781,6 +782,125 @@ describe('occupancyStatus (landr-87n9.3)', () => {
 
   it('is complete (vacuously) when there are no units and no members', () => {
     expect(occupancyStatus([], 0, {}).complete).toBe(true)
+  })
+
+  it('blocks a double room that holds only one person (partial unit)', () => {
+    // 1 double (capacity 2) with a single occupant and no one else in the
+    // party → the room is under-filled, so Continue must stay disabled.
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 1, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toEqual([])
+    expect(status.partialUnits).toHaveLength(1)
+    expect(status.partialUnits[0]!.roomProductId).toBe('double')
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('is complete once the double room is filled to capacity', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+    expect(status.partialUnits).toEqual([])
+  })
+})
+
+describe('applyAssignment — cycling on a full unit (landr)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+  // One single + one double → unit keys single::0, double::0.
+  const units = expandRoomUnits(
+    [
+      { productId: 'single', quantity: 1 },
+      { productId: 'double', quantity: 1 },
+    ],
+    [single, double],
+  )
+  const singleUnit = units.find((u) => u.roomProductId === 'single')!
+  const doubleUnit = units.find((u) => u.roomProductId === 'double')!
+
+  // Party: Matthias = 0 (single), Olaf = 1, Alida = 2 (double).
+  const start: RoomAssignmentMap = {
+    0: { roomProductId: 'single', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+    2: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('rotates: dropping Matthias onto a full double evicts Alida to the single', () => {
+    const next = applyAssignment(start, 0, doubleUnit)
+    // Matthias takes the first slot, Olaf the second; Alida moves to the single.
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([0, 1])
+    expect(occupantsOfUnit(next, singleUnit)).toEqual([2])
+  })
+
+  it('cycles a different person out each repeat (Alida, then Olaf, then Matthias)', () => {
+    // Round 1: drop Matthias (in single) onto the full double.
+    const r1 = applyAssignment(start, 0, doubleUnit)
+    expect(occupantsOfUnit(r1, doubleUnit)).toEqual([0, 1]) // Matthias, Olaf
+    expect(occupantsOfUnit(r1, singleUnit)).toEqual([2]) // Alida bumped out
+
+    // Round 2: drop Alida (now in single) onto the full double.
+    const r2 = applyAssignment(r1, 2, doubleUnit)
+    expect(occupantsOfUnit(r2, doubleUnit)).toEqual([2, 0]) // Alida, Matthias
+    expect(occupantsOfUnit(r2, singleUnit)).toEqual([1]) // Olaf bumped out
+
+    // Round 3: drop Olaf onto the full double → Matthias bumped out (full cycle).
+    const r3 = applyAssignment(r2, 1, doubleUnit)
+    expect(occupantsOfUnit(r3, doubleUnit)).toEqual([1, 2]) // Olaf, Alida
+    expect(occupantsOfUnit(r3, singleUnit)).toEqual([0]) // Matthias bumped out
+  })
+
+  it('never exceeds the unit capacity through a rotation', () => {
+    const next = applyAssignment(start, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit).length).toBeLessThanOrEqual(
+      doubleUnit.capacity,
+    )
+  })
+
+  it('appends (no rotation) when the target has spare capacity', () => {
+    // Double holds only Olaf (1); dropping Matthias appends him at the end.
+    const partial: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const next = applyAssignment(partial, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([1, 0]) // Olaf first, Matthias second
+    expect(occupantsOfUnit(next, singleUnit)).toEqual([])
+  })
+
+  it('evicts to the unassigned tray when the mover came from the tray', () => {
+    // Matthias (0) is unassigned; the double is full with Olaf + Alida.
+    const fromTray: RoomAssignmentMap = {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const next = applyAssignment(fromTray, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([0, 1]) // Matthias, Olaf
+    // Alida (2) is evicted to the tray → no assignment entry for her.
+    expect(next[2]).toBeUndefined()
+  })
+
+  it('unassigns a member when the target is null', () => {
+    const next = applyAssignment(start, 1, null)
+    expect(next[1]).toBeUndefined()
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([2])
+  })
+
+  it('is a no-op when dropping a member onto its own unit', () => {
+    const next = applyAssignment(start, 1, doubleUnit)
+    expect(next).toBe(start)
+  })
+
+  it('does not mutate the input map', () => {
+    const snapshot = JSON.parse(JSON.stringify(start))
+    applyAssignment(start, 0, doubleUnit)
+    expect(start).toEqual(snapshot)
   })
 })
 
