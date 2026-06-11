@@ -334,6 +334,110 @@ export function DetailsStep({
   const markTouched = (key: string) =>
     setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
 
+  // landr-79re: the onBlur path alone is unreliable on mobile (tapping
+  // between fields, dismissing the keyboard, or tapping a disabled button
+  // often don't fire a blur), so an incomplete form could show NO red
+  // borders and the customer was stuck with nothing flagged. markAllTouched
+  // arms every required field's touched key in one shot — enumerated to
+  // mirror EXACTLY the keys used in the validate(...) calls below and the
+  // required set detailsAreComplete() checks — so a Continue tap reveals all
+  // the errors at once regardless of platform.
+  const requiredFieldKeys = (): string[] => {
+    const keys = [
+      'booker.first_name',
+      'booker.last_name',
+      'booker.email',
+      'booker.phone',
+    ]
+    additional.forEach((_, idx) => {
+      keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
+    })
+    companions.forEach((_, idx) => {
+      keys.push(`companion.${idx}.first_name`)
+    })
+    return keys
+  }
+  const markAllTouched = () =>
+    setTouched((prev) => {
+      const next = new Set(prev)
+      for (const key of requiredFieldKeys()) next.add(key)
+      return next
+    })
+
+  // landr-79re: maps a required-field key to the DOM id of its <Input> so a
+  // failed Continue tap can focus + scroll the FIRST invalid field into view
+  // on mobile. Mirrors the (key, id) pairs passed to validate(...) below.
+  const fieldIdForKey = (key: string): string | undefined => {
+    switch (key) {
+      case 'booker.first_name':
+        return 'booker-first'
+      case 'booker.last_name':
+        return 'booker-last'
+      case 'booker.email':
+        return 'booker-email'
+      case 'booker.phone':
+        return 'booker-phone'
+    }
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    if (pMatch) {
+      const slot =
+        pMatch[2] === 'first_name'
+          ? 'first'
+          : pMatch[2] === 'last_name'
+            ? 'last'
+            : 'phone'
+      return `p-${pMatch[1]}-${slot}`
+    }
+    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    if (cMatch) return `companion-${cMatch[1]}-first`
+    return undefined
+  }
+
+  // landr-79re: returns true when a required field is still blank (or, for the
+  // booker email, malformed) — used to pick the FIRST invalid field to focus.
+  const isFieldInvalid = (key: string): boolean => {
+    switch (key) {
+      case 'booker.first_name':
+        return !booker.first_name.trim()
+      case 'booker.last_name':
+        return !booker.last_name.trim()
+      case 'booker.email':
+        return !booker.email.trim() || !booker.email.includes('@')
+      case 'booker.phone':
+        return !booker.phone.trim()
+    }
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    if (pMatch) {
+      const row = additional[Number(pMatch[1])]
+      if (!row) return false
+      const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
+      return !row[field].trim()
+    }
+    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    if (cMatch) {
+      const row = companions[Number(cMatch[1])]
+      return row ? !row.first_name.trim() : false
+    }
+    return false
+  }
+
+  // landr-79re: focus + scroll the first invalid required field into view
+  // after a failed Continue tap. SSR/test-safe: guards document and the
+  // optional scrollIntoView (jsdom does not implement it).
+  const focusFirstInvalid = () => {
+    if (typeof document === 'undefined') return
+    const firstKey = requiredFieldKeys().find((key) => isFieldInvalid(key))
+    if (!firstKey) return
+    const id = fieldIdForKey(firstKey)
+    if (!id) return
+    const el = document.getElementById(id)
+    if (!el) return
+    el.focus()
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }
+
   // A required text field is invalid once touched and still blank.
   const requiredError = (key: string, value: string): string | undefined =>
     touched.has(key) && !value.trim() ? 'Required' : undefined
@@ -375,7 +479,18 @@ export function DetailsStep({
   )
 
   const handleContinue = () => {
-    if (!canContinue) return
+    // landr-79re: the Continue button is ALWAYS tappable now (no
+    // disabled={!canContinue}) so mobile customers get feedback. On a tap
+    // while incomplete we reveal every required-field error (markAllTouched
+    // arms the same set detailsAreComplete checks) and take the customer to
+    // the first invalid field, but do NOT advance. We only call onConfirm
+    // when the form is actually complete (unchanged behavior for the valid
+    // case).
+    if (!canContinue) {
+      markAllTouched()
+      focusFirstInvalid()
+      return
+    }
     onConfirm(booker, participantsForValidation, companions)
   }
 
@@ -753,7 +868,13 @@ export function DetailsStep({
         </fieldset>
 
         <div className="flex justify-end pt-2">
-          <Button type="button" onClick={handleContinue} disabled={!canContinue}>
+          {/* landr-79re: Continue is ALWAYS tappable so mobile customers get
+              feedback. handleContinue gates on canContinue internally —
+              revealing all required-field errors (markAllTouched) and focusing
+              the first invalid field instead of silently doing nothing. There
+              is no in-flight/pending state on this step, so no disabled gate is
+              needed. */}
+          <Button type="button" onClick={handleContinue}>
             Continue
           </Button>
         </div>
