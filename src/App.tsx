@@ -1096,6 +1096,11 @@ function BookingFlowApp() {
             product={step.product}
             selection={step.selection}
             serviceRoles={serviceRoles}
+            // landr-4uyu: operator contact email for the participant-max
+            // "larger group / flight school" contact-us line. Null when the
+            // operator hasn't set one (or the API predates the key) — the
+            // copy still renders but the mailto is omitted.
+            contactEmail={operatorSettings.contact_email ?? null}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-87n9.3: restore the non-guiding companions on Back.
