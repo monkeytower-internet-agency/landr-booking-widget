@@ -436,3 +436,51 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
     )
   })
 })
+
+describe('RoomAssignment — guest separator (landr-w6wp)', () => {
+  const DOUBLE: RoomUnit[] = [
+    { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'Double Room' },
+  ]
+
+  it('multi-occupant unit: second guest section has the dashed-divider class', () => {
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    render(
+      <RoomAssignment
+        units={DOUBLE}
+        participantNames={['Ada', 'Grace']}
+        assignment={assignment}
+        onAssign={vi.fn()}
+      />,
+    )
+    // Section for the first occupant (pos=0) should NOT have the divider class.
+    const section0 = screen.getByTestId('occupant-section-0')
+    expect(section0.className).not.toMatch(/border-t/)
+    // Section for the second occupant (pos=1) MUST have the divider class.
+    const section1 = screen.getByTestId('occupant-section-1')
+    expect(section1.className).toMatch(/border-t/)
+    expect(section1.className).toMatch(/border-dashed/)
+  })
+
+  it('single-occupant unit: the sole guest section has no separator class', () => {
+    const SINGLE: RoomUnit[] = [
+      { roomProductId: 'single', unitIndex: 0, capacity: 1, roomName: 'Single Room' },
+    ]
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+    }
+    render(
+      <RoomAssignment
+        units={SINGLE}
+        participantNames={['Ada']}
+        assignment={assignment}
+        onAssign={vi.fn()}
+      />,
+    )
+    // Only one occupant — no divider should be applied.
+    const section0 = screen.getByTestId('occupant-section-0')
+    expect(section0.className ?? '').not.toMatch(/border-t/)
+  })
+})
