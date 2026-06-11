@@ -15,7 +15,10 @@ import {
 } from '@dnd-kit/core'
 import {
   chipHue,
+  occupantsByRoomProduct,
   occupantsOfUnit,
+  roomBreakfastMode,
+  roomBreakfastQty,
   roomUnitKey,
   type BreakfastMap,
   type OccupantAgeMap,
@@ -89,28 +92,53 @@ interface Props {
     age: number | null,
   ) => void
   /**
-   * landr-a4fy: per-occupant breakfast flag map (memberIndex → boolean).
-   * Only shown for units whose room product has a breakfast add-on
-   * (i.e. when `unitHasBreakfastAddon` is true). Missing key = false.
-   * When onBreakfastChange is omitted the breakfast toggle is hidden.
+   * landr-z59y: raw per-room add-on selection map (roomProductId →
+   * { addon_product_id → qty }). The summed qty per room product is the FIXED
+   * number of breakfast chips for that product. Drives the breakfast UI mode
+   * (none / all / partial), the "(N breakfasts)" room label, and how many
+   * draggable breakfast chips to render. Absent / empty → no breakfast UI.
+   */
+  perRoomAddons?: Record<string, Record<string, number>>
+  /**
+   * landr-z59y: which occupants currently HOLD a breakfast chip
+   * (memberIndex → true). Drives the per-occupant breakfast indicator + which
+   * occupant a draggable chip sits on. The parent (AccommodationStep) owns the
+   * map, keeps it clamped to exactly `qty` holders per room product, and passes
+   * it back down. Absent → no occupant holds a chip.
    */
   breakfastMap?: BreakfastMap
   /**
-   * landr-a4fy: called when the user toggles breakfast for an assigned
-   * occupant. The parent owns the map and passes it back down.
+   * landr-z59y: move a breakfast chip ONTO `memberIndex` (the occupant the
+   * customer dropped the chip on). The parent re-clamps so the source occupant
+   * (same room product) gives up its chip — the count stays fixed. Only fired
+   * for 'partial'-mode products; 'all'-mode breakfast is automatic.
    */
-  onBreakfastChange?: (memberIndex: number, hasBreakfast: boolean) => void
-  /**
-   * landr-a4fy: set of roomProductIds whose rooms have a breakfast add-on
-   * configured (and selected qty > 0). Used to decide whether to show
-   * breakfast toggles for occupants in those units.
-   */
-  breakfastRoomIds?: Set<string>
+  onBreakfastAssign?: (memberIndex: number) => void
 }
 
 function participantLabel(names: string[], index: number): string {
   const name = (names[index] ?? '').trim()
   return name.length > 0 ? name : `Guest ${index + 1}`
+}
+
+/** Plain label for a room unit in the <select> / <option> fallbacks. */
+function unitOptionLabel(unit: RoomUnit): string {
+  return `${unit.roomName} #${unit.unitIndex + 1}`
+}
+
+/**
+ * landr-z59y: human breakfast label for a room product's title given its chip
+ * qty (B) and occupant count (occ). Returns '' when there is no breakfast UI.
+ *
+ *   • all  (B >= occ): "(N breakfast[s])" — everyone eats; B is shown so the
+ *                      single-room case reads "(with breakfast)".
+ *   • partial:         "(N breakfast[s])" — N draggable chips to distribute.
+ */
+function breakfastTitleLabel(qty: number, occCount: number): string {
+  const mode = roomBreakfastMode(qty, occCount)
+  if (mode === 'none') return ''
+  if (mode === 'all' && qty === 1 && occCount === 1) return '(with breakfast)'
+  return qty === 1 ? '(1 breakfast)' : `(${qty} breakfasts)`
 }
 
 /**
@@ -286,41 +314,148 @@ function OccupantAgeControl({
 }
 
 /**
- * landr-a4fy: per-occupant breakfast toggle shown next to each assigned
- * occupant chip in a room unit (only when the room product has a breakfast
- * add-on configured). Renders a checkbox + label so screen readers announce
- * it as "Breakfast — <name>".
+ * landr-z59y: a draggable "Breakfast" chip held by occupant `memberIndex`.
+ * Dragging it onto another occupant (of the same room product) reassigns the
+ * breakfast. `static` (all-mode) renders the same face but non-draggable —
+ * everyone gets breakfast so there is nothing to move.
  */
-function OccupantBreakfastControl({
+function BreakfastChip({
+  memberIndex,
+  isStatic = false,
+}: {
+  memberIndex: number
+  isStatic?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `breakfast-${memberIndex}`,
+    data: { breakfastFrom: memberIndex },
+    disabled: isStatic,
+  })
+  const face = (
+    <>
+      <span aria-hidden>🥐</span>
+      <span>Breakfast</span>
+    </>
+  )
+  if (isStatic) {
+    return (
+      <span
+        data-testid={`breakfast-chip-${memberIndex}`}
+        data-breakfast-static="true"
+        className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary select-none"
+      >
+        {face}
+      </span>
+    )
+  }
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      {...listeners}
+      {...attributes}
+      data-testid={`breakfast-chip-${memberIndex}`}
+      className={[
+        'inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary select-none',
+        'cursor-grab touch-none transition-transform hover:-translate-y-0.5',
+        isDragging ? 'opacity-30' : '',
+      ].join(' ')}
+    >
+      {face}
+    </button>
+  )
+}
+
+/**
+ * landr-z59y: one assigned occupant inside a room unit. The row is itself a
+ * droppable target for breakfast chips (so a chip dragged here reassigns the
+ * breakfast to this occupant). It renders the draggable NAME chip, the optional
+ * Adult/Child control, and — when this occupant holds breakfast — the breakfast
+ * chip (draggable in 'partial' mode, static in 'all' mode).
+ */
+function OccupantRow({
   memberIndex,
   label,
-  breakfastMap,
-  onBreakfastChange,
+  selected,
+  isGuest,
+  onUnassign,
+  ageMap,
+  onAgeBandChange,
+  breakfastMode,
+  hasBreakfast,
+  onBreakfastAssign,
 }: {
   memberIndex: number
   label: string
-  breakfastMap: BreakfastMap
-  onBreakfastChange: (memberIndex: number, hasBreakfast: boolean) => void
+  selected: boolean
+  isGuest: boolean
+  onUnassign: () => void
+  ageMap: OccupantAgeMap
+  onAgeBandChange?: (
+    memberIndex: number,
+    band: OccupantAgeBand,
+    age: number | null,
+  ) => void
+  breakfastMode: ReturnType<typeof roomBreakfastMode>
+  hasBreakfast: boolean
+  onBreakfastAssign?: (memberIndex: number) => void
 }) {
-  const hasBreakfast = breakfastMap[memberIndex] ?? false
+  // Only 'partial' mode makes an occupant a live breakfast drop target — in
+  // 'all' mode everyone already has breakfast and there is nothing to move.
+  const droppable = breakfastMode === 'partial'
+  const { setNodeRef, isOver } = useDroppable({
+    id: `occupant-${memberIndex}`,
+    data: { breakfastTarget: memberIndex },
+    disabled: !droppable,
+  })
   return (
-    <label
-      className="flex cursor-pointer items-center gap-1 text-xs"
-      data-testid={`breakfast-toggle-${memberIndex}`}
+    <div
+      ref={setNodeRef}
+      data-testid={`occupant-row-${memberIndex}`}
+      className={[
+        'flex flex-wrap items-center gap-2 rounded-md transition-colors',
+        droppable && isOver ? 'ring-1 ring-primary/50 bg-primary/5' : '',
+      ].join(' ')}
     >
-      <input
-        type="checkbox"
-        checked={hasBreakfast}
-        onChange={(e) => onBreakfastChange(memberIndex, e.target.checked)}
-        className="h-3.5 w-3.5 accent-primary"
-        aria-label={`Breakfast for ${label}`}
+      <Chip
+        participantIndex={memberIndex}
+        label={label}
+        selected={selected}
+        isGuest={isGuest}
+        // Tapping an already-assigned chip removes it from this unit
+        // (back to unassigned) — the fastest way to free a slot.
+        onTap={onUnassign}
       />
-      <span
-        className={hasBreakfast ? 'font-medium text-primary' : 'text-muted-foreground'}
-      >
-        {hasBreakfast ? 'breakfast' : 'no breakfast'}
-      </span>
-    </label>
+      {/* landr-doam.1: Adult/Child control — only for assigned occupants. */}
+      {onAgeBandChange ? (
+        <OccupantAgeControl
+          memberIndex={memberIndex}
+          ageMap={ageMap}
+          onAgeBandChange={onAgeBandChange}
+        />
+      ) : null}
+      {/* landr-z59y: breakfast chip. Held occupants show it; in 'partial' mode
+          it is draggable (move it to another occupant to reassign), in 'all'
+          mode it is a static indicator (everyone eats). */}
+      {hasBreakfast && breakfastMode !== 'none' ? (
+        <BreakfastChip
+          memberIndex={memberIndex}
+          isStatic={breakfastMode === 'all'}
+        />
+      ) : null}
+      {/* Tap-to-place fallback for breakfast (a11y / no-drag): in partial mode,
+          a one-tap "give breakfast here" when this occupant doesn't hold one. */}
+      {droppable && !hasBreakfast && onBreakfastAssign ? (
+        <button
+          type="button"
+          data-testid={`give-breakfast-${memberIndex}`}
+          onClick={() => onBreakfastAssign(memberIndex)}
+          className="rounded-md border border-primary/40 px-2 py-0.5 text-xs text-primary hover:bg-primary/5"
+        >
+          + breakfast
+        </button>
+      ) : null}
+    </div>
   )
 }
 
@@ -335,9 +470,11 @@ function UnitDropZone({
   onAssign,
   ageMap = {},
   onAgeBandChange,
-  showBreakfastToggle = false,
+  breakfastMode = 'none',
+  breakfastQty = 0,
+  productOccupantCount = 0,
   breakfastMap = {},
-  onBreakfastChange,
+  onBreakfastAssign,
 }: {
   unit: RoomUnit
   occupantIndices: number[]
@@ -352,14 +489,24 @@ function UnitDropZone({
     band: OccupantAgeBand,
     age: number | null,
   ) => void
-  /** landr-a4fy: whether to show breakfast toggles for this unit's occupants. */
-  showBreakfastToggle?: boolean
+  /** landr-z59y: breakfast UI mode for THIS unit's room product. */
+  breakfastMode?: ReturnType<typeof roomBreakfastMode>
+  /** landr-z59y: breakfast add-on qty (chip count) for the product. */
+  breakfastQty?: number
+  /** landr-z59y: total occupants across the product's units (label maths). */
+  productOccupantCount?: number
+  /** landr-z59y: which occupants currently hold a breakfast chip. */
   breakfastMap?: BreakfastMap
-  onBreakfastChange?: (memberIndex: number, hasBreakfast: boolean) => void
+  /** landr-z59y: drop a breakfast chip onto an occupant (partial mode). */
+  onBreakfastAssign?: (memberIndex: number) => void
 }) {
   const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
   const { setNodeRef, isOver } = useDroppable({ id: `unit-${key}`, data: { unit } })
   const full = occupantIndices.length >= unit.capacity
+  // landr-z59y: breakfast is a fixed set of chips owned by occupants, not a
+  // per-unit property. The title shows the product's breakfast count; chips
+  // sit on the occupants who hold them.
+  const bfLabel = breakfastTitleLabel(breakfastQty, productOccupantCount)
   return (
     <div
       ref={setNodeRef}
@@ -379,8 +526,16 @@ function UnitDropZone({
       ].join(' ')}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium">
+        <span className="text-sm font-medium" data-testid={`room-unit-title-${key}`}>
           {unit.roomName} #{unit.unitIndex + 1}
+          {bfLabel ? (
+            <span
+              className="ml-1 text-xs font-medium text-primary"
+              data-testid={`room-unit-breakfast-${key}`}
+            >
+              {bfLabel}
+            </span>
+          ) : null}
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
           {occupantIndices.length}/{unit.capacity}
@@ -391,37 +546,19 @@ function UnitDropZone({
           <span className="text-xs italic text-muted-foreground">Empty</span>
         ) : (
           occupantIndices.map((pIdx) => (
-            <div key={pIdx} className="flex flex-wrap items-center gap-2">
-              <Chip
-                participantIndex={pIdx}
-                label={participantLabel(participantNames, pIdx)}
-                selected={selectedChip === pIdx}
-                isGuest={guestFlags[pIdx] ?? false}
-                onTap={() =>
-                  // Tapping an already-assigned chip removes it from this unit
-                  // (back to unassigned) — the fastest way to free a slot.
-                  onAssign(pIdx, null)
-                }
-              />
-              {/* landr-doam.1: Adult/Child control — only for assigned occupants. */}
-              {onAgeBandChange ? (
-                <OccupantAgeControl
-                  memberIndex={pIdx}
-                  ageMap={ageMap}
-                  onAgeBandChange={onAgeBandChange}
-                />
-              ) : null}
-              {/* landr-a4fy: breakfast toggle — only when this room
-                  product has a breakfast add-on selected. */}
-              {showBreakfastToggle && onBreakfastChange ? (
-                <OccupantBreakfastControl
-                  memberIndex={pIdx}
-                  label={participantLabel(participantNames, pIdx)}
-                  breakfastMap={breakfastMap ?? {}}
-                  onBreakfastChange={onBreakfastChange}
-                />
-              ) : null}
-            </div>
+            <OccupantRow
+              key={pIdx}
+              memberIndex={pIdx}
+              label={participantLabel(participantNames, pIdx)}
+              selected={selectedChip === pIdx}
+              isGuest={guestFlags[pIdx] ?? false}
+              onUnassign={() => onAssign(pIdx, null)}
+              ageMap={ageMap}
+              onAgeBandChange={onAgeBandChange}
+              breakfastMode={breakfastMode}
+              hasBreakfast={breakfastMap[pIdx] === true}
+              onBreakfastAssign={onBreakfastAssign}
+            />
           ))
         )}
       </div>
@@ -452,9 +589,9 @@ export function RoomAssignment({
   onAssign,
   ageMap = {},
   onAgeBandChange,
+  perRoomAddons = {},
   breakfastMap = {},
-  onBreakfastChange,
-  breakfastRoomIds,
+  onBreakfastAssign,
 }: Props) {
   const selectId = useId()
   // tap-to-place: the currently "picked up" participant index (or null).
@@ -463,6 +600,8 @@ export function RoomAssignment({
   // Drives the tilted DragOverlay clone so the customer sees the card move
   // instead of dragging "blindly" while the source chip fades in place.
   const [activeChip, setActiveChip] = useState<number | null>(null)
+  // landr-z59y: the member-index whose BREAKFAST chip is being dragged (or null).
+  const [activeBreakfast, setActiveBreakfast] = useState<number | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -483,10 +622,34 @@ export function RoomAssignment({
     units.map((u) => [roomUnitKey(u.roomProductId, u.unitIndex), u]),
   )
 
+  // landr-z59y: per-room-product breakfast facts — chip qty, the product's
+  // occupant count, and the resulting UI mode. Drives the unit title label +
+  // whether breakfast chips are draggable.
+  const occupantsByProduct = occupantsByRoomProduct(assignment)
+  const breakfastByProduct = new Map<
+    string,
+    { qty: number; occCount: number; mode: ReturnType<typeof roomBreakfastMode> }
+  >()
+  for (const u of units) {
+    if (breakfastByProduct.has(u.roomProductId)) continue
+    const qty = roomBreakfastQty(u.roomProductId, perRoomAddons)
+    const occCount = occupantsByProduct.get(u.roomProductId)?.length ?? 0
+    breakfastByProduct.set(u.roomProductId, {
+      qty,
+      occCount,
+      mode: roomBreakfastMode(qty, occCount),
+    })
+  }
+
   function handleDragStart(event: DragStartEvent) {
-    const participantIndex = event.active.data.current?.participantIndex as
-      | number
-      | undefined
+    const data = event.active.data.current
+    const breakfastFrom = data?.breakfastFrom as number | undefined
+    if (breakfastFrom !== undefined) {
+      setActiveBreakfast(breakfastFrom)
+      setSelectedChip(null)
+      return
+    }
+    const participantIndex = data?.participantIndex as number | undefined
     setActiveChip(participantIndex ?? null)
     // Starting a drag supersedes any tap-to-place selection so the two
     // "picked up" affordances don't fight each other.
@@ -495,14 +658,28 @@ export function RoomAssignment({
 
   function handleDragCancel() {
     setActiveChip(null)
+    setActiveBreakfast(null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setSelectedChip(null)
     setActiveChip(null)
-    const participantIndex = event.active.data.current?.participantIndex as
-      | number
-      | undefined
+    setActiveBreakfast(null)
+    const data = event.active.data.current
+    const overData = event.over?.data.current
+
+    // landr-z59y: a breakfast chip dropped onto an occupant reassigns the
+    // breakfast to that occupant (the parent re-clamps the source's chip away).
+    const breakfastFrom = data?.breakfastFrom as number | undefined
+    if (breakfastFrom !== undefined) {
+      const target = overData?.breakfastTarget as number | undefined
+      if (target !== undefined && target !== breakfastFrom) {
+        onBreakfastAssign?.(target)
+      }
+      return
+    }
+
+    const participantIndex = data?.participantIndex as number | undefined
     if (participantIndex === undefined) return
     const overId = event.over?.id
     if (overId === undefined || overId === null) return
@@ -510,7 +687,7 @@ export function RoomAssignment({
       onAssign(participantIndex, null)
       return
     }
-    const targetUnit = (event.over?.data.current?.unit as RoomUnit | undefined) ?? null
+    const targetUnit = (overData?.unit as RoomUnit | undefined) ?? null
     if (targetUnit) onAssign(participantIndex, targetUnit)
   }
 
@@ -532,7 +709,8 @@ export function RoomAssignment({
         <p className="text-sm font-medium">Who stays where?</p>
         <p className="text-xs text-muted-foreground">
           Drag a name onto a room, or tap a name then tap a room. You can also
-          use the dropdown on each name.
+          use the dropdown on each name. When a room has fewer breakfasts than
+          guests, drag the Breakfast chip onto whoever gets it.
         </p>
 
         <UnassignedTray
@@ -554,6 +732,7 @@ export function RoomAssignment({
           {units.map((unit) => {
             const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
             const occupants = occupantsOfUnit(assignment, unit)
+            const bf = breakfastByProduct.get(unit.roomProductId)
             return (
               <div key={key} className="flex flex-col gap-1">
                 <UnitDropZone
@@ -566,12 +745,11 @@ export function RoomAssignment({
                   onAssign={onAssign}
                   ageMap={ageMap}
                   onAgeBandChange={onAgeBandChange}
-                  showBreakfastToggle={
-                    breakfastRoomIds !== undefined &&
-                    breakfastRoomIds.has(unit.roomProductId)
-                  }
+                  breakfastMode={bf?.mode ?? 'none'}
+                  breakfastQty={bf?.qty ?? 0}
+                  productOccupantCount={bf?.occCount ?? 0}
                   breakfastMap={breakfastMap}
-                  onBreakfastChange={onBreakfastChange}
+                  onBreakfastAssign={onBreakfastAssign}
                 />
               </div>
             )
@@ -623,7 +801,7 @@ export function RoomAssignment({
                       const k = roomUnitKey(u.roomProductId, u.unitIndex)
                       return (
                         <option key={k} value={k}>
-                          {u.roomName} #{u.unitIndex + 1}
+                          {unitOptionLabel(u)}
                         </option>
                       )
                     })}
@@ -663,6 +841,17 @@ export function RoomAssignment({
               isGuest={guestFlags[activeChip] ?? false}
               selected
             />
+          </div>
+        ) : activeBreakfast !== null ? (
+          // landr-z59y: floating Breakfast chip clone while it is being dragged
+          // onto another occupant.
+          <div
+            data-testid="breakfast-drag-overlay"
+            style={{ transform: 'rotate(6deg) scale(1.06)', cursor: 'grabbing' }}
+            className="inline-flex items-center gap-1 rounded-full border border-primary/60 bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-xl shadow-black/30"
+          >
+            <span aria-hidden>🥐</span>
+            <span>Breakfast</span>
           </div>
         ) : null}
         </DragOverlay>,
@@ -753,7 +942,7 @@ function UnassignedTray({
                   const full = occ >= u.capacity
                   return (
                     <option key={k} value={k} disabled={full}>
-                      {u.roomName} #{u.unitIndex + 1}
+                      {unitOptionLabel(u)}
                       {full ? ' (full)' : ''}
                     </option>
                   )

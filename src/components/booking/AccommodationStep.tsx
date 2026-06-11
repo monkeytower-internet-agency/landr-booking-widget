@@ -18,8 +18,9 @@ import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import {
   applyAssignment,
+  assignBreakfastChip,
   autoAssignParty,
-  deriveBreakfastMap,
+  clampBreakfastMap,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
@@ -219,10 +220,11 @@ interface Props {
    */
   initialAgeMap?: OccupantAgeMap
   /**
-   * landr-a4fy: restore the per-occupant breakfast flag map on back-nav
-   * re-entry so breakfast toggles survive hitting Back. undefined → derive
-   * from the current add-on selection + assignment (the default behaviour
-   * on forward entry).
+   * landr-z59y: restore which occupants hold a breakfast chip on back-nav
+   * re-entry. The map is re-clamped against the restored assignment + add-on
+   * qtys (clampBreakfastMap) so a stale holder for someone who moved rooms is
+   * corrected rather than dropped wholesale (landr-nmed). undefined → seed the
+   * deterministic default placement on forward entry.
    */
   initialBreakfastMap?: BreakfastMap
 }
@@ -359,13 +361,15 @@ export function AccommodationStep({
     () => initialAgeMap ?? {},
   )
 
-  // landr-a4fy: per-occupant breakfast flag (memberIndex → boolean).
-  // Seeded from initialBreakfastMap on back-nav re-entry; otherwise derived
-  // from the current add-on selection + assignment via deriveBreakfastMap().
-  // Updated by the onBreakfastChange handler (manual toggle) AND by the
-  // add-on auto-derive effect below (when addons/assignment change). Manual
-  // toggles take priority over the derived value — the effect only re-seeds
-  // when the underlying data changes AND the user has not yet toggled.
+  // landr-z59y: breakfast is a fixed set of draggable chips owned by occupants.
+  // breakfastMap[memberIndex] === true means that occupant holds a breakfast
+  // chip → has_breakfast=true on submit. Seeded from initialBreakfastMap on
+  // back-nav re-entry; otherwise the clamp effect below seeds the deterministic
+  // default placement (first B occupants of each room product). The map is
+  // ALWAYS re-clamped against the current assignment + add-on qtys so it never
+  // goes stale when people move rooms or the breakfast qty changes — which is
+  // what keeps it valid (and survives a breadcrumb re-nav) without reintroducing
+  // the landr-nmed data-loss bug: the persisted holders are clamped, not dropped.
   const [breakfastMap, setBreakfastMap] = useState<BreakfastMap>(
     () => initialBreakfastMap ?? {},
   )
@@ -560,7 +564,7 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: a new hotel resets the age map too (occupants change).
     setAgeMap({})
-    // landr-a4fy: a new hotel resets the breakfast map (room add-ons change).
+    // landr-z59y: a new hotel means new rooms/add-ons → clear breakfast chips.
     setBreakfastMap({})
     // landr-87n9.2: switching hotel clears the room cart → live total resets.
     notifyLiveAccommodation(mode, {}, {})
@@ -583,7 +587,7 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: mode switch resets the age map too.
     setAgeMap({})
-    // landr-a4fy: mode switch resets the breakfast map too.
+    // landr-z59y: mode switch clears the breakfast chips too.
     setBreakfastMap({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
@@ -887,49 +891,38 @@ export function AccommodationStep({
     }))
   }
 
-  // landr-a4fy: manual breakfast toggle per occupant. The parent owns the
-  // breakfastMap; this handler merges the new entry in. Pure — no setState-in-effect.
-  function handleBreakfastChange(memberIndex: number, hasBreakfast: boolean) {
-    setBreakfastMap((prev) => ({ ...prev, [memberIndex]: hasBreakfast }))
+  // landr-z59y: move a breakfast chip onto an occupant (drag-drop or the
+  // "+ breakfast" tap fallback). The pure helper forces the target to hold a
+  // chip and drops the highest-index other holder of the same room product so
+  // the count stays fixed. No setState-in-effect.
+  function handleBreakfastAssign(memberIndex: number) {
+    setBreakfastMap((prev) =>
+      assignBreakfastChip(assignment, addonSelection, prev, memberIndex),
+    )
   }
 
-  // landr-a4fy: auto-derive the breakfast map from the current add-on
-  // selection + assignment whenever either changes. This seeds sensible
-  // defaults so the toggles start in the right position (matching the review
-  // screen heuristic). Only re-seeds when breakfastMap is still empty (i.e.
-  // no manual overrides yet) to respect explicit user choices. The IIFE
-  // pattern avoids the react-hooks/set-state-in-effect lint rule.
-  const addonSignature = JSON.stringify(addonSelection)
-  const assignmentSignature = JSON.stringify(assignment)
+  // landr-z59y: re-clamp the breakfast-chip holders whenever the assignment or
+  // add-on qtys change. This seeds the deterministic default placement (first B
+  // occupants per room product) the first time, then keeps the map valid as
+  // people move rooms or the breakfast qty changes — preferring the holders the
+  // customer already chose. The IIFE-in-effect pattern keeps the
+  // react-hooks/set-state-in-effect lint rule happy (no sync setState in body).
+  const breakfastSignatureAddon = JSON.stringify(addonSelection)
+  const breakfastSignatureAssignment = JSON.stringify(assignment)
   useEffect(() => {
-    if (Object.keys(addonSelection).length === 0) return
-    if (Object.keys(assignment).length === 0) return
     let cancelled = false
     void (async () => {
       if (cancelled) return
-      const derived = deriveBreakfastMap(assignment, addonSelection)
-      if (cancelled) return
-      // Only seed when the current breakfastMap doesn't already cover all
-      // assigned members (i.e. the assignment grew or is brand new).
-      setBreakfastMap((prev) => {
-        const assignedKeys = Object.keys(assignment).map(Number)
-        const needsSeed = assignedKeys.some((k) => prev[k] === undefined)
-        if (!needsSeed) return prev
-        // Merge: keep any manual entries, fill in missing ones from derived.
-        const next: BreakfastMap = { ...derived }
-        for (const [k, v] of Object.entries(prev)) {
-          next[Number(k)] = v
-        }
-        return next
-      })
+      setBreakfastMap((prev) => clampBreakfastMap(assignment, addonSelection, prev))
     })()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addonSignature, assignmentSignature])
-  // ^ keyed on stable JSON signatures rather than object identity so the
-  //   effect only re-fires when the data actually changes.
+  }, [breakfastSignatureAddon, breakfastSignatureAssignment])
+  // ^ keyed on stable JSON signatures rather than object identity so the effect
+  //   only re-fires when the data actually changes. setBreakfastMap reads the
+  //   latest holders, so these are the only real triggers.
 
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
@@ -971,6 +964,16 @@ export function AccommodationStep({
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
     const finalAssignment = pruneAssignments(assignment, roomUnits)
+    // landr-z59y: clamp the breakfast-chip holders to the FINAL assignment so
+    // has_breakfast on the submit payload exactly matches which occupants hold
+    // a chip (preferring the customer's current placement; topping up / trimming
+    // to the fixed per-product qty). Closes any drift between the last drag and
+    // Continue. This is the per-occupant has_breakfast source for the payload.
+    const breakfastMapForSubmit = clampBreakfastMap(
+      finalAssignment,
+      addonSelection,
+      breakfastMap,
+    )
     // landr-gb2f.5: build a name map for the rooms in the cart so the
     // review can label units as "Single Room 1 — with breakfast" etc.
     // Uses the localized name (pickLocalized with the current locale) for
@@ -1000,8 +1003,9 @@ export function AccommodationStep({
       addonSelection,
       // landr-gb2f.5: room product names for the review labels.
       roomProductNames,
-      // landr-a4fy: per-occupant breakfast map; pruned to assigned members only.
-      breakfastMap,
+      // landr-z59y: per-occupant breakfast map (which occupants hold a chip),
+      // clamped to the final assignment + add-on qtys.
+      breakfastMapForSubmit,
     )
   }
 
@@ -1321,19 +1325,12 @@ export function AccommodationStep({
               onAssign={assignParticipant}
               ageMap={ageMap}
               onAgeBandChange={handleAgeBandChange}
+              // landr-z59y: per-room add-on selection drives the breakfast count
+              // + the draggable "Breakfast" chips; breakfastMap holds which
+              // occupants currently have a chip; onBreakfastAssign reassigns one.
+              perRoomAddons={addonSelection}
               breakfastMap={breakfastMap}
-              onBreakfastChange={handleBreakfastChange}
-              breakfastRoomIds={
-                // landr-a4fy: rooms with breakfast add-on qty > 0 drive
-                // the per-occupant breakfast toggle visibility.
-                new Set(
-                  Object.entries(addonSelection)
-                    .filter(([, qtys]) =>
-                      Object.values(qtys).some((q) => q > 0),
-                    )
-                    .map(([roomId]) => roomId),
-                )
-              }
+              onBreakfastAssign={handleBreakfastAssign}
             />
             {/* landr-87n9.3: inline blocking hint — only shown while
                 occupancy is incomplete so the customer knows exactly what to

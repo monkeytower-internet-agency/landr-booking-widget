@@ -764,85 +764,185 @@ export function roomIncludesBreakfast(product: Product): boolean {
 }
 
 /**
- * landr-a4fy: per-party-member breakfast flag map (memberIndex → boolean).
- * Only assigned occupants ever appear — unassigned members have no breakfast
- * context. A missing key means the occupant has no breakfast (default false).
- * Persisted through AccommodationStep's onConfirm so BookingForm can attach
- * has_breakfast to each Participant/Companion in the submit payload.
+ * landr-a4fy / landr-z59y: per-party-member breakfast flag map
+ * (memberIndex → boolean). `breakfastMap[i] === true` means occupant i HOLDS a
+ * breakfast chip → they get breakfast (has_breakfast=true on the submit
+ * payload + emails). Only assigned occupants ever appear; a missing key means
+ * no breakfast.
+ *
+ * landr-z59y reworked the UX: breakfast is no longer a per-occupant checkbox.
+ * Each breakfast add-on is a fixed, DRAGGABLE "Breakfast" chip the customer
+ * drops onto a person. The fixed count (= the add-on qty per room product)
+ * means chips can only be MOVED between occupants of the same room product,
+ * never added or removed — which enforces "exactly N breakfasts" structurally.
+ * This map records the result (which occupants currently hold a chip) and is
+ * persisted across breadcrumb re-nav so the assignment survives (landr-nmed),
+ * being re-clamped whenever the occupants / add-on qty change.
  */
 export type BreakfastMap = Record<number, boolean>
 
 /**
- * landr-a4fy: derive a default BreakfastMap from the per-room add-on
- * selection and the room assignment. The heuristic mirrors BookingForm's
- * review-screen calculation: for each room product, the first N assigned
- * occupants (in ascending memberIndex order) get breakfast, where N is the
- * total breakfast add-on qty for that room product. This provides a sensible
- * default that the user can then adjust per-occupant.
+ * landr-z59y: total breakfast add-on qty for a single room PRODUCT, summed
+ * across all its add-on lines (breakfast is the only per-room add-on today;
+ * if more are added we sum all of them, matching BookingForm's
+ * perRoomBreakfastRows logic). This is the FIXED number of breakfast chips for
+ * that product. Returns 0 when the room has no add-on slice.
+ */
+export function roomBreakfastQty(
+  roomProductId: string,
+  perRoomAddons: Record<string, Record<string, number>>,
+): number {
+  const qtys = perRoomAddons[roomProductId] ?? {}
+  return Object.values(qtys).reduce((a, b) => a + b, 0)
+}
+
+/**
+ * landr-z59y: assigned occupant member-indices grouped by their room PRODUCT
+ * (not unit), each list in ascending member-index order. Breakfast chips are a
+ * per-product resource (e.g. "this hotel-room type comes with N breakfasts"),
+ * so chip distribution + the "(N breakfasts)" label reason at the product
+ * level — a double room with 2 people but only 1 breakfast cannot be split
+ * into two units, so we count its occupants directly.
+ */
+export function occupantsByRoomProduct(
+  assignment: RoomAssignmentMap,
+): Map<string, number[]> {
+  const byProduct = new Map<string, number[]>()
+  for (const [memberIdxStr, entry] of Object.entries(assignment)) {
+    const list = byProduct.get(entry.roomProductId) ?? []
+    list.push(Number(memberIdxStr))
+    byProduct.set(entry.roomProductId, list)
+  }
+  for (const list of byProduct.values()) list.sort((a, b) => a - b)
+  return byProduct
+}
+
+/**
+ * landr-z59y: the breakfast UI mode for one room product, given its breakfast
+ * add-on qty (B) and how many occupants are assigned to its rooms (occ):
  *
- * The returned map is used to SEED the UI when the assignment or add-on
- * selection changes — callers should keep any manual overrides the user has
- * already made by merging (not replacing) existing entries where the
- * occupant is still assigned to the same room.
+ *   • 'none'    — B === 0: no breakfast add-on → no breakfast UI at all.
+ *   • 'all'     — B >= occ > 0: every occupant gets breakfast automatically.
+ *                 No draggable chips, just a "(N breakfasts)" label.
+ *   • 'partial' — 0 < B < occ: render B draggable chips the customer assigns
+ *                 to specific occupants.
+ *
+ * occ === 0 with B > 0 (breakfast bought but nobody assigned yet) reports
+ * 'all' (B >= occ trivially) but yields no chips/flags since there are no
+ * occupants — harmless, and it resolves to 'partial' as soon as occ exceeds B.
+ */
+export type RoomBreakfastMode = 'none' | 'all' | 'partial'
+
+export function roomBreakfastMode(qty: number, occCount: number): RoomBreakfastMode {
+  if (qty <= 0) return 'none'
+  if (qty >= occCount) return 'all'
+  return 'partial'
+}
+
+/**
+ * landr-z59y: clamp / (re)seed the breakfast-chip holder map against the
+ * current room assignment + per-room add-on qtys. This is the single source of
+ * truth that keeps the map valid as occupants are moved between rooms or the
+ * add-on qty changes, and it provides the deterministic DEFAULT placement.
+ *
+ * For each room product:
+ *   • B = breakfast add-on qty (chip count), occ = its assigned occupants.
+ *   • If B >= occ → ALL occupants hold a chip (true).
+ *   • Else keep the chips currently held by occupants STILL assigned to this
+ *     product (from `prev`), capped at B, preferring lower member indices for
+ *     determinism; if fewer than B are held, fill the remainder from the
+ *     product's first occupants (ascending) that don't already hold one.
+ *
+ * Occupants of products with no breakfast (B === 0) never hold a chip.
+ * Unassigned members never appear. Returns a NEW map — pure.
+ */
+export function clampBreakfastMap(
+  assignment: RoomAssignmentMap,
+  perRoomAddons: Record<string, Record<string, number>>,
+  prev: BreakfastMap = {},
+): BreakfastMap {
+  const out: BreakfastMap = {}
+  const byProduct = occupantsByRoomProduct(assignment)
+  for (const [roomProductId, occupants] of byProduct.entries()) {
+    const qty = roomBreakfastQty(roomProductId, perRoomAddons)
+    if (qty <= 0) continue
+    if (qty >= occupants.length) {
+      // Everyone gets breakfast — no choice to make.
+      for (const idx of occupants) out[idx] = true
+      continue
+    }
+    // Partial: keep prior holders (still assigned here), then top up.
+    const held: number[] = []
+    for (const idx of occupants) {
+      if (prev[idx] === true && held.length < qty) held.push(idx)
+    }
+    if (held.length < qty) {
+      for (const idx of occupants) {
+        if (held.length >= qty) break
+        if (!held.includes(idx)) held.push(idx)
+      }
+    }
+    for (const idx of held) out[idx] = true
+  }
+  return out
+}
+
+/**
+ * landr-z59y: alias kept for the call-sites that "derive" the breakfast map at
+ * confirm time. Identical to clampBreakfastMap with no prior state — it seeds
+ * the deterministic default placement from scratch. (Renamed conceptually from
+ * the landr-a4fy heuristic; signature preserved so AccommodationStep/BookingForm
+ * call-sites stay stable.)
  */
 export function deriveBreakfastMap(
   assignment: RoomAssignmentMap,
   perRoomAddons: Record<string, Record<string, number>>,
+  prev: BreakfastMap = {},
 ): BreakfastMap {
-  const out: BreakfastMap = {}
+  return clampBreakfastMap(assignment, perRoomAddons, prev)
+}
 
-  // Group assigned members by (roomProductId, unitIndex).
-  const unitOccupants = new Map<string, number[]>()
-  for (const [memberIdxStr, entry] of Object.entries(assignment)) {
-    const key = roomUnitKey(entry.roomProductId, entry.unitIndex)
-    const list = unitOccupants.get(key) ?? []
-    list.push(Number(memberIdxStr))
-    unitOccupants.set(key, list)
-  }
+/**
+ * landr-z59y: move a breakfast chip ONTO `memberIndex` (the occupant the user
+ * dropped a chip on, or tapped "+ breakfast"). The target keeps its chip; the
+ * count for its room product stays fixed at B by dropping the HIGHEST-index
+ * OTHER holder of the same product when the cap is exceeded. The target's drop
+ * always wins. Pure — returns a NEW map.
+ *
+ * No-op (returns a clamped copy) when the target is unassigned, its product has
+ * no breakfast, or the product is in 'all' mode (B >= occ, nobody to displace).
+ */
+export function assignBreakfastChip(
+  assignment: RoomAssignmentMap,
+  perRoomAddons: Record<string, Record<string, number>>,
+  prev: BreakfastMap,
+  memberIndex: number,
+): BreakfastMap {
+  const entry = assignment[memberIndex]
+  // Start from a clamped baseline so the result is always valid.
+  const base = clampBreakfastMap(assignment, perRoomAddons, prev)
+  if (!entry) return base
+  const roomProductId = entry.roomProductId
+  const qty = roomBreakfastQty(roomProductId, perRoomAddons)
+  if (qty <= 0) return base
+  if (base[memberIndex] === true) return base // already holds one
 
-  // For each room product, compute total breakfast add-on qty and distribute
-  // to the first N occupants of each unit in ascending memberIndex order.
-  const perRoomTotals = new Map<string, number>()
-  for (const [roomId, qtys] of Object.entries(perRoomAddons)) {
-    const total = Object.values(qtys).reduce((a, b) => a + b, 0)
-    perRoomTotals.set(roomId, total)
+  const occupants = occupantsByRoomProduct(assignment).get(roomProductId) ?? []
+  // Force the target to hold a chip.
+  base[memberIndex] = true
+  // Current holders of this product (after forcing the target in).
+  const holders = occupants.filter((idx) => base[idx] === true)
+  // Drop excess holders (highest member index first) but never the target.
+  const droppable = holders
+    .filter((idx) => idx !== memberIndex)
+    .sort((a, b) => b - a)
+  let excess = holders.length - qty
+  for (const idx of droppable) {
+    if (excess <= 0) break
+    delete base[idx]
+    excess -= 1
   }
-
-  // For a given roomProductId, spread breakfasts across its units
-  // (unit 0 first, then unit 1, etc.), filling up to capacity each unit.
-  // We rely on the assignment map to find which units exist.
-  const unitsByRoom = new Map<string, number[]>()
-  for (const [memberIdxStr, entry] of Object.entries(assignment)) {
-    const { roomProductId, unitIndex } = entry
-    const existing = unitsByRoom.get(roomProductId) ?? []
-    if (!existing.includes(unitIndex)) existing.push(unitIndex)
-    unitsByRoom.set(roomProductId, existing)
-    void memberIdxStr
-  }
-
-  for (const [roomProductId, totalQty] of perRoomTotals.entries()) {
-    if (totalQty <= 0) continue
-    const unitIndices = (unitsByRoom.get(roomProductId) ?? []).sort((a, b) => a - b)
-    let remaining = totalQty
-    for (const unitIndex of unitIndices) {
-      if (remaining <= 0) break
-      const key = roomUnitKey(roomProductId, unitIndex)
-      const members = (unitOccupants.get(key) ?? []).sort((a, b) => a - b)
-      for (const memberIdx of members) {
-        if (remaining <= 0) break
-        out[memberIdx] = true
-        remaining -= 1
-      }
-    }
-  }
-  // Members not given breakfast default to false (omitted from map is fine,
-  // but we explicitly set false for assigned members without breakfast so
-  // the UI can show a deterministic off state).
-  for (const memberIdxStr of Object.keys(assignment)) {
-    const idx = Number(memberIdxStr)
-    if (out[idx] === undefined) out[idx] = false
-  }
-  return out
+  return base
 }
 
 /**

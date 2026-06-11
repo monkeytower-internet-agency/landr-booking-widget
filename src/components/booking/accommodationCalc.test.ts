@@ -2,16 +2,21 @@ import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
   applyAssignment,
+  assignBreakfastChip,
   autoAssignParticipants,
   autoAssignParty,
   CHIP_HUES,
   chipHue,
+  clampBreakfastMap,
+  deriveBreakfastMap,
   deriveStayWindow,
   expandRoomUnits,
   findBreakfastAddonIds,
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
+  roomBreakfastMode,
+  roomBreakfastQty,
   roomIncludesBreakfast,
   occupancyStatus,
   occupantsOfUnit,
@@ -973,5 +978,95 @@ describe('chipHue (landr-rc4l — colourful assignment chips)', () => {
       expect(h).toBeGreaterThanOrEqual(0)
       expect(h).toBeLessThan(360)
     }
+  })
+})
+
+// ── landr-z59y: breakfast-as-chips helpers ───────────────────────────────────
+
+describe('roomBreakfastQty / roomBreakfastMode (landr-z59y)', () => {
+  it('sums the per-room add-on qty as the chip count', () => {
+    expect(roomBreakfastQty('double', { double: { 'bf-1': 2 } })).toBe(2)
+    expect(roomBreakfastQty('double', {})).toBe(0)
+  })
+
+  it('classifies none / all / partial by qty vs occupant count', () => {
+    expect(roomBreakfastMode(0, 2)).toBe('none')
+    expect(roomBreakfastMode(2, 2)).toBe('all')
+    expect(roomBreakfastMode(3, 2)).toBe('all') // qty >= occ
+    expect(roomBreakfastMode(1, 2)).toBe('partial')
+  })
+})
+
+describe('deriveBreakfastMap / clampBreakfastMap (landr-z59y)', () => {
+  // Double room with both Ada (0) + Grace (1) assigned to it.
+  const BOTH: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('partial (1 breakfast, 2 people): default-assigns to the first occupant', () => {
+    const map = deriveBreakfastMap(BOTH, { double: { 'bf-1': 1 } })
+    expect(map).toEqual({ 0: true })
+  })
+
+  it('all (2 breakfasts, 2 people): every occupant holds a chip', () => {
+    const map = deriveBreakfastMap(BOTH, { double: { 'bf-1': 2 } })
+    expect(map).toEqual({ 0: true, 1: true })
+  })
+
+  it('none (0 breakfasts): nobody holds a chip', () => {
+    expect(deriveBreakfastMap(BOTH, {})).toEqual({})
+  })
+
+  it('preserves the customer choice when re-clamping (Grace was chosen)', () => {
+    const map = clampBreakfastMap(BOTH, { double: { 'bf-1': 1 } }, { 1: true })
+    expect(map).toEqual({ 1: true })
+  })
+
+  it('drops a stale holder no longer assigned to the room', () => {
+    // Only Ada (0) is assigned now; prev had Grace (1) holding a chip.
+    const ONLY_ADA: RoomAssignmentMap = { 0: { roomProductId: 'double', unitIndex: 0 } }
+    const map = clampBreakfastMap(ONLY_ADA, { double: { 'bf-1': 1 } }, { 1: true })
+    expect(map).toEqual({ 0: true })
+  })
+})
+
+describe('assignBreakfastChip (landr-z59y — drag/tap reassignment)', () => {
+  const BOTH: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('moves the single chip from Ada to Grace, keeping the count fixed at 1', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 1)
+    // Grace (1) now holds it; Ada (0) gave it up — still exactly one chip.
+    expect(next).toEqual({ 1: true })
+  })
+
+  it('is a no-op (clamped) when the target already holds a chip', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 0)
+    expect(next).toEqual({ 0: true })
+  })
+
+  it('does nothing for an unassigned target', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 9)
+    expect(next).toEqual({ 0: true })
+  })
+
+  it('3 people + 2 breakfasts: dropping on the third drops the highest-index holder', () => {
+    const THREE: RoomAssignmentMap = {
+      0: { roomProductId: 'triple', unitIndex: 0 },
+      1: { roomProductId: 'triple', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+    }
+    // Ada (0) + Grace (1) hold the 2 chips; give one to Linus (2).
+    const next = assignBreakfastChip(
+      THREE,
+      { triple: { 'bf-1': 2 } },
+      { 0: true, 1: true },
+      2,
+    )
+    // Linus (2) gains it; the highest-index other holder (Grace, 1) loses it.
+    expect(next).toEqual({ 0: true, 2: true })
   })
 })
