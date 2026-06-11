@@ -52,8 +52,11 @@ import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api
 import {
   type Step,
   type PerRoomAddons,
+  type BookingDraft,
   buildBreadcrumb,
   deriveAccommodationMode,
+  detailsFromDraft,
+  draftFromStep,
   fillFormOrDeclarations,
   sidebarInputsForStep,
   stepAfterAccommodation,
@@ -228,6 +231,31 @@ function BookingFlowApp() {
   const [liveAddons, setLiveAddons] = useState<AddonSelection[]>([])
   const [liveAccommodationTouched, setLiveAccommodationTouched] =
     useState<boolean>(false)
+  // landr-nmed: the persistent booking-draft. Every step's onConfirm merges
+  // its slice in (mergeDraft); it is NEVER cleared by breadcrumb navigation
+  // (only on a full restart via goToProductStep). When the customer jumps
+  // BACK to an early step (Dates / the product crumb) via the breadcrumb and
+  // continues forward, the forward handlers re-seed the downstream steps from
+  // this draft so already-entered booker / participants / companions /
+  // accommodation / declarations are preserved instead of wiped. Generalises
+  // the landr-b3g5 adjacent-Back restore to arbitrary breadcrumb jumps.
+  const [bookingDraft, setBookingDraft] = useState<BookingDraft>({})
+  const mergeDraft = useCallback((patch: BookingDraft) => {
+    setBookingDraft((prev) => ({ ...prev, ...patch }))
+  }, [])
+  // landr-nmed: reconstruct the DeclarationsStep's CustomerDeclarations from
+  // the persistent draft so that, when the customer reaches declarations again
+  // on the way forward after a breadcrumb jump, the step re-mounts with their
+  // prior confirmations + languages instead of an empty form. undefined when
+  // nothing was confirmed yet (initial forward visit).
+  const draftDeclarations: CustomerDeclarations | undefined =
+    bookingDraft.customerDeclarations
+      ? {
+          declarations: bookingDraft.customerDeclarations,
+          languages: bookingDraft.customerLanguages ?? [],
+          otherLanguages: bookingDraft.customerOtherLanguages ?? '',
+        }
+      : undefined
   // landr-d8rg.4: product groups fetched at boot for the category entrance.
   // null = fetch not yet attempted; [] = fetch done (empty or error fallback).
   // Populated by the useEffect below, which silently falls back to []
@@ -409,6 +437,10 @@ function BookingFlowApp() {
       setLiveParticipantNames([])
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
+      // landr-nmed: a full restart (post-booking, or "← All categories" /
+      // Back-to-catalog) is the ONE place the persistent booking-draft is
+      // discarded — the customer is starting a brand-new booking.
+      setBookingDraft({})
       // landr-d8rg.4: when restarting after a booking, go back to pick-product
       // (unscoped or scoped) — not to pick-category. This preserves the
       // existing goToProductStep behavior for post-booking restart.
@@ -438,7 +470,14 @@ function BookingFlowApp() {
     // values (from step state) rather than stale live values.
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
-    setStep({ name: 'details', product, selection })
+    // landr-nmed: re-seed the DetailsStep from the persistent draft so that a
+    // breadcrumb jump back to Dates (or the product crumb) + Continue restores
+    // the booker / participants / companions the customer already entered,
+    // instead of re-mounting an empty form. detailsFromDraft yields undefined
+    // fields on the initial forward visit (empty draft), so the first pass is
+    // unchanged. The accommodation / declarations slices stay in the draft and
+    // are re-applied as the customer steps forward through afterDetails.
+    setStep(detailsFromDraft(product, selection, bookingDraft))
   }
 
   /**
@@ -464,8 +503,16 @@ function BookingFlowApp() {
     // landr-87n9.3: non-guiding companions collected by DetailsStep.
     companions: CompanionDetails[],
   ) => {
+    // landr-nmed: commit the just-entered details into the persistent draft so
+    // they survive a later breadcrumb jump back to Dates / the product crumb.
+    mergeDraft({ booker, participants, companions })
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
+      // landr-nmed: re-seed the AccommodationStep from the draft so a customer
+      // who'd already picked rooms/add-ons, then jumped back to Dates, returns
+      // here with their hotel choice + rooms + assignment + breakfast intact
+      // (AccommodationStep re-clamps add-ons against capacity on re-mount —
+      // landr-u4fl; the party-indexed assignment is unaffected by date edits).
       setStep({
         name: 'pick-accommodation',
         product,
@@ -473,6 +520,17 @@ function BookingFlowApp() {
         booker,
         participants,
         companions,
+        hotelLocationId: bookingDraft.hotelLocationId,
+        accommodationRooms: bookingDraft.accommodationRooms,
+        addons: bookingDraft.addons,
+        includeHotel: bookingDraft.includeHotel,
+        isSharedDouble: bookingDraft.isSharedDouble,
+        accommodationMode: bookingDraft.accommodationMode,
+        roomAssignment: bookingDraft.roomAssignment,
+        occupantAgeMap: bookingDraft.occupantAgeMap,
+        perRoomAddons: bookingDraft.perRoomAddons,
+        roomProductNames: bookingDraft.roomProductNames,
+        breakfastMap: bookingDraft.breakfastMap,
       })
       return
     }
@@ -493,6 +551,8 @@ function BookingFlowApp() {
             booker,
             participants,
             companions,
+            // landr-nmed: restore any add-ons already chosen before a Dates jump.
+            addons: bookingDraft.addons,
           })
         } else {
           // landr-yf0n: hadServiceAddons=false here — the customer
@@ -560,6 +620,26 @@ function BookingFlowApp() {
     // clear the live-lift so a later Back into pick-accommodation falls back
     // to the restored step values rather than stale live values.
     clearLiveAccommodation()
+    // landr-nmed: commit the accommodation + booker/participant context into
+    // the persistent draft so a later breadcrumb jump back to Dates / the
+    // product crumb re-seeds it all on the way forward.
+    mergeDraft({
+      booker,
+      participants,
+      companions,
+      accommodationRooms,
+      hotelLocationId,
+      addons,
+      hadServiceAddons,
+      includeHotel,
+      isSharedDouble,
+      accommodationMode,
+      roomAssignment,
+      occupantAgeMap,
+      perRoomAddons,
+      roomProductNames,
+      breakfastMap,
+    })
     const next = stepAfterAccommodation(
       product,
       selection,
@@ -595,7 +675,9 @@ function BookingFlowApp() {
     // landr-il9f.2: declarations check now keyed on the server-resolved
     // slug from settings (operatorSettings.slug), not the URL param.
     if (next.name === 'fill-form' && OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug)) {
-      setStep(fillFormOrDeclarations(next, true))
+      // landr-nmed: re-seed the declarations from the draft so a forward pass
+      // after a breadcrumb jump restores the customer's prior confirmations.
+      setStep(fillFormOrDeclarations(next, true, draftDeclarations))
     } else {
       setStep(next)
     }
@@ -619,13 +701,22 @@ function BookingFlowApp() {
   // carries the previously-confirmed values.
   const navigateTo = useCallback(
     (target: Step) => {
+      // landr-nmed: capture the FULL downstream draft from the step the
+      // customer is leaving, BEFORE we swap to an earlier crumb. This makes
+      // the persistent draft authoritative regardless of how the customer
+      // got here — so when they jump back to Dates / the product crumb and
+      // continue forward, every downstream slice (booker / participants /
+      // companions / accommodation / declarations) is preserved and re-seeded
+      // rather than wiped. A no-op (undefined) before any details exist.
+      const captured = draftFromStep(step)
+      if (captured) setBookingDraft((prev) => ({ ...prev, ...captured }))
       setLiveSelectionDays([])
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
       clearLiveAccommodation()
       setStep(target)
     },
-    [clearLiveAccommodation],
+    [clearLiveAccommodation, step],
   )
 
   // landr (breadcrumb): the ordered crumb trail for the current step. Empty for
@@ -1264,11 +1355,15 @@ function BookingFlowApp() {
                 roomProductNames: step.roomProductNames,
                 breakfastMap: step.breakfastMap,
               }
+              // landr-nmed: persist the chosen pickup into the draft.
+              mergeDraft({ pickupLocationId: locationId })
               setStep(
                 fillFormOrDeclarations(
                   fillFormArgs,
                   // landr-il9f.2: keyed on the server-resolved slug.
                   OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug),
+                  // landr-nmed: restore prior declarations on the forward pass.
+                  draftDeclarations,
                 ),
               )
             }}
@@ -1314,7 +1409,15 @@ function BookingFlowApp() {
                 }),
               )
             }
-            onConfirm={(customerDeclarations: CustomerDeclarations) =>
+            onConfirm={(customerDeclarations: CustomerDeclarations) => {
+              // landr-nmed: persist the confirmed declarations into the draft
+              // so they survive a later breadcrumb jump back to an early step.
+              mergeDraft({
+                customerDeclarations: customerDeclarations.declarations,
+                customerLanguages: customerDeclarations.languages,
+                customerOtherLanguages:
+                  customerDeclarations.otherLanguages || null,
+              })
               setStep({
                 name: 'fill-form',
                 product: step.product,
@@ -1340,7 +1443,7 @@ function BookingFlowApp() {
                 customerLanguages: customerDeclarations.languages,
                 customerOtherLanguages: customerDeclarations.otherLanguages || null,
               })
-            }
+            }}
           />
         ) : null}
 
