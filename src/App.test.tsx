@@ -1548,5 +1548,167 @@ describe('App', () => {
         screen.getByRole('button', { name: /continue/i }),
       ).not.toBeDisabled()
     })
+
+    // landr-nmed: REGRESSION — Martin-demo-critical data-loss bug. Jumping BACK
+    // to an early step (Dates) via the breadcrumb FROM A DEEPER STEP (review),
+    // changing the selection, and continuing forward must PRESERVE all already-
+    // entered downstream data (booker + participants + companions) — it must NOT
+    // wipe the form back to empty. It must also let the upstream change (the new
+    // date) take effect, i.e. no stale state. Before the fix, afterSelection
+    // rebuilt the details step from scratch (no booker/participants), so the
+    // customer re-typed everything after editing one date.
+    it('preserves booker + participants (and applies the new date) when jumping back to Dates via the breadcrumb and continuing forward', async () => {
+      // Non-para42 operator → no declarations step, so the funnel is
+      // Dates → Your details → Review (the minimal repro for the wipe).
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      const day1 = new Date()
+      day1.setHours(12, 0, 0, 0)
+      const day2 = new Date(day1)
+      day2.setDate(day2.getDate() + 1)
+      const iso1 = day1.toISOString().slice(0, 10)
+      const iso2 = day2.toISOString().slice(0, 10)
+
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso1,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+        {
+          availability_id: 'a-2',
+          date: iso2,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      const value = (name: string) =>
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value
+
+      render(<App />)
+      await pickProduct('Tandem Flight')
+
+      // Dates → pick day 1 → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      // The single_date picker exposes the selected ISO via a testid. Today
+      // (= day1) is the first enabled cell; click it, then assert iso1.
+      const enabledDay1 = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabledDay1[0]!)
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso1)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // Your details → fill booker + add one participant → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Review (fill-form) — no declarations for test-operator.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // The breadcrumb now shows Dates as a NON-penultimate crumb, so it has
+      // its own testid (the bug only manifests on a true breadcrumb JUMP).
+      const datesCrumb = screen.getByTestId('breadcrumb-pick-selection')
+      fireEvent.click(datesCrumb)
+
+      // Back on the date picker with day 1 restored. Change to day 2.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso1)
+      const allDays = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      // Click the OTHER enabled day (day 2).
+      fireEvent.click(allDays[allDays.length - 1]!)
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso2)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // CRITICAL ASSERTION 1: the DetailsStep re-mounts with the booker AND the
+      // additional participant still populated — NOT wiped.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(value('booker_first_name')).toBe('Ada')
+      expect(value('booker_last_name')).toBe('Lovelace')
+      expect(value('booker_email')).toBe('ada@example.com')
+      expect(value('booker_phone')).toBe('+34 600000000')
+      expect(value('participant_2_first_name')).toBe('Grace')
+      expect(value('participant_2_last_name')).toBe('Hopper')
+      expect(value('participant_2_phone')).toBe('+34600000002')
+
+      // Continue forward to review and submit.
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      // CRITICAL ASSERTION 2: the final submit payload carries the preserved
+      // booker + both participants AND the NEW date (no stale state).
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        customer_first_name: string
+        participants: { first_name: string }[]
+        products: { product_id: string; selected_days: string[] }[]
+      }
+      expect(submitBody.customer_first_name).toBe('Ada')
+      // participants[0] mirrors the booker; participants[1] is Grace.
+      expect(submitBody.participants.map((p) => p.first_name)).toEqual([
+        'Ada',
+        'Grace',
+      ])
+      // The upstream date change took effect — the service line books day 2.
+      const serviceLine = submitBody.products.find(
+        (l) => l.product_id === 'svc-1',
+      )!
+      expect(serviceLine.selected_days).toEqual([iso2])
+    })
   })
 })
