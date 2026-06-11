@@ -86,19 +86,32 @@ describe('DetailsStep (landr-8c03)', () => {
     expect(screen.queryByTestId('participant-row-2')).not.toBeInTheDocument()
   })
 
-  it('disables Continue until the booker has filled all required fields', () => {
+  // landr-79re: Continue is ALWAYS tappable now (mobile blur fix). Tapping it
+  // while the booker is incomplete must NOT advance (no onConfirm) and must
+  // reveal the required-field errors; once complete, tapping advances.
+  it('does not advance (and reveals errors) when Continue is tapped with an incomplete booker', () => {
+    const onConfirm = vi.fn()
     render(
       <DetailsStep
         product={makeProduct()}
         selection={DAYS_SELECTION}
         onBack={vi.fn()}
-        onConfirm={vi.fn()}
+        onConfirm={onConfirm}
       />,
     )
     const cont = screen.getByRole('button', { name: /continue/i })
-    expect(cont).toBeDisabled()
-    fillBooker()
+    // Button is never disabled — feedback comes from the tap, not a grey-out.
     expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    // Incomplete → no advance, and the empty booker fields are now flagged.
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('booker_first_name')).toHaveAttribute('aria-invalid', 'true')
+    expect(byName('booker_phone')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByText('Required').length).toBeGreaterThan(0)
+    // Once all required fields are filled, tapping Continue advances.
+    fillBooker()
+    fireEvent.click(cont)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('confirms with booker + a single participant (mirrored from booker) when no additionals', () => {
@@ -142,9 +155,13 @@ describe('DetailsStep (landr-8c03)', () => {
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
-    // Continue must now be disabled until participant 2 has first+last+phone.
+    // landr-79re: Continue stays tappable; tapping while participant 2 is
+    // incomplete reveals its required-field errors and does NOT advance.
     const cont = screen.getByRole('button', { name: /continue/i })
-    expect(cont).toBeDisabled()
+    expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('participant_2_phone')).toHaveAttribute('aria-invalid', 'true')
 
     fireEvent.change(byName('participant_2_first_name'), {
       target: { value: 'Grace' },
@@ -152,13 +169,14 @@ describe('DetailsStep (landr-8c03)', () => {
     fireEvent.change(byName('participant_2_last_name'), {
       target: { value: 'Hopper' },
     })
-    // landr-nkbi: still disabled because phone is missing.
-    expect(cont).toBeDisabled()
+    // landr-nkbi: still incomplete because phone is missing → tapping does
+    // not advance.
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
 
     fireEvent.change(byName('participant_2_phone'), {
       target: { value: '+34600000002' },
     })
-    expect(cont).not.toBeDisabled()
 
     fireEvent.click(cont)
     const [, participants] = onConfirm.mock.calls[0]!
@@ -189,16 +207,17 @@ describe('DetailsStep (landr-8c03)', () => {
     fireEvent.change(byName('participant_2_last_name'), {
       target: { value: 'Hopper' },
     })
-    // landr-nkbi: participant phone is now required — Continue stays
-    // disabled while phone is empty.
+    // landr-nkbi: participant phone is now required — tapping Continue while
+    // phone is empty does NOT advance (landr-79re: button stays tappable).
     const cont = screen.getByRole('button', { name: /continue/i })
-    expect(cont).toBeDisabled()
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('participant_2_phone')).toHaveAttribute('aria-invalid', 'true')
 
-    // Supplying the phone enables Continue.
+    // Supplying the phone makes the form complete.
     fireEvent.change(byName('participant_2_phone'), {
       target: { value: '+34600000002' },
     })
-    expect(cont).not.toBeDisabled()
 
     // Email can remain empty — that's fine.
     fireEvent.click(cont)
@@ -620,13 +639,18 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
     expect(screen.getByTestId('companion-row-0')).toBeInTheDocument()
-    // Continue blocked until the companion has a first name.
+    // landr-79re: tapping Continue while the companion has no first name does
+    // NOT advance and flags the missing companion first name.
     const cont = screen.getByRole('button', { name: /continue/i })
-    expect(cont).toBeDisabled()
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('companion_1_first_name')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
     fireEvent.change(byName('companion_1_first_name'), {
       target: { value: 'Mia' },
     })
-    expect(cont).not.toBeDisabled()
     fireEvent.click(cont)
     const [, participants, companions] = onConfirm.mock.calls[0]!
     // Companion is NOT in participants[].
@@ -673,15 +697,17 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     expect(byName('companion_1_last_name')).toHaveValue('Berg')
   })
 
-  // landr-nkbi: companion phone is OPTIONAL — Continue must not be blocked
-  // when a companion row has a blank phone field.
+  // landr-nkbi: companion phone is OPTIONAL — a blank companion phone must not
+  // block submission. landr-79re: assert via the Continue tap advancing (the
+  // button is always tappable now, so disabled-state can't prove this).
   it('does NOT require a phone for companions (companion phone exempt, landr-nkbi)', () => {
+    const onConfirm = vi.fn()
     render(
       <DetailsStep
         product={makeProduct()}
         selection={DAYS_SELECTION}
         onBack={vi.fn()}
-        onConfirm={vi.fn()}
+        onConfirm={onConfirm}
       />,
     )
     fillBooker()
@@ -689,9 +715,9 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     fireEvent.change(byName('companion_1_first_name'), {
       target: { value: 'Mia' },
     })
-    // Deliberately leave companion phone empty — Continue should still be enabled.
-    const cont = screen.getByRole('button', { name: /continue/i })
-    expect(cont).not.toBeDisabled()
+    // Deliberately leave companion phone empty — Continue should still advance.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
   // landr-nkbi: companion phone label must read "Phone (optional)" to signal
@@ -800,5 +826,69 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
     fireEvent.blur(email)
     expect(email).not.toHaveAttribute('aria-invalid')
     expect(document.getElementById('p-0-email-error')).toBeNull()
+  })
+})
+
+// landr-79re: the mobile path. On mobile, blur fires unreliably, so the
+// onBlur-only touch never armed and an incomplete form showed NO red borders
+// — the customer was stuck with nothing flagged. Tapping Continue (always
+// tappable now) must reveal EVERY empty required field's error without any
+// field having been blurred, and must NOT advance.
+describe('DetailsStep — reveal required errors on Continue tap (mobile, landr-79re)', () => {
+  function renderStep(onConfirm = vi.fn()) {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    return onConfirm
+  }
+
+  it('flags ALL empty booker required fields on a Continue tap without any blur', () => {
+    const onConfirm = renderStep()
+    // No field is touched (no blur) — simulating the mobile case where blur
+    // never fires. Sanity-check nothing is flagged before the tap.
+    expect(byName('booker_first_name')).not.toHaveAttribute('aria-invalid')
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+    // Every empty booker required field is now flagged with aria-invalid + a
+    // 'Required' message, and the form did NOT advance.
+    expect(byName('booker_first_name')).toHaveAttribute('aria-invalid', 'true')
+    expect(byName('booker_last_name')).toHaveAttribute('aria-invalid', 'true')
+    expect(byName('booker_email')).toHaveAttribute('aria-invalid', 'true')
+    expect(byName('booker_phone')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByText('Required').length).toBeGreaterThanOrEqual(4)
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('flags an empty participant phone + last name on a Continue tap without any blur', () => {
+    const onConfirm = renderStep()
+    fillBooker() // booker complete; the gap is on the added participant
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: 'Grace' },
+    })
+    // Leave last name + phone empty — and blur NOTHING (mobile).
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+    expect(byName('participant_2_last_name')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
+    expect(byName('participant_2_phone')).toHaveAttribute('aria-invalid', 'true')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('focuses the first invalid required field after a failed Continue tap', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    // First required field is the booker first name → it receives focus so the
+    // mobile customer is taken straight to it.
+    expect(document.activeElement).toBe(byName('booker_first_name'))
   })
 })
