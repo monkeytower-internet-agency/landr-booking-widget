@@ -169,20 +169,13 @@ describe('CategoryStep (landr-d8rg.5)', () => {
   })
 })
 
-// User report 2026-06-04: with an operator widget_headline configured
-// (Settings → Branding), the built-in entrance heading stacked beneath it
-// as duplicate copy. App passes hideHeading when a headline exists.
-describe('CategoryStep heading suppression', () => {
-  it('shows the default heading without the flag', () => {
+// The built-in "What are you looking for?" heading was removed entirely
+// (landr-pd3x). Embedded widgets must show nothing when no headline is
+// configured — the operator's host page may already have its own heading.
+describe('CategoryStep has no built-in heading', () => {
+  it('never renders the built-in heading (no headline configured)', () => {
     render(
       <CategoryStep groups={[makeGroup({})]} onPick={() => {}} />,
-    )
-    expect(screen.getByText('What are you looking for?')).toBeInTheDocument()
-  })
-
-  it('hides the default heading when hideHeading is set', () => {
-    render(
-      <CategoryStep groups={[makeGroup({})]} onPick={() => {}} hideHeading />,
     )
     expect(
       screen.queryByText('What are you looking for?'),
@@ -290,17 +283,17 @@ describe('CategoryStep 3-group auto-column (landr-jb1k.2)', () => {
 
 // landr-jb1k.2: tile font — heading and tile title font-family.
 describe('CategoryStep tileFont (landr-jb1k.2)', () => {
-  it('sets fontFamily on the heading when tileFont is playfair', () => {
+  it('sets fontFamily on tile title h3 when tileFont is playfair', () => {
     render(
       <CategoryStep
-        groups={[makeGroup({ slug: 'tandem' })]}
+        groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
         tileFont="playfair"
         onPick={vi.fn()}
       />,
     )
-    const heading = screen.getByText('What are you looking for?')
-    // Check the inline style attribute contains the expected font name.
-    expect(heading.style.fontFamily).toContain('Playfair Display')
+    // The built-in heading is gone; verify font threads through to tile titles.
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.style.fontFamily).toContain('Playfair Display')
   })
 
   it('sets fontFamily on tile title h3 when tileFont is montserrat', () => {
@@ -346,7 +339,7 @@ describe('CategoryStep titleCase (landr-jb1k.2)', () => {
     ['uppercase', 'uppercase'],
     ['lowercase', 'lowercase'],
     ['capitalize', 'capitalize'],
-  ] as const)('applies %s class to the heading and tile titles', (titleCase, expectedClass) => {
+  ] as const)('applies %s class to tile titles', (titleCase, expectedClass) => {
     render(
       <CategoryStep
         groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
@@ -354,13 +347,13 @@ describe('CategoryStep titleCase (landr-jb1k.2)', () => {
         onPick={vi.fn()}
       />,
     )
-    const heading = screen.getByText('What are you looking for?')
-    expect(heading.className).toContain(expectedClass)
     const h3 = screen.getByText('Tandem Flights')
     expect(h3.className).toContain(expectedClass)
+    // The built-in heading is gone — no heading to assert on.
+    expect(screen.queryByText('What are you looking for?')).not.toBeInTheDocument()
   })
 
-  it('applies no case class when titleCase is null', () => {
+  it('applies no case class to tile titles when titleCase is null', () => {
     render(
       <CategoryStep
         groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
@@ -368,18 +361,17 @@ describe('CategoryStep titleCase (landr-jb1k.2)', () => {
         onPick={vi.fn()}
       />,
     )
-    const heading = screen.getByText('What are you looking for?')
-    expect(heading.className).not.toContain('uppercase')
-    expect(heading.className).not.toContain('lowercase')
-    expect(heading.className).not.toContain('capitalize')
+    const h3 = screen.getByText('Tandem Flights')
+    expect(h3.className).not.toContain('uppercase')
+    expect(h3.className).not.toContain('lowercase')
+    expect(h3.className).not.toContain('capitalize')
   })
 
-  it('hideHeading=true still applies case class and font to tile titles only', () => {
+  it('titleCase applies to tile titles with no built-in heading present', () => {
     render(
       <CategoryStep
         groups={[makeGroup({ slug: 'tandem', name: 'Tandem Flights' })]}
         titleCase="uppercase"
-        hideHeading
         onPick={vi.fn()}
       />,
     )
