@@ -6,10 +6,12 @@ import {
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
+  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -17,9 +19,12 @@ import {
   chipHue,
   occupantsByRoomProduct,
   occupantsOfUnit,
+  resolveBreakfastDropTarget,
+  resolveNameDropUnit,
   roomBreakfastMode,
   roomBreakfastQty,
   roomUnitKey,
+  unitBreakfastLabel,
   type BreakfastMap,
   type OccupantAgeMap,
   type OccupantAgeBand,
@@ -124,21 +129,6 @@ function participantLabel(names: string[], index: number): string {
 /** Plain label for a room unit in the <select> / <option> fallbacks. */
 function unitOptionLabel(unit: RoomUnit): string {
   return `${unit.roomName} #${unit.unitIndex + 1}`
-}
-
-/**
- * landr-z59y: human breakfast label for a room product's title given its chip
- * qty (B) and occupant count (occ). Returns '' when there is no breakfast UI.
- *
- *   • all  (B >= occ): "(N breakfast[s])" — everyone eats; B is shown so the
- *                      single-room case reads "(with breakfast)".
- *   • partial:         "(N breakfast[s])" — N draggable chips to distribute.
- */
-function breakfastTitleLabel(qty: number, occCount: number): string {
-  const mode = roomBreakfastMode(qty, occCount)
-  if (mode === 'none') return ''
-  if (mode === 'all' && qty === 1 && occCount === 1) return '(with breakfast)'
-  return qty === 1 ? '(1 breakfast)' : `(${qty} breakfasts)`
 }
 
 /**
@@ -317,13 +307,18 @@ function OccupantAgeControl({
  * landr-z59y: a draggable "Breakfast" chip held by occupant `memberIndex`.
  * Dragging it onto another occupant (of the same room product) reassigns the
  * breakfast. `static` (all-mode) renders the same face but non-draggable —
- * everyone gets breakfast so there is nothing to move.
+ * everyone gets breakfast so there is nothing to move. `ownerLabel` is the
+ * holder's display name — woven into the accessible name so AT users hear
+ * "Ada's breakfast — drag to another guest to move it" rather than a bare
+ * "Breakfast" (the visual 🥐 is aria-hidden).
  */
 function BreakfastChip({
   memberIndex,
+  ownerLabel,
   isStatic = false,
 }: {
   memberIndex: number
+  ownerLabel: string
   isStatic?: boolean
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -342,6 +337,7 @@ function BreakfastChip({
       <span
         data-testid={`breakfast-chip-${memberIndex}`}
         data-breakfast-static="true"
+        aria-label={`${ownerLabel} has breakfast`}
         className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary select-none"
       >
         {face}
@@ -355,6 +351,7 @@ function BreakfastChip({
       {...listeners}
       {...attributes}
       data-testid={`breakfast-chip-${memberIndex}`}
+      aria-label={`${ownerLabel}'s breakfast — drag onto another guest to move it`}
       className={[
         'inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary select-none',
         'cursor-grab touch-none transition-transform hover:-translate-y-0.5',
@@ -384,6 +381,7 @@ function OccupantRow({
   breakfastMode,
   hasBreakfast,
   onBreakfastAssign,
+  breakfastDragActive,
 }: {
   memberIndex: number
   label: string
@@ -399,10 +397,17 @@ function OccupantRow({
   breakfastMode: ReturnType<typeof roomBreakfastMode>
   hasBreakfast: boolean
   onBreakfastAssign?: (memberIndex: number) => void
+  /**
+   * landr-z59y: true only while a BREAKFAST CHIP is the active drag. The
+   * occupant breakfast-drop target is enabled ONLY then, so a NAME-chip drag
+   * (room assignment) can never resolve to this nested droppable and silently
+   * no-op (it would carry breakfastTarget, not .unit). See handleDragEnd.
+   */
+  breakfastDragActive: boolean
 }) {
-  // Only 'partial' mode makes an occupant a live breakfast drop target — in
-  // 'all' mode everyone already has breakfast and there is nothing to move.
-  const droppable = breakfastMode === 'partial'
+  // Only 'partial' mode allows reassigning breakfast, and only while a
+  // breakfast chip is actually being dragged is this occupant a live target.
+  const droppable = breakfastMode === 'partial' && breakfastDragActive
   const { setNodeRef, isOver } = useDroppable({
     id: `occupant-${memberIndex}`,
     data: { breakfastTarget: memberIndex },
@@ -440,15 +445,18 @@ function OccupantRow({
       {hasBreakfast && breakfastMode !== 'none' ? (
         <BreakfastChip
           memberIndex={memberIndex}
+          ownerLabel={label}
           isStatic={breakfastMode === 'all'}
         />
       ) : null}
       {/* Tap-to-place fallback for breakfast (a11y / no-drag): in partial mode,
-          a one-tap "give breakfast here" when this occupant doesn't hold one. */}
-      {droppable && !hasBreakfast && onBreakfastAssign ? (
+          a one-tap "give breakfast here" when this occupant doesn't hold one.
+          Gated on the MODE (not the live-drag flag) so it's always available. */}
+      {breakfastMode === 'partial' && !hasBreakfast && onBreakfastAssign ? (
         <button
           type="button"
           data-testid={`give-breakfast-${memberIndex}`}
+          aria-label={`Give breakfast to ${label}`}
           onClick={() => onBreakfastAssign(memberIndex)}
           className="rounded-md border border-primary/40 px-2 py-0.5 text-xs text-primary hover:bg-primary/5"
         >
@@ -471,10 +479,10 @@ function UnitDropZone({
   ageMap = {},
   onAgeBandChange,
   breakfastMode = 'none',
-  breakfastQty = 0,
-  productOccupantCount = 0,
+  productHasBreakfast = false,
   breakfastMap = {},
   onBreakfastAssign,
+  breakfastDragActive = false,
 }: {
   unit: RoomUnit
   occupantIndices: number[]
@@ -491,22 +499,22 @@ function UnitDropZone({
   ) => void
   /** landr-z59y: breakfast UI mode for THIS unit's room product. */
   breakfastMode?: ReturnType<typeof roomBreakfastMode>
-  /** landr-z59y: breakfast add-on qty (chip count) for the product. */
-  breakfastQty?: number
-  /** landr-z59y: total occupants across the product's units (label maths). */
-  productOccupantCount?: number
+  /** landr-z59y: does the unit's room product have a breakfast add-on at all? */
+  productHasBreakfast?: boolean
   /** landr-z59y: which occupants currently hold a breakfast chip. */
   breakfastMap?: BreakfastMap
   /** landr-z59y: drop a breakfast chip onto an occupant (partial mode). */
   onBreakfastAssign?: (memberIndex: number) => void
+  /** landr-z59y: true while a breakfast chip is the active drag. */
+  breakfastDragActive?: boolean
 }) {
   const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
   const { setNodeRef, isOver } = useDroppable({ id: `unit-${key}`, data: { unit } })
   const full = occupantIndices.length >= unit.capacity
-  // landr-z59y: breakfast is a fixed set of chips owned by occupants, not a
-  // per-unit property. The title shows the product's breakfast count; chips
-  // sit on the occupants who hold them.
-  const bfLabel = breakfastTitleLabel(breakfastQty, productOccupantCount)
+  // landr-z59y: breakfast is a fixed set of chips owned by occupants. The label
+  // reflects THIS unit's actual chip holders (so two units of one product label
+  // independently and never over-report), not the product-total qty.
+  const bfLabel = unitBreakfastLabel(occupantIndices, breakfastMap, productHasBreakfast)
   return (
     <div
       ref={setNodeRef}
@@ -558,6 +566,7 @@ function UnitDropZone({
               breakfastMode={breakfastMode}
               hasBreakfast={breakfastMap[pIdx] === true}
               onBreakfastAssign={onBreakfastAssign}
+              breakfastDragActive={breakfastDragActive}
             />
           ))
         )}
@@ -661,6 +670,13 @@ export function RoomAssignment({
     setActiveBreakfast(null)
   }
 
+  /** landr-z59y: the RoomUnit an occupant is currently assigned to (or null). */
+  function unitOfOccupant(memberIndex: number): RoomUnit | null {
+    const entry = assignment[memberIndex]
+    if (!entry) return null
+    return unitByKey.get(roomUnitKey(entry.roomProductId, entry.unitIndex)) ?? null
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setSelectedChip(null)
     setActiveChip(null)
@@ -668,14 +684,23 @@ export function RoomAssignment({
     const data = event.active.data.current
     const overData = event.over?.data.current
 
+    const over = overData as
+      | { unit?: RoomUnit; breakfastTarget?: number }
+      | undefined
+
     // landr-z59y: a breakfast chip dropped onto an occupant reassigns the
     // breakfast to that occupant (the parent re-clamps the source's chip away).
+    // resolveBreakfastDropTarget defensively maps a near-miss onto a unit to a
+    // sensible occupant so the move doesn't silently fail.
     const breakfastFrom = data?.breakfastFrom as number | undefined
     if (breakfastFrom !== undefined) {
-      const target = overData?.breakfastTarget as number | undefined
-      if (target !== undefined && target !== breakfastFrom) {
-        onBreakfastAssign?.(target)
-      }
+      const target = resolveBreakfastDropTarget(
+        over,
+        breakfastFrom,
+        breakfastMap,
+        (unit) => occupantsOfUnit(assignment, unit),
+      )
+      if (target !== null) onBreakfastAssign?.(target)
       return
     }
 
@@ -687,7 +712,11 @@ export function RoomAssignment({
       onAssign(participantIndex, null)
       return
     }
-    const targetUnit = (overData?.unit as RoomUnit | undefined) ?? null
+    // resolveNameDropUnit defensively falls through a near-miss onto a nested
+    // occupant droppable (which carries breakfastTarget, NOT .unit) to that
+    // occupant's unit — without this the assignment would silently no-op
+    // (the original regression).
+    const targetUnit = resolveNameDropUnit(over, unitOfOccupant)
     if (targetUnit) onAssign(participantIndex, targetUnit)
   }
 
@@ -698,9 +727,70 @@ export function RoomAssignment({
     setSelectedChip(null)
   }
 
+  // landr-z59y: screen-reader announcements for keyboard/AT drag — both the
+  // name-chip room assignment and the breakfast-chip reassignment. Restores the
+  // a11y parity lost when the OccupantBreakfastControl checkbox was removed.
+  const nameOf = (id: string | number | undefined): string | null => {
+    if (typeof id !== 'string') return null
+    if (id.startsWith('chip-')) {
+      return participantLabel(participantNames, Number(id.slice('chip-'.length)))
+    }
+    if (id.startsWith('breakfast-')) {
+      return participantLabel(participantNames, Number(id.slice('breakfast-'.length)))
+    }
+    return null
+  }
+  const overLabel = (over: { id: string | number; data: { current?: unknown } } | null): string => {
+    if (!over) return 'no drop target'
+    const d = over.data.current as
+      | { unit?: RoomUnit; breakfastTarget?: number }
+      | undefined
+    if (d?.unit) return `${d.unit.roomName} #${d.unit.unitIndex + 1}`
+    if (d?.breakfastTarget !== undefined)
+      return participantLabel(participantNames, d.breakfastTarget)
+    if (over.id === UNASSIGNED_DROP_ID) return 'the unassigned tray'
+    return 'a drop target'
+  }
+  const isBreakfast = (id: string | number): boolean =>
+    typeof id === 'string' && id.startsWith('breakfast-')
+  const announcements: Announcements = {
+    onDragStart({ active }) {
+      const who = nameOf(active.id) ?? 'item'
+      return isBreakfast(active.id)
+        ? `Picked up ${who}'s breakfast.`
+        : `Picked up ${who}.`
+    },
+    onDragOver({ active, over }) {
+      const who = nameOf(active.id) ?? 'item'
+      return isBreakfast(active.id)
+        ? `${who}'s breakfast is over ${overLabel(over)}.`
+        : `${who} is over ${overLabel(over)}.`
+    },
+    onDragEnd({ active, over }) {
+      const who = nameOf(active.id) ?? 'item'
+      if (!over) return isBreakfast(active.id)
+        ? `${who}'s breakfast was dropped.`
+        : `${who} was dropped.`
+      return isBreakfast(active.id)
+        ? `Moved ${who}'s breakfast to ${overLabel(over)}.`
+        : `Assigned ${who} to ${overLabel(over)}.`
+    },
+    onDragCancel({ active }) {
+      const who = nameOf(active.id) ?? 'item'
+      return `Cancelled. ${who} returned to its place.`
+    },
+  }
+
   return (
     <DndContext
       sensors={sensors}
+      // landr-z59y: pointerWithin ranks the droppable the POINTER is inside over
+      // the nested-rect intersection ratio, so a name chip released inside a
+      // room card resolves to the room — not a small nested occupant droppable.
+      // Combined with gating the occupant droppables on an active breakfast drag
+      // (OccupantRow.breakfastDragActive), this prevents the silent no-op.
+      collisionDetection={pointerWithin}
+      accessibility={{ announcements }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -746,10 +836,10 @@ export function RoomAssignment({
                   ageMap={ageMap}
                   onAgeBandChange={onAgeBandChange}
                   breakfastMode={bf?.mode ?? 'none'}
-                  breakfastQty={bf?.qty ?? 0}
-                  productOccupantCount={bf?.occCount ?? 0}
+                  productHasBreakfast={(bf?.qty ?? 0) > 0}
                   breakfastMap={breakfastMap}
                   onBreakfastAssign={onBreakfastAssign}
+                  breakfastDragActive={activeBreakfast !== null}
                 />
               </div>
             )

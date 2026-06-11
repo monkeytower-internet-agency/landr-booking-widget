@@ -22,12 +22,15 @@ import {
   occupantsOfUnit,
   partySize,
   pruneAssignments,
+  resolveBreakfastDropTarget,
+  resolveNameDropUnit,
   roomSubtotal,
   roomUnitKey,
   stayNightIsos,
   totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
+  unitBreakfastLabel,
   type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
@@ -1068,5 +1071,93 @@ describe('assignBreakfastChip (landr-z59y — drag/tap reassignment)', () => {
     )
     // Linus (2) gains it; the highest-index other holder (Grace, 1) loses it.
     expect(next).toEqual({ 0: true, 2: true })
+  })
+})
+
+describe('unitBreakfastLabel (landr-z59y — per-unit, chip-holder-driven)', () => {
+  it('returns empty when the product has no breakfast add-on', () => {
+    expect(unitBreakfastLabel([0, 1], { 0: true }, false)).toBe('')
+  })
+
+  it('returns empty when no occupant of the unit holds a chip', () => {
+    expect(unitBreakfastLabel([2, 3], { 0: true, 1: true }, true)).toBe('')
+  })
+
+  it('single-occupant unit with a chip reads "(with breakfast)"', () => {
+    expect(unitBreakfastLabel([0], { 0: true }, true)).toBe('(with breakfast)')
+  })
+
+  it('multi-occupant unit with one chip reads "(1 breakfast)"', () => {
+    expect(unitBreakfastLabel([0, 1], { 0: true }, true)).toBe('(1 breakfast)')
+  })
+
+  it('counts only THIS unit’s holders (independent of other units)', () => {
+    // Two holders in this unit -> "(2 breakfasts)"; a holder in another unit (9)
+    // is irrelevant because it is not in occupantIndices.
+    expect(unitBreakfastLabel([0, 1], { 0: true, 1: true, 9: true }, true)).toBe(
+      '(2 breakfasts)',
+    )
+  })
+
+  it('never over-reports when B > occ (label tracks real holders, not qty)', () => {
+    // Only one occupant, holding one chip -> "(with breakfast)" regardless of B.
+    expect(unitBreakfastLabel([0], { 0: true }, true)).toBe('(with breakfast)')
+  })
+})
+
+describe('resolveNameDropUnit (landr-z59y — name-drag near-miss fallthrough)', () => {
+  const UNIT: RoomUnit = {
+    roomProductId: 'double',
+    unitIndex: 0,
+    capacity: 2,
+    roomName: 'Double Room',
+  }
+  const unitOfMember = (i: number): RoomUnit | null => (i === 1 ? UNIT : null)
+
+  it('returns the unit directly when the drop resolved to a unit droppable', () => {
+    expect(resolveNameDropUnit({ unit: UNIT }, unitOfMember)).toBe(UNIT)
+  })
+
+  it('REGRESSION: a drop resolved to a nested occupant falls through to that occupant’s unit', () => {
+    // Without this, targetUnit would be undefined and onAssign would never fire.
+    expect(resolveNameDropUnit({ breakfastTarget: 1 }, unitOfMember)).toBe(UNIT)
+  })
+
+  it('returns null when over nothing assignable', () => {
+    expect(resolveNameDropUnit(null, unitOfMember)).toBeNull()
+    expect(resolveNameDropUnit({}, unitOfMember)).toBeNull()
+  })
+})
+
+describe('resolveBreakfastDropTarget (landr-z59y — breakfast-drag near-miss fallthrough)', () => {
+  const UNIT: RoomUnit = {
+    roomProductId: 'double',
+    unitIndex: 0,
+    capacity: 2,
+    roomName: 'Double Room',
+  }
+  const occupantsOf = (): number[] => [0, 1]
+
+  it('uses the occupant target directly when present', () => {
+    expect(
+      resolveBreakfastDropTarget({ breakfastTarget: 1 }, 0, { 0: true }, occupantsOf),
+    ).toBe(1)
+  })
+
+  it('maps a drop on a UNIT to an occupant who does not already hold a chip', () => {
+    // From=0 (holds the chip); over the unit -> pick occupant 1 (no chip).
+    expect(
+      resolveBreakfastDropTarget({ unit: UNIT }, 0, { 0: true }, occupantsOf),
+    ).toBe(1)
+  })
+
+  it('returns null for a no-op (target is the source)', () => {
+    expect(
+      resolveBreakfastDropTarget({ breakfastTarget: 0 }, 0, { 0: true }, occupantsOf),
+    ).toBeNull()
+  })
+
+  it('returns null when over nothing', () => {
+    expect(resolveBreakfastDropTarget(null, 0, {}, occupantsOf)).toBeNull()
   })
 })

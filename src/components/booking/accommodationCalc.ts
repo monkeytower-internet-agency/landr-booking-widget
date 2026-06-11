@@ -946,6 +946,90 @@ export function assignBreakfastChip(
 }
 
 /**
+ * landr-z59y: the breakfast label for ONE room unit, computed from the REAL
+ * chip holders among that unit's occupants — NOT the product-total qty. Two
+ * units of the same product therefore label independently, and the label can
+ * never over-report when B > occ.
+ *
+ *   • product has no breakfast add-on    → '' (no breakfast concept).
+ *   • 0 holders in this unit             → '' (no label).
+ *   • 1 holder, single-occupant unit     → '(with breakfast)'.
+ *   • 1 holder, multi-occupant unit      → '(1 breakfast)'.
+ *   • N holders                          → '(N breakfasts)'.
+ *
+ * The UI mirror lives in RoomAssignment.tsx (kept there for react-refresh);
+ * this pure version exists so the label maths is unit-testable in isolation.
+ */
+export function unitBreakfastLabel(
+  occupantIndices: number[],
+  breakfastMap: BreakfastMap,
+  productHasBreakfast: boolean,
+): string {
+  if (!productHasBreakfast) return ''
+  const held = occupantIndices.filter((i) => breakfastMap[i] === true).length
+  if (held === 0) return ''
+  if (held === 1) {
+    return occupantIndices.length === 1 ? '(with breakfast)' : '(1 breakfast)'
+  }
+  return `(${held} breakfasts)`
+}
+
+/**
+ * landr-z59y: resolve the destination UNIT for a NAME-chip drop, defensively.
+ * The room-assignment droppable is `unitData` (carries `.unit`); a near-miss can
+ * instead resolve to a nested OCCUPANT droppable (carries `.breakfastTarget`).
+ * Without the fallthrough the assignment silently no-ops — the regression this
+ * fixes. Given the over-droppable's data, returns the RoomUnit to assign to (the
+ * unit itself, or the unit of the occupant that was hit), or null when the drop
+ * is over nothing assignable.
+ *
+ * `unitOfMember` maps an assigned occupant index → its current RoomUnit (or
+ * null). Pure — depends only on its inputs.
+ */
+export function resolveNameDropUnit(
+  over:
+    | { unit?: RoomUnit | undefined; breakfastTarget?: number | undefined }
+    | null
+    | undefined,
+  unitOfMember: (memberIndex: number) => RoomUnit | null,
+): RoomUnit | null {
+  if (!over) return null
+  if (over.unit) return over.unit
+  if (over.breakfastTarget !== undefined) return unitOfMember(over.breakfastTarget)
+  return null
+}
+
+/**
+ * landr-z59y: resolve the TARGET occupant for a BREAKFAST-chip drop,
+ * defensively. The intended target is `over.breakfastTarget`; if the chip
+ * instead resolves to a UNIT droppable (carries `.unit`), map it to an occupant
+ * of that unit — preferring one who doesn't already hold a chip — so a near-miss
+ * still reassigns rather than silently failing. Returns the member index to give
+ * the breakfast to, or null when there is no sensible target or the resolved
+ * target is the source (a no-op move).
+ *
+ * `occupantsOf` returns the member indices assigned to a unit (display order).
+ */
+export function resolveBreakfastDropTarget(
+  over:
+    | { unit?: RoomUnit | undefined; breakfastTarget?: number | undefined }
+    | null
+    | undefined,
+  from: number,
+  breakfastMap: BreakfastMap,
+  occupantsOf: (unit: RoomUnit) => number[],
+): number | null {
+  if (!over) return null
+  let target = over.breakfastTarget
+  if (target === undefined && over.unit) {
+    const occ = occupantsOf(over.unit)
+    target = occ.find((i) => breakfastMap[i] !== true) ?? occ[0]
+  }
+  if (target === undefined || target === from) return null
+  return target
+}
+
+/**
  * landr-rc4l: per-party-member accent hues for the room-assignment chips.
  * A fixed palette of evenly-spaced, visually distinct hues (degrees on the
  * HSL wheel) so adjacent chips never read as "the same colour", indexed by

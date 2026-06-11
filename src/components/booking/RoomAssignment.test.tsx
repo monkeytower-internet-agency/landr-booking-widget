@@ -362,4 +362,77 @@ describe('RoomAssignment — breakfast as draggable chips (landr-z59y)', () => {
     // And no breakfast checkbox input remains anywhere in the assignment UI.
     expect(container.querySelector('input[type="checkbox"]')).toBeNull()
   })
+
+  it('labels two units of the SAME product independently from their own chip holders', () => {
+    // Two Single Rooms (one product), 4 people, 2 breakfasts. Ada+Grace (unit 0)
+    // hold the two chips → unit 0 reads "(2 breakfasts)", unit 1 reads nothing.
+    const TWO_SINGLES: RoomUnit[] = [
+      { roomProductId: 'single', unitIndex: 0, capacity: 2, roomName: 'Single Room' },
+      { roomProductId: 'single', unitIndex: 1, capacity: 2, roomName: 'Single Room' },
+    ]
+    render(
+      <RoomAssignment
+        units={TWO_SINGLES}
+        participantNames={['Ada', 'Grace', 'Linus', 'Mae']}
+        assignment={{
+          0: { roomProductId: 'single', unitIndex: 0 },
+          1: { roomProductId: 'single', unitIndex: 0 },
+          2: { roomProductId: 'single', unitIndex: 1 },
+          3: { roomProductId: 'single', unitIndex: 1 },
+        }}
+        onAssign={vi.fn()}
+        perRoomAddons={{ single: { 'bf-1': 2 } }}
+        breakfastMap={{ 0: true, 1: true }}
+        onBreakfastAssign={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('room-unit-title-single::0')).toHaveTextContent(
+      '(2 breakfasts)',
+    )
+    // Unit 1 holds no chips → no breakfast label at all (not "(without breakfast)").
+    expect(screen.queryByTestId('room-unit-breakfast-single::1')).toBeNull()
+  })
+
+  it('does not over-report the label when B > occ (label tracks real chip holders)', () => {
+    // 1 occupant, qty 3 (B > occ). The occupant holds exactly one chip, so the
+    // label reads "(with breakfast)", never "(3 breakfasts)".
+    render(
+      <RoomAssignment
+        units={[
+          { roomProductId: 'single', unitIndex: 0, capacity: 1, roomName: 'Single Room' },
+        ]}
+        participantNames={['Ada']}
+        assignment={{ 0: { roomProductId: 'single', unitIndex: 0 } }}
+        onAssign={vi.fn()}
+        perRoomAddons={{ single: { 'bf-1': 3 } }}
+        breakfastMap={{ 0: true }}
+        onBreakfastAssign={vi.fn()}
+      />,
+    )
+    const title = screen.getByTestId('room-unit-title-single::0')
+    expect(title).toHaveTextContent('(with breakfast)')
+    expect(title).not.toHaveTextContent('3 breakfasts')
+  })
+
+  it('a11y: the breakfast chip carries the holder name; no DnD a11y regression vs the checkbox', () => {
+    render(
+      <RoomAssignment
+        units={DOUBLE}
+        participantNames={['Ada', 'Grace']}
+        assignment={BOTH_IN_DOUBLE}
+        onAssign={vi.fn()}
+        perRoomAddons={{ double: { 'bf-1': 1 } }}
+        breakfastMap={{ 0: true }}
+        onBreakfastAssign={vi.fn()}
+      />,
+    )
+    // The draggable breakfast chip has an accessible name naming the holder.
+    expect(screen.getByTestId('breakfast-chip-0')).toHaveAccessibleName(
+      /Ada's breakfast/i,
+    )
+    // The "+ breakfast" affordance on the other occupant names the recipient.
+    expect(screen.getByTestId('give-breakfast-1')).toHaveAccessibleName(
+      /Give breakfast to Grace/i,
+    )
+  })
 })
