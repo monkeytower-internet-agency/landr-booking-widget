@@ -683,6 +683,8 @@ describe('booking-draft preservation (landr-nmed)', () => {
       isSharedDouble: false,
       accommodationMode: 'package',
       roomAssignment: { 0: { roomProductId: 'room-1', unitIndex: 0 } },
+      // landr-z59y: which occupants hold a breakfast chip (occupant 0 does).
+      breakfastMap: { 0: true },
       customerDeclarations: { license_valid: true },
       customerLanguages: ['en'],
       ...overrides,
@@ -704,6 +706,10 @@ describe('booking-draft preservation (landr-nmed)', () => {
       expect(draft!.roomAssignment).toEqual({
         0: { roomProductId: 'room-1', unitIndex: 0 },
       })
+      // landr-z59y: the breakfast-chip holders survive a breadcrumb JUMP, so
+      // a customer who placed breakfast on a specific person keeps it on the
+      // way forward (re-clamped against the restored rooms in AccommodationStep).
+      expect(draft!.breakfastMap).toEqual({ 0: true })
       expect(draft!.customerDeclarations).toEqual({ license_valid: true })
       expect(draft!.customerLanguages).toEqual(['en'])
     })

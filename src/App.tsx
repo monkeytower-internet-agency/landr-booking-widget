@@ -1162,7 +1162,8 @@ function BookingFlowApp() {
             initialAssignment={step.roomAssignment}
             // landr-doam.1: restore the per-occupant age map on back-nav.
             initialAgeMap={step.occupantAgeMap}
-            // landr-a4fy: restore the breakfast map on back-nav.
+            // landr-z59y: restore which occupants hold a breakfast chip on
+            // back-nav; AccommodationStep re-clamps it to the restored rooms.
             initialBreakfastMap={step.breakfastMap}
             // landr-87n9.2: live-lift the room + add-on selection so the
             // sidebar's at-hotel total updates as the customer picks rooms.
