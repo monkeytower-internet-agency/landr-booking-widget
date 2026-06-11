@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 
 interface Props {
   product: Product
@@ -31,13 +32,6 @@ interface Props {
 }
 
 const HORIZON_DAYS = 60
-
-const isoDate = (d: Date) => d.toISOString().slice(0, 10)
-
-const dateFromIso = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y!, (m ?? 1) - 1, d ?? 1)
-}
 
 export function AvailabilityPicker({
   product,

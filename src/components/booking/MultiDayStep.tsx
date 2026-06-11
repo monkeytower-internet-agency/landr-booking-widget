@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card'
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 
 interface Props {
   product: Product
@@ -45,18 +46,6 @@ const HORIZON_DAYS = 60
 // the full 6h CI timeout). A module-level constant keeps the reference stable
 // until real slots arrive.
 const EMPTY_SLOTS: AvailabilitySlot[] = []
-
-const isoDate = (d: Date) => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-const dateFromIso = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y!, (m ?? 1) - 1, d ?? 1)
-}
 
 export function MultiDayStep({
   product,
