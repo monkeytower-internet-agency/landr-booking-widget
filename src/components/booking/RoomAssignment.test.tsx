@@ -225,3 +225,105 @@ describe('RoomAssignment — adult/child age controls (landr-doam.1)', () => {
     expect(screen.queryByTestId('age-band-select-2')).toBeNull()
   })
 })
+
+describe('RoomAssignment — per-occupant breakfast toggle (landr-a4fy)', () => {
+  const SINGLE_UNIT: RoomUnit[] = [
+    { roomProductId: 'single', unitIndex: 0, capacity: 2, roomName: 'Single Room' },
+  ]
+  const ASSIGNED: RoomAssignmentMap = {
+    0: { roomProductId: 'single', unitIndex: 0 },
+    1: { roomProductId: 'single', unitIndex: 0 },
+  }
+
+  it('renders a breakfast toggle for each assigned occupant when breakfastRoomIds covers the room', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        breakfastMap={{ 0: true, 1: false }}
+        onBreakfastChange={vi.fn()}
+        breakfastRoomIds={new Set(['single'])}
+      />,
+    )
+    // Both assigned occupants have a breakfast toggle.
+    expect(screen.getByTestId('breakfast-toggle-0')).toBeInTheDocument()
+    expect(screen.getByTestId('breakfast-toggle-1')).toBeInTheDocument()
+  })
+
+  it('shows breakfast badge text matching the map', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        breakfastMap={{ 0: true, 1: false }}
+        onBreakfastChange={vi.fn()}
+        breakfastRoomIds={new Set(['single'])}
+      />,
+    )
+    const toggle0 = screen.getByTestId('breakfast-toggle-0')
+    expect(toggle0).toHaveTextContent('breakfast')
+    const toggle1 = screen.getByTestId('breakfast-toggle-1')
+    expect(toggle1).toHaveTextContent('no breakfast')
+  })
+
+  it('calls onBreakfastChange when the toggle changes', () => {
+    const onBreakfastChange = vi.fn()
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        breakfastMap={{ 0: false, 1: false }}
+        onBreakfastChange={onBreakfastChange}
+        breakfastRoomIds={new Set(['single'])}
+      />,
+    )
+    const toggle0 = screen.getByTestId('breakfast-toggle-0')
+    const checkbox = toggle0.querySelector('input[type="checkbox"]')!
+    fireEvent.click(checkbox)
+    expect(onBreakfastChange).toHaveBeenCalledWith(0, true)
+  })
+
+  it('does not show breakfast toggles when breakfastRoomIds is not provided', () => {
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={ASSIGNED}
+        onAssign={vi.fn()}
+        breakfastMap={{ 0: true, 1: true }}
+        onBreakfastChange={vi.fn()}
+        // breakfastRoomIds not passed → no toggles
+      />,
+    )
+    expect(screen.queryByTestId('breakfast-toggle-0')).toBeNull()
+    expect(screen.queryByTestId('breakfast-toggle-1')).toBeNull()
+  })
+
+  it('does not show breakfast toggles for unassigned occupants', () => {
+    const UNASSIGNED: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      // 1 is unassigned
+    }
+    render(
+      <RoomAssignment
+        units={SINGLE_UNIT}
+        participantNames={['Ada', 'Grace']}
+        assignment={UNASSIGNED}
+        onAssign={vi.fn()}
+        breakfastMap={{ 0: true, 1: true }}
+        onBreakfastChange={vi.fn()}
+        breakfastRoomIds={new Set(['single'])}
+      />,
+    )
+    // Ada has a toggle (assigned).
+    expect(screen.getByTestId('breakfast-toggle-0')).toBeInTheDocument()
+    // Grace (unassigned) has no toggle.
+    expect(screen.queryByTestId('breakfast-toggle-1')).toBeNull()
+  })
+})

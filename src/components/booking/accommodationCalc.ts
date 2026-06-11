@@ -756,6 +756,88 @@ export function roomIncludesBreakfast(product: Product): boolean {
 }
 
 /**
+ * landr-a4fy: per-party-member breakfast flag map (memberIndex → boolean).
+ * Only assigned occupants ever appear — unassigned members have no breakfast
+ * context. A missing key means the occupant has no breakfast (default false).
+ * Persisted through AccommodationStep's onConfirm so BookingForm can attach
+ * has_breakfast to each Participant/Companion in the submit payload.
+ */
+export type BreakfastMap = Record<number, boolean>
+
+/**
+ * landr-a4fy: derive a default BreakfastMap from the per-room add-on
+ * selection and the room assignment. The heuristic mirrors BookingForm's
+ * review-screen calculation: for each room product, the first N assigned
+ * occupants (in ascending memberIndex order) get breakfast, where N is the
+ * total breakfast add-on qty for that room product. This provides a sensible
+ * default that the user can then adjust per-occupant.
+ *
+ * The returned map is used to SEED the UI when the assignment or add-on
+ * selection changes — callers should keep any manual overrides the user has
+ * already made by merging (not replacing) existing entries where the
+ * occupant is still assigned to the same room.
+ */
+export function deriveBreakfastMap(
+  assignment: RoomAssignmentMap,
+  perRoomAddons: Record<string, Record<string, number>>,
+): BreakfastMap {
+  const out: BreakfastMap = {}
+
+  // Group assigned members by (roomProductId, unitIndex).
+  const unitOccupants = new Map<string, number[]>()
+  for (const [memberIdxStr, entry] of Object.entries(assignment)) {
+    const key = roomUnitKey(entry.roomProductId, entry.unitIndex)
+    const list = unitOccupants.get(key) ?? []
+    list.push(Number(memberIdxStr))
+    unitOccupants.set(key, list)
+  }
+
+  // For each room product, compute total breakfast add-on qty and distribute
+  // to the first N occupants of each unit in ascending memberIndex order.
+  const perRoomTotals = new Map<string, number>()
+  for (const [roomId, qtys] of Object.entries(perRoomAddons)) {
+    const total = Object.values(qtys).reduce((a, b) => a + b, 0)
+    perRoomTotals.set(roomId, total)
+  }
+
+  // For a given roomProductId, spread breakfasts across its units
+  // (unit 0 first, then unit 1, etc.), filling up to capacity each unit.
+  // We rely on the assignment map to find which units exist.
+  const unitsByRoom = new Map<string, number[]>()
+  for (const [memberIdxStr, entry] of Object.entries(assignment)) {
+    const { roomProductId, unitIndex } = entry
+    const existing = unitsByRoom.get(roomProductId) ?? []
+    if (!existing.includes(unitIndex)) existing.push(unitIndex)
+    unitsByRoom.set(roomProductId, existing)
+    void memberIdxStr
+  }
+
+  for (const [roomProductId, totalQty] of perRoomTotals.entries()) {
+    if (totalQty <= 0) continue
+    const unitIndices = (unitsByRoom.get(roomProductId) ?? []).sort((a, b) => a - b)
+    let remaining = totalQty
+    for (const unitIndex of unitIndices) {
+      if (remaining <= 0) break
+      const key = roomUnitKey(roomProductId, unitIndex)
+      const members = (unitOccupants.get(key) ?? []).sort((a, b) => a - b)
+      for (const memberIdx of members) {
+        if (remaining <= 0) break
+        out[memberIdx] = true
+        remaining -= 1
+      }
+    }
+  }
+  // Members not given breakfast default to false (omitted from map is fine,
+  // but we explicitly set false for assigned members without breakfast so
+  // the UI can show a deterministic off state).
+  for (const memberIdxStr of Object.keys(assignment)) {
+    const idx = Number(memberIdxStr)
+    if (out[idx] === undefined) out[idx] = false
+  }
+  return out
+}
+
+/**
  * landr-rc4l: per-party-member accent hues for the room-assignment chips.
  * A fixed palette of evenly-spaced, visually distinct hues (degrees on the
  * HSL wheel) so adjacent chips never read as "the same colour", indexed by

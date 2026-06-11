@@ -5,6 +5,7 @@ import {
   type AccommodationMode,
 } from '@/components/booking/AccommodationStep'
 import type {
+  BreakfastMap,
   OccupantAgeMap,
   RoomAssignmentMap,
   RoomSelection,
@@ -552,6 +553,8 @@ function BookingFlowApp() {
     perRoomAddons: PerRoomAddons | undefined = undefined,
     // landr-gb2f.5: room product display names for the review labels.
     roomProductNames: Record<string, string> | undefined = undefined,
+    // landr-a4fy: per-occupant breakfast flag map for the submit payload.
+    breakfastMap: BreakfastMap | undefined = undefined,
   ) => {
     // landr-87n9.2: the selection is now committed into the step state;
     // clear the live-lift so a later Back into pick-accommodation falls back
@@ -581,6 +584,8 @@ function BookingFlowApp() {
       perRoomAddons,
       // landr-gb2f.5: room product names thread through to the review.
       roomProductNames,
+      // landr-a4fy: breakfast map threads through to the review.
+      breakfastMap,
     )
     // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
     // the operator requires declarations, convert to the declarations step
@@ -1066,6 +1071,8 @@ function BookingFlowApp() {
             initialAssignment={step.roomAssignment}
             // landr-doam.1: restore the per-occupant age map on back-nav.
             initialAgeMap={step.occupantAgeMap}
+            // landr-a4fy: restore the breakfast map on back-nav.
+            initialBreakfastMap={step.breakfastMap}
             // landr-87n9.2: live-lift the room + add-on selection so the
             // sidebar's at-hotel total updates as the customer picks rooms.
             // Sets the `touched` sentinel so App prefers live values over the
@@ -1092,7 +1099,7 @@ function BookingFlowApp() {
                 companions: step.companions,
               })
             }}
-            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap, perRoomAddons, roomProductNames) =>
+            onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap, perRoomAddons, roomProductNames, breakfastMap) =>
               afterAccommodation(
                 step.product,
                 step.selection,
@@ -1124,6 +1131,8 @@ function BookingFlowApp() {
                 perRoomAddons,
                 // landr-gb2f.5: thread room product names for review labels.
                 roomProductNames,
+                // landr-a4fy: thread breakfast map to submit step.
+                breakfastMap,
               )
             }
           />
@@ -1199,6 +1208,7 @@ function BookingFlowApp() {
                   occupantAgeMap: step.occupantAgeMap,
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
                 })
               } else if (step.hadServiceAddons) {
                 // landr-yf0n: the customer originally went through
@@ -1252,6 +1262,7 @@ function BookingFlowApp() {
                 occupantAgeMap: step.occupantAgeMap,
                 perRoomAddons: step.perRoomAddons,
                 roomProductNames: step.roomProductNames,
+                breakfastMap: step.breakfastMap,
               }
               setStep(
                 fillFormOrDeclarations(
@@ -1299,6 +1310,7 @@ function BookingFlowApp() {
                   occupantAgeMap: step.occupantAgeMap,
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
                 }),
               )
             }
@@ -1322,6 +1334,7 @@ function BookingFlowApp() {
                 occupantAgeMap: step.occupantAgeMap,
                 perRoomAddons: step.perRoomAddons,
                 roomProductNames: step.roomProductNames,
+                breakfastMap: step.breakfastMap,
                 customerDeclarations: customerDeclarations.declarations,
                 // landr-87n9.4: multi-select languages + free-text other.
                 customerLanguages: customerDeclarations.languages,
@@ -1364,6 +1377,8 @@ function BookingFlowApp() {
             perRoomAddons={step.perRoomAddons}
             // landr-gb2f.5: thread room product names for the review labels.
             roomProductNames={step.roomProductNames}
+            // landr-a4fy: thread breakfast map for has_breakfast per occupant.
+            breakfastMap={step.breakfastMap}
             onBack={() => {
               // landr-sbhz.3: if declarations were collected, back
               // from fill-form goes to the declarations step (not all
@@ -1391,6 +1406,7 @@ function BookingFlowApp() {
                   occupantAgeMap: step.occupantAgeMap,
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
                   // landr-87n9.4: restore languages[] + otherLanguages on back-nav.
                   initialDeclarations: step.customerDeclarations
                     ? {
@@ -1428,6 +1444,7 @@ function BookingFlowApp() {
                   occupantAgeMap: step.occupantAgeMap,
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
                 }),
               )
             }}

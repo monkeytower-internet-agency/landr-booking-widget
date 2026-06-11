@@ -576,3 +576,123 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(btn).not.toBeDisabled()
   })
 })
+
+// landr-a4fy: per-occupant has_breakfast in the submit payload.
+describe('BookingForm — per-occupant breakfast (landr-a4fy)', () => {
+  beforeEach(() => {
+    vi.mocked(submitBooking).mockReset()
+  })
+
+  it('sends has_breakfast=true on participants whose breakfastMap entry is true', async () => {
+    vi.mocked(submitBooking).mockResolvedValue({
+      booking_id: 'b-a4fy-1',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: 'grace@example.com',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
+        perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'single-room': 'Single Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'single-room', unitIndex: 0 },
+          1: { roomProductId: 'single-room', unitIndex: 1 },
+        }}
+        // Ada (participant 0) has breakfast; Grace (participant 1) does not.
+        breakfastMap={{ 0: true, 1: false }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(vi.mocked(submitBooking)).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    // Ada has breakfast.
+    expect(body.participants[0]).toMatchObject({ has_breakfast: true })
+    // Grace does not — has_breakfast should be absent (not sent).
+    expect((body.participants[1] as unknown as Record<string, unknown>).has_breakfast).toBeUndefined()
+  })
+
+  it('omits has_breakfast when breakfastMap is empty (backward-compatible)', async () => {
+    vi.mocked(submitBooking).mockResolvedValue({
+      booking_id: 'b-a4fy-2',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(vi.mocked(submitBooking)).toHaveBeenCalledTimes(1))
+    const body = vi.mocked(submitBooking).mock.calls[0]![0]
+    expect((body.participants[0] as unknown as Record<string, unknown>).has_breakfast).toBeUndefined()
+  })
+
+  it('uses breakfastMap for review-screen per-room breakfast when provided', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
+        perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'single-room': 'Single Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'single-room', unitIndex: 0 },
+          1: { roomProductId: 'single-room', unitIndex: 1 },
+        }}
+        // Invert the heuristic: Grace (unit 1) has breakfast, Ada (unit 0) does not.
+        breakfastMap={{ 0: false, 1: true }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('review-per-room-breakfast')
+    expect(section).toBeInTheDocument()
+    // breakfastMap drives the display — NOT the index-order heuristic.
+    // Ada (unit 0) has no breakfast.
+    const status0 = screen.getByTestId('room-breakfast-status-0')
+    expect(status0).toHaveTextContent('without breakfast')
+    // Grace (unit 1) has breakfast.
+    const status1 = screen.getByTestId('room-breakfast-status-1')
+    expect(status1).toHaveTextContent('with breakfast')
+  })
+})

@@ -17,6 +17,7 @@ import {
   chipHue,
   occupantsOfUnit,
   roomUnitKey,
+  type BreakfastMap,
   type OccupantAgeMap,
   type OccupantAgeBand,
   type RoomAssignmentMap,
@@ -87,6 +88,24 @@ interface Props {
     band: OccupantAgeBand,
     age: number | null,
   ) => void
+  /**
+   * landr-a4fy: per-occupant breakfast flag map (memberIndex → boolean).
+   * Only shown for units whose room product has a breakfast add-on
+   * (i.e. when `unitHasBreakfastAddon` is true). Missing key = false.
+   * When onBreakfastChange is omitted the breakfast toggle is hidden.
+   */
+  breakfastMap?: BreakfastMap
+  /**
+   * landr-a4fy: called when the user toggles breakfast for an assigned
+   * occupant. The parent owns the map and passes it back down.
+   */
+  onBreakfastChange?: (memberIndex: number, hasBreakfast: boolean) => void
+  /**
+   * landr-a4fy: set of roomProductIds whose rooms have a breakfast add-on
+   * configured (and selected qty > 0). Used to decide whether to show
+   * breakfast toggles for occupants in those units.
+   */
+  breakfastRoomIds?: Set<string>
 }
 
 function participantLabel(names: string[], index: number): string {
@@ -266,6 +285,45 @@ function OccupantAgeControl({
   )
 }
 
+/**
+ * landr-a4fy: per-occupant breakfast toggle shown next to each assigned
+ * occupant chip in a room unit (only when the room product has a breakfast
+ * add-on configured). Renders a checkbox + label so screen readers announce
+ * it as "Breakfast — <name>".
+ */
+function OccupantBreakfastControl({
+  memberIndex,
+  label,
+  breakfastMap,
+  onBreakfastChange,
+}: {
+  memberIndex: number
+  label: string
+  breakfastMap: BreakfastMap
+  onBreakfastChange: (memberIndex: number, hasBreakfast: boolean) => void
+}) {
+  const hasBreakfast = breakfastMap[memberIndex] ?? false
+  return (
+    <label
+      className="flex cursor-pointer items-center gap-1 text-xs"
+      data-testid={`breakfast-toggle-${memberIndex}`}
+    >
+      <input
+        type="checkbox"
+        checked={hasBreakfast}
+        onChange={(e) => onBreakfastChange(memberIndex, e.target.checked)}
+        className="h-3.5 w-3.5 accent-primary"
+        aria-label={`Breakfast for ${label}`}
+      />
+      <span
+        className={hasBreakfast ? 'font-medium text-primary' : 'text-muted-foreground'}
+      >
+        {hasBreakfast ? 'breakfast' : 'no breakfast'}
+      </span>
+    </label>
+  )
+}
+
 /** A droppable room-unit slot. */
 function UnitDropZone({
   unit,
@@ -277,6 +335,9 @@ function UnitDropZone({
   onAssign,
   ageMap = {},
   onAgeBandChange,
+  showBreakfastToggle = false,
+  breakfastMap = {},
+  onBreakfastChange,
 }: {
   unit: RoomUnit
   occupantIndices: number[]
@@ -291,6 +352,10 @@ function UnitDropZone({
     band: OccupantAgeBand,
     age: number | null,
   ) => void
+  /** landr-a4fy: whether to show breakfast toggles for this unit's occupants. */
+  showBreakfastToggle?: boolean
+  breakfastMap?: BreakfastMap
+  onBreakfastChange?: (memberIndex: number, hasBreakfast: boolean) => void
 }) {
   const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
   const { setNodeRef, isOver } = useDroppable({ id: `unit-${key}`, data: { unit } })
@@ -346,6 +411,16 @@ function UnitDropZone({
                   onAgeBandChange={onAgeBandChange}
                 />
               ) : null}
+              {/* landr-a4fy: breakfast toggle — only when this room
+                  product has a breakfast add-on selected. */}
+              {showBreakfastToggle && onBreakfastChange ? (
+                <OccupantBreakfastControl
+                  memberIndex={pIdx}
+                  label={participantLabel(participantNames, pIdx)}
+                  breakfastMap={breakfastMap ?? {}}
+                  onBreakfastChange={onBreakfastChange}
+                />
+              ) : null}
             </div>
           ))
         )}
@@ -377,6 +452,9 @@ export function RoomAssignment({
   onAssign,
   ageMap = {},
   onAgeBandChange,
+  breakfastMap = {},
+  onBreakfastChange,
+  breakfastRoomIds,
 }: Props) {
   const selectId = useId()
   // tap-to-place: the currently "picked up" participant index (or null).
@@ -488,6 +566,12 @@ export function RoomAssignment({
                   onAssign={onAssign}
                   ageMap={ageMap}
                   onAgeBandChange={onAgeBandChange}
+                  showBreakfastToggle={
+                    breakfastRoomIds !== undefined &&
+                    breakfastRoomIds.has(unit.roomProductId)
+                  }
+                  breakfastMap={breakfastMap}
+                  onBreakfastChange={onBreakfastChange}
                 />
               </div>
             )

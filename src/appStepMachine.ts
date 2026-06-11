@@ -6,6 +6,7 @@
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
 import type {
+  BreakfastMap,
   OccupantAgeMap,
   RoomAssignmentMap,
   RoomSelection,
@@ -141,6 +142,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: per-occupant breakfast flag map for back-nav restoration.
+      breakfastMap?: BreakfastMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -186,6 +189,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: carry the breakfast map through the pickup step.
+      breakfastMap?: BreakfastMap
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -218,6 +223,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: carry the breakfast map through declarations.
+      breakfastMap?: BreakfastMap
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -256,6 +263,9 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: per-occupant breakfast flag map threaded to BookingForm
+      // for has_breakfast on each Participant / Companion in the submit body.
+      breakfastMap?: BreakfastMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -335,6 +345,8 @@ export function stepAfterAccommodation(
   perRoomAddons: PerRoomAddons | undefined = undefined,
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames: Record<string, string> | undefined = undefined,
+  // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
+  breakfastMap: BreakfastMap | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -362,6 +374,7 @@ export function stepAfterAccommodation(
       occupantAgeMap,
       perRoomAddons,
       roomProductNames,
+      breakfastMap,
     }
   }
   if (product.needs_pickup) {
@@ -383,6 +396,7 @@ export function stepAfterAccommodation(
       occupantAgeMap,
       perRoomAddons,
       roomProductNames,
+      breakfastMap,
     }
   }
   return {
@@ -404,6 +418,7 @@ export function stepAfterAccommodation(
     occupantAgeMap,
     perRoomAddons,
     roomProductNames,
+    breakfastMap,
   }
 }
 
@@ -458,6 +473,8 @@ export interface StepBeforeReviewArgs {
   perRoomAddons?: PerRoomAddons
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames?: Record<string, string>
+  // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
+  breakfastMap?: BreakfastMap
 }
 
 export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
@@ -490,6 +507,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       occupantAgeMap: args.occupantAgeMap,
       perRoomAddons: args.perRoomAddons,
       roomProductNames: args.roomProductNames,
+      breakfastMap: args.breakfastMap,
     }
   }
   // 2. No hotel offering, product needs a pickup → pick-pickup showed
@@ -514,6 +532,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       occupantAgeMap: args.occupantAgeMap,
       perRoomAddons: args.perRoomAddons,
       roomProductNames: args.roomProductNames,
+      breakfastMap: args.breakfastMap,
     }
   }
   // 4. No hotel, no pickup, but the customer went through the service-
@@ -576,6 +595,8 @@ export function fillFormOrDeclarations(
     perRoomAddons?: PerRoomAddons
     // landr-gb2f.5: thread the room product names through too.
     roomProductNames?: Record<string, string>
+    // landr-a4fy: thread the breakfast map through too.
+    breakfastMap?: BreakfastMap
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,

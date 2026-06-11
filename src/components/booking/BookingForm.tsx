@@ -11,6 +11,7 @@ import type {
 import {
   deriveStayWindow,
   stayNightIsos,
+  type BreakfastMap,
   type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
@@ -174,6 +175,16 @@ interface Props {
    * per-room breakfast section. Falls back to the product_id when absent.
    */
   roomProductNames?: Record<string, string>
+  /**
+   * landr-a4fy: per-occupant breakfast flag map from AccommodationStep
+   * (memberIndex → boolean). Unified party index space (participants 0..P-1,
+   * companions P..P+C-1). When present, each Participant/Companion in the
+   * submit body carries has_breakfast=true/false. Also drives the review-
+   * screen breakfast display (replaces the index-order heuristic when present).
+   * Absent / empty → no has_breakfast sent; review falls back to the
+   * heuristic (backward-compatible).
+   */
+  breakfastMap?: BreakfastMap
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -280,6 +291,7 @@ export function BookingForm({
   occupantAgeMap = {},
   perRoomAddons,
   roomProductNames,
+  breakfastMap = {},
   onBack,
   onConfirmed,
 }: Props) {
@@ -318,18 +330,19 @@ export function BookingForm({
   const stay = hasRooms ? deriveStayWindow(selectedDays) : null
   const showTimezone = product.service_time_shape === 'time_slot'
 
-  // landr-gb2f.4 / gb2f.5: build the per-room-unit breakfast breakdown for
-  // the review. Only rendered when we have rooms AND a perRoomAddons map
-  // (i.e. the customer booked in package mode with add-ons configured).
+  // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
+  // breakdown for the review. Only rendered when we have rooms AND a
+  // perRoomAddons map (i.e. the customer booked in package mode with
+  // add-ons configured).
   //
-  // For each booked room type we expand the qty into N unit slots, then
-  // distribute the total breakfast qty across units in index order
-  // (first units get breakfast). This gives a deterministic "which unit
-  // has breakfast" split that matches what the AccommodationStep shows
-  // — e.g. 2 Single Rooms, breakfast qty=1 → unit 0 "with breakfast",
-  // unit 1 "without breakfast". The occupants from roomAssignment are
-  // listed next to each unit so the booker can verify the pairing.
+  // landr-a4fy: when breakfastMap is populated (per-occupant flags from
+  // the room-assignment step), derive per-unit hasBreakfast from the
+  // occupants of that unit: a unit "has breakfast" when ANY assigned
+  // occupant has has_breakfast=true. This is the correct authoritative
+  // source once the user has toggled.
   //
+  // Fallback: when breakfastMap is empty (legacy / pre-a4fy path), use
+  // the index-order heuristic (first totalAddonQty units get breakfast).
   // Skipped when perRoomAddons is absent or empty (guiding-only,
   // shared-double, or no add-ons configured).
   const perRoomBreakfastRows: {
@@ -348,6 +361,7 @@ export function BookingForm({
       ...participants.map((p) => p.first_name || '?'),
       ...companions.map((c) => c.first_name || '?'),
     ]
+    const hasBreakfastMapData = Object.keys(breakfastMap).length > 0
     const rows: { label: string; hasBreakfast: boolean; occupantNames: string[] }[] = []
     for (const room of accommodationRooms) {
       const roomName = roomProductNames?.[room.productId] ?? room.productId
@@ -359,20 +373,30 @@ export function BookingForm({
         // Build unit label: "Single Room 1" (1-based) or "Single Room" when qty=1.
         const label =
           room.quantity > 1 ? `${roomName} ${unitIndex + 1}` : roomName
-        // Distribute breakfast sequentially: first totalAddonQty units get it.
-        const hasBreakfast = unitIndex < totalAddonQty
-        // Collect occupant first names from the assignment map.
+        // Collect occupant first names and member indices from the assignment map.
         const occupantNames: string[] = []
+        const occupantIndices: number[] = []
         if (roomAssignment) {
           for (const [memberIdxStr, entry] of Object.entries(roomAssignment)) {
             if (
               entry.roomProductId === room.productId &&
               entry.unitIndex === unitIndex
             ) {
-              const name = allPartyNames[Number(memberIdxStr)]
+              const memberIdx = Number(memberIdxStr)
+              const name = allPartyNames[memberIdx]
               if (name) occupantNames.push(name)
+              occupantIndices.push(memberIdx)
             }
           }
+        }
+        // landr-a4fy: derive hasBreakfast from the occupant breakfast flags
+        // when available; fall back to the index-order heuristic otherwise.
+        let hasBreakfast: boolean
+        if (hasBreakfastMapData) {
+          hasBreakfast = occupantIndices.some((idx) => breakfastMap[idx] === true)
+        } else {
+          // Distribute breakfast sequentially: first totalAddonQty units get it.
+          hasBreakfast = unitIndex < totalAddonQty
         }
         rows.push({ label, hasBreakfast, occupantNames })
       }
@@ -440,6 +464,9 @@ export function BookingForm({
           // Absent/null = adult (default). Only 'child' sends occupant_age.
           const ageEntry = occupantAgeMap[idx]
           const isChild = ageEntry?.band === 'child'
+          // landr-a4fy: per-occupant breakfast flag. Omit when false/absent
+          // to keep the payload compact (API default = false).
+          const hasBreakfast = breakfastMap[idx] === true
           return {
             first_name: p.first_name,
             last_name: p.last_name || null,
@@ -467,6 +494,9 @@ export function BookingForm({
                   occupant_age: ageEntry.age ?? null,
                 }
               : {}),
+            // landr-a4fy wire field (PINNED contract):
+            // omit when false to keep the payload compact.
+            ...(hasBreakfast ? { has_breakfast: true as const } : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -485,6 +515,8 @@ export function BookingForm({
                 // landr-doam.1: per-occupant age band + age for companions.
                 const ageEntry = occupantAgeMap[memberIdx]
                 const isChild = ageEntry?.band === 'child'
+                // landr-a4fy: per-occupant breakfast flag for companions.
+                const hasBreakfast = breakfastMap[memberIdx] === true
                 return {
                   first_name: c.first_name,
                   last_name: c.last_name || null,
@@ -500,6 +532,9 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
+                  // landr-a4fy wire field (PINNED contract):
+                  // omit when false to keep the payload compact.
+                  ...(hasBreakfast ? { has_breakfast: true as const } : {}),
                   // landr-doam.1 scope-add: companion kind (PINNED contract).
                   // Omit when 'guest' (the API default) to keep payload compact.
                   ...(c.companion_kind === 'separate_guiding'
