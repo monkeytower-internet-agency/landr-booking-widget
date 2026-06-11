@@ -63,6 +63,11 @@ import {
   stepBeforeReview,
 } from './appStepMachine'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
+import {
+  clearStoredProgress,
+  readStoredProgress,
+  writeStoredProgress,
+} from './bookingPersistence'
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
@@ -169,7 +174,10 @@ function App() {
         <StaffModeProvider>
           {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
           <TierBadge />
-          <div className="min-h-screen bg-background text-foreground">
+          {/* landr-2mgl: overscroll-y-contain stops a stray swipe at the top
+              of this scroll container from triggering the browser's
+              pull-to-refresh, which would reload the iframe. */}
+          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <CancelPage bookingId={route.bookingId} />
             </div>
@@ -207,7 +215,22 @@ function BookingFlowApp() {
   // 'unknown' means "no token supplied"; null means "fetch pending";
   // false means "fetch returned 404".
   const [showLanding, setShowLanding] = useState<boolean>(!token)
-  const [step, setStep] = useState<Step>({ name: 'pick-product' })
+  // landr-2mgl: restore funnel progress persisted to sessionStorage on the
+  // previous render (survives an accidental mobile pull-to-refresh OR an
+  // intentional reload, which both remount this component from scratch).
+  // Read ONCE at mount — readStoredProgress returns null when nothing is
+  // stored, the step isn't restorable, or storage is blocked (sandboxed
+  // iframe), so a fresh customer / a Safari-private embed simply starts at
+  // pick-product with an empty draft. Skipped entirely when there's no
+  // token (the landing page renders) or a deep link is present (?product= /
+  // ?group= drive their own entry, which must win over a stale restore).
+  const restoredProgress = useMemo(
+    () => (token && !product && !group ? readStoredProgress() : null),
+    [token, product, group],
+  )
+  const [step, setStep] = useState<Step>(
+    () => restoredProgress?.step ?? { name: 'pick-product' },
+  )
   // Live selection from the date pickers before the user presses Continue
   // (landr-w7pi). Cleared whenever we leave pick-selection so the next
   // visit to that step starts fresh.
@@ -239,7 +262,13 @@ function BookingFlowApp() {
   // this draft so already-entered booker / participants / companions /
   // accommodation / declarations are preserved instead of wiped. Generalises
   // the landr-b3g5 adjacent-Back restore to arbitrary breadcrumb jumps.
-  const [bookingDraft, setBookingDraft] = useState<BookingDraft>({})
+  // landr-2mgl: seed the persistent draft from the restored snapshot so a
+  // reload mid-funnel keeps every already-entered slice (booker /
+  // participants / companions / accommodation / declarations) — same data
+  // the step itself carries, kept in sync.
+  const [bookingDraft, setBookingDraft] = useState<BookingDraft>(
+    () => restoredProgress?.bookingDraft ?? {},
+  )
   const mergeDraft = useCallback((patch: BookingDraft) => {
     setBookingDraft((prev) => ({ ...prev, ...patch }))
   }, [])
@@ -265,6 +294,19 @@ function BookingFlowApp() {
   // Passed as productGroup to ProductList so the list is scoped to that group.
   // Cleared when the user returns to pick-category (back-nav).
   const [pickedGroupSlug, setPickedGroupSlug] = useState<string | null>(null)
+
+  // landr-2mgl: persist the funnel position + draft on every change so an
+  // (accidental or intentional) reload restores it. writeStoredProgress is
+  // fully guarded (no-op on blocked storage) and skips non-restorable steps
+  // (entry steps + the post-booking confirmation), proactively clearing the
+  // snapshot at those points so a reload there starts clean — this is what
+  // covers both the "completed booking" and "full restart" clear-points
+  // (goToProductStep sets step → pick-product, which triggers this effect's
+  // clear). PII (names/emails) lives only in same-origin, tab-scoped
+  // sessionStorage here — never in the URL.
+  useEffect(() => {
+    writeStoredProgress({ step, bookingDraft })
+  }, [step, bookingDraft])
 
   // Operator-level flags (landr-e10.9). Defaults to the safe value
   // (expose_seats_to_customer=false) until the fetch resolves so the
@@ -441,6 +483,12 @@ function BookingFlowApp() {
       // Back-to-catalog) is the ONE place the persistent booking-draft is
       // discarded — the customer is starting a brand-new booking.
       setBookingDraft({})
+      // landr-2mgl: drop the persisted snapshot synchronously on a full
+      // restart so a reload immediately after starting over never resurrects
+      // the finished/abandoned funnel. The persistence effect would also
+      // clear it once the pick-product state commits, but doing it here makes
+      // the restart self-documenting and the clear deterministic.
+      clearStoredProgress()
       // landr-d8rg.4: when restarting after a booking, go back to pick-product
       // (unscoped or scoped) — not to pick-category. This preserves the
       // existing goToProductStep behavior for post-booking restart.
@@ -760,9 +808,14 @@ function BookingFlowApp() {
     : {}
 
   return (
+    // landr-2mgl: overscroll-y-contain on the widget's outermost scroll
+    // container stops a stray top-of-page swipe from triggering the mobile
+    // browser's pull-to-refresh — which would reload the iframe and (before
+    // the sessionStorage restore below) wipe the customer's progress.
     <div
-      className="min-h-screen bg-background text-foreground"
+      className="min-h-screen overscroll-y-contain bg-background text-foreground"
       style={brandStyle}
+      data-testid="widget-root"
     >
       {/*
         Outer flex (md and up) puts the step content on the left and the
@@ -1558,9 +1611,15 @@ function BookingFlowApp() {
                 }),
               )
             }}
-            onConfirmed={(response, email) =>
+            onConfirmed={(response, email) => {
+              // landr-2mgl: the booking is now placed — drop the persisted
+              // snapshot so a reload on the confirmation screen can't replay a
+              // completed/stale funnel. The persistence effect also skips the
+              // non-restorable `confirmed` step, but clearing here is explicit
+              // and synchronous with the success transition.
+              clearStoredProgress()
               setStep({ name: 'confirmed', response, email })
-            }
+            }}
           />
         ) : null}
 
