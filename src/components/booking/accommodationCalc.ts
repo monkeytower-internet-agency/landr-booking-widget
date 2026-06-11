@@ -382,17 +382,22 @@ export function occupantsOfUnit(
  * Mutates `map` in place. Called after any move so "the last slot" is always
  * well-defined for the next rotation. Pure w.r.t. ordering — it only rewrites
  * the slot numbers, never which unit an occupant is in.
+ *
+ * Returns the ordered member-index list so callers that immediately need the
+ * occupant order (e.g. applyAssignment's insert path) can reuse it without a
+ * second orderedOccupantsByKey scan.
  */
 function renormalizeUnitSlots(
   map: RoomAssignmentMap,
   roomProductId: string,
   unitIndex: number,
-): void {
+): number[] {
   const ordered = orderedOccupantsByKey(map, roomProductId, unitIndex)
   ordered.forEach((idx, position) => {
     const entry = map[idx]
     if (entry) map[idx] = { ...entry, slot: position }
   })
+  return ordered
 }
 
 /**
@@ -450,9 +455,9 @@ export function applyAssignment(
   // existing display order before we insert. This anchors "the last slot" even
   // when the unit was filled by auto-assign (slot-less, index-ordered), so both
   // the append and the rotation below place the mover predictably.
-  renormalizeUnitSlots(next, target.roomProductId, target.unitIndex)
-
-  const occupants = orderedOccupantsByKey(
+  // Reuse the ordered list returned by renormalizeUnitSlots to avoid a second
+  // orderedOccupantsByKey scan (landr-cnk9 #4).
+  const occupants = renormalizeUnitSlots(
     next,
     target.roomProductId,
     target.unitIndex,
@@ -460,13 +465,16 @@ export function applyAssignment(
 
   if (occupants.length < target.capacity) {
     // Spare capacity → append the member at the end of the target unit.
+    // The new member is placed at slot `occupants.length` (i.e. one past the
+    // last existing occupant) so no re-normalisation of the target is needed
+    // — the slots are already contiguous 0..k-1 from renormalizeUnitSlots
+    // above, and appending at occupants.length keeps them that way (landr-cnk9 #3).
     next[memberIndex] = {
       roomProductId: target.roomProductId,
       unitIndex: target.unitIndex,
       slot: occupants.length,
     }
     if (prev) renormalizeUnitSlots(next, prev.roomProductId, prev.unitIndex)
-    renormalizeUnitSlots(next, target.roomProductId, target.unitIndex)
     return next
   }
 
