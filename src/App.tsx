@@ -853,7 +853,6 @@ function BookingFlowApp() {
         {step.name === 'pick-category' ? (
           <CategoryStep
             groups={step.groups}
-            hideHeading={Boolean(operatorSettings.widget_headline)}
             columns={operatorSettings.widget_category_columns ?? null}
             tileFont={(operatorSettings.widget_tile_font as TileFontKey | null) ?? null}
             titleCase={operatorSettings.widget_title_case ?? null}
