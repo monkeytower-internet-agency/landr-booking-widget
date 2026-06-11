@@ -84,6 +84,10 @@ const MOCK_TOKEN = 'mock-token-abc'
 
 describe('App', () => {
   beforeEach(() => {
+    // landr-2mgl: start every test with a clean sessionStorage so a funnel
+    // snapshot persisted by one test (reload-resilience) never leaks into the
+    // next test's fresh mount and restores a stale mid-funnel step.
+    window.sessionStorage.clear()
     // Default: a valid token so the booking flow renders.
     window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
     mocks.getOperatorSettings.mockResolvedValue({
@@ -1709,6 +1713,91 @@ describe('App', () => {
         (l) => l.product_id === 'svc-1',
       )!
       expect(serviceLine.selected_days).toEqual([iso2])
+    })
+  })
+
+  // landr-2mgl: reload-resilient booking progress. A mobile pull-to-refresh
+  // (or any intentional reload) remounts <App /> from scratch; these cover
+  // the overscroll guard that stops the accidental reload + the
+  // sessionStorage restore that survives an intentional one.
+  describe('reload resilience (landr-2mgl)', () => {
+    it('applies overscroll-y-contain to the widget root scroll container', async () => {
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-root')).toBeInTheDocument()
+      })
+      // The class is what stops a stray top-of-page swipe from triggering
+      // the browser's pull-to-refresh (which reloads the iframe).
+      expect(screen.getByTestId('widget-root').className).toContain(
+        'overscroll-y-contain',
+      )
+    })
+
+    it('restores a mid-funnel step from sessionStorage on mount (survived a reload)', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', slug: 'tandem', name: 'Tandem' }),
+      ])
+      // Simulate the snapshot a previous render persisted: the customer was
+      // on the details step with a product + dates already committed.
+      window.sessionStorage.setItem(
+        'landr-widget-progress.v1',
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product: makeProduct({
+              product_id: 'p-1',
+              slug: 'tandem',
+              name: 'Tandem',
+              service_time_shape: 'days_range',
+            }),
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+          },
+          bookingDraft: {},
+        }),
+      )
+      render(<App />)
+      // Restored straight to the DetailsStep (booker contact form), NOT the
+      // product list — the reload did not wipe progress. (The product name
+      // legitimately appears in the breadcrumb here, so the booker input is
+      // the unambiguous proof we landed mid-funnel.)
+      await waitFor(() => {
+        expect(
+          document.querySelector('input[name="booker_first_name"]'),
+        ).toBeInTheDocument()
+      })
+      // We are past the catalogue — neither the grid nor list product
+      // surface is rendered (the restore landed us mid-funnel, not at start).
+      expect(screen.queryByTestId('product-grid')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('product-list')).not.toBeInTheDocument()
+    })
+
+    it('does NOT restore a persisted snapshot when a ?product= deep link is present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=tandem`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', slug: 'tandem', name: 'Tandem' }),
+      ])
+      // A stale details snapshot in storage must lose to the deep link.
+      window.sessionStorage.setItem(
+        'landr-widget-progress.v1',
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product: makeProduct({ product_id: 'p-1', slug: 'tandem' }),
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+          },
+          bookingDraft: {},
+        }),
+      )
+      render(<App />)
+      // The deep link drives entry to the product-detail surface, not the
+      // restored details step — no booker form on first paint.
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
+      })
+      expect(
+        document.querySelector('input[name="booker_first_name"]'),
+      ).not.toBeInTheDocument()
     })
   })
 })
