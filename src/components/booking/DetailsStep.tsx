@@ -24,6 +24,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+import { GroupInquiryForm } from './GroupInquiryForm'
 
 const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
@@ -57,6 +58,13 @@ interface Props {
    * (broken) mailto is omitted. Optional so existing tests need no change.
    */
   contactEmail?: string | null
+  /**
+   * landr-ehye: opaque widget token used to POST the group-inquiry form.
+   * When absent (e.g. existing test call-sites) the form still renders but
+   * submitGroupInquiry will throw (no API base), which falls back to the
+   * mailto: link — safe degrade.
+   */
+  operatorToken?: string
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -148,6 +156,7 @@ export function DetailsStep({
   selection,
   serviceRoles = [],
   contactEmail,
+  operatorToken = '',
   initialBooker,
   initialParticipants,
   initialCompanions,
@@ -727,30 +736,30 @@ export function DetailsStep({
               working. */}
           {participantsAtMax ? (
             <div
-              className="flex flex-col gap-1 rounded-lg border border-dashed bg-surface-raised p-3"
+              className="flex flex-col gap-2 rounded-lg border border-dashed bg-surface-raised p-3"
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
                 Maximum of {MAX_ADDITIONAL} additional participants reached
               </p>
-              {/* landr-4uyu: contact-us at the participant max only. The copy
-                  always shows; the mailto link is omitted when the operator has
-                  no contact_email (graceful degrade — never an empty mailto). */}
+              {/* landr-ehye: inline group-inquiry form replaces the plain
+                  mailto: link added by PR #108. The form POSTs to the
+                  API; the mailto: link stays as a fallback (shown inside
+                  GroupInquiryForm on error, and as a secondary "Or email us"
+                  link while the form is idle). When the operator has no
+                  contact_email, contactMailto is empty and the mailto
+                  fallback is omitted — same graceful degrade as before. */}
               <p className="text-xs text-muted-foreground">
-                Need a larger group or a flight school booking? Get in touch
-                {contactMailto ? ': ' : '.'}
-                {contactMailto ? (
-                  <a
-                    href={contactMailto}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-primary underline underline-offset-2"
-                    data-testid="participants-contact-mailto"
-                  >
-                    {trimmedContactEmail}
-                  </a>
-                ) : null}
+                Need a larger group or a flight school booking? Get in touch:
               </p>
+              <GroupInquiryForm
+                operatorToken={operatorToken}
+                productSlug={product.slug}
+                defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
+                defaultEmail={booker.email}
+                contactMailto={contactMailto}
+                contactEmail={trimmedContactEmail}
+              />
             </div>
           ) : (
             <Button
