@@ -413,3 +413,44 @@ export async function estimateBookingPrice(
     },
   )
 }
+
+/**
+ * Request body for POST /api/public/operators/{token}/group-inquiry
+ * (landr-ehye). Sent when a customer at the participant max requests a
+ * larger group or flight-school booking.
+ */
+export interface GroupInquiryRequest {
+  name: string
+  email: string
+  party_size: number
+  message: string
+  product_slug: string | null
+}
+
+/**
+ * Minimal acknowledgement from the group-inquiry endpoint. The API
+ * always returns {ok: true} on success; error shapes use HttpError.
+ */
+export interface GroupInquiryResponse {
+  ok: boolean
+}
+
+/**
+ * Submit a larger-group / flight-school inquiry (landr-ehye). The widget
+ * shows this inline form when the customer reaches the participant max.
+ * In mock mode we resolve immediately so the embedded demo flow still
+ * renders the success state without a live API.
+ */
+export async function submitGroupInquiry(
+  operatorToken: string,
+  body: GroupInquiryRequest,
+): Promise<GroupInquiryResponse> {
+  if (mocksEnabled()) return { ok: true }
+  return http<GroupInquiryResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/group-inquiry`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+}

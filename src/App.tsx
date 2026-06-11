@@ -1101,6 +1101,8 @@ function BookingFlowApp() {
             // operator hasn't set one (or the API predates the key) — the
             // copy still renders but the mailto is omitted.
             contactEmail={operatorSettings.contact_email ?? null}
+            // landr-ehye: token passed to GroupInquiryForm for the POST.
+            operatorToken={token!}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-87n9.3: restore the non-guiding companions on Back.

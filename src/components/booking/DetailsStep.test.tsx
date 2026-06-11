@@ -849,7 +849,10 @@ describe('DetailsStep — add-below-last + max + contact-us (landr-4uyu)', () =>
     )
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    expect(link).toHaveTextContent('ops@para42.example')
+    // landr-ehye: link text changed to "Or email us" — the email address is
+    // in the href, not the text content, because the form is now the primary
+    // contact path and the mailto is a secondary "Or email us" escape hatch.
+    expect(link).toHaveTextContent(/or email us/i)
     // The mailto carries a sensible prefilled subject.
     expect(link.getAttribute('href')).toMatch(/[?&]subject=/)
   })
