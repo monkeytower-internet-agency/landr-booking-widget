@@ -549,25 +549,38 @@ function UnitDropZone({
           {occupantIndices.length}/{unit.capacity}
         </span>
       </div>
+      {/* landr-w6wp: when a unit has multiple occupants, each guest's block
+          (name chip + age control + breakfast affordance) gets a subtle dashed
+          divider so the occupants read as distinct grouped sections rather than
+          one cluttered run of controls. Single-occupant units are unchanged. */}
       <div className="flex flex-col gap-2">
         {occupantIndices.length === 0 ? (
           <span className="text-xs italic text-muted-foreground">Empty</span>
         ) : (
-          occupantIndices.map((pIdx) => (
-            <OccupantRow
+          occupantIndices.map((pIdx, pos) => (
+            <div
               key={pIdx}
-              memberIndex={pIdx}
-              label={participantLabel(participantNames, pIdx)}
-              selected={selectedChip === pIdx}
-              isGuest={guestFlags[pIdx] ?? false}
-              onUnassign={() => onAssign(pIdx, null)}
-              ageMap={ageMap}
-              onAgeBandChange={onAgeBandChange}
-              breakfastMode={breakfastMode}
-              hasBreakfast={breakfastMap[pIdx] === true}
-              onBreakfastAssign={onBreakfastAssign}
-              breakfastDragActive={breakfastDragActive}
-            />
+              data-testid={`occupant-section-${pIdx}`}
+              className={
+                occupantIndices.length > 1 && pos > 0
+                  ? 'border-t border-dashed border-border/60 pt-2'
+                  : undefined
+              }
+            >
+              <OccupantRow
+                memberIndex={pIdx}
+                label={participantLabel(participantNames, pIdx)}
+                selected={selectedChip === pIdx}
+                isGuest={guestFlags[pIdx] ?? false}
+                onUnassign={() => onAssign(pIdx, null)}
+                ageMap={ageMap}
+                onAgeBandChange={onAgeBandChange}
+                breakfastMode={breakfastMode}
+                hasBreakfast={breakfastMap[pIdx] === true}
+                onBreakfastAssign={onBreakfastAssign}
+                breakfastDragActive={breakfastDragActive}
+              />
+            </div>
           ))
         )}
       </div>
