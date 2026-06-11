@@ -277,6 +277,8 @@ describe('AccommodationStep', () => {
       {},
       // landr-gb2f.5: room product names map.
       { 'single-room': 'Single Room' },
+      // landr-a4fy: breakfast map (empty — no addons configured).
+      expect.objectContaining({}),
     )
   })
 
@@ -318,6 +320,8 @@ describe('AccommodationStep', () => {
       {},
       // landr-gb2f.5: room product names map.
       { 'single-room': 'Single Room' },
+      // landr-a4fy: breakfast map (empty — no addons configured).
+      expect.objectContaining({}),
     )
   })
 
@@ -355,7 +359,7 @@ describe('AccommodationStep', () => {
     // isSharedDouble=false.
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith([], null, [], false, false, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], null, [], false, false, {}, {}, {}, {}, {})
   })
 
   it('guiding-only mode does not fetch rooms', async () => {
@@ -471,7 +475,7 @@ describe('AccommodationStep', () => {
     expect(continueBtn).not.toBeDisabled()
     fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {}, {})
   })
 
   it('shared-double mode optional offering reports includeHotel=true', async () => {
@@ -502,7 +506,7 @@ describe('AccommodationStep', () => {
       expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
     )
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
-    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], true, true, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], true, true, {}, {}, {}, {}, {})
   })
 
   it('shared-double mode + multiple hotels shows the picker (no auto-select); Continue gated until a hotel is chosen', async () => {
@@ -543,7 +547,7 @@ describe('AccommodationStep', () => {
     await waitFor(() => expect(continueBtn).not.toBeDisabled())
     fireEvent.click(continueBtn)
     // No rooms, the CHOSEN hotel is the pickup, isSharedDouble=true.
-    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-b', [], undefined, true, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-b', [], undefined, true, {}, {}, {}, {}, {})
     // Rooms never fetched in shared-double mode.
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
   })
@@ -586,7 +590,7 @@ describe('AccommodationStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     // Zero room lines despite having picked a room in package mode first.
-    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {}, {})
   })
 
   // ── Overbook warnings (landr-qpab) — package mode only ─────────────
@@ -982,6 +986,8 @@ describe('AccommodationStep', () => {
       {},
       // landr-gb2f.5: room product names map.
       { 'single-room': 'Single Room' },
+      // landr-a4fy: breakfast map (empty — no addons configured).
+      expect.objectContaining({}),
     )
   })
 
@@ -1055,6 +1061,8 @@ describe('AccommodationStep', () => {
       { 'double-room': { 'bf-1': 3 } },
       // landr-gb2f.5: room product names map.
       { 'double-room': 'Double Room' },
+      // landr-a4fy: breakfast map (derived from addons + assignment).
+      expect.objectContaining({}),
     )
   })
 
@@ -1122,7 +1130,7 @@ describe('AccommodationStep', () => {
     expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
-    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {})
+    expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], undefined, true, {}, {}, {}, {}, {})
   })
 
   it('coerces a stale guiding-only initialMode to package on a mandatory offering', async () => {

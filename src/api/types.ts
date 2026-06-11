@@ -436,6 +436,16 @@ export interface Participant {
    * informational for the hotel — the widget never uses it in pricing.
    */
   occupant_age?: number | null
+  /**
+   * landr-a4fy: per-occupant breakfast flag. true when this participant
+   * has breakfast included (tied to the breakfast add-on selection in
+   * the room-assignment UI). false / omitted = no breakfast. Persisted
+   * on booking_participants.has_breakfast for email/hotel-request display.
+   *
+   * WIRE CONTRACT (PINNED — landr-a4fy part (2) on the API builds the
+   * same shape): absent/false → no breakfast; true → has breakfast.
+   */
+  has_breakfast?: boolean | null
 }
 
 /**
@@ -474,6 +484,15 @@ export interface Companion {
    * occupant_age_band === 'child'. null / omitted otherwise.
    */
   occupant_age?: number | null
+  /**
+   * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
+   * Participant field exactly — true when this companion has breakfast.
+   * false / omitted = no breakfast.
+   *
+   * WIRE CONTRACT (PINNED — landr-a4fy part (2) on the API builds the
+   * same shape): absent/false → no breakfast; true → has breakfast.
+   */
+  has_breakfast?: boolean | null
   /**
    * landr-doam.1 scope-add: companion participation kind. Determines whether
    * the companion is a non-participating guest (partner/child/friend) or a

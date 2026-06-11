@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import {
   applyAssignment,
   autoAssignParty,
+  deriveBreakfastMap,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
@@ -31,6 +32,7 @@ import {
   pruneAssignments,
   roomSubtotal,
   totalRoomCapacity,
+  type BreakfastMap,
   type OccupantAgeMap,
   type OccupantAgeBand,
   type RoomAssignmentMap,
@@ -139,6 +141,12 @@ interface Props {
     // through to BookingForm so the per-room breakfast labels in the review
     // can say "Single Room 1 — with breakfast" rather than an opaque ID.
     roomProductNames?: Record<string, string>,
+    // landr-a4fy: per-occupant breakfast flag map (memberIndex → boolean).
+    // Built from the per-room add-on selection + assignment. The widget
+    // collects this in the room-assignment step; BookingForm persists it
+    // as has_breakfast on each Participant / Companion. Empty in
+    // guiding-only / shared-double modes (no rooms/add-ons).
+    breakfastMap?: BreakfastMap,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -210,6 +218,13 @@ interface Props {
    * undefined → all occupants default to adult (no age needed).
    */
   initialAgeMap?: OccupantAgeMap
+  /**
+   * landr-a4fy: restore the per-occupant breakfast flag map on back-nav
+   * re-entry so breakfast toggles survive hitting Back. undefined → derive
+   * from the current add-on selection + assignment (the default behaviour
+   * on forward entry).
+   */
+  initialBreakfastMap?: BreakfastMap
 }
 
 /**
@@ -263,6 +278,7 @@ export function AccommodationStep({
   initialMode,
   initialAssignment,
   initialAgeMap,
+  initialBreakfastMap,
 }: Props) {
   const locale = browserLocale()
   const { tokens } = useVariant()
@@ -341,6 +357,17 @@ export function AccommodationStep({
   // react-hooks/set-state-in-effect rule stays happy.
   const [ageMap, setAgeMap] = useState<OccupantAgeMap>(
     () => initialAgeMap ?? {},
+  )
+
+  // landr-a4fy: per-occupant breakfast flag (memberIndex → boolean).
+  // Seeded from initialBreakfastMap on back-nav re-entry; otherwise derived
+  // from the current add-on selection + assignment via deriveBreakfastMap().
+  // Updated by the onBreakfastChange handler (manual toggle) AND by the
+  // add-on auto-derive effect below (when addons/assignment change). Manual
+  // toggles take priority over the derived value — the effect only re-seeds
+  // when the underlying data changes AND the user has not yet toggled.
+  const [breakfastMap, setBreakfastMap] = useState<BreakfastMap>(
+    () => initialBreakfastMap ?? {},
   )
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
@@ -533,6 +560,8 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: a new hotel resets the age map too (occupants change).
     setAgeMap({})
+    // landr-a4fy: a new hotel resets the breakfast map (room add-ons change).
+    setBreakfastMap({})
     // landr-87n9.2: switching hotel clears the room cart → live total resets.
     notifyLiveAccommodation(mode, {}, {})
   }
@@ -554,6 +583,8 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: mode switch resets the age map too.
     setAgeMap({})
+    // landr-a4fy: mode switch resets the breakfast map too.
+    setBreakfastMap({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
@@ -856,11 +887,55 @@ export function AccommodationStep({
     }))
   }
 
+  // landr-a4fy: manual breakfast toggle per occupant. The parent owns the
+  // breakfastMap; this handler merges the new entry in. Pure — no setState-in-effect.
+  function handleBreakfastChange(memberIndex: number, hasBreakfast: boolean) {
+    setBreakfastMap((prev) => ({ ...prev, [memberIndex]: hasBreakfast }))
+  }
+
+  // landr-a4fy: auto-derive the breakfast map from the current add-on
+  // selection + assignment whenever either changes. This seeds sensible
+  // defaults so the toggles start in the right position (matching the review
+  // screen heuristic). Only re-seeds when breakfastMap is still empty (i.e.
+  // no manual overrides yet) to respect explicit user choices. The IIFE
+  // pattern avoids the react-hooks/set-state-in-effect lint rule.
+  const addonSignature = JSON.stringify(addonSelection)
+  const assignmentSignature = JSON.stringify(assignment)
+  useEffect(() => {
+    if (Object.keys(addonSelection).length === 0) return
+    if (Object.keys(assignment).length === 0) return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      const derived = deriveBreakfastMap(assignment, addonSelection)
+      if (cancelled) return
+      // Only seed when the current breakfastMap doesn't already cover all
+      // assigned members (i.e. the assignment grew or is brand new).
+      setBreakfastMap((prev) => {
+        const assignedKeys = Object.keys(assignment).map(Number)
+        const needsSeed = assignedKeys.some((k) => prev[k] === undefined)
+        if (!needsSeed) return prev
+        // Merge: keep any manual entries, fill in missing ones from derived.
+        const next: BreakfastMap = { ...derived }
+        for (const [k, v] of Object.entries(prev)) {
+          next[Number(k)] = v
+        }
+        return next
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonSignature, assignmentSignature])
+  // ^ keyed on stable JSON signatures rather than object identity so the
+  //   effect only re-fires when the data actually changes.
+
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false, {}, {}, {}, {})
+      onConfirm([], null, [], false, false, {}, {}, {}, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -877,6 +952,7 @@ export function AccommodationStep({
         [],
         offering === 'optional' ? true : undefined,
         true,
+        {},
         {},
         {},
         {},
@@ -924,6 +1000,8 @@ export function AccommodationStep({
       addonSelection,
       // landr-gb2f.5: room product names for the review labels.
       roomProductNames,
+      // landr-a4fy: per-occupant breakfast map; pruned to assigned members only.
+      breakfastMap,
     )
   }
 
@@ -1243,6 +1321,19 @@ export function AccommodationStep({
               onAssign={assignParticipant}
               ageMap={ageMap}
               onAgeBandChange={handleAgeBandChange}
+              breakfastMap={breakfastMap}
+              onBreakfastChange={handleBreakfastChange}
+              breakfastRoomIds={
+                // landr-a4fy: rooms with breakfast add-on qty > 0 drive
+                // the per-occupant breakfast toggle visibility.
+                new Set(
+                  Object.entries(addonSelection)
+                    .filter(([, qtys]) =>
+                      Object.values(qtys).some((q) => q > 0),
+                    )
+                    .map(([roomId]) => roomId),
+                )
+              }
             />
             {/* landr-87n9.3: inline blocking hint — only shown while
                 occupancy is incomplete so the customer knows exactly what to
