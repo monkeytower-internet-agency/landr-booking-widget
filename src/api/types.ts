@@ -330,6 +330,16 @@ export interface OperatorSettings {
    * Null / absent → current behaviour (lift). Values in sync with TileHoverKey.
    */
   widget_tile_hover?: 'lift' | 'zoom' | 'none' | null
+  /**
+   * landr-4uyu: operator contact email surfaced on the Details step at the
+   * participant max (5 additional). The widget renders a "Need a larger group
+   * or a flight school booking? Get in touch:" line with a mailto: link to
+   * this address. Null / absent → the contact copy still shows (graceful
+   * degrade) but the broken mailto link is omitted. Optional for rolling
+   * deploy — older API responses that predate the key are treated as null.
+   * JSON key is exactly `contact_email` (set by public_get_operator_settings).
+   */
+  contact_email?: string | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

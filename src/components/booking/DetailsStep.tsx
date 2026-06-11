@@ -49,6 +49,14 @@ interface Props {
    * at submit time.
    */
   serviceRoles?: ServiceRole[]
+  /**
+   * landr-4uyu: operator contact email surfaced at the participant max
+   * (MAX_ADDITIONAL added). When non-empty the Details step renders a
+   * "Need a larger group or a flight school booking?" line with a mailto:
+   * link to this address. Null / undefined → the copy still shows but the
+   * (broken) mailto is omitted. Optional so existing tests need no change.
+   */
+  contactEmail?: string | null
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -139,6 +147,7 @@ export function DetailsStep({
   product,
   selection,
   serviceRoles = [],
+  contactEmail,
   initialBooker,
   initialParticipants,
   initialCompanions,
@@ -248,43 +257,49 @@ export function DetailsStep({
     onLiveParticipantsChange(count, names, nextCompanions.length)
   }
 
-  const setAdditionalCount = (next: number) => {
-    const clamped = Math.min(MAX_ADDITIONAL, Math.max(0, Math.floor(next)))
+  // landr-4uyu: add a single additional participant below the last card.
+  // Replaces the top stepper's grow path. Appends one empty row (capped at
+  // MAX_ADDITIONAL) and notifies the live sidebar. Existing rows' data is
+  // untouched (preserves landr-nmed entered data for other rows).
+  const addParticipant = () => {
     setAdditional((current) => {
-      if (clamped === current.length) return current
-      let nextAdditional: ParticipantDetails[]
-      if (clamped > current.length) {
-        const grown = current.slice()
-        for (let i = current.length; i < clamped; i += 1) {
-          grown.push(emptyParticipant(defaultRoleCode))
-        }
-        nextAdditional = grown
-      } else {
-        nextAdditional = current.slice(0, clamped)
-      }
-      notifyLive(booker, nextAdditional, companions)
-      return nextAdditional
+      if (current.length >= MAX_ADDITIONAL) return current
+      const next = [...current, emptyParticipant(defaultRoleCode)]
+      notifyLive(booker, next, companions)
+      return next
     })
   }
 
-  // landr-87n9.3: grow/shrink the companion list. Mirrors the participant
-  // stepper but capped at MAX_COMPANIONS (generous) and with no role code.
-  const setCompanionCount = (next: number) => {
-    const clamped = Math.min(MAX_COMPANIONS, Math.max(0, Math.floor(next)))
+  // landr-4uyu: remove a SPECIFIC additional participant by index (the per-card
+  // × control), not just the last one as the stepper did. Splicing the chosen
+  // index preserves the entered data of all the OTHER rows (landr-nmed).
+  const removeParticipant = (idx: number) => {
+    setAdditional((current) => {
+      if (idx < 0 || idx >= current.length) return current
+      const next = current.slice(0, idx).concat(current.slice(idx + 1))
+      notifyLive(booker, next, companions)
+      return next
+    })
+  }
+
+  // landr-4uyu: add a single companion below the last companion card.
+  const addCompanion = () => {
     setCompanions((current) => {
-      if (clamped === current.length) return current
-      let nextCompanions: CompanionDetails[]
-      if (clamped > current.length) {
-        const grown = current.slice()
-        for (let i = current.length; i < clamped; i += 1) {
-          grown.push(emptyCompanion())
-        }
-        nextCompanions = grown
-      } else {
-        nextCompanions = current.slice(0, clamped)
-      }
-      notifyLive(booker, additional, nextCompanions)
-      return nextCompanions
+      if (current.length >= MAX_COMPANIONS) return current
+      const next = [...current, emptyCompanion()]
+      notifyLive(booker, additional, next)
+      return next
+    })
+  }
+
+  // landr-4uyu: remove a SPECIFIC companion by index (per-card × control),
+  // preserving the other companion rows' data (landr-nmed).
+  const removeCompanion = (idx: number) => {
+    setCompanions((current) => {
+      if (idx < 0 || idx >= current.length) return current
+      const next = current.slice(0, idx).concat(current.slice(idx + 1))
+      notifyLive(booker, additional, next)
+      return next
     })
   }
 
@@ -494,6 +509,22 @@ export function DetailsStep({
     onConfirm(booker, participantsForValidation, companions)
   }
 
+  // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
+  // "Maximum …" warnings for each section.
+  const participantsAtMax = additional.length >= MAX_ADDITIONAL
+  const companionsAtMax = companions.length >= MAX_COMPANIONS
+
+  // landr-4uyu: normalize the operator contact email. A blank/whitespace value
+  // is treated as absent so we never render an empty `mailto:`. When present we
+  // build a mailto with a sensible prefilled subject; when absent the contact
+  // copy still shows (graceful degrade) but the link is omitted.
+  const trimmedContactEmail = contactEmail?.trim() || ''
+  const contactMailto = trimmedContactEmail
+    ? `mailto:${trimmedContactEmail}?subject=${encodeURIComponent(
+        `Larger group / flight school booking — ${product.name}`,
+      )}`
+    : ''
+
   // landr-opi3: booker required-field validations (all four required).
   const bookerFirstV = validate('booker.first_name', booker.first_name, 'booker-first')
   const bookerLastV = validate('booker.last_name', booker.last_name, 'booker-last')
@@ -585,41 +616,9 @@ export function DetailsStep({
           <legend className="text-sm font-medium">
             Other participants ({totalCount} total)
           </legend>
-          {/* landr-3mo4: stepper grouped into a raised pill with tinted,
-              ≥44px-on-mobile +/− controls so it reads as one quantity control
-              and lands reliable taps. */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
-                aria-label="Remove participant"
-                onClick={() => setAdditionalCount(additional.length - 1)}
-                disabled={additional.length <= 0}
-              >
-                −
-              </Button>
-              <span className="w-8 text-center text-sm font-semibold tabular-nums">
-                {additional.length}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
-                aria-label="Add participant"
-                onClick={() => setAdditionalCount(additional.length + 1)}
-                disabled={additional.length >= MAX_ADDITIONAL}
-              >
-                +
-              </Button>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              additional (max {MAX_ADDITIONAL})
-            </span>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Add anyone else taking part. You can add up to {MAX_ADDITIONAL} more.
+          </p>
 
           {additional.map((row, idx) => {
             // landr-opi3: first + last + phone are required for every added
@@ -636,8 +635,24 @@ export function DetailsStep({
               className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`participant-row-${idx + 2}`}
             >
-              <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Participant {idx + 2}
+              {/* landr-4uyu: per-card header row carries a remove (×) control so
+                  a specific participant row can be removed (replacing the old
+                  top-stepper −). Removal preserves the OTHER rows' data. */}
+              <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Participant {idx + 2}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+                  aria-label={`Remove participant ${idx + 2}`}
+                  data-testid={`remove-participant-${idx + 2}`}
+                  onClick={() => removeParticipant(idx)}
+                >
+                  ×
+                </Button>
               </div>
               <Field label="First name" htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
@@ -702,6 +717,53 @@ export function DetailsStep({
             </div>
             )
           })}
+
+          {/* landr-4uyu: the "Add" affordance lives BELOW the last card and is
+              rendered AFTER the card map in the DOM, so tabbing out of the last
+              participant's phone lands here (natural tab order) — the customer
+              never scrolls back up. At max it is replaced by a warning + the
+              participant-only contact-us line. The aria-label "Add participant"
+              is preserved from the old stepper button so existing tests/AT keep
+              working. */}
+          {participantsAtMax ? (
+            <div
+              className="flex flex-col gap-1 rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="participants-max-notice"
+            >
+              <p className="text-sm font-medium text-muted-foreground">
+                Maximum of {MAX_ADDITIONAL} additional participants reached
+              </p>
+              {/* landr-4uyu: contact-us at the participant max only. The copy
+                  always shows; the mailto link is omitted when the operator has
+                  no contact_email (graceful degrade — never an empty mailto). */}
+              <p className="text-xs text-muted-foreground">
+                Need a larger group or a flight school booking? Get in touch
+                {contactMailto ? ': ' : '.'}
+                {contactMailto ? (
+                  <a
+                    href={contactMailto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary underline underline-offset-2"
+                    data-testid="participants-contact-mailto"
+                  >
+                    {trimmedContactEmail}
+                  </a>
+                ) : null}
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+              aria-label="Add participant"
+              data-testid="add-participant"
+              onClick={addParticipant}
+            >
+              + Add participant
+            </Button>
+          )}
         </fieldset>
 
         {/* landr-87n9.3: non-guiding companions. Generic copy per
@@ -723,41 +785,6 @@ export function DetailsStep({
             own guiding separately. They&rsquo;re added to the hotel headcount
             and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
-          {/* landr-3mo4: companion stepper mirrors the participant stepper —
-              raised pill, tinted ≥44px controls. */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
-                aria-label="Remove companion"
-                onClick={() => setCompanionCount(companions.length - 1)}
-                disabled={companions.length <= 0}
-              >
-                −
-              </Button>
-              <span className="w-8 text-center text-sm font-semibold tabular-nums">
-                {companions.length}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
-                aria-label="Add companion"
-                onClick={() => setCompanionCount(companions.length + 1)}
-                disabled={companions.length >= MAX_COMPANIONS}
-              >
-                +
-              </Button>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              joining (max {MAX_COMPANIONS})
-            </span>
-          </div>
-
           {companions.map((row, idx) => {
             // landr-opi3: only the companion first name is required.
             const cFirstV = validate(
@@ -773,8 +800,23 @@ export function DetailsStep({
               className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`companion-row-${idx}`}
             >
-              <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Guest {idx + 1}
+              {/* landr-4uyu: per-card header row with a remove (×) control so a
+                  specific guest can be removed; the other rows' data persists. */}
+              <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Guest {idx + 1}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+                  aria-label={`Remove companion ${idx + 1}`}
+                  data-testid={`remove-companion-${idx}`}
+                  onClick={() => removeCompanion(idx)}
+                >
+                  ×
+                </Button>
               </div>
               {/* landr-doam.1: companion kind selector — "not joining the
                   activity" (guest) vs "joining with their own separate guiding
@@ -865,6 +907,34 @@ export function DetailsStep({
             </div>
             )
           })}
+
+          {/* landr-4uyu: "+ Add guest" lives below the last companion card and
+              after the card map in the DOM, so it's the natural next tab stop
+              after the last companion's phone. At max it is replaced by the
+              warning only — companions have NO contact-us line. The aria-label
+              "Add companion" is preserved from the old stepper button so the
+              existing tests/AT keep working. */}
+          {companionsAtMax ? (
+            <div
+              className="rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="companions-max-notice"
+            >
+              <p className="text-sm font-medium text-muted-foreground">
+                Maximum of {MAX_COMPANIONS} guests reached
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+              aria-label="Add companion"
+              data-testid="add-companion"
+              onClick={addCompanion}
+            >
+              + Add guest
+            </Button>
+          )}
         </fieldset>
 
         <div className="flex justify-end pt-2">

@@ -231,7 +231,9 @@ describe('DetailsStep (landr-8c03)', () => {
     })
   })
 
-  it('caps additional participants at 5 (total 6)', () => {
+  // landr-4uyu: at the participant max the "+ Add participant" button is
+  // replaced by the "Maximum …" notice (no longer a disabled stepper button).
+  it('caps additional participants at 5 (total 6) and hides Add at max', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -240,14 +242,25 @@ describe('DetailsStep (landr-8c03)', () => {
         onConfirm={vi.fn()}
       />,
     )
-    const add = screen.getByRole('button', { name: /add participant/i })
-    for (let i = 0; i < 5; i += 1) fireEvent.click(add)
-    expect(add).toBeDisabled()
+    // Re-query each tap — the button disappears once we hit the cap.
+    for (let i = 0; i < 5; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    }
     // 6 total = 1 booker + 5 additionals.
     expect(screen.getByText(/\(6 total\)/i)).toBeInTheDocument()
+    // The Add button is gone and the max warning is shown.
+    expect(
+      screen.queryByRole('button', { name: /add participant/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/maximum of 5 additional participants reached/i),
+    ).toBeInTheDocument()
   })
 
-  it('shrinks additional rows when − is clicked, never below 0', () => {
+  // landr-4uyu: the per-card × control removes a SPECIFIC row. With zero rows
+  // there is no remove control at all (and no stepper), and the Add button is
+  // present at the bottom.
+  it('removes a specific additional row via its per-card × control', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -256,14 +269,48 @@ describe('DetailsStep (landr-8c03)', () => {
         onConfirm={vi.fn()}
       />,
     )
-    const remove = screen.getByRole('button', { name: /remove participant/i })
-    expect(remove).toBeDisabled()
+    // No rows → no remove control.
+    expect(
+      screen.queryByRole('button', { name: /remove participant/i }),
+    ).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
-    expect(remove).not.toBeDisabled()
+    const remove = screen.getByRole('button', { name: /remove participant/i })
     fireEvent.click(remove)
     expect(screen.queryByTestId('participant-row-2')).not.toBeInTheDocument()
-    expect(remove).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: /remove participant/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  // landr-4uyu: removing one row preserves the OTHER rows' entered data
+  // (landr-nmed data-loss guard). Add two participants, fill both, remove the
+  // first, and assert the second's data survived and re-indexed.
+  it('preserves the other rows’ data when one row is removed (landr-nmed)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: 'Grace' },
+    })
+    fireEvent.change(byName('participant_3_first_name'), {
+      target: { value: 'Mary' },
+    })
+    // Remove the FIRST added row (Participant 2) via its specific × control.
+    fireEvent.click(
+      screen.getByRole('button', { name: /remove participant 2/i }),
+    )
+    // Only one row remains; Mary's data survived and re-indexed to slot 2.
+    expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-3')).not.toBeInTheDocument()
+    expect(byName('participant_2_first_name')).toHaveValue('Mary')
   })
 
   it('calls onBack when Back is clicked', () => {
@@ -735,6 +782,161 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     const companionRow = screen.getByTestId('companion-row-0')
     // The label "Phone (optional)" should appear within the companion row.
     expect(companionRow).toHaveTextContent(/phone \(optional\)/i)
+  })
+})
+
+describe('DetailsStep — add-below-last + max + contact-us (landr-4uyu)', () => {
+  // Helper: click the participant Add button until at max (re-querying each
+  // tap because the button is removed at the cap).
+  function addParticipantsToMax() {
+    for (let i = 0; i < 5; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    }
+  }
+
+  it('renders the "+ Add participant" button AFTER the last participant card in DOM order', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const card = screen.getByTestId('participant-row-2')
+    const addBtn = screen.getByTestId('add-participant')
+    // The Add button is BELOW (after) the last card in document order, so
+    // tabbing out of the last card's last field lands on it.
+    expect(
+      card.compareDocumentPosition(addBtn) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(addBtn).toHaveTextContent(/\+ add participant/i)
+  })
+
+  it('hides the Add button and shows the max warning at the participant cap', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    addParticipantsToMax()
+    expect(screen.queryByTestId('add-participant')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/maximum of 5 additional participants reached/i),
+    ).toBeInTheDocument()
+  })
+
+  it('renders a mailto link to contact_email at the participant max', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail="ops@para42.example"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    addParticipantsToMax()
+    const link = screen.getByTestId('participants-contact-mailto')
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('mailto:ops@para42.example'),
+    )
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(link).toHaveTextContent('ops@para42.example')
+    // The mailto carries a sensible prefilled subject.
+    expect(link.getAttribute('href')).toMatch(/[?&]subject=/)
+  })
+
+  it('shows the contact-us copy but NO mailto when contact_email is null (graceful degrade)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail={null}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    addParticipantsToMax()
+    // The "larger group / flight school" copy still renders…
+    expect(
+      screen.getByText(/larger group or a flight school booking/i),
+    ).toBeInTheDocument()
+    // …but there is no (broken) mailto link.
+    expect(
+      screen.queryByTestId('participants-contact-mailto'),
+    ).not.toBeInTheDocument()
+    expect(
+      document.querySelector('a[href^="mailto:"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('treats a blank/whitespace contact_email as absent (no empty mailto)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail="   "
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    addParticipantsToMax()
+    expect(
+      screen.queryByTestId('participants-contact-mailto'),
+    ).not.toBeInTheDocument()
+    expect(
+      document.querySelector('a[href^="mailto:"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the "+ Add guest" button AFTER the last companion card in DOM order', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const card = screen.getByTestId('companion-row-0')
+    const addBtn = screen.getByTestId('add-companion')
+    expect(
+      card.compareDocumentPosition(addBtn) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(addBtn).toHaveTextContent(/\+ add guest/i)
+  })
+
+  it('hides the Add guest button and shows the max warning at the companion cap (no contact-us)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail="ops@para42.example"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    for (let i = 0; i < 12; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    }
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/maximum of 12 guests reached/i),
+    ).toBeInTheDocument()
+    // Companions get NO contact-us line even when contact_email is set.
+    expect(
+      screen.queryByText(/larger group or a flight school booking/i),
+    ).not.toBeInTheDocument()
   })
 })
 

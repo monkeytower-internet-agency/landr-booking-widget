@@ -451,6 +451,11 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   widget_tile_aspect: null,
   widget_tile_scrim: null,
   widget_tile_hover: null,
+  // landr-4uyu — operator contact email surfaced at the participant max
+  // ("larger group / flight school" contact-us line). Provided in the mock so
+  // local mock-mode dev exercises the mailto path; real operators set their own
+  // (or leave it null → the copy shows without a link).
+  contact_email: `bookings@${operatorSlug}.example`,
 })
 
 /**
