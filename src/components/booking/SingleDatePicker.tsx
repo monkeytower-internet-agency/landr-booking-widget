@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 
@@ -38,18 +39,6 @@ interface Props {
 }
 
 const HORIZON_DAYS = 60
-
-const isoDate = (d: Date) => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-const dateFromIso = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y!, (m ?? 1) - 1, d ?? 1)
-}
 
 /**
  * Picker for service products with service_time_shape='single_date' (landr-y9k).
