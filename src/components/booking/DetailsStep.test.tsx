@@ -711,3 +711,94 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     expect(companionRow).toHaveTextContent(/phone \(optional\)/i)
   })
 })
+
+describe('DetailsStep required-field blur validation (landr-opi3)', () => {
+  function renderStep() {
+    return render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+
+  it('does NOT mark an empty required field invalid while it is untouched', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    // Empty but never blurred → no red, no message.
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByText('Required')).not.toBeInTheDocument()
+  })
+
+  it('marks an empty required field invalid once the customer leaves it (onBlur)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.blur(phone)
+    // After leaving the empty field it turns red and shows the message.
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    const msg = document.getElementById('booker-phone-error')
+    expect(msg).toHaveTextContent('Required')
+    // aria-describedby wires the input to its message for screen readers.
+    expect(phone).toHaveAttribute('aria-describedby', 'booker-phone-error')
+  })
+
+  it('does NOT mark a filled field invalid on blur', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.change(phone, { target: { value: '+34 600 111 222' } })
+    fireEvent.blur(phone)
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('clears the red state as soon as the customer types a value into a flagged field', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.blur(phone)
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(phone, { target: { value: '7' } })
+    // Re-render reflects the now-non-empty value → no longer invalid.
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('flags a malformed booker email and a missing one differently', () => {
+    renderStep()
+    const email = byName('booker_email')
+    // Missing → Required.
+    fireEvent.blur(email)
+    expect(document.getElementById('booker-email-error')).toHaveTextContent(
+      'Required',
+    )
+    // Present but no '@' → format message.
+    fireEvent.change(email, { target: { value: 'ada-at-example' } })
+    fireEvent.blur(email)
+    expect(document.getElementById('booker-email-error')).toHaveTextContent(
+      /valid email/i,
+    )
+    // Valid → no error.
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    expect(email).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('flags an added participant’s required phone on blur (landr-nkbi)', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const phone = byName('participant_2_phone')
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    fireEvent.blur(phone)
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('p-0-phone-error')).toHaveTextContent(
+      'Required',
+    )
+  })
+
+  it('never flags an OPTIONAL field (participant email) on blur', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const email = byName('participant_2_email')
+    fireEvent.blur(email)
+    expect(email).not.toHaveAttribute('aria-invalid')
+    expect(document.getElementById('p-0-email-error')).toBeNull()
+  })
+})

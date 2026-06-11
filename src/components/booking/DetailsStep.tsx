@@ -326,6 +326,44 @@ export function DetailsStep({
     })
   }
 
+  // landr-opi3: per-field "touched" tracking so an EMPTY REQUIRED field turns
+  // red only AFTER the customer leaves it (onBlur) — never while they are still
+  // typing into it. The required-field set mirrors detailsAreComplete() exactly,
+  // so the red borders correspond 1:1 with what blocks the Continue button.
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set())
+  const markTouched = (key: string) =>
+    setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
+
+  // A required text field is invalid once touched and still blank.
+  const requiredError = (key: string, value: string): string | undefined =>
+    touched.has(key) && !value.trim() ? 'Required' : undefined
+  // The booker email additionally needs an '@' (mirrors detailsAreComplete).
+  const emailError = (key: string, value: string): string | undefined => {
+    if (!touched.has(key)) return undefined
+    if (!value.trim()) return 'Required'
+    if (!value.includes('@')) return 'Enter a valid email address'
+    return undefined
+  }
+  // Bundle the error + the input props (onBlur to arm, aria-invalid to paint
+  // red, aria-describedby to wire the message for screen readers).
+  const validate = (
+    key: string,
+    value: string,
+    id: string,
+    kind: 'required' | 'email' = 'required',
+  ) => {
+    const error =
+      kind === 'email' ? emailError(key, value) : requiredError(key, value)
+    return {
+      error,
+      inputProps: {
+        onBlur: () => markTouched(key),
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': error ? `${id}-error` : undefined,
+      },
+    }
+  }
+
   const participantsForValidation: ParticipantDetails[] = [
     bookerToParticipant(booker, bookerRoleCode),
     ...additional,
@@ -340,6 +378,12 @@ export function DetailsStep({
     if (!canContinue) return
     onConfirm(booker, participantsForValidation, companions)
   }
+
+  // landr-opi3: booker required-field validations (all four required).
+  const bookerFirstV = validate('booker.first_name', booker.first_name, 'booker-first')
+  const bookerLastV = validate('booker.last_name', booker.last_name, 'booker-last')
+  const bookerEmailV = validate('booker.email', booker.email, 'booker-email', 'email')
+  const bookerPhoneV = validate('booker.phone', booker.phone, 'booker-phone')
 
   return (
     <Card>
@@ -360,25 +404,27 @@ export function DetailsStep({
             others are joining.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="First name" htmlFor="booker-first">
+            <Field label="First name" htmlFor="booker-first" error={bookerFirstV.error}>
               <Input
                 id="booker-first"
                 name="booker_first_name"
                 autoComplete="given-name"
                 value={booker.first_name}
                 onChange={(e) => updateBookerField('first_name', e.target.value)}
+                {...bookerFirstV.inputProps}
               />
             </Field>
-            <Field label="Last name" htmlFor="booker-last">
+            <Field label="Last name" htmlFor="booker-last" error={bookerLastV.error}>
               <Input
                 id="booker-last"
                 name="booker_last_name"
                 autoComplete="family-name"
                 value={booker.last_name}
                 onChange={(e) => updateBookerField('last_name', e.target.value)}
+                {...bookerLastV.inputProps}
               />
             </Field>
-            <Field label="Email" htmlFor="booker-email">
+            <Field label="Email" htmlFor="booker-email" error={bookerEmailV.error}>
               <Input
                 id="booker-email"
                 name="booker_email"
@@ -386,9 +432,10 @@ export function DetailsStep({
                 autoComplete="email"
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
+                {...bookerEmailV.inputProps}
               />
             </Field>
-            <Field label="Phone" htmlFor="booker-phone">
+            <Field label="Phone" htmlFor="booker-phone" error={bookerPhoneV.error}>
               <Input
                 id="booker-phone"
                 name="booker_phone"
@@ -396,6 +443,7 @@ export function DetailsStep({
                 autoComplete="tel"
                 value={booker.phone}
                 onChange={(e) => updateBookerField('phone', e.target.value)}
+                {...bookerPhoneV.inputProps}
               />
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
@@ -458,7 +506,13 @@ export function DetailsStep({
             </span>
           </div>
 
-          {additional.map((row, idx) => (
+          {additional.map((row, idx) => {
+            // landr-opi3: first + last + phone are required for every added
+            // participant (landr-nkbi); email stays optional.
+            const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
+            const pLastV = validate(`p.${idx}.last_name`, row.last_name, `p-${idx}-last`)
+            const pPhoneV = validate(`p.${idx}.phone`, row.phone, `p-${idx}-phone`)
+            return (
             // landr-3mo4: each added participant is a raised sub-card (one
             // level lighter than the step card) so the nested form group
             // reads as its own block.
@@ -470,7 +524,7 @@ export function DetailsStep({
               <div className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Participant {idx + 2}
               </div>
-              <Field label="First name" htmlFor={`p-${idx}-first`}>
+              <Field label="First name" htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
@@ -478,9 +532,10 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
                   }
+                  {...pFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name" htmlFor={`p-${idx}-last`}>
+              <Field label="Last name" htmlFor={`p-${idx}-last`} error={pLastV.error}>
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
@@ -488,6 +543,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
                   }
+                  {...pLastV.inputProps}
                 />
               </Field>
               <Field label="Email (optional)" htmlFor={`p-${idx}-email`}>
@@ -502,7 +558,7 @@ export function DetailsStep({
                 />
               </Field>
               {/* landr-nkbi: phone is required for every participant. */}
-              <Field label="Phone" htmlFor={`p-${idx}-phone`}>
+              <Field label="Phone" htmlFor={`p-${idx}-phone`} error={pPhoneV.error}>
                 <Input
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
@@ -511,6 +567,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'phone', e.target.value)
                   }
+                  {...pPhoneV.inputProps}
                 />
               </Field>
               {showRoleDropdown ? (
@@ -528,7 +585,8 @@ export function DetailsStep({
                 </Field>
               ) : null}
             </div>
-          ))}
+            )
+          })}
         </fieldset>
 
         {/* landr-87n9.3: non-guiding companions. Generic copy per
@@ -585,7 +643,14 @@ export function DetailsStep({
             </span>
           </div>
 
-          {companions.map((row, idx) => (
+          {companions.map((row, idx) => {
+            // landr-opi3: only the companion first name is required.
+            const cFirstV = validate(
+              `companion.${idx}.first_name`,
+              row.first_name,
+              `companion-${idx}-first`,
+            )
+            return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
             // participant rows.
             <div
@@ -639,7 +704,7 @@ export function DetailsStep({
                   ))}
                 </div>
               </fieldset>
-              <Field label="First name" htmlFor={`companion-${idx}-first`}>
+              <Field label="First name" htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
@@ -647,6 +712,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'first_name', e.target.value)
                   }
+                  {...cFirstV.inputProps}
                 />
               </Field>
               <Field label="Last name (optional)" htmlFor={`companion-${idx}-last`}>
@@ -682,7 +748,8 @@ export function DetailsStep({
                 />
               </Field>
             </div>
-          ))}
+            )
+          })}
         </fieldset>
 
         <div className="flex justify-end pt-2">
@@ -698,10 +765,13 @@ export function DetailsStep({
 function Field({
   label,
   htmlFor,
+  error,
   children,
 }: {
   label: string
   htmlFor?: string
+  /** landr-opi3: when set, renders a red validation message below the input. */
+  error?: string
   children: React.ReactNode
 }) {
   return (
@@ -710,6 +780,14 @@ function Field({
         {label}
       </Label>
       {children}
+      {error ? (
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          className="text-xs text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
