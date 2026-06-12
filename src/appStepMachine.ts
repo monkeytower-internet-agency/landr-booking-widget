@@ -6,6 +6,7 @@
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
 import type {
+  BreakfastMap,
   OccupantAgeMap,
   RoomAssignmentMap,
   RoomSelection,
@@ -29,6 +30,50 @@ import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
  * Empty map for guiding-only / shared-double modes (no room add-ons).
  */
 export type PerRoomAddons = Record<string, Record<string, number>>
+
+/**
+ * landr-nmed: the persistent booking-draft of all downstream data the
+ * customer has already entered. App.tsx holds ONE of these in state for the
+ * whole flow; it survives ALL step navigation (breadcrumb jumps included) and
+ * re-seeds the downstream steps on the way forward.
+ *
+ * Without this, jumping back to Dates (or the product crumb) and clicking
+ * Continue rebuilt the details step from scratch and wiped the booker +
+ * participants + companions + accommodation + declarations the customer had
+ * already typed. This generalises the landr-b3g5 "Back from downstream"
+ * restore (which only covered ADJACENT back-steps) to arbitrary breadcrumb
+ * jumps to the two earliest steps.
+ *
+ * Every field is optional — the draft only carries what the customer has
+ * actually reached/entered so far. Re-validation / re-clamping (e.g. room
+ * assignment when a date change alters the day count) happens where the
+ * downstream step re-seeds (AccommodationStep already re-clamps room add-ons
+ * against capacity — landr-u4fl); the identities (names) are always kept.
+ */
+export interface BookingDraft {
+  booker?: BookerDetails
+  participants?: ParticipantDetails[]
+  companions?: CompanionDetails[]
+  // Accommodation slice — re-seeds AccommodationStep on the way forward.
+  hotelLocationId?: string | null
+  accommodationRooms?: RoomSelection[]
+  addons?: AddonSelection[]
+  includeHotel?: boolean
+  isSharedDouble?: boolean
+  accommodationMode?: AccommodationMode
+  roomAssignment?: RoomAssignmentMap
+  occupantAgeMap?: OccupantAgeMap
+  perRoomAddons?: PerRoomAddons
+  roomProductNames?: Record<string, string>
+  breakfastMap?: BreakfastMap
+  // Intermediate-step provenance + their entered values.
+  pickupLocationId?: string | null
+  hadServiceAddons?: boolean
+  // Declarations slice — re-seeds DeclarationsStep on the way forward.
+  customerDeclarations?: Record<string, true> | null
+  customerLanguages?: string[] | null
+  customerOtherLanguages?: string | null
+}
 
 /**
  * Inputs for the persistent PriceSidebar (landr-qez0). Returns null
@@ -141,6 +186,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: per-occupant breakfast flag map for back-nav restoration.
+      breakfastMap?: BreakfastMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -186,6 +233,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: carry the breakfast map through the pickup step.
+      breakfastMap?: BreakfastMap
     }
   // landr-sbhz.3: declarations step — customer confirms eligibility
   // declarations + selects their spoken language before the review screen.
@@ -218,6 +267,8 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: carry the breakfast map through declarations.
+      breakfastMap?: BreakfastMap
       initialDeclarations?: CustomerDeclarations
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
@@ -256,6 +307,9 @@ export type Step =
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
+      // landr-a4fy: per-occupant breakfast flag map threaded to BookingForm
+      // for has_breakfast on each Participant / Companion in the submit body.
+      breakfastMap?: BreakfastMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -335,6 +389,8 @@ export function stepAfterAccommodation(
   perRoomAddons: PerRoomAddons | undefined = undefined,
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames: Record<string, string> | undefined = undefined,
+  // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
+  breakfastMap: BreakfastMap | undefined = undefined,
 ): Step {
   if (hotelLocationId !== null) {
     // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
@@ -362,6 +418,7 @@ export function stepAfterAccommodation(
       occupantAgeMap,
       perRoomAddons,
       roomProductNames,
+      breakfastMap,
     }
   }
   if (product.needs_pickup) {
@@ -383,6 +440,7 @@ export function stepAfterAccommodation(
       occupantAgeMap,
       perRoomAddons,
       roomProductNames,
+      breakfastMap,
     }
   }
   return {
@@ -404,6 +462,7 @@ export function stepAfterAccommodation(
     occupantAgeMap,
     perRoomAddons,
     roomProductNames,
+    breakfastMap,
   }
 }
 
@@ -458,6 +517,8 @@ export interface StepBeforeReviewArgs {
   perRoomAddons?: PerRoomAddons
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames?: Record<string, string>
+  // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
+  breakfastMap?: BreakfastMap
 }
 
 export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
@@ -490,6 +551,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       occupantAgeMap: args.occupantAgeMap,
       perRoomAddons: args.perRoomAddons,
       roomProductNames: args.roomProductNames,
+      breakfastMap: args.breakfastMap,
     }
   }
   // 2. No hotel offering, product needs a pickup → pick-pickup showed
@@ -514,6 +576,7 @@ export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
       occupantAgeMap: args.occupantAgeMap,
       perRoomAddons: args.perRoomAddons,
       roomProductNames: args.roomProductNames,
+      breakfastMap: args.breakfastMap,
     }
   }
   // 4. No hotel, no pickup, but the customer went through the service-
@@ -576,6 +639,8 @@ export function fillFormOrDeclarations(
     perRoomAddons?: PerRoomAddons
     // landr-gb2f.5: thread the room product names through too.
     roomProductNames?: Record<string, string>
+    // landr-a4fy: thread the breakfast map through too.
+    breakfastMap?: BreakfastMap
   },
   requiresDeclarations: boolean,
   initialDeclarations?: CustomerDeclarations,
@@ -773,6 +838,71 @@ function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
     booker: step.booker,
     participants: step.participants,
     companions: step.companions,
+  }
+}
+
+/**
+ * landr-nmed: collect every downstream slice the customer has entered so far
+ * into a single BookingDraft, regardless of how deep into the funnel `step`
+ * is. This is the single source the early crumbs (product-detail /
+ * pick-selection) carry so a breadcrumb JUMP back to them — then forward —
+ * re-seeds the funnel instead of wiping it.
+ *
+ * Returns undefined for steps before any downstream data exists (pick-product,
+ * pick-category, product-detail, pick-selection, fully-booked, confirmed) and
+ * for an empty-but-present draft, so callers attach `draft` only when there is
+ * something to restore.
+ */
+export function draftFromStep(step: Step): BookingDraft | undefined {
+  const d: BookingDraft = {}
+  if ('booker' in step && step.booker) d.booker = step.booker
+  if ('participants' in step && step.participants)
+    d.participants = step.participants
+  if ('companions' in step && step.companions) d.companions = step.companions
+  if ('hotelLocationId' in step) d.hotelLocationId = step.hotelLocationId
+  if ('accommodationRooms' in step) d.accommodationRooms = step.accommodationRooms
+  if ('addons' in step) d.addons = step.addons
+  if ('includeHotel' in step) d.includeHotel = step.includeHotel
+  if ('isSharedDouble' in step) d.isSharedDouble = step.isSharedDouble
+  if ('accommodationMode' in step) d.accommodationMode = step.accommodationMode
+  if ('roomAssignment' in step) d.roomAssignment = step.roomAssignment
+  if ('occupantAgeMap' in step) d.occupantAgeMap = step.occupantAgeMap
+  if ('perRoomAddons' in step) d.perRoomAddons = step.perRoomAddons
+  if ('roomProductNames' in step) d.roomProductNames = step.roomProductNames
+  if ('breakfastMap' in step) d.breakfastMap = step.breakfastMap
+  if ('pickupLocationId' in step) d.pickupLocationId = step.pickupLocationId
+  if ('hadServiceAddons' in step) d.hadServiceAddons = step.hadServiceAddons
+  if ('customerDeclarations' in step)
+    d.customerDeclarations = step.customerDeclarations
+  if ('customerLanguages' in step) d.customerLanguages = step.customerLanguages
+  if ('customerOtherLanguages' in step)
+    d.customerOtherLanguages = step.customerOtherLanguages
+  // A draft is only meaningful once the customer has at least entered details.
+  return d.booker || d.participants ? d : undefined
+}
+
+/**
+ * landr-nmed: rebuild the `details` step from a BookingDraft + the (possibly
+ * just-edited) product/selection. Threads the booker / participants /
+ * companions forward so DetailsStep re-mounts pre-filled after a breadcrumb
+ * jump back to Dates (or the product crumb) followed by Continue. The
+ * accommodation / declarations slices live in App.tsx's persistent draft
+ * state and are re-applied as the customer steps forward through each
+ * downstream step (afterDetails seeds them from the same draft); this helper
+ * only carries the three fields the `details` Step variant natively holds.
+ */
+export function detailsFromDraft(
+  product: Product,
+  selection: BookingSelection,
+  draft: BookingDraft | undefined,
+): Extract<Step, { name: 'details' }> {
+  return {
+    name: 'details',
+    product,
+    selection,
+    booker: draft?.booker,
+    participants: draft?.participants,
+    companions: draft?.companions,
   }
 }
 

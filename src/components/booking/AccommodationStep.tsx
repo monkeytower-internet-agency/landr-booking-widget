@@ -18,7 +18,9 @@ import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import {
   applyAssignment,
+  assignBreakfastChip,
   autoAssignParty,
+  clampBreakfastMap,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
@@ -31,6 +33,7 @@ import {
   pruneAssignments,
   roomSubtotal,
   totalRoomCapacity,
+  type BreakfastMap,
   type OccupantAgeMap,
   type OccupantAgeBand,
   type RoomAssignmentMap,
@@ -139,6 +142,12 @@ interface Props {
     // through to BookingForm so the per-room breakfast labels in the review
     // can say "Single Room 1 — with breakfast" rather than an opaque ID.
     roomProductNames?: Record<string, string>,
+    // landr-a4fy: per-occupant breakfast flag map (memberIndex → boolean).
+    // Built from the per-room add-on selection + assignment. The widget
+    // collects this in the room-assignment step; BookingForm persists it
+    // as has_breakfast on each Participant / Companion. Empty in
+    // guiding-only / shared-double modes (no rooms/add-ons).
+    breakfastMap?: BreakfastMap,
   ) => void
   /**
    * Called when the customer wants to go back to the previous step
@@ -210,6 +219,14 @@ interface Props {
    * undefined → all occupants default to adult (no age needed).
    */
   initialAgeMap?: OccupantAgeMap
+  /**
+   * landr-z59y: restore which occupants hold a breakfast chip on back-nav
+   * re-entry. The map is re-clamped against the restored assignment + add-on
+   * qtys (clampBreakfastMap) so a stale holder for someone who moved rooms is
+   * corrected rather than dropped wholesale (landr-nmed). undefined → seed the
+   * deterministic default placement on forward entry.
+   */
+  initialBreakfastMap?: BreakfastMap
 }
 
 /**
@@ -263,6 +280,7 @@ export function AccommodationStep({
   initialMode,
   initialAssignment,
   initialAgeMap,
+  initialBreakfastMap,
 }: Props) {
   const locale = browserLocale()
   const { tokens } = useVariant()
@@ -341,6 +359,19 @@ export function AccommodationStep({
   // react-hooks/set-state-in-effect rule stays happy.
   const [ageMap, setAgeMap] = useState<OccupantAgeMap>(
     () => initialAgeMap ?? {},
+  )
+
+  // landr-z59y: breakfast is a fixed set of draggable chips owned by occupants.
+  // breakfastMap[memberIndex] === true means that occupant holds a breakfast
+  // chip → has_breakfast=true on submit. Seeded from initialBreakfastMap on
+  // back-nav re-entry; otherwise the clamp effect below seeds the deterministic
+  // default placement (first B occupants of each room product). The map is
+  // ALWAYS re-clamped against the current assignment + add-on qtys so it never
+  // goes stale when people move rooms or the breakfast qty changes — which is
+  // what keeps it valid (and survives a breadcrumb re-nav) without reintroducing
+  // the landr-nmed data-loss bug: the persisted holders are clamped, not dropped.
+  const [breakfastMap, setBreakfastMap] = useState<BreakfastMap>(
+    () => initialBreakfastMap ?? {},
   )
 
   // landr-ffyg.2: derived mode predicates. A hotel context is needed for
@@ -533,6 +564,8 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: a new hotel resets the age map too (occupants change).
     setAgeMap({})
+    // landr-z59y: a new hotel means new rooms/add-ons → clear breakfast chips.
+    setBreakfastMap({})
     // landr-87n9.2: switching hotel clears the room cart → live total resets.
     notifyLiveAccommodation(mode, {}, {})
   }
@@ -554,6 +587,8 @@ export function AccommodationStep({
     setAssignment({})
     // landr-doam.1: mode switch resets the age map too.
     setAgeMap({})
+    // landr-z59y: mode switch clears the breakfast chips too.
+    setBreakfastMap({})
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
@@ -856,11 +891,44 @@ export function AccommodationStep({
     }))
   }
 
+  // landr-z59y: move a breakfast chip onto an occupant (drag-drop or the
+  // "+ breakfast" tap fallback). The pure helper forces the target to hold a
+  // chip and drops the highest-index other holder of the same room product so
+  // the count stays fixed. No setState-in-effect.
+  function handleBreakfastAssign(memberIndex: number) {
+    setBreakfastMap((prev) =>
+      assignBreakfastChip(assignment, addonSelection, prev, memberIndex),
+    )
+  }
+
+  // landr-z59y: re-clamp the breakfast-chip holders whenever the assignment or
+  // add-on qtys change. This seeds the deterministic default placement (first B
+  // occupants per room product) the first time, then keeps the map valid as
+  // people move rooms or the breakfast qty changes — preferring the holders the
+  // customer already chose. The IIFE-in-effect pattern keeps the
+  // react-hooks/set-state-in-effect lint rule happy (no sync setState in body).
+  const breakfastSignatureAddon = JSON.stringify(addonSelection)
+  const breakfastSignatureAssignment = JSON.stringify(assignment)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      setBreakfastMap((prev) => clampBreakfastMap(assignment, addonSelection, prev))
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breakfastSignatureAddon, breakfastSignatureAssignment])
+  // ^ keyed on stable JSON signatures rather than object identity so the effect
+  //   only re-fires when the data actually changes. setBreakfastMap reads the
+  //   latest holders, so these are the only real triggers.
+
   function handleContinue() {
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false, {}, {}, {}, {})
+      onConfirm([], null, [], false, false, {}, {}, {}, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -881,6 +949,7 @@ export function AccommodationStep({
         {},
         {},
         {},
+        {},
       )
       return
     }
@@ -895,6 +964,16 @@ export function AccommodationStep({
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
     const finalAssignment = pruneAssignments(assignment, roomUnits)
+    // landr-z59y: clamp the breakfast-chip holders to the FINAL assignment so
+    // has_breakfast on the submit payload exactly matches which occupants hold
+    // a chip (preferring the customer's current placement; topping up / trimming
+    // to the fixed per-product qty). Closes any drift between the last drag and
+    // Continue. This is the per-occupant has_breakfast source for the payload.
+    const breakfastMapForSubmit = clampBreakfastMap(
+      finalAssignment,
+      addonSelection,
+      breakfastMap,
+    )
     // landr-gb2f.5: build a name map for the rooms in the cart so the
     // review can label units as "Single Room 1 — with breakfast" etc.
     // Uses the localized name (pickLocalized with the current locale) for
@@ -924,6 +1003,9 @@ export function AccommodationStep({
       addonSelection,
       // landr-gb2f.5: room product names for the review labels.
       roomProductNames,
+      // landr-z59y: per-occupant breakfast map (which occupants hold a chip),
+      // clamped to the final assignment + add-on qtys.
+      breakfastMapForSubmit,
     )
   }
 
@@ -1243,6 +1325,12 @@ export function AccommodationStep({
               onAssign={assignParticipant}
               ageMap={ageMap}
               onAgeBandChange={handleAgeBandChange}
+              // landr-z59y: per-room add-on selection drives the breakfast count
+              // + the draggable "Breakfast" chips; breakfastMap holds which
+              // occupants currently have a chip; onBreakfastAssign reassigns one.
+              perRoomAddons={addonSelection}
+              breakfastMap={breakfastMap}
+              onBreakfastAssign={handleBreakfastAssign}
             />
             {/* landr-87n9.3: inline blocking hint — only shown while
                 occupancy is incomplete so the customer knows exactly what to

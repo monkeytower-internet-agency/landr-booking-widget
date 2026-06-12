@@ -438,6 +438,9 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   // a brand yet). Widget falls back to its built-in theme.
   logo_url: null,
   primary_color: null,
+  // landr-ens5 — no 3-colour theme in the mock (operator hasn't picked one;
+  // widget falls back to primary_color → built-in default).
+  theme: null,
   name: operatorSlug,
   // landr-nils — embed copy null by default (operator hasn't written any).
   widget_headline: null,
@@ -451,6 +454,11 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   widget_tile_aspect: null,
   widget_tile_scrim: null,
   widget_tile_hover: null,
+  // landr-4uyu — operator contact email surfaced at the participant max
+  // ("larger group / flight school" contact-us line). Provided in the mock so
+  // local mock-mode dev exercises the mailto path; real operators set their own
+  // (or leave it null → the copy shows without a link).
+  contact_email: `bookings@${operatorSlug}.example`,
 })
 
 /**

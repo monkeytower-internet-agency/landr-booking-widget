@@ -5,6 +5,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 
 type Mode = 'individual' | 'range'
 
@@ -33,17 +34,6 @@ interface MultiDayPickerProps {
   onForcedDaysChange?: (forcedIsoDays: string[]) => void
 }
 
-const isoDate = (d: Date) => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-const fromIso = (iso: string) => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y!, (m ?? 1) - 1, d ?? 1)
-}
 
 function fillRange(from: Date, to: Date, availableSet: Set<string>): string[] {
   const [start, end] = from <= to ? [from, to] : [to, from]
@@ -61,7 +51,7 @@ function fillRange(from: Date, to: Date, availableSet: Set<string>): string[] {
 function sortedDates(isoSet: Set<string>): Date[] {
   return Array.from(isoSet)
     .sort()
-    .map(fromIso)
+    .map(dateFromIso)
 }
 
 // landr-ifcu: v1 is English-only. The German variant of this help text was
@@ -154,8 +144,8 @@ export function MultiDayPicker({
           setAnchor(day)
         } else {
           const sorted = Array.from(valueSet).sort()
-          const first = fromIso(sorted[0]!)
-          const last = fromIso(sorted[sorted.length - 1]!)
+          const first = dateFromIso(sorted[0]!)
+          const last = dateFromIso(sorted[sorted.length - 1]!)
           let rangeFrom: Date
           let rangeTo: Date
           if (day < first) {
@@ -211,8 +201,8 @@ export function MultiDayPicker({
         setAnchor(day)
       } else {
         const sorted = Array.from(valueSet).sort()
-        const first = fromIso(sorted[0]!)
-        const last = fromIso(sorted[sorted.length - 1]!)
+        const first = dateFromIso(sorted[0]!)
+        const last = dateFromIso(sorted[sorted.length - 1]!)
         let rangeFrom: Date
         let rangeTo: Date
         if (day < first) {

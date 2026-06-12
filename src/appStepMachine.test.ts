@@ -10,6 +10,8 @@ import type {
 import {
   buildBreadcrumb,
   deriveAccommodationMode,
+  detailsFromDraft,
+  draftFromStep,
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepBefore,
@@ -658,5 +660,107 @@ describe('breadcrumb navigation (landr)', () => {
     expect(target.name === 'pick-selection' ? target.selection : null).toEqual(
       SLOT_SELECTION,
     )
+  })
+})
+
+// landr-nmed: the persistent-draft helpers that survive a breadcrumb JUMP to
+// an early step (and re-seed the funnel on the way forward).
+describe('booking-draft preservation (landr-nmed)', () => {
+  function fillForm(
+    overrides: Partial<Extract<Step, { name: 'fill-form' }>> = {},
+  ): Extract<Step, { name: 'fill-form' }> {
+    return {
+      name: 'fill-form',
+      product: makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(2),
+      companions: makeCompanions(1),
+      pickupLocationId: 'hotel-1',
+      accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
+      addons: [{ productId: 'addon-1', quantity: 2 }],
+      hotelLocationId: 'hotel-1',
+      isSharedDouble: false,
+      accommodationMode: 'package',
+      roomAssignment: { 0: { roomProductId: 'room-1', unitIndex: 0 } },
+      // landr-z59y: which occupants hold a breakfast chip (occupant 0 does).
+      breakfastMap: { 0: true },
+      customerDeclarations: { license_valid: true },
+      customerLanguages: ['en'],
+      ...overrides,
+    }
+  }
+
+  describe('draftFromStep', () => {
+    it('captures every downstream slice the customer has entered at a deep step', () => {
+      const draft = draftFromStep(fillForm())
+      expect(draft).toBeDefined()
+      expect(draft!.booker).toEqual(ADA)
+      expect(draft!.participants).toHaveLength(2)
+      expect(draft!.companions).toHaveLength(1)
+      expect(draft!.hotelLocationId).toBe('hotel-1')
+      expect(draft!.accommodationRooms).toEqual([
+        { productId: 'room-1', quantity: 1 },
+      ])
+      expect(draft!.addons).toEqual([{ productId: 'addon-1', quantity: 2 }])
+      expect(draft!.roomAssignment).toEqual({
+        0: { roomProductId: 'room-1', unitIndex: 0 },
+      })
+      // landr-z59y: the breakfast-chip holders survive a breadcrumb JUMP, so
+      // a customer who placed breakfast on a specific person keeps it on the
+      // way forward (re-clamped against the restored rooms in AccommodationStep).
+      expect(draft!.breakfastMap).toEqual({ 0: true })
+      expect(draft!.customerDeclarations).toEqual({ license_valid: true })
+      expect(draft!.customerLanguages).toEqual(['en'])
+    })
+
+    it('captures booker + participants from a mid-funnel details step', () => {
+      const draft = draftFromStep({
+        name: 'details',
+        product: makeProduct(),
+        selection: SLOT_SELECTION,
+        booker: ADA,
+        participants: makeParticipants(1),
+        companions: makeCompanions(0),
+      })
+      expect(draft).toBeDefined()
+      expect(draft!.booker).toEqual(ADA)
+      expect(draft!.participants).toHaveLength(1)
+    })
+
+    it('returns undefined for early steps that carry no entered data', () => {
+      expect(draftFromStep({ name: 'pick-product' })).toBeUndefined()
+      expect(
+        draftFromStep({ name: 'product-detail', product: makeProduct() }),
+      ).toBeUndefined()
+      expect(
+        draftFromStep({
+          name: 'pick-selection',
+          product: makeProduct(),
+          selection: SLOT_SELECTION,
+        }),
+      ).toBeUndefined()
+    })
+  })
+
+  describe('detailsFromDraft', () => {
+    it('re-seeds the details step with booker + participants + companions from the draft', () => {
+      const draft = draftFromStep(fillForm())!
+      const next = detailsFromDraft(makeProduct(), SLOT_SELECTION, draft)
+      expect(next.name).toBe('details')
+      expect(next.booker).toEqual(ADA)
+      expect(next.participants).toHaveLength(2)
+      expect(next.companions).toHaveLength(1)
+      // The (possibly edited) selection is the one passed in, not the draft's.
+      expect(next.selection).toEqual(SLOT_SELECTION)
+    })
+
+    it('yields an empty details step on the initial forward visit (no draft)', () => {
+      const next = detailsFromDraft(makeProduct(), SLOT_SELECTION, undefined)
+      expect(next.name).toBe('details')
+      expect(next.booker).toBeUndefined()
+      expect(next.participants).toBeUndefined()
+      expect(next.companions).toBeUndefined()
+    })
   })
 })
