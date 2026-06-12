@@ -10,6 +10,7 @@ import {
   clampBreakfastMap,
   deriveBreakfastMap,
   deriveStayWindow,
+  disambiguatePartyLabels,
   expandRoomUnits,
   findBreakfastAddonIds,
   flattenPerRoomAddons,
@@ -1159,5 +1160,95 @@ describe('resolveBreakfastDropTarget (landr-z59y — breakfast-drag near-miss fa
 
   it('returns null when over nothing', () => {
     expect(resolveBreakfastDropTarget(null, 0, {}, occupantsOf)).toBeNull()
+  })
+})
+
+// ── landr-sjrd: progressive name disambiguation ──────────────────────────────
+
+describe('disambiguatePartyLabels (landr-sjrd)', () => {
+  it('all-unique first names → labels are unchanged (first names only)', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Bob', last: 'Müller' },
+      { first: 'Clara', last: 'Weber' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna', 'Bob', 'Clara'])
+  })
+
+  it('two members named Anna with different last names → disambiguate with initial', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Anna', last: 'Müller' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna M.'])
+  })
+
+  it(
+    'three Annas all sharing initial S → all collide on (Anna, S) → full names',
+    () => {
+      // Anna Schmidt, Anna Schmidt, Anna Schneider — all share first 'anna' and
+      // initial 's'; no initial is unique → all three fall through to full name.
+      const party = [
+        { first: 'Anna', last: 'Schmidt' },
+        { first: 'Anna', last: 'Schmidt' },
+        { first: 'Anna', last: 'Schneider' },
+      ]
+      expect(disambiguatePartyLabels(party)).toEqual([
+        'Anna Schmidt',
+        'Anna Schmidt',
+        'Anna Schneider',
+      ])
+    },
+  )
+
+  it(
+    'companion named Anna (no last) collides with participant Anna Schmidt: ' +
+    'companion → Anna (best effort), participant → Anna S. (unique initial)',
+    () => {
+      // The companion contributes initial '' (empty bucket). The participant's
+      // initial 'S' is therefore unique among the colliding group → shows S.
+      // The companion cannot add an initial → best-effort first-only.
+      const party = [
+        { first: 'Anna', last: 'Schmidt' }, // participant
+        { first: 'Anna', last: '' },         // companion, no last name
+      ]
+      expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna'])
+    },
+  )
+
+  it('empty first name → returns "" and does not perturb other members', () => {
+    const party = [
+      { first: '', last: 'Smith' },
+      { first: 'Bob', last: 'Jones' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['', 'Bob'])
+  })
+
+  it('two Annas and a Bob → the two Annas disambiguate, Bob stays Bob', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Anna', last: 'Müller' },
+      { first: 'Bob', last: 'Weber' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna M.', 'Bob'])
+  })
+
+  it('comparison is case-insensitive; display uses original casing with uppercase initial', () => {
+    const party = [
+      { first: 'anna', last: 'schmidt' },
+      { first: 'ANNA', last: 'müller' },
+    ]
+    const result = disambiguatePartyLabels(party)
+    // Both 'anna' / 'ANNA' collide (same key). Initials S vs M are unique.
+    expect(result[0]).toBe('anna S.')
+    expect(result[1]).toBe('ANNA M.')
+  })
+
+  it('single member → just the first name', () => {
+    expect(disambiguatePartyLabels([{ first: 'Lone', last: 'Wolf' }])).toEqual(['Lone'])
+  })
+
+  it('empty party → empty array', () => {
+    expect(disambiguatePartyLabels([])).toEqual([])
   })
 })
