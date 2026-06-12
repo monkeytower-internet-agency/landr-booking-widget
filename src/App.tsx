@@ -80,6 +80,7 @@ import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import { VariantSwitcher } from '@/components/booking/VariantSwitcher'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
+import { widgetThemeStyle } from '@/lib/widgetTheme'
 import { StepTransition } from '@/components/booking/StepTransition'
 
 // landr-sbhz.3: operators that require pre-booking customer declarations.
@@ -321,6 +322,9 @@ function BookingFlowApp() {
     expose_seats_to_customer: false,
     logo_url: null,
     primary_color: null,
+    // landr-ens5 — 3-colour theme null until the fetch resolves (built-in
+    // default theme until then).
+    theme: null,
     name: null,
     // landr-nils — embed copy null until the fetch resolves.
     widget_headline: null,
@@ -795,17 +799,21 @@ function BookingFlowApp() {
   // landr-il9f.2: no token or unknown token → show the generic landing page.
   if (showLanding) return <LandingPage />
 
-  // landr-yp8x — apply the operator's primary colour as a CSS variable
-  // override so every component that reads `var(--primary)` (Button,
-  // PriceSidebar CTA, accent borders) automatically picks it up.
-  // Setting it as inline style at the widget root means we don't
-  // mutate a global stylesheet (which would leak across embeds when
-  // the host page mounts more than one widget instance — uncommon but
-  // possible). When primary_color is null the inline style isn't
-  // applied and the index.css default kicks in.
-  const brandStyle: CSSProperties = operatorSettings.primary_color
-    ? ({ ['--primary' as never]: operatorSettings.primary_color } as CSSProperties)
-    : {}
+  // landr-ens5 / landr-yp8x — apply the operator's brand theme as CSS
+  // variable overrides at the widget root so every component that reads
+  // var(--background)/var(--foreground)/var(--primary) (root canvas,
+  // Button, PriceSidebar CTA, headings, accent borders) picks it up.
+  // Setting it as inline style at the widget root means we don't mutate a
+  // global stylesheet (which would leak across embeds when the host page
+  // mounts more than one widget instance — uncommon but possible).
+  //
+  // The operator's 3-colour theme (brand/accent/background) wins when
+  // present; otherwise the legacy single primary_color → --primary path
+  // is preserved; otherwise no inline vars and index.css defaults stand.
+  // (See lib/widgetTheme.ts for the mapping + contrast safety. Dark mode
+  // is carried on the type but not applied — the widget has no active
+  // dark mode today.)
+  const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings)
 
   return (
     // landr-2mgl: overscroll-y-contain on the widget's outermost scroll

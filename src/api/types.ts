@@ -221,6 +221,31 @@ export interface Product {
 }
 
 /**
+ * landr-ens5 — the operator's configured 3-colour brand theme, saved by
+ * the dashboard to operators.theme and surfaced by the settings RPC under
+ * the `theme` key. Each value is a CSS colour string (hex, e.g. #1d4ed8).
+ *
+ *   brand      — text / headings (maps to --foreground + --brand)
+ *   accent     — buttons / CTAs   (maps to --primary)
+ *   background — the page canvas  (maps to --background)
+ *
+ * `dark` carries optional per-colour overrides for dark mode. The widget
+ * has no active dark mode today (the .dark class in index.css is never
+ * applied), so these are carried for forward-compat with the dashboard's
+ * matching deriveDark and are NOT consumed yet.
+ */
+export interface WidgetTheme {
+  brand: string
+  accent: string
+  background: string
+  dark?: {
+    brand?: string
+    accent?: string
+    background?: string
+  }
+}
+
+/**
  * Operator-level rendering/behaviour flags surfaced by
  * GET /api/public/operators/{slug}/settings (landr-e10.9). The widget
  * fetches this once on mount and caches it in OperatorContext. Future
@@ -243,9 +268,22 @@ export interface OperatorSettings {
    * widget's default theme. name is the operator's display name (used
    * for the logo's alt text — NOT rendered as a text header; landr-nils
    * removed the name fallback so a missing logo shows nothing).
+   *
+   * landr-ens5 — primary_color is the LEGACY single-colour field. New
+   * operators get the richer `theme` (brand/accent/background) below;
+   * `theme` wins when present and primary_color is the fallback for
+   * operators who only ever set the old single colour.
    */
   logo_url?: string | null
   primary_color?: string | null
+  /**
+   * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
+   * background, + optional dark overrides). When present it supersedes
+   * primary_color and drives --background / --foreground / --brand /
+   * --primary on the widget root. Null = no theme configured (fall back
+   * to primary_color, then the built-in default).
+   */
+  theme?: WidgetTheme | null
   name?: string | null
   /**
    * landr-nils — operator-configurable copy rendered around the embed.
