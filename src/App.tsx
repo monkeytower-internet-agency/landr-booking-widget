@@ -330,6 +330,10 @@ function BookingFlowApp() {
     widget_headline: null,
     widget_description: null,
     widget_footer: null,
+    // landr-rjda — first-page-only gates off by default (show on every step).
+    widget_headline_first_page_only: false,
+    widget_description_first_page_only: false,
+    widget_footer_first_page_only: false,
     // landr-atwy — account-link prompt off until the operator opts in.
     offer_account_link: false,
     // landr-jb1k — variant + category config null until the fetch resolves.
@@ -815,6 +819,12 @@ function BookingFlowApp() {
   // dark mode today.)
   const brandStyle: CSSProperties = widgetThemeStyle(operatorSettings)
 
+  // landr-rjda — "first step" = the product/category selection screen.
+  // pick-category only appears when the operator has >1 product group; both
+  // it and pick-product are the initial entry point, so either qualifies.
+  const isFirstStep =
+    step.name === 'pick-product' || step.name === 'pick-category'
+
   return (
     // landr-2mgl: overscroll-y-contain on the widget's outermost scroll
     // container stops a stray top-of-page swipe from triggering the mobile
@@ -847,36 +857,47 @@ function BookingFlowApp() {
           renders only when at least one part is present. Plain text with
           line breaks preserved — never HTML (XSS-safe inside the embed).
         */}
-        {(operatorSettings.logo_url ||
-          operatorSettings.widget_headline ||
-          operatorSettings.widget_description) ? (
-          <header className="flex flex-col gap-2">
-            {operatorSettings.logo_url ? (
-              <img
-                src={operatorSettings.logo_url}
-                alt={operatorSettings.name ?? operatorSettings.slug}
-                className="h-10 w-auto max-w-[160px] object-contain"
-                data-testid="widget-logo"
-              />
-            ) : null}
-            {operatorSettings.widget_headline ? (
-              <h1
-                className="text-xl font-semibold"
-                data-testid="widget-headline"
-              >
-                {operatorSettings.widget_headline}
-              </h1>
-            ) : null}
-            {operatorSettings.widget_description ? (
-              <p
-                className="text-muted-foreground text-sm whitespace-pre-line"
-                data-testid="widget-description"
-              >
-                {operatorSettings.widget_description}
-              </p>
-            ) : null}
-          </header>
-        ) : null}
+        {(() => {
+          // landr-rjda: each text element may be gated to the first step.
+          // The logo is always shown (no flag). The <header> wrapper renders
+          // only when at least one part is actually visible — avoids an empty
+          // box when all text is first-page-only and we're past the first step.
+          const showHeadline =
+            !!(operatorSettings.widget_headline &&
+              (!operatorSettings.widget_headline_first_page_only || isFirstStep))
+          const showDescription =
+            !!(operatorSettings.widget_description &&
+              (!operatorSettings.widget_description_first_page_only || isFirstStep))
+          if (!operatorSettings.logo_url && !showHeadline && !showDescription) return null
+          return (
+            <header className="flex flex-col gap-2">
+              {operatorSettings.logo_url ? (
+                <img
+                  src={operatorSettings.logo_url}
+                  alt={operatorSettings.name ?? operatorSettings.slug}
+                  className="h-10 w-auto max-w-[160px] object-contain"
+                  data-testid="widget-logo"
+                />
+              ) : null}
+              {showHeadline ? (
+                <h1
+                  className="text-xl font-semibold"
+                  data-testid="widget-headline"
+                >
+                  {operatorSettings.widget_headline}
+                </h1>
+              ) : null}
+              {showDescription ? (
+                <p
+                  className="text-muted-foreground text-sm whitespace-pre-line"
+                  data-testid="widget-description"
+                >
+                  {operatorSettings.widget_description}
+                </p>
+              ) : null}
+            </header>
+          )
+        })()}
 
         {/*
           landr-7zc5.3: preview mode banner — visible to the operator
@@ -1695,7 +1716,9 @@ function BookingFlowApp() {
         contact info, etc. Full-width, centred to match the content
         column. Plain text with line breaks preserved (never HTML).
       */}
-      {operatorSettings.widget_footer ? (
+      {/* landr-rjda: footer respects widget_footer_first_page_only gate. */}
+      {operatorSettings.widget_footer &&
+       (!operatorSettings.widget_footer_first_page_only || isFirstStep) ? (
         <footer
           className="border-border mx-auto max-w-5xl border-t px-6 pb-8 pt-4"
           data-testid="widget-footer"

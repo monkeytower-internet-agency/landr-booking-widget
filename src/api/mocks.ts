@@ -446,6 +446,10 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   widget_headline: null,
   widget_description: null,
   widget_footer: null,
+  // landr-rjda — first-page-only gates off by default (show on every step).
+  widget_headline_first_page_only: false,
+  widget_description_first_page_only: false,
+  widget_footer_first_page_only: false,
   // landr-atwy — account-link prompt off by default (opt-in per operator).
   offer_account_link: false,
   // landr-jb1k.4 — tile-style options null by default (operator hasn't picked
