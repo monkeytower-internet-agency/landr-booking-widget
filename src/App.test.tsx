@@ -391,6 +391,134 @@ describe('App', () => {
     })
   })
 
+  // landr-rjda — first-page-only gates for header/footer text.
+  describe('first-page-only flags (landr-rjda)', () => {
+    // Helper: render with the given settings + a product, then return.
+    // Stays on pick-product (first step).
+    async function renderOnFirstStep(
+      settingsOverrides: Record<string, unknown>,
+    ) {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+        ...settingsOverrides,
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Flight' }),
+      ])
+      render(<App />)
+      // Wait until the product list has loaded (we are on the first step).
+      await waitFor(() => screen.getByText('Tandem Flight'))
+    }
+
+    // Helper: navigate to pick-selection (a later step) after rendering.
+    async function advancePastFirstStep() {
+      fireEvent.click(screen.getByRole('button', { name: 'Tandem Flight' }))
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
+      // pick-selection is now active (availability loaded by mock).
+      await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+    }
+
+    it('headline shown on first step when flag is false (default behaviour)', async () => {
+      await renderOnFirstStep({
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: false,
+      })
+      expect(screen.getByTestId('widget-headline')).toBeInTheDocument()
+    })
+
+    it('headline shown on first step when flag is true', async () => {
+      await renderOnFirstStep({
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: true,
+      })
+      expect(screen.getByTestId('widget-headline')).toBeInTheDocument()
+    })
+
+    it('headline hidden on a later step when flag is true', async () => {
+      await renderOnFirstStep({
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: true,
+      })
+      await advancePastFirstStep()
+      expect(screen.queryByTestId('widget-headline')).not.toBeInTheDocument()
+    })
+
+    it('headline visible on a later step when flag is false', async () => {
+      await renderOnFirstStep({
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: false,
+      })
+      await advancePastFirstStep()
+      expect(screen.getByTestId('widget-headline')).toBeInTheDocument()
+    })
+
+    it('description hidden on a later step when flag is true', async () => {
+      await renderOnFirstStep({
+        widget_description: 'Terms apply.',
+        widget_description_first_page_only: true,
+      })
+      await advancePastFirstStep()
+      expect(screen.queryByTestId('widget-description')).not.toBeInTheDocument()
+    })
+
+    it('description visible on a later step when flag is false', async () => {
+      await renderOnFirstStep({
+        widget_description: 'Terms apply.',
+        widget_description_first_page_only: false,
+      })
+      await advancePastFirstStep()
+      expect(screen.getByTestId('widget-description')).toBeInTheDocument()
+    })
+
+    it('footer hidden on a later step when flag is true', async () => {
+      await renderOnFirstStep({
+        widget_footer: '© Para42.',
+        widget_footer_first_page_only: true,
+      })
+      await advancePastFirstStep()
+      expect(screen.queryByTestId('widget-footer')).not.toBeInTheDocument()
+    })
+
+    it('footer visible on a later step when flag is false', async () => {
+      await renderOnFirstStep({
+        widget_footer: '© Para42.',
+        widget_footer_first_page_only: false,
+      })
+      await advancePastFirstStep()
+      expect(screen.getByTestId('widget-footer')).toBeInTheDocument()
+    })
+
+    it('header wrapper not rendered when logo absent and all text is first-page-only past first step', async () => {
+      await renderOnFirstStep({
+        logo_url: null,
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: true,
+        widget_description: 'Terms apply.',
+        widget_description_first_page_only: true,
+      })
+      await advancePastFirstStep()
+      // No empty <header> element should appear.
+      expect(document.querySelector('header')).not.toBeInTheDocument()
+    })
+
+    it('header wrapper still rendered on a later step when logo present even if all text is first-page-only', async () => {
+      await renderOnFirstStep({
+        logo_url: 'https://example.com/logo.png',
+        widget_headline: 'Book with us',
+        widget_headline_first_page_only: true,
+      })
+      await advancePastFirstStep()
+      // Logo is always shown — header must remain.
+      expect(screen.getByTestId('widget-logo')).toBeInTheDocument()
+      expect(screen.queryByTestId('widget-headline')).not.toBeInTheDocument()
+    })
+  })
+
   describe('step machine branching (landr-y9k)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))

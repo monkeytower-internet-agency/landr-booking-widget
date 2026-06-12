@@ -297,6 +297,16 @@ export interface OperatorSettings {
   widget_description?: string | null
   widget_footer?: string | null
   /**
+   * landr-rjda — per-field "first-page-only" gates. When true the
+   * corresponding text is shown only on the first step (pick-product or
+   * pick-category); on all later steps it is hidden. Default false = current
+   * behaviour (show on every step). Optional for rolling deploy — absent API
+   * responses are treated as false.
+   */
+  widget_headline_first_page_only?: boolean
+  widget_description_first_page_only?: boolean
+  widget_footer_first_page_only?: boolean
+  /**
    * landr-atwy — per-operator opt-in for the post-booking "Track this
    * booking in the LANDR app" account-link prompt. Default false: the
    * prompt (which creates a real LANDR auth account via signInWithOtp)
