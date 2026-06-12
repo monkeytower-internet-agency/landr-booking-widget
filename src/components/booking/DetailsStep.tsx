@@ -25,6 +25,13 @@ import {
   type ParticipantDetails,
 } from './detailsTypes'
 import { GroupInquiryForm } from './GroupInquiryForm'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
@@ -523,6 +530,12 @@ export function DetailsStep({
   const participantsAtMax = additional.length >= MAX_ADDITIONAL
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
+  // landr-amg6: at the participant max we no longer render the inquiry form
+  // inline. Instead a "Request more" button opens an overlay modal that holds
+  // the form. Closing/cancelling discards the in-progress inquiry (the form
+  // remounts fresh each time the dialog opens, keyed below).
+  const [inquiryOpen, setInquiryOpen] = useState(false)
+
   // landr-4uyu: normalize the operator contact email. A blank/whitespace value
   // is treated as absent so we never render an empty `mailto:`. When present we
   // build a mailto with a sensible prefilled subject; when absent the contact
@@ -735,6 +748,11 @@ export function DetailsStep({
               is preserved from the old stepper button so existing tests/AT keep
               working. */}
           {participantsAtMax ? (
+            // landr-amg6: at the max we replace the "+ Add participant" button
+            // (which is gone anyway) with a "Request more" button. The inline
+            // group-inquiry form (landr-ehye) is moved into an overlay modal
+            // opened by this button — the participants section stays uncluttered
+            // and the customer can't accidentally Send a half-filled form.
             <div
               className="flex flex-col gap-2 rounded-lg border border-dashed bg-surface-raised p-3"
               data-testid="participants-max-notice"
@@ -742,24 +760,66 @@ export function DetailsStep({
               <p className="text-sm font-medium text-muted-foreground">
                 Maximum of {MAX_ADDITIONAL} additional participants reached
               </p>
-              {/* landr-ehye: inline group-inquiry form replaces the plain
-                  mailto: link added by PR #108. The form POSTs to the
-                  API; the mailto: link stays as a fallback (shown inside
-                  GroupInquiryForm on error, and as a secondary "Or email us"
-                  link while the form is idle). When the operator has no
-                  contact_email, contactMailto is empty and the mailto
-                  fallback is omitted — same graceful degrade as before. */}
               <p className="text-xs text-muted-foreground">
-                Need a larger group or a flight school booking? Get in touch:
+                Need a larger group or a flight school booking?
               </p>
-              <GroupInquiryForm
-                operatorToken={operatorToken}
-                productSlug={product.slug}
-                defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
-                defaultEmail={booker.email}
-                contactMailto={contactMailto}
-                contactEmail={trimmedContactEmail}
-              />
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setInquiryOpen(true)}
+                  data-testid="group-inquiry-open"
+                >
+                  Request more
+                </Button>
+                {/* Secondary escape hatch — reachable without opening the modal.
+                    When the operator has no contact_email, contactMailto is
+                    empty and the link is omitted (graceful degrade, as before). */}
+                {contactMailto ? (
+                  <a
+                    href={contactMailto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    data-testid="participants-contact-mailto"
+                  >
+                    Or email us
+                  </a>
+                ) : null}
+              </div>
+
+              {/* The overlay modal (radix Dialog primitive) holds the inquiry
+                  form. Closing/Cancel discards the in-progress inquiry. The form
+                  is keyed on `inquiryOpen` so each open starts fresh (no stale
+                  draft, no leftover success/error state). */}
+              <Dialog open={inquiryOpen} onOpenChange={setInquiryOpen}>
+                <DialogContent
+                  className="sm:max-w-lg"
+                  data-testid="group-inquiry-modal"
+                >
+                  <DialogHeader>
+                    <DialogTitle>Request a larger group</DialogTitle>
+                    <DialogDescription>
+                      Need a larger group or a flight-school booking? Send us
+                      the details and we&rsquo;ll be in touch.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {inquiryOpen ? (
+                    <GroupInquiryForm
+                      key={inquiryOpen ? 'open' : 'closed'}
+                      operatorToken={operatorToken}
+                      productSlug={product.slug}
+                      defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
+                      defaultEmail={booker.email}
+                      defaultPhone={booker.phone}
+                      contactMailto={contactMailto}
+                      contactEmail={trimmedContactEmail}
+                      onCancel={() => setInquiryOpen(false)}
+                    />
+                  ) : null}
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <Button
