@@ -872,14 +872,59 @@ export function clampBreakfastMap(
       continue
     }
     // Partial: keep prior holders (still assigned here), then top up.
-    const held: number[] = []
+    //
+    // landr-iiwz: keep ALL prev holders still on the product (capped at qty)
+    // EXACTLY as before — this is what makes back-nav restoration and manual
+    // choices stick. Only the REMAINING (qty − kept) slots change: instead of
+    // filling the product's first occupants in pure ascending order (which
+    // clusters every chip onto unit 0 when several physical units share one
+    // product, e.g. 3 doubles + 3 breakfasts → 2/1/0), distribute them across
+    // the product's UNITS round-robin, preferring units that currently hold
+    // the FEWEST chips (tie-break lowest unitIndex, then lowest member-index).
+    // Net effect: a fresh 3-doubles/3-breakfasts seeds one chip per room.
+    const held = new Set<number>()
     for (const idx of occupants) {
-      if (prev[idx] === true && held.length < qty) held.push(idx)
+      if (prev[idx] === true && held.size < qty) held.add(idx)
     }
-    if (held.length < qty) {
+    if (held.size < qty) {
+      // Group this product's not-yet-held occupants by physical unit, each
+      // unit's candidate list in ascending member-index order.
+      const unitOf = (idx: number): number => assignment[idx]?.unitIndex ?? 0
+      const unitIndices = Array.from(
+        new Set(occupants.map(unitOf)),
+      ).sort((a, b) => a - b)
+      const candidatesByUnit = new Map<number, number[]>()
+      const heldCountByUnit = new Map<number, number>()
+      for (const u of unitIndices) {
+        candidatesByUnit.set(u, [])
+        heldCountByUnit.set(u, 0)
+      }
       for (const idx of occupants) {
-        if (held.length >= qty) break
-        if (!held.includes(idx)) held.push(idx)
+        const u = unitOf(idx)
+        if (held.has(idx)) {
+          heldCountByUnit.set(u, (heldCountByUnit.get(u) ?? 0) + 1)
+        } else {
+          candidatesByUnit.get(u)!.push(idx)
+        }
+      }
+      // Round-robin: each pass pick the eligible unit holding the fewest chips
+      // (tie-break lowest unitIndex), take its lowest-member-index candidate.
+      while (held.size < qty) {
+        let bestUnit = -1
+        let bestHeld = Infinity
+        for (const u of unitIndices) {
+          const candidates = candidatesByUnit.get(u)!
+          if (candidates.length === 0) continue
+          const heldHere = heldCountByUnit.get(u)!
+          if (heldHere < bestHeld) {
+            bestHeld = heldHere
+            bestUnit = u
+          }
+        }
+        if (bestUnit === -1) break // no candidates left (shouldn't happen: qty < occ)
+        const idx = candidatesByUnit.get(bestUnit)!.shift()!
+        held.add(idx)
+        heldCountByUnit.set(bestUnit, heldCountByUnit.get(bestUnit)! + 1)
       }
     }
     for (const idx of held) out[idx] = true
@@ -905,9 +950,19 @@ export function deriveBreakfastMap(
 /**
  * landr-z59y: move a breakfast chip ONTO `memberIndex` (the occupant the user
  * dropped a chip on, or tapped "+ breakfast"). The target keeps its chip; the
- * count for its room product stays fixed at B by dropping the HIGHEST-index
- * OTHER holder of the same product when the cap is exceeded. The target's drop
- * always wins. Pure — returns a NEW map.
+ * count for its room product stays fixed at B by dropping an OTHER holder of
+ * the same product when the cap is exceeded. The target's drop always wins.
+ * Pure — returns a NEW map.
+ *
+ * landr-iiwz: `from` is the optional drag SOURCE — the occupant whose chip is
+ * being dragged. A drag is a true MOVE: when an excess holder must be dropped
+ * to keep B fixed, we prefer dropping `from` if it is a current holder of the
+ * SAME room product as the target (i.e. listed in that product's occupants).
+ * Without this, displacement always dropped the highest member-index holder,
+ * NOT the dragged source — so chips on the lowest-index room (unit 0) could
+ * never be displaced and that room stayed permanently stuck. We fall back to
+ * the legacy highest-index-first displacement when `from` is absent (the
+ * source-less "+ breakfast" tap) or points at a different product.
  *
  * No-op (returns a clamped copy) when the target is unassigned, its product has
  * no breakfast, or the product is in 'all' mode (B >= occ, nobody to displace).
@@ -917,6 +972,7 @@ export function assignBreakfastChip(
   perRoomAddons: Record<string, Record<string, number>>,
   prev: BreakfastMap,
   memberIndex: number,
+  from?: number,
 ): BreakfastMap {
   const entry = assignment[memberIndex]
   // Start from a clamped baseline so the result is always valid.
@@ -932,10 +988,23 @@ export function assignBreakfastChip(
   base[memberIndex] = true
   // Current holders of this product (after forcing the target in).
   const holders = occupants.filter((idx) => base[idx] === true)
-  // Drop excess holders (highest member index first) but never the target.
+  // Drop excess holders but never the target. Prefer dropping the drag source
+  // `from` when it holds a chip of THIS product (a true move); otherwise fall
+  // back to legacy highest-member-index-first displacement.
+  const fromIsSameProductHolder =
+    from !== undefined &&
+    from !== memberIndex &&
+    occupants.includes(from) &&
+    base[from] === true
   const droppable = holders
     .filter((idx) => idx !== memberIndex)
-    .sort((a, b) => b - a)
+    .sort((a, b) => {
+      if (fromIsSameProductHolder) {
+        if (a === from) return -1 // drop the source first
+        if (b === from) return 1
+      }
+      return b - a // then highest member index first
+    })
   let excess = holders.length - qty
   for (const idx of droppable) {
     if (excess <= 0) break
