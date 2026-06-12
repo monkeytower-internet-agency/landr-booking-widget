@@ -1099,6 +1099,84 @@ export function resolveBreakfastDropTarget(
 }
 
 /**
+ * landr-sjrd: progressive name disambiguation for party-member chips.
+ *
+ * The party is the full list of people who will be room-assigned (participants
+ * first, companions after — the same index space as the assignment map). Each
+ * member is represented as { first, last }; callers that have no last name for
+ * a member (or a companion with an empty last_name field) pass ''.
+ *
+ * Algorithm:
+ *   1. Unique first name (case-insensitive, non-empty) → display as `First`.
+ *   2. Colliding first name + distinguishing last initial → `First X.`
+ *   3. Colliding first name + colliding (first + initial) → `First Last` (full).
+ *   4. Colliding first name but NO last name (initial '') → `First` (best-effort;
+ *      can't disambiguate a name-only member).
+ *   5. Empty first name → '' (let the downstream `Guest N` fallback handle it);
+ *      empty firsts must not force OTHER members to disambiguate.
+ *
+ * Collision detection is always case-insensitive; displayed names use the
+ * original casing; last initials are uppercased.
+ *
+ * Pure — no side effects, no React imports.
+ */
+export function disambiguatePartyLabels(
+  party: { first: string; last: string }[],
+): string[] {
+  // Build normalised keys once (trim + lowercase) for collision counting.
+  const normalised = party.map((m) => ({
+    firstKey: m.first.trim().toLowerCase(),
+    lastKey: m.last.trim().toLowerCase(),
+    firstOrig: m.first.trim(),
+    lastOrig: m.last.trim(),
+  }))
+
+  // Count first-name occurrences (non-empty only — empty firsts don't count
+  // toward collision detection so they don't force others to disambiguate).
+  const firstCount = new Map<string, number>()
+  for (const n of normalised) {
+    if (!n.firstKey) continue
+    firstCount.set(n.firstKey, (firstCount.get(n.firstKey) ?? 0) + 1)
+  }
+
+  // For members whose first name collides, count (firstKey, initialKey) pairs.
+  // The initial is the first char of the last name (or '' when no last name).
+  const pairCount = new Map<string, number>()
+  for (const n of normalised) {
+    if (!n.firstKey) continue
+    if ((firstCount.get(n.firstKey) ?? 0) <= 1) continue
+    const initial = n.lastKey ? n.lastKey[0]! : ''
+    const pairKey = `${n.firstKey}\0${initial}`
+    pairCount.set(pairKey, (pairCount.get(pairKey) ?? 0) + 1)
+  }
+
+  return normalised.map((n) => {
+    // Rule 5: empty first → let the downstream fallback handle it.
+    if (!n.firstKey) return ''
+
+    // Rule 1: unique first name.
+    if ((firstCount.get(n.firstKey) ?? 0) <= 1) return n.firstOrig
+
+    // First name collides — check if the initial disambiguates.
+    const initial = n.lastKey ? n.lastKey[0]! : ''
+
+    if (!initial) {
+      // Rule 4: colliding first, no last name → best-effort, show first only.
+      return n.firstOrig
+    }
+
+    const pairKey = `${n.firstKey}\0${initial}`
+    if ((pairCount.get(pairKey) ?? 0) <= 1) {
+      // Rule 2: first+initial is unique → show `First X.`
+      return `${n.firstOrig} ${initial.toUpperCase()}.`
+    }
+
+    // Rule 3: first+initial also collides → full name.
+    return `${n.firstOrig} ${n.lastOrig}`
+  })
+}
+
+/**
  * landr-rc4l: per-party-member accent hues for the room-assignment chips.
  * A fixed palette of evenly-spaced, visually distinct hues (degrees on the
  * HSL wheel) so adjacent chips never read as "the same colour", indexed by

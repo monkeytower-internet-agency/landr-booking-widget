@@ -4,6 +4,7 @@ import {
   AccommodationStep,
   type AccommodationMode,
 } from '@/components/booking/AccommodationStep'
+import { disambiguatePartyLabels } from '@/components/booking/accommodationCalc'
 import type {
   BreakfastMap,
   OccupantAgeMap,
@@ -1227,12 +1228,32 @@ function BookingFlowApp() {
             selectedDays={selectionToDays(step.selection)}
             operatorToken={token!}
             participantCount={step.participants.length}
-            // landr-gb2f.2: participant first names drive the draggable
-            // assignment chips. We pass first names (trimmed) per index.
-            participantNames={step.participants.map((p) => p.first_name)}
-            // landr-87n9.3: non-guiding companions join the whole-party
-            // room assignment (appended after participants, badged "guest").
-            companionNames={step.companions.map((c) => c.first_name)}
+            // landr-sjrd: progressive name disambiguation — build the whole
+            // party (participants first, companions after; mirrors the room
+            // assignment index space) and split disambiguated labels back at
+            // the participant boundary. Companions carry last_name (may be
+            // ''); an empty last_name falls back to first-name-only (best
+            // effort, can't add an initial without a last name).
+            {...(() => {
+              const pCount = step.participants.length
+              const party = [
+                ...step.participants.map((p) => ({
+                  first: p.first_name,
+                  last: p.last_name ?? '',
+                })),
+                ...step.companions.map((c) => ({
+                  first: c.first_name,
+                  last: c.last_name ?? '',
+                })),
+              ]
+              const labels = disambiguatePartyLabels(party)
+              return {
+                participantNames: labels.slice(0, pCount),
+                // landr-87n9.3: companions join the whole-party room
+                // assignment, appended after participants, badged "guest".
+                companionNames: labels.slice(pCount),
+              }
+            })()}
             // landr-yf0n: thread prior accommodation context back so the
             // step re-mounts with hotel + rooms + add-ons restored
             // instead of empty steppers. Each field is independently
