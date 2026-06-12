@@ -1,10 +1,16 @@
 /**
- * Tests for GroupInquiryForm (landr-ehye).
+ * Tests for GroupInquiryForm (landr-ehye; modal redesign landr-amg6).
  *
  * Coverage:
- * - Form renders at participant max (via DetailsStep integration)
- * - Successful submit shows success state + calls the endpoint with the right body
- * - Failure falls back to the mailto: link
+ * - At the participant max a "Request more" button shows (NOT the inline form);
+ *   clicking it opens the overlay modal containing the form (DetailsStep
+ *   integration).
+ * - Cancel closes the modal and discards the in-progress inquiry.
+ * - Send is disabled until Name + a valid Email are present; phone / group size
+ *   / message are optional and never gate Send.
+ * - Successful submit shows success state + calls the endpoint with the right
+ *   body (now including the optional `phone` key).
+ * - Failure KEEPS the modal/form open and surfaces the mailto: fallback.
  * - Mock mode works gracefully (submitGroupInquiry resolves immediately in mocks)
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -85,12 +91,17 @@ function reachParticipantMax() {
   }
 }
 
+/** Click the "Request more" button to open the inquiry overlay modal. */
+function openInquiryModal() {
+  fireEvent.click(screen.getByTestId('group-inquiry-open'))
+}
+
 // ---------------------------------------------------------------------------
-// Tests: GroupInquiryForm renders at participant max (DetailsStep integration)
+// Tests: "Request more" button + overlay modal (DetailsStep integration)
 // ---------------------------------------------------------------------------
 
-describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
-  it('shows the inline inquiry form when participants hit the max', () => {
+describe('GroupInquiry — "Request more" opens an overlay modal (landr-amg6)', () => {
+  it('shows a "Request more" button (NOT the inline form) at the participant max', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -102,10 +113,13 @@ describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
       />,
     )
     reachParticipantMax()
-    expect(screen.getByTestId('group-inquiry-form')).toBeInTheDocument()
+    // The "Request more" button is present…
+    expect(screen.getByTestId('group-inquiry-open')).toBeInTheDocument()
+    // …and the inquiry form is NOT rendered until the modal is opened.
+    expect(screen.queryByTestId('group-inquiry-form')).not.toBeInTheDocument()
   })
 
-  it('does NOT show the inquiry form before the participant max is reached', () => {
+  it('opens the modal with the inquiry form when "Request more" is clicked', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -116,15 +130,32 @@ describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
         onConfirm={vi.fn()}
       />,
     )
-    expect(screen.queryByTestId('group-inquiry-form')).not.toBeInTheDocument()
+    reachParticipantMax()
+    openInquiryModal()
+    expect(screen.getByTestId('group-inquiry-modal')).toBeInTheDocument()
+    expect(screen.getByTestId('group-inquiry-form')).toBeInTheDocument()
+  })
+
+  it('does NOT show the "Request more" button before the participant max is reached', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail="ops@para42.example"
+        operatorToken="test-token"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('group-inquiry-open')).not.toBeInTheDocument()
     // Adding 4 (not 5) also doesn't show it.
     for (let i = 0; i < 4; i += 1) {
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     }
-    expect(screen.queryByTestId('group-inquiry-form')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('group-inquiry-open')).not.toBeInTheDocument()
   })
 
-  it('pre-fills the name and email from the booker fields', () => {
+  it('pre-fills name, email and phone from the booker fields when the modal opens', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -135,17 +166,29 @@ describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
         onConfirm={vi.fn()}
       />,
     )
-    fillBooker({ first: 'Ada', last: 'Lovelace', email: 'ada@example.com' })
+    fillBooker({
+      first: 'Ada',
+      last: 'Lovelace',
+      email: 'ada@example.com',
+      phone: '+34 600 000 000',
+    })
     reachParticipantMax()
+    openInquiryModal()
     expect(
-      (document.querySelector<HTMLInputElement>('[name="inquiry_name"]'))?.value,
+      document.querySelector<HTMLInputElement>('[name="inquiry_name"]')?.value,
     ).toBe('Ada Lovelace')
     expect(
-      (document.querySelector<HTMLInputElement>('[name="inquiry_email"]'))?.value,
+      document.querySelector<HTMLInputElement>('[name="inquiry_email"]')?.value,
     ).toBe('ada@example.com')
+    expect(
+      document.querySelector<HTMLInputElement>('[name="inquiry_phone"]')?.value,
+    ).toBe('+34 600 000 000')
   })
 
-  it('shows the mailto: link as a secondary escape hatch when contactEmail is set', () => {
+  it('Cancel closes the modal without submitting and discards the inquiry', () => {
+    const spy = vi.spyOn(client, 'submitGroupInquiry').mockResolvedValue({
+      ok: true,
+    })
     render(
       <DetailsStep
         product={makeProduct()}
@@ -157,10 +200,86 @@ describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
       />,
     )
     reachParticipantMax()
-    // The "Or email us" link carries the testid from PR #108 so operator
-    // tests can still locate it.
+    openInquiryModal()
+    expect(screen.getByTestId('group-inquiry-form')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('group-inquiry-cancel'))
+
+    // Modal/form gone, no submit fired, and the Details step is unchanged
+    // (the "Request more" button is back, ready for another try).
+    expect(screen.queryByTestId('group-inquiry-form')).not.toBeInTheDocument()
+    expect(screen.getByTestId('group-inquiry-open')).toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('keeps a secondary "Or email us" mailto on the notice when contactEmail is set', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        contactEmail="ops@para42.example"
+        operatorToken="test-token"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    reachParticipantMax()
     const link = screen.getByTestId('participants-contact-mailto')
-    expect(link).toHaveAttribute('href', expect.stringContaining('ops@para42.example'))
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('ops@para42.example'),
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests: Send gating (name + valid email only)
+// ---------------------------------------------------------------------------
+
+describe('GroupInquiryForm — Send gating (landr-amg6)', () => {
+  it('disables Send until Name + a valid Email are present', () => {
+    render(
+      <GroupInquiryForm
+        operatorToken="test-token"
+        productSlug="tandem-classic"
+      />,
+    )
+    const submit = screen.getByTestId('group-inquiry-submit')
+    // Empty → disabled.
+    expect(submit).toBeDisabled()
+
+    // Name only → still disabled.
+    fireEvent.change(document.querySelector('[name="inquiry_name"]')!, {
+      target: { value: 'Ada Lovelace' },
+    })
+    expect(submit).toBeDisabled()
+
+    // Name + invalid email (no '@') → still disabled.
+    fireEvent.change(document.querySelector('[name="inquiry_email"]')!, {
+      target: { value: 'not-an-email' },
+    })
+    expect(submit).toBeDisabled()
+
+    // Name + valid email → enabled (phone / group size / message all blank).
+    fireEvent.change(document.querySelector('[name="inquiry_email"]')!, {
+      target: { value: 'ada@example.com' },
+    })
+    expect(submit).not.toBeDisabled()
+  })
+
+  it('does NOT gate Send on phone, group size, or message', () => {
+    render(
+      <GroupInquiryForm
+        operatorToken="test-token"
+        productSlug="tandem-classic"
+        defaultName="Ada Lovelace"
+        defaultEmail="ada@example.com"
+      />,
+    )
+    // With only the required fields prefilled and all optionals blank, Send is
+    // already enabled.
+    expect(screen.getByTestId('group-inquiry-submit')).not.toBeDisabled()
   })
 })
 
@@ -168,7 +287,7 @@ describe('GroupInquiryForm — renders at participant max (landr-ehye)', () => {
 // Tests: successful submit
 // ---------------------------------------------------------------------------
 
-describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
+describe('GroupInquiryForm — successful submit (landr-amg6)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -187,12 +306,6 @@ describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
       />,
     )
 
-    fireEvent.change(document.querySelector('[name="inquiry_party_size"]')!, {
-      target: { value: '10' },
-    })
-    fireEvent.change(document.querySelector('[name="inquiry_message"]')!, {
-      target: { value: 'We need 10 slots for a school group' },
-    })
     fireEvent.click(screen.getByTestId('group-inquiry-submit'))
 
     await waitFor(() => {
@@ -203,7 +316,7 @@ describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
     )
   })
 
-  it('calls submitGroupInquiry with the correct body', async () => {
+  it('calls submitGroupInquiry with the correct body (phone + optionals)', async () => {
     const spy = vi
       .spyOn(client, 'submitGroupInquiry')
       .mockResolvedValue({ ok: true })
@@ -214,6 +327,7 @@ describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
         productSlug="tandem-classic"
         defaultName="Ada Lovelace"
         defaultEmail="ada@example.com"
+        defaultPhone="+34 600 000 000"
       />,
     )
 
@@ -229,8 +343,37 @@ describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
       expect(spy).toHaveBeenCalledWith('test-token', {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
+        phone: '+34 600 000 000',
         party_size: 12,
         message: 'Flight school booking for 12 students',
+        product_slug: 'tandem-classic',
+      })
+    })
+  })
+
+  it('sends null for the optional fields when they are left blank', async () => {
+    const spy = vi
+      .spyOn(client, 'submitGroupInquiry')
+      .mockResolvedValue({ ok: true })
+
+    render(
+      <GroupInquiryForm
+        operatorToken="test-token"
+        productSlug="tandem-classic"
+        defaultName="Ada Lovelace"
+        defaultEmail="ada@example.com"
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('group-inquiry-submit'))
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith('test-token', {
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        phone: null,
+        party_size: null,
+        message: null,
         product_slug: 'tandem-classic',
       })
     })
@@ -238,15 +381,15 @@ describe('GroupInquiryForm — successful submit (landr-ehye)', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Tests: error fallback to mailto:
+// Tests: error keeps the form open + falls back to mailto:
 // ---------------------------------------------------------------------------
 
-describe('GroupInquiryForm — error falls back to mailto: (landr-ehye)', () => {
+describe('GroupInquiryForm — error keeps the form + mailto fallback (landr-amg6)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('shows the mailto: fallback link on submit error', async () => {
+  it('keeps the form open and shows the mailto: fallback link on submit error', async () => {
     vi.spyOn(client, 'submitGroupInquiry').mockRejectedValue(
       new Error('Network error'),
     )
@@ -262,17 +405,13 @@ describe('GroupInquiryForm — error falls back to mailto: (landr-ehye)', () => 
       />,
     )
 
-    fireEvent.change(document.querySelector('[name="inquiry_party_size"]')!, {
-      target: { value: '15' },
-    })
-    fireEvent.change(document.querySelector('[name="inquiry_message"]')!, {
-      target: { value: 'Group of 15' },
-    })
     fireEvent.click(screen.getByTestId('group-inquiry-submit'))
 
     await waitFor(() => {
       expect(screen.getByTestId('group-inquiry-error')).toBeInTheDocument()
     })
+    // Form is still mounted (the customer can retry / edit) — not replaced.
+    expect(screen.getByTestId('group-inquiry-form')).toBeInTheDocument()
     const fallback = screen.getByTestId('group-inquiry-mailto-fallback')
     expect(fallback).toHaveAttribute(
       'href',
@@ -294,12 +433,6 @@ describe('GroupInquiryForm — error falls back to mailto: (landr-ehye)', () => 
       />,
     )
 
-    fireEvent.change(document.querySelector('[name="inquiry_party_size"]')!, {
-      target: { value: '8' },
-    })
-    fireEvent.change(document.querySelector('[name="inquiry_message"]')!, {
-      target: { value: 'Group of 8' },
-    })
     fireEvent.click(screen.getByTestId('group-inquiry-submit'))
 
     await waitFor(() => {
@@ -334,12 +467,6 @@ describe('GroupInquiryForm — mock mode (landr-ehye)', () => {
       />,
     )
 
-    fireEvent.change(document.querySelector('[name="inquiry_party_size"]')!, {
-      target: { value: '9' },
-    })
-    fireEvent.change(document.querySelector('[name="inquiry_message"]')!, {
-      target: { value: 'Demo inquiry' },
-    })
     fireEvent.click(screen.getByTestId('group-inquiry-submit'))
 
     await waitFor(() => {

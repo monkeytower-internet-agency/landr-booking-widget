@@ -422,8 +422,12 @@ export async function estimateBookingPrice(
 export interface GroupInquiryRequest {
   name: string
   email: string
-  party_size: number
-  message: string
+  // landr-amg6: phone is a new optional field; the API (landr-vlxm) accepts it
+  // as a nullable string. party_size + message are now optional too — only
+  // name + email are required server-side.
+  phone: string | null
+  party_size: number | null
+  message: string | null
   product_slug: string | null
 }
 
