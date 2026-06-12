@@ -245,6 +245,66 @@ describe('App', () => {
       const root = container.firstElementChild as HTMLElement
       expect(root.style.getPropertyValue('--primary')).toBe('')
     })
+
+    // landr-ens5 — the operator's 3-colour theme (brand/accent/background)
+    // drives the widget-root CSS vars and supersedes the legacy primary_color.
+    it('applies the operator theme as --background/--foreground/--primary on the root', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        theme: { brand: '#222222', accent: '#1d4ed8', background: '#f5f5f5' },
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      const { container } = render(<App />)
+      await waitFor(() => {
+        const root = container.firstElementChild as HTMLElement
+        expect(root.style.getPropertyValue('--background')).toBe('#f5f5f5')
+      })
+      const root = container.firstElementChild as HTMLElement
+      expect(root.style.getPropertyValue('--foreground')).toBe('#222222')
+      expect(root.style.getPropertyValue('--primary')).toBe('#1d4ed8')
+    })
+
+    it('theme wins over a set primary_color', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: '#ff8800',
+        theme: { brand: '#222222', accent: '#1d4ed8', background: '#f5f5f5' },
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      const { container } = render(<App />)
+      await waitFor(() => {
+        const root = container.firstElementChild as HTMLElement
+        expect(root.style.getPropertyValue('--primary')).toBe('#1d4ed8')
+      })
+    })
+
+    it('falls back to legacy primary_color → --primary when theme is null', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: '#ff8800',
+        theme: null,
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      const { container } = render(<App />)
+      await waitFor(() => {
+        const root = container.firstElementChild as HTMLElement
+        expect(root.style.getPropertyValue('--primary')).toBe('#ff8800')
+      })
+      const root = container.firstElementChild as HTMLElement
+      // legacy path sets ONLY --primary, no canvas/text overrides.
+      expect(root.style.getPropertyValue('--background')).toBe('')
+      expect(root.style.getPropertyValue('--foreground')).toBe('')
+    })
   })
 
   // landr-nils — operator-configurable copy around the embed: header
