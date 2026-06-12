@@ -52,6 +52,41 @@ export interface FixedDateWindow {
   capacity_reserved: number
 }
 
+/**
+ * One rendition pair for a product image (landr-d8rg, epic contract D).
+ * thumb_url is a public URL to the WebP thumbnail (≤800 px wide, ≤250 KB);
+ * hero_url is the full-width hero rendition (≤1600 px, ≤250 KB). Both
+ * stored in the 'product-images' bucket under
+ * {operator_id}/products/{product_id}/{uuid}-{thumb|hero}.webp.
+ * alt is operator-supplied alt text; null means use the product name.
+ */
+export interface ProductImage {
+  thumb_url: string
+  hero_url: string
+  alt: string | null
+}
+
+/**
+ * Product group (category) returned by
+ * GET /api/public/operators/{token}/product-groups (landr-d8rg, epic contract E).
+ * Active + non-deleted only. product_count is the count of bookable products
+ * in the group subtree (including children via parent_id). image_url is the
+ * public URL of the group's cover image (null when none has been uploaded).
+ * Localized fields follow the same localized-jsonb convention as Product.
+ */
+export interface ProductGroup {
+  id: string
+  slug: string
+  name: string
+  name_localized: Record<string, string> | null
+  description: string | null
+  description_localized: Record<string, string> | null
+  image_url: string | null
+  sort_order: number
+  parent_id: string | null
+  product_count: number
+}
+
 export interface Product {
   product_id: string
   slug: string
@@ -129,6 +164,85 @@ export interface Product {
    * products. Absent on legacy API responses — treated as published.
    */
   is_publicly_listed?: boolean
+  /**
+   * landr-5mvw: structural flag. When true, breakfast is bundled into the
+   * room rate and the breakfast add-on MUST NOT be offered as a separate
+   * line item in the AccommodationStep. Replaces the name-heuristic
+   * isPremiumIncludesBreakfast. Defaults to false for backwards
+   * compatibility with API responses that predate this field.
+   */
+  includes_breakfast?: boolean
+  /**
+   * landr-7jgo: server-computed bookability. true = the product has at
+   * least one FUTURE date a customer could pick with capacity remaining
+   * (an open product_availability row OR a non-full fixed-date window);
+   * false = sold out / no upcoming dates. The catalogue overview hides
+   * non-bookable products by default; a deep-linked single product that
+   * is non-bookable renders a "Fully booked" state (no picker, no CTA).
+   *
+   * Optional for back-compat with API responses that predate the flag —
+   * `isBookable()` treats an ABSENT flag as bookable (fail-open) so an
+   * older API never accidentally hides a whole catalogue. Non-service
+   * (shop) kinds are always reported bookable by the API.
+   */
+  bookable?: boolean
+  /**
+   * landr-d8rg, epic contract D: public URL of the product's primary
+   * thumbnail image (first entry of images[] sorted by sort_order).
+   * null when the operator has not yet uploaded any imagery. The widget
+   * uses this as the cheap preview source for catalogue cards; hero_url
+   * is used on the product detail page.
+   *
+   * OPTIONAL (rolling deploy): the API ships these fields in
+   * landr-d8rg.1; until that lands on the dev/prod API, product payloads
+   * arrive WITHOUT them. Consumers must treat undefined as null/empty.
+   * This also keeps the dozens of existing Product test factories valid
+   * (CI type-checks test files via `tsc -b` — see PR #79 red run).
+   */
+  thumb_url?: string | null
+  /**
+   * landr-d8rg, epic contract D: sorted list of WebP rendition pairs
+   * for this product (max 4, by sort_order ASC). Empty array when no
+   * images have been uploaded. Used by the product detail gallery.
+   * Optional during rolling deploy (see thumb_url note).
+   */
+  images?: ProductImage[]
+  /**
+   * landr-d8rg, epic contract D: cheapest derivable single-day/base rate
+   * as a decimal string ("€" not included, e.g. "59.00"). Computed
+   * server-side from the product's active pricing scheme (cheapest
+   * per_day_base or fixed_total rule). null when the rate cannot be
+   * derived (e.g. tier-only schemes with no base rate, or hotel_room
+   * kinds where the rate varies by occupancy). The widget renders
+   * "from €{price_from}" on catalogue cards; the field is hidden when
+   * null. Optional during rolling deploy (see thumb_url note).
+   */
+  price_from?: string | null
+}
+
+/**
+ * landr-ens5 — the operator's configured 3-colour brand theme, saved by
+ * the dashboard to operators.theme and surfaced by the settings RPC under
+ * the `theme` key. Each value is a CSS colour string (hex, e.g. #1d4ed8).
+ *
+ *   brand      — text / headings (maps to --foreground + --brand)
+ *   accent     — buttons / CTAs   (maps to --primary)
+ *   background — the page canvas  (maps to --background)
+ *
+ * `dark` carries optional per-colour overrides for dark mode. The widget
+ * has no active dark mode today (the .dark class in index.css is never
+ * applied), so these are carried for forward-compat with the dashboard's
+ * matching deriveDark and are NOT consumed yet.
+ */
+export interface WidgetTheme {
+  brand: string
+  accent: string
+  background: string
+  dark?: {
+    brand?: string
+    accent?: string
+    background?: string
+  }
 }
 
 /**
@@ -151,12 +265,119 @@ export interface OperatorSettings {
    * operator-logos storage bucket (null when the operator hasn't
    * uploaded one yet). primary_color is a 7-char hex (#RRGGBB) used to
    * override the widget's --primary CSS variable; null = keep the
-   * widget's default theme. name is the operator's display name
-   * (rendered alongside / as a fallback for the logo header).
+   * widget's default theme. name is the operator's display name (used
+   * for the logo's alt text — NOT rendered as a text header; landr-nils
+   * removed the name fallback so a missing logo shows nothing).
+   *
+   * landr-ens5 — primary_color is the LEGACY single-colour field. New
+   * operators get the richer `theme` (brand/accent/background) below;
+   * `theme` wins when present and primary_color is the fallback for
+   * operators who only ever set the old single colour.
    */
   logo_url?: string | null
   primary_color?: string | null
+  /**
+   * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
+   * background, + optional dark overrides). When present it supersedes
+   * primary_color and drives --background / --foreground / --brand /
+   * --primary on the widget root. Null = no theme configured (fall back
+   * to primary_color, then the built-in default).
+   */
+  theme?: WidgetTheme | null
   name?: string | null
+  /**
+   * landr-nils — operator-configurable copy rendered around the embed.
+   * widget_headline + widget_description sit above the widget (header
+   * block, in addition to or instead of the logo; the operator may put
+   * legal info in the description). widget_footer sits below the widget
+   * (no headline). All null by default. Plain text — the widget renders
+   * them with line breaks preserved and never as HTML (XSS-safe).
+   */
+  widget_headline?: string | null
+  widget_description?: string | null
+  widget_footer?: string | null
+  /**
+   * landr-atwy — per-operator opt-in for the post-booking "Track this
+   * booking in the LANDR app" account-link prompt. Default false: the
+   * prompt (which creates a real LANDR auth account via signInWithOtp)
+   * is hidden unless the operator turns it on. Optional for back-compat
+   * with older API responses that predate the flag (treated as false).
+   */
+  offer_account_link?: boolean
+  /**
+   * landr-jb1k: operator-configured default visual variant for the widget
+   * ('aurora' | 'summit' | 'alpine'). Null means "use the built-in default
+   * (aurora)". Resolution precedence: explicit ?variant= URL param ALWAYS
+   * wins; else this value (once settings resolve); else aurora.
+   * Optional for rolling deploy — absent API responses treated as null.
+   */
+  widget_variant?: 'aurora' | 'summit' | 'alpine' | null
+  /**
+   * landr-jb1k: operator-configured category grid column count (1..4).
+   * Null means "use improved auto-logic" (count-aware: exactly 3 visible
+   * groups → 3 cols on lg; otherwise the built-in responsive default).
+   * Optional for rolling deploy — absent API responses treated as null.
+   */
+  widget_category_columns?: number | null
+  /**
+   * landr-jb1k: operator-configured font key for category tile titles and
+   * the CategoryStep entrance heading. Each non-system value triggers a
+   * lazy @fontsource CSS import (GDPR-safe; no CDN; latin 400+700 only).
+   * 'system' = no override (current behavior). Null / absent → system
+   * default. Optional for rolling deploy.
+   *
+   * Values are kept in sync with TileFontKey in lib/tileFont.ts (separate
+   * to avoid a circular import between types.ts and the fontsource module).
+   */
+  widget_tile_font?: 'system' | 'playfair' | 'montserrat' | 'bebas' | 'space-grotesk' | 'caveat' | null
+  /**
+   * landr-jb1k: operator-configured text-transform for category tile
+   * titles and the CategoryStep entrance heading. Applied as a Tailwind
+   * utility class from a static map (no dynamic class names):
+   *   'uppercase'  → uppercase
+   *   'lowercase'  → lowercase
+   *   'capitalize' → capitalize
+   * Null / absent → no transform (inherited / none).
+   * Optional for rolling deploy.
+   */
+  widget_title_case?: 'uppercase' | 'lowercase' | 'capitalize' | null
+  /**
+   * landr-jb1k.4: operator-configured tile corner radius. Overrides the
+   * variant token radius for category tiles only. Null / absent → variant
+   * default (current behaviour). Values kept in sync with TileRadiusKey in
+   * lib/tileStyle.ts. Optional for rolling deploy.
+   */
+  widget_tile_radius?: 'sharp' | 'rounded' | 'round' | null
+  /**
+   * landr-jb1k.4: operator-configured tile aspect ratio (1:1 / 4:3 / 16:9).
+   * Overrides the variant token aspect for category tiles only. Null / absent
+   * → variant default. Values kept in sync with TileAspectKey. Optional.
+   */
+  widget_tile_aspect?: 'square' | 'landscape' | 'wide' | null
+  /**
+   * landr-jb1k.4: operator-configured scrim tint behind text-over-image tile
+   * titles (text-overlay / aurora layout only — the other variants have no
+   * scrim). 'dark' = black gradient (current default), 'brand' = primary-tinted
+   * gradient, 'light' = white gradient WITH dark title text (AA enforced).
+   * Null / absent → current behaviour (dark). Values in sync with TileScrimKey.
+   */
+  widget_tile_scrim?: 'dark' | 'brand' | 'light' | null
+  /**
+   * landr-jb1k.4: operator-configured tile hover interaction. 'lift' = the
+   * current card translate, 'zoom' = image scale-up, 'none' = no motion.
+   * Null / absent → current behaviour (lift). Values in sync with TileHoverKey.
+   */
+  widget_tile_hover?: 'lift' | 'zoom' | 'none' | null
+  /**
+   * landr-4uyu: operator contact email surfaced on the Details step at the
+   * participant max (5 additional). The widget renders a "Need a larger group
+   * or a flight school booking? Get in touch:" line with a mailto: link to
+   * this address. Null / absent → the contact copy still shows (graceful
+   * degrade) but the broken mailto link is omitted. Optional for rolling
+   * deploy — older API responses that predate the key are treated as null.
+   * JSON key is exactly `contact_email` (set by public_get_operator_settings).
+   */
+  contact_email?: string | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
@@ -263,6 +484,16 @@ export interface Participant {
    * informational for the hotel — the widget never uses it in pricing.
    */
   occupant_age?: number | null
+  /**
+   * landr-a4fy: per-occupant breakfast flag. true when this participant
+   * has breakfast included (tied to the breakfast add-on selection in
+   * the room-assignment UI). false / omitted = no breakfast. Persisted
+   * on booking_participants.has_breakfast for email/hotel-request display.
+   *
+   * WIRE CONTRACT (PINNED — landr-a4fy part (2) on the API builds the
+   * same shape): absent/false → no breakfast; true → has breakfast.
+   */
+  has_breakfast?: boolean | null
 }
 
 /**
@@ -301,6 +532,15 @@ export interface Companion {
    * occupant_age_band === 'child'. null / omitted otherwise.
    */
   occupant_age?: number | null
+  /**
+   * landr-a4fy: per-occupant breakfast flag for companions. Mirrors the
+   * Participant field exactly — true when this companion has breakfast.
+   * false / omitted = no breakfast.
+   *
+   * WIRE CONTRACT (PINNED — landr-a4fy part (2) on the API builds the
+   * same shape): absent/false → no breakfast; true → has breakfast.
+   */
+  has_breakfast?: boolean | null
   /**
    * landr-doam.1 scope-add: companion participation kind. Determines whether
    * the companion is a non-participating guest (partner/child/friend) or a
@@ -422,6 +662,60 @@ export interface SubmitBookingBody {
   preview_token?: string | null
 }
 
+/**
+ * Body the STAFF submit endpoint accepts (landr-aoak.4, contract verified
+ * against the merged `staff_bookings_submit.py` StaffSubmitBookingIn model).
+ * The staff route — POST /api/staff/operators/{operator_id}/bookings/submit —
+ * is SEPARATE from the public one: it carries NO `widget_token` (the signed
+ * `staff_session` is the credential) and no `preview_token`. Everything else
+ * mirrors SubmitBookingBody; the operator-only power fields are added on top.
+ * Built by augmentStaffSubmit (src/components/booking/staffSubmitAdapter.ts);
+ * POSTed by submitStaffBooking (src/api/client.ts).
+ */
+export type StaffSubmitBody = Omit<
+  SubmitBookingBody,
+  'widget_token' | 'preview_token'
+> & {
+  /** The server-signed staff session token (aoak.1 [S1]) — the credential. */
+  staff_session: string
+  /** Force past full / blocked days + fixed-date windows (force_book power). */
+  ignore_capacity?: boolean
+  /** Human reason for the force-book — written to the audit_log row. */
+  force_book_reason?: string
+  /** Effective gross override as a 2-decimal STRING, e.g. "199.95". */
+  override_gross_total?: string
+  /** Mandatory reason whenever override_gross_total is set. */
+  override_reason?: string
+  /** Booking channel (server forces 'agent_dashboard' regardless). */
+  booking_channel?: string
+}
+
+/**
+ * Parsed calendar event data returned alongside ical_url (landr-acew).
+ * Mirrors the first VEVENT the ICS service emits — all-day semantics,
+ * so dates are ISO-8601 date strings (no time component). The widget
+ * uses these fields to build Google Calendar and Outlook deep-link URLs
+ * without any additional API call.
+ *
+ * Optional because:
+ *   - Older API deploys (pre-landr-acew) do not include the field.
+ *   - Bookings whose products carry no date information (e.g. products
+ *     awaiting schedule assignment) yield no VEVENT and therefore no
+ *     calendar_event block.
+ */
+export interface BookingCalendarEvent {
+  /** Event display title, e.g. "Tandem Classic — Para42". */
+  title: string
+  /** First day of the booking (ISO-8601, YYYY-MM-DD). */
+  start_date: string
+  /** Last day of the booking (ISO-8601, YYYY-MM-DD; inclusive). */
+  end_date: string
+  /** Plain-text event body shown inside the calendar entry. */
+  description?: string | null
+  /** Location string, typically the operator name or venue. */
+  location?: string | null
+}
+
 export interface SubmitBookingResponse {
   booking_id: string
   /**
@@ -445,6 +739,25 @@ export interface SubmitBookingResponse {
    * Optional because older API deploys (pre-landr-3vr5) omit the field.
    */
   ical_url?: string
+  /**
+   * Parsed calendar event data for building Google Calendar and Outlook
+   * deep-link URLs client-side (landr-acew). Present when ical_url is
+   * also present and the booking carries at least one dated product.
+   * Absent on older API deploys or date-less products.
+   */
+  calendar_event?: BookingCalendarEvent | null
+  /**
+   * landr-y31z: outcome of the post-booking confirmation email send.
+   * 'sent'     → Gmail delivery confirmed.
+   * 'captured' → dev-fallback path (sent_via='dev_fallback'); email saved
+   *              but not dispatched externally — treat as success for display.
+   * 'failed'   → outbound_emails row exists but send failed (no Gmail
+   *              configured, or SMTP error); booking IS saved.
+   * 'pending'  → non-auto-approved booking (awaiting operator action), or
+   *              enqueue failed before any row was created.
+   * Absent on API responses that predate landr-2js5 — treat as 'pending'.
+   */
+  confirmation_email_status?: 'sent' | 'captured' | 'failed' | 'pending'
 }
 
 /**
@@ -473,6 +786,12 @@ export interface EstimateLineItem {
  * in the sidebar. Other rule kinds (per_day_base, …) are included for
  * transparency but only the tier/discount kinds get a tag. The detail
  * payload is an opaque object — its shape depends on `kind`.
+ *
+ * landr-qj1g: for per_streak_tier and per_total_days_tier, detail may
+ * carry base_tier: { threshold_min: number; amount_per_unit: number } —
+ * the first (short-stay) bracket of the schedule. The widget uses this
+ * to show "save €X/day vs standard rate" alongside the applied per-day
+ * rate. Absent when the applied tier IS the base tier (no savings).
  */
 export interface EstimateAppliedRule {
   kind: string

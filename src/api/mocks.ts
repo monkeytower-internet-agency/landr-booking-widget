@@ -7,6 +7,7 @@ import type {
   OperatorSettings,
   Product,
   ProductAddon,
+  ProductGroup,
   ServiceRole,
   SubmitBookingResponse,
 } from './types'
@@ -43,8 +44,8 @@ const allMockProducts: Product[] = [
     fixed_start_date: null,
     fixed_end_date: null,
     product_group_id: '11111111-1111-1111-1111-111111111111',
-    group_slug: 'courses',
-    group_name: 'Courses',
+    group_slug: 'tandemfluege',
+    group_name: 'Tandemflüge',
     sort_order: 1,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
@@ -54,6 +55,24 @@ const allMockProducts: Product[] = [
     price_per_unit: null,
     currency: 'EUR',
     is_publicly_listed: true,
+    // landr-7jgo: server-computed bookability (mock = has future open dates).
+    bookable: true,
+    // landr-d8rg contract D: thumbnail + hero imagery (2 images for this product).
+    thumb_url: 'https://picsum.photos/seed/tandem-classic/800/600',
+    images: [
+      {
+        thumb_url: 'https://picsum.photos/seed/tandem-classic/800/600',
+        hero_url: 'https://picsum.photos/seed/tandem-classic/1600/1200',
+        alt: 'Tandem paragliding flight over the valley',
+      },
+      {
+        thumb_url: 'https://picsum.photos/seed/tandem-classic-2/800/600',
+        hero_url: 'https://picsum.photos/seed/tandem-classic-2/1600/1200',
+        alt: 'Launch site preparation with instructor',
+      },
+    ],
+    // landr-d8rg contract D: cheapest derivable base rate.
+    price_from: '59.00',
   },
   {
     product_id: '00000000-0000-0000-0000-000000000002',
@@ -69,9 +88,9 @@ const allMockProducts: Product[] = [
     duration_minutes: 45,
     fixed_start_date: null,
     fixed_end_date: null,
-    product_group_id: '22222222-2222-2222-2222-222222222222',
-    group_slug: 'guided-days',
-    group_name: 'Guided Days',
+    product_group_id: '11111111-1111-1111-1111-111111111111',
+    group_slug: 'tandemfluege',
+    group_name: 'Tandemflüge',
     sort_order: 2,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
@@ -81,6 +100,62 @@ const allMockProducts: Product[] = [
     price_per_unit: null,
     currency: 'EUR',
     is_publicly_listed: true,
+    bookable: true,
+    // landr-d8rg contract D: 3 images for Tandem Long.
+    thumb_url: 'https://picsum.photos/seed/tandem-long/800/600',
+    images: [
+      {
+        thumb_url: 'https://picsum.photos/seed/tandem-long/800/600',
+        hero_url: 'https://picsum.photos/seed/tandem-long/1600/1200',
+        alt: 'Extended tandem flight with panoramic mountain views',
+      },
+      {
+        thumb_url: 'https://picsum.photos/seed/tandem-long-2/800/600',
+        hero_url: 'https://picsum.photos/seed/tandem-long-2/1600/1200',
+        alt: 'In-flight GoPro view from above the coast',
+      },
+      {
+        thumb_url: 'https://picsum.photos/seed/tandem-long-3/800/600',
+        hero_url: 'https://picsum.photos/seed/tandem-long-3/1600/1200',
+        alt: 'Landing approach over the beach',
+      },
+    ],
+    price_from: '89.00',
+  },
+  {
+    // landr-7jgo: a sold-out product so offline dev exercises the hide /
+    // "Fully booked" overview states + the sold-out deep-link path.
+    product_id: '00000000-0000-0000-0000-000000000004',
+    slug: 'grundkurs-a',
+    name: 'Grundkurs A',
+    name_localized: { en: 'Basic Course A', de: 'Grundkurs A' },
+    short_description: 'Anfängerkurs Gleitschirmfliegen — ausgebucht.',
+    short_description_localized: { en: 'Beginner paragliding course — fully booked.', de: 'Anfängerkurs Gleitschirmfliegen — ausgebucht.' },
+    description: null,
+    product_kind: 'service',
+    service_time_shape: 'fixed_window',
+    is_contiguous: false,
+    duration_minutes: null,
+    fixed_start_date: null,
+    fixed_end_date: null,
+    product_group_id: '22222222-2222-2222-2222-222222222222',
+    group_slug: 'kurse',
+    group_name: 'Kurse',
+    sort_order: 3,
+    sport_subcategory_codes: ['paragliding-training'],
+    location_ids: [],
+    needs_pickup: false,
+    hotel_offering: 'none',
+    hotel_location_id: null,
+    price_per_unit: null,
+    currency: 'EUR',
+    is_publicly_listed: true,
+    bookable: false,
+    // landr-d8rg contract D: no imagery on this product — exercises the no-photo fallback.
+    thumb_url: null,
+    images: [],
+    // landr-d8rg contract D: null price_from exercises the hidden-"from" path.
+    price_from: null,
   },
 ]
 
@@ -105,9 +180,9 @@ const mockDraftProducts: Product[] = [
     duration_minutes: 60,
     fixed_start_date: null,
     fixed_end_date: null,
-    product_group_id: null,
-    group_slug: null,
-    group_name: null,
+    product_group_id: '11111111-1111-1111-1111-111111111111',
+    group_slug: 'tandemfluege',
+    group_name: 'Tandemflüge',
     sort_order: 99,
     sport_subcategory_codes: ['paragliding-tandem'],
     location_ids: [],
@@ -117,6 +192,9 @@ const mockDraftProducts: Product[] = [
     price_per_unit: null,
     currency: 'EUR',
     is_publicly_listed: false,
+    thumb_url: null,
+    images: [],
+    price_from: '149.00',
   },
 ]
 
@@ -150,6 +228,9 @@ const allMockHotelRooms: Product[] = [
     price_per_unit: 49,
     currency: 'EUR',
     capacity_per_unit: 1,
+    thumb_url: null,
+    images: [],
+    price_from: null,
   },
   {
     product_id: '00000000-0000-0000-0000-000000000102',
@@ -177,6 +258,9 @@ const allMockHotelRooms: Product[] = [
     price_per_unit: 73,
     currency: 'EUR',
     capacity_per_unit: 2,
+    thumb_url: null,
+    images: [],
+    price_from: null,
   },
 ]
 
@@ -203,6 +287,96 @@ export const mockLocations: Location[] = [
     role_type: { code: 'hotel', label: 'Hotel' },
   },
 ]
+
+/**
+ * landr-d8rg, epic contract E: 4 realistic product groups for a German
+ * paragliding operator. product_count values are kept consistent with the
+ * mock product catalogue above:
+ *   tandemfluege → 2 bookable (tandem-classic + tandem-long; tandem-vip is draft)
+ *   kurse        → 0 bookable (grundkurs-a is sold-out / non-bookable)
+ *   reisen       → 0 bookable (no current mock products assigned)
+ *   verleih      → 0 bookable (no current mock products assigned)
+ * The count intentionally reflects bookable=true products so the category
+ * entrance can hide empty groups (groups with product_count=0) in UI slices.
+ */
+const allMockProductGroups: ProductGroup[] = [
+  {
+    id: '11111111-1111-1111-1111-111111111111',
+    slug: 'tandemfluege',
+    name: 'Tandemflüge',
+    name_localized: { en: 'Tandem Flights', de: 'Tandemflüge' },
+    description: 'Erlebe das Fliegen aus der Vogelperspektive — kein Vorwissen nötig.',
+    description_localized: {
+      en: 'Experience the freedom of flight — no prior experience required.',
+      de: 'Erlebe das Fliegen aus der Vogelperspektive — kein Vorwissen nötig.',
+    },
+    image_url: 'https://picsum.photos/seed/group-tandemfluege/800/600',
+    sort_order: 10,
+    parent_id: null,
+    product_count: 2,
+  },
+  {
+    id: '22222222-2222-2222-2222-222222222222',
+    slug: 'kurse',
+    name: 'Kurse',
+    name_localized: { en: 'Courses', de: 'Kurse' },
+    description: 'Schein machen — vom Anfänger zum lizenzierten Piloten.',
+    description_localized: {
+      en: 'Get licensed — from beginner to certified paraglider pilot.',
+      de: 'Schein machen — vom Anfänger zum lizenzierten Piloten.',
+    },
+    image_url: 'https://picsum.photos/seed/group-kurse/800/600',
+    sort_order: 20,
+    parent_id: null,
+    product_count: 0,
+  },
+  {
+    id: '33333333-3333-3333-3333-333333333333',
+    slug: 'reisen',
+    name: 'Reisen',
+    name_localized: { en: 'Trips', de: 'Reisen' },
+    description: 'Geführte Flugwochen in den schönsten Paragliding-Destinationen Europas.',
+    description_localized: {
+      en: 'Guided flying weeks at the finest paragliding destinations in Europe.',
+      de: 'Geführte Flugwochen in den schönsten Paragliding-Destinationen Europas.',
+    },
+    image_url: 'https://picsum.photos/seed/group-reisen/800/600',
+    sort_order: 30,
+    parent_id: null,
+    product_count: 0,
+  },
+  {
+    id: '44444444-4444-4444-4444-444444444444',
+    slug: 'verleih',
+    name: 'Verleih',
+    name_localized: { en: 'Rental', de: 'Verleih' },
+    description: 'Schirme, Gurte und Ausrüstung für eigene Piloten tageweise mieten.',
+    description_localized: {
+      en: 'Rent gliders, harnesses and gear by the day for licensed pilots.',
+      de: 'Schirme, Gurte und Ausrüstung für eigene Piloten tageweise mieten.',
+    },
+    image_url: null,
+    sort_order: 40,
+    parent_id: null,
+    product_count: 0,
+  },
+]
+
+/**
+ * landr-d8rg, epic contract E: mock for listProductGroups. The operatorToken
+ * arg is accepted (signature symmetry with the real fetch) and voided — all
+ * mock operators share the same catalogue in dev/test mode. previewToken is
+ * accepted for future extensibility (e.g. groups gated behind preview) but
+ * currently has no effect on the returned list.
+ */
+export const mockProductGroups = (
+  operatorToken: string,
+  previewToken?: string,
+): ProductGroup[] => {
+  void operatorToken
+  void previewToken
+  return allMockProductGroups
+}
 
 /**
  * landr-7zc5.3: when previewToken is non-empty the mock returns both
@@ -264,7 +438,27 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   // a brand yet). Widget falls back to its built-in theme.
   logo_url: null,
   primary_color: null,
+  // landr-ens5 — no 3-colour theme in the mock (operator hasn't picked one;
+  // widget falls back to primary_color → built-in default).
+  theme: null,
   name: operatorSlug,
+  // landr-nils — embed copy null by default (operator hasn't written any).
+  widget_headline: null,
+  widget_description: null,
+  widget_footer: null,
+  // landr-atwy — account-link prompt off by default (opt-in per operator).
+  offer_account_link: false,
+  // landr-jb1k.4 — tile-style options null by default (operator hasn't picked
+  // any; widget keeps the variant token defaults / current behaviour).
+  widget_tile_radius: null,
+  widget_tile_aspect: null,
+  widget_tile_scrim: null,
+  widget_tile_hover: null,
+  // landr-4uyu — operator contact email surfaced at the participant max
+  // ("larger group / flight school" contact-us line). Provided in the mock so
+  // local mock-mode dev exercises the mailto path; real operators set their own
+  // (or leave it null → the copy shows without a link).
+  contact_email: `bookings@${operatorSlug}.example`,
 })
 
 /**
@@ -359,6 +553,20 @@ export const mockSubmit = (): SubmitBookingResponse => ({
   // exercises the "Add to calendar" anchor branch in Confirmation.tsx.
   ical_url:
     'https://api.dev.landr.de/api/public/bookings/00000000-0000-0000-0000-0000000000bb/calendar.ics',
+  // landr-acew: parsed calendar event data so the confirmation screen can
+  // build Google Calendar and Outlook deep-link URLs without an extra
+  // API call. Mirrors the first VEVENT the ICS service would emit for
+  // a mock Tandem Classic booking on 2026-06-15.
+  calendar_event: {
+    title: 'Tandem Classic — Para42',
+    start_date: '2026-06-15',
+    end_date: '2026-06-15',
+    description: 'Booking for Jane Doe. Confirmed via Para42. Please arrive on time and bring your confirmation email.',
+    location: 'Para42',
+  },
+  // landr-y31z: default mock to 'sent' — exercises the success copy path in
+  // dev mode (the most common happy-path outcome for auto-approved bookings).
+  confirmation_email_status: 'sent',
 })
 
 /**

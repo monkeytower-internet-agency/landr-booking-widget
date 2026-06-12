@@ -7,7 +7,10 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
+        // landr-3mo4: every step card is now a level-2 surface on the tinted
+        // page — bg-surface-card + shadow-elev-2 give it real separation from
+        // the canvas (was a near-invisible shadow-sm on white-on-white).
+        "flex flex-col gap-6 rounded-xl border bg-surface-card py-6 text-card-foreground shadow-elev-2",
         className
       )}
       {...props}

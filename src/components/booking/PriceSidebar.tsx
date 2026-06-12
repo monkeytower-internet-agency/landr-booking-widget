@@ -155,9 +155,11 @@ function BookingOverviewBody({
               customer pays now to the operator. The hotel line items are
               rendered as a separate pill below with their own subtotal
               + "paid at check-in" caveat so the customer can't mistake
-              the hotel charge for part of the booking checkout total. */}
+              the hotel charge for part of the booking checkout total.
+              landr-3mo4: the total sits in a recessed brand-tinted well so
+              the key number reads as the anchor of the panel. */}
           <div
-            className="mt-2 flex items-baseline justify-between border-t pt-2"
+            className="mt-3 flex items-baseline justify-between rounded-lg bg-primary/5 px-3 py-2 shadow-well"
             data-testid="price-sidebar-booking-total"
           >
             <span className="text-base font-semibold">Booking total</span>
@@ -350,15 +352,40 @@ export default function PriceSidebar(props: Props) {
     return `For ${head} + ${rest} other${rest === 1 ? '' : 's'}`
   }, [participantNames])
 
+  // landr-hpyn: never price an empty selection. selectedDays only ever
+  // arrives empty on the pick-selection step BEFORE the customer has
+  // chosen anything (every later step derives ≥1 day from the committed
+  // selection — see selectionToDays). The estimate endpoint happily
+  // returns the product's base price for selected_days=[], which made a
+  // fixed-window course with zero upcoming windows render "No upcoming
+  // windows" next to a €450 Booking overview. Gate BOTH the fetch
+  // (enabled) and the render (`visible` below) — the hook deliberately
+  // keeps the previous response for stale-while-loading, so deselecting
+  // the last day would otherwise leave the old price on screen.
+  const hasSelection = selectedDays.length > 0
+
   const estimate = useBookingEstimate({
     operatorToken,
     productId: product.product_id,
     selectedDays,
     participantCount,
     addonLines,
-    enabled: true,
+    enabled: hasSelection,
     debounceMs,
   })
+
+  // What the UI is allowed to show: identical to `estimate` while a
+  // selection exists; collapses to the no-data empty state ("Pick your
+  // options to see the price.") when nothing is selected.
+  const visible: typeof estimate = hasSelection
+    ? estimate
+    : {
+        data: null,
+        isLoading: false,
+        isStale: false,
+        error: null,
+        refresh: estimate.refresh,
+      }
 
   // Mobile drawer open state — collapsed by default so the customer
   // sees just the grand total + a tap target. Resetting it to false on
@@ -384,12 +411,12 @@ export default function PriceSidebar(props: Props) {
   // only — what the customer pays now at checkout). The hotel charge is
   // surfaced as a separate "+ €X at hotel" sub-line so the customer sees
   // it exists without conflating it into the checkout number.
-  const bookingTotalLabel = estimate.data
-    ? formatMoney(estimate.data.operator_total, estimate.data.currency)
+  const bookingTotalLabel = visible.data
+    ? formatMoney(visible.data.operator_total, visible.data.currency)
     : '—'
   const atHotelLabel =
-    estimate.data && Number(estimate.data.hotel_total) > 0
-      ? formatMoney(estimate.data.hotel_total, estimate.data.currency)
+    visible.data && Number(visible.data.hotel_total) > 0
+      ? formatMoney(visible.data.hotel_total, visible.data.currency)
       : null
 
   return (
@@ -399,13 +426,16 @@ export default function PriceSidebar(props: Props) {
         data-testid="price-sidebar-desktop"
         className="hidden md:block w-80 shrink-0"
       >
-        <div className="sticky top-6 rounded-md border bg-card p-4 shadow-sm">
+        {/* landr-3mo4: the rail is a level-2 elevated card on the tinted page,
+            so it reads as a distinct panel rather than blending into the
+            canvas. */}
+        <div className="sticky top-6 rounded-xl border bg-surface-card p-4 shadow-elev-2">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="text-base font-semibold">Booking overview</h3>
-            {estimate.isStale ? (
+            {visible.isStale ? (
               <button
                 type="button"
-                onClick={estimate.refresh}
+                onClick={visible.refresh}
                 title="Update price"
                 data-testid="price-sidebar-refresh"
                 className="text-muted-foreground transition-colors hover:text-foreground"
@@ -424,18 +454,22 @@ export default function PriceSidebar(props: Props) {
           ) : (
             <div className="mb-3" />
           )}
-          <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
+          <BookingOverviewBody {...visible} selectedDays={selectedDays} />
         </div>
       </aside>
 
-      {/* Mobile: fixed bottom bar (collapsed) + slide-up drawer (expanded). */}
+      {/* Mobile: fixed bottom bar (collapsed) + slide-up drawer (expanded).
+          landr-3mo4: the bar was the user's top contrast complaint. It now
+          sits on a raised surface with the strongest elevation (it floats
+          ABOVE the step content), a brand top-edge accent, and a clear
+          two-tier total. The whole bar is a ≥44px tap target. */}
       <div
         data-testid="price-sidebar-mobile"
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t bg-card shadow-lg"
+        className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-t-primary/20 bg-surface-raised shadow-elev-3"
       >
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
+          className="tap-44 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           onClick={() => setMobileOpen((open) => !open)}
           aria-expanded={mobileOpen}
           aria-controls="price-sidebar-mobile-panel"
@@ -444,7 +478,7 @@ export default function PriceSidebar(props: Props) {
             <span className="text-xs font-medium text-muted-foreground">
               Booking total
             </span>
-            <span className="text-base font-semibold tabular-nums">
+            <span className="text-lg font-semibold tabular-nums text-foreground">
               {bookingTotalLabel}
             </span>
             {atHotelLabel ? (
@@ -456,22 +490,25 @@ export default function PriceSidebar(props: Props) {
               </span>
             ) : null}
           </span>
-          <span className="text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-foreground">
             {mobileOpen ? 'Tap to collapse' : 'Tap to expand'}
           </span>
         </button>
         {mobileOpen ? (
           <div
             id="price-sidebar-mobile-panel"
-            className="max-h-[60vh] overflow-y-auto border-t bg-card px-4 py-4"
+            className="max-h-[60vh] overflow-y-auto border-t bg-surface-card px-4 py-4"
           >
-            <BookingOverviewBody {...estimate} selectedDays={selectedDays} />
+            <BookingOverviewBody {...visible} selectedDays={selectedDays} />
           </div>
         ) : null}
       </div>
       {/* Spacer so the mobile fixed bar never covers the last bit of
-          step content. Matches the bar's collapsed height (~60px). */}
-      <div aria-hidden className="md:hidden h-16" />
+          step content. landr-3mo4: bumped h-16→h-20 — the bar's collapsed
+          height grew (larger total + the optional "+ €X at hotel" sub-line),
+          so the spacer reserves enough room that the fixed bar never overlaps
+          the last step content at 360px. */}
+      <div aria-hidden className="md:hidden h-20" />
     </>
   )
 }

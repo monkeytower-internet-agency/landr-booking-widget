@@ -64,6 +64,14 @@ interface Props {
    */
   occupancyLimited?: boolean
   /**
+   * landr-0geh: number of room units of this type booked (default 1).
+   * When > 1 the quantity-deviation hints switch to multi-room copy
+   * ("rooms" instead of "a room") so the wording is accurate for e.g.
+   * 2× Single Rooms where expectedQty = 2 × 1 = 2 total guests but
+   * phrasing "a room that sleeps 2" would be misleading.
+   */
+  roomQty?: number
+  /**
    * Optional label rendered above the list (e.g. "Add-ons" inside a
    * room block). The caller usually owns this from a <fieldset
    * legend>, so leaving it null hides the heading entirely.
@@ -77,6 +85,7 @@ export function AddonsList({
   onChange,
   expectedQty,
   occupancyLimited = false,
+  roomQty = 1,
   heading,
 }: Props) {
   const locale = browserLocale()
@@ -114,7 +123,10 @@ export function AddonsList({
         return (
           <div
             key={addon.product_addon_id}
-            className="flex flex-col gap-1 rounded-md border border-border bg-muted/20 p-2"
+            // landr-3mo4: add-on rows are inset wells (recessed inside the
+            // room sub-card) so the add-on hierarchy reads one level deeper
+            // than the room it belongs to.
+            className="flex flex-col gap-1 rounded-lg border border-border bg-surface-well p-2 shadow-well"
             data-testid={`addon-row-${addon.addon_product_id}`}
           >
             <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -141,11 +153,14 @@ export function AddonsList({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              {/* landr-3mo4: tinted ≥44px qty controls grouped in a raised
+                  pill so the stepper lifts off the recessed add-on well. */}
+              <div className="flex items-center gap-1 rounded-full bg-surface-raised p-1 shadow-elev-1">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={qty <= 0}
                   onClick={() => bumpQty(addon, -1)}
                   aria-label={`Decrease ${addonName} quantity`}
@@ -153,15 +168,16 @@ export function AddonsList({
                   −
                 </Button>
                 <span
-                  className="w-6 text-center text-sm tabular-nums"
+                  className="w-6 text-center text-sm font-semibold tabular-nums"
                   aria-live="polite"
                 >
                   {qty}
                 </span>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={atMax}
                   onClick={() => bumpQty(addon, 1)}
                   aria-label={`Increase ${addonName} quantity`}
@@ -175,8 +191,9 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-overbook-${addon.addon_product_id}`}
               >
-                More {addonName.toLowerCase()} ({qty}) than this room sleeps (
-                {expectedQty}) — bringing extras?
+                {roomQty > 1
+                  ? `More ${addonName.toLowerCase()} (${qty}) than these ${roomQty} rooms sleep (${expectedQty}) — bringing extras?`
+                  : `More ${addonName.toLowerCase()} (${qty}) than this room sleeps (${expectedQty}) — bringing extras?`}
               </p>
             ) : null}
             {deviation === 'under' ? (
@@ -184,8 +201,9 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-underbook-${addon.addon_product_id}`}
               >
-                Only {qty} {addonName.toLowerCase()} for a room that sleeps{' '}
-                {expectedQty} — one per guest?
+                {roomQty > 1
+                  ? `Only ${qty} ${addonName.toLowerCase()} for ${roomQty} rooms (${expectedQty} guests) — one per room?`
+                  : `Only ${qty} ${addonName.toLowerCase()} for a room that sleeps ${expectedQty} — one per guest?`}
               </p>
             ) : null}
             {requiredError ? (

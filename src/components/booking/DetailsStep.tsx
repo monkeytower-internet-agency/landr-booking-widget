@@ -24,6 +24,7 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+import { GroupInquiryForm } from './GroupInquiryForm'
 
 const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
@@ -49,6 +50,21 @@ interface Props {
    * at submit time.
    */
   serviceRoles?: ServiceRole[]
+  /**
+   * landr-4uyu: operator contact email surfaced at the participant max
+   * (MAX_ADDITIONAL added). When non-empty the Details step renders a
+   * "Need a larger group or a flight school booking?" line with a mailto:
+   * link to this address. Null / undefined → the copy still shows but the
+   * (broken) mailto is omitted. Optional so existing tests need no change.
+   */
+  contactEmail?: string | null
+  /**
+   * landr-ehye: opaque widget token used to POST the group-inquiry form.
+   * When absent (e.g. existing test call-sites) the form still renders but
+   * submitGroupInquiry will throw (no API base), which falls back to the
+   * mailto: link — safe degrade.
+   */
+  operatorToken?: string
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -139,6 +155,8 @@ export function DetailsStep({
   product,
   selection,
   serviceRoles = [],
+  contactEmail,
+  operatorToken = '',
   initialBooker,
   initialParticipants,
   initialCompanions,
@@ -180,30 +198,32 @@ export function DetailsStep({
     () => initialCompanions ?? [],
   )
 
-  // If the service-roles fetch resolves AFTER DetailsStep first
-  // mounted, swap empty role codes for the new default. Already-picked
-  // roles (from a Back-restore) stay untouched.
+  // If the service-roles fetch resolves AFTER DetailsStep first mounted,
+  // backfill empty role codes with the new default on the first render
+  // where defaultRoleCode becomes non-empty. Already-picked roles (from a
+  // Back-restore) are left untouched because we only fill empty strings.
   //
-  // landr-sbhz.4: this is a legitimate "backfill editable local state
-  // once async-arriving prop data lands" effect — the role codes are
-  // user-editable after this, so they can't be plain derived render
-  // values, and the updater functions are idempotent (a re-fire with
-  // the same defaultRoleCode is a no-op because each branch only fills
-  // EMPTY codes). A render-time refactor would need to track an
-  // "already-backfilled" flag and risk clobbering a Back-restored pick,
-  // so we keep the effect and scope-disable the rule (per-setState, as
-  // the rule reports at each call site) rather than relax it
-  // project-wide.
-  useEffect(() => {
-    if (!defaultRoleCode) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBookerRoleCode((prev) => prev || defaultRoleCode)
-    setAdditional((prev) =>
-      prev.map((p) =>
-        p.service_role_code ? p : { ...p, service_role_code: defaultRoleCode },
-      ),
-    )
-  }, [defaultRoleCode])
+  // This uses the React-recommended "store previous prop" pattern
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
+  // store the last-seen defaultRoleCode in state; when it changes from ''
+  // to a real value, apply the backfill during the same render pass so
+  // there is no stale-paint window or eslint-disable needed. The state
+  // setter guard (prev || defaultRoleCode / only-empty-codes check) ensures
+  // user-picked or Back-restored codes are never clobbered.
+  const [prevDefaultRoleCode, setPrevDefaultRoleCode] = useState(defaultRoleCode)
+  if (defaultRoleCode !== prevDefaultRoleCode) {
+    setPrevDefaultRoleCode(defaultRoleCode)
+    if (defaultRoleCode) {
+      if (!bookerRoleCode) setBookerRoleCode(defaultRoleCode)
+      if (additional.some((p) => !p.service_role_code)) {
+        setAdditional((prev) =>
+          prev.map((p) =>
+            p.service_role_code ? p : { ...p, service_role_code: defaultRoleCode },
+          ),
+        )
+      }
+    }
+  }
 
   // Mirror the booker into participants[0] while the customer hasn't
   // overridden individual fields. We track the previous booker values
@@ -246,43 +266,49 @@ export function DetailsStep({
     onLiveParticipantsChange(count, names, nextCompanions.length)
   }
 
-  const setAdditionalCount = (next: number) => {
-    const clamped = Math.min(MAX_ADDITIONAL, Math.max(0, Math.floor(next)))
+  // landr-4uyu: add a single additional participant below the last card.
+  // Replaces the top stepper's grow path. Appends one empty row (capped at
+  // MAX_ADDITIONAL) and notifies the live sidebar. Existing rows' data is
+  // untouched (preserves landr-nmed entered data for other rows).
+  const addParticipant = () => {
     setAdditional((current) => {
-      if (clamped === current.length) return current
-      let nextAdditional: ParticipantDetails[]
-      if (clamped > current.length) {
-        const grown = current.slice()
-        for (let i = current.length; i < clamped; i += 1) {
-          grown.push(emptyParticipant(defaultRoleCode))
-        }
-        nextAdditional = grown
-      } else {
-        nextAdditional = current.slice(0, clamped)
-      }
-      notifyLive(booker, nextAdditional, companions)
-      return nextAdditional
+      if (current.length >= MAX_ADDITIONAL) return current
+      const next = [...current, emptyParticipant(defaultRoleCode)]
+      notifyLive(booker, next, companions)
+      return next
     })
   }
 
-  // landr-87n9.3: grow/shrink the companion list. Mirrors the participant
-  // stepper but capped at MAX_COMPANIONS (generous) and with no role code.
-  const setCompanionCount = (next: number) => {
-    const clamped = Math.min(MAX_COMPANIONS, Math.max(0, Math.floor(next)))
+  // landr-4uyu: remove a SPECIFIC additional participant by index (the per-card
+  // × control), not just the last one as the stepper did. Splicing the chosen
+  // index preserves the entered data of all the OTHER rows (landr-nmed).
+  const removeParticipant = (idx: number) => {
+    setAdditional((current) => {
+      if (idx < 0 || idx >= current.length) return current
+      const next = current.slice(0, idx).concat(current.slice(idx + 1))
+      notifyLive(booker, next, companions)
+      return next
+    })
+  }
+
+  // landr-4uyu: add a single companion below the last companion card.
+  const addCompanion = () => {
     setCompanions((current) => {
-      if (clamped === current.length) return current
-      let nextCompanions: CompanionDetails[]
-      if (clamped > current.length) {
-        const grown = current.slice()
-        for (let i = current.length; i < clamped; i += 1) {
-          grown.push(emptyCompanion())
-        }
-        nextCompanions = grown
-      } else {
-        nextCompanions = current.slice(0, clamped)
-      }
-      notifyLive(booker, additional, nextCompanions)
-      return nextCompanions
+      if (current.length >= MAX_COMPANIONS) return current
+      const next = [...current, emptyCompanion()]
+      notifyLive(booker, additional, next)
+      return next
+    })
+  }
+
+  // landr-4uyu: remove a SPECIFIC companion by index (per-card × control),
+  // preserving the other companion rows' data (landr-nmed).
+  const removeCompanion = (idx: number) => {
+    setCompanions((current) => {
+      if (idx < 0 || idx >= current.length) return current
+      const next = current.slice(0, idx).concat(current.slice(idx + 1))
+      notifyLive(booker, additional, next)
+      return next
     })
   }
 
@@ -324,6 +350,148 @@ export function DetailsStep({
     })
   }
 
+  // landr-opi3: per-field "touched" tracking so an EMPTY REQUIRED field turns
+  // red only AFTER the customer leaves it (onBlur) — never while they are still
+  // typing into it. The required-field set mirrors detailsAreComplete() exactly,
+  // so the red borders correspond 1:1 with what blocks the Continue button.
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set())
+  const markTouched = (key: string) =>
+    setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
+
+  // landr-79re: the onBlur path alone is unreliable on mobile (tapping
+  // between fields, dismissing the keyboard, or tapping a disabled button
+  // often don't fire a blur), so an incomplete form could show NO red
+  // borders and the customer was stuck with nothing flagged. markAllTouched
+  // arms every required field's touched key in one shot — enumerated to
+  // mirror EXACTLY the keys used in the validate(...) calls below and the
+  // required set detailsAreComplete() checks — so a Continue tap reveals all
+  // the errors at once regardless of platform.
+  const requiredFieldKeys = (): string[] => {
+    const keys = [
+      'booker.first_name',
+      'booker.last_name',
+      'booker.email',
+      'booker.phone',
+    ]
+    additional.forEach((_, idx) => {
+      keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
+    })
+    companions.forEach((_, idx) => {
+      keys.push(`companion.${idx}.first_name`)
+    })
+    return keys
+  }
+  const markAllTouched = () =>
+    setTouched((prev) => {
+      const next = new Set(prev)
+      for (const key of requiredFieldKeys()) next.add(key)
+      return next
+    })
+
+  // landr-79re: maps a required-field key to the DOM id of its <Input> so a
+  // failed Continue tap can focus + scroll the FIRST invalid field into view
+  // on mobile. Mirrors the (key, id) pairs passed to validate(...) below.
+  const fieldIdForKey = (key: string): string | undefined => {
+    switch (key) {
+      case 'booker.first_name':
+        return 'booker-first'
+      case 'booker.last_name':
+        return 'booker-last'
+      case 'booker.email':
+        return 'booker-email'
+      case 'booker.phone':
+        return 'booker-phone'
+    }
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    if (pMatch) {
+      const slot =
+        pMatch[2] === 'first_name'
+          ? 'first'
+          : pMatch[2] === 'last_name'
+            ? 'last'
+            : 'phone'
+      return `p-${pMatch[1]}-${slot}`
+    }
+    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    if (cMatch) return `companion-${cMatch[1]}-first`
+    return undefined
+  }
+
+  // landr-79re: returns true when a required field is still blank (or, for the
+  // booker email, malformed) — used to pick the FIRST invalid field to focus.
+  const isFieldInvalid = (key: string): boolean => {
+    switch (key) {
+      case 'booker.first_name':
+        return !booker.first_name.trim()
+      case 'booker.last_name':
+        return !booker.last_name.trim()
+      case 'booker.email':
+        return !booker.email.trim() || !booker.email.includes('@')
+      case 'booker.phone':
+        return !booker.phone.trim()
+    }
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    if (pMatch) {
+      const row = additional[Number(pMatch[1])]
+      if (!row) return false
+      const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
+      return !row[field].trim()
+    }
+    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    if (cMatch) {
+      const row = companions[Number(cMatch[1])]
+      return row ? !row.first_name.trim() : false
+    }
+    return false
+  }
+
+  // landr-79re: focus + scroll the first invalid required field into view
+  // after a failed Continue tap. SSR/test-safe: guards document and the
+  // optional scrollIntoView (jsdom does not implement it).
+  const focusFirstInvalid = () => {
+    if (typeof document === 'undefined') return
+    const firstKey = requiredFieldKeys().find((key) => isFieldInvalid(key))
+    if (!firstKey) return
+    const id = fieldIdForKey(firstKey)
+    if (!id) return
+    const el = document.getElementById(id)
+    if (!el) return
+    el.focus()
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }
+
+  // A required text field is invalid once touched and still blank.
+  const requiredError = (key: string, value: string): string | undefined =>
+    touched.has(key) && !value.trim() ? 'Required' : undefined
+  // The booker email additionally needs an '@' (mirrors detailsAreComplete).
+  const emailError = (key: string, value: string): string | undefined => {
+    if (!touched.has(key)) return undefined
+    if (!value.trim()) return 'Required'
+    if (!value.includes('@')) return 'Enter a valid email address'
+    return undefined
+  }
+  // Bundle the error + the input props (onBlur to arm, aria-invalid to paint
+  // red, aria-describedby to wire the message for screen readers).
+  const validate = (
+    key: string,
+    value: string,
+    id: string,
+    kind: 'required' | 'email' = 'required',
+  ) => {
+    const error =
+      kind === 'email' ? emailError(key, value) : requiredError(key, value)
+    return {
+      error,
+      inputProps: {
+        onBlur: () => markTouched(key),
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': error ? `${id}-error` : undefined,
+      },
+    }
+  }
+
   const participantsForValidation: ParticipantDetails[] = [
     bookerToParticipant(booker, bookerRoleCode),
     ...additional,
@@ -335,9 +503,42 @@ export function DetailsStep({
   )
 
   const handleContinue = () => {
-    if (!canContinue) return
+    // landr-79re: the Continue button is ALWAYS tappable now (no
+    // disabled={!canContinue}) so mobile customers get feedback. On a tap
+    // while incomplete we reveal every required-field error (markAllTouched
+    // arms the same set detailsAreComplete checks) and take the customer to
+    // the first invalid field, but do NOT advance. We only call onConfirm
+    // when the form is actually complete (unchanged behavior for the valid
+    // case).
+    if (!canContinue) {
+      markAllTouched()
+      focusFirstInvalid()
+      return
+    }
     onConfirm(booker, participantsForValidation, companions)
   }
+
+  // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
+  // "Maximum …" warnings for each section.
+  const participantsAtMax = additional.length >= MAX_ADDITIONAL
+  const companionsAtMax = companions.length >= MAX_COMPANIONS
+
+  // landr-4uyu: normalize the operator contact email. A blank/whitespace value
+  // is treated as absent so we never render an empty `mailto:`. When present we
+  // build a mailto with a sensible prefilled subject; when absent the contact
+  // copy still shows (graceful degrade) but the link is omitted.
+  const trimmedContactEmail = contactEmail?.trim() || ''
+  const contactMailto = trimmedContactEmail
+    ? `mailto:${trimmedContactEmail}?subject=${encodeURIComponent(
+        `Larger group / flight school booking — ${product.name}`,
+      )}`
+    : ''
+
+  // landr-opi3: booker required-field validations (all four required).
+  const bookerFirstV = validate('booker.first_name', booker.first_name, 'booker-first')
+  const bookerLastV = validate('booker.last_name', booker.last_name, 'booker-last')
+  const bookerEmailV = validate('booker.email', booker.email, 'booker-email', 'email')
+  const bookerPhoneV = validate('booker.phone', booker.phone, 'booker-phone')
 
   return (
     <Card>
@@ -358,25 +559,27 @@ export function DetailsStep({
             others are joining.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="First name" htmlFor="booker-first">
+            <Field label="First name" htmlFor="booker-first" error={bookerFirstV.error}>
               <Input
                 id="booker-first"
                 name="booker_first_name"
                 autoComplete="given-name"
                 value={booker.first_name}
                 onChange={(e) => updateBookerField('first_name', e.target.value)}
+                {...bookerFirstV.inputProps}
               />
             </Field>
-            <Field label="Last name" htmlFor="booker-last">
+            <Field label="Last name" htmlFor="booker-last" error={bookerLastV.error}>
               <Input
                 id="booker-last"
                 name="booker_last_name"
                 autoComplete="family-name"
                 value={booker.last_name}
                 onChange={(e) => updateBookerField('last_name', e.target.value)}
+                {...bookerLastV.inputProps}
               />
             </Field>
-            <Field label="Email" htmlFor="booker-email">
+            <Field label="Email" htmlFor="booker-email" error={bookerEmailV.error}>
               <Input
                 id="booker-email"
                 name="booker_email"
@@ -384,9 +587,10 @@ export function DetailsStep({
                 autoComplete="email"
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
+                {...bookerEmailV.inputProps}
               />
             </Field>
-            <Field label="Phone" htmlFor="booker-phone">
+            <Field label="Phone" htmlFor="booker-phone" error={bookerPhoneV.error}>
               <Input
                 id="booker-phone"
                 name="booker_phone"
@@ -394,6 +598,7 @@ export function DetailsStep({
                 autoComplete="tel"
                 value={booker.phone}
                 onChange={(e) => updateBookerField('phone', e.target.value)}
+                {...bookerPhoneV.inputProps}
               />
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
@@ -420,45 +625,45 @@ export function DetailsStep({
           <legend className="text-sm font-medium">
             Other participants ({totalCount} total)
           </legend>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Remove participant"
-              onClick={() => setAdditionalCount(additional.length - 1)}
-              disabled={additional.length <= 0}
-            >
-              −
-            </Button>
-            <span className="text-sm tabular-nums w-8 text-center">
-              {additional.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Add participant"
-              onClick={() => setAdditionalCount(additional.length + 1)}
-              disabled={additional.length >= MAX_ADDITIONAL}
-            >
-              +
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              additional (max {MAX_ADDITIONAL})
-            </span>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Add anyone else taking part. You can add up to {MAX_ADDITIONAL} more.
+          </p>
 
-          {additional.map((row, idx) => (
+          {additional.map((row, idx) => {
+            // landr-opi3: first + last + phone are required for every added
+            // participant (landr-nkbi); email stays optional.
+            const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
+            const pLastV = validate(`p.${idx}.last_name`, row.last_name, `p-${idx}-last`)
+            const pPhoneV = validate(`p.${idx}.phone`, row.phone, `p-${idx}-phone`)
+            return (
+            // landr-3mo4: each added participant is a raised sub-card (one
+            // level lighter than the step card) so the nested form group
+            // reads as its own block.
             <div
               key={`participant-${idx}`}
-              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`participant-row-${idx + 2}`}
             >
-              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
-                Participant {idx + 2}
+              {/* landr-4uyu: per-card header row carries a remove (×) control so
+                  a specific participant row can be removed (replacing the old
+                  top-stepper −). Removal preserves the OTHER rows' data. */}
+              <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Participant {idx + 2}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+                  aria-label={`Remove participant ${idx + 2}`}
+                  data-testid={`remove-participant-${idx + 2}`}
+                  onClick={() => removeParticipant(idx)}
+                >
+                  ×
+                </Button>
               </div>
-              <Field label="First name" htmlFor={`p-${idx}-first`}>
+              <Field label="First name" htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
@@ -466,9 +671,10 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
                   }
+                  {...pFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name" htmlFor={`p-${idx}-last`}>
+              <Field label="Last name" htmlFor={`p-${idx}-last`} error={pLastV.error}>
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
@@ -476,6 +682,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
                   }
+                  {...pLastV.inputProps}
                 />
               </Field>
               <Field label="Email (optional)" htmlFor={`p-${idx}-email`}>
@@ -489,7 +696,8 @@ export function DetailsStep({
                   }
                 />
               </Field>
-              <Field label="Phone (optional)" htmlFor={`p-${idx}-phone`}>
+              {/* landr-nkbi: phone is required for every participant. */}
+              <Field label="Phone" htmlFor={`p-${idx}-phone`} error={pPhoneV.error}>
                 <Input
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
@@ -498,6 +706,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'phone', e.target.value)
                   }
+                  {...pPhoneV.inputProps}
                 />
               </Field>
               {showRoleDropdown ? (
@@ -515,7 +724,55 @@ export function DetailsStep({
                 </Field>
               ) : null}
             </div>
-          ))}
+            )
+          })}
+
+          {/* landr-4uyu: the "Add" affordance lives BELOW the last card and is
+              rendered AFTER the card map in the DOM, so tabbing out of the last
+              participant's phone lands here (natural tab order) — the customer
+              never scrolls back up. At max it is replaced by a warning + the
+              participant-only contact-us line. The aria-label "Add participant"
+              is preserved from the old stepper button so existing tests/AT keep
+              working. */}
+          {participantsAtMax ? (
+            <div
+              className="flex flex-col gap-2 rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="participants-max-notice"
+            >
+              <p className="text-sm font-medium text-muted-foreground">
+                Maximum of {MAX_ADDITIONAL} additional participants reached
+              </p>
+              {/* landr-ehye: inline group-inquiry form replaces the plain
+                  mailto: link added by PR #108. The form POSTs to the
+                  API; the mailto: link stays as a fallback (shown inside
+                  GroupInquiryForm on error, and as a secondary "Or email us"
+                  link while the form is idle). When the operator has no
+                  contact_email, contactMailto is empty and the mailto
+                  fallback is omitted — same graceful degrade as before. */}
+              <p className="text-xs text-muted-foreground">
+                Need a larger group or a flight school booking? Get in touch:
+              </p>
+              <GroupInquiryForm
+                operatorToken={operatorToken}
+                productSlug={product.slug}
+                defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
+                defaultEmail={booker.email}
+                contactMailto={contactMailto}
+                contactEmail={trimmedContactEmail}
+              />
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+              aria-label="Add participant"
+              data-testid="add-participant"
+              onClick={addParticipant}
+            >
+              + Add participant
+            </Button>
+          )}
         </fieldset>
 
         {/* landr-87n9.3: non-guiding companions. Generic copy per
@@ -537,43 +794,38 @@ export function DetailsStep({
             own guiding separately. They&rsquo;re added to the hotel headcount
             and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Remove companion"
-              onClick={() => setCompanionCount(companions.length - 1)}
-              disabled={companions.length <= 0}
-            >
-              −
-            </Button>
-            <span className="text-sm tabular-nums w-8 text-center">
-              {companions.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Add companion"
-              onClick={() => setCompanionCount(companions.length + 1)}
-              disabled={companions.length >= MAX_COMPANIONS}
-            >
-              +
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              joining (max {MAX_COMPANIONS})
-            </span>
-          </div>
-
-          {companions.map((row, idx) => (
+          {companions.map((row, idx) => {
+            // landr-opi3: only the companion first name is required.
+            const cFirstV = validate(
+              `companion.${idx}.first_name`,
+              row.first_name,
+              `companion-${idx}-first`,
+            )
+            return (
+            // landr-3mo4: companion rows are raised sub-cards, matching the
+            // participant rows.
             <div
               key={`companion-${idx}`}
-              className="grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+              className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
               data-testid={`companion-row-${idx}`}
             >
-              <div className="sm:col-span-2 text-xs font-medium text-muted-foreground">
-                Guest {idx + 1}
+              {/* landr-4uyu: per-card header row with a remove (×) control so a
+                  specific guest can be removed; the other rows' data persists. */}
+              <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Guest {idx + 1}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+                  aria-label={`Remove companion ${idx + 1}`}
+                  data-testid={`remove-companion-${idx}`}
+                  onClick={() => removeCompanion(idx)}
+                >
+                  ×
+                </Button>
               </div>
               {/* landr-doam.1: companion kind selector — "not joining the
                   activity" (guest) vs "joining with their own separate guiding
@@ -618,7 +870,7 @@ export function DetailsStep({
                   ))}
                 </div>
               </fieldset>
-              <Field label="First name" htmlFor={`companion-${idx}-first`}>
+              <Field label="First name" htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
@@ -626,6 +878,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'first_name', e.target.value)
                   }
+                  {...cFirstV.inputProps}
                 />
               </Field>
               <Field label="Last name (optional)" htmlFor={`companion-${idx}-last`}>
@@ -661,11 +914,46 @@ export function DetailsStep({
                 />
               </Field>
             </div>
-          ))}
+            )
+          })}
+
+          {/* landr-4uyu: "+ Add guest" lives below the last companion card and
+              after the card map in the DOM, so it's the natural next tab stop
+              after the last companion's phone. At max it is replaced by the
+              warning only — companions have NO contact-us line. The aria-label
+              "Add companion" is preserved from the old stepper button so the
+              existing tests/AT keep working. */}
+          {companionsAtMax ? (
+            <div
+              className="rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="companions-max-notice"
+            >
+              <p className="text-sm font-medium text-muted-foreground">
+                Maximum of {MAX_COMPANIONS} guests reached
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
+              aria-label="Add companion"
+              data-testid="add-companion"
+              onClick={addCompanion}
+            >
+              + Add guest
+            </Button>
+          )}
         </fieldset>
 
         <div className="flex justify-end pt-2">
-          <Button type="button" onClick={handleContinue} disabled={!canContinue}>
+          {/* landr-79re: Continue is ALWAYS tappable so mobile customers get
+              feedback. handleContinue gates on canContinue internally —
+              revealing all required-field errors (markAllTouched) and focusing
+              the first invalid field instead of silently doing nothing. There
+              is no in-flight/pending state on this step, so no disabled gate is
+              needed. */}
+          <Button type="button" onClick={handleContinue}>
             Continue
           </Button>
         </div>
@@ -677,10 +965,13 @@ export function DetailsStep({
 function Field({
   label,
   htmlFor,
+  error,
   children,
 }: {
   label: string
   htmlFor?: string
+  /** landr-opi3: when set, renders a red validation message below the input. */
+  error?: string
   children: React.ReactNode
 }) {
   return (
@@ -689,6 +980,14 @@ function Field({
         {label}
       </Label>
       {children}
+      {error ? (
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          className="text-xs text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -722,7 +1021,7 @@ function RoleSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       data-testid={testId}
-      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {serviceRoles.map((role) => (
         <option key={role.id} value={role.code}>

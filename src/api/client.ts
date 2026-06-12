@@ -8,7 +8,9 @@ import type {
   OperatorSettings,
   Product,
   ProductAddon,
+  ProductGroup,
   ServiceRole,
+  StaffSubmitBody,
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
@@ -21,6 +23,7 @@ import {
   mockOperatorServiceRoles,
   mockOperatorSettings,
   mockProductAddons,
+  mockProductGroups,
   mockProducts,
   mockSubmit,
 } from './mocks'
@@ -41,6 +44,37 @@ const apiBase = (): string =>
  * the underlying contract mismatch is visible instead of the opaque
  * native fetch "Failed to fetch" string. Filed under landr-piyv.
  */
+/**
+ * Human-readable explanation for a failed widget API call (landr-brge
+ * follow-up, user report 2026-06-05: the bare native "Failed to fetch"
+ * gave operators nothing to act on). Distinguishes the three failure
+ * classes a browser can produce and names the API host involved:
+ *   - HttpError 404      → the widget link/token is wrong or outdated
+ *   - HttpError other    → service responded with an error status
+ *   - TypeError (native) → network unreachable OR the embedding site is
+ *     not in the API's CORS allowlist — the two are indistinguishable
+ *     from JS, so both are named.
+ */
+export function explainFetchError(err: unknown): string {
+  let host = 'the booking service'
+  try {
+    const base = apiBase()
+    if (base) host = new URL(base).host
+  } catch {
+    /* keep generic label */
+  }
+  if (err instanceof HttpError) {
+    if (err.status === 404) {
+      return `The booking service at ${host} did not recognise this booking link (404). The widget token may be wrong or outdated.`
+    }
+    return `The booking service at ${host} responded with an error (${err.status} ${err.statusText}).`
+  }
+  if (err instanceof TypeError) {
+    return `Could not reach the booking service at ${host}. This usually means a network problem — or the site embedding this widget is not on the booking service's allowed-origins (CORS) list.`
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
 export class HttpError extends Error {
   status: number
   statusText: string
@@ -110,6 +144,25 @@ export async function listProducts(
   // getHotelRoomsForHotel which opts in via includeHotelRooms.
   if (options?.includeHotelRooms) return raw
   return raw.filter((p) => p.product_kind !== 'hotel_room')
+}
+
+/**
+ * Product groups (categories) for the operator (landr-d8rg, epic contract E).
+ * Returns active + non-deleted groups ordered by sort_order. product_count
+ * reflects bookable products in each group subtree. Mirrors the pattern of
+ * listProducts: mock switch, identical error handling via http().
+ */
+export async function listProductGroups(
+  operatorToken: string,
+  options?: { previewToken?: string },
+): Promise<ProductGroup[]> {
+  if (mocksEnabled()) return mockProductGroups(operatorToken, options?.previewToken)
+  const qs = new URLSearchParams()
+  if (options?.previewToken) {
+    qs.append('preview_token', options.previewToken)
+  }
+  const path = `/api/public/operators/${encodeURIComponent(operatorToken)}/product-groups`
+  return http<ProductGroup[]>(qs.toString() ? `${path}?${qs}` : path)
 }
 
 export async function getAvailability(
@@ -268,6 +321,44 @@ export async function submitBooking(
 }
 
 /**
+ * Staff-authorized booking submit (landr-aoak.4, reconciling the drift the
+ * aoak.3 dashboard worker found). In STAFF/agent mode the booking does NOT go
+ * to the public endpoint — it goes to a SEPARATE, operator-scoped route the
+ * api worker (landr-aoak.1 [S2]) added:
+ *
+ *   POST /api/staff/operators/{operator_id}/bookings/submit
+ *
+ * which takes NO widget_token and treats the signed `staff_session` in the body
+ * as the credential. ONLY this route honours the operator powers (force-book,
+ * price override, skip-approval, skip-customer-email); the public route
+ * silently ignores them. Posting a staff submit to /api/public/bookings was the
+ * bug — the powers were dropped server-side and the booking ran the normal
+ * capacity + approval engine.
+ *
+ * The response is the staff RPC's jsonb (booking_id + semantic_state:'pending' +
+ * stage_code:'awaiting_payment' + approval_outcome:'staff_authorized' + the
+ * extra forced/price_overridden flags), which is a superset of
+ * SubmitBookingResponse — so the widget's confirmation page + the
+ * `landr:booking-created` postMessage read `booking_id` etc. unchanged.
+ *
+ * Mocks: in mock mode there is no staff RPC; we return the same mockSubmit()
+ * shape so the embedded demo flow still resolves (parity with submitBooking).
+ */
+export async function submitStaffBooking(
+  operatorId: string,
+  body: StaffSubmitBody,
+): Promise<SubmitBookingResponse> {
+  if (mocksEnabled()) return mockSubmit()
+  return http<SubmitBookingResponse>(
+    `/api/staff/operators/${encodeURIComponent(operatorId)}/bookings/submit`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+/**
  * Response shape from POST /api/public/bookings/{id}/cancel. The API
  * returns the same shape on both first-cancel and already-cancelled
  * (idempotent) paths so the widget doesn't need to branch on status.
@@ -316,6 +407,47 @@ export async function estimateBookingPrice(
   if (mocksEnabled()) return mockEstimate(productId, body)
   return http<EstimateResponse>(
     `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/estimate`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+/**
+ * Request body for POST /api/public/operators/{token}/group-inquiry
+ * (landr-ehye). Sent when a customer at the participant max requests a
+ * larger group or flight-school booking.
+ */
+export interface GroupInquiryRequest {
+  name: string
+  email: string
+  party_size: number
+  message: string
+  product_slug: string | null
+}
+
+/**
+ * Minimal acknowledgement from the group-inquiry endpoint. The API
+ * always returns {ok: true} on success; error shapes use HttpError.
+ */
+export interface GroupInquiryResponse {
+  ok: boolean
+}
+
+/**
+ * Submit a larger-group / flight-school inquiry (landr-ehye). The widget
+ * shows this inline form when the customer reaches the participant max.
+ * In mock mode we resolve immediately so the embedded demo flow still
+ * renders the success state without a live API.
+ */
+export async function submitGroupInquiry(
+  operatorToken: string,
+  body: GroupInquiryRequest,
+): Promise<GroupInquiryResponse> {
+  if (mocksEnabled()) return { ok: true }
+  return http<GroupInquiryResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/group-inquiry`,
     {
       method: 'POST',
       body: JSON.stringify(body),

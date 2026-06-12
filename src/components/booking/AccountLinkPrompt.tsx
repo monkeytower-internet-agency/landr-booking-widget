@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card'
 
 interface Props {
+  operatorToken: string
   email: string
 }
 
@@ -28,7 +29,7 @@ type PromptState =
  * Failure path is intentionally soft: errors are surfaced as text within the
  * prompt and never unwind the booking confirmation.
  */
-export function AccountLinkPrompt({ email }: Props) {
+export function AccountLinkPrompt({ operatorToken, email }: Props) {
   const [state, setState] = useState<PromptState>({ kind: 'idle' })
   const dialogRef = useRef<HTMLDivElement>(null)
   const acceptButtonRef = useRef<HTMLButtonElement>(null)
@@ -61,7 +62,7 @@ export function AccountLinkPrompt({ email }: Props) {
   const onAccept = async () => {
     setState({ kind: 'sending' })
     try {
-      await requestMagicLink({ email })
+      await requestMagicLink({ operatorToken, email })
       setState({ kind: 'sent' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

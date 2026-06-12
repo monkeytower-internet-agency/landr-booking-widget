@@ -1,27 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  applyAssignment,
+  assignBreakfastChip,
   autoAssignParticipants,
   autoAssignParty,
   CHIP_HUES,
   chipHue,
+  clampBreakfastMap,
+  deriveBreakfastMap,
   deriveStayWindow,
   expandRoomUnits,
   findBreakfastAddonIds,
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
-  isPremiumIncludesBreakfast,
+  roomBreakfastMode,
+  roomBreakfastQty,
+  roomIncludesBreakfast,
   occupancyStatus,
   occupantsOfUnit,
   partySize,
   pruneAssignments,
+  resolveBreakfastDropTarget,
+  resolveNameDropUnit,
   roomSubtotal,
   roomUnitKey,
   stayNightIsos,
   totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
+  unitBreakfastLabel,
   type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
@@ -316,7 +325,7 @@ describe('totalBreakfastQty (landr-qpab)', () => {
   })
 })
 
-describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
+describe('roomIncludesBreakfast (landr-5mvw)', () => {
   function makeProduct(name: string, nameLocalized?: Record<string, string>): Product {
     return {
       product_id: 'p-1',
@@ -343,19 +352,19 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns true for Para42 "Premium Single Room w/ Breakfast"', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Premium Single Room w/ Breakfast')),
+      roomIncludesBreakfast(makeProduct('Premium Single Room w/ Breakfast')),
     ).toBe(true)
   })
 
   it('returns true for Para42 "Premium Double Room w/ Breakfast"', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Premium Double Room w/ Breakfast')),
+      roomIncludesBreakfast(makeProduct('Premium Double Room w/ Breakfast')),
     ).toBe(true)
   })
 
   it('returns true when matched in a localised name variant (de: Frühstück)', () => {
     expect(
-      isPremiumIncludesBreakfast(
+      roomIncludesBreakfast(
         makeProduct('Premium Einzelzimmer', { de: 'Premium Einzelzimmer mit Frühstück', en: 'Premium Single Room' }),
       ),
     ).toBe(true)
@@ -363,7 +372,7 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns true when matched in a localised name variant (es: desayuno)', () => {
     expect(
-      isPremiumIncludesBreakfast(
+      roomIncludesBreakfast(
         makeProduct('Habitación individual', { es: 'Habitación individual prémium con desayuno' }),
       ),
     ).toBe(true)
@@ -371,14 +380,31 @@ describe('isPremiumIncludesBreakfast (landr-sbhz.4)', () => {
 
   it('returns false for a plain Double Room', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Double Room')),
+      roomIncludesBreakfast(makeProduct('Double Room')),
     ).toBe(false)
   })
 
   it('returns false for a plain Single Room', () => {
     expect(
-      isPremiumIncludesBreakfast(makeProduct('Single Room')),
+      roomIncludesBreakfast(makeProduct('Single Room')),
     ).toBe(false)
+  })
+
+  it('returns true when includes_breakfast=true, regardless of name (landr-5mvw structural flag)', () => {
+    const room: Product = { ...makeProduct('Plain Room'), includes_breakfast: true }
+    expect(roomIncludesBreakfast(room)).toBe(true)
+  })
+
+  it('returns false when includes_breakfast=false, even if name would match heuristic', () => {
+    const room: Product = { ...makeProduct('Room with Breakfast'), includes_breakfast: false }
+    expect(roomIncludesBreakfast(room)).toBe(false)
+  })
+
+  it('falls back to name heuristic when includes_breakfast is absent (legacy API response)', () => {
+    const room = makeProduct('Premium Room with Breakfast')
+    // makeProduct does not set includes_breakfast, so the key should be absent.
+    expect('includes_breakfast' in room).toBe(false)
+    expect(roomIncludesBreakfast(room)).toBe(true)
   })
 })
 
@@ -765,6 +791,125 @@ describe('occupancyStatus (landr-87n9.3)', () => {
   it('is complete (vacuously) when there are no units and no members', () => {
     expect(occupancyStatus([], 0, {}).complete).toBe(true)
   })
+
+  it('blocks a double room that holds only one person (partial unit)', () => {
+    // 1 double (capacity 2) with a single occupant and no one else in the
+    // party → the room is under-filled, so Continue must stay disabled.
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 1, assignment)
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toEqual([])
+    expect(status.partialUnits).toHaveLength(1)
+    expect(status.partialUnits[0]!.roomProductId).toBe('double')
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('is complete once the double room is filled to capacity', () => {
+    const units = expandRoomUnits([{ productId: 'double', quantity: 1 }], [double])
+    const assignment: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const status = occupancyStatus(units, 2, assignment)
+    expect(status.complete).toBe(true)
+    expect(status.partialUnits).toEqual([])
+  })
+})
+
+describe('applyAssignment — cycling on a full unit (landr)', () => {
+  const single = makeRoom('single', 49, 'EUR', 1)
+  const double = makeRoom('double', 73, 'EUR', 2)
+  // One single + one double → unit keys single::0, double::0.
+  const units = expandRoomUnits(
+    [
+      { productId: 'single', quantity: 1 },
+      { productId: 'double', quantity: 1 },
+    ],
+    [single, double],
+  )
+  const singleUnit = units.find((u) => u.roomProductId === 'single')!
+  const doubleUnit = units.find((u) => u.roomProductId === 'double')!
+
+  // Party: Matthias = 0 (single), Olaf = 1, Alida = 2 (double).
+  const start: RoomAssignmentMap = {
+    0: { roomProductId: 'single', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+    2: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('rotates: dropping Matthias onto a full double evicts Alida to the single', () => {
+    const next = applyAssignment(start, 0, doubleUnit)
+    // Matthias takes the first slot, Olaf the second; Alida moves to the single.
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([0, 1])
+    expect(occupantsOfUnit(next, singleUnit)).toEqual([2])
+  })
+
+  it('cycles a different person out each repeat (Alida, then Olaf, then Matthias)', () => {
+    // Round 1: drop Matthias (in single) onto the full double.
+    const r1 = applyAssignment(start, 0, doubleUnit)
+    expect(occupantsOfUnit(r1, doubleUnit)).toEqual([0, 1]) // Matthias, Olaf
+    expect(occupantsOfUnit(r1, singleUnit)).toEqual([2]) // Alida bumped out
+
+    // Round 2: drop Alida (now in single) onto the full double.
+    const r2 = applyAssignment(r1, 2, doubleUnit)
+    expect(occupantsOfUnit(r2, doubleUnit)).toEqual([2, 0]) // Alida, Matthias
+    expect(occupantsOfUnit(r2, singleUnit)).toEqual([1]) // Olaf bumped out
+
+    // Round 3: drop Olaf onto the full double → Matthias bumped out (full cycle).
+    const r3 = applyAssignment(r2, 1, doubleUnit)
+    expect(occupantsOfUnit(r3, doubleUnit)).toEqual([1, 2]) // Olaf, Alida
+    expect(occupantsOfUnit(r3, singleUnit)).toEqual([0]) // Matthias bumped out
+  })
+
+  it('never exceeds the unit capacity through a rotation', () => {
+    const next = applyAssignment(start, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit).length).toBeLessThanOrEqual(
+      doubleUnit.capacity,
+    )
+  })
+
+  it('appends (no rotation) when the target has spare capacity', () => {
+    // Double holds only Olaf (1); dropping Matthias appends him at the end.
+    const partial: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const next = applyAssignment(partial, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([1, 0]) // Olaf first, Matthias second
+    expect(occupantsOfUnit(next, singleUnit)).toEqual([])
+  })
+
+  it('evicts to the unassigned tray when the mover came from the tray', () => {
+    // Matthias (0) is unassigned; the double is full with Olaf + Alida.
+    const fromTray: RoomAssignmentMap = {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 0 },
+    }
+    const next = applyAssignment(fromTray, 0, doubleUnit)
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([0, 1]) // Matthias, Olaf
+    // Alida (2) is evicted to the tray → no assignment entry for her.
+    expect(next[2]).toBeUndefined()
+  })
+
+  it('unassigns a member when the target is null', () => {
+    const next = applyAssignment(start, 1, null)
+    expect(next[1]).toBeUndefined()
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([2])
+  })
+
+  it('is a no-op when dropping a member onto its own unit', () => {
+    const next = applyAssignment(start, 1, doubleUnit)
+    expect(next).toBe(start)
+  })
+
+  it('does not mutate the input map', () => {
+    const snapshot = JSON.parse(JSON.stringify(start))
+    applyAssignment(start, 0, doubleUnit)
+    expect(start).toEqual(snapshot)
+  })
 })
 
 describe('hasIncompleteChildAge (landr-doam.1)', () => {
@@ -836,5 +981,183 @@ describe('chipHue (landr-rc4l — colourful assignment chips)', () => {
       expect(h).toBeGreaterThanOrEqual(0)
       expect(h).toBeLessThan(360)
     }
+  })
+})
+
+// ── landr-z59y: breakfast-as-chips helpers ───────────────────────────────────
+
+describe('roomBreakfastQty / roomBreakfastMode (landr-z59y)', () => {
+  it('sums the per-room add-on qty as the chip count', () => {
+    expect(roomBreakfastQty('double', { double: { 'bf-1': 2 } })).toBe(2)
+    expect(roomBreakfastQty('double', {})).toBe(0)
+  })
+
+  it('classifies none / all / partial by qty vs occupant count', () => {
+    expect(roomBreakfastMode(0, 2)).toBe('none')
+    expect(roomBreakfastMode(2, 2)).toBe('all')
+    expect(roomBreakfastMode(3, 2)).toBe('all') // qty >= occ
+    expect(roomBreakfastMode(1, 2)).toBe('partial')
+  })
+})
+
+describe('deriveBreakfastMap / clampBreakfastMap (landr-z59y)', () => {
+  // Double room with both Ada (0) + Grace (1) assigned to it.
+  const BOTH: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('partial (1 breakfast, 2 people): default-assigns to the first occupant', () => {
+    const map = deriveBreakfastMap(BOTH, { double: { 'bf-1': 1 } })
+    expect(map).toEqual({ 0: true })
+  })
+
+  it('all (2 breakfasts, 2 people): every occupant holds a chip', () => {
+    const map = deriveBreakfastMap(BOTH, { double: { 'bf-1': 2 } })
+    expect(map).toEqual({ 0: true, 1: true })
+  })
+
+  it('none (0 breakfasts): nobody holds a chip', () => {
+    expect(deriveBreakfastMap(BOTH, {})).toEqual({})
+  })
+
+  it('preserves the customer choice when re-clamping (Grace was chosen)', () => {
+    const map = clampBreakfastMap(BOTH, { double: { 'bf-1': 1 } }, { 1: true })
+    expect(map).toEqual({ 1: true })
+  })
+
+  it('drops a stale holder no longer assigned to the room', () => {
+    // Only Ada (0) is assigned now; prev had Grace (1) holding a chip.
+    const ONLY_ADA: RoomAssignmentMap = { 0: { roomProductId: 'double', unitIndex: 0 } }
+    const map = clampBreakfastMap(ONLY_ADA, { double: { 'bf-1': 1 } }, { 1: true })
+    expect(map).toEqual({ 0: true })
+  })
+})
+
+describe('assignBreakfastChip (landr-z59y — drag/tap reassignment)', () => {
+  const BOTH: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+  }
+
+  it('moves the single chip from Ada to Grace, keeping the count fixed at 1', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 1)
+    // Grace (1) now holds it; Ada (0) gave it up — still exactly one chip.
+    expect(next).toEqual({ 1: true })
+  })
+
+  it('is a no-op (clamped) when the target already holds a chip', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 0)
+    expect(next).toEqual({ 0: true })
+  })
+
+  it('does nothing for an unassigned target', () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 1 } }, { 0: true }, 9)
+    expect(next).toEqual({ 0: true })
+  })
+
+  it('3 people + 2 breakfasts: dropping on the third drops the highest-index holder', () => {
+    const THREE: RoomAssignmentMap = {
+      0: { roomProductId: 'triple', unitIndex: 0 },
+      1: { roomProductId: 'triple', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+    }
+    // Ada (0) + Grace (1) hold the 2 chips; give one to Linus (2).
+    const next = assignBreakfastChip(
+      THREE,
+      { triple: { 'bf-1': 2 } },
+      { 0: true, 1: true },
+      2,
+    )
+    // Linus (2) gains it; the highest-index other holder (Grace, 1) loses it.
+    expect(next).toEqual({ 0: true, 2: true })
+  })
+})
+
+describe('unitBreakfastLabel (landr-z59y — per-unit, chip-holder-driven)', () => {
+  it('returns empty when the product has no breakfast add-on', () => {
+    expect(unitBreakfastLabel([0, 1], { 0: true }, false)).toBe('')
+  })
+
+  it('returns empty when no occupant of the unit holds a chip', () => {
+    expect(unitBreakfastLabel([2, 3], { 0: true, 1: true }, true)).toBe('')
+  })
+
+  it('single-occupant unit with a chip reads "(with breakfast)"', () => {
+    expect(unitBreakfastLabel([0], { 0: true }, true)).toBe('(with breakfast)')
+  })
+
+  it('multi-occupant unit with one chip reads "(1 breakfast)"', () => {
+    expect(unitBreakfastLabel([0, 1], { 0: true }, true)).toBe('(1 breakfast)')
+  })
+
+  it('counts only THIS unit’s holders (independent of other units)', () => {
+    // Two holders in this unit -> "(2 breakfasts)"; a holder in another unit (9)
+    // is irrelevant because it is not in occupantIndices.
+    expect(unitBreakfastLabel([0, 1], { 0: true, 1: true, 9: true }, true)).toBe(
+      '(2 breakfasts)',
+    )
+  })
+
+  it('never over-reports when B > occ (label tracks real holders, not qty)', () => {
+    // Only one occupant, holding one chip -> "(with breakfast)" regardless of B.
+    expect(unitBreakfastLabel([0], { 0: true }, true)).toBe('(with breakfast)')
+  })
+})
+
+describe('resolveNameDropUnit (landr-z59y — name-drag near-miss fallthrough)', () => {
+  const UNIT: RoomUnit = {
+    roomProductId: 'double',
+    unitIndex: 0,
+    capacity: 2,
+    roomName: 'Double Room',
+  }
+  const unitOfMember = (i: number): RoomUnit | null => (i === 1 ? UNIT : null)
+
+  it('returns the unit directly when the drop resolved to a unit droppable', () => {
+    expect(resolveNameDropUnit({ unit: UNIT }, unitOfMember)).toBe(UNIT)
+  })
+
+  it('REGRESSION: a drop resolved to a nested occupant falls through to that occupant’s unit', () => {
+    // Without this, targetUnit would be undefined and onAssign would never fire.
+    expect(resolveNameDropUnit({ breakfastTarget: 1 }, unitOfMember)).toBe(UNIT)
+  })
+
+  it('returns null when over nothing assignable', () => {
+    expect(resolveNameDropUnit(null, unitOfMember)).toBeNull()
+    expect(resolveNameDropUnit({}, unitOfMember)).toBeNull()
+  })
+})
+
+describe('resolveBreakfastDropTarget (landr-z59y — breakfast-drag near-miss fallthrough)', () => {
+  const UNIT: RoomUnit = {
+    roomProductId: 'double',
+    unitIndex: 0,
+    capacity: 2,
+    roomName: 'Double Room',
+  }
+  const occupantsOf = (): number[] => [0, 1]
+
+  it('uses the occupant target directly when present', () => {
+    expect(
+      resolveBreakfastDropTarget({ breakfastTarget: 1 }, 0, { 0: true }, occupantsOf),
+    ).toBe(1)
+  })
+
+  it('maps a drop on a UNIT to an occupant who does not already hold a chip', () => {
+    // From=0 (holds the chip); over the unit -> pick occupant 1 (no chip).
+    expect(
+      resolveBreakfastDropTarget({ unit: UNIT }, 0, { 0: true }, occupantsOf),
+    ).toBe(1)
+  })
+
+  it('returns null for a no-op (target is the source)', () => {
+    expect(
+      resolveBreakfastDropTarget({ breakfastTarget: 0 }, 0, { 0: true }, occupantsOf),
+    ).toBeNull()
+  })
+
+  it('returns null when over nothing', () => {
+    expect(resolveBreakfastDropTarget(null, 0, {}, occupantsOf)).toBeNull()
   })
 })

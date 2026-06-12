@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Product } from '@/api/types'
+import type { Product, ProductGroup } from '@/api/types'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type {
   BookerDetails,
@@ -8,10 +8,15 @@ import type {
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 import {
+  buildBreadcrumb,
   deriveAccommodationMode,
+  detailsFromDraft,
+  draftFromStep,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepBefore,
   stepBeforeReview,
+  type Step,
 } from './appStepMachine'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
@@ -459,5 +464,303 @@ describe('stepAfterAccommodation — shared-double bypass (landr-ffyg.2)', () =>
     expect(next.pickupLocationId).toBeNull()
     expect(next.isSharedDouble).toBe(false)
     expect(next.accommodationMode).toBe('guiding-only')
+  })
+})
+
+// landr-d8rg.4: new steps pick-category and product-detail.
+
+function makeGroup(overrides: Partial<ProductGroup> = {}): ProductGroup {
+  return {
+    id: 'g-1',
+    slug: 'tandemfluege',
+    name: 'Tandemflüge',
+    name_localized: null,
+    description: null,
+    description_localized: null,
+    image_url: null,
+    sort_order: 10,
+    parent_id: null,
+    product_count: 2,
+    ...overrides,
+  }
+}
+
+describe('sidebarInputsForStep — new steps (landr-d8rg.4)', () => {
+  it('returns null for pick-category (no product chosen yet, no price)', () => {
+    const groups = [makeGroup(), makeGroup({ id: 'g-2', slug: 'kurse', product_count: 1 })]
+    const inputs = sidebarInputsForStep({ name: 'pick-category', groups })
+    expect(inputs).toBeNull()
+  })
+
+  it('returns null for product-detail (no date/selection committed yet — landr-hpyn)', () => {
+    const product = makeProduct()
+    const inputs = sidebarInputsForStep({ name: 'product-detail', product })
+    expect(inputs).toBeNull()
+  })
+
+  it('returns null for product-detail even when groups context is present', () => {
+    const product = makeProduct()
+    const groups = [makeGroup()]
+    const inputs = sidebarInputsForStep({ name: 'product-detail', product, groups })
+    expect(inputs).toBeNull()
+  })
+})
+
+describe('Step type completeness (landr-d8rg.4 — pick-category and product-detail exist in the Step union)', () => {
+  it('pick-category step carries the groups array', () => {
+    const groups = [makeGroup()]
+    const step = { name: 'pick-category' as const, groups }
+    expect(step.name).toBe('pick-category')
+    expect(step.groups).toHaveLength(1)
+    expect(step.groups[0]!.slug).toBe('tandemfluege')
+  })
+
+  it('product-detail step carries the product (groups is optional)', () => {
+    const product = makeProduct()
+    const step = { name: 'product-detail' as const, product }
+    expect(step.name).toBe('product-detail')
+    expect(step.product.slug).toBe('p-1')
+    // groups is optional — no groups field here
+    expect('groups' in step).toBe(false)
+  })
+
+  it('product-detail step can optionally carry groups for back-nav context', () => {
+    const product = makeProduct()
+    const groups = [makeGroup()]
+    const step = { name: 'product-detail' as const, product, groups }
+    expect(step.groups).toHaveLength(1)
+  })
+})
+
+describe('breadcrumb navigation (landr)', () => {
+  const NO_DECL = { requiresDeclarations: false }
+  const WITH_DECL = { requiresDeclarations: true }
+
+  function fillForm(overrides: Partial<Extract<Step, { name: 'fill-form' }>> = {}): Step {
+    return {
+      name: 'fill-form',
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(2),
+      companions: makeCompanions(0),
+      pickupLocationId: null,
+      accommodationRooms: [],
+      addons: [],
+      ...overrides,
+    }
+  }
+
+  it('builds [Overview, Dates, Your details, Review] for a plain product', () => {
+    const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'fill-form',
+    ])
+    expect(crumbs.map((c) => c.label)).toEqual([
+      'Overview',
+      'Dates',
+      'Your details',
+      'Review',
+    ])
+    // The current (last) crumb is non-clickable; the rest carry targets.
+    expect(crumbs.at(-1)!.current).toBe(true)
+    expect(crumbs.at(-1)!.target).toBeNull()
+    expect(crumbs.slice(0, -1).every((c) => c.target !== null)).toBe(true)
+  })
+
+  it('uses the product label for the Overview crumb when provided', () => {
+    const crumbs = buildBreadcrumb(fillForm(), {
+      ...NO_DECL,
+      productLabel: 'Tandem Flight',
+    })
+    expect(crumbs[0]!.label).toBe('Tandem Flight')
+  })
+
+  it('includes Accommodation (and skips Pickup) when a hotel was booked', () => {
+    const step = fillForm({
+      product: makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
+      hotelLocationId: 'hotel-1',
+      pickupLocationId: 'hotel-1',
+      accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
+    })
+    const crumbs = buildBreadcrumb(step, NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'pick-accommodation',
+      'fill-form',
+    ])
+    // The pickup picker was skipped on the way forward → not a crumb.
+    expect(crumbs.some((c) => c.name === 'pick-pickup')).toBe(false)
+  })
+
+  it('includes Pickup when no hotel and the product needs a pickup', () => {
+    const step = fillForm({
+      product: makeProduct({ hotel_offering: 'none', needs_pickup: true }),
+      pickupLocationId: 'loc-9',
+    })
+    const crumbs = buildBreadcrumb(step, NO_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'pick-pickup',
+      'fill-form',
+    ])
+  })
+
+  it('includes Declarations when the operator requires them', () => {
+    const crumbs = buildBreadcrumb(fillForm(), WITH_DECL)
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'declarations',
+      'fill-form',
+    ])
+    // The penultimate crumb (one step back) targets the declarations step.
+    expect(crumbs.at(-2)!.target!.name).toBe('declarations')
+  })
+
+  it('returns no crumbs for non-funnel steps (catalog/confirmation)', () => {
+    expect(buildBreadcrumb({ name: 'pick-product' }, NO_DECL)).toEqual([])
+    expect(
+      buildBreadcrumb(
+        { name: 'product-detail', product: makeProduct() },
+        NO_DECL,
+      ),
+    ).toEqual([])
+  })
+
+  it('restores the committed dates when going back from details to pick-selection', () => {
+    const detailsStep: Step = {
+      name: 'details',
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(1),
+      companions: makeCompanions(0),
+    }
+    const prev = stepBefore(detailsStep, NO_DECL)
+    expect(prev?.name).toBe('pick-selection')
+    expect(prev && 'selection' in prev ? prev.selection : null).toEqual(
+      SLOT_SELECTION,
+    )
+  })
+
+  it('the breadcrumb pick-selection target carries the selection for date restore', () => {
+    const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
+    const datesCrumb = crumbs.find((c) => c.name === 'pick-selection')!
+    const target = datesCrumb.target!
+    expect(target.name).toBe('pick-selection')
+    expect(target.name === 'pick-selection' ? target.selection : null).toEqual(
+      SLOT_SELECTION,
+    )
+  })
+})
+
+// landr-nmed: the persistent-draft helpers that survive a breadcrumb JUMP to
+// an early step (and re-seed the funnel on the way forward).
+describe('booking-draft preservation (landr-nmed)', () => {
+  function fillForm(
+    overrides: Partial<Extract<Step, { name: 'fill-form' }>> = {},
+  ): Extract<Step, { name: 'fill-form' }> {
+    return {
+      name: 'fill-form',
+      product: makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: makeParticipants(2),
+      companions: makeCompanions(1),
+      pickupLocationId: 'hotel-1',
+      accommodationRooms: [{ productId: 'room-1', quantity: 1 }],
+      addons: [{ productId: 'addon-1', quantity: 2 }],
+      hotelLocationId: 'hotel-1',
+      isSharedDouble: false,
+      accommodationMode: 'package',
+      roomAssignment: { 0: { roomProductId: 'room-1', unitIndex: 0 } },
+      // landr-z59y: which occupants hold a breakfast chip (occupant 0 does).
+      breakfastMap: { 0: true },
+      customerDeclarations: { license_valid: true },
+      customerLanguages: ['en'],
+      ...overrides,
+    }
+  }
+
+  describe('draftFromStep', () => {
+    it('captures every downstream slice the customer has entered at a deep step', () => {
+      const draft = draftFromStep(fillForm())
+      expect(draft).toBeDefined()
+      expect(draft!.booker).toEqual(ADA)
+      expect(draft!.participants).toHaveLength(2)
+      expect(draft!.companions).toHaveLength(1)
+      expect(draft!.hotelLocationId).toBe('hotel-1')
+      expect(draft!.accommodationRooms).toEqual([
+        { productId: 'room-1', quantity: 1 },
+      ])
+      expect(draft!.addons).toEqual([{ productId: 'addon-1', quantity: 2 }])
+      expect(draft!.roomAssignment).toEqual({
+        0: { roomProductId: 'room-1', unitIndex: 0 },
+      })
+      // landr-z59y: the breakfast-chip holders survive a breadcrumb JUMP, so
+      // a customer who placed breakfast on a specific person keeps it on the
+      // way forward (re-clamped against the restored rooms in AccommodationStep).
+      expect(draft!.breakfastMap).toEqual({ 0: true })
+      expect(draft!.customerDeclarations).toEqual({ license_valid: true })
+      expect(draft!.customerLanguages).toEqual(['en'])
+    })
+
+    it('captures booker + participants from a mid-funnel details step', () => {
+      const draft = draftFromStep({
+        name: 'details',
+        product: makeProduct(),
+        selection: SLOT_SELECTION,
+        booker: ADA,
+        participants: makeParticipants(1),
+        companions: makeCompanions(0),
+      })
+      expect(draft).toBeDefined()
+      expect(draft!.booker).toEqual(ADA)
+      expect(draft!.participants).toHaveLength(1)
+    })
+
+    it('returns undefined for early steps that carry no entered data', () => {
+      expect(draftFromStep({ name: 'pick-product' })).toBeUndefined()
+      expect(
+        draftFromStep({ name: 'product-detail', product: makeProduct() }),
+      ).toBeUndefined()
+      expect(
+        draftFromStep({
+          name: 'pick-selection',
+          product: makeProduct(),
+          selection: SLOT_SELECTION,
+        }),
+      ).toBeUndefined()
+    })
+  })
+
+  describe('detailsFromDraft', () => {
+    it('re-seeds the details step with booker + participants + companions from the draft', () => {
+      const draft = draftFromStep(fillForm())!
+      const next = detailsFromDraft(makeProduct(), SLOT_SELECTION, draft)
+      expect(next.name).toBe('details')
+      expect(next.booker).toEqual(ADA)
+      expect(next.participants).toHaveLength(2)
+      expect(next.companions).toHaveLength(1)
+      // The (possibly edited) selection is the one passed in, not the draft's.
+      expect(next.selection).toEqual(SLOT_SELECTION)
+    })
+
+    it('yields an empty details step on the initial forward visit (no draft)', () => {
+      const next = detailsFromDraft(makeProduct(), SLOT_SELECTION, undefined)
+      expect(next.name).toBe('details')
+      expect(next.booker).toBeUndefined()
+      expect(next.participants).toBeUndefined()
+      expect(next.companions).toBeUndefined()
+    })
   })
 })

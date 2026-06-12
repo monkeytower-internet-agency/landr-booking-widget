@@ -596,3 +596,77 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     expect(names?.textContent).toMatch(/\+ 3 others/)
   })
 })
+
+// landr-hpyn: a fixed-window course with zero upcoming windows rendered
+// "No upcoming windows" next to a €450 Booking overview — the estimate
+// endpoint returns the base price for selected_days=[]. The sidebar must
+// neither fetch nor show a price until at least one day is selected.
+describe('PriceSidebar empty selection (landr-hpyn)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function renderSidebar(selectedDays: string[]) {
+    return render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct({ service_time_shape: 'fixed_window' })}
+        selectedDays={selectedDays}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        debounceMs={0}
+      />,
+    )
+  }
+
+  it('does not fetch an estimate and shows the pick-prompt when nothing is selected', async () => {
+    const spy = vi
+      .spyOn(client, 'estimateBookingPrice')
+      .mockResolvedValue(SAMPLE)
+    renderSidebar([])
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    expect(desktop).toHaveTextContent('Pick your options to see the price.')
+    // Mobile collapsed bar shows the em-dash placeholder, not a number.
+    expect(screen.getByTestId('price-sidebar-mobile')).toHaveTextContent('—')
+    // Let the (zero-ms) debounce and any microtasks flush, then verify
+    // the estimate endpoint was never hit with the empty selection.
+    await new Promise((r) => setTimeout(r, 20))
+    expect(spy).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('price-sidebar-booking-total'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('clears the previously fetched price when the selection is emptied again', async () => {
+    const spy = vi
+      .spyOn(client, 'estimateBookingPrice')
+      .mockResolvedValue(SAMPLE)
+    const { rerender } = renderSidebar(['2026-07-04'])
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-booking-total').length,
+      ).toBeGreaterThan(0)
+    })
+    // Customer deselects the last day: the hook keeps its previous data
+    // for stale-while-loading, but the sidebar must NOT keep showing it.
+    rerender(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct({ service_time_shape: 'fixed_window' })}
+        selectedDays={[]}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        debounceMs={0}
+      />,
+    )
+    expect(
+      screen.queryByTestId('price-sidebar-booking-total'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('price-sidebar-desktop'),
+    ).toHaveTextContent('Pick your options to see the price.')
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+})

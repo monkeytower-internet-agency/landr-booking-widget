@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HttpError, submitBooking } from '@/api/client'
+import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
 import type {
   AvailabilitySlot,
   Companion,
@@ -11,11 +11,13 @@ import type {
 import {
   deriveStayWindow,
   stayNightIsos,
+  type BreakfastMap,
   type OccupantAgeMap,
   type RoomAssignmentMap,
   type RoomSelection,
 } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
+import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import type {
   BookerDetails,
@@ -24,8 +26,27 @@ import type {
 } from './detailsTypes'
 
 export type BookingSelection =
-  | { kind: 'slot'; slot: AvailabilitySlot }
-  | { kind: 'days'; selectedDays: string[] }
+  | {
+      kind: 'slot'
+      slot: AvailabilitySlot
+      /**
+       * landr-aoak.2 [S3]: set when an operator (staff mode) force-booked a
+       * full / blocked fixed-date window. Carried through to the submit adapter
+       * which raises the booking-level ignore_capacity flag. Undefined / false
+       * for every normal customer selection (the byte-identical path).
+       */
+      forced?: boolean
+    }
+  | {
+      kind: 'days'
+      selectedDays: string[]
+      /**
+       * landr-aoak.2 [S3]: the subset of selectedDays the operator force-booked
+       * past zero availability (blocked / sold-out days). Empty / undefined for
+       * normal customer selections. Drives the submit adapter's force flag.
+       */
+      forcedDays?: string[]
+    }
 
 import { Button } from '@/components/ui/button'
 import {
@@ -35,8 +56,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
+import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
+import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import {
+  augmentStaffSubmit,
+  isStaffSubmitBody,
+  type PriceOverride,
+} from './staffSubmitAdapter'
 
 interface Props {
   widgetToken: string
@@ -131,6 +161,30 @@ interface Props {
    * WIRE CONTRACT (PINNED — landr-doam.2 on the API builds the same shape).
    */
   occupantAgeMap?: OccupantAgeMap
+  /**
+   * landr-gb2f.5: raw per-room add-on selection map from AccommodationStep.
+   * Keyed by roomProductId → { addon_product_id → qty }. Used in the review
+   * to show per-room breakfast status ("Single Room 1 — with breakfast" etc).
+   * Absent / empty → no per-room breakfast section rendered (guiding-only,
+   * shared-double, or no add-ons configured).
+   */
+  perRoomAddons?: PerRoomAddons
+  /**
+   * landr-gb2f.5: room product display names from AccommodationStep, keyed
+   * by product_id. Used to label room units as "Single Room 1 — …" in the
+   * per-room breakfast section. Falls back to the product_id when absent.
+   */
+  roomProductNames?: Record<string, string>
+  /**
+   * landr-a4fy: per-occupant breakfast flag map from AccommodationStep
+   * (memberIndex → boolean). Unified party index space (participants 0..P-1,
+   * companions P..P+C-1). When present, each Participant/Companion in the
+   * submit body carries has_breakfast=true/false. Also drives the review-
+   * screen breakfast display (replaces the index-order heuristic when present).
+   * Absent / empty → no has_breakfast sent; review falls back to the
+   * heuristic (backward-compatible).
+   */
+  breakfastMap?: BreakfastMap
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -235,6 +289,9 @@ export function BookingForm({
   isSharedDouble = false,
   roomAssignment,
   occupantAgeMap = {},
+  perRoomAddons,
+  roomProductNames,
+  breakfastMap = {},
   onBack,
   onConfirmed,
 }: Props) {
@@ -242,6 +299,26 @@ export function BookingForm({
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
   const timezone = browserTimezone()
+
+  // landr-aoak.2 [S3]: staff/operator mode. When inactive, none of the staff
+  // branches below render and the submit body is byte-identical to today.
+  const staff = useStaffMode()
+  const canOverridePrice =
+    staff.active && staff.powers.includes('price_override')
+  // Operator price-override inputs (amount + reason). Empty strings ⇒ no
+  // override. Only ever shown / read in staff mode.
+  const [overrideAmount, setOverrideAmount] = useState('')
+  const [overrideReason, setOverrideReason] = useState('')
+
+  // landr-aoak.2: did the operator force-book past capacity? Derived from the
+  // forced markers the pickers attached to the selection. Always false for a
+  // normal customer selection (no forced fields present).
+  const forced =
+    selection.kind === 'slot'
+      ? selection.forced === true
+      : (selection.forcedDays?.length ?? 0) > 0
+  const forcedDays =
+    selection.kind === 'days' ? (selection.forcedDays ?? []) : []
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -252,6 +329,80 @@ export function BookingForm({
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
   const stay = hasRooms ? deriveStayWindow(selectedDays) : null
   const showTimezone = product.service_time_shape === 'time_slot'
+
+  // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
+  // breakdown for the review. Only rendered when we have rooms AND a
+  // perRoomAddons map (i.e. the customer booked in package mode with
+  // add-ons configured).
+  //
+  // landr-a4fy: when breakfastMap is populated (per-occupant flags from
+  // the room-assignment step), derive per-unit hasBreakfast from the
+  // occupants of that unit: a unit "has breakfast" when ANY assigned
+  // occupant has has_breakfast=true. This is the correct authoritative
+  // source once the user has toggled.
+  //
+  // Fallback: when breakfastMap is empty (legacy / pre-a4fy path), use
+  // the index-order heuristic (first totalAddonQty units get breakfast).
+  // Skipped when perRoomAddons is absent or empty (guiding-only,
+  // shared-double, or no add-ons configured).
+  const perRoomBreakfastRows: {
+    label: string
+    hasBreakfast: boolean
+    occupantNames: string[]
+  }[] = (() => {
+    if (!perRoomAddons || !hasRooms || !accommodationRooms) return []
+    // Only show this section when at least one room type has any add-on qty.
+    const hasAnyAddons = Object.values(perRoomAddons).some((qtys) =>
+      Object.values(qtys).some((q) => q > 0),
+    )
+    if (!hasAnyAddons) return []
+
+    const allPartyNames = [
+      ...participants.map((p) => p.first_name || '?'),
+      ...companions.map((c) => c.first_name || '?'),
+    ]
+    const hasBreakfastMapData = Object.keys(breakfastMap).length > 0
+    const rows: { label: string; hasBreakfast: boolean; occupantNames: string[] }[] = []
+    for (const room of accommodationRooms) {
+      const roomName = roomProductNames?.[room.productId] ?? room.productId
+      const roomAddonQtys = perRoomAddons[room.productId] ?? {}
+      // Sum total add-on qty for this room type (breakfast is the only
+      // per-room add-on today; if more are added we sum all of them).
+      const totalAddonQty = Object.values(roomAddonQtys).reduce((a, b) => a + b, 0)
+      for (let unitIndex = 0; unitIndex < room.quantity; unitIndex += 1) {
+        // Build unit label: "Single Room 1" (1-based) or "Single Room" when qty=1.
+        const label =
+          room.quantity > 1 ? `${roomName} ${unitIndex + 1}` : roomName
+        // Collect occupant first names and member indices from the assignment map.
+        const occupantNames: string[] = []
+        const occupantIndices: number[] = []
+        if (roomAssignment) {
+          for (const [memberIdxStr, entry] of Object.entries(roomAssignment)) {
+            if (
+              entry.roomProductId === room.productId &&
+              entry.unitIndex === unitIndex
+            ) {
+              const memberIdx = Number(memberIdxStr)
+              const name = allPartyNames[memberIdx]
+              if (name) occupantNames.push(name)
+              occupantIndices.push(memberIdx)
+            }
+          }
+        }
+        // landr-a4fy: derive hasBreakfast from the occupant breakfast flags
+        // when available; fall back to the index-order heuristic otherwise.
+        let hasBreakfast: boolean
+        if (hasBreakfastMapData) {
+          hasBreakfast = occupantIndices.some((idx) => breakfastMap[idx] === true)
+        } else {
+          // Distribute breakfast sequentially: first totalAddonQty units get it.
+          hasBreakfast = unitIndex < totalAddonQty
+        }
+        rows.push({ label, hasBreakfast, occupantNames })
+      }
+    }
+    return rows
+  })()
 
   const onConfirm = async () => {
     setServerError(null)
@@ -313,6 +464,9 @@ export function BookingForm({
           // Absent/null = adult (default). Only 'child' sends occupant_age.
           const ageEntry = occupantAgeMap[idx]
           const isChild = ageEntry?.band === 'child'
+          // landr-a4fy: per-occupant breakfast flag. Omit when false/absent
+          // to keep the payload compact (API default = false).
+          const hasBreakfast = breakfastMap[idx] === true
           return {
             first_name: p.first_name,
             last_name: p.last_name || null,
@@ -340,6 +494,9 @@ export function BookingForm({
                   occupant_age: ageEntry.age ?? null,
                 }
               : {}),
+            // landr-a4fy wire field (PINNED contract):
+            // omit when false to keep the payload compact.
+            ...(hasBreakfast ? { has_breakfast: true as const } : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -358,6 +515,8 @@ export function BookingForm({
                 // landr-doam.1: per-occupant age band + age for companions.
                 const ageEntry = occupantAgeMap[memberIdx]
                 const isChild = ageEntry?.band === 'child'
+                // landr-a4fy: per-occupant breakfast flag for companions.
+                const hasBreakfast = breakfastMap[memberIdx] === true
                 return {
                   first_name: c.first_name,
                   last_name: c.last_name || null,
@@ -373,6 +532,9 @@ export function BookingForm({
                         occupant_age: ageEntry.age ?? null,
                       }
                     : {}),
+                  // landr-a4fy wire field (PINNED contract):
+                  // omit when false to keep the payload compact.
+                  ...(hasBreakfast ? { has_breakfast: true as const } : {}),
                   // landr-doam.1 scope-add: companion kind (PINNED contract).
                   // Omit when 'guest' (the API default) to keep payload compact.
                   ...(c.companion_kind === 'separate_guiding'
@@ -406,10 +568,66 @@ export function BookingForm({
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
       }
-      // landr-7zc5.3: pass preview_token so the API can accept draft
-      // products during operator preview. The option is harmlessly
-      // ignored when previewToken is undefined (normal customer flow).
-      const result = await submitBooking(body, previewToken ? { previewToken } : undefined)
+      // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
+      // route the whole body through the SINGLE staff adapter. With no staff
+      // session augmentStaffSubmit returns `body` unchanged (byte-identical).
+      let priceOverride: PriceOverride | null = null
+      if (canOverridePrice && overrideAmount.trim() !== '') {
+        const grossTotal = Number(overrideAmount)
+        if (!Number.isFinite(grossTotal) || grossTotal < 0) {
+          setServerError('Override price must be a non-negative number.')
+          setSubmitting(false)
+          return
+        }
+        if (overrideReason.trim() === '') {
+          setServerError('Please give a reason for the price override.')
+          setSubmitting(false)
+          return
+        }
+        priceOverride = { grossTotal, reason: overrideReason.trim() }
+      }
+      const submitBody = augmentStaffSubmit(body, {
+        session: staff,
+        forced,
+        priceOverride,
+      })
+      // landr-aoak.4: a staff submit goes to the SEPARATE operator-scoped staff
+      // endpoint (POST /api/staff/operators/{operator_id}/bookings/submit) where
+      // the signed staff_session unlocks the operator powers. The public
+      // endpoint silently drops force-book / price-override, so routing a staff
+      // body there was a no-op of the whole feature. A non-staff body stays on
+      // the public path, byte-identically to before.
+      let result: SubmitBookingResponse
+      if (isStaffSubmitBody(submitBody)) {
+        if (!staff.operatorId) {
+          // The staff endpoint is operator-path-scoped; without the operator id
+          // we cannot route it. Fail loudly rather than silently downgrading to
+          // the public path (which would drop the operator powers).
+          setServerError(
+            'Could not determine the operator for this staff booking. Reopen the booking modal and try again.',
+          )
+          setSubmitting(false)
+          return
+        }
+        result = await submitStaffBooking(staff.operatorId, submitBody)
+      } else {
+        // landr-7zc5.3: pass preview_token so the API can accept draft
+        // products during operator preview. The option is harmlessly
+        // ignored when previewToken is undefined (normal customer flow).
+        result = await submitBooking(
+          submitBody,
+          previewToken ? { previewToken } : undefined,
+        )
+      }
+      // landr-aoak.2 [S3].5: notify the embedding dashboard parent so it can
+      // refetch + open the new booking. Only fires in staff mode (active
+      // session); a normal customer embed never posts to its parent.
+      if (staff.active && typeof window !== 'undefined' && window.parent !== window) {
+        window.parent.postMessage(
+          { type: 'landr:booking-created', booking_id: result.booking_id },
+          resolveParentTargetOrigin(),
+        )
+      }
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
@@ -433,7 +651,7 @@ export function BookingForm({
         </CardDescription>
         {stay && stay.checkInIso && stay.checkOutIso ? (
           <div
-            className="bg-muted/40 mt-2 rounded-md border px-3 py-2 text-sm"
+            className="mt-2 rounded-lg border bg-surface-well px-3 py-2 text-sm shadow-well"
             data-testid="hotel-stay-block"
           >
             {/* landr-8yaz: weekday-prefixed dates ("Sun 24 May → Wed 28 May,
@@ -450,8 +668,13 @@ export function BookingForm({
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {/* Booker summary — pulled from DetailsStep upstream. */}
-        <section data-testid="review-booker">
+        {/* Booker summary — pulled from DetailsStep upstream.
+            landr-3mo4: review sections are raised sub-cards so each block of
+            the summary reads as a discrete, scannable card. */}
+        <section
+          data-testid="review-booker"
+          className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+        >
           <h3 className="mb-2 text-sm font-semibold">Your contact</h3>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
             <dt className="text-muted-foreground">Name</dt>
@@ -471,7 +694,10 @@ export function BookingForm({
 
         {/* Participants summary. participants[0] mirrors the booker, so
             we render the heading + a clear row-per-person list. */}
-        <section data-testid="review-participants">
+        <section
+          data-testid="review-participants"
+          className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+        >
           <h3 className="mb-2 text-sm font-semibold">
             Participants ({participants.length})
           </h3>
@@ -501,10 +727,15 @@ export function BookingForm({
           </ol>
         </section>
 
-        {/* landr-87n9.3: non-guiding companions summary. Rendered only when
-            the customer added someone in the "Others joining" section. */}
+        {/* landr-87n9.3 / landr-wv0m: non-guiding companions summary. Rendered
+            only when the customer added someone in the "Others joining" section.
+            companion_kind distinguishes a non-participating guest from a
+            self-paying activity participant (separate_guiding). */}
         {companions.length > 0 ? (
-          <section data-testid="review-companions">
+          <section
+            data-testid="review-companions"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
             <h3 className="mb-2 text-sm font-semibold">
               Others joining ({companions.length})
             </h3>
@@ -518,9 +749,21 @@ export function BookingForm({
                     <span className="font-medium">
                       {idx + 1}. {c.first_name} {c.last_name}
                     </span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      guest
-                    </span>
+                    {c.companion_kind === 'separate_guiding' ? (
+                      <span
+                        className="ml-2 text-xs text-primary font-medium"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        joining the activity (separate guiding)
+                      </span>
+                    ) : (
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-testid={`companion-kind-label-${idx}`}
+                      >
+                        not doing the activity
+                      </span>
+                    )}
                     {c.email ? (
                       <span className="ml-2 text-xs text-muted-foreground break-all">
                         {c.email}
@@ -535,6 +778,113 @@ export function BookingForm({
                 </li>
               ))}
             </ol>
+          </section>
+        ) : null}
+
+        {/* landr-gb2f.4 / gb2f.5: per-room breakfast summary. Shown when the
+            customer booked rooms in package mode with add-ons (typically
+            breakfast). Lists each room unit with its breakfast status and,
+            when a room assignment is present, the occupants so the booker
+            can confirm the pairing ("Single Room 1 — with breakfast · Ada,
+            Grace"). Placed here (after the party roster, before Confirm) so
+            it reads naturally alongside the participant list. */}
+        {perRoomBreakfastRows.length > 0 ? (
+          <section
+            data-testid="review-per-room-breakfast"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
+            <h3 className="mb-2 text-sm font-semibold">Room breakfast</h3>
+            <ol className="space-y-1 text-sm">
+              {perRoomBreakfastRows.map((row, idx) => (
+                <li
+                  key={`room-unit-${idx}`}
+                  className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
+                >
+                  <span>
+                    <span className="font-medium">{row.label}</span>
+                    <span
+                      className={[
+                        'ml-2 text-xs font-medium',
+                        row.hasBreakfast
+                          ? 'text-primary'
+                          : 'text-muted-foreground',
+                      ].join(' ')}
+                      data-testid={`room-breakfast-status-${idx}`}
+                    >
+                      {row.hasBreakfast ? 'with breakfast' : 'without breakfast'}
+                    </span>
+                    {row.occupantNames.length > 0 ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        · {row.occupantNames.join(', ')}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {/* landr-aoak.2 [S3]: force-book summary — shown only when the operator
+            (staff mode) pushed this booking past capacity. Makes the override
+            explicit on the review screen before Confirm. */}
+        {forced ? (
+          <section
+            data-testid="review-forced"
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <OperatorOverrideBadge />
+            </div>
+            <p className="text-amber-900 dark:text-amber-100">
+              {forcedDays.length > 0
+                ? `${forcedDays.length} day${forcedDays.length === 1 ? '' : 's'} booked past capacity.`
+                : 'This window was booked past capacity.'}{' '}
+              Capacity will be exceeded for this booking.
+            </p>
+          </section>
+        ) : null}
+
+        {/* landr-aoak.2 [S3].3: operator price-override (staff mode only).
+            Sets override_gross_total + override_reason via the submit adapter.
+            Hidden entirely for normal customers. */}
+        {canOverridePrice ? (
+          <section
+            data-testid="staff-price-override"
+            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+          >
+            <h3 className="mb-2 text-sm font-semibold">Override price (operator)</h3>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Leave blank to use the calculated total. When set, this gross total
+              replaces the computed price for this booking.
+            </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="override-amount">New gross total</Label>
+                <Input
+                  id="override-amount"
+                  data-testid="override-amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 250.00"
+                  value={overrideAmount}
+                  onChange={(e) => setOverrideAmount(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="override-reason">Reason</Label>
+                <Input
+                  id="override-reason"
+                  data-testid="override-reason"
+                  type="text"
+                  placeholder="Reason for the override (required when set)"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+              </div>
+            </div>
           </section>
         ) : null}
 

@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import { listProducts } from '@/api/client'
+import { explainFetchError, listProducts } from '@/api/client'
 import type { Product } from '@/api/types'
-import { Button } from '@/components/ui/button'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { showDateModelDetail } from '@/lib/tier'
+import { isBookable } from '@/components/booking/bookability'
+import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
+import { ProductCard } from '@/components/booking/browse/ProductCard'
+import { ProductRow } from '@/components/booking/browse/ProductRow'
+import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
+import { ViewToggle } from '@/components/booking/browse/ViewToggle'
+import { useViewMode } from '@/components/booking/browse/useViewMode'
 
 interface Props {
   operatorToken: string
@@ -22,13 +27,38 @@ interface Props {
   previewToken?: string
   productGroup?: string
   preselectSlug?: string
+  /**
+   * landr-7jgo: when true, sold-out (non-bookable) products are SHOWN in the
+   * catalogue overview as informational "Fully booked" cards (no Select CTA)
+   * rather than hidden. Default false: sold-out products are hidden entirely.
+   * Driven by the embed's `show_sold_out=true` param so an operator can opt a
+   * given embed into showing them.
+   */
+  showSoldOut?: boolean
   onSelect: (product: Product) => void
+  /**
+   * landr-7jgo: a single-product deep link (?product=<slug>) that resolved to
+   * a SOLD-OUT product. We never auto-select it (there's nothing to pick), and
+   * we never silently drop it either — the deep-linked product is ALWAYS
+   * rendered, just as "Fully booked". App handles that standalone state.
+   */
+  onPreselectSoldOut?: (product: Product) => void
 }
 
-export function ProductList({ operatorToken, previewToken, productGroup, preselectSlug, onSelect }: Props) {
+export function ProductList({
+  operatorToken,
+  previewToken,
+  productGroup,
+  preselectSlug,
+  showSoldOut = false,
+  onSelect,
+  onPreselectSoldOut,
+}: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [view, setView] = useViewMode()
   const locale = browserLocale()
+  const showDateModel = showDateModelDetail()
 
   useEffect(() => {
     let cancelled = false
@@ -42,17 +72,34 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
         setProducts(list)
         if (preselectSlug) {
           const match = list.find((p) => p.slug === preselectSlug)
-          if (match) onSelect(match)
+          if (match) {
+            // landr-7jgo: a deep link ALWAYS surfaces its product. When it's
+            // bookable we drop straight into the picker (existing behaviour);
+            // when it's sold out we hand it to App's "Fully booked" state
+            // instead of auto-selecting into a picker with no dates.
+            if (isBookable(match)) {
+              onSelect(match)
+            } else {
+              onPreselectSoldOut?.(match)
+            }
+          }
         }
       } catch (err) {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : String(err))
+        setError(explainFetchError(err))
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [operatorToken, previewToken, productGroup, preselectSlug, onSelect])
+  }, [
+    operatorToken,
+    previewToken,
+    productGroup,
+    preselectSlug,
+    onSelect,
+    onPreselectSoldOut,
+  ])
 
   if (error) {
     return (
@@ -66,20 +113,29 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
   }
 
   if (!products) {
+    // Skeletons matching the active layout while the (unchanged) fetch runs.
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Loading…</CardTitle>
-        </CardHeader>
-      </Card>
+      <div className="flex flex-col gap-4">
+        <span className="sr-only" role="status">
+          Loading products…
+        </span>
+        <ProductSkeleton view={view} />
+      </div>
     )
   }
 
-  if (products.length === 0) {
+  // landr-7jgo: split bookable vs sold-out. Bookable products always show.
+  // Sold-out products are HIDDEN by default and only rendered (as "Fully
+  // booked" cards, no CTA) when the embed opted in via show_sold_out=true.
+  const bookable = products.filter((p) => isBookable(p))
+  const soldOut = showSoldOut ? products.filter((p) => !isBookable(p)) : []
+  const visible = [...bookable, ...soldOut]
+
+  if (visible.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No products available right now.</CardTitle>
+          <CardTitle>No products in this category.</CardTitle>
           <CardDescription>Please check back later.</CardDescription>
         </CardHeader>
       </Card>
@@ -87,58 +143,64 @@ export function ProductList({ operatorToken, previewToken, productGroup, presele
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {products.map((product) => {
-        const name = pickLocalized(product.name, product.name_localized, locale)
-        const description = pickLocalized(
-          product.short_description,
-          product.short_description_localized,
-          locale,
-        )
-        const isDraft = product.is_publicly_listed === false
-        return (
-          <Card key={product.product_id} className="flex flex-col">
-            <CardHeader>
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle>{name}</CardTitle>
-                {/*
-                  landr-7zc5.3: Draft badge — visible only in preview mode
-                  (is_publicly_listed=false means the operator hasn't
-                  published this product yet). Customers never see this
-                  because live embeds never have a preview_token in the URL
-                  and the API never returns drafts without one.
-                */}
-                {isDraft ? (
-                  <span
-                    className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
-                    data-testid="draft-badge"
-                  >
-                    Draft — preview
-                  </span>
-                ) : null}
-              </div>
-              {description ? <CardDescription>{description}</CardDescription> : null}
-            </CardHeader>
-            {product.description ? (
-              <CardContent className="text-sm text-foreground [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-2 [&_p]:leading-relaxed last:[&_p]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-primary [&_a]:underline">
-                <ReactMarkdown>{product.description}</ReactMarkdown>
-              </CardContent>
-            ) : null}
-            <CardContent className="mt-auto flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {product.duration_minutes
-                  ? `${product.duration_minutes} min`
-                  : product.product_kind === 'service'
-                    ? (product.service_time_shape ?? 'service').replace('_', ' ')
-                    : product.product_kind.replace('_', ' ')}
-              </span>
-              <Button type="button" onClick={() => onSelect(product)}>
-                Select
-              </Button>
-            </CardContent>
-          </Card>
-        )
-      })}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end">
+        <ViewToggle value={view} onChange={setView} />
+      </div>
+
+      <div
+        className={
+          view === 'grid' ? 'grid gap-4 sm:grid-cols-2' : 'flex flex-col gap-3'
+        }
+        data-testid={`product-${view}`}
+      >
+        {visible.map((product) => {
+          // landr-7jgo: sold-out card — informational only, no picker / CTA.
+          // Only reachable here when showSoldOut is true (soldOut is empty
+          // otherwise), so we never hide a bookable product behind this branch.
+          // Reused in BOTH layouts so the "Fully booked" contract (badge, no
+          // Select) holds whether the catalogue is in grid or list view.
+          if (!isBookable(product)) {
+            const name = pickLocalized(
+              product.name,
+              product.name_localized,
+              locale,
+            )
+            const description =
+              pickLocalized(
+                product.short_description,
+                product.short_description_localized,
+                locale,
+              ) || null
+            return (
+              <FullyBookedNotice
+                key={product.product_id}
+                name={name}
+                description={description}
+                compact
+              />
+            )
+          }
+
+          return view === 'grid' ? (
+            <ProductCard
+              key={product.product_id}
+              product={product}
+              locale={locale}
+              showDateModel={showDateModel}
+              onSelect={onSelect}
+            />
+          ) : (
+            <ProductRow
+              key={product.product_id}
+              product={product}
+              locale={locale}
+              showDateModel={showDateModel}
+              onSelect={onSelect}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }

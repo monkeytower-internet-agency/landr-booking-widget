@@ -37,6 +37,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { useVariant } from '@/lib/variant'
+import { cn } from '@/lib/utils'
 
 export interface DeclarationItem {
   /** Stable machine key, stored in customer_declarations JSONB. */
@@ -93,6 +95,7 @@ export function DeclarationsStep({
   onBack,
   onConfirm,
 }: Props) {
+  const { tokens } = useVariant()
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     for (const item of declarationItems) {
@@ -164,23 +167,39 @@ export function DeclarationsStep({
           <p className="text-xs text-muted-foreground">
             All boxes must be checked to proceed.
           </p>
-          <div className="flex flex-col gap-3">
-            {declarationItems.map((item) => (
-              <div key={item.key} className="flex items-start gap-3">
-                <Checkbox
-                  id={`decl-${item.key}`}
-                  checked={checked[item.key] === true}
-                  onCheckedChange={() => toggleDeclaration(item.key)}
-                  data-testid={`decl-checkbox-${item.key}`}
-                />
-                <Label
-                  htmlFor={`decl-${item.key}`}
-                  className="text-sm leading-snug cursor-pointer"
+          <div className="flex flex-col gap-2.5">
+            {declarationItems.map((item) => {
+              const isChecked = checked[item.key] === true
+              return (
+                // landr-3mo4: each declaration is a tappable row-card. A
+                // confirmed row picks up the shared brand-tint + ring so the
+                // customer sees at a glance which boxes are done.
+                <div
+                  key={item.key}
+                  className={cn(
+                    'flex items-start gap-3 border p-3 transition-[background-color,border-color]',
+                    tokens.optionCardRadius,
+                    isChecked
+                      ? tokens.optionSelected
+                      : 'border-border bg-surface-raised shadow-elev-1',
+                  )}
                 >
-                  {item.label}
-                </Label>
-              </div>
-            ))}
+                  <Checkbox
+                    id={`decl-${item.key}`}
+                    checked={isChecked}
+                    onCheckedChange={() => toggleDeclaration(item.key)}
+                    data-testid={`decl-checkbox-${item.key}`}
+                    className="mt-0.5"
+                  />
+                  <Label
+                    htmlFor={`decl-${item.key}`}
+                    className="text-sm leading-snug cursor-pointer"
+                  >
+                    {item.label}
+                  </Label>
+                </div>
+              )
+            })}
           </div>
         </fieldset>
 
@@ -230,7 +249,7 @@ export function DeclarationsStep({
               onChange={(e) => setOtherLanguages(e.target.value)}
               placeholder="e.g. Zulu, Russian"
               data-testid="other-languages-input"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
         </fieldset>
