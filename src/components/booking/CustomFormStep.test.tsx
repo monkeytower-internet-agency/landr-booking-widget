@@ -800,43 +800,116 @@ describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
   })
 })
 
-// landr — the `language` field_type must render as a SELECTABLE LIST (chips),
-// not a free-text input. (Regression: it was lumped with `text` and rendered
-// a free field; the para42 seed uses field_type='language' with options.)
-describe('CustomFormStep — language field renders as a picker', () => {
-  it('renders selectable chips (not a text input) and submits the chosen code', async () => {
-    mocks.getProductFlow.mockResolvedValue({
-      modules: [
-        {
-          kind: 'custom_form',
-          position: 0,
-          form: {
-            key: 'lang_form',
-            version: 1,
-            name: 'Language',
-            name_localized: null,
-            fields: [
-              {
-                key: 'language',
-                field_type: 'language',
-                label: 'Spoken language',
-                label_localized: null,
-                help_text: null,
-                help_text_localized: null,
-                required: true,
-                position: 0,
-                options: [
-                  { value: 'en', label: 'English', label_localized: null },
-                  { value: 'de', label: 'Deutsch', label_localized: null },
-                ],
-                validation: null,
-                visibility_rule: null,
-              },
-            ],
-          },
+// landr — the `language` field_type (WITH options) must render as a RANKED,
+// draggable, MULTI-SELECT picker: the customer ticks every language they speak
+// and drags them into preference order. The submitted value is the ARRAY of
+// selected codes in top-down order (the first is the preferred language the
+// backend uses for the email locale). The no-options branch stays a free-text
+// <input> (covered by App.test.tsx's declarationsFlow fixture, options: null).
+function langFlow(required = true) {
+  return {
+    modules: [
+      {
+        kind: 'custom_form' as const,
+        position: 0,
+        form: {
+          key: 'lang_form',
+          version: 1,
+          name: 'Language',
+          name_localized: null,
+          fields: [
+            {
+              key: 'language',
+              field_type: 'language' as const,
+              label: 'Spoken languages',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required,
+              position: 0,
+              options: [
+                { value: 'en', label: 'English', label_localized: null },
+                { value: 'de', label: 'Deutsch', label_localized: null },
+                { value: 'es', label: 'Español', label_localized: null },
+              ],
+              validation: null,
+              visibility_rule: null,
+            },
+          ],
         },
-      ],
+      },
+    ],
+  }
+}
+
+function renderLangStep(onConfirm = vi.fn()) {
+  render(
+    <CustomFormStep
+      operatorToken="tok"
+      productId="p1"
+      formKey="lang_form"
+      productName="Tandem"
+      onBack={vi.fn()}
+      onConfirm={onConfirm}
+    />,
+  )
+  return onConfirm
+}
+
+describe('CustomFormStep — ranked language picker', () => {
+  it('renders a draggable multi-select picker (not a text input) and submits an array of ticked codes', async () => {
+    mocks.getProductFlow.mockResolvedValue(langFlow())
+    const onConfirm = renderLangStep()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy()
     })
+    // A row exists per option — this is a list, NOT a single free-text <input>.
+    expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy()
+    expect(screen.getByTestId('cf-lang-row-de')).toBeTruthy()
+    expect(screen.getByTestId('cf-lang-row-es')).toBeTruthy()
+    expect(screen.getByTestId('cf-field-language').tagName).not.toBe('INPUT')
+
+    // Tick TWO languages.
+    fireEvent.click(screen.getByTestId('cf-lang-check-en'))
+    fireEvent.click(screen.getByTestId('cf-lang-check-de'))
+    fireEvent.click(screen.getByTestId('cf-submit'))
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    // The submitted answer is an ARRAY of the ticked codes (order = top-down).
+    expect(Array.isArray(entry.answers.language)).toBe(true)
+    expect(entry.answers.language).toEqual(['en', 'de'])
+  })
+
+  it('blocks submit when a required language picker has nothing ticked, then allows it after one tick', async () => {
+    mocks.getProductFlow.mockResolvedValue(langFlow(true))
+    const onConfirm = renderLangStep()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-submit')).toBeTruthy()
+    })
+    // Nothing ticked → empty array counts as missing for a required field.
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-error-language')).toBeTruthy()
+    })
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    // Tick one → the error clears on change and submit succeeds.
+    fireEvent.click(screen.getByTestId('cf-lang-check-es'))
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.language).toEqual(['es'])
+  })
+
+  it('seeds the picker order + selection from initialAnswers (back-nav restoration)', async () => {
+    mocks.getProductFlow.mockResolvedValue(langFlow())
     const onConfirm = vi.fn()
     render(
       <CustomFormStep
@@ -844,23 +917,31 @@ describe('CustomFormStep — language field renders as a picker', () => {
         productId="p1"
         formKey="lang_form"
         productName="Tandem"
+        initialAnswers={{ language: ['de', 'en'] }}
         onBack={vi.fn()}
         onConfirm={onConfirm}
       />,
     )
     await waitFor(() => {
-      expect(screen.getByTestId('cf-radio-language-en')).toBeTruthy()
+      expect(screen.getByTestId('cf-lang-row-de')).toBeTruthy()
     })
-    // The field container is a chip list, NOT a free-text <input>.
-    expect(screen.getByTestId('cf-field-language').tagName).not.toBe('INPUT')
-    fireEvent.click(screen.getByTestId('cf-radio-language-de'))
+    // Already-selected codes submit in their restored order without re-ticking.
     fireEvent.click(screen.getByTestId('cf-submit'))
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalled()
     })
     const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
-    expect(entry.answers.language).toBe('de')
+    expect(entry.answers.language).toEqual(['de', 'en'])
   })
+
+  // DRAG-ORDER NOTE: reordering rows is driven by @dnd-kit pointer/touch/keyboard
+  // sensors. @dnd-kit drag (including the KeyboardSensor's Space→Arrow→Space
+  // sequence) does not fire reliably under jsdom — it depends on layout
+  // rects / PointerEvent coordinates jsdom does not compute. Rather than fake a
+  // dragEnd (which would test nothing real), the drag-REORDER path is covered
+  // MANUALLY. The reorder LOGIC (moveItem splice + emit of selected-in-order) is
+  // exercised indirectly by the initialAnswers test above (selection order is
+  // preserved) and the multi-tick test (codes emit in display order).
 })
 
 // landr — the WHOLE checkbox chip must be a click target, not just the tiny
