@@ -49,6 +49,8 @@ import {
   HttpError,
   listProductGroups,
 } from '@/api/client'
+import { CustomFormStep } from '@/components/booking/CustomFormStep'
+import type { FormResponseEntry } from '@/api/flowTypes'
 import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api/types'
 import {
   type Step,
@@ -274,6 +276,22 @@ function BookingFlowApp() {
   const mergeDraft = useCallback((patch: BookingDraft) => {
     setBookingDraft((prev) => ({ ...prev, ...patch }))
   }, [])
+  // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
+  // by form_key. Each custom-form step merges its entry in on confirm.
+  // Cleared on full restart (goToProductStep). Sent to BookingForm for the
+  // submit payload.
+  const [formResponses, setFormResponses] = useState<FormResponseEntry[]>([])
+  const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
+    setFormResponses((prev) => {
+      const idx = prev.findIndex((e) => e.form_key === entry.form_key)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = entry
+        return next
+      }
+      return [...prev, entry]
+    })
+  }, [])
   // landr-nmed: reconstruct the DeclarationsStep's CustomerDeclarations from
   // the persistent draft so that, when the customer reaches declarations again
   // on the way forward after a breadcrumb jump, the step re-mounts with their
@@ -492,6 +510,8 @@ function BookingFlowApp() {
       // Back-to-catalog) is the ONE place the persistent booking-draft is
       // discarded — the customer is starting a brand-new booking.
       setBookingDraft({})
+      // landr-71kz.4: also clear accumulated form_responses on restart.
+      setFormResponses([])
       // landr-2mgl: drop the persisted snapshot synchronously on a full
       // restart so a reload immediately after starting over never resurrects
       // the finished/abandoned funnel. The persistence effect would also
@@ -1557,6 +1577,76 @@ function BookingFlowApp() {
           />
         ) : null}
 
+        {/* landr-71kz.4: operator-configured custom form step. */}
+        {step.name === 'custom-form' ? (
+          <CustomFormStep
+            operatorToken={token!}
+            productId={step.product.product_id}
+            formKey={step.formKey}
+            productName={step.product.name}
+            // Restore answers from draft on back-nav re-entry.
+            initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
+            onBack={() =>
+              setStep(
+                stepBeforeReview({
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  companions: step.companions,
+                  pickupLocationId: step.pickupLocationId,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  hotelLocationId: step.hotelLocationId,
+                  hadServiceAddons: step.hadServiceAddons,
+                  includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
+                  accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
+                }),
+              )
+            }
+            onConfirm={(entry, rawAnswers) => {
+              // Accumulate the form response for the submit payload.
+              mergeFormResponse(entry)
+              // Persist the raw answers in the draft so a breadcrumb jump
+              // back to a prior step and re-forward restores the form.
+              mergeDraft({
+                customFormAnswers: {
+                  ...bookingDraft.customFormAnswers,
+                  [step.formKey]: rawAnswers,
+                },
+              })
+              // Proceed to the review screen.
+              setStep({
+                name: 'fill-form',
+                product: step.product,
+                selection: step.selection,
+                booker: step.booker,
+                participants: step.participants,
+                companions: step.companions,
+                pickupLocationId: step.pickupLocationId,
+                accommodationRooms: step.accommodationRooms,
+                addons: step.addons,
+                hotelLocationId: step.hotelLocationId,
+                hadServiceAddons: step.hadServiceAddons,
+                includeHotel: step.includeHotel,
+                isSharedDouble: step.isSharedDouble,
+                accommodationMode: step.accommodationMode,
+                roomAssignment: step.roomAssignment,
+                occupantAgeMap: step.occupantAgeMap,
+                perRoomAddons: step.perRoomAddons,
+                roomProductNames: step.roomProductNames,
+                breakfastMap: step.breakfastMap,
+              })
+            }}
+          />
+        ) : null}
+
         {step.name === 'fill-form' ? (
           <BookingForm
             widgetToken={token!}
@@ -1592,6 +1682,9 @@ function BookingFlowApp() {
             roomProductNames={step.roomProductNames}
             // landr-a4fy: thread breakfast map for has_breakfast per occupant.
             breakfastMap={step.breakfastMap}
+            // landr-71kz.4: custom form answers collected by CustomFormStep(s).
+            // Only sent when at least one form_response was accumulated.
+            formResponses={formResponses.length > 0 ? formResponses : undefined}
             onBack={() => {
               // landr-sbhz.3: if declarations were collected, back
               // from fill-form goes to the declarations step (not all
