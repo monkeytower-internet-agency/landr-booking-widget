@@ -607,3 +607,195 @@ describe('CustomFormStep — number field sends string', () => {
     })
   })
 })
+
+// ─── landr-71kz.9: para42 data-path smoke test ────────────────────────────────
+//
+// BLOCKER NOTE (landr-71kz.9): App.tsx does NOT yet fetch getProductFlow or call
+// buildFlowPlan with a remote flow — it always uses the legacy null-remoteFlow
+// path (OPERATORS_REQUIRING_DECLARATIONS / fillFormOrDeclarations / DeclarationsStep).
+// The step machine helpers (stepAfterAccommodation, stepBeforeReview) similarly
+// always call legacyMiddleKinds(..., null). No setStep({ name: 'custom-form' })
+// is ever built from live RPC data in the widget today.
+//
+// This test proves that IF App.tsx routed to <CustomFormStep> with the para42
+// customer_declarations form shape (as seeded by landr-71kz.8), the component
+// renders all 4 declaration checkboxes + the language field, and onConfirm
+// receives a FormResponseEntry with form_key === 'customer_declarations' and the
+// expected checkbox answers. That is the FULL data-path contract.
+//
+// The hardcoded path (OPERATORS_REQUIRING_DECLARATIONS / DeclarationsStep) MUST
+// remain in App.tsx until the missing App-level wiring is added:
+//   - App.tsx fetches getProductFlow(token, productId) after product selection.
+//   - buildFlowPlan(product, settings, remoteFlow) is called with the result.
+//   - When the plan contains a custom_form module, setStep({ name: 'custom-form',
+//     formKey }) is used instead of fillFormOrDeclarations with requiresDeclarations.
+//   - breadcrumb / back-nav for 'custom-form' replaces the 'declarations' special-case.
+// That wiring is tracked in the parent epic (landr-71kz) — a new child ticket is
+// needed (suggested: landr-71kz.10 "widget: wire remote flow into App.tsx step routing").
+
+/** The para42 customer_declarations form fixture — mirrors the DB seed from landr-71kz.8. */
+function makePara42Flow(): import('@/api/flowTypes').ProductFlowResponse {
+  return {
+    modules: [
+      {
+        kind: 'custom_form',
+        position: 0,
+        form: {
+          key: 'customer_declarations',
+          version: 1,
+          name: 'Before you book',
+          name_localized: null,
+          fields: [
+            {
+              key: 'license_valid',
+              field_type: 'checkbox',
+              label: 'Eligibility confirmations',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required: true,
+              position: 0,
+              options: [
+                {
+                  value: 'license_valid',
+                  label: 'I have a valid paragliding license that is accepted in Tenerife / the Canary Islands.',
+                  label_localized: null,
+                },
+                {
+                  value: 'insurance_valid',
+                  label: 'I have valid health insurance and third-party liability insurance for paragliding.',
+                  label_localized: null,
+                },
+                {
+                  value: 'autonomous_pilot',
+                  label: 'I am an autonomous paraglider at intermediate-to-advanced level and can fly independently.',
+                  label_localized: null,
+                },
+                {
+                  value: 'emergency_contact',
+                  label: 'I will provide an emergency contact (name + phone number) on the first day of the booking.',
+                  label_localized: null,
+                },
+              ],
+              validation: null,
+              visibility_rule: null,
+            },
+            {
+              key: 'spoken_language',
+              field_type: 'select',
+              label: 'Spoken language',
+              label_localized: null,
+              help_text: 'Select the language you are comfortable being guided in.',
+              help_text_localized: null,
+              required: true,
+              position: 1,
+              options: [
+                { value: 'en', label: 'English', label_localized: null },
+                { value: 'de', label: 'Deutsch', label_localized: null },
+                { value: 'es', label: 'Español', label_localized: null },
+                { value: 'fr', label: 'Français', label_localized: null },
+              ],
+              validation: null,
+              visibility_rule: null,
+            },
+          ],
+        },
+      },
+    ],
+  }
+}
+
+describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
+  beforeEach(() => {
+    mocks.getProductFlow.mockResolvedValue(makePara42Flow())
+  })
+
+  it('renders the declaration checkboxes and language select from the para42 flow fixture', async () => {
+    render(
+      <CustomFormStep
+        operatorToken="para42-token"
+        productId="p-para42"
+        formKey="customer_declarations"
+        productName="Paragliding Week"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => {
+      // All four declaration options must render as checkbox options.
+      expect(screen.getByTestId('cf-checkbox-license_valid-license_valid')).toBeTruthy()
+      expect(screen.getByTestId('cf-checkbox-license_valid-insurance_valid')).toBeTruthy()
+      expect(screen.getByTestId('cf-checkbox-license_valid-autonomous_pilot')).toBeTruthy()
+      expect(screen.getByTestId('cf-checkbox-license_valid-emergency_contact')).toBeTruthy()
+      // Language select must render.
+      expect(screen.getByTestId('cf-field-spoken_language')).toBeTruthy()
+    })
+  })
+
+  it('requires all declaration checkboxes + a language before submit succeeds', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <CustomFormStep
+        operatorToken="para42-token"
+        productId="p-para42"
+        formKey="customer_declarations"
+        productName="Paragliding Week"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-submit')).toBeTruthy()
+    })
+
+    // Submit without filling anything → validation error on the required checkbox field.
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-error-license_valid')).toBeTruthy()
+    })
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('calls onConfirm with form_key=customer_declarations and checkbox answers + language on full submit', async () => {
+    const onConfirm = vi.fn()
+    render(
+      <CustomFormStep
+        operatorToken="para42-token"
+        productId="p-para42"
+        formKey="customer_declarations"
+        productName="Paragliding Week"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-checkbox-license_valid-license_valid')).toBeTruthy()
+    })
+
+    // Check all four declaration options.
+    fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-license_valid'))
+    fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-insurance_valid'))
+    fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-autonomous_pilot'))
+    fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-emergency_contact'))
+
+    // Select a language.
+    fireEvent.change(screen.getByTestId('cf-field-spoken_language'), {
+      target: { value: 'en' },
+    })
+
+    fireEvent.click(screen.getByTestId('cf-submit'))
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+
+    const entry = onConfirm.mock.calls[0][0] as { form_key: string; answers: Record<string, unknown> }
+    expect(entry.form_key).toBe('customer_declarations')
+    // All four declaration values must be in the checkbox array.
+    expect(entry.answers.license_valid).toEqual(
+      expect.arrayContaining(['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']),
+    )
+    // Language must be sent as a string (select field).
+    expect(entry.answers.spoken_language).toBe('en')
+  })
+})
