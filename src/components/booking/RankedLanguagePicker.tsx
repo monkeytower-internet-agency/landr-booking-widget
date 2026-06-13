@@ -21,8 +21,10 @@
  * (this picker is only used when the field carries options).
  */
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -31,6 +33,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -163,6 +166,10 @@ export function RankedLanguagePicker({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(value.filter((v) => optionValues.includes(v))),
   )
+  // landr — the code currently being dragged, so the DragOverlay can render a
+  // floating tilted clone that follows the cursor (matches the breakfast/name
+  // chips in RoomAssignment). null when nothing is being dragged.
+  const [activeCode, setActiveCode] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -188,7 +195,12 @@ export function RankedLanguagePicker({
     })
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveCode(String(event.active.id))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveCode(null)
     const activeId = event.active.id
     const overId = event.over?.id
     if (overId === undefined || overId === null || activeId === overId) return
@@ -206,7 +218,12 @@ export function RankedLanguagePicker({
       <p className="text-xs text-muted-foreground">
         Tick every language you speak, and drag your preferred one to the top.
       </p>
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveCode(null)}
+      >
         <div className="flex flex-col gap-2">
           {order.map((code) => (
             <LanguageRow
@@ -221,6 +238,35 @@ export function RankedLanguagePicker({
             />
           ))}
         </div>
+        {/* Floating tilted clone of the dragged row, anchored to <body> so a
+            transformed ancestor (the step transition) can't break position:fixed
+            — same approach as RoomAssignment's chip overlay. */}
+        {createPortal(
+          <DragOverlay dropAnimation={null}>
+            {activeCode !== null ? (
+              <div
+                data-testid="cf-lang-drag-overlay"
+                style={{ transform: 'rotate(4deg) scale(1.05)', cursor: 'grabbing' }}
+                className={cn(
+                  'flex items-center gap-3 border p-3 shadow-xl shadow-black/30',
+                  tokens.optionCardRadius,
+                  selected.has(activeCode)
+                    ? tokens.optionSelected
+                    : 'border-border bg-surface-raised',
+                )}
+              >
+                <span aria-hidden className="text-muted-foreground">≡</span>
+                {selected.has(activeCode) ? (
+                  <span aria-hidden className="text-primary text-xs">✓</span>
+                ) : null}
+                <span className="text-sm font-medium leading-snug">
+                  {labelByCode.get(activeCode) ?? activeCode}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>,
+          document.body,
+        )}
       </DndContext>
     </div>
   )
