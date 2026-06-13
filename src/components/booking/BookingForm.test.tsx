@@ -383,6 +383,61 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
       const status0 = screen.getByTestId('room-breakfast-status-0')
       expect(status0).toHaveTextContent('with breakfast')
     })
+
+    // landr-rxjo: disambiguated names in the review breakfast rows.
+    it('shows a unique first name without last-initial disambiguation', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'single-room', quantity: 1 }]}
+          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomProductNames={{ 'single-room': 'Single Room' }}
+          roomAssignment={{ 0: { roomProductId: 'single-room', unitIndex: 0 } }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      const section = screen.getByTestId('review-per-room-breakfast')
+      // Unique first name → just "Ada" (not "Ada L.").
+      expect(section).toHaveTextContent('Ada')
+      expect(section).not.toHaveTextContent('Ada L.')
+    })
+
+    it('disambiguates two participants with the same first name using last initial (landr-rxjo)', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[
+            { first_name: 'John', last_name: 'Smith', email: '', phone: '', service_role_code: '' },
+            { first_name: 'John', last_name: 'Müller', email: '', phone: '', service_role_code: '' },
+          ]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'single-room', quantity: 2 }]}
+          perRoomAddons={{ 'single-room': { 'bf-1': 1 } }}
+          roomProductNames={{ 'single-room': 'Single Room' }}
+          roomAssignment={{
+            0: { roomProductId: 'single-room', unitIndex: 0 },
+            1: { roomProductId: 'single-room', unitIndex: 1 },
+          }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      const section = screen.getByTestId('review-per-room-breakfast')
+      // Two Johns → each gets a disambiguating last initial.
+      expect(section).toHaveTextContent('John S.')
+      expect(section).toHaveTextContent('John M.')
+      // Plain "John" must NOT appear as a standalone name.
+      expect(section).not.toHaveTextContent(/\bJohn\b(?!\s[A-Z]\.)/u)
+    })
   })
 })
 

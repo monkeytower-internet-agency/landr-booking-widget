@@ -384,7 +384,7 @@ export function DetailsStep({
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
     companions.forEach((_, idx) => {
-      keys.push(`companion.${idx}.first_name`)
+      keys.push(`companion.${idx}.first_name`, `companion.${idx}.last_name`)
     })
     return keys
   }
@@ -419,8 +419,11 @@ export function DetailsStep({
             : 'phone'
       return `p-${pMatch[1]}-${slot}`
     }
-    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
-    if (cMatch) return `companion-${cMatch[1]}-first`
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    if (cMatch) {
+      const slot = cMatch[2] === 'first_name' ? 'first' : 'last'
+      return `companion-${cMatch[1]}-${slot}`
+    }
     return undefined
   }
 
@@ -444,10 +447,12 @@ export function DetailsStep({
       const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
       return !row[field].trim()
     }
-    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
     if (cMatch) {
       const row = companions[Number(cMatch[1])]
-      return row ? !row.first_name.trim() : false
+      if (!row) return false
+      const field = cMatch[2] as 'first_name' | 'last_name'
+      return !row[field].trim()
     }
     return false
   }
@@ -840,7 +845,7 @@ export function DetailsStep({
             room assignment) but are NOT counted toward this booking's guiding
             participants, price, or the 6-participant cap — regardless of whether
             they do the activity (landr-doam.1: companion_kind).
-            Only first name is required. */}
+            landr-rxjo: first and last name are both required for companions. */}
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"
@@ -855,11 +860,16 @@ export function DetailsStep({
             and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
           {companions.map((row, idx) => {
-            // landr-opi3: only the companion first name is required.
+            // landr-rxjo: both first and last name are required for companions.
             const cFirstV = validate(
               `companion.${idx}.first_name`,
               row.first_name,
               `companion-${idx}-first`,
+            )
+            const cLastV = validate(
+              `companion.${idx}.last_name`,
+              row.last_name,
+              `companion-${idx}-last`,
             )
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
@@ -941,7 +951,7 @@ export function DetailsStep({
                   {...cFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name (optional)" htmlFor={`companion-${idx}-last`}>
+              <Field label="Last name" htmlFor={`companion-${idx}-last`} error={cLastV.error}>
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
@@ -949,6 +959,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'last_name', e.target.value)
                   }
+                  {...cLastV.inputProps}
                 />
               </Field>
               <Field label="Email (optional)" htmlFor={`companion-${idx}-email`}>

@@ -673,7 +673,7 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     expect(section).not.toHaveTextContent(/paragliding|pilots/i)
   })
 
-  it('adds a companion row requiring only a first name, and passes companions to onConfirm', () => {
+  it('adds a companion row requiring first and last name, and passes companions to onConfirm (landr-rxjo)', () => {
     const onConfirm = vi.fn()
     render(
       <DetailsStep
@@ -695,8 +695,20 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
       'aria-invalid',
       'true',
     )
+    // landr-rxjo: filling first name alone is not enough — last name is now
+    // also required, so the form is still blocked.
     fireEvent.change(byName('companion_1_first_name'), {
       target: { value: 'Mia' },
+    })
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('companion_1_last_name')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
+    // Fill last name → form advances.
+    fireEvent.change(byName('companion_1_last_name'), {
+      target: { value: 'Berg' },
     })
     fireEvent.click(cont)
     const [, participants, companions] = onConfirm.mock.calls[0]!
@@ -705,7 +717,7 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     expect(companions).toHaveLength(1)
     expect(companions[0]).toMatchObject({
       first_name: 'Mia',
-      last_name: '',
+      last_name: 'Berg',
       email: '',
       phone: '',
     })
@@ -761,6 +773,9 @@ describe('DetailsStep — non-guiding companions (landr-87n9.3)', () => {
     fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
     fireEvent.change(byName('companion_1_first_name'), {
       target: { value: 'Mia' },
+    })
+    fireEvent.change(byName('companion_1_last_name'), {
+      target: { value: 'Berg' },
     })
     // Deliberately leave companion phone empty — Continue should still advance.
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))

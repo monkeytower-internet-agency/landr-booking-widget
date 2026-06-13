@@ -10,6 +10,7 @@ import type {
 } from '@/api/types'
 import {
   deriveStayWindow,
+  disambiguatePartyLabels,
   stayNightIsos,
   type BreakfastMap,
   type OccupantAgeMap,
@@ -371,10 +372,17 @@ export function BookingForm({
     )
     if (!hasAnyAddons) return []
 
-    const allPartyNames = [
-      ...participants.map((p) => p.first_name || '?'),
-      ...companions.map((c) => c.first_name || '?'),
-    ]
+    // landr-rxjo: use disambiguated labels so two guests with the same first
+    // name are distinguishable. Party order: participants first, then
+    // companions — matching the RoomAssignmentMap index space.
+    const allPartyNames = disambiguatePartyLabels([
+      ...participants.map((p) => ({ first: p.first_name, last: p.last_name })),
+      ...companions.map((c) => ({ first: c.first_name, last: c.last_name })),
+    ]).map((label, i) => {
+      if (label) return label
+      // Fallback for empty first name (rule 5 of disambiguatePartyLabels).
+      return i < participants.length ? '?' : '?'
+    })
     const hasBreakfastMapData = Object.keys(breakfastMap).length > 0
     const rows: ReviewRoomRow[] = []
     for (const room of accommodationRooms) {
