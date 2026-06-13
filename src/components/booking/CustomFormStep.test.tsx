@@ -213,14 +213,18 @@ describe('CustomFormStep — validation', () => {
     mocks.getProductFlow.mockResolvedValue(makeFlow())
   })
 
-  it('shows a required error on submit when the required field is empty', async () => {
+  it('disables Continue until the required field is filled', async () => {
     renderStep()
     await waitFor(() => {
       expect(screen.getByTestId('cf-submit')).toBeTruthy()
     })
-    fireEvent.click(screen.getByTestId('cf-submit'))
+    // Required full_name empty → Continue is greyed out.
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+    fireEvent.change(screen.getByTestId('cf-field-full_name'), {
+      target: { value: 'Ada' },
+    })
     await waitFor(() => {
-      expect(screen.getByTestId('cf-error-full_name')).toBeTruthy()
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
     })
   })
 
@@ -499,7 +503,7 @@ describe('CustomFormStep — number field sends string', () => {
     expect(entry.answers.weight_kg).toBe('75')
   })
 
-  it('shows a validation error when number is below min', async () => {
+  it('disables Continue while a number is below min, enables when valid', async () => {
     mocks.getProductFlow.mockResolvedValue({
       modules: [
         {
@@ -542,12 +546,19 @@ describe('CustomFormStep — number field sends string', () => {
     await waitFor(() => {
       expect(screen.getByTestId('cf-field-weight_kg')).toBeTruthy()
     })
+    // Below min (10 < 30) → invalid → Continue stays disabled.
     fireEvent.change(screen.getByTestId('cf-field-weight_kg'), {
       target: { value: '10' },
     })
-    fireEvent.click(screen.getByTestId('cf-submit'))
     await waitFor(() => {
-      expect(screen.getByTestId('cf-error-weight_kg')).toBeTruthy()
+      expect(screen.getByTestId('cf-submit')).toBeDisabled()
+    })
+    // Valid value → enabled.
+    fireEvent.change(screen.getByTestId('cf-field-weight_kg'), {
+      target: { value: '75' },
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
     })
   })
 
@@ -732,7 +743,7 @@ describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
     })
   })
 
-  it('requires all declaration checkboxes + a language before submit succeeds', async () => {
+  it('disables Continue until declarations + a language are provided', async () => {
     const onConfirm = vi.fn()
     render(
       <CustomFormStep
@@ -748,10 +759,16 @@ describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
       expect(screen.getByTestId('cf-submit')).toBeTruthy()
     })
 
-    // Submit without filling anything → validation error on the required checkbox field.
-    fireEvent.click(screen.getByTestId('cf-submit'))
+    // Nothing provided → Continue greyed out.
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+
+    // Tick a required declaration + pick a language → all required satisfied → enabled.
+    fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-license_valid'))
+    fireEvent.change(screen.getByTestId('cf-field-spoken_language'), {
+      target: { value: 'en' },
+    })
     await waitFor(() => {
-      expect(screen.getByTestId('cf-error-license_valid')).toBeTruthy()
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
     })
     expect(onConfirm).not.toHaveBeenCalled()
   })
@@ -884,22 +901,22 @@ describe('CustomFormStep — ranked language picker', () => {
     expect(entry.answers.language).toEqual(['en', 'de'])
   })
 
-  it('blocks submit when a required language picker has nothing ticked, then allows it after one tick', async () => {
+  it('disables Continue when the required language picker has nothing ticked, enables after one tick', async () => {
     mocks.getProductFlow.mockResolvedValue(langFlow(true))
     const onConfirm = renderLangStep()
 
     await waitFor(() => {
       expect(screen.getByTestId('cf-submit')).toBeTruthy()
     })
-    // Nothing ticked → empty array counts as missing for a required field.
-    fireEvent.click(screen.getByTestId('cf-submit'))
-    await waitFor(() => {
-      expect(screen.getByTestId('cf-error-language')).toBeTruthy()
-    })
+    // Nothing ticked → empty array counts as missing → Continue greyed out.
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
     expect(onConfirm).not.toHaveBeenCalled()
 
-    // Tick one → the error clears on change and submit succeeds.
+    // Tick one → required satisfied → enabled, and submit works.
     fireEvent.click(screen.getByTestId('cf-lang-check-es'))
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
+    })
     fireEvent.click(screen.getByTestId('cf-submit'))
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalled()
