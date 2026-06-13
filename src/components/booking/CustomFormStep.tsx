@@ -99,9 +99,7 @@ function validateField(
     // min_length / max_length (string fields)
     if (
       typeof rawVal === 'string' &&
-      (field.field_type === 'text' ||
-        field.field_type === 'textarea' ||
-        field.field_type === 'language')
+      (field.field_type === 'text' || field.field_type === 'textarea')
     ) {
       if (typeof v.min_length === 'number' && rawVal.length < v.min_length) {
         return `${label} must be at least ${v.min_length} characters.`
@@ -142,6 +140,7 @@ function validateField(
       field.options.length > 0 &&
       (field.field_type === 'select' ||
         field.field_type === 'radio' ||
+        field.field_type === 'language' ||
         field.field_type === 'checkbox' ||
         field.field_type === 'multiselect')
     ) {
@@ -194,10 +193,55 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
   const inputClassName =
     'border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
 
+  // Single-select clickable chips — shared by `radio` and `language` fields.
+  // The whole chip is a click target (the container onClick); the radio input
+  // sets the same value, so a click anywhere selects without double-firing.
+  const renderSingleSelectChips = () => {
+    const val = (answers[field.key] as string | undefined) ?? ''
+    return (
+      <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
+        {(field.options ?? []).map((opt) => {
+          const optLabel = pickLocalized(opt.label, opt.label_localized, locale)
+          const checked = val === opt.value
+          return (
+            <div
+              key={opt.value}
+              data-testid={`cf-option-${field.key}-${opt.value}`}
+              className={cn(
+                'flex cursor-pointer items-center gap-3 border p-3 transition-[background-color,border-color]',
+                tokens.optionCardRadius,
+                checked
+                  ? tokens.optionSelected
+                  : 'border-border bg-surface-raised shadow-elev-1',
+              )}
+              onClick={() => onChange(field.key, opt.value)}
+            >
+              <input
+                id={`cf-${field.key}-${opt.value}`}
+                type="radio"
+                name={`cf-${field.key}`}
+                value={opt.value}
+                checked={checked}
+                onChange={() => onChange(field.key, opt.value)}
+                data-testid={`cf-radio-${field.key}-${opt.value}`}
+                className="accent-primary"
+              />
+              <Label
+                htmlFor={`cf-${field.key}-${opt.value}`}
+                className="text-sm leading-snug cursor-pointer"
+              >
+                {optLabel}
+              </Label>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const renderInput = () => {
     switch (field.field_type) {
-      case 'text':
-      case 'language': {
+      case 'text': {
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
           <input
@@ -262,45 +306,27 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
         )
       }
 
-      case 'radio': {
+      case 'radio':
+        return renderSingleSelectChips()
+
+      // Dedicated language picker = single-select chips from the form's
+      // options (NOT a free-text field — that was the regression). If the form
+      // configures no options, degrade to a free-text input rather than render
+      // an empty, unusable picker ("malformed config degrades, never throws").
+      case 'language': {
+        if (field.options && field.options.length > 0) {
+          return renderSingleSelectChips()
+        }
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
-          <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
-            {(field.options ?? []).map((opt) => {
-              const optLabel = pickLocalized(opt.label, opt.label_localized, locale)
-              const checked = val === opt.value
-              return (
-                <div
-                  key={opt.value}
-                  className={cn(
-                    'flex items-center gap-3 border p-3 transition-[background-color,border-color]',
-                    tokens.optionCardRadius,
-                    checked
-                      ? tokens.optionSelected
-                      : 'border-border bg-surface-raised shadow-elev-1',
-                  )}
-                  onClick={() => onChange(field.key, opt.value)}
-                >
-                  <input
-                    id={`cf-${field.key}-${opt.value}`}
-                    type="radio"
-                    name={`cf-${field.key}`}
-                    value={opt.value}
-                    checked={checked}
-                    onChange={() => onChange(field.key, opt.value)}
-                    data-testid={`cf-radio-${field.key}-${opt.value}`}
-                    className="accent-primary"
-                  />
-                  <Label
-                    htmlFor={`cf-${field.key}-${opt.value}`}
-                    className="text-sm leading-snug cursor-pointer"
-                  >
-                    {optLabel}
-                  </Label>
-                </div>
-              )
-            })}
-          </div>
+          <input
+            id={`cf-${field.key}`}
+            type="text"
+            value={val}
+            onChange={(e) => onChange(field.key, e.target.value)}
+            data-testid={`cf-field-${field.key}`}
+            className={inputClassName}
+          />
         )
       }
 
@@ -321,13 +347,21 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
               return (
                 <div
                   key={opt.value}
+                  data-testid={`cf-option-${field.key}-${opt.value}`}
                   className={cn(
-                    'flex items-start gap-3 border p-3 transition-[background-color,border-color]',
+                    'flex cursor-pointer items-start gap-3 border p-3 transition-[background-color,border-color]',
                     tokens.optionCardRadius,
                     isChecked
                       ? tokens.optionSelected
                       : 'border-border bg-surface-raised shadow-elev-1',
                   )}
+                  // landr — make the WHOLE chip a click target, not just the
+                  // checkmark/label. Guard on target===currentTarget so a click
+                  // that lands on the inner Checkbox or Label (which toggle
+                  // themselves) doesn't fire this handler too and double-toggle.
+                  onClick={(e) => {
+                    if (e.currentTarget === e.target) toggle(opt.value)
+                  }}
                 >
                   <Checkbox
                     id={`cf-${field.key}-${opt.value}`}
