@@ -28,11 +28,18 @@
 import type { Step, BookingDraft } from './appStepMachine'
 
 /**
- * sessionStorage key for the persisted booking progress. Versioned (`.v1`)
- * so a future shape change can bump the suffix and ignore stale blobs
- * instead of crashing on a mismatched structure.
+ * sessionStorage key for the persisted booking progress. Versioned so a shape
+ * change can bump the suffix and ignore stale blobs instead of crashing on a
+ * mismatched structure.
+ *
+ * landr-71kz.3: bumped v1 → v2. The BookingDraft gained a `customFormAnswers`
+ * slot and the Step union gained a `custom-form` variant. A v1 blob written by
+ * an older tab has neither, so on mismatch we DISCARD it (do NOT migrate): the
+ * new key is simply not found, `readStoredProgress` returns null, and the
+ * customer starts clean. Old v1 entries are orphaned in sessionStorage but
+ * sessionStorage is tab-scoped and short-lived, so they evaporate with the tab.
  */
-export const BOOKING_PROGRESS_STORAGE_KEY = 'landr-widget-progress.v1'
+export const BOOKING_PROGRESS_STORAGE_KEY = 'landr-widget-progress.v2'
 
 /**
  * The persisted snapshot: the current funnel `step` and the persistent

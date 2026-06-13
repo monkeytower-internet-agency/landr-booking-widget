@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { HttpError } from '@/api/client'
 import App from './App'
+import { BOOKING_PROGRESS_STORAGE_KEY } from './bookingPersistence'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -1929,7 +1930,7 @@ describe('App', () => {
       // Simulate the snapshot a previous render persisted: the customer was
       // on the details step with a product + dates already committed.
       window.sessionStorage.setItem(
-        'landr-widget-progress.v1',
+        BOOKING_PROGRESS_STORAGE_KEY,
         JSON.stringify({
           step: {
             name: 'details',
@@ -1967,7 +1968,7 @@ describe('App', () => {
       ])
       // A stale details snapshot in storage must lose to the deep link.
       window.sessionStorage.setItem(
-        'landr-widget-progress.v1',
+        BOOKING_PROGRESS_STORAGE_KEY,
         JSON.stringify({
           step: {
             name: 'details',

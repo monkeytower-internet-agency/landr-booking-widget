@@ -21,6 +21,12 @@ import type {
 } from '@/components/booking/detailsTypes'
 import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import {
+  buildFlowPlan,
+  productHasHotelOffering,
+  type FlowModule,
+  type FlowModuleKind,
+} from './flowPlan'
 
 /**
  * landr-gb2f.5: the raw per-room add-on selection carried through the step
@@ -73,6 +79,13 @@ export interface BookingDraft {
   customerDeclarations?: Record<string, true> | null
   customerLanguages?: string[] | null
   customerOtherLanguages?: string | null
+  // landr-71kz.3: per-custom-form answers, keyed by form key → (field key →
+  // value). PLUMBING ONLY for this child — the BookingDraft carries the slot
+  // and the persistence layer round-trips it, but the CustomFormStep that reads
+  // /writes it lands in landr-71kz.4. Survives breadcrumb jumps + reloads exactly
+  // like every other draft slice. Empty/undefined until the customer answers a
+  // custom form.
+  customFormAnswers?: Record<string, Record<string, unknown>>
 }
 
 /**
@@ -271,6 +284,38 @@ export type Step =
       breakfastMap?: BreakfastMap
       initialDeclarations?: CustomerDeclarations
     }
+  // landr-71kz.3: a single operator-defined custom form, carrying its library
+  // `formKey`. PLUMBING ONLY here — the field renderer + submit wiring land in
+  // landr-71kz.4; for now this variant exists so the Step union, the plan walk,
+  // and the persisted-draft schema all carry it. Threads the same provenance bag
+  // every other downstream step does, so back-nav restores the upstream state.
+  // `initialAnswers` re-seeds the (future) renderer on back-nav from the draft's
+  // customFormAnswers[formKey] slice.
+  | {
+      name: 'custom-form'
+      product: Product
+      selection: BookingSelection
+      booker: BookerDetails
+      participants: ParticipantDetails[]
+      companions: CompanionDetails[]
+      pickupLocationId: string | null
+      accommodationRooms: RoomSelection[]
+      addons: AddonSelection[]
+      hotelLocationId?: string | null
+      hadServiceAddons?: boolean
+      includeHotel?: boolean
+      isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
+      roomAssignment?: RoomAssignmentMap
+      occupantAgeMap?: OccupantAgeMap
+      perRoomAddons?: PerRoomAddons
+      roomProductNames?: Record<string, string>
+      breakfastMap?: BreakfastMap
+      // landr-71kz.3: which operator form this step renders.
+      formKey: string
+      // landr-71kz.4 (forward-compat): prior answers for back-nav restoration.
+      initialAnswers?: Record<string, unknown>
+    }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
   // intermediate steps with their previously confirmed state.
@@ -341,6 +386,105 @@ export function deriveAccommodationMode(
   return 'package'
 }
 
+// ─── Plan walks (landr-71kz.3) ───────────────────────────────────────────────
+//
+// The routing helpers below are now thin plan-index WALKS over the FlowModule[]
+// the funnel is configured with, instead of hardcoded `if (hotel) … else if
+// (pickup) …` ladders. With a null remoteFlow `buildFlowPlan` yields the LEGACY
+// plan, so the walk reproduces today's routing bit-for-bit — proven by the
+// equivalence suite in flowPlan.equivalence.test.ts. The exported helper
+// signatures are UNCHANGED so App.tsx's call sites barely move; the plan is
+// rebuilt internally from the product + the requiresDeclarations flag those
+// helpers already receive (or derive).
+//
+// Two gates stay RUNTIME decisions applied during the walk, exactly as today —
+// they are NOT pruned from the plan, because the plan is the declared order, not
+// the per-booking realised path:
+//
+//   - `pickup` is SKIPPED when a hotel was booked (hotelLocationId != null): the
+//     hotel becomes the pickup point (landr-4r80). On the back-nav walk the same
+//     gate means a booked hotel hops back PAST pickup to accommodation.
+//   - `accommodation` is present in the plan iff the product offers a hotel; the
+//     back-nav walk treats a hotel-offering product as having passed THROUGH
+//     accommodation even on the guiding-only opt-out (matching today's
+//     stepBeforeReview, which routes guiding-only opt-outs back to accommodation).
+//
+// `service_addons` is listed in every legacy plan but its visibility is a
+// runtime add-on probe in App.tsx; the back-nav walk consults the
+// `hadServiceAddons` provenance flag (set true only when the step actually
+// showed), so a product with no add-ons never routes Back to it — identical to
+// today.
+
+/**
+ * The middle module kinds (everything strictly between participants and review)
+ * of the legacy plan for a product + declarations flag. The pinned frame
+ * (selection, participants, review) is dropped because the routing helpers only
+ * ever choose among the middle steps + the review terminus.
+ */
+function legacyMiddleKinds(
+  product: Product,
+  requiresDeclarations: boolean,
+): FlowModuleKind[] {
+  const plan: FlowModule[] = buildFlowPlan(
+    product,
+    requiresDeclarations ? { slug: 'para42' } : {},
+    null,
+  )
+  return plan
+    .map((m) => m.kind)
+    .filter((k) => k !== 'selection' && k !== 'participants' && k !== 'review')
+}
+
+/**
+ * Runtime predicate: is this potential middle module actually LIVE for the
+ * current booking state? Encodes the two runtime gates (hotel-skips-pickup;
+ * service-addons provenance) so the plan walk yields the realised path.
+ *
+ * `accommodation` is always live when present (the product offers a hotel, and
+ * the customer always passes through the step — booking, opting out, or
+ * shared-double). `custom_form` is always live when present (no runtime skip in
+ * v1). `declarations` is always live when present (gated by the plan itself).
+ */
+function isModuleLive(
+  kind: FlowModuleKind,
+  ctx: {
+    hotelLocationId?: string | null
+    hadServiceAddons?: boolean
+  },
+): boolean {
+  switch (kind) {
+    case 'pickup':
+      // Hotel booked → the hotel IS the pickup; the free picker is skipped.
+      return ctx.hotelLocationId == null
+    case 'service_addons':
+      // Only live when the customer actually saw the add-ons step.
+      return ctx.hadServiceAddons === true
+    default:
+      return true
+  }
+}
+
+/**
+ * Walk BACKWARD from `review` (or from a given module) to find the LIVE module
+ * that immediately precedes it. Returns null when nothing live precedes it (the
+ * walk has reached the implicit participants/details frame). `fromKind`
+ * undefined means "the step before review".
+ */
+function liveModuleBefore(
+  product: Product,
+  requiresDeclarations: boolean,
+  ctx: { hotelLocationId?: string | null; hadServiceAddons?: boolean },
+  fromKind?: FlowModuleKind,
+): FlowModuleKind | null {
+  const kinds = legacyMiddleKinds(product, requiresDeclarations)
+  const start = fromKind ? kinds.indexOf(fromKind) : kinds.length
+  for (let i = start - 1; i >= 0; i -= 1) {
+    const kind = kinds[i]!
+    if (isModuleLive(kind, ctx)) return kind
+  }
+  return null
+}
+
 /**
  * Pick the next step after the AccommodationStep returns (or after
  * pick-selection when the product has no hotel offering and we short-
@@ -392,36 +536,31 @@ export function stepAfterAccommodation(
   // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
   breakfastMap: BreakfastMap | undefined = undefined,
 ): Step {
-  if (hotelLocationId !== null) {
-    // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
-    // covers BOTH the package mode (rooms booked) AND the shared-double
-    // mode (no rooms, but the shared hotel is still the collection point).
-    // Either way we skip the free-pickup picker and go straight to
-    // fill-form/declarations — the shared-double customer must NEVER reach
-    // the free pickup picker.
-    return {
-      name: 'fill-form',
-      product,
-      selection,
-      booker,
-      participants,
-      companions,
-      pickupLocationId: hotelLocationId,
-      accommodationRooms,
-      addons,
-      hotelLocationId,
-      hadServiceAddons,
-      includeHotel,
-      isSharedDouble,
-      accommodationMode,
-      roomAssignment,
-      occupantAgeMap,
-      perRoomAddons,
-      roomProductNames,
-      breakfastMap,
-    }
-  }
-  if (product.needs_pickup) {
+  // landr-71kz.3: plan walk for the post-accommodation forward target. The
+  // legacy forward contract out of this call is EXACTLY three branches, and
+  // add-ons ALWAYS precede this call (App.tsx runs the add-ons probe before
+  // afterAccommodation), so `service_addons` must NEVER be a forward target
+  // here:
+  //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
+  //   2. else needs_pickup → pick-pickup;
+  //   3. else fill-form (pickup null).
+  // The ONLY middle module that can terminate the post-accommodation search is
+  // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
+  // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
+  // the free picker is skipped). Any other module (service_addons, custom_form,
+  // declarations) is upstream-of or layered-on and must not divert this branch.
+  //
+  // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
+  // terminate the search and, for a no-hotel product, started at index 0 (no
+  // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
+  // product with service add-ons + needs_pickup wrongly terminated on
+  // service_addons → fill-form, skipping the pickup picker. Now we look up the
+  // `pickup` module directly and apply only its forward gate.
+  const requiresDeclarations = false // declarations is layered on by App via fillFormOrDeclarations.
+  const kinds = legacyMiddleKinds(product, requiresDeclarations)
+  const pickupLive =
+    kinds.includes('pickup') && isModuleLive('pickup', { hotelLocationId })
+  if (pickupLive) {
     return {
       name: 'pick-pickup',
       product,
@@ -443,6 +582,9 @@ export function stepAfterAccommodation(
       breakfastMap,
     }
   }
+  // No live pickup ahead → straight to the review terminus. When a hotel was
+  // booked the hotel IS the pickup (landr-4r80 / landr-ffyg.2: package +
+  // shared-double); otherwise pickup_location_id is null.
   return {
     name: 'fill-form',
     product,
@@ -450,10 +592,10 @@ export function stepAfterAccommodation(
     booker,
     participants,
     companions,
-    pickupLocationId: null,
+    pickupLocationId: hotelLocationId !== null ? hotelLocationId : null,
     accommodationRooms,
     addons,
-    hotelLocationId: null,
+    hotelLocationId,
     hadServiceAddons,
     includeHotel,
     isSharedDouble,
@@ -521,86 +663,119 @@ export interface StepBeforeReviewArgs {
   breakfastMap?: BreakfastMap
 }
 
-export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
-  const offering = args.product.hotel_offering ?? 'none'
-  const hasHotelOffering =
-    args.product.product_kind === 'service' && offering !== 'none'
+/**
+ * Reconstruct the upstream Step for a given middle module kind from the
+ * provenance bag, with its previously-confirmed state restored. The single
+ * place that maps a plan module → a concrete back-nav Step, so the routing
+ * helpers stay declarative walks. `accommodation` covers package + shared-double
+ * + guiding-only opt-out (the forward path always inserts it when the product
+ * offers a hotel); `null` is the implicit details frame.
+ */
+function reconstructStepForModule(
+  kind: FlowModuleKind | null,
+  args: StepBeforeReviewArgs,
+): Step {
+  switch (kind) {
+    case 'accommodation':
+      return {
+        name: 'pick-accommodation',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        hotelLocationId: args.hotelLocationId,
+        accommodationRooms: args.accommodationRooms,
+        addons: args.addons,
+        includeHotel: args.includeHotel,
+        isSharedDouble: args.isSharedDouble,
+        accommodationMode: args.accommodationMode,
+        roomAssignment: args.roomAssignment,
+        occupantAgeMap: args.occupantAgeMap,
+        perRoomAddons: args.perRoomAddons,
+        roomProductNames: args.roomProductNames,
+        breakfastMap: args.breakfastMap,
+      }
+    case 'pickup':
+      return {
+        name: 'pick-pickup',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        accommodationRooms: args.accommodationRooms,
+        addons: args.addons,
+        pickupLocationId: args.pickupLocationId,
+        hotelLocationId: args.hotelLocationId,
+        hadServiceAddons: args.hadServiceAddons,
+        includeHotel: args.includeHotel,
+        isSharedDouble: args.isSharedDouble,
+        accommodationMode: args.accommodationMode,
+        roomAssignment: args.roomAssignment,
+        occupantAgeMap: args.occupantAgeMap,
+        perRoomAddons: args.perRoomAddons,
+        roomProductNames: args.roomProductNames,
+        breakfastMap: args.breakfastMap,
+      }
+    case 'service_addons':
+      return {
+        name: 'pick-service-addons',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        addons: args.addons,
+      }
+    default:
+      // null (or any non-back-nav kind) → the implicit details frame.
+      return {
+        name: 'details',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+      }
+  }
+}
 
-  // 1. A hotel was booked → pickup was skipped forward → return to the
-  //    accommodation page (covers package + shared-double).
-  // 3. A hotel offering exists but no hotel was booked (guiding-only
-  //    opt-out) → the customer still passed THROUGH pick-accommodation, so
-  //    Back returns there. Folded into the same branch as (1) because the
-  //    forward path always inserts pick-accommodation when a hotel offering
-  //    is present, regardless of the booked/opted-out outcome.
-  if (args.hotelLocationId != null || hasHotelOffering) {
-    return {
-      name: 'pick-accommodation',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      hotelLocationId: args.hotelLocationId,
-      accommodationRooms: args.accommodationRooms,
-      addons: args.addons,
-      includeHotel: args.includeHotel,
-      isSharedDouble: args.isSharedDouble,
-      accommodationMode: args.accommodationMode,
-      roomAssignment: args.roomAssignment,
-      occupantAgeMap: args.occupantAgeMap,
-      perRoomAddons: args.perRoomAddons,
-      roomProductNames: args.roomProductNames,
-      breakfastMap: args.breakfastMap,
-    }
+/**
+ * Backward walk for the REVIEW back-target. Resolves which middle module the
+ * review/declarations step returns to. This is NOT a pure mirror of the forward
+ * walk: on a hotel-offering product the customer always returns to
+ * `accommodation` (never the pickup picker), EVEN on the guiding-only opt-out
+ * that forward routed through pickup. This asymmetry is the long-standing
+ * landr-87n9.1 contract (back-from-review collapses the accommodation+pickup
+ * branch onto the accommodation page so the customer re-confirms their hotel
+ * choice, which drives whether pickup shows again). The walk reproduces it
+ * exactly by treating a hotel-offering product as "accommodation absorbs the
+ * pickup back-target":
+ *
+ *   - hotel offering present (accommodation in the plan) → accommodation.
+ *   - else pickup live (needs_pickup, no hotel) → pickup.
+ *   - else service_addons shown → service_addons.
+ *   - else details.
+ */
+function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
+  const kinds = legacyMiddleKinds(args.product, false)
+  // A hotel-offering product always routes Back to accommodation (it is in the
+  // plan iff the product offers a hotel — productHasHotelOffering).
+  if (kinds.includes('accommodation') || args.hotelLocationId != null) {
+    return 'accommodation'
   }
-  // 2. No hotel offering, product needs a pickup → pick-pickup showed
-  //    forward → return to it with the prior radio choice restored.
-  if (args.product.needs_pickup) {
-    return {
-      name: 'pick-pickup',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      accommodationRooms: args.accommodationRooms,
-      addons: args.addons,
-      pickupLocationId: args.pickupLocationId,
-      hotelLocationId: args.hotelLocationId,
-      hadServiceAddons: args.hadServiceAddons,
-      includeHotel: args.includeHotel,
-      isSharedDouble: args.isSharedDouble,
-      accommodationMode: args.accommodationMode,
-      roomAssignment: args.roomAssignment,
-      occupantAgeMap: args.occupantAgeMap,
-      perRoomAddons: args.perRoomAddons,
-      roomProductNames: args.roomProductNames,
-      breakfastMap: args.breakfastMap,
-    }
-  }
-  // 4. No hotel, no pickup, but the customer went through the service-
-  //    add-ons step → return there with the prior selections restored.
-  if (args.hadServiceAddons) {
-    return {
-      name: 'pick-service-addons',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      addons: args.addons,
-    }
-  }
-  // 5. Neither hotel, pickup, nor service add-ons → straight back to details.
-  return {
-    name: 'details',
-    product: args.product,
-    selection: args.selection,
-    booker: args.booker,
-    participants: args.participants,
-    companions: args.companions,
-  }
+  // No hotel offering: the standard mirror over the remaining live middles.
+  return liveModuleBefore(args.product, false, {
+    hotelLocationId: args.hotelLocationId,
+    hadServiceAddons: args.hadServiceAddons,
+  })
+}
+
+export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
+  // landr-71kz.3: backward plan walk for the review back-target (see
+  // reviewBackModule for the hotel-absorbs-pickup asymmetry it preserves).
+  return reconstructStepForModule(reviewBackModule(args), args)
 }
 
 /**
@@ -735,8 +910,11 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         accommodationRooms: [],
         addons: step.addons ?? [],
       }
+    // landr-71kz.3: custom-form sits alongside declarations in the funnel —
+    // same price context (rooms + add-ons already committed upstream).
     case 'pick-pickup':
     case 'declarations':
+    case 'custom-form':
     case 'fill-form':
       return {
         product: step.product,
@@ -778,6 +956,10 @@ const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   'pick-service-addons': 'Add-ons',
   'pick-pickup': 'Pickup',
   declarations: 'Declarations',
+  // landr-71kz.3: generic fallback label for a custom form. The renderer
+  // (landr-71kz.4) will surface the operator's localized form name; until then
+  // the crumb shows a neutral default.
+  'custom-form': 'Details',
   'fill-form': 'Review',
 }
 
@@ -789,56 +971,56 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
   'pick-service-addons',
   'pick-pickup',
   'declarations',
+  'custom-form',
   'fill-form',
 ])
 
 /**
  * The funnel step that preceded pick-pickup on the way forward, reconstructed
- * with its prior state. Mirrors the forward routing in App.tsx's pickup
- * back-nav handler: hotel offering → accommodation; else service add-ons →
- * that step; else straight back to details.
+ * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
+ * module over the preceding live middles — hotel offering → accommodation (the
+ * `accommodation` module is always present + live when the product offers a
+ * hotel); else service add-ons → that step (live iff hadServiceAddons); else
+ * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
+ * one place.
  */
 function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
-  const offering = step.product.hotel_offering ?? 'none'
-  if (step.product.product_kind === 'service' && offering !== 'none') {
-    return {
-      name: 'pick-accommodation',
-      product: step.product,
-      selection: step.selection,
-      booker: step.booker,
-      participants: step.participants,
-      companions: step.companions,
-      hotelLocationId: step.hotelLocationId,
-      accommodationRooms: step.accommodationRooms,
-      addons: step.addons,
-      includeHotel: step.includeHotel,
-      isSharedDouble: step.isSharedDouble,
-      accommodationMode: step.accommodationMode,
-      roomAssignment: step.roomAssignment,
-      occupantAgeMap: step.occupantAgeMap,
-      perRoomAddons: step.perRoomAddons,
-      roomProductNames: step.roomProductNames,
-    }
-  }
-  if (step.hadServiceAddons) {
-    return {
-      name: 'pick-service-addons',
-      product: step.product,
-      selection: step.selection,
-      booker: step.booker,
-      participants: step.participants,
-      companions: step.companions,
-      addons: step.addons,
-    }
-  }
-  return {
-    name: 'details',
+  // Hotel-offering products always route Back to accommodation (the original
+  // hotel-first priority); else the standard backward walk over the live
+  // middles preceding pickup.
+  const kind = productHasHotelOffering(step.product)
+    ? 'accommodation'
+    : liveModuleBefore(
+        step.product,
+        false,
+        {
+          hotelLocationId: step.hotelLocationId,
+          hadServiceAddons: step.hadServiceAddons,
+        },
+        'pickup',
+      )
+  return reconstructStepForModule(kind, {
     product: step.product,
     selection: step.selection,
     booker: step.booker,
     participants: step.participants,
     companions: step.companions,
-  }
+    // pick-pickup's pickupLocationId is optional (string|null|undefined);
+    // StepBeforeReviewArgs wants string|null — coalesce undefined to null.
+    pickupLocationId: step.pickupLocationId ?? null,
+    accommodationRooms: step.accommodationRooms,
+    addons: step.addons,
+    hotelLocationId: step.hotelLocationId,
+    hadServiceAddons: step.hadServiceAddons,
+    includeHotel: step.includeHotel,
+    isSharedDouble: step.isSharedDouble,
+    accommodationMode: step.accommodationMode,
+    roomAssignment: step.roomAssignment,
+    occupantAgeMap: step.occupantAgeMap,
+    perRoomAddons: step.perRoomAddons,
+    roomProductNames: step.roomProductNames,
+    breakfastMap: step.breakfastMap,
+  })
 }
 
 /**
@@ -877,6 +1059,12 @@ export function draftFromStep(step: Step): BookingDraft | undefined {
   if ('customerLanguages' in step) d.customerLanguages = step.customerLanguages
   if ('customerOtherLanguages' in step)
     d.customerOtherLanguages = step.customerOtherLanguages
+  // landr-71kz.3: capture a custom-form step's answers into the keyed slot so a
+  // breadcrumb JUMP preserves them (renderer lands in landr-71kz.4; the draft
+  // plumbing is wired now). Keyed by formKey so multiple forms coexist.
+  if (step.name === 'custom-form' && step.initialAnswers) {
+    d.customFormAnswers = { [step.formKey]: step.initialAnswers }
+  }
   // A draft is only meaningful once the customer has at least entered details.
   return d.booker || d.participants ? d : undefined
 }
@@ -936,7 +1124,13 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
       }
     case 'pick-pickup':
       return stepBeforePickup(step)
+    // landr-71kz.3: declarations and custom-form occupy the SAME pre-review
+    // slot; both route Back via stepBeforeReview's hotel-aware walk. (The
+    // legacy/null-remoteFlow path never produces a custom-form step; this case
+    // exists for the remote-flow path that lands in landr-71kz.4 and to keep the
+    // Step union exhaustive.)
     case 'declarations':
+    case 'custom-form':
       return stepBeforeReview({
         product: step.product,
         selection: step.selection,
