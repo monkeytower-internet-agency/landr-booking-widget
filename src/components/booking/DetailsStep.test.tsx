@@ -883,9 +883,9 @@ describe('DetailsStep — add-below-last + max + contact-us (landr-4uyu)', () =>
       />,
     )
     addParticipantsToMax()
-    // The "larger group / flight school" copy still renders…
+    // The "larger group / custom booking" copy still renders…
     expect(
-      screen.getByText(/larger group or a flight school booking/i),
+      screen.getByText(/larger group or a custom booking/i),
     ).toBeInTheDocument()
     // …but there is no (broken) mailto link.
     expect(
@@ -953,7 +953,7 @@ describe('DetailsStep — add-below-last + max + contact-us (landr-4uyu)', () =>
     ).toBeInTheDocument()
     // Companions get NO contact-us line even when contact_email is set.
     expect(
-      screen.queryByText(/larger group or a flight school booking/i),
+      screen.queryByText(/larger group or a custom booking/i),
     ).not.toBeInTheDocument()
   })
 })

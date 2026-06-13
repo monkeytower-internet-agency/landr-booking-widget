@@ -60,7 +60,7 @@ interface Props {
   /**
    * landr-4uyu: operator contact email surfaced at the participant max
    * (MAX_ADDITIONAL added). When non-empty the Details step renders a
-   * "Need a larger group or a flight school booking?" line with a mailto:
+   * "Need a larger group or a custom booking?" line with a mailto:
    * link to this address. Null / undefined → the copy still shows but the
    * (broken) mailto is omitted. Optional so existing tests need no change.
    */
@@ -548,7 +548,7 @@ export function DetailsStep({
   const trimmedContactEmail = contactEmail?.trim() || ''
   const contactMailto = trimmedContactEmail
     ? `mailto:${trimmedContactEmail}?subject=${encodeURIComponent(
-        `Larger group / flight school booking — ${product.name}`,
+        `Larger group or custom booking — ${product.name}`,
       )}`
     : ''
 
@@ -766,7 +766,7 @@ export function DetailsStep({
                 Maximum of {MAX_ADDITIONAL} additional participants reached
               </p>
               <p className="text-xs text-muted-foreground">
-                Need a larger group or a flight school booking?
+                Need a larger group or a custom booking?
               </p>
               <div className="flex items-center justify-between gap-2">
                 <Button
@@ -806,7 +806,7 @@ export function DetailsStep({
                   <DialogHeader>
                     <DialogTitle>Request a larger group</DialogTitle>
                     <DialogDescription>
-                      Need a larger group or a flight-school booking? Send us
+                      Need a larger group or a custom booking? Send us
                       the details and we&rsquo;ll be in touch.
                     </DialogDescription>
                   </DialogHeader>
