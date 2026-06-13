@@ -345,11 +345,25 @@ export function BookingForm({
   // the index-order heuristic (first totalAddonQty units get breakfast).
   // Skipped when perRoomAddons is absent or empty (guiding-only,
   // shared-double, or no add-ons configured).
-  const perRoomBreakfastRows: {
+  //
+  // landr-rjvd: row shape extended to carry per-occupant breakfast data so
+  // the review can show WHO gets breakfast rather than collapsing to a
+  // per-unit boolean. Legacy path (empty breakfastMap) retains the prior
+  // per-unit rendering via hasBreakfastMapData=false.
+  type ReviewRoomRow = {
     label: string
+    /** Room-level breakfast state derived from per-occupant flags. */
+    breakfastState: 'all' | 'some' | 'none'
+    /** Per-occupant names paired with their individual breakfast flag. */
+    occupants: { name: string; hasBreakfast: boolean }[]
+    /** false when breakfastMap is empty → fall back to legacy per-unit display. */
+    hasBreakfastMapData: boolean
+    /** Legacy-only: kept for backward-compatible rendering when hasBreakfastMapData=false. */
     hasBreakfast: boolean
+    /** Legacy-only: plain occupant names list (no per-occupant breakfast data). */
     occupantNames: string[]
-  }[] = (() => {
+  }
+  const perRoomBreakfastRows: ReviewRoomRow[] = (() => {
     if (!perRoomAddons || !hasRooms || !accommodationRooms) return []
     // Only show this section when at least one room type has any add-on qty.
     const hasAnyAddons = Object.values(perRoomAddons).some((qtys) =>
@@ -362,7 +376,7 @@ export function BookingForm({
       ...companions.map((c) => c.first_name || '?'),
     ]
     const hasBreakfastMapData = Object.keys(breakfastMap).length > 0
-    const rows: { label: string; hasBreakfast: boolean; occupantNames: string[] }[] = []
+    const rows: ReviewRoomRow[] = []
     for (const room of accommodationRooms) {
       const roomName = roomProductNames?.[room.productId] ?? room.productId
       const roomAddonQtys = perRoomAddons[room.productId] ?? {}
@@ -389,16 +403,40 @@ export function BookingForm({
             }
           }
         }
-        // landr-a4fy: derive hasBreakfast from the occupant breakfast flags
-        // when available; fall back to the index-order heuristic otherwise.
-        let hasBreakfast: boolean
         if (hasBreakfastMapData) {
-          hasBreakfast = occupantIndices.some((idx) => breakfastMap[idx] === true)
+          // landr-rjvd: build per-occupant pairs and derive room-level state.
+          const occupants = occupantIndices.map((memberIdx, i) => ({
+            name: occupantNames[i] ?? '?',
+            hasBreakfast: breakfastMap[memberIdx] === true,
+          }))
+          const withCount = occupants.filter((o) => o.hasBreakfast).length
+          const breakfastState: 'all' | 'some' | 'none' =
+            withCount === occupants.length && occupants.length > 0
+              ? 'all'
+              : withCount > 0
+                ? 'some'
+                : 'none'
+          rows.push({
+            label,
+            breakfastState,
+            occupants,
+            hasBreakfastMapData: true,
+            // Legacy fields not used in this path but kept for type completeness.
+            hasBreakfast: withCount > 0,
+            occupantNames,
+          })
         } else {
-          // Distribute breakfast sequentially: first totalAddonQty units get it.
-          hasBreakfast = unitIndex < totalAddonQty
+          // Legacy: distribute breakfast sequentially — first totalAddonQty units get it.
+          const hasBreakfast = unitIndex < totalAddonQty
+          rows.push({
+            label,
+            breakfastState: hasBreakfast ? 'all' : 'none',
+            occupants: [],
+            hasBreakfastMapData: false,
+            hasBreakfast,
+            occupantNames,
+          })
         }
-        rows.push({ label, hasBreakfast, occupantNames })
       }
     }
     return rows
@@ -798,27 +836,64 @@ export function BookingForm({
               {perRoomBreakfastRows.map((row, idx) => (
                 <li
                   key={`room-unit-${idx}`}
-                  className="flex items-baseline justify-between gap-2 border-b py-1 last:border-b-0"
+                  className="border-b py-1 last:border-b-0"
                 >
-                  <span>
+                  {/* Room label + room-level breakfast state */}
+                  <div className="flex items-baseline gap-2">
                     <span className="font-medium">{row.label}</span>
                     <span
                       className={[
-                        'ml-2 text-xs font-medium',
-                        row.hasBreakfast
-                          ? 'text-primary'
-                          : 'text-muted-foreground',
+                        'text-xs font-medium',
+                        row.hasBreakfastMapData
+                          ? row.breakfastState === 'all'
+                            ? 'text-primary'
+                            : row.breakfastState === 'some'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-muted-foreground'
+                          : row.hasBreakfast
+                            ? 'text-primary'
+                            : 'text-muted-foreground',
                       ].join(' ')}
                       data-testid={`room-breakfast-status-${idx}`}
                     >
-                      {row.hasBreakfast ? 'with breakfast' : 'without breakfast'}
+                      {row.hasBreakfastMapData
+                        ? row.breakfastState === 'all'
+                          ? '· breakfast included'
+                          : row.breakfastState === 'some'
+                            ? '· breakfast for some guests only'
+                            : '· no breakfast'
+                        : row.hasBreakfast
+                          ? 'with breakfast'
+                          : 'without breakfast'}
                     </span>
-                    {row.occupantNames.length > 0 ? (
-                      <span className="ml-2 text-xs text-muted-foreground">
+                    {/* Legacy path: show plain occupant names when no per-occupant data */}
+                    {!row.hasBreakfastMapData && row.occupantNames.length > 0 ? (
+                      <span className="text-xs text-muted-foreground">
                         · {row.occupantNames.join(', ')}
                       </span>
                     ) : null}
-                  </span>
+                  </div>
+                  {/* landr-rjvd: per-occupant breakfast flags when map data is present */}
+                  {row.hasBreakfastMapData && row.occupants.length > 0 ? (
+                    <ul className="ml-3 mt-0.5 space-y-0.5">
+                      {row.occupants.map((occupant, oIdx) => (
+                        <li
+                          key={`occupant-${idx}-${oIdx}`}
+                          className="flex items-baseline gap-1.5 text-xs text-muted-foreground"
+                          data-testid={`room-occupant-breakfast-${idx}-${oIdx}`}
+                        >
+                          <span>{occupant.name}</span>
+                          <span
+                            className={
+                              occupant.hasBreakfast ? 'text-primary' : 'text-muted-foreground'
+                            }
+                          >
+                            {occupant.hasBreakfast ? '· with breakfast' : '· no breakfast'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               ))}
             </ol>

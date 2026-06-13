@@ -688,11 +688,185 @@ describe('BookingForm — per-occupant breakfast (landr-a4fy)', () => {
     const section = screen.getByTestId('review-per-room-breakfast')
     expect(section).toBeInTheDocument()
     // breakfastMap drives the display — NOT the index-order heuristic.
-    // Ada (unit 0) has no breakfast.
+    // Ada (unit 0) has no breakfast → room-level "· no breakfast".
     const status0 = screen.getByTestId('room-breakfast-status-0')
-    expect(status0).toHaveTextContent('without breakfast')
-    // Grace (unit 1) has breakfast.
+    expect(status0).toHaveTextContent('· no breakfast')
+    // Grace (unit 1) has breakfast → room-level "· breakfast included".
     const status1 = screen.getByTestId('room-breakfast-status-1')
-    expect(status1).toHaveTextContent('with breakfast')
+    expect(status1).toHaveTextContent('· breakfast included')
+  })
+})
+
+// landr-rjvd: per-occupant breakfast display in the review screen.
+describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
+  it('shows per-occupant breakfast flags when breakfastMap is provided and one of two has it', () => {
+    // Double room with 2 occupants: Ada has breakfast, Grace does not.
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        // Ada (0) has breakfast; Grace (1) does not.
+        breakfastMap={{ 0: true, 1: false }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('review-per-room-breakfast')
+    expect(section).toBeInTheDocument()
+    // Room-level status: only one of two has it → "breakfast for some guests only".
+    const status0 = screen.getByTestId('room-breakfast-status-0')
+    expect(status0).toHaveTextContent('· breakfast for some guests only')
+    expect(status0).not.toHaveTextContent('breakfast included')
+    // Per-occupant: Ada gets breakfast, Grace does not.
+    const adaOccupant = screen.getByTestId('room-occupant-breakfast-0-0')
+    expect(adaOccupant).toHaveTextContent('Ada')
+    expect(adaOccupant).toHaveTextContent('· with breakfast')
+    const graceOccupant = screen.getByTestId('room-occupant-breakfast-0-1')
+    expect(graceOccupant).toHaveTextContent('Grace')
+    expect(graceOccupant).toHaveTextContent('· no breakfast')
+  })
+
+  it('shows "breakfast included" and all occupants "with breakfast" when all have it', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 2 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        breakfastMap={{ 0: true, 1: true }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('review-per-room-breakfast')
+    expect(section).toBeInTheDocument()
+    // Room-level: all have breakfast → "breakfast included".
+    const status0 = screen.getByTestId('room-breakfast-status-0')
+    expect(status0).toHaveTextContent('· breakfast included')
+    // Per-occupant: both with breakfast.
+    const adaOccupant = screen.getByTestId('room-occupant-breakfast-0-0')
+    expect(adaOccupant).toHaveTextContent('· with breakfast')
+    const graceOccupant = screen.getByTestId('room-occupant-breakfast-0-1')
+    expect(graceOccupant).toHaveTextContent('· with breakfast')
+  })
+
+  it('shows "no breakfast" and per-occupant "no breakfast" when none have it', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        breakfastMap={{ 0: false, 1: false }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('review-per-room-breakfast')
+    expect(section).toBeInTheDocument()
+    // Room-level: none have breakfast → "· no breakfast".
+    const status0 = screen.getByTestId('room-breakfast-status-0')
+    expect(status0).toHaveTextContent('· no breakfast')
+    // Per-occupant: both without breakfast.
+    const adaOccupant = screen.getByTestId('room-occupant-breakfast-0-0')
+    expect(adaOccupant).toHaveTextContent('· no breakfast')
+    const graceOccupant = screen.getByTestId('room-occupant-breakfast-0-1')
+    expect(graceOccupant).toHaveTextContent('· no breakfast')
+  })
+
+  it('falls back to legacy per-unit rendering without crashing when breakfastMap is empty', () => {
+    // No breakfastMap prop — should fall back to index-order heuristic, no per-occupant flags.
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        // No breakfastMap → legacy path.
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const section = screen.getByTestId('review-per-room-breakfast')
+    expect(section).toBeInTheDocument()
+    // Legacy: room-level only, no per-occupant items.
+    const status0 = screen.getByTestId('room-breakfast-status-0')
+    expect(status0).toHaveTextContent('with breakfast')
+    // No per-occupant rows rendered in legacy path.
+    expect(screen.queryByTestId('room-occupant-breakfast-0-0')).toBeNull()
   })
 })
