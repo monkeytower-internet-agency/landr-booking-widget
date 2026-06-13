@@ -533,8 +533,16 @@ describe('Step type completeness (landr-d8rg.4 — pick-category and product-det
 })
 
 describe('breadcrumb navigation (landr)', () => {
-  const NO_DECL = { requiresDeclarations: false }
-  const WITH_DECL = { requiresDeclarations: true }
+  // landr-71kz.10: declarations retired → breadcrumb options are { remoteFlow,
+  // customFormAnswers, productLabel }. NO_DECL is now an empty options bag
+  // (legacy plan, no custom forms); a remote flow with a custom_form module
+  // injects a custom-form crumb.
+  const NO_DECL = {}
+  const CUSTOM_FORM_FLOW = {
+    remoteFlow: {
+      modules: [{ kind: 'custom_form', position: 0, form: { key: 'waiver' } }],
+    },
+  }
 
   function fillForm(overrides: Partial<Extract<Step, { name: 'fill-form' }>> = {}): Step {
     return {
@@ -613,17 +621,22 @@ describe('breadcrumb navigation (landr)', () => {
     ])
   })
 
-  it('includes Declarations when the operator requires them', () => {
-    const crumbs = buildBreadcrumb(fillForm(), WITH_DECL)
+  it('includes a custom-form crumb when the remote flow configures one (landr-71kz.10)', () => {
+    const crumbs = buildBreadcrumb(fillForm(), CUSTOM_FORM_FLOW)
     expect(crumbs.map((c) => c.name)).toEqual([
       'product-detail',
       'pick-selection',
       'details',
-      'declarations',
+      'custom-form',
       'fill-form',
     ])
-    // The penultimate crumb (one step back) targets the declarations step.
-    expect(crumbs.at(-2)!.target!.name).toBe('declarations')
+    // The penultimate crumb (one step back) targets the custom-form step,
+    // carrying its formKey.
+    const cfCrumb = crumbs.at(-2)!
+    expect(cfCrumb.target!.name).toBe('custom-form')
+    expect(
+      cfCrumb.target!.name === 'custom-form' ? cfCrumb.target!.formKey : null,
+    ).toBe('waiver')
   })
 
   it('returns no crumbs for non-funnel steps (catalog/confirmation)', () => {

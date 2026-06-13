@@ -22,12 +22,6 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
-import {
-  DeclarationsStep,
-  type CustomerDeclarations,
-  type DeclarationItem,
-  type LanguageOption,
-} from '@/components/booking/DeclarationsStep'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -46,11 +40,12 @@ import {
   getOperatorServiceRoles,
   getOperatorSettings,
   getProductAddons,
+  getProductFlow,
   HttpError,
   listProductGroups,
 } from '@/api/client'
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
-import type { FormResponseEntry } from '@/api/flowTypes'
+import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
 import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api/types'
 import {
   type Step,
@@ -60,11 +55,13 @@ import {
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
-  fillFormOrDeclarations,
+  enterReviewOrCustomForm,
   sidebarInputsForStep,
   stepAfterAccommodation,
+  stepAfterCustomForm,
   stepBeforeReview,
 } from './appStepMachine'
+import type { RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
   clearStoredProgress,
@@ -86,44 +83,13 @@ import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
 import { StepTransition } from '@/components/booking/StepTransition'
 
-// landr-sbhz.3: operators that require pre-booking customer declarations.
-// v1 hardcodes the Para42 slug; v2 would fetch this from the operator settings
-// API (operator_declarations table). Exact match on slug — the para42-dev-*
-// test slugs do NOT match and are therefore not subject to enforcement.
-const OPERATORS_REQUIRING_DECLARATIONS: ReadonlySet<string> = new Set(['para42'])
-
-// Para42 declaration items (v1 hardcoded set).
-// Extension point: replace with a fetch from /api/public/operators/{slug}/declarations
-// when the operator-configurable declaration feature is implemented.
-const PARA42_DECLARATION_ITEMS: DeclarationItem[] = [
-  {
-    key: 'license_valid',
-    label:
-      'I have a valid paragliding license that is accepted in Tenerife / the Canary Islands.',
-  },
-  {
-    key: 'insurance_valid',
-    label:
-      'I have valid health insurance and third-party liability insurance for paragliding.',
-  },
-  {
-    key: 'autonomous_pilot',
-    label:
-      'I am an autonomous paraglider at intermediate-to-advanced level and can fly independently.',
-  },
-  {
-    key: 'emergency_contact',
-    label:
-      'I will provide an emergency contact (name + phone number) on the first day of the booking.',
-  },
-]
-
-const PARA42_LANGUAGE_OPTIONS: LanguageOption[] = [
-  { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'es', label: 'Español' },
-  { code: 'fr', label: 'Français' },
-]
+// landr-71kz.10: the hardcoded Para42 declarations constants
+// (OPERATORS_REQUIRING_DECLARATIONS / PARA42_DECLARATION_ITEMS /
+// PARA42_LANGUAGE_OPTIONS) have been retired. Declarations are now an
+// operator-configured `custom_form` module fetched via the product flow RPC
+// (public_get_product_flow) and rendered by CustomFormStep. The widget no
+// longer hardcodes any operator's declaration set — the data path is the single
+// source of truth. (API legacy constants stay — landr-gfqt.)
 
 function readQueryParams() {
   if (typeof window === 'undefined') {
@@ -292,19 +258,48 @@ function BookingFlowApp() {
       return [...prev, entry]
     })
   }, [])
-  // landr-nmed: reconstruct the DeclarationsStep's CustomerDeclarations from
-  // the persistent draft so that, when the customer reaches declarations again
-  // on the way forward after a breadcrumb jump, the step re-mounts with their
-  // prior confirmations + languages instead of an empty form. undefined when
-  // nothing was confirmed yet (initial forward visit).
-  const draftDeclarations: CustomerDeclarations | undefined =
-    bookingDraft.customerDeclarations
-      ? {
-          declarations: bookingDraft.customerDeclarations,
-          languages: bookingDraft.customerLanguages ?? [],
-          otherLanguages: bookingDraft.customerOtherLanguages ?? '',
-        }
-      : undefined
+  // landr-71kz.10: the product's operator-configured remote flow
+  // (public_get_product_flow). null = no flow fetched / no flow configured /
+  // fetch failed → buildFlowPlan falls back to the legacy plan (NEVER throws —
+  // bd memory landr-9ut4). Cached per product; re-fetched when a different
+  // product is selected (and re-fetched on reload-restore, since this state is
+  // not persisted — the restored `step` already carries any custom-form formKey).
+  // Keyed by product_id so a stale flow from a previous product is never used.
+  const [remoteFlow, setRemoteFlow] = useState<{
+    productId: string
+    flow: ProductFlowResponse | null
+  } | null>(null)
+  // The flow for the CURRENTLY-active product, or null when it doesn't match
+  // (different product, not yet fetched, or fetch failed → legacy plan).
+  const flowForProduct = useCallback(
+    (productId: string | undefined): RemoteFlow | null => {
+      if (!productId) return null
+      if (!remoteFlow || remoteFlow.productId !== productId) return null
+      return remoteFlow.flow
+    },
+    [remoteFlow],
+  )
+  // landr-71kz.10: fetch (and cache) a product's flow. Tolerant: getProductFlow
+  // already swallows network/404/malformed → null; we additionally guard so a
+  // throw can NEVER escape and blank the widget. Idempotent per product_id.
+  const ensureProductFlow = useCallback((productId: string) => {
+    void (async () => {
+      try {
+        const flow = await getProductFlow(token!, productId)
+        setRemoteFlow((prev) =>
+          prev && prev.productId === productId && prev.flow === flow
+            ? prev
+            : { productId, flow },
+        )
+      } catch {
+        // Defensive: degrade to the legacy plan. The fetch must not block the
+        // widget on error (no error boundary — landr-9ut4).
+        setRemoteFlow({ productId, flow: null })
+      }
+    })()
+    // token is stable for the lifetime of this component (read once at mount).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // landr-d8rg.4: product groups fetched at boot for the category entrance.
   // null = fetch not yet attempted; [] = fetch done (empty or error fallback).
   // Populated by the useEffect below, which silently falls back to []
@@ -419,6 +414,24 @@ function BookingFlowApp() {
     }
   }, [token])
 
+  // landr-71kz.10: the product currently in focus (product-detail onward). The
+  // flow is fetched the moment a product is selected — at the product-detail
+  // step, alongside the existing per-product data — so it is cached BEFORE the
+  // customer reaches the pre-review tail where the custom-form step is routed.
+  // Deriving it from `step` (rather than a single onClick) also covers deep
+  // links (?product=) and a reload-restore mid-funnel, where the active product
+  // arrives via the restored step rather than a fresh click.
+  const activeProductId =
+    'product' in step ? step.product.product_id : undefined
+  useEffect(() => {
+    if (!token || !activeProductId) return
+    // Already cached for this product → no refetch (idempotent).
+    if (remoteFlow && remoteFlow.productId === activeProductId) return
+    ensureProductFlow(activeProductId)
+    // ensureProductFlow is stable; remoteFlow is the cache guard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, activeProductId])
+
   // landr-jb1k.2: apply operator's widget_variant once settings resolve.
   // Resolution precedence (highest to lowest):
   //   1. Explicit ?variant= URL param (set at boot OR by the preview switcher
@@ -512,6 +525,9 @@ function BookingFlowApp() {
       setBookingDraft({})
       // landr-71kz.4: also clear accumulated form_responses on restart.
       setFormResponses([])
+      // landr-71kz.10: drop the cached remote flow on a full restart so the
+      // next product's flow is fetched fresh (a new product is being chosen).
+      setRemoteFlow(null)
       // landr-2mgl: drop the persisted snapshot synchronously on a full
       // restart so a reload immediately after starting over never resurrects
       // the finished/abandoned funnel. The persistence effect would also
@@ -744,17 +760,21 @@ function BookingFlowApp() {
       // landr-a4fy: breakfast map threads through to the review.
       breakfastMap,
     )
-    // landr-sbhz.3: if stepAfterAccommodation resolved to fill-form and
-    // the operator requires declarations, convert to the declarations step
-    // so the customer confirms eligibility before the review screen.
-    // pick-pickup is left unchanged — the pickup step's onConfirm handler
-    // also goes through fillFormOrDeclarations.
-    // landr-il9f.2: declarations check now keyed on the server-resolved
-    // slug from settings (operatorSettings.slug), not the URL param.
-    if (next.name === 'fill-form' && OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug)) {
-      // landr-nmed: re-seed the declarations from the draft so a forward pass
-      // after a breadcrumb jump restores the customer's prior confirmations.
-      setStep(fillFormOrDeclarations(next, true, draftDeclarations))
+    // landr-71kz.10: if stepAfterAccommodation resolved straight to the review
+    // screen, route into the operator-configured custom-form chain first (when
+    // the product's remote flow has any custom_form modules). pick-pickup is
+    // left unchanged — the pickup step's onConfirm handler runs the same
+    // pre-review router. With no remote flow this is identical to fill-form.
+    if (next.name === 'fill-form') {
+      setStep(
+        enterReviewOrCustomForm(
+          next,
+          flowForProduct(product.product_id),
+          // landr-nmed: re-seed any custom-form answers from the draft so a
+          // forward pass after a breadcrumb jump restores the customer's input.
+          bookingDraft.customFormAnswers,
+        ),
+      )
     } else {
       setStep(next)
     }
@@ -798,13 +818,13 @@ function BookingFlowApp() {
 
   // landr (breadcrumb): the ordered crumb trail for the current step. Empty for
   // non-funnel steps (catalog, confirmation, …) so StepBackButton falls back to
-  // the single back affordance there. Memoised on the step (+ the declarations
-  // flag) so the context value stays referentially stable while the step is
-  // unchanged — otherwise every App re-render would rebuild the trail and force
-  // all breadcrumb consumers to re-render.
-  const requiresDeclarations = OPERATORS_REQUIRING_DECLARATIONS.has(
-    operatorSettings.slug,
-  )
+  // the single back affordance there. Memoised on the step (+ the remote flow)
+  // so the context value stays referentially stable while the step is unchanged
+  // — otherwise every App re-render would rebuild the trail and force all
+  // breadcrumb consumers to re-render.
+  // landr-71kz.10: the crumb trail now reconstructs the custom-form chain from
+  // the active product's remote flow (replacing the hardcoded declarations crumb).
+  const activeFlow = flowForProduct(activeProductId)
   const breadcrumbItems = useMemo(() => {
     const productLabel =
       'product' in step
@@ -814,8 +834,12 @@ function BookingFlowApp() {
             browserLocale(),
           )
         : undefined
-    return buildBreadcrumb(step, { requiresDeclarations, productLabel })
-  }, [step, requiresDeclarations])
+    return buildBreadcrumb(step, {
+      remoteFlow: activeFlow,
+      customFormAnswers: bookingDraft.customFormAnswers,
+      productLabel,
+    })
+  }, [step, activeFlow, bookingDraft.customFormAnswers])
   const breadcrumbNav = useMemo(
     () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
     [breadcrumbItems, navigateTo],
@@ -1458,8 +1482,10 @@ function BookingFlowApp() {
               }
             }}
             onConfirm={(locationId) => {
-              // landr-sbhz.3: route to declarations step before fill-form
-              // when the operator requires pre-booking declarations.
+              // landr-71kz.10: route into the operator-configured custom-form
+              // chain (when the product's remote flow has any) before the review
+              // screen; otherwise straight to fill-form. Replaces the hardcoded
+              // declarations branch.
               const fillFormArgs = {
                 product: step.product,
                 selection: step.selection,
@@ -1488,91 +1514,13 @@ function BookingFlowApp() {
               // landr-nmed: persist the chosen pickup into the draft.
               mergeDraft({ pickupLocationId: locationId })
               setStep(
-                fillFormOrDeclarations(
+                enterReviewOrCustomForm(
                   fillFormArgs,
-                  // landr-il9f.2: keyed on the server-resolved slug.
-                  OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug),
-                  // landr-nmed: restore prior declarations on the forward pass.
-                  draftDeclarations,
+                  flowForProduct(step.product.product_id),
+                  // landr-nmed: restore prior custom-form answers on the forward pass.
+                  bookingDraft.customFormAnswers,
                 ),
               )
-            }}
-          />
-        ) : null}
-
-        {/* landr-sbhz.3: declarations step — eligibility confirmations
-            + language selector, shown before the review screen for
-            operators in OPERATORS_REQUIRING_DECLARATIONS. */}
-        {step.name === 'declarations' ? (
-          <DeclarationsStep
-            productName={step.product.name}
-            declarationItems={PARA42_DECLARATION_ITEMS}
-            languageOptions={PARA42_LANGUAGE_OPTIONS}
-            initialDeclarations={step.initialDeclarations}
-            onBack={() =>
-              // landr-87n9.1: mirror the forward step machine. When a hotel
-              // was booked the pickup step was SKIPPED forward, so Back must
-              // return to pick-accommodation (NOT the free-pickup picker the
-              // customer never saw). stepBeforeReview encodes the full
-              // hotel-first routing and reconstructs the upstream step with
-              // its previously confirmed state restored.
-              setStep(
-                stepBeforeReview({
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                  pickupLocationId: step.pickupLocationId,
-                  accommodationRooms: step.accommodationRooms,
-                  addons: step.addons,
-                  hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
-                  includeHotel: step.includeHotel,
-                  isSharedDouble: step.isSharedDouble,
-                  accommodationMode: step.accommodationMode,
-                  roomAssignment: step.roomAssignment,
-                  occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
-                  roomProductNames: step.roomProductNames,
-                  breakfastMap: step.breakfastMap,
-                }),
-              )
-            }
-            onConfirm={(customerDeclarations: CustomerDeclarations) => {
-              // landr-nmed: persist the confirmed declarations into the draft
-              // so they survive a later breadcrumb jump back to an early step.
-              mergeDraft({
-                customerDeclarations: customerDeclarations.declarations,
-                customerLanguages: customerDeclarations.languages,
-                customerOtherLanguages:
-                  customerDeclarations.otherLanguages || null,
-              })
-              setStep({
-                name: 'fill-form',
-                product: step.product,
-                selection: step.selection,
-                booker: step.booker,
-                participants: step.participants,
-                companions: step.companions,
-                pickupLocationId: step.pickupLocationId,
-                accommodationRooms: step.accommodationRooms,
-                addons: step.addons,
-                hotelLocationId: step.hotelLocationId,
-                hadServiceAddons: step.hadServiceAddons,
-                includeHotel: step.includeHotel,
-                isSharedDouble: step.isSharedDouble,
-                accommodationMode: step.accommodationMode,
-                roomAssignment: step.roomAssignment,
-                occupantAgeMap: step.occupantAgeMap,
-                perRoomAddons: step.perRoomAddons,
-                roomProductNames: step.roomProductNames,
-                breakfastMap: step.breakfastMap,
-                customerDeclarations: customerDeclarations.declarations,
-                // landr-87n9.4: multi-select languages + free-text other.
-                customerLanguages: customerDeclarations.languages,
-                customerOtherLanguages: customerDeclarations.otherLanguages || null,
-              })
             }}
           />
         ) : null}
@@ -1587,27 +1535,35 @@ function BookingFlowApp() {
             // Restore answers from draft on back-nav re-entry.
             initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
             onBack={() =>
+              // landr-71kz.10: Back walks the custom-form chain (the prior
+              // custom form, else the hotel-aware non-custom walk) — threading
+              // this step's formKey + the remote flow.
               setStep(
-                stepBeforeReview({
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                  pickupLocationId: step.pickupLocationId,
-                  accommodationRooms: step.accommodationRooms,
-                  addons: step.addons,
-                  hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
-                  includeHotel: step.includeHotel,
-                  isSharedDouble: step.isSharedDouble,
-                  accommodationMode: step.accommodationMode,
-                  roomAssignment: step.roomAssignment,
-                  occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
-                  roomProductNames: step.roomProductNames,
-                  breakfastMap: step.breakfastMap,
-                }),
+                stepBeforeReview(
+                  {
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    companions: step.companions,
+                    pickupLocationId: step.pickupLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    hotelLocationId: step.hotelLocationId,
+                    hadServiceAddons: step.hadServiceAddons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                    accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
+                    occupantAgeMap: step.occupantAgeMap,
+                    perRoomAddons: step.perRoomAddons,
+                    roomProductNames: step.roomProductNames,
+                    breakfastMap: step.breakfastMap,
+                    remoteFlow: flowForProduct(step.product.product_id),
+                    customFormAnswers: bookingDraft.customFormAnswers,
+                  },
+                  step.formKey,
+                ),
               )
             }
             onConfirm={(entry, rawAnswers) => {
@@ -1615,34 +1571,40 @@ function BookingFlowApp() {
               mergeFormResponse(entry)
               // Persist the raw answers in the draft so a breadcrumb jump
               // back to a prior step and re-forward restores the form.
-              mergeDraft({
-                customFormAnswers: {
-                  ...bookingDraft.customFormAnswers,
-                  [step.formKey]: rawAnswers,
-                },
-              })
-              // Proceed to the review screen.
-              setStep({
-                name: 'fill-form',
-                product: step.product,
-                selection: step.selection,
-                booker: step.booker,
-                participants: step.participants,
-                companions: step.companions,
-                pickupLocationId: step.pickupLocationId,
-                accommodationRooms: step.accommodationRooms,
-                addons: step.addons,
-                hotelLocationId: step.hotelLocationId,
-                hadServiceAddons: step.hadServiceAddons,
-                includeHotel: step.includeHotel,
-                isSharedDouble: step.isSharedDouble,
-                accommodationMode: step.accommodationMode,
-                roomAssignment: step.roomAssignment,
-                occupantAgeMap: step.occupantAgeMap,
-                perRoomAddons: step.perRoomAddons,
-                roomProductNames: step.roomProductNames,
-                breakfastMap: step.breakfastMap,
-              })
+              const nextAnswers = {
+                ...bookingDraft.customFormAnswers,
+                [step.formKey]: rawAnswers,
+              }
+              mergeDraft({ customFormAnswers: nextAnswers })
+              // landr-71kz.10: advance the custom-form chain — the NEXT custom
+              // form in the plan, or the review screen when the chain is done.
+              setStep(
+                stepAfterCustomForm(
+                  {
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    companions: step.companions,
+                    pickupLocationId: step.pickupLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    hotelLocationId: step.hotelLocationId,
+                    hadServiceAddons: step.hadServiceAddons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                    accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
+                    occupantAgeMap: step.occupantAgeMap,
+                    perRoomAddons: step.perRoomAddons,
+                    roomProductNames: step.roomProductNames,
+                    breakfastMap: step.breakfastMap,
+                  },
+                  step.formKey,
+                  flowForProduct(step.product.product_id),
+                  nextAnswers,
+                ),
+              )
             }}
           />
         ) : null}
@@ -1686,51 +1648,13 @@ function BookingFlowApp() {
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
             onBack={() => {
-              // landr-sbhz.3: if declarations were collected, back
-              // from fill-form goes to the declarations step (not all
-              // the way back to pickup/accommodation) so the customer
-              // can review/change declarations without losing context.
-              if (OPERATORS_REQUIRING_DECLARATIONS.has(operatorSettings.slug)) {
-                setStep({
-                  name: 'declarations',
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                  pickupLocationId: step.pickupLocationId,
-                  accommodationRooms: step.accommodationRooms,
-                  addons: step.addons,
-                  hotelLocationId: step.hotelLocationId,
-                  hadServiceAddons: step.hadServiceAddons,
-                  includeHotel: step.includeHotel,
-                  // landr-sbhz.4: keep the shared-double tick through the
-                  // fill-form → declarations back hop.
-                  isSharedDouble: step.isSharedDouble,
-                  accommodationMode: step.accommodationMode,
-                  roomAssignment: step.roomAssignment,
-                  occupantAgeMap: step.occupantAgeMap,
-                  perRoomAddons: step.perRoomAddons,
-                  roomProductNames: step.roomProductNames,
-                  breakfastMap: step.breakfastMap,
-                  // landr-87n9.4: restore languages[] + otherLanguages on back-nav.
-                  initialDeclarations: step.customerDeclarations
-                    ? {
-                        declarations: step.customerDeclarations,
-                        languages: step.customerLanguages ?? [],
-                        otherLanguages: step.customerOtherLanguages ?? '',
-                      }
-                    : undefined,
-                })
-                return
-              }
-              // landr-87n9.1: non-declaration operators — mirror the forward
-              // step machine via stepBeforeReview. When a hotel was booked the
-              // pickup step was SKIPPED forward, so Back returns to
-              // pick-accommodation rather than the free-pickup picker the
-              // customer never saw (the same latent bug fixed for the
-              // declarations path). All prior provenance + state is threaded
-              // through so the upstream step re-mounts restored.
+              // landr-71kz.10: Back from review walks the pre-review tail via
+              // stepBeforeReview — the LAST custom form (when the operator
+              // configured any), else the hotel-aware non-custom walk that
+              // returns to pick-accommodation rather than a skipped pickup
+              // picker (landr-87n9.1). All prior provenance + state is threaded
+              // through so the upstream step re-mounts restored. Replaces the
+              // hardcoded declarations back-hop.
               setStep(
                 stepBeforeReview({
                   product: step.product,
@@ -1751,6 +1675,8 @@ function BookingFlowApp() {
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
                   breakfastMap: step.breakfastMap,
+                  remoteFlow: flowForProduct(step.product.product_id),
+                  customFormAnswers: bookingDraft.customFormAnswers,
                 }),
               )
             }}
