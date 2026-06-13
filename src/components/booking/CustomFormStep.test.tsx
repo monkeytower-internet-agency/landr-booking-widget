@@ -799,3 +799,126 @@ describe('CustomFormStep — landr-71kz.9: para42 data-path contract', () => {
     expect(entry.answers.spoken_language).toBe('en')
   })
 })
+
+// landr — the `language` field_type must render as a SELECTABLE LIST (chips),
+// not a free-text input. (Regression: it was lumped with `text` and rendered
+// a free field; the para42 seed uses field_type='language' with options.)
+describe('CustomFormStep — language field renders as a picker', () => {
+  it('renders selectable chips (not a text input) and submits the chosen code', async () => {
+    mocks.getProductFlow.mockResolvedValue({
+      modules: [
+        {
+          kind: 'custom_form',
+          position: 0,
+          form: {
+            key: 'lang_form',
+            version: 1,
+            name: 'Language',
+            name_localized: null,
+            fields: [
+              {
+                key: 'language',
+                field_type: 'language',
+                label: 'Spoken language',
+                label_localized: null,
+                help_text: null,
+                help_text_localized: null,
+                required: true,
+                position: 0,
+                options: [
+                  { value: 'en', label: 'English', label_localized: null },
+                  { value: 'de', label: 'Deutsch', label_localized: null },
+                ],
+                validation: null,
+                visibility_rule: null,
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const onConfirm = vi.fn()
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="lang_form"
+        productName="Tandem"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-radio-language-en')).toBeTruthy()
+    })
+    // The field container is a chip list, NOT a free-text <input>.
+    expect(screen.getByTestId('cf-field-language').tagName).not.toBe('INPUT')
+    fireEvent.click(screen.getByTestId('cf-radio-language-de'))
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.language).toBe('de')
+  })
+})
+
+// landr — the WHOLE checkbox chip must be a click target, not just the tiny
+// checkmark. Clicking the chip container (not the inner Checkbox) toggles it.
+describe('CustomFormStep — whole checkbox chip is clickable', () => {
+  it('toggles when the chip container is clicked (not just the checkmark)', async () => {
+    mocks.getProductFlow.mockResolvedValue({
+      modules: [
+        {
+          kind: 'custom_form',
+          position: 0,
+          form: {
+            key: 'consent_form',
+            version: 1,
+            name: 'Consent',
+            name_localized: null,
+            fields: [
+              {
+                key: 'agree',
+                field_type: 'checkbox',
+                label: 'I agree',
+                label_localized: null,
+                help_text: null,
+                help_text_localized: null,
+                required: true,
+                position: 0,
+                options: [
+                  { value: 'yes', label: 'I agree', label_localized: null },
+                ],
+                validation: null,
+                visibility_rule: null,
+              },
+            ],
+          },
+        },
+      ],
+    })
+    const onConfirm = vi.fn()
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="consent_form"
+        productName="Tandem"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-option-agree-yes')).toBeTruthy()
+    })
+    // Click the chip CONTAINER (not cf-checkbox-…) — must still toggle.
+    fireEvent.click(screen.getByTestId('cf-option-agree-yes'))
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.agree).toEqual(['yes'])
+  })
+})
