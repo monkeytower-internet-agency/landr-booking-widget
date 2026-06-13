@@ -26,6 +26,10 @@ const { mocks } = vi.hoisted(() => ({
     getHotelRoomsForHotel: vi.fn(),
     getProductAddons: vi.fn(),
     estimateBookingPrice: vi.fn(),
+    // landr-71kz.10: the product-flow RPC. Default {modules: null} (legacy/no
+    // custom-form). Per-test overrides supply a custom_form module to exercise
+    // the data path.
+    getProductFlow: vi.fn(),
   },
 }))
 
@@ -48,8 +52,58 @@ vi.mock('@/api/client', async (importOriginal) => {
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
     getProductAddons: mocks.getProductAddons,
     estimateBookingPrice: mocks.estimateBookingPrice,
+    getProductFlow: mocks.getProductFlow,
   }
 })
+
+// landr-71kz.10: a remote flow whose only middle module is the para42
+// declarations custom form (form_key `customer_declarations`, 4 declaration
+// checkboxes + a language field). Tests that exercise the pre-review custom-form
+// step override getProductFlow with this.
+function declarationsFlow() {
+  return {
+    modules: [
+      {
+        kind: 'custom_form',
+        position: 0,
+        form: {
+          key: 'customer_declarations',
+          version: 1,
+          name: 'Eligibility declarations',
+          name_localized: null,
+          fields: [
+            {
+              key: 'license_valid',
+              field_type: 'checkbox',
+              label: 'I have a valid paragliding license.',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required: true,
+              position: 0,
+              options: [{ value: 'yes', label: 'Yes', label_localized: null }],
+              validation: null,
+              visibility_rule: null,
+            },
+            {
+              key: 'language',
+              field_type: 'language',
+              label: 'Preferred language',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required: true,
+              position: 1,
+              options: null,
+              validation: null,
+              visibility_rule: null,
+            },
+          ],
+        },
+      },
+    ],
+  }
+}
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -108,6 +162,9 @@ describe('App', () => {
     mocks.getHotelsForOperator.mockResolvedValue([])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
     mocks.getProductAddons.mockResolvedValue([])
+    // landr-71kz.10: default to no remote flow → legacy plan → no custom-form /
+    // declarations step. Tests that exercise the data path override this.
+    mocks.getProductFlow.mockResolvedValue({ modules: null })
     mocks.estimateBookingPrice.mockResolvedValue({
       line_items: [],
       operator_total: '0.00',
@@ -737,17 +794,8 @@ describe('App', () => {
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
 
-      // landr-sbhz.3: para42 requires declarations — pass through before review.
-      await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
-      )
-      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
-        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
-      }
-      // landr-87n9.4: multi-select language — click at least one checkbox.
-      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
-      fireEvent.click(screen.getByTestId('declarations-continue'))
-
+      // landr-71kz.10: no remote flow configured (default mock) → no custom-form
+      // step → straight to the review screen.
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -764,6 +812,10 @@ describe('App', () => {
     it('restores booker + additional participants when back-navigating into DetailsStep', async () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
+      // landr-71kz.10: configure a custom form so there's an intermediate
+      // pre-review step to back-navigate THROUGH (replacing the old hardcoded
+      // declarations step). The core assertion is DetailsStep restoration.
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
       mocks.listProducts.mockResolvedValue([
         makeProduct({
           product_kind: 'service',
@@ -825,31 +877,31 @@ describe('App', () => {
       // landr-nkbi: participant phone is now required — supply it so Continue is enabled.
       setInput('participant_2_phone', '+34600000002')
 
-      // Continue → DeclarationsStep (landr-sbhz.3: para42 requires declarations).
+      // Continue → CustomFormStep (landr-71kz.10: the configured custom form is
+      // the pre-review intermediate step). Fill the required fields + continue.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
       await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
-      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
-        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
-      }
-      // landr-87n9.4: multi-select language — click at least one checkbox.
-      fireEvent.click(screen.getByTestId('lang-checkbox-en'))
-      fireEvent.click(screen.getByTestId('declarations-continue'))
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
 
       // Now on BookingForm (review screen).
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
 
-      // Hit the top-left Back button on the BookingForm. With declarations
-      // enforced, Back from fill-form goes to DeclarationsStep first.
+      // Back from the review screen → the custom-form step (the last pre-review
+      // step shown on the way forward).
       fireEvent.click(screen.getByTestId('step-back-button'))
       await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Hit Back on DeclarationsStep → back to DetailsStep.
+      // Back on the custom form → DetailsStep.
       fireEvent.click(screen.getByTestId('step-back-button'))
 
       // We should be back on DetailsStep with every field restored.
@@ -893,9 +945,12 @@ describe('App', () => {
     it('restores the PickupLocationPicker radio choice when back-navigating from fill-form', async () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
+      // landr-71kz.10: a configured custom form sits between pickup and review,
+      // so Back from review lands on the custom form (then Back → pickup).
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
       mocks.listProducts.mockResolvedValue([
         // needs_pickup=true + hotel_offering='none' → details → pickup
-        // → fill-form. The Back button on fill-form must restore the
+        // → custom-form → fill-form. The Back button must restore the
         // pickup choice.
         makeProduct({
           product_kind: 'service',
@@ -972,30 +1027,29 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('radio', { name: /Beach Parking/i }))
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
-      // landr-sbhz.3: para42 requires declarations — pass the step.
+      // landr-71kz.10: the configured custom form is the pre-review step.
       await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
-      for (const key of ['license_valid', 'insurance_valid', 'autonomous_pilot', 'emergency_contact']) {
-        fireEvent.click(screen.getByTestId(`decl-checkbox-${key}`))
-      }
-      // landr-87n9.4: multi-select language — click at least one checkbox.
-      fireEvent.click(screen.getByTestId('lang-checkbox-de'))
-      fireEvent.click(screen.getByTestId('declarations-continue'))
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'de' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
 
       // Land on fill-form (BookingForm review screen).
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
 
-      // Click the top-left Back button — back to DeclarationsStep (not
-      // directly to PickupLocationPicker since declarations are enforced).
+      // Click the top-left Back button — back to the custom-form step (the last
+      // pre-review step shown forward, not the pickup picker).
       fireEvent.click(screen.getByTestId('step-back-button'))
       await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Click Back from declarations — back to PickupLocationPicker.
+      // Click Back from the custom form — back to PickupLocationPicker.
       fireEvent.click(screen.getByTestId('step-back-button'))
 
       // The picker re-mounts with Beach Parking still selected.
@@ -1182,7 +1236,10 @@ describe('App', () => {
       expect(hotelTotals.some((el) => /80/.test(el.textContent ?? ''))).toBe(true)
     })
 
-    it('Back from declarations returns to the accommodation page, NOT the skipped pickup picker (.1)', async () => {
+    it('Back from the custom form returns to the accommodation page, NOT the skipped pickup picker (.1)', async () => {
+      // landr-71kz.10: a configured custom form is the pre-review step. The
+      // hotel-is-pickup skip + back-to-accommodation contract is unchanged.
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
       setupHotelFlow()
       render(<App />)
       await advanceToAccommodation()
@@ -1193,13 +1250,13 @@ describe('App', () => {
       )
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
-      // The hotel is the pickup → pick-pickup is SKIPPED → declarations next
-      // (para42 requires them). We must NOT see the pickup picker.
+      // The hotel is the pickup → pick-pickup is SKIPPED → custom form next.
+      // We must NOT see the pickup picker.
       await waitFor(() =>
-        expect(screen.getByTestId('declarations-fieldset')).toBeInTheDocument(),
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Back from declarations → accommodation page (Double Room visible),
+      // Back from the custom form → accommodation page (Double Room visible),
       // NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
       await waitFor(() =>
@@ -1902,6 +1959,252 @@ describe('App', () => {
         (l) => l.product_id === 'svc-1',
       )!
       expect(serviceLine.selected_days).toEqual([iso2])
+    })
+  })
+
+  // landr-71kz.10 — KEYSTONE: the remote product-flow DATA PATH. A product whose
+  // operator-configured flow carries a `customer_declarations` custom_form module
+  // must render that form via CustomFormStep (the 4 declaration checkboxes + the
+  // language field for para42) and submit the answers as `form_responses`. This
+  // is the end-to-end proof that App.tsx now fetches getProductFlow, threads the
+  // remoteFlow into the step routing, and produces a custom-form step.
+  describe('remote product-flow → custom-form data path (landr-71kz.10)', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getByRole('button', { name }))
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
+    }
+
+    it('renders the para42 declarations custom form and submits it as form_responses', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      // The operator configured a custom_form flow for this product.
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Tandem Flight')
+
+      // Dates → pick a date → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // Your details → fill booker → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
+      // The declaration checkbox + language field are both visible.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('cf-field-language')).toBeInTheDocument()
+      expect(
+        screen.getByText(/Eligibility declarations/i),
+      ).toBeInTheDocument()
+
+      // Tick the declaration + fill the language, then Continue.
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      // Review screen → confirm.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      // The submit payload carries the answers as form_responses.
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        form_responses?: {
+          form_key: string
+          answers: Record<string, unknown>
+        }[]
+      }
+      expect(submitBody.form_responses).toBeDefined()
+      const entry = submitBody.form_responses!.find(
+        (r) => r.form_key === 'customer_declarations',
+      )!
+      expect(entry).toBeDefined()
+      expect(entry.answers.license_valid).toEqual(['yes'])
+      expect(entry.answers.language).toBe('en')
+    })
+
+    it('zero-config product (no remote flow) goes straight to review — identical legacy flow', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      // Default mock returns {modules: null} → legacy plan → no custom-form step.
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-2',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Straight to review — no custom-form step is produced.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
+    })
+
+    it('a malformed / failed flow fetch falls back to the legacy plan and NEVER blanks the widget', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      // getProductFlow rejects — App must swallow it and degrade to the legacy
+      // plan (no error boundary — bd memory landr-9ut4).
+      mocks.getProductFlow.mockRejectedValue(new Error('boom'))
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-3',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The widget still works — straight to review, no custom-form, no crash.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
     })
   })
 

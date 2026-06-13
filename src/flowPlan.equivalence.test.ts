@@ -100,10 +100,11 @@ function makeParticipants(n: number): ParticipantDetails[] {
 
 const NO_COMPANIONS: CompanionDetails[] = []
 
-// All permutations of the three routing axes.
+// All permutations of the routing axes. landr-71kz.10: the declarations axis is
+// retired (the hardcoded declarations step is gone — declarations are now a
+// remote-flow custom_form), so the legacy-plan oracle no longer varies on it.
 const HOTEL_OFFERINGS: HotelOffering[] = ['none', 'optional', 'mandatory']
 const NEEDS_PICKUP = [true, false]
-const REQUIRES_DECLARATIONS = [true, false]
 
 // Whether the customer actually booked a hotel room (only possible when the
 // product offers one). null = no hotel booked (guiding-only opt-out / no offer).
@@ -268,7 +269,7 @@ describe('legacy-plan ≡ current routing — stepBeforeReview (all permutations
  * terminus, per the documented routing. This independently reconstructs the
  * chain the OLD code produced.
  */
-function oracleBreadcrumb(ctx: FunnelCtx, requiresDeclarations: boolean): string[] {
+function oracleBreadcrumb(ctx: FunnelCtx): string[] {
   const trail: string[] = ['product-detail', 'pick-selection', 'details']
   if (offeringHasHotel(ctx.offering)) {
     // A hotel-offering product collapses the accommodation+pickup branch onto
@@ -284,41 +285,41 @@ function oracleBreadcrumb(ctx: FunnelCtx, requiresDeclarations: boolean): string
     if (ctx.hadServiceAddons) trail.push('pick-service-addons')
     if (ctx.needsPickup) trail.push('pick-pickup')
   }
-  if (requiresDeclarations) trail.push('declarations')
+  // landr-71kz.10: the legacy hardcoded declarations crumb is retired — the
+  // zero-config (no remote flow) plan goes straight from the last middle to
+  // review.
   trail.push('fill-form')
   return trail
 }
 
-describe('legacy-plan ≡ current routing — breadcrumb trail (all permutations × declarations)', () => {
-  it('matches the breadcrumb oracle for every permutation', () => {
+describe('legacy-plan ≡ current routing — breadcrumb trail (all permutations)', () => {
+  it('matches the breadcrumb oracle for every permutation (no remote flow)', () => {
     for (const ctx of permutations()) {
-      for (const requiresDeclarations of REQUIRES_DECLARATIONS) {
-        const fillForm: Step = {
-          name: 'fill-form',
-          product: makeProduct({
-            hotel_offering: ctx.offering,
-            needs_pickup: ctx.needsPickup,
-          }),
-          selection: SLOT_SELECTION,
-          booker: ADA,
-          participants: makeParticipants(2),
-          companions: NO_COMPANIONS,
-          pickupLocationId: ctx.hotelBooked ? 'loc-hotel' : 'loc-free',
-          accommodationRooms: ctx.hotelBooked
-            ? [{ productId: 'room-1', quantity: 1 }]
-            : [],
-          addons: ctx.hadServiceAddons
-            ? [{ productId: 'addon-1', quantity: 1 }]
-            : [],
-          hotelLocationId: hotelLocId(ctx),
-          hadServiceAddons: ctx.hadServiceAddons,
-        }
-        const crumbs = buildBreadcrumb(fillForm, { requiresDeclarations })
-        const label = `${permLabel(ctx)} decl=${requiresDeclarations}`
-        expect(crumbs.map((c) => c.name), label).toEqual(
-          oracleBreadcrumb(ctx, requiresDeclarations),
-        )
+      const fillForm: Step = {
+        name: 'fill-form',
+        product: makeProduct({
+          hotel_offering: ctx.offering,
+          needs_pickup: ctx.needsPickup,
+        }),
+        selection: SLOT_SELECTION,
+        booker: ADA,
+        participants: makeParticipants(2),
+        companions: NO_COMPANIONS,
+        pickupLocationId: ctx.hotelBooked ? 'loc-hotel' : 'loc-free',
+        accommodationRooms: ctx.hotelBooked
+          ? [{ productId: 'room-1', quantity: 1 }]
+          : [],
+        addons: ctx.hadServiceAddons
+          ? [{ productId: 'addon-1', quantity: 1 }]
+          : [],
+        hotelLocationId: hotelLocId(ctx),
+        hadServiceAddons: ctx.hadServiceAddons,
       }
+      // No remote flow → legacy plan → no custom-form crumb.
+      const crumbs = buildBreadcrumb(fillForm, {})
+      expect(crumbs.map((c) => c.name), permLabel(ctx)).toEqual(
+        oracleBreadcrumb(ctx),
+      )
     }
   })
 })
@@ -346,9 +347,9 @@ describe('legacy-plan ≡ current routing — stepBefore mirrors the trail (all 
         hotelLocationId: hotelLocId(ctx),
         hadServiceAddons: ctx.hadServiceAddons,
       }
-      // stepBefore from fill-form (no declarations) must equal the back-review
+      // stepBefore from fill-form (no remote flow) must equal the back-review
       // oracle.
-      const prev = stepBefore(fillForm, { requiresDeclarations: false })
+      const prev = stepBefore(fillForm, {})
       expect(prev?.name, permLabel(ctx)).toBe(oracleStepBeforeReview(ctx))
     }
   })
@@ -399,18 +400,19 @@ describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
     ).not.toContain('pickup')
   })
 
-  it('inserts declarations iff the operator slug requires them (legacy hardcoded set)', () => {
-    expect(kinds(buildFlowPlan(makeProduct(), { slug: 'para42' }, null))).toContain('declarations')
+  it('NEVER injects a legacy declarations module (landr-71kz.10 — retired)', () => {
+    // The hardcoded Para42 declarations step is gone from the legacy plan. A
+    // para42 product with no remote flow gets a pure product-gated plan; the
+    // operator slug no longer influences the legacy plan at all.
+    expect(kinds(buildFlowPlan(makeProduct(), { slug: 'para42' }, null))).not.toContain(
+      'declarations',
+    )
     expect(
       kinds(buildFlowPlan(makeProduct(), { slug: 'someone-else' }, null)),
     ).not.toContain('declarations')
-    // The para42-dev-* test slugs must NOT match (exact-match gate).
-    expect(
-      kinds(buildFlowPlan(makeProduct(), { slug: 'para42-dev-1' }, null)),
-    ).not.toContain('declarations')
   })
 
-  it('full-featured product: order is selection, participants, accommodation, service_addons, pickup, declarations, review', () => {
+  it('full-featured product: order is selection, participants, accommodation, service_addons, pickup, review (no declarations)', () => {
     const plan = buildFlowPlan(
       makeProduct({ hotel_offering: 'optional', needs_pickup: true }),
       { slug: 'para42' },
@@ -422,7 +424,6 @@ describe('buildFlowPlan — legacy plan (remoteFlow === null)', () => {
       'accommodation',
       'service_addons',
       'pickup',
-      'declarations',
       'review',
     ])
   })

@@ -28,17 +28,20 @@ import type { HotelOffering, ProductKind } from '@/api/types'
  * The module kinds a flow can be composed of. Mirrors
  * `public.product_flow_modules.module_kind` CHECK
  * (`selection, participants, accommodation, service_addons, pickup,
- * custom_form`) plus `declarations` and `review`, which are widget-internal
- * frame modules the DB does not store as rows:
+ * custom_form`) plus `review`, a widget-internal frame module the DB does not
+ * store as a row:
  *
  *   - `selection` — date / slot picker (pinned first, always present)
  *   - `participants` — booker + participant details (always present)
  *   - `accommodation` — hotel rooms (gated: service + hotel_offering != none)
  *   - `service_addons` — per-product add-ons (gated: probed at runtime)
  *   - `pickup` — free pickup-location picker (gated: needs_pickup, no hotel)
- *   - `custom_form` — operator-defined form (carries formKey; lands in .4)
- *   - `declarations` — legacy hardcoded eligibility declarations (Para42)
+ *   - `custom_form` — operator-defined form (carries formKey)
  *   - `review` — the fill-form submit screen (pinned last, always present)
+ *
+ * landr-71kz.10: the legacy widget-internal `declarations` kind has been retired
+ * — Para42's eligibility declarations are now a `custom_form` module delivered
+ * via the remote flow.
  */
 export type FlowModuleKind =
   | 'selection'
@@ -47,7 +50,6 @@ export type FlowModuleKind =
   | 'service_addons'
   | 'pickup'
   | 'custom_form'
-  | 'declarations'
   | 'review'
 
 /**
@@ -91,18 +93,6 @@ export interface RemoteFlow {
 }
 
 /**
- * v1 legacy declarations gate (landr-sbhz.3): the set of operator slugs that
- * require the hardcoded eligibility declarations step before review. Mirrors
- * `OPERATORS_REQUIRING_DECLARATIONS` in `App.tsx` — kept here too so the legacy
- * plan reproduces today's declarations routing without `App.tsx` having to
- * thread a flag through every builder call. Exact slug match (the para42-dev-*
- * test slugs do NOT match, matching App.tsx's behaviour).
- */
-export const OPERATORS_REQUIRING_DECLARATIONS: ReadonlySet<string> = new Set([
-  'para42',
-])
-
-/**
  * Does this product offer hotel accommodation? Mirrors the gate used
  * everywhere in the step machine today: a SERVICE product whose
  * `hotel_offering` is not 'none'. Pure + reused so the gate lives in one place.
@@ -116,18 +106,17 @@ export function productHasHotelOffering(product: {
 }
 
 /**
- * Does this operator require the legacy hardcoded declarations step? Pure
- * wrapper over the slug set so the gate has a single definition.
- */
-export function operatorRequiresDeclarations(slug: string | undefined): boolean {
-  return slug != null && OPERATORS_REQUIRING_DECLARATIONS.has(slug)
-}
-
-/**
  * Build the LEGACY plan — the exact module sequence the widget walks TODAY,
- * derived purely from the product gates + the operator slug. This is the
- * regression safety net; the ported equivalence suite proves it ≡ the old
- * hardcoded routing across every permutation.
+ * derived purely from the product gates. This is the regression safety net; the
+ * ported equivalence suite proves it ≡ the old hardcoded routing across every
+ * permutation.
+ *
+ * landr-71kz.10: the legacy plan no longer injects a `declarations` module. The
+ * old hardcoded Para42 declarations step has been retired — declarations are now
+ * an operator-configured `custom_form` module that arrives via the REMOTE flow
+ * (and only via it). A product with NO remote flow gets a pure product-gated
+ * plan (no declarations), so `settings` no longer influences the legacy plan; it
+ * is retained on the signature for API stability and forward-compat.
  *
  * Order (pinned frame + gated middles):
  *   selection → participants
@@ -141,7 +130,6 @@ export function operatorRequiresDeclarations(slug: string | undefined): boolean 
  *                        booked the hotel becomes the pickup and this step is
  *                        skipped — so the plan lists the potential step and the
  *                        walk applies the runtime hotel gate, exactly as today)
- *     → declarations    iff operatorRequiresDeclarations(slug)
  *   → review
  *
  * NOTE: `service_addons` and `pickup` are listed as POTENTIAL modules; their
@@ -154,6 +142,7 @@ function buildLegacyPlan(
   product: { product_kind: ProductKind; hotel_offering?: HotelOffering; needs_pickup?: boolean },
   settings: FlowSettings | null | undefined,
 ): FlowModule[] {
+  void settings // retained for API stability; no longer influences the legacy plan (landr-71kz.10).
   const plan: FlowModule[] = [{ kind: 'selection' }, { kind: 'participants' }]
   if (productHasHotelOffering(product)) plan.push({ kind: 'accommodation' })
   // service_addons is always a potential module (runtime add-on probe gates it).
@@ -161,9 +150,6 @@ function buildLegacyPlan(
   // pickup is a potential module whenever the product needs a pickup; the
   // hotel-is-pickup runtime skip (landr-4r80) is applied by the walk.
   if (product.needs_pickup) plan.push({ kind: 'pickup' })
-  if (operatorRequiresDeclarations(settings?.slug)) {
-    plan.push({ kind: 'declarations' })
-  }
   plan.push({ kind: 'review' })
   return plan
 }
