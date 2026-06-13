@@ -1,6 +1,6 @@
 /**
- * GroupInquiryForm (landr-ehye, redesigned landr-amg6) — the group /
- * flight-school inquiry form shown at the participant max.
+ * GroupInquiryForm (landr-ehye, redesigned landr-amg6) — the larger-group /
+ * custom-booking inquiry form shown at the participant max.
  *
  * As of landr-amg6 this form lives inside an OVERLAY MODAL opened from the
  * "Request more" button in DetailsStep (it is no longer rendered inline in the
