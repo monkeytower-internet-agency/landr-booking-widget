@@ -380,7 +380,20 @@ export function BookingForm({
     const hasAnyAddons = Object.values(perRoomAddons).some((qtys) =>
       Object.values(qtys).some((q) => q > 0),
     )
-    if (!hasAnyAddons) return []
+    // landr — rooms whose breakfast is INCLUDED in the room itself (e.g.
+    // "Premium Double Room with Breakfast") carry no breakfast add-on. They
+    // must NEVER render as "no breakfast" — that contradicts the room name.
+    // Detect them by name so the review shows "breakfast included" for them,
+    // and so a pure-included-breakfast booking still surfaces the section.
+    // (A structured breakfast_included flag would be more robust than name-
+    // matching — tracked as a follow-up; today the operator encodes inclusion
+    // in the product name.)
+    const roomIncludesBreakfast = (productId: string): boolean =>
+      /breakfast/i.test(roomProductNames?.[productId] ?? '')
+    const hasIncludedBreakfast = accommodationRooms.some((r) =>
+      roomIncludesBreakfast(r.productId),
+    )
+    if (!hasAnyAddons && !hasIncludedBreakfast) return []
 
     // landr-rxjo: use disambiguated labels so two guests with the same first
     // name are distinguishable. Party order: participants first, then
@@ -397,6 +410,7 @@ export function BookingForm({
     const rows: ReviewRoomRow[] = []
     for (const room of accommodationRooms) {
       const roomName = roomProductNames?.[room.productId] ?? room.productId
+      const includesBreakfast = roomIncludesBreakfast(room.productId)
       const roomAddonQtys = perRoomAddons[room.productId] ?? {}
       // Sum total add-on qty for this room type (breakfast is the only
       // per-room add-on today; if more are added we sum all of them).
@@ -425,11 +439,14 @@ export function BookingForm({
           // landr-rjvd: build per-occupant pairs and derive room-level state.
           const occupants = occupantIndices.map((memberIdx, i) => ({
             name: occupantNames[i] ?? '?',
-            hasBreakfast: breakfastMap[memberIdx] === true,
+            // Included-breakfast rooms: every occupant gets breakfast (it's
+            // baked into the room). Otherwise honour the per-occupant add-on.
+            hasBreakfast: includesBreakfast || breakfastMap[memberIdx] === true,
           }))
           const withCount = occupants.filter((o) => o.hasBreakfast).length
-          const breakfastState: 'all' | 'some' | 'none' =
-            withCount === occupants.length && occupants.length > 0
+          const breakfastState: 'all' | 'some' | 'none' = includesBreakfast
+            ? 'all'
+            : withCount === occupants.length && occupants.length > 0
               ? 'all'
               : withCount > 0
                 ? 'some'
@@ -440,12 +457,13 @@ export function BookingForm({
             occupants,
             hasBreakfastMapData: true,
             // Legacy fields not used in this path but kept for type completeness.
-            hasBreakfast: withCount > 0,
+            hasBreakfast: includesBreakfast || withCount > 0,
             occupantNames,
           })
         } else {
-          // Legacy: distribute breakfast sequentially — first totalAddonQty units get it.
-          const hasBreakfast = unitIndex < totalAddonQty
+          // Legacy: included-breakfast rooms always count; otherwise distribute
+          // breakfast sequentially — first totalAddonQty units get it.
+          const hasBreakfast = includesBreakfast || unitIndex < totalAddonQty
           rows.push({
             label,
             breakfastState: hasBreakfast ? 'all' : 'none',

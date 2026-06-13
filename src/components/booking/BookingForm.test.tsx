@@ -324,6 +324,54 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
       expect(section).toHaveTextContent('Grace')
     })
 
+    // landr — a room whose breakfast is INCLUDED in the room itself ("…with
+    // Breakfast", no breakfast add-on) must show "breakfast included", never
+    // the contradictory "no breakfast" the add-on opt-in display produced.
+    it('shows "breakfast included" (never "no breakfast") for an included-breakfast room', () => {
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[
+            bookerAsParticipant(ADA_BOOKER),
+            {
+              first_name: 'Grace',
+              last_name: 'Hopper',
+              email: '',
+              phone: '',
+              service_role_code: '',
+            },
+          ]}
+          pickupLocationId={null}
+          accommodationRooms={[{ productId: 'premium-double', quantity: 1 }]}
+          // No breakfast add-on — breakfast is included in the room itself.
+          perRoomAddons={{}}
+          roomProductNames={{
+            'premium-double': 'Premium Double Room with Breakfast',
+          }}
+          roomAssignment={{
+            0: { roomProductId: 'premium-double', unitIndex: 0 },
+            1: { roomProductId: 'premium-double', unitIndex: 0 },
+          }}
+          // Per-occupant map present but no breakfast assigned (the bug repro).
+          breakfastMap={{ 0: false, 1: false }}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      const section = screen.getByTestId('review-per-room-breakfast')
+      expect(section).toBeInTheDocument()
+      // The contradiction must be gone.
+      expect(section).not.toHaveTextContent(/no breakfast/i)
+      expect(section).not.toHaveTextContent(/without breakfast/i)
+      // Breakfast is shown as included.
+      expect(
+        screen.getByTestId('room-breakfast-status-0'),
+      ).toHaveTextContent('breakfast included')
+    })
+
     it('hides the per-room breakfast section when perRoomAddons is absent', () => {
       render(
         <BookingForm
