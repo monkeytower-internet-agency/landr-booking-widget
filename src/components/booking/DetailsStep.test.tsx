@@ -56,7 +56,7 @@ function fillBooker({
 }
 
 describe('DetailsStep (landr-8c03)', () => {
-  it('renders the generic "Your details" header (landr-genericity-northstar)', () => {
+  it('renders the generic "Participants" header (landr-genericity-northstar)', () => {
     render(
       <DetailsStep
         product={makeProduct()}
@@ -65,7 +65,7 @@ describe('DetailsStep (landr-8c03)', () => {
         onConfirm={vi.fn()}
       />,
     )
-    expect(screen.getByText(/your details/i)).toBeInTheDocument()
+    expect(screen.getByText('Participants')).toBeInTheDocument()
     // Must NOT use vertical-specific wording like "pilots"/"divers".
     expect(screen.queryByText(/pilots|divers/i)).not.toBeInTheDocument()
   })

@@ -1782,7 +1782,7 @@ describe('App', () => {
       )
       const breadcrumb = screen.getByTestId('step-breadcrumb')
       expect(breadcrumb).toHaveTextContent('Dates')
-      expect(breadcrumb).toHaveTextContent('Your details')
+      expect(breadcrumb).toHaveTextContent('Participants')
 
       // Jump back to the Dates step via the breadcrumb (its penultimate crumb
       // carries the canonical step-back-button hook).

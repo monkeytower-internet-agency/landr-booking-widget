@@ -1046,7 +1046,9 @@ export interface BreadcrumbOptions {
 const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   'product-detail': 'Overview',
   'pick-selection': 'Dates',
-  details: 'Your details',
+  // The step collects the booker AND any additional participants (the booker
+  // is participant 1), so "Participants" reads truer than "Your details".
+  details: 'Participants',
   'pick-accommodation': 'Accommodation',
   'pick-service-addons': 'Add-ons',
   'pick-pickup': 'Pickup',

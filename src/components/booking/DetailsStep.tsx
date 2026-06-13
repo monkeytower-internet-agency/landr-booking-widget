@@ -562,7 +562,7 @@ export function DetailsStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Your details</CardTitle>
+        <CardTitle>Participants</CardTitle>
         <CardDescription>
           {product.name} · {describeSelection(selection, locale)}
         </CardDescription>

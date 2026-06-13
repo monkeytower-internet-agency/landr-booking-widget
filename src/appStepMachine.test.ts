@@ -559,7 +559,7 @@ describe('breadcrumb navigation (landr)', () => {
     }
   }
 
-  it('builds [Overview, Dates, Your details, Review] for a plain product', () => {
+  it('builds [Overview, Dates, Participants, Review] for a plain product', () => {
     const crumbs = buildBreadcrumb(fillForm(), NO_DECL)
     expect(crumbs.map((c) => c.name)).toEqual([
       'product-detail',
@@ -570,7 +570,7 @@ describe('breadcrumb navigation (landr)', () => {
     expect(crumbs.map((c) => c.label)).toEqual([
       'Overview',
       'Dates',
-      'Your details',
+      'Participants',
       'Review',
     ])
     // The current (last) crumb is non-clickable; the rest carry targets.
