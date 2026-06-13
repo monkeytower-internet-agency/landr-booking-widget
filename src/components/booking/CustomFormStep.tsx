@@ -20,7 +20,7 @@
  * VISIBILITY-RULE CONTRACT: see src/components/booking/fieldVisibility.ts and the
  * pinned spec in the landr-71kz.2 handoff §VISIBILITY-RULE CONTRACT.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -542,6 +542,20 @@ export function CustomFormStep({
     onConfirm(entry, rawForDraft)
   }
 
+  // landr — the Continue button stays disabled until every VISIBLE field passes
+  // validation: required-when-visible (e.g. all declaration checkboxes ticked,
+  // ≥1 language picked) plus type/option/format rules. Optional fields left
+  // blank produce no error, so they don't block. Derived (no setState) so it
+  // updates live as the customer fills the form.
+  const isFormComplete = useMemo(() => {
+    if (!formDef) return false
+    return formDef.fields.every(
+      (field) =>
+        !isFieldVisible(field, answers) ||
+        validateField(field, answers, locale) === null,
+    )
+  }, [formDef, answers, locale])
+
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
   // (no useEffect with setState, which would cause cascading renders).
@@ -587,7 +601,7 @@ export function CustomFormStep({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || !!fetchError}
+            disabled={loading || !!fetchError || !isFormComplete}
             data-testid="cf-submit"
           >
             Continue
