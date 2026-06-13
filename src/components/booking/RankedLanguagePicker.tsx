@@ -8,33 +8,33 @@
  * entry is the customer's preferred language (the backend uses it for the
  * email locale).
  *
- * Drag wiring MIRRORS RoomAssignment.tsx — accessible drag with @dnd-kit/core
- * only (the widget has @dnd-kit/core / -utilities / -accessibility but NOT
- * @dnd-kit/sortable, and adding a dependency would break the running dev
- * server). Each row is BOTH a draggable (useDraggable, id = option value) and a
- * droppable (useDroppable, id = option value). On dragEnd, if `over` is a
- * different row, the active code is moved to the over code's index in the order
- * array (an arrayMove-style splice). The KeyboardSensor makes the same reorder
- * operable with Space + arrows.
+ * Reorder uses @dnd-kit/sortable — the SAME "the row/box lifts and moves in
+ * place" interaction as the dashboard's pricing-rule reorder (each row carries
+ * the live CSS.Transform from useSortable; verticalListSortingStrategy shifts
+ * the others). No separate floating chip clone — the box itself moves.
  *
  * The no-options `language` branch stays a free-text <input> in CustomFormStep
  * (this picker is only used when the field carries options).
  */
 import { useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
-  useDraggable,
-  useDroppable,
+  closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useVariant } from '@/lib/variant'
@@ -51,21 +51,6 @@ interface RankedLanguagePickerProps {
 }
 
 /**
- * arrayMove-style splice: move the item at `from` to `to`, shifting the rest.
- * Mirrors the reorder semantics @dnd-kit/sortable would provide, done by hand
- * since the widget deliberately does NOT depend on @dnd-kit/sortable.
- */
-function moveItem<T>(arr: T[], from: number, to: number): T[] {
-  if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) {
-    return arr
-  }
-  const next = arr.slice()
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
-}
-
-/**
  * Build the initial display/drag order: the SELECTED codes first (in their
  * incoming order), then the remaining options in their declared order. Only
  * codes that are real options are kept (drops a stale draft value gracefully).
@@ -78,7 +63,7 @@ function initialOrder(optionValues: string[], value: string[]): string[] {
   return [...selectedInOrder, ...rest]
 }
 
-/** A single language row — both draggable (handle/whole row) and droppable. */
+/** A single sortable language row — the whole box lifts + moves while dragged. */
 function LanguageRow({
   field,
   code,
@@ -96,31 +81,40 @@ function LanguageRow({
   optionSelected: string
   onToggle: (code: string) => void
 }) {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
-    id: code,
-  })
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: code })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: code })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
 
   return (
     <div
-      ref={setDropRef}
+      ref={setNodeRef}
+      style={style}
       data-testid={`cf-lang-row-${code}`}
       className={cn(
         'flex items-center gap-3 border p-3 transition-[background-color,border-color]',
         optionCardRadius,
         checked ? optionSelected : 'border-border bg-surface-raised shadow-elev-1',
-        isOver ? 'ring-1 ring-primary/40' : '',
-        isDragging ? 'opacity-40' : '',
+        // While dragging, the box lifts: elevated above siblings with a strong
+        // shadow so it clearly reads as "picked up and moving" (price-rule feel).
+        isDragging ? 'relative z-10 shadow-xl shadow-black/30 opacity-95' : '',
       )}
     >
       {/* Drag handle — the grab target for pointer/touch/keyboard reorder. The
-          whole row is reorderable via this handle; the checkbox toggles
-          inclusion without starting a drag. */}
+          checkbox toggles inclusion without starting a drag. */}
       <button
-        ref={setDragRef}
         type="button"
-        {...listeners}
         {...attributes}
+        {...listeners}
         data-testid={`cf-lang-handle-${code}`}
         aria-label={`Reorder ${label}`}
         className="cursor-grab touch-none select-none text-muted-foreground hover:text-foreground"
@@ -155,34 +149,37 @@ export function RankedLanguagePicker({
   const optionValues = useMemo(() => options.map((o) => o.value), [options])
   const labelByCode = useMemo(() => {
     const m = new Map<string, string>()
-    for (const o of options) m.set(o.value, pickLocalized(o.label, o.label_localized, locale))
+    for (const o of options)
+      m.set(o.value, pickLocalized(o.label, o.label_localized, locale))
     return m
   }, [options, locale])
 
   // Display/drag order: ALL option codes; selected ones float to the top in
   // their incoming preference order. Initialised once from `value`.
-  const [order, setOrder] = useState<string[]>(() => initialOrder(optionValues, value))
+  const [order, setOrder] = useState<string[]>(() =>
+    initialOrder(optionValues, value),
+  )
   // Selected set initialised from `value` (only real options).
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(value.filter((v) => optionValues.includes(v))),
   )
-  // landr — the code currently being dragged, so the DragOverlay can render a
-  // floating tilted clone that follows the cursor (matches the breakfast/name
-  // chips in RoomAssignment). null when nothing is being dragged.
-  const [activeCode, setActiveCode] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 150, tolerance: 8 },
     }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   )
 
   /** Emit the SELECTED codes in current top-down order. */
   function emit(nextOrder: string[], nextSelected: Set<string>) {
-    const ordered = nextOrder.filter((c) => nextSelected.has(c))
-    onChange(field.key, ordered)
+    onChange(
+      field.key,
+      nextOrder.filter((c) => nextSelected.has(c)),
+    )
   }
 
   function toggle(code: string) {
@@ -195,20 +192,15 @@ export function RankedLanguagePicker({
     })
   }
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveCode(String(event.active.id))
-  }
-
   function handleDragEnd(event: DragEndEvent) {
-    setActiveCode(null)
-    const activeId = event.active.id
-    const overId = event.over?.id
-    if (overId === undefined || overId === null || activeId === overId) return
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     setOrder((prev) => {
-      const from = prev.indexOf(String(activeId))
-      const to = prev.indexOf(String(overId))
-      const next = moveItem(prev, from, to)
-      if (next !== prev) emit(next, selected)
+      const oldIndex = prev.indexOf(String(active.id))
+      const newIndex = prev.indexOf(String(over.id))
+      if (oldIndex < 0 || newIndex < 0) return prev
+      const next = arrayMove(prev, oldIndex, newIndex)
+      emit(next, selected)
       return next
     })
   }
@@ -220,53 +212,25 @@ export function RankedLanguagePicker({
       </p>
       <DndContext
         sensors={sensors}
-        onDragStart={handleDragStart}
+        collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveCode(null)}
       >
-        <div className="flex flex-col gap-2">
-          {order.map((code) => (
-            <LanguageRow
-              key={code}
-              field={field}
-              code={code}
-              label={labelByCode.get(code) ?? code}
-              checked={selected.has(code)}
-              optionCardRadius={tokens.optionCardRadius}
-              optionSelected={tokens.optionSelected}
-              onToggle={toggle}
-            />
-          ))}
-        </div>
-        {/* Floating tilted clone of the dragged row, anchored to <body> so a
-            transformed ancestor (the step transition) can't break position:fixed
-            — same approach as RoomAssignment's chip overlay. */}
-        {createPortal(
-          <DragOverlay dropAnimation={null}>
-            {activeCode !== null ? (
-              <div
-                data-testid="cf-lang-drag-overlay"
-                style={{ transform: 'rotate(4deg) scale(1.05)', cursor: 'grabbing' }}
-                className={cn(
-                  'flex items-center gap-3 border p-3 shadow-xl shadow-black/30',
-                  tokens.optionCardRadius,
-                  selected.has(activeCode)
-                    ? tokens.optionSelected
-                    : 'border-border bg-surface-raised',
-                )}
-              >
-                <span aria-hidden className="text-muted-foreground">≡</span>
-                {selected.has(activeCode) ? (
-                  <span aria-hidden className="text-primary text-xs">✓</span>
-                ) : null}
-                <span className="text-sm font-medium leading-snug">
-                  {labelByCode.get(activeCode) ?? activeCode}
-                </span>
-              </div>
-            ) : null}
-          </DragOverlay>,
-          document.body,
-        )}
+        <SortableContext items={order} strategy={verticalListSortingStrategy}>
+          <div className="flex flex-col gap-2">
+            {order.map((code) => (
+              <LanguageRow
+                key={code}
+                field={field}
+                code={code}
+                label={labelByCode.get(code) ?? code}
+                checked={selected.has(code)}
+                optionCardRadius={tokens.optionCardRadius}
+                optionSelected={tokens.optionSelected}
+                onToggle={toggle}
+              />
+            ))}
+          </div>
+        </SortableContext>
       </DndContext>
     </div>
   )
