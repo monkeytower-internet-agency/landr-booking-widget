@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
-import { browserLocale, pickLocalized } from '@/lib/locale'
+import { pickLocalized } from '@/lib/locale'
 import { getProductFlow } from '@/api/client'
 import type { FlowFieldDef, FlowFormDef, FormResponseEntry } from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
@@ -431,7 +431,14 @@ export function CustomFormStep({
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
-  const locale = browserLocale()
+  // landr — English-first: render custom forms in English rather than the
+  // customer's browser locale (which made para42's "Customer Declarations"
+  // show as German "Erklärungen" to German browsers). pickLocalized falls back
+  // to the field's base/default label when 'en' isn't in *_localized, so a
+  // genuinely-localized operator still shows their authored default. (Per-
+  // operator default_locale + localize-on-language-pick is a follow-up: the
+  // public operator-settings RPC doesn't expose default_locale yet.)
+  const locale = 'en'
 
   const [formDef, setFormDef] = useState<FlowFormDef | null>(null)
   const [loading, setLoading] = useState(true)
