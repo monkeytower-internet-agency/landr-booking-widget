@@ -38,6 +38,7 @@ import { pickLocalized } from '@/lib/locale'
 import { getProductFlow } from '@/api/client'
 import type { FlowFieldDef, FlowFormDef, FormResponseEntry } from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
+import { RankedLanguagePicker } from './RankedLanguagePicker'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -309,13 +310,25 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
       case 'radio':
         return renderSingleSelectChips()
 
-      // Dedicated language picker = single-select chips from the form's
-      // options (NOT a free-text field — that was the regression). If the form
-      // configures no options, degrade to a free-text input rather than render
-      // an empty, unusable picker ("malformed config degrades, never throws").
+      // Dedicated language picker = a RANKED, draggable, MULTI-SELECT picker
+      // from the form's options: the customer ticks every language they speak
+      // and drags them into preference order (favourite on top). The submitted
+      // value is the ARRAY of selected codes in top-down order — the first
+      // entry is the customer's preferred language (the backend uses it for the
+      // email locale). If the form configures no options, degrade to a
+      // free-text input rather than render an empty, unusable picker
+      // ("malformed config degrades, never throws").
       case 'language': {
         if (field.options && field.options.length > 0) {
-          return renderSingleSelectChips()
+          const ordered = (answers[field.key] as string[] | undefined) ?? []
+          return (
+            <RankedLanguagePicker
+              field={field}
+              value={ordered}
+              locale={locale}
+              onChange={onChange}
+            />
+          )
         }
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
