@@ -536,27 +536,31 @@ export function stepAfterAccommodation(
   // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
   breakfastMap: BreakfastMap | undefined = undefined,
 ): Step {
-  // landr-71kz.3: plan walk. After the accommodation module, look forward
-  // through the configured plan for the next LIVE module. The only middle step
-  // that can follow accommodation on the legacy path is `pickup`, and it is live
-  // only when NO hotel was booked (landr-4r80: a booked hotel becomes the pickup
-  // point, so the free picker is skipped). `isModuleLive('pickup')` encodes that
-  // gate — when a hotel is set the walk skips pickup straight to the review
-  // terminus, giving the exact same fill-form-with-hotel-as-pickup result as the
-  // old hard-coded `if (hotelLocationId !== null)` branch.
+  // landr-71kz.3: plan walk for the post-accommodation forward target. The
+  // legacy forward contract out of this call is EXACTLY three branches, and
+  // add-ons ALWAYS precede this call (App.tsx runs the add-ons probe before
+  // afterAccommodation), so `service_addons` must NEVER be a forward target
+  // here:
+  //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
+  //   2. else needs_pickup → pick-pickup;
+  //   3. else fill-form (pickup null).
+  // The ONLY middle module that can terminate the post-accommodation search is
+  // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
+  // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
+  // the free picker is skipped). Any other module (service_addons, custom_form,
+  // declarations) is upstream-of or layered-on and must not divert this branch.
+  //
+  // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
+  // terminate the search and, for a no-hotel product, started at index 0 (no
+  // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
+  // product with service add-ons + needs_pickup wrongly terminated on
+  // service_addons → fill-form, skipping the pickup picker. Now we look up the
+  // `pickup` module directly and apply only its forward gate.
   const requiresDeclarations = false // declarations is layered on by App via fillFormOrDeclarations.
   const kinds = legacyMiddleKinds(product, requiresDeclarations)
-  const afterAccIndex = kinds.indexOf('accommodation')
-  const ctx = { hotelLocationId, hadServiceAddons }
-  let nextLive: FlowModuleKind | null = null
-  for (let i = afterAccIndex + 1; i < kinds.length; i += 1) {
-    const kind = kinds[i]!
-    if (isModuleLive(kind, ctx)) {
-      nextLive = kind
-      break
-    }
-  }
-  if (nextLive === 'pickup') {
+  const pickupLive =
+    kinds.includes('pickup') && isModuleLive('pickup', { hotelLocationId })
+  if (pickupLive) {
     return {
       name: 'pick-pickup',
       product,

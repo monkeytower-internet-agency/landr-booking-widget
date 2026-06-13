@@ -222,6 +222,12 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
         NO_COMPANIONS,
         ctx.hotelBooked ? [{ productId: 'room-1', quantity: 1 }] : [],
         hotelLocId(ctx),
+        // PR #119 review fix: the forward test MUST thread hadServiceAddons —
+        // the regression only manifests when service add-ons were shown
+        // upstream (hadServiceAddons=true). The previous test omitted these two
+        // args so hadServiceAddons defaulted to false and the bug stayed hidden.
+        ctx.hadServiceAddons ? [{ productId: 'addon-1', quantity: 1 }] : [],
+        ctx.hadServiceAddons,
       )
       expect(next.name, permLabel(ctx)).toBe(oracleStepAfterAccommodation(ctx))
       // When a hotel was booked, the hotel must be locked in as the pickup.
@@ -231,6 +237,14 @@ describe('legacy-plan ≡ current routing — stepAfterAccommodation (all permut
       // When no hotel + no pickup, fill-form's pickup must be null.
       if (!ctx.hotelBooked && !ctx.needsPickup && next.name === 'fill-form') {
         expect(next.pickupLocationId, permLabel(ctx)).toBeNull()
+      }
+      // REGRESSION (PR #119): a needs_pickup product with service add-ons must
+      // still route to the PICKUP picker after add-ons — service_addons must
+      // NEVER be a forward target out of stepAfterAccommodation.
+      if (!ctx.hotelBooked && ctx.needsPickup) {
+        expect(next.name, `${permLabel(ctx)} [pickup must survive add-ons]`).toBe(
+          'pick-pickup',
+        )
       }
     }
   })
