@@ -670,6 +670,16 @@ export interface SubmitBookingBody {
    * foreign products regardless.
    */
   preview_token?: string | null
+  /**
+   * landr-71kz.4: operator-defined custom form answers, collected by
+   * CustomFormStep. Each entry carries a form_key + answers dict (hidden
+   * fields already pruned by the widget; server prunes again). Optional —
+   * omitted for legacy-flow operators so old submits stay byte-identical.
+   * WIRE CONTRACT: matches PublicSubmitBookingIn.form_responses on the API
+   * (landr-71kz.2). form_responses_not_supported (422) when sent for a
+   * product with no flow; widget only sends it when a configured flow exists.
+   */
+  form_responses?: Array<{ form_key: string; answers: Record<string, unknown> }>
 }
 
 /**

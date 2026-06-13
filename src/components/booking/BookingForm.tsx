@@ -186,6 +186,15 @@ interface Props {
    * heuristic (backward-compatible).
    */
   breakfastMap?: BreakfastMap
+  /**
+   * landr-71kz.4: optional form_responses collected by CustomFormStep(s).
+   * Each entry carries a form_key + pruned answers (hidden-field answers
+   * already dropped by CustomFormStep before reaching here). Only sent
+   * when the product has a configured flow with at least one custom_form
+   * module — omitted for legacy-flow operators so the submit body is
+   * byte-identical to the pre-71kz path. Optional for backward compat.
+   */
+  formResponses?: import('@/api/flowTypes').FormResponseEntry[]
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -293,6 +302,7 @@ export function BookingForm({
   perRoomAddons,
   roomProductNames,
   breakfastMap = {},
+  formResponses,
   onBack,
   onConfirmed,
 }: Props) {
@@ -613,6 +623,13 @@ export function BookingForm({
         // pickupLocationId is the shared hotel), false for every other
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
+        // landr-71kz.4: form_responses from CustomFormStep(s). Optional —
+        // only sent when the product has a configured flow; hidden-field
+        // answers are already pruned by CustomFormStep before reaching here.
+        // Server prunes again for defence-in-depth (landr-9ut4 lesson).
+        ...(formResponses && formResponses.length > 0
+          ? { form_responses: formResponses }
+          : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff
