@@ -901,6 +901,26 @@ describe('CustomFormStep — ranked language picker', () => {
     expect(entry.answers.language).toEqual(['en', 'de'])
   })
 
+  it('toggles a language by clicking the whole chip (not just the tick box)', async () => {
+    mocks.getProductFlow.mockResolvedValue(langFlow())
+    const onConfirm = renderLangStep()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-lang-row-de')).toBeTruthy()
+    })
+    // Click the chip BODY (the row), not the cf-lang-check checkbox.
+    fireEvent.click(screen.getByTestId('cf-lang-row-de'))
+    await waitFor(() => {
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
+    })
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalled()
+    })
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.language).toEqual(['de'])
+  })
+
   it('disables Continue when the required language picker has nothing ticked, enables after one tick', async () => {
     mocks.getProductFlow.mockResolvedValue(langFlow(true))
     const onConfirm = renderLangStep()

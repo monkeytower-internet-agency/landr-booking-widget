@@ -100,8 +100,15 @@ function LanguageRow({
       ref={setNodeRef}
       style={style}
       data-testid={`cf-lang-row-${code}`}
+      // The WHOLE chip toggles selection (matches the declaration checkboxes),
+      // not just the tick box. Guard on target===currentTarget so a click that
+      // lands on the drag handle / checkbox / label (which handle themselves)
+      // doesn't double-toggle — the handle stays drag-only.
+      onClick={(e) => {
+        if (e.currentTarget === e.target) onToggle(code)
+      }}
       className={cn(
-        'flex items-center gap-3 border p-3 transition-[background-color,border-color]',
+        'flex cursor-pointer items-center gap-3 border p-3 transition-[background-color,border-color]',
         optionCardRadius,
         checked ? optionSelected : 'border-border bg-surface-raised shadow-elev-1',
         // While dragging, the box lifts: elevated above siblings with a strong
