@@ -19,8 +19,14 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
-import type { CustomerDeclarations } from '@/components/booking/DeclarationsStep'
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
+import {
+  buildFlowPlan,
+  productHasHotelOffering,
+  type FlowModule,
+  type FlowModuleKind,
+  type RemoteFlow,
+} from './flowPlan'
 
 /**
  * landr-gb2f.5: the raw per-room add-on selection carried through the step
@@ -73,6 +79,13 @@ export interface BookingDraft {
   customerDeclarations?: Record<string, true> | null
   customerLanguages?: string[] | null
   customerOtherLanguages?: string | null
+  // landr-71kz.3: per-custom-form answers, keyed by form key → (field key →
+  // value). PLUMBING ONLY for this child — the BookingDraft carries the slot
+  // and the persistence layer round-trips it, but the CustomFormStep that reads
+  // /writes it lands in landr-71kz.4. Survives breadcrumb jumps + reloads exactly
+  // like every other draft slice. Empty/undefined until the customer answers a
+  // custom form.
+  customFormAnswers?: Record<string, Record<string, unknown>>
 }
 
 /**
@@ -236,19 +249,26 @@ export type Step =
       // landr-a4fy: carry the breakfast map through the pickup step.
       breakfastMap?: BreakfastMap
     }
-  // landr-sbhz.3: declarations step — customer confirms eligibility
-  // declarations + selects their spoken language before the review screen.
-  // Only inserted by App.tsx when the operator requires declarations
-  // (v1: para42). Optional initialDeclarations for back-nav restoration.
-  // landr-sbhz.4: isSharedDouble threads through so it survives the
-  // declarations → fill-form hop and back-nav restores the tick.
+  // landr-71kz.10: the legacy hardcoded `declarations` Step variant has been
+  // retired. Para42's eligibility declarations are now an operator-configured
+  // `custom_form` module (form_key `customer_declarations`), rendered by the
+  // `custom-form` Step variant below and submitted as `form_responses` — the
+  // server mirrors that form into bookings.customer_declarations +
+  // customer_language. The data path replaces the constant-driven branch.
+  //
+  // landr-71kz.3: a single operator-defined custom form, carrying its library
+  // `formKey`. PLUMBING ONLY here — the field renderer + submit wiring land in
+  // landr-71kz.4; for now this variant exists so the Step union, the plan walk,
+  // and the persisted-draft schema all carry it. Threads the same provenance bag
+  // every other downstream step does, so back-nav restores the upstream state.
+  // `initialAnswers` re-seeds the (future) renderer on back-nav from the draft's
+  // customFormAnswers[formKey] slice.
   | {
-      name: 'declarations'
+      name: 'custom-form'
       product: Product
       selection: BookingSelection
       booker: BookerDetails
       participants: ParticipantDetails[]
-      // landr-87n9.3: companions roster threads through.
       companions: CompanionDetails[]
       pickupLocationId: string | null
       accommodationRooms: RoomSelection[]
@@ -258,18 +278,15 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
-      // landr-gb2f.2: carry the assignment through declarations so it
-      // survives the declarations → fill-form hop and back-nav restores it.
       roomAssignment?: RoomAssignmentMap
-      // landr-doam.1: carry the age map through declarations.
       occupantAgeMap?: OccupantAgeMap
-      // landr-gb2f.5: carry the per-room add-on map through declarations.
       perRoomAddons?: PerRoomAddons
-      // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
-      // landr-a4fy: carry the breakfast map through declarations.
       breakfastMap?: BreakfastMap
-      initialDeclarations?: CustomerDeclarations
+      // landr-71kz.3: which operator form this step renders.
+      formKey: string
+      // landr-71kz.4 (forward-compat): prior answers for back-nav restoration.
+      initialAnswers?: Record<string, unknown>
     }
   // landr-yf0n: hotelLocationId / hadServiceAddons / includeHotel remember
   // the upstream path so the BookingForm back button can restore the
@@ -341,6 +358,127 @@ export function deriveAccommodationMode(
   return 'package'
 }
 
+// ─── Plan walks (landr-71kz.3, remote flow activated in landr-71kz.10) ────────
+//
+// The routing helpers below are thin plan-index WALKS over the FlowModule[] the
+// funnel is configured with, instead of hardcoded `if (hotel) … else if (pickup)
+// …` ladders. With a null/absent remoteFlow `buildFlowPlan` yields the LEGACY
+// plan, so the walk reproduces today's routing bit-for-bit — proven by the
+// equivalence suite in flowPlan.equivalence.test.ts.
+//
+// landr-71kz.10: the helpers now take an OPTIONAL `remoteFlow`. When App.tsx has
+// fetched a product's operator-configured flow, it threads it here so the plan
+// includes `custom_form` modules in their configured positions. The forward
+// routing into a custom-form step is driven by `customFormKeysBeforeReview`
+// (which reads the formKeys off the plan); the BACKWARD walks treat `custom_form`
+// like any other middle module (always live; reconstructed via the `custom-form`
+// Step variant). When `remoteFlow` is undefined/null every helper falls back to
+// the legacy plan — identical to before this change.
+//
+// Two gates stay RUNTIME decisions applied during the walk, exactly as today —
+// they are NOT pruned from the plan, because the plan is the declared order, not
+// the per-booking realised path:
+//
+//   - `pickup` is SKIPPED when a hotel was booked (hotelLocationId != null): the
+//     hotel becomes the pickup point (landr-4r80). On the back-nav walk the same
+//     gate means a booked hotel hops back PAST pickup to accommodation.
+//   - `accommodation` is present in the plan iff the product offers a hotel; the
+//     back-nav walk treats a hotel-offering product as having passed THROUGH
+//     accommodation even on the guiding-only opt-out (matching today's
+//     stepBeforeReview, which routes guiding-only opt-outs back to accommodation).
+//
+// `service_addons` is listed in every legacy plan but its visibility is a
+// runtime add-on probe in App.tsx; the back-nav walk consults the
+// `hadServiceAddons` provenance flag (set true only when the step actually
+// showed), so a product with no add-ons never routes Back to it — identical to
+// today.
+
+/**
+ * The middle module kinds (everything strictly between participants and review)
+ * of the plan for a product + (optional) remote flow. The pinned frame
+ * (selection, participants, review) is dropped because the routing helpers only
+ * ever choose among the middle steps + the review terminus. With `remoteFlow`
+ * absent this is the legacy plan; with it present, `custom_form` modules appear
+ * in their configured order.
+ */
+function planMiddleKinds(
+  product: Product,
+  remoteFlow?: RemoteFlow | null,
+): FlowModuleKind[] {
+  const plan: FlowModule[] = buildFlowPlan(product, {}, remoteFlow ?? null)
+  return plan
+    .map((m) => m.kind)
+    .filter((k) => k !== 'selection' && k !== 'participants' && k !== 'review')
+}
+
+/**
+ * landr-71kz.10: the ordered library keys of the `custom_form` modules in the
+ * plan, in their configured positions. Empty when there is no remote flow (the
+ * legacy plan never contains a custom_form). Drives the FORWARD routing into the
+ * custom-form step chain before review.
+ */
+function customFormKeysBeforeReview(
+  product: Product,
+  remoteFlow?: RemoteFlow | null,
+): string[] {
+  const plan: FlowModule[] = buildFlowPlan(product, {}, remoteFlow ?? null)
+  return plan
+    .filter((m): m is FlowModule & { formKey: string } =>
+      m.kind === 'custom_form' && typeof m.formKey === 'string',
+    )
+    .map((m) => m.formKey)
+}
+
+/**
+ * Runtime predicate: is this potential middle module actually LIVE for the
+ * current booking state? Encodes the two runtime gates (hotel-skips-pickup;
+ * service-addons provenance) so the plan walk yields the realised path.
+ *
+ * `accommodation` is always live when present (the product offers a hotel, and
+ * the customer always passes through the step — booking, opting out, or
+ * shared-double). `custom_form` is always live when present (no runtime skip in
+ * v1).
+ */
+function isModuleLive(
+  kind: FlowModuleKind,
+  ctx: {
+    hotelLocationId?: string | null
+    hadServiceAddons?: boolean
+  },
+): boolean {
+  switch (kind) {
+    case 'pickup':
+      // Hotel booked → the hotel IS the pickup; the free picker is skipped.
+      return ctx.hotelLocationId == null
+    case 'service_addons':
+      // Only live when the customer actually saw the add-ons step.
+      return ctx.hadServiceAddons === true
+    default:
+      return true
+  }
+}
+
+/**
+ * Walk BACKWARD from `review` (or from a given module) to find the LIVE module
+ * that immediately precedes it. Returns null when nothing live precedes it (the
+ * walk has reached the implicit participants/details frame). `fromKind`
+ * undefined means "the step before review".
+ */
+function liveModuleBefore(
+  product: Product,
+  remoteFlow: RemoteFlow | null | undefined,
+  ctx: { hotelLocationId?: string | null; hadServiceAddons?: boolean },
+  fromKind?: FlowModuleKind,
+): FlowModuleKind | null {
+  const kinds = planMiddleKinds(product, remoteFlow)
+  const start = fromKind ? kinds.indexOf(fromKind) : kinds.length
+  for (let i = start - 1; i >= 0; i -= 1) {
+    const kind = kinds[i]!
+    if (isModuleLive(kind, ctx)) return kind
+  }
+  return null
+}
+
 /**
  * Pick the next step after the AccommodationStep returns (or after
  * pick-selection when the product has no hotel offering and we short-
@@ -392,36 +530,33 @@ export function stepAfterAccommodation(
   // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
   breakfastMap: BreakfastMap | undefined = undefined,
 ): Step {
-  if (hotelLocationId !== null) {
-    // landr-ffyg.2: hotel set → the hotel IS the pickup (landr-4r80). This
-    // covers BOTH the package mode (rooms booked) AND the shared-double
-    // mode (no rooms, but the shared hotel is still the collection point).
-    // Either way we skip the free-pickup picker and go straight to
-    // fill-form/declarations — the shared-double customer must NEVER reach
-    // the free pickup picker.
-    return {
-      name: 'fill-form',
-      product,
-      selection,
-      booker,
-      participants,
-      companions,
-      pickupLocationId: hotelLocationId,
-      accommodationRooms,
-      addons,
-      hotelLocationId,
-      hadServiceAddons,
-      includeHotel,
-      isSharedDouble,
-      accommodationMode,
-      roomAssignment,
-      occupantAgeMap,
-      perRoomAddons,
-      roomProductNames,
-      breakfastMap,
-    }
-  }
-  if (product.needs_pickup) {
+  // landr-71kz.3: plan walk for the post-accommodation forward target. The
+  // legacy forward contract out of this call is EXACTLY three branches, and
+  // add-ons ALWAYS precede this call (App.tsx runs the add-ons probe before
+  // afterAccommodation), so `service_addons` must NEVER be a forward target
+  // here:
+  //   1. hotel booked (hotelLocationId != null) → fill-form (hotel is pickup);
+  //   2. else needs_pickup → pick-pickup;
+  //   3. else fill-form (pickup null).
+  // The ONLY middle module that can terminate the post-accommodation search is
+  // `pickup`. It is "live forward" iff it is in the plan (needs_pickup) AND no
+  // hotel was booked (landr-4r80: a booked hotel becomes the pickup point, so
+  // the free picker is skipped). Any other module (service_addons, custom_form,
+  // declarations) is upstream-of or layered-on and must not divert this branch.
+  //
+  // REGRESSION FIX (PR #119 review): the previous walk let ANY live module
+  // terminate the search and, for a no-hotel product, started at index 0 (no
+  // accommodation module ⇒ indexOf === -1 ⇒ start at the first middle), so a
+  // product with service add-ons + needs_pickup wrongly terminated on
+  // service_addons → fill-form, skipping the pickup picker. Now we look up the
+  // `pickup` module directly and apply only its forward gate.
+  // The pickup gate is purely product-driven (needs_pickup), identical in the
+  // legacy and remote plans, and the custom-form chain is layered on AFTER this
+  // call by App's pre-review router — so this lookup stays on the legacy plan.
+  const kinds = planMiddleKinds(product)
+  const pickupLive =
+    kinds.includes('pickup') && isModuleLive('pickup', { hotelLocationId })
+  if (pickupLive) {
     return {
       name: 'pick-pickup',
       product,
@@ -443,6 +578,9 @@ export function stepAfterAccommodation(
       breakfastMap,
     }
   }
+  // No live pickup ahead → straight to the review terminus. When a hotel was
+  // booked the hotel IS the pickup (landr-4r80 / landr-ffyg.2: package +
+  // shared-double); otherwise pickup_location_id is null.
   return {
     name: 'fill-form',
     product,
@@ -450,10 +588,10 @@ export function stepAfterAccommodation(
     booker,
     participants,
     companions,
-    pickupLocationId: null,
+    pickupLocationId: hotelLocationId !== null ? hotelLocationId : null,
     accommodationRooms,
     addons,
-    hotelLocationId: null,
+    hotelLocationId,
     hadServiceAddons,
     includeHotel,
     isSharedDouble,
@@ -519,143 +657,267 @@ export interface StepBeforeReviewArgs {
   roomProductNames?: Record<string, string>
   // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
   breakfastMap?: BreakfastMap
+  // landr-71kz.10: the operator-configured remote flow (when fetched) so the
+  // backward walk sees the custom_form modules in their configured positions.
+  // Absent → legacy plan (no custom forms), identical to before.
+  remoteFlow?: RemoteFlow | null
+  // landr-71kz.10: prior custom-form answers keyed by form_key, so a back hop
+  // into a custom-form step re-seeds the renderer from the draft.
+  customFormAnswers?: Record<string, Record<string, unknown>>
 }
 
-export function stepBeforeReview(args: StepBeforeReviewArgs): Step {
-  const offering = args.product.hotel_offering ?? 'none'
-  const hasHotelOffering =
-    args.product.product_kind === 'service' && offering !== 'none'
-
-  // 1. A hotel was booked → pickup was skipped forward → return to the
-  //    accommodation page (covers package + shared-double).
-  // 3. A hotel offering exists but no hotel was booked (guiding-only
-  //    opt-out) → the customer still passed THROUGH pick-accommodation, so
-  //    Back returns there. Folded into the same branch as (1) because the
-  //    forward path always inserts pick-accommodation when a hotel offering
-  //    is present, regardless of the booked/opted-out outcome.
-  if (args.hotelLocationId != null || hasHotelOffering) {
-    return {
-      name: 'pick-accommodation',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      hotelLocationId: args.hotelLocationId,
-      accommodationRooms: args.accommodationRooms,
-      addons: args.addons,
-      includeHotel: args.includeHotel,
-      isSharedDouble: args.isSharedDouble,
-      accommodationMode: args.accommodationMode,
-      roomAssignment: args.roomAssignment,
-      occupantAgeMap: args.occupantAgeMap,
-      perRoomAddons: args.perRoomAddons,
-      roomProductNames: args.roomProductNames,
-      breakfastMap: args.breakfastMap,
-    }
-  }
-  // 2. No hotel offering, product needs a pickup → pick-pickup showed
-  //    forward → return to it with the prior radio choice restored.
-  if (args.product.needs_pickup) {
-    return {
-      name: 'pick-pickup',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      accommodationRooms: args.accommodationRooms,
-      addons: args.addons,
-      pickupLocationId: args.pickupLocationId,
-      hotelLocationId: args.hotelLocationId,
-      hadServiceAddons: args.hadServiceAddons,
-      includeHotel: args.includeHotel,
-      isSharedDouble: args.isSharedDouble,
-      accommodationMode: args.accommodationMode,
-      roomAssignment: args.roomAssignment,
-      occupantAgeMap: args.occupantAgeMap,
-      perRoomAddons: args.perRoomAddons,
-      roomProductNames: args.roomProductNames,
-      breakfastMap: args.breakfastMap,
-    }
-  }
-  // 4. No hotel, no pickup, but the customer went through the service-
-  //    add-ons step → return there with the prior selections restored.
-  if (args.hadServiceAddons) {
-    return {
-      name: 'pick-service-addons',
-      product: args.product,
-      selection: args.selection,
-      booker: args.booker,
-      participants: args.participants,
-      companions: args.companions,
-      addons: args.addons,
-    }
-  }
-  // 5. Neither hotel, pickup, nor service add-ons → straight back to details.
+/**
+ * landr-71kz.10: reconstruct the `custom-form` Step for a given form key from the
+ * provenance bag, re-seeding the renderer from the draft's prior answers. Threads
+ * the same downstream context every pre-review step carries so back-nav restores
+ * upstream state.
+ */
+function reconstructCustomFormStep(
+  formKey: string,
+  args: StepBeforeReviewArgs,
+): Step {
   return {
-    name: 'details',
+    name: 'custom-form',
     product: args.product,
     selection: args.selection,
     booker: args.booker,
     participants: args.participants,
     companions: args.companions,
+    pickupLocationId: args.pickupLocationId,
+    accommodationRooms: args.accommodationRooms,
+    addons: args.addons,
+    hotelLocationId: args.hotelLocationId,
+    hadServiceAddons: args.hadServiceAddons,
+    includeHotel: args.includeHotel,
+    isSharedDouble: args.isSharedDouble,
+    accommodationMode: args.accommodationMode,
+    roomAssignment: args.roomAssignment,
+    occupantAgeMap: args.occupantAgeMap,
+    perRoomAddons: args.perRoomAddons,
+    roomProductNames: args.roomProductNames,
+    breakfastMap: args.breakfastMap,
+    formKey,
+    initialAnswers: args.customFormAnswers?.[formKey],
   }
 }
 
 /**
- * Build the step that comes after all pre-review steps are done.
- * When requiresDeclarations is true (operator-specific), inserts the
- * declarations step between the last pre-review step and fill-form.
- * When false, goes directly to fill-form (backward-compatible).
- *
- * landr-sbhz.3: v1 hardcodes Para42 as the only requiring operator;
- * App.tsx passes requiresDeclarations based on the operatorSlug constant.
+ * Reconstruct the upstream Step for a given middle module kind from the
+ * provenance bag, with its previously-confirmed state restored. The single
+ * place that maps a plan module → a concrete back-nav Step, so the routing
+ * helpers stay declarative walks. `accommodation` covers package + shared-double
+ * + guiding-only opt-out (the forward path always inserts it when the product
+ * offers a hotel); `null` is the implicit details frame.
  */
-export function fillFormOrDeclarations(
-  args: {
-    product: Product
-    selection: BookingSelection
-    booker: BookerDetails
-    participants: ParticipantDetails[]
-    // landr-87n9.3: companions roster threads through to the submit step.
-    companions: CompanionDetails[]
-    pickupLocationId: string | null
-    accommodationRooms: RoomSelection[]
-    addons: AddonSelection[]
-    hotelLocationId?: string | null
-    hadServiceAddons?: boolean
-    includeHotel?: boolean
-    // landr-sbhz.4: thread the shared-double flag through so it survives
-    // the declarations → fill-form hop.
-    isSharedDouble?: boolean
-    // landr-ffyg.2: thread the accommodation mode through too.
-    accommodationMode?: AccommodationMode
-    // landr-gb2f.2: thread the participant → room assignment through too.
-    roomAssignment?: RoomAssignmentMap
-    // landr-doam.1: thread the age map through too.
-    occupantAgeMap?: OccupantAgeMap
-    // landr-gb2f.5: thread the per-room add-on map through too.
-    perRoomAddons?: PerRoomAddons
-    // landr-gb2f.5: thread the room product names through too.
-    roomProductNames?: Record<string, string>
-    // landr-a4fy: thread the breakfast map through too.
-    breakfastMap?: BreakfastMap
-  },
-  requiresDeclarations: boolean,
-  initialDeclarations?: CustomerDeclarations,
+function reconstructStepForModule(
+  kind: FlowModuleKind | null,
+  args: StepBeforeReviewArgs,
 ): Step {
-  if (requiresDeclarations) {
-    return {
-      ...args,
-      name: 'declarations' as const,
-      initialDeclarations,
+  switch (kind) {
+    case 'accommodation':
+      return {
+        name: 'pick-accommodation',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        hotelLocationId: args.hotelLocationId,
+        accommodationRooms: args.accommodationRooms,
+        addons: args.addons,
+        includeHotel: args.includeHotel,
+        isSharedDouble: args.isSharedDouble,
+        accommodationMode: args.accommodationMode,
+        roomAssignment: args.roomAssignment,
+        occupantAgeMap: args.occupantAgeMap,
+        perRoomAddons: args.perRoomAddons,
+        roomProductNames: args.roomProductNames,
+        breakfastMap: args.breakfastMap,
+      }
+    case 'pickup':
+      return {
+        name: 'pick-pickup',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        accommodationRooms: args.accommodationRooms,
+        addons: args.addons,
+        pickupLocationId: args.pickupLocationId,
+        hotelLocationId: args.hotelLocationId,
+        hadServiceAddons: args.hadServiceAddons,
+        includeHotel: args.includeHotel,
+        isSharedDouble: args.isSharedDouble,
+        accommodationMode: args.accommodationMode,
+        roomAssignment: args.roomAssignment,
+        occupantAgeMap: args.occupantAgeMap,
+        perRoomAddons: args.perRoomAddons,
+        roomProductNames: args.roomProductNames,
+        breakfastMap: args.breakfastMap,
+      }
+    case 'service_addons':
+      return {
+        name: 'pick-service-addons',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+        addons: args.addons,
+      }
+    default:
+      // null (or any non-back-nav kind) → the implicit details frame.
+      return {
+        name: 'details',
+        product: args.product,
+        selection: args.selection,
+        booker: args.booker,
+        participants: args.participants,
+        companions: args.companions,
+      }
+  }
+}
+
+/**
+ * Backward walk for the REVIEW back-target. Resolves which middle module the
+ * review/declarations step returns to. This is NOT a pure mirror of the forward
+ * walk: on a hotel-offering product the customer always returns to
+ * `accommodation` (never the pickup picker), EVEN on the guiding-only opt-out
+ * that forward routed through pickup. This asymmetry is the long-standing
+ * landr-87n9.1 contract (back-from-review collapses the accommodation+pickup
+ * branch onto the accommodation page so the customer re-confirms their hotel
+ * choice, which drives whether pickup shows again). The walk reproduces it
+ * exactly by treating a hotel-offering product as "accommodation absorbs the
+ * pickup back-target":
+ *
+ *   - hotel offering present (accommodation in the plan) → accommodation.
+ *   - else pickup live (needs_pickup, no hotel) → pickup.
+ *   - else service_addons shown → service_addons.
+ *   - else details.
+ */
+function reviewBackModule(args: StepBeforeReviewArgs): FlowModuleKind | null {
+  // The custom_form chain is walked separately (stepBeforeReview); this resolves
+  // only the NON-custom-form middles, so it stays on the legacy plan.
+  const kinds = planMiddleKinds(args.product)
+  // A hotel-offering product always routes Back to accommodation (it is in the
+  // plan iff the product offers a hotel — productHasHotelOffering).
+  if (kinds.includes('accommodation') || args.hotelLocationId != null) {
+    return 'accommodation'
+  }
+  // No hotel offering: the standard mirror over the remaining live middles.
+  return liveModuleBefore(args.product, null, {
+    hotelLocationId: args.hotelLocationId,
+    hadServiceAddons: args.hadServiceAddons,
+  })
+}
+
+/**
+ * Resolve the back-target from a step that sits AT or AFTER the custom-form
+ * chain (the review screen, or a custom-form step identified by `fromFormKey`).
+ *
+ * landr-71kz.10: when the operator configured custom forms, the chain
+ * custom-form[0] → … → custom-form[n] → review sits just before review. Back
+ * from review lands on the LAST custom form; Back from custom-form[k] lands on
+ * custom-form[k-1]; Back from custom-form[0] falls through to the non-custom
+ * middle walk (reviewBackModule). With no custom forms this is a no-op and the
+ * non-custom walk runs directly — identical to the pre-71kz.10 behaviour.
+ */
+export function stepBeforeReview(
+  args: StepBeforeReviewArgs,
+  fromFormKey?: string,
+): Step {
+  const formKeys = customFormKeysBeforeReview(args.product, args.remoteFlow)
+  if (formKeys.length > 0) {
+    // Index of the step we're walking back FROM within the custom-form chain.
+    // undefined fromFormKey → coming from review (one past the last form).
+    const fromIdx =
+      fromFormKey === undefined ? formKeys.length : formKeys.indexOf(fromFormKey)
+    if (fromIdx > 0) {
+      // There is a preceding custom form → hop back to it.
+      return reconstructCustomFormStep(formKeys[fromIdx - 1]!, args)
     }
+    // fromIdx === 0 (or an unknown formKey treated as the chain head) → fall
+    // through to the non-custom middle walk below.
   }
-  return {
+  // landr-71kz.3: backward plan walk for the review back-target (see
+  // reviewBackModule for the hotel-absorbs-pickup asymmetry it preserves).
+  return reconstructStepForModule(reviewBackModule(args), args)
+}
+
+/**
+ * The provenance bag every pre-review step threads through (booker /
+ * participants / accommodation / pickup context). Shared by the forward
+ * custom-form router + the review terminus so the chain carries identical state.
+ */
+export interface PreReviewArgs {
+  product: Product
+  selection: BookingSelection
+  booker: BookerDetails
+  participants: ParticipantDetails[]
+  // landr-87n9.3: companions roster threads through to the submit step.
+  companions: CompanionDetails[]
+  pickupLocationId: string | null
+  accommodationRooms: RoomSelection[]
+  addons: AddonSelection[]
+  hotelLocationId?: string | null
+  hadServiceAddons?: boolean
+  includeHotel?: boolean
+  isSharedDouble?: boolean
+  accommodationMode?: AccommodationMode
+  roomAssignment?: RoomAssignmentMap
+  occupantAgeMap?: OccupantAgeMap
+  perRoomAddons?: PerRoomAddons
+  roomProductNames?: Record<string, string>
+  breakfastMap?: BreakfastMap
+}
+
+/** Build the terminal `fill-form` (review) step from the provenance bag. */
+function fillFormStep(args: PreReviewArgs): Step {
+  return { ...args, name: 'fill-form' as const }
+}
+
+/**
+ * landr-71kz.10: the FORWARD entry into the pre-review tail. When the operator
+ * configured custom forms (delivered via the remote flow), routes to the FIRST
+ * custom form in the plan; otherwise straight to the review screen (fill-form),
+ * byte-for-byte the legacy behaviour. Replaces the hardcoded
+ * `fillFormOrDeclarations` declarations branch — Para42's declarations are now
+ * the first (and only) custom form (form_key `customer_declarations`).
+ *
+ * `customFormAnswers` re-seeds the renderer on a forward pass after a breadcrumb
+ * jump (the draft round-trips it).
+ */
+export function enterReviewOrCustomForm(
+  args: PreReviewArgs,
+  remoteFlow?: RemoteFlow | null,
+  customFormAnswers?: Record<string, Record<string, unknown>>,
+): Step {
+  const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
+  if (formKeys.length === 0) return fillFormStep(args)
+  const firstKey = formKeys[0]!
+  return reconstructCustomFormStep(firstKey, {
     ...args,
-    name: 'fill-form' as const,
-  }
+    customFormAnswers,
+  })
+}
+
+/**
+ * landr-71kz.10: advance the custom-form chain. Called when a custom-form step
+ * (identified by `fromFormKey`) is confirmed — routes to the NEXT custom form in
+ * the plan, or to the review screen (fill-form) when the chain is exhausted.
+ */
+export function stepAfterCustomForm(
+  args: PreReviewArgs,
+  fromFormKey: string,
+  remoteFlow?: RemoteFlow | null,
+  customFormAnswers?: Record<string, Record<string, unknown>>,
+): Step {
+  const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
+  const idx = formKeys.indexOf(fromFormKey)
+  const nextKey = idx >= 0 ? formKeys[idx + 1] : undefined
+  if (nextKey === undefined) return fillFormStep(args)
+  return reconstructCustomFormStep(nextKey, { ...args, customFormAnswers })
 }
 
 /**
@@ -735,8 +997,10 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         accommodationRooms: [],
         addons: step.addons ?? [],
       }
+    // landr-71kz.3/.10: pickup / custom-form / review share the price context
+    // (rooms + add-ons already committed upstream).
     case 'pick-pickup':
-    case 'declarations':
+    case 'custom-form':
     case 'fill-form':
       return {
         product: step.product,
@@ -764,8 +1028,17 @@ export interface BreadcrumbItem {
 }
 
 export interface BreadcrumbOptions {
-  /** Operator requires the declarations step (inserted before review). */
-  requiresDeclarations: boolean
+  /**
+   * landr-71kz.10: the operator-configured remote flow (when fetched). Drives the
+   * custom-form crumbs in the trail. Absent/null → legacy plan (no custom forms),
+   * identical to the pre-71kz.10 breadcrumb.
+   */
+  remoteFlow?: RemoteFlow | null
+  /**
+   * landr-71kz.10: prior custom-form answers keyed by form_key, so a crumb back
+   * into a custom-form step re-seeds the renderer from the draft.
+   */
+  customFormAnswers?: Record<string, Record<string, unknown>>
   /** Display label for the product crumb (localized product name). */
   productLabel?: string
 }
@@ -773,11 +1046,16 @@ export interface BreadcrumbOptions {
 const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   'product-detail': 'Overview',
   'pick-selection': 'Dates',
-  details: 'Your details',
+  // The step collects the booker AND any additional participants (the booker
+  // is participant 1), so "Participants" reads truer than "Your details".
+  details: 'Participants',
   'pick-accommodation': 'Accommodation',
   'pick-service-addons': 'Add-ons',
   'pick-pickup': 'Pickup',
-  declarations: 'Declarations',
+  // landr-71kz.3: generic fallback label for a custom form. The CustomFormStep
+  // renderer surfaces the operator's localized form name in the step itself;
+  // the crumb shows a neutral default.
+  'custom-form': 'Details',
   'fill-form': 'Review',
 }
 
@@ -788,57 +1066,56 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
   'pick-accommodation',
   'pick-service-addons',
   'pick-pickup',
-  'declarations',
+  'custom-form',
   'fill-form',
 ])
 
 /**
  * The funnel step that preceded pick-pickup on the way forward, reconstructed
- * with its prior state. Mirrors the forward routing in App.tsx's pickup
- * back-nav handler: hotel offering → accommodation; else service add-ons →
- * that step; else straight back to details.
+ * with its prior state. landr-71kz.3: a backward plan walk from the `pickup`
+ * module over the preceding live middles — hotel offering → accommodation (the
+ * `accommodation` module is always present + live when the product offers a
+ * hotel); else service add-ons → that step (live iff hadServiceAddons); else
+ * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
+ * one place.
  */
 function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
-  const offering = step.product.hotel_offering ?? 'none'
-  if (step.product.product_kind === 'service' && offering !== 'none') {
-    return {
-      name: 'pick-accommodation',
-      product: step.product,
-      selection: step.selection,
-      booker: step.booker,
-      participants: step.participants,
-      companions: step.companions,
-      hotelLocationId: step.hotelLocationId,
-      accommodationRooms: step.accommodationRooms,
-      addons: step.addons,
-      includeHotel: step.includeHotel,
-      isSharedDouble: step.isSharedDouble,
-      accommodationMode: step.accommodationMode,
-      roomAssignment: step.roomAssignment,
-      occupantAgeMap: step.occupantAgeMap,
-      perRoomAddons: step.perRoomAddons,
-      roomProductNames: step.roomProductNames,
-    }
-  }
-  if (step.hadServiceAddons) {
-    return {
-      name: 'pick-service-addons',
-      product: step.product,
-      selection: step.selection,
-      booker: step.booker,
-      participants: step.participants,
-      companions: step.companions,
-      addons: step.addons,
-    }
-  }
-  return {
-    name: 'details',
+  // Hotel-offering products always route Back to accommodation (the original
+  // hotel-first priority); else the standard backward walk over the live
+  // middles preceding pickup.
+  const kind = productHasHotelOffering(step.product)
+    ? 'accommodation'
+    : liveModuleBefore(
+        step.product,
+        null,
+        {
+          hotelLocationId: step.hotelLocationId,
+          hadServiceAddons: step.hadServiceAddons,
+        },
+        'pickup',
+      )
+  return reconstructStepForModule(kind, {
     product: step.product,
     selection: step.selection,
     booker: step.booker,
     participants: step.participants,
     companions: step.companions,
-  }
+    // pick-pickup's pickupLocationId is optional (string|null|undefined);
+    // StepBeforeReviewArgs wants string|null — coalesce undefined to null.
+    pickupLocationId: step.pickupLocationId ?? null,
+    accommodationRooms: step.accommodationRooms,
+    addons: step.addons,
+    hotelLocationId: step.hotelLocationId,
+    hadServiceAddons: step.hadServiceAddons,
+    includeHotel: step.includeHotel,
+    isSharedDouble: step.isSharedDouble,
+    accommodationMode: step.accommodationMode,
+    roomAssignment: step.roomAssignment,
+    occupantAgeMap: step.occupantAgeMap,
+    perRoomAddons: step.perRoomAddons,
+    roomProductNames: step.roomProductNames,
+    breakfastMap: step.breakfastMap,
+  })
 }
 
 /**
@@ -877,6 +1154,12 @@ export function draftFromStep(step: Step): BookingDraft | undefined {
   if ('customerLanguages' in step) d.customerLanguages = step.customerLanguages
   if ('customerOtherLanguages' in step)
     d.customerOtherLanguages = step.customerOtherLanguages
+  // landr-71kz.3: capture a custom-form step's answers into the keyed slot so a
+  // breadcrumb JUMP preserves them (renderer lands in landr-71kz.4; the draft
+  // plumbing is wired now). Keyed by formKey so multiple forms coexist.
+  if (step.name === 'custom-form' && step.initialAnswers) {
+    d.customFormAnswers = { [step.formKey]: step.initialAnswers }
+  }
   // A draft is only meaningful once the customer has at least entered details.
   return d.booker || d.participants ? d : undefined
 }
@@ -936,33 +1219,13 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
       }
     case 'pick-pickup':
       return stepBeforePickup(step)
-    case 'declarations':
-      return stepBeforeReview({
-        product: step.product,
-        selection: step.selection,
-        booker: step.booker,
-        participants: step.participants,
-        companions: step.companions,
-        pickupLocationId: step.pickupLocationId,
-        accommodationRooms: step.accommodationRooms,
-        addons: step.addons,
-        hotelLocationId: step.hotelLocationId,
-        hadServiceAddons: step.hadServiceAddons,
-        includeHotel: step.includeHotel,
-        isSharedDouble: step.isSharedDouble,
-        accommodationMode: step.accommodationMode,
-        roomAssignment: step.roomAssignment,
-        occupantAgeMap: step.occupantAgeMap,
-        perRoomAddons: step.perRoomAddons,
-        roomProductNames: step.roomProductNames,
-      })
-    case 'fill-form':
-      // Mirror App.tsx's fill-form back handler: with declarations enforced,
-      // one step back is the declarations step (rebuilt from the confirmed
-      // declarations); otherwise stepBeforeReview's hotel-aware routing.
-      if (opts.requiresDeclarations) {
-        return {
-          name: 'declarations',
+    // landr-71kz.3/.10: a custom-form crumb routes Back through the custom-form
+    // chain (stepBeforeReview with the step's formKey + the remote flow) — the
+    // prior custom form, else the hotel-aware non-custom walk. With no remote
+    // flow this never fires (the legacy plan produces no custom-form steps).
+    case 'custom-form':
+      return stepBeforeReview(
+        {
           product: step.product,
           selection: step.selection,
           booker: step.booker,
@@ -980,15 +1243,17 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
           occupantAgeMap: step.occupantAgeMap,
           perRoomAddons: step.perRoomAddons,
           roomProductNames: step.roomProductNames,
-          initialDeclarations: step.customerDeclarations
-            ? {
-                declarations: step.customerDeclarations,
-                languages: step.customerLanguages ?? [],
-                otherLanguages: step.customerOtherLanguages ?? '',
-              }
-            : undefined,
-        }
-      }
+          breakfastMap: step.breakfastMap,
+          remoteFlow: opts.remoteFlow,
+          customFormAnswers: opts.customFormAnswers,
+        },
+        step.formKey,
+      )
+    case 'fill-form':
+      // landr-71kz.10: Back from review lands on the LAST custom form when the
+      // operator configured any (stepBeforeReview walks the chain head-first);
+      // otherwise the hotel-aware non-custom walk — byte-for-byte the legacy
+      // routing for zero-config products.
       return stepBeforeReview({
         product: step.product,
         selection: step.selection,
@@ -1007,6 +1272,8 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         occupantAgeMap: step.occupantAgeMap,
         perRoomAddons: step.perRoomAddons,
         roomProductNames: step.roomProductNames,
+        remoteFlow: opts.remoteFlow,
+        customFormAnswers: opts.customFormAnswers,
       })
     default:
       return null

@@ -14,6 +14,7 @@ import type {
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
+import type { ProductFlowResponse } from './flowTypes'
 import {
   mockAvailability,
   mockEstimate,
@@ -412,6 +413,29 @@ export async function estimateBookingPrice(
       body: JSON.stringify(body),
     },
   )
+}
+
+/**
+ * landr-71kz.4: fetch the product's operator-configured booking flow.
+ * GET /api/public/operators/{token}/products/{productId}/flow
+ * Returns {modules: [...]} or {modules: null} (legacy/no-flow path).
+ * A network/404 error is NOT thrown — the caller receives null, which
+ * the buildFlowPlan() legacy fallback handles. NEVER throws (widget has no
+ * error boundary — bd memory landr-9ut4).
+ */
+export async function getProductFlow(
+  operatorToken: string,
+  productId: string,
+): Promise<ProductFlowResponse | null> {
+  if (mocksEnabled()) return { modules: null }
+  try {
+    return await http<ProductFlowResponse>(
+      `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/flow`,
+    )
+  } catch {
+    // Network error / 404 / malformed response → null → legacy plan.
+    return null
+  }
 }
 
 /**
