@@ -62,8 +62,17 @@ function evalRule(rule: VisibilityRule, answers: AnswerMap): boolean {
 
     case 'eq': {
       const ruleVal = rule.value
+      // NULL-VALUE CONTRACT (landr-noyq): a null/undefined rule value matches
+      // NOTHING → eq hidden. Mirrors the server (_scalar_eq returns False when
+      // the rule value is None) and keeps the null contract identical across
+      // all three impls regardless of whether the answer is present.
+      if (ruleVal == null) return false
       if (Array.isArray(rawAnswer)) {
         // List answer → membership check.
+        // NOTE whole-number floats: a JSON rule value of 3.0 parses to the JS
+        // number 3, and String(3.0) === "3", so the membership check against a
+        // string answer "3" already canonicalises natively (the Python twin
+        // does this explicitly in _canon — JS gets it for free).
         return rawAnswer.includes(String(ruleVal))
       }
       // Scalar answer → string-coerced equality.
@@ -73,6 +82,9 @@ function evalRule(rule: VisibilityRule, answers: AnswerMap): boolean {
 
     case 'neq': {
       const ruleVal = rule.value
+      // NULL-VALUE CONTRACT (landr-noyq): a null rule value is not-equal to
+      // everything → neq visible (the inverse of eq above).
+      if (ruleVal == null) return true
       if (Array.isArray(rawAnswer)) {
         // List answer → NOT-member check.
         return !rawAnswer.includes(String(ruleVal))

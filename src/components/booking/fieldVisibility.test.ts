@@ -222,6 +222,96 @@ describe('isFieldVisible — op: truthy', () => {
   })
 })
 
+// ─── CROSS-REPO PARITY (landr-noyq) ────────────────────────────────────────────
+// These EXACT cases are mirrored in the Python server suite
+// (test_form_responses_validation.py::test_whole_number_float_value_canonicalizes,
+// test_numeric_list_membership_with_float_value, test_null_value_with_absent_answer_contract,
+// test_empty_array_truthy_is_hidden). They close the shared-oracle blind spot:
+// both suites previously missed whole-number-float values, the null-value
+// contract, and numeric-list membership. Each asserts the SAME boolean the
+// server returns.
+
+describe('isFieldVisible — parity: whole-number-float rule value (landr-noyq)', () => {
+  it('value 3.0 matches answer "3" for eq/neq/in (JS String(3.0) === "3")', () => {
+    const eq = field({
+      key: 'd',
+      visibility_rule: { field_key: 'n', op: 'eq', value: 3.0 },
+    })
+    expect(isFieldVisible(eq, { n: '3' })).toBe(true)
+    expect(isFieldVisible(eq, { n: '4' })).toBe(false)
+
+    const neq = field({
+      key: 'd',
+      visibility_rule: { field_key: 'n', op: 'neq', value: 3.0 },
+    })
+    expect(isFieldVisible(neq, { n: '3' })).toBe(false)
+    expect(isFieldVisible(neq, { n: '4' })).toBe(true)
+
+    const inOp = field({
+      key: 'd',
+      visibility_rule: { field_key: 'n', op: 'in', value: [3.0, 5.0] },
+    })
+    expect(isFieldVisible(inOp, { n: '3' })).toBe(true)
+    expect(isFieldVisible(inOp, { n: '9' })).toBe(false)
+  })
+
+  it('a genuine fractional float (3.5) does NOT collapse', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'n', op: 'eq', value: 3.5 },
+    })
+    expect(isFieldVisible(f, { n: '3.5' })).toBe(true)
+    expect(isFieldVisible(f, { n: '3' })).toBe(false)
+  })
+
+  it('numeric-list membership against a whole-number-float value', () => {
+    const eq = field({
+      key: 'd',
+      visibility_rule: { field_key: 'picks', op: 'eq', value: 3.0 },
+    })
+    expect(isFieldVisible(eq, { picks: ['1', '3'] })).toBe(true)
+    expect(isFieldVisible(eq, { picks: ['1', '2'] })).toBe(false)
+
+    const inOp = field({
+      key: 'd',
+      visibility_rule: { field_key: 'picks', op: 'in', value: [3.0, 4.0] },
+    })
+    expect(isFieldVisible(inOp, { picks: ['3', '9'] })).toBe(true)
+    expect(isFieldVisible(inOp, { picks: ['8', '9'] })).toBe(false)
+  })
+})
+
+describe('isFieldVisible — parity: null-value contract (landr-noyq)', () => {
+  it('eq with value null → hidden (null matches nothing; absent answer too)', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'ref', op: 'eq', value: null },
+    })
+    expect(isFieldVisible(f, {})).toBe(false) // absent answer → hidden
+    expect(isFieldVisible(f, { ref: 'x' })).toBe(false) // null value matches nothing
+  })
+
+  it('neq with value null → visible (null ≠ anything; absent answer too)', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'ref', op: 'neq', value: null },
+    })
+    expect(isFieldVisible(f, {})).toBe(true) // absent answer → visible
+    expect(isFieldVisible(f, { ref: 'x' })).toBe(true) // null ≠ anything → visible
+  })
+})
+
+describe('isFieldVisible — parity: empty-array truthy is hidden (landr-noyq)', () => {
+  it('empty list is NOT truthy → hidden; non-empty list → visible', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'boxes', op: 'truthy' },
+    })
+    expect(isFieldVisible(f, { boxes: [] })).toBe(false)
+    expect(isFieldVisible(f, { boxes: ['a'] })).toBe(true)
+  })
+})
+
 // ─── Fail-open contract ───────────────────────────────────────────────────────
 
 describe('isFieldVisible — fail-open (always visible on bad config)', () => {
