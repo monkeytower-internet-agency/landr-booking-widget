@@ -118,7 +118,7 @@ interface Props {
    * (same room product) gives up its chip — the count stays fixed. Only fired
    * for 'partial'-mode products; 'all'-mode breakfast is automatic.
    */
-  onBreakfastAssign?: (memberIndex: number) => void
+  onBreakfastAssign?: (memberIndex: number, from?: number) => void
 }
 
 function participantLabel(names: string[], index: number): string {
@@ -396,7 +396,7 @@ function OccupantRow({
   ) => void
   breakfastMode: ReturnType<typeof roomBreakfastMode>
   hasBreakfast: boolean
-  onBreakfastAssign?: (memberIndex: number) => void
+  onBreakfastAssign?: (memberIndex: number, from?: number) => void
   /**
    * landr-z59y: true only while a BREAKFAST CHIP is the active drag. The
    * occupant breakfast-drop target is enabled ONLY then, so a NAME-chip drag
@@ -504,7 +504,7 @@ function UnitDropZone({
   /** landr-z59y: which occupants currently hold a breakfast chip. */
   breakfastMap?: BreakfastMap
   /** landr-z59y: drop a breakfast chip onto an occupant (partial mode). */
-  onBreakfastAssign?: (memberIndex: number) => void
+  onBreakfastAssign?: (memberIndex: number, from?: number) => void
   /** landr-z59y: true while a breakfast chip is the active drag. */
   breakfastDragActive?: boolean
 }) {
@@ -713,7 +713,9 @@ export function RoomAssignment({
         breakfastMap,
         (unit) => occupantsOfUnit(assignment, unit),
       )
-      if (target !== null) onBreakfastAssign?.(target)
+      // landr-iiwz: pass the drag SOURCE so the move displaces THIS chip, not
+      // the highest-index holder. The "+ breakfast" tap stays source-less.
+      if (target !== null) onBreakfastAssign?.(target, breakfastFrom)
       return
     }
 

@@ -14,6 +14,7 @@ import type {
   SubmitBookingBody,
   SubmitBookingResponse,
 } from './types'
+import type { ProductFlowResponse } from './flowTypes'
 import {
   mockAvailability,
   mockEstimate,
@@ -415,6 +416,29 @@ export async function estimateBookingPrice(
 }
 
 /**
+ * landr-71kz.4: fetch the product's operator-configured booking flow.
+ * GET /api/public/operators/{token}/products/{productId}/flow
+ * Returns {modules: [...]} or {modules: null} (legacy/no-flow path).
+ * A network/404 error is NOT thrown — the caller receives null, which
+ * the buildFlowPlan() legacy fallback handles. NEVER throws (widget has no
+ * error boundary — bd memory landr-9ut4).
+ */
+export async function getProductFlow(
+  operatorToken: string,
+  productId: string,
+): Promise<ProductFlowResponse | null> {
+  if (mocksEnabled()) return { modules: null }
+  try {
+    return await http<ProductFlowResponse>(
+      `/api/public/operators/${encodeURIComponent(operatorToken)}/products/${encodeURIComponent(productId)}/flow`,
+    )
+  } catch {
+    // Network error / 404 / malformed response → null → legacy plan.
+    return null
+  }
+}
+
+/**
  * Request body for POST /api/public/operators/{token}/group-inquiry
  * (landr-ehye). Sent when a customer at the participant max requests a
  * larger group or flight-school booking.
@@ -422,8 +446,12 @@ export async function estimateBookingPrice(
 export interface GroupInquiryRequest {
   name: string
   email: string
-  party_size: number
-  message: string
+  // landr-amg6: phone is a new optional field; the API (landr-vlxm) accepts it
+  // as a nullable string. party_size + message are now optional too — only
+  // name + email are required server-side.
+  phone: string | null
+  party_size: number | null
+  message: string | null
   product_slug: string | null
 }
 

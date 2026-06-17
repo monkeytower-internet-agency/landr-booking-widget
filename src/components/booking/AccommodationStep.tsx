@@ -893,11 +893,14 @@ export function AccommodationStep({
 
   // landr-z59y: move a breakfast chip onto an occupant (drag-drop or the
   // "+ breakfast" tap fallback). The pure helper forces the target to hold a
-  // chip and drops the highest-index other holder of the same room product so
-  // the count stays fixed. No setState-in-effect.
-  function handleBreakfastAssign(memberIndex: number) {
+  // chip and drops another holder of the same room product so the count stays
+  // fixed. No setState-in-effect.
+  // landr-iiwz: forward the drag SOURCE (`from`) so a drag is a true MOVE —
+  // the dragged chip is displaced rather than the highest-index holder. The
+  // tap fallback passes no source and keeps legacy highest-index displacement.
+  function handleBreakfastAssign(memberIndex: number, from?: number) {
     setBreakfastMap((prev) =>
-      assignBreakfastChip(assignment, addonSelection, prev, memberIndex),
+      assignBreakfastChip(assignment, addonSelection, prev, memberIndex, from),
     )
   }
 

@@ -25,6 +25,13 @@ import {
   type ParticipantDetails,
 } from './detailsTypes'
 import { GroupInquiryForm } from './GroupInquiryForm'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
@@ -53,7 +60,7 @@ interface Props {
   /**
    * landr-4uyu: operator contact email surfaced at the participant max
    * (MAX_ADDITIONAL added). When non-empty the Details step renders a
-   * "Need a larger group or a flight school booking?" line with a mailto:
+   * "Need a larger group or a custom booking?" line with a mailto:
    * link to this address. Null / undefined → the copy still shows but the
    * (broken) mailto is omitted. Optional so existing tests need no change.
    */
@@ -377,7 +384,7 @@ export function DetailsStep({
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
     companions.forEach((_, idx) => {
-      keys.push(`companion.${idx}.first_name`)
+      keys.push(`companion.${idx}.first_name`, `companion.${idx}.last_name`)
     })
     return keys
   }
@@ -412,8 +419,11 @@ export function DetailsStep({
             : 'phone'
       return `p-${pMatch[1]}-${slot}`
     }
-    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
-    if (cMatch) return `companion-${cMatch[1]}-first`
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    if (cMatch) {
+      const slot = cMatch[2] === 'first_name' ? 'first' : 'last'
+      return `companion-${cMatch[1]}-${slot}`
+    }
     return undefined
   }
 
@@ -437,10 +447,12 @@ export function DetailsStep({
       const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
       return !row[field].trim()
     }
-    const cMatch = /^companion\.(\d+)\.first_name$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
     if (cMatch) {
       const row = companions[Number(cMatch[1])]
-      return row ? !row.first_name.trim() : false
+      if (!row) return false
+      const field = cMatch[2] as 'first_name' | 'last_name'
+      return !row[field].trim()
     }
     return false
   }
@@ -523,6 +535,12 @@ export function DetailsStep({
   const participantsAtMax = additional.length >= MAX_ADDITIONAL
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
+  // landr-amg6: at the participant max we no longer render the inquiry form
+  // inline. Instead a "Request more" button opens an overlay modal that holds
+  // the form. Closing/cancelling discards the in-progress inquiry (the form
+  // remounts fresh each time the dialog opens, keyed below).
+  const [inquiryOpen, setInquiryOpen] = useState(false)
+
   // landr-4uyu: normalize the operator contact email. A blank/whitespace value
   // is treated as absent so we never render an empty `mailto:`. When present we
   // build a mailto with a sensible prefilled subject; when absent the contact
@@ -530,7 +548,7 @@ export function DetailsStep({
   const trimmedContactEmail = contactEmail?.trim() || ''
   const contactMailto = trimmedContactEmail
     ? `mailto:${trimmedContactEmail}?subject=${encodeURIComponent(
-        `Larger group / flight school booking — ${product.name}`,
+        `Larger group or custom booking — ${product.name}`,
       )}`
     : ''
 
@@ -544,7 +562,7 @@ export function DetailsStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Your details</CardTitle>
+        <CardTitle>Participants</CardTitle>
         <CardDescription>
           {product.name} · {describeSelection(selection, locale)}
         </CardDescription>
@@ -735,6 +753,11 @@ export function DetailsStep({
               is preserved from the old stepper button so existing tests/AT keep
               working. */}
           {participantsAtMax ? (
+            // landr-amg6: at the max we replace the "+ Add participant" button
+            // (which is gone anyway) with a "Request more" button. The inline
+            // group-inquiry form (landr-ehye) is moved into an overlay modal
+            // opened by this button — the participants section stays uncluttered
+            // and the customer can't accidentally Send a half-filled form.
             <div
               className="flex flex-col gap-2 rounded-lg border border-dashed bg-surface-raised p-3"
               data-testid="participants-max-notice"
@@ -742,24 +765,66 @@ export function DetailsStep({
               <p className="text-sm font-medium text-muted-foreground">
                 Maximum of {MAX_ADDITIONAL} additional participants reached
               </p>
-              {/* landr-ehye: inline group-inquiry form replaces the plain
-                  mailto: link added by PR #108. The form POSTs to the
-                  API; the mailto: link stays as a fallback (shown inside
-                  GroupInquiryForm on error, and as a secondary "Or email us"
-                  link while the form is idle). When the operator has no
-                  contact_email, contactMailto is empty and the mailto
-                  fallback is omitted — same graceful degrade as before. */}
               <p className="text-xs text-muted-foreground">
-                Need a larger group or a flight school booking? Get in touch:
+                Need a larger group or a custom booking?
               </p>
-              <GroupInquiryForm
-                operatorToken={operatorToken}
-                productSlug={product.slug}
-                defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
-                defaultEmail={booker.email}
-                contactMailto={contactMailto}
-                contactEmail={trimmedContactEmail}
-              />
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setInquiryOpen(true)}
+                  data-testid="group-inquiry-open"
+                >
+                  Request more
+                </Button>
+                {/* Secondary escape hatch — reachable without opening the modal.
+                    When the operator has no contact_email, contactMailto is
+                    empty and the link is omitted (graceful degrade, as before). */}
+                {contactMailto ? (
+                  <a
+                    href={contactMailto}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    data-testid="participants-contact-mailto"
+                  >
+                    Or email us
+                  </a>
+                ) : null}
+              </div>
+
+              {/* The overlay modal (radix Dialog primitive) holds the inquiry
+                  form. Closing/Cancel discards the in-progress inquiry. The form
+                  is keyed on `inquiryOpen` so each open starts fresh (no stale
+                  draft, no leftover success/error state). */}
+              <Dialog open={inquiryOpen} onOpenChange={setInquiryOpen}>
+                <DialogContent
+                  className="sm:max-w-lg"
+                  data-testid="group-inquiry-modal"
+                >
+                  <DialogHeader>
+                    <DialogTitle>Request a larger group</DialogTitle>
+                    <DialogDescription>
+                      Need a larger group or a custom booking? Send us
+                      the details and we&rsquo;ll be in touch.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {inquiryOpen ? (
+                    <GroupInquiryForm
+                      key={inquiryOpen ? 'open' : 'closed'}
+                      operatorToken={operatorToken}
+                      productSlug={product.slug}
+                      defaultName={`${booker.first_name} ${booker.last_name}`.trim()}
+                      defaultEmail={booker.email}
+                      defaultPhone={booker.phone}
+                      contactMailto={contactMailto}
+                      contactEmail={trimmedContactEmail}
+                      onCancel={() => setInquiryOpen(false)}
+                    />
+                  ) : null}
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <Button
@@ -780,7 +845,7 @@ export function DetailsStep({
             room assignment) but are NOT counted toward this booking's guiding
             participants, price, or the 6-participant cap — regardless of whether
             they do the activity (landr-doam.1: companion_kind).
-            Only first name is required. */}
+            landr-rxjo: first and last name are both required for companions. */}
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"
@@ -795,11 +860,16 @@ export function DetailsStep({
             and room assignment, but not to this booking&rsquo;s activity or price.
           </p>
           {companions.map((row, idx) => {
-            // landr-opi3: only the companion first name is required.
+            // landr-rxjo: both first and last name are required for companions.
             const cFirstV = validate(
               `companion.${idx}.first_name`,
               row.first_name,
               `companion-${idx}-first`,
+            )
+            const cLastV = validate(
+              `companion.${idx}.last_name`,
+              row.last_name,
+              `companion-${idx}-last`,
             )
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
@@ -881,7 +951,7 @@ export function DetailsStep({
                   {...cFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name (optional)" htmlFor={`companion-${idx}-last`}>
+              <Field label="Last name" htmlFor={`companion-${idx}-last`} error={cLastV.error}>
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
@@ -889,6 +959,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'last_name', e.target.value)
                   }
+                  {...cLastV.inputProps}
                 />
               </Field>
               <Field label="Email (optional)" htmlFor={`companion-${idx}-email`}>

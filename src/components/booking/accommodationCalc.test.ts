@@ -10,6 +10,7 @@ import {
   clampBreakfastMap,
   deriveBreakfastMap,
   deriveStayWindow,
+  disambiguatePartyLabels,
   expandRoomUnits,
   findBreakfastAddonIds,
   flattenPerRoomAddons,
@@ -1034,6 +1035,73 @@ describe('deriveBreakfastMap / clampBreakfastMap (landr-z59y)', () => {
   })
 })
 
+describe('clampBreakfastMap default spread across same-product units (landr-iiwz)', () => {
+  // 3 DOUBLE rooms of the SAME product, 6 occupants (0..5), 3 breakfast chips.
+  // units: 0→(0,1), 1→(2,3), 2→(4,5).
+  const THREE_DOUBLES: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+    2: { roomProductId: 'double', unitIndex: 1 },
+    3: { roomProductId: 'double', unitIndex: 1 },
+    4: { roomProductId: 'double', unitIndex: 2 },
+    5: { roomProductId: 'double', unitIndex: 2 },
+  }
+
+  it('fresh seed puts ONE chip per unit, not 2/1/0 clustered on unit 0', () => {
+    const map = deriveBreakfastMap(THREE_DOUBLES, { double: { 'bf-1': 3 } })
+    // One occupant in each unit holds a chip (lowest member-index of each).
+    expect(map).toEqual({ 0: true, 2: true, 4: true })
+    // And each physical unit holds exactly one chip.
+    const perUnit = [0, 1, 2].map(
+      (u) =>
+        [0, 1, 2, 3, 4, 5].filter(
+          (i) => map[i] && THREE_DOUBLES[i].unitIndex === u,
+        ).length,
+    )
+    expect(perUnit).toEqual([1, 1, 1])
+  })
+
+  it('3 single-occupant units, qty 2: seeds one chip into the two fewest-held units', () => {
+    const THREE_SINGLES: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+      2: { roomProductId: 'single', unitIndex: 2 },
+    }
+    const map = deriveBreakfastMap(THREE_SINGLES, { single: { 'bf-1': 2 } })
+    // Round-robin lowest-unitIndex first → units 0 and 1.
+    expect(map).toEqual({ 0: true, 1: true })
+  })
+
+  it('PRESERVES prev holders and only fills the REMAINING slot round-robin', () => {
+    // Prev: occupant 3 (unit 1) already chosen. qty 3, so 2 more slots remain.
+    const map = clampBreakfastMap(
+      THREE_DOUBLES,
+      { double: { 'bf-1': 3 } },
+      { 3: true },
+    )
+    // 3 stays. Remaining 2 go to the fewest-held units (0 and 2; unit 1 already
+    // has a chip), lowest member-index in each → 0 and 4.
+    expect(map).toEqual({ 0: true, 3: true, 4: true })
+  })
+
+  it('caps kept prev holders at qty (back-nav restoration unchanged)', () => {
+    // Prev over-fills unit 0 with both occupants; qty is only 2 here.
+    const TWO_DOUBLES: RoomAssignmentMap = {
+      0: { roomProductId: 'double', unitIndex: 0 },
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 1 },
+      3: { roomProductId: 'double', unitIndex: 1 },
+    }
+    const map = clampBreakfastMap(
+      TWO_DOUBLES,
+      { double: { 'bf-1': 2 } },
+      { 0: true, 1: true },
+    )
+    // Both prev holders kept (cap=2 reached), no further fill.
+    expect(map).toEqual({ 0: true, 1: true })
+  })
+})
+
 describe('assignBreakfastChip (landr-z59y — drag/tap reassignment)', () => {
   const BOTH: RoomAssignmentMap = {
     0: { roomProductId: 'double', unitIndex: 0 },
@@ -1071,6 +1139,108 @@ describe('assignBreakfastChip (landr-z59y — drag/tap reassignment)', () => {
     )
     // Linus (2) gains it; the highest-index other holder (Grace, 1) loses it.
     expect(next).toEqual({ 0: true, 2: true })
+  })
+
+  // ── landr-iiwz: a drag is a true MOVE — it displaces the SOURCE, not the
+  // highest-index holder, so the lowest-index room can no longer get stuck. ──
+
+  const THREE_DOUBLES: RoomAssignmentMap = {
+    0: { roomProductId: 'double', unitIndex: 0 },
+    1: { roomProductId: 'double', unitIndex: 0 },
+    2: { roomProductId: 'double', unitIndex: 1 },
+    3: { roomProductId: 'double', unitIndex: 1 },
+    4: { roomProductId: 'double', unitIndex: 2 },
+    5: { roomProductId: 'double', unitIndex: 2 },
+  }
+
+  it('REPRO 1: dragging unit-0 chip onto unit-2 frees unit 0 (source displaced, not highest)', () => {
+    // Fresh seed = one chip per unit: {0,2,4}. Drag occupant 0's chip (unit 0)
+    // onto occupant 5 (unit 2). The SOURCE (0) must give up its chip — NOT the
+    // highest holder (4). Before the fix this dropped 4 and left unit 0 stuck.
+    const seed = deriveBreakfastMap(THREE_DOUBLES, { double: { 'bf-1': 3 } })
+    expect(seed).toEqual({ 0: true, 2: true, 4: true })
+    const next = assignBreakfastChip(
+      THREE_DOUBLES,
+      { double: { 'bf-1': 3 } },
+      seed,
+      5, // target occupant (unit 2)
+      0, // drag source (unit 0)
+    )
+    // Source 0 gave up its chip; target 5 holds it; count still 3.
+    expect(next).toEqual({ 2: true, 4: true, 5: true })
+    // Unit 0 now holds exactly zero (was 1, source moved out).
+    const unit0Holders = [0, 1].filter((i) => next[i]).length
+    expect(unit0Holders).toBe(0)
+  })
+
+  it('REPRO 1b: with two chips in unit 0, dragging one out leaves exactly one', () => {
+    // Force a clustered prev (both unit-0 occupants hold chips, qty 3).
+    const prev = { 0: true, 1: true, 4: true }
+    const next = assignBreakfastChip(
+      THREE_DOUBLES,
+      { double: { 'bf-1': 3 } },
+      prev,
+      2, // target in unit 1
+      1, // drag source: occupant 1 in unit 0
+    )
+    // Source 1 displaced; unit 0 drops from 2 → 1 holder; count still 3.
+    expect(next).toEqual({ 0: true, 2: true, 4: true })
+    const unit0Holders = [0, 1].filter((i) => next[i]).length
+    expect(unit0Holders).toBe(1)
+  })
+
+  it('REPRO 2: 3 single units, qty 2 — moving the middle chip frees the middle unit', () => {
+    const THREE_SINGLES: RoomAssignmentMap = {
+      0: { roomProductId: 'single', unitIndex: 0 },
+      1: { roomProductId: 'single', unitIndex: 1 },
+      2: { roomProductId: 'single', unitIndex: 2 },
+    }
+    // Middle unit (occupant 1) holds a chip; drag it onto occupant 2.
+    const next = assignBreakfastChip(
+      THREE_SINGLES,
+      { single: { 'bf-1': 2 } },
+      { 0: true, 1: true },
+      2, // target
+      1, // source = the middle unit's chip
+    )
+    // Occupant 1 (middle) freed; chips on 0 and 2.
+    expect(next).toEqual({ 0: true, 2: true })
+  })
+
+  it('TAP-ADD (no source): still displaces the highest-index holder, never the target', () => {
+    const THREE: RoomAssignmentMap = {
+      0: { roomProductId: 'triple', unitIndex: 0 },
+      1: { roomProductId: 'triple', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+    }
+    // No `from` (the "+ breakfast" tap). Target 2; highest other holder (1) drops.
+    const next = assignBreakfastChip(THREE, { triple: { 'bf-1': 2 } }, { 0: true, 1: true }, 2)
+    expect(next).toEqual({ 0: true, 2: true })
+    expect(next[2]).toBe(true) // target never dropped
+  })
+
+  it('falls back to highest-index when `from` is a DIFFERENT product (cross-product edge)', () => {
+    const MIXED: RoomAssignmentMap = {
+      0: { roomProductId: 'triple', unitIndex: 0 },
+      1: { roomProductId: 'triple', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+      9: { roomProductId: 'single', unitIndex: 0 },
+    }
+    // from=9 is on a different product → not a same-product holder → fall back.
+    const next = assignBreakfastChip(
+      MIXED,
+      { triple: { 'bf-1': 2 }, single: { 'bf-1': 1 } },
+      { 0: true, 1: true, 9: true },
+      2,
+      9,
+    )
+    // Triple displaces its highest holder (1); the single's chip (9) is untouched.
+    expect(next).toEqual({ 0: true, 2: true, 9: true })
+  })
+
+  it("'all' mode (qty >= occ): drag is a no-op clamp, everyone keeps their chip", () => {
+    const next = assignBreakfastChip(BOTH, { double: { 'bf-1': 2 } }, { 0: true, 1: true }, 1, 0)
+    expect(next).toEqual({ 0: true, 1: true })
   })
 })
 
@@ -1159,5 +1329,95 @@ describe('resolveBreakfastDropTarget (landr-z59y — breakfast-drag near-miss fa
 
   it('returns null when over nothing', () => {
     expect(resolveBreakfastDropTarget(null, 0, {}, occupantsOf)).toBeNull()
+  })
+})
+
+// ── landr-sjrd: progressive name disambiguation ──────────────────────────────
+
+describe('disambiguatePartyLabels (landr-sjrd)', () => {
+  it('all-unique first names → labels are unchanged (first names only)', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Bob', last: 'Müller' },
+      { first: 'Clara', last: 'Weber' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna', 'Bob', 'Clara'])
+  })
+
+  it('two members named Anna with different last names → disambiguate with initial', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Anna', last: 'Müller' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna M.'])
+  })
+
+  it(
+    'three Annas all sharing initial S → all collide on (Anna, S) → full names',
+    () => {
+      // Anna Schmidt, Anna Schmidt, Anna Schneider — all share first 'anna' and
+      // initial 's'; no initial is unique → all three fall through to full name.
+      const party = [
+        { first: 'Anna', last: 'Schmidt' },
+        { first: 'Anna', last: 'Schmidt' },
+        { first: 'Anna', last: 'Schneider' },
+      ]
+      expect(disambiguatePartyLabels(party)).toEqual([
+        'Anna Schmidt',
+        'Anna Schmidt',
+        'Anna Schneider',
+      ])
+    },
+  )
+
+  it(
+    'companion named Anna (no last) collides with participant Anna Schmidt: ' +
+    'companion → Anna (best effort), participant → Anna S. (unique initial)',
+    () => {
+      // The companion contributes initial '' (empty bucket). The participant's
+      // initial 'S' is therefore unique among the colliding group → shows S.
+      // The companion cannot add an initial → best-effort first-only.
+      const party = [
+        { first: 'Anna', last: 'Schmidt' }, // participant
+        { first: 'Anna', last: '' },         // companion, no last name
+      ]
+      expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna'])
+    },
+  )
+
+  it('empty first name → returns "" and does not perturb other members', () => {
+    const party = [
+      { first: '', last: 'Smith' },
+      { first: 'Bob', last: 'Jones' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['', 'Bob'])
+  })
+
+  it('two Annas and a Bob → the two Annas disambiguate, Bob stays Bob', () => {
+    const party = [
+      { first: 'Anna', last: 'Schmidt' },
+      { first: 'Anna', last: 'Müller' },
+      { first: 'Bob', last: 'Weber' },
+    ]
+    expect(disambiguatePartyLabels(party)).toEqual(['Anna S.', 'Anna M.', 'Bob'])
+  })
+
+  it('comparison is case-insensitive; display uses original casing with uppercase initial', () => {
+    const party = [
+      { first: 'anna', last: 'schmidt' },
+      { first: 'ANNA', last: 'müller' },
+    ]
+    const result = disambiguatePartyLabels(party)
+    // Both 'anna' / 'ANNA' collide (same key). Initials S vs M are unique.
+    expect(result[0]).toBe('anna S.')
+    expect(result[1]).toBe('ANNA M.')
+  })
+
+  it('single member → just the first name', () => {
+    expect(disambiguatePartyLabels([{ first: 'Lone', last: 'Wolf' }])).toEqual(['Lone'])
+  })
+
+  it('empty party → empty array', () => {
+    expect(disambiguatePartyLabels([])).toEqual([])
   })
 })

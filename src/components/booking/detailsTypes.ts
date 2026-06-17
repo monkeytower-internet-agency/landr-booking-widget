@@ -166,9 +166,9 @@ export function detailsAreComplete(
     // separately above) must supply a non-empty phone number.
     if (i > 0 && !p.phone.trim()) return false
   }
-  // landr-87n9.3: each companion needs at least a first name; phone optional.
+  // landr-rxjo: each companion needs both first and last name; phone optional.
   for (const c of companions) {
-    if (!c.first_name.trim()) return false
+    if (!c.first_name.trim() || !c.last_name.trim()) return false
   }
   return true
 }
