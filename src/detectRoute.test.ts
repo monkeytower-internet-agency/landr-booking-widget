@@ -6,11 +6,12 @@ import { detectRoute } from './detectRoute'
  * Path-based route detection (landr-sgnd). The widget is otherwise a
  * single-screen SPA so the routing surface is intentionally tiny — a
  * regex inside detectRoute.ts — but we still cover the edges so adding
- * new paths later (e.g. /receipt/{id}) doesn't accidentally regress
- * cancel-link handling.
+ * new paths later doesn't accidentally regress cancel/offer-link handling.
  *
  * landr-sbhz.4: detectRoute moved out of App.tsx into its own module so
  * App.tsx only exports a React component (react-refresh ESLint gate).
+ *
+ * landr-uvfg.4b: added /offer/{token} tests.
  */
 describe('detectRoute', () => {
   it('returns cancel for /cancel/{uuid}', () => {
@@ -29,6 +30,33 @@ describe('detectRoute', () => {
       kind: 'cancel',
       bookingId: '11111111-1111-1111-1111-111111111111',
     })
+  })
+
+  it('returns offer for /offer/{token}', () => {
+    expect(detectRoute('/offer/abc123XYZ-tok')).toEqual({
+      kind: 'offer',
+      token: 'abc123XYZ-tok',
+    })
+  })
+
+  it('returns offer for /offer/{token} with trailing slash', () => {
+    expect(detectRoute('/offer/mytoken/')).toEqual({
+      kind: 'offer',
+      token: 'mytoken',
+    })
+  })
+
+  it('returns offer for /offer/{long-hmac-token}', () => {
+    const hmac = 'abc123_-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij'
+    expect(detectRoute(`/offer/${hmac}`)).toEqual({
+      kind: 'offer',
+      token: hmac,
+    })
+  })
+
+  it('returns booking for /offer without a token', () => {
+    expect(detectRoute('/offer')).toEqual({ kind: 'booking' })
+    expect(detectRoute('/offer/')).toEqual({ kind: 'booking' })
   })
 
   it('returns booking for the root path', () => {

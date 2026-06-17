@@ -482,3 +482,109 @@ export async function submitGroupInquiry(
     },
   )
 }
+
+// ─── Offer page (landr-uvfg Track B) ─────────────────────────────────────────
+
+/**
+ * A single price-breakdown line from the offer.
+ */
+export interface OfferProductLine {
+  product_id: string
+  name: string
+  name_localized: Record<string, string> | null
+  date_range_start: string | null
+  date_range_end: string | null
+  selected_days: string[] | null
+  quantity: number
+}
+
+/**
+ * A participant listed on the offer.
+ */
+export interface OfferParticipant {
+  first_name: string
+  last_name: string | null
+  service_role_label: string | null
+}
+
+/**
+ * Totals block from the offer.
+ */
+export interface OfferTotals {
+  gross_total: number
+  tax_total: number
+  net_total: number
+  balance_due: number
+  currency: string
+}
+
+/**
+ * Customer details from the offer.
+ */
+export interface OfferCustomer {
+  first_name: string
+  last_name: string | null
+  email: string | null
+}
+
+/**
+ * Full offer data returned by GET /api/public/bookings/{token}.
+ * Shape mirrors the public_get_booking_by_token RPC
+ * (migration 20260512221007).
+ */
+export interface PublicBookingOffer {
+  booking_id: string
+  customer_semantic_state: string
+  cancellation_deadline: string | null
+  totals: OfferTotals
+  customer: OfferCustomer
+  product_lines: OfferProductLine[]
+  participants: OfferParticipant[]
+}
+
+/**
+ * Fetch offer details for a booking token (landr-uvfg.4b).
+ * Backed by GET /api/public/bookings/{token} — the same token minted by
+ * POST /api/staff/…/send-offer. No mock fallback: this surface is only
+ * reached from the custom-offer email link.
+ */
+export async function getBookingByToken(
+  token: string,
+): Promise<PublicBookingOffer> {
+  return http<PublicBookingOffer>(
+    `/api/public/bookings/${encodeURIComponent(token)}`,
+  )
+}
+
+/**
+ * Request body for POST /api/public/payments/initiate.
+ */
+export interface InitiatePaymentRequest {
+  booking_token: string
+  return_url: string
+  cancel_url: string
+}
+
+/**
+ * Response from POST /api/public/payments/initiate.
+ */
+export interface InitiatePaymentResponse {
+  checkout_url: string
+  payment_id: string | null
+  stripe_payment_intent_id: string | null
+}
+
+/**
+ * Kick off a Stripe Checkout session for the offer (landr-uvfg.4b).
+ * Backed by the existing POST /api/public/payments/initiate.
+ * On success, the caller should redirect to `checkout_url`.
+ * No mock fallback: the offer link is email-deep-link only.
+ */
+export async function initiatePayment(
+  body: InitiatePaymentRequest,
+): Promise<InitiatePaymentResponse> {
+  return http<InitiatePaymentResponse>('/api/public/payments/initiate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
