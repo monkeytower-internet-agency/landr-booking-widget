@@ -4,6 +4,8 @@
  * (last refactored by `20260519210000_product_kinds_refactor.sql`, landr-glx).
  */
 
+import type { Enums } from '@/types/database.gen'
+
 /**
  * What the operator sells. Drives the booking flow shape and the dashboard
  * ProductForm. Mirrors public.product_kind. For everything that is not a
@@ -11,14 +13,13 @@
  * soon" stub. hotel_room products are not exposed in the main catalogue
  * — they're listed only inside the AccommodationStep after the customer
  * picked a service product with hotel_offering != 'none' (landr-vyaz).
+ *
+ * landr-52ik.5 — native Postgres enum; derived from the generated schema
+ * (database.gen.ts, a compile-time-only anchor — this widget never talks to
+ * Supabase directly) instead of hand-declared, so drift between the DB enum
+ * and this wire type is caught by tsc.
  */
-export type ProductKind =
-  | 'service'
-  | 'hotel_room'
-  | 'subscription'
-  | 'digital_good'
-  | 'physical_good'
-  | 'gift_card'
+export type ProductKind = Enums<'product_kind'>
 
 /**
  * How a service product offers hotel accommodation alongside the booking

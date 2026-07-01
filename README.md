@@ -28,6 +28,15 @@ npm run build              # production build into dist/
 npm run preview            # serve dist/
 ```
 
+## Types
+
+`src/types/database.gen.ts` is generated from `landr-api/supabase` (the
+schema source of truth) via `npm run gen:types` (local Supabase stack must be
+running). This widget talks to FastAPI, never Supabase directly — the
+generated file is a compile-time-only anchor so hand-written wire types in
+`src/api/types.ts` that mirror a native Postgres enum (e.g. `ProductKind`)
+can derive from it instead of duplicating the literal union.
+
 ## Embedding
 
 The widget is loaded by Para42's WordPress site via the shortcode `[landr_booking token="<widget_token>"]` (plugin lives in `wp-plugin/`). The token is the opaque, rotatable per-operator widget token (landr-il9f) issued from **Dashboard → Embed generator**; the API resolves the operator server-side so the slug never appears in the URL. Query params understood by the widget:
