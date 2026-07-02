@@ -430,7 +430,10 @@ export function BookingForm({
             ) {
               const memberIdx = Number(memberIdxStr)
               const name = allPartyNames[memberIdx]
-              if (name) occupantNames.push(name)
+              // landr-f4dm: push unconditionally so occupantNames stays
+              // index-aligned with occupantIndices (a falsy name must not
+              // shift the positional pairing used by the `occupants` map).
+              occupantNames.push(name ?? '?')
               occupantIndices.push(memberIdx)
             }
           }

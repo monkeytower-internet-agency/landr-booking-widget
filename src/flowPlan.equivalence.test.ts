@@ -576,4 +576,20 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
     })
     expect(plan.map((m) => m.kind)).not.toContain('declarations')
   })
+
+  it('landr-f4dm: a remote flow whose only module is product-gated-out is a valid minimal flow, NOT a legacy fallback', () => {
+    // The remote flow parses fine (one well-formed `accommodation` module)
+    // but the product offers no hotel, so the product gate drops it. That
+    // must NOT be confused with "every entry was unparseable garbage" — the
+    // operator's deliberate minimal flow (selection → participants → review)
+    // must be honoured instead of silently reverting to the full legacy plan
+    // (which, on this needs_pickup product, would also inject a `pickup` step
+    // the remote flow never asked for).
+    const plan = buildFlowPlan(
+      makeProduct({ hotel_offering: 'none', needs_pickup: true }),
+      {},
+      { modules: [{ kind: 'accommodation' }] },
+    )
+    expect(plan.map((m) => m.kind)).toEqual(['selection', 'participants', 'review'])
+  })
 })

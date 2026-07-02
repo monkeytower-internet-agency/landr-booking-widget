@@ -849,6 +849,58 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
     expect(graceOccupant).toHaveTextContent('· no breakfast')
   })
 
+  it('landr-f4dm: keeps occupantNames index-aligned when an occupant has an empty first name', () => {
+    // Regression: the first occupant (member 0) has an empty first_name, so
+    // its disambiguated label is '' (falsy). Before the fix, a conditional
+    // `if (name) occupantNames.push(name)` would SKIP pushing for member 0
+    // while occupantIndices still got 0 — shifting 'Grace' (member 1) into
+    // member 0's slot and misattributing her breakfast flag.
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          {
+            first_name: '',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '+34 600 000 000',
+            service_role_code: '',
+          },
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        // Member 0 (empty name) has NO breakfast; member 1 (Grace) DOES.
+        breakfastMap={{ 0: false, 1: true }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    // Member 0's slot must show the '?' fallback label with NO breakfast —
+    // Grace's name/flag must land in member 1's slot, not member 0's.
+    const slot0 = screen.getByTestId('room-occupant-breakfast-0-0')
+    expect(slot0).toHaveTextContent('?')
+    expect(slot0).toHaveTextContent('· no breakfast')
+    const slot1 = screen.getByTestId('room-occupant-breakfast-0-1')
+    expect(slot1).toHaveTextContent('Grace')
+    expect(slot1).toHaveTextContent('· with breakfast')
+  })
+
   it('shows "breakfast included" and all occupants "with breakfast" when all have it', () => {
     render(
       <BookingForm
