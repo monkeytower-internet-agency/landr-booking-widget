@@ -30,8 +30,22 @@ async function pickFirstAvailableDate(page: Page) {
   // window so most "N days from now" targets land in the visible month,
   // but we don't hardcode a day-of-month — just take the first enabled,
   // non-"Today" day cell so the test survives any day of the year.
+  //
+  // Every day cell mounts immediately but starts disabled until the
+  // getAvailability() fetch resolves (a real network round-trip — slower
+  // and more variable from a CI runner hitting the dev API over the public
+  // internet than from a warm local connection). Poll instead of a single
+  // synchronous count(): checking too early reads "0 enabled" as "hop to
+  // next month", which walks straight past the 60-day fetch window into
+  // months with no data at all and fails for the wrong reason.
   for (let hop = 0; hop < 3; hop++) {
     const candidate = page.locator('table button:not([disabled])')
+    await expect
+      .poll(() => candidate.count(), {
+        timeout: 15_000,
+        message: 'waiting for the availability fetch to enable at least one day cell',
+      })
+      .toBeGreaterThan(0)
     const count = await candidate.count()
     for (let i = 0; i < count; i++) {
       const el = candidate.nth(i)
@@ -41,7 +55,7 @@ async function pickFirstAvailableDate(page: Page) {
         return
       }
     }
-    // No selectable day in the current month view — page forward and retry.
+    // Every enabled cell so far was "Today" — page forward and retry.
     await page.getByRole('button', { name: /next/i }).click()
   }
   throw new Error('No available booking date found within 3 months')
