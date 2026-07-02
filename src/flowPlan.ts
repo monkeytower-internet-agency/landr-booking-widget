@@ -219,9 +219,16 @@ export function buildFlowPlan(
     if (!Array.isArray(modules)) return buildLegacyPlan(product, settings)
 
     const middle: FlowModule[] = []
+    // landr-f4dm: track how many entries parsed successfully SEPARATELY from
+    // how many survived the product gate below. This distinguishes "every
+    // entry was unparseable garbage" (→ fall back to legacy) from "entries
+    // parsed fine but the product gate dropped all of them" (→ honour the
+    // minimal selection→participants→review flow the operator configured).
+    let parsedCount = 0
     for (const raw of modules) {
       const parsed = parseRemoteModule(raw)
       if (!parsed) continue // unknown / malformed module → skip silently.
+      parsedCount += 1
       // Product gate: accommodation only when the product actually offers a
       // hotel. Other gated modules (service_addons probe, pickup hotel-skip)
       // remain runtime decisions in the walk, identical to the legacy path.
@@ -231,15 +238,12 @@ export function buildFlowPlan(
       middle.push(parsed)
     }
 
-    // An empty (or fully-unparseable) middle on a remote flow means the
-    // operator configured "no middle steps" — that is a VALID minimal flow
-    // (selection → participants → review), distinct from a parse failure. A
-    // parse failure is caught below and falls back to legacy. We can't
-    // distinguish "operator chose empty" from "modules was [] garbage" without
-    // more signal, so we honour an explicitly-empty modules array as a minimal
-    // flow ONLY when the array was empty to begin with; an array that had
-    // entries but produced zero parseable modules is treated as malformed.
-    if (middle.length === 0 && modules.length > 0) {
+    // Zero modules parsed out of a non-empty array means the payload was
+    // garbage (not a deliberate operator choice) → fall back to legacy. When
+    // at least one module parsed — even if the product gate then dropped all
+    // of them (e.g. an accommodation-only remote flow on a no-hotel product)
+    // — that is a VALID minimal flow, not a parse failure.
+    if (parsedCount === 0 && modules.length > 0) {
       return buildLegacyPlan(product, settings)
     }
 

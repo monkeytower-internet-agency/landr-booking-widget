@@ -35,7 +35,7 @@ import type { FlowFieldDef, VisibilityRule } from '@/api/flowTypes'
  * string arrays. The customer never types an actual number — number inputs
  * send string "42".
  */
-export type AnswerMap = Record<string, string | string[] | undefined>
+export type AnswerMap = Record<string, string | string[] | null | undefined>
 
 /**
  * Evaluate a single visibility rule against the current answers map.
@@ -75,8 +75,12 @@ function evalRule(rule: VisibilityRule, answers: AnswerMap): boolean {
         // does this explicitly in _canon — JS gets it for free).
         return rawAnswer.includes(String(ruleVal))
       }
-      // Scalar answer → string-coerced equality.
-      if (rawAnswer === undefined) return false
+      // Scalar answer → string-coerced equality. landr-f4dm: a `null` answer
+      // must be treated identically to `undefined` (absent) — otherwise
+      // String(null) === "null" could wrongly match a rule value of the
+      // literal string "null", diverging from the Python twin's
+      // `_scalar_eq` (a is None → False regardless of b).
+      if (rawAnswer == null) return false
       return String(rawAnswer) === String(ruleVal)
     }
 
@@ -89,8 +93,9 @@ function evalRule(rule: VisibilityRule, answers: AnswerMap): boolean {
         // List answer → NOT-member check.
         return !rawAnswer.includes(String(ruleVal))
       }
-      // Scalar answer → string-coerced inequality.
-      if (rawAnswer === undefined) return true // absent ≠ anything → visible
+      // Scalar answer → string-coerced inequality. landr-f4dm: `null` mirrors
+      // `undefined` (absent) here too — see the `eq` branch above.
+      if (rawAnswer == null) return true // absent ≠ anything → visible
       return String(rawAnswer) !== String(ruleVal)
     }
 
@@ -103,8 +108,9 @@ function evalRule(rule: VisibilityRule, answers: AnswerMap): boolean {
         const strs = ruleVals.map(String)
         return rawAnswer.some((a) => strs.includes(a))
       }
-      // Scalar answer → value ∈ rule array.
-      if (rawAnswer === undefined) return false
+      // Scalar answer → value ∈ rule array. landr-f4dm: `null` mirrors
+      // `undefined` (absent) here too — see the `eq` branch above.
+      if (rawAnswer == null) return false
       return ruleVals.map(String).includes(String(rawAnswer))
     }
 
@@ -146,7 +152,7 @@ export function pruneHiddenAnswers(
   for (const field of fields) {
     if (isFieldVisible(field, answers)) {
       const val = answers[field.key]
-      if (val !== undefined) pruned[field.key] = val
+      if (val != null) pruned[field.key] = val
     }
   }
   return pruned

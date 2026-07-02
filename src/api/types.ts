@@ -5,6 +5,7 @@
  */
 
 import type { Enums } from '@/types/database.gen'
+import type { FormResponseEntry } from '@/api/flowTypes'
 
 /**
  * What the operator sells. Drives the booking flow shape and the dashboard
@@ -706,7 +707,7 @@ export interface SubmitBookingBody {
    * (landr-71kz.2). form_responses_not_supported (422) when sent for a
    * product with no flow; widget only sends it when a configured flow exists.
    */
-  form_responses?: Array<{ form_key: string; answers: Record<string, unknown> }>
+  form_responses?: FormResponseEntry[]
 }
 
 /**
