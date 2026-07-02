@@ -37,6 +37,14 @@ generated file is a compile-time-only anchor so hand-written wire types in
 `src/api/types.ts` that mirror a native Postgres enum (e.g. `ProductKind`)
 can derive from it instead of duplicating the literal union.
 
+`src/types/api.gen.ts` (landr-y3oj.2) is generated via `npm run gen:api-types`
+from `contracts/openapi.json`, a committed copy of `landr-api`'s
+`openapi.json` (its own schema-source-of-truth dump). See `landr-api`'s
+README "Contracts codegen" section for the full regen loop across all repos
+(`landr-api/scripts/regen-contracts.sh`) and how CI drift-checks it. PR CI
+re-runs `gen:api-types` against the committed `contracts/openapi.json` and
+fails on diff — full call-site adoption rides landr-y3oj.3.
+
 ## Embedding
 
 The widget is loaded by Para42's WordPress site via the shortcode `[landr_booking token="<widget_token>"]` (plugin lives in `wp-plugin/`). The token is the opaque, rotatable per-operator widget token (landr-il9f) issued from **Dashboard → Embed generator**; the API resolves the operator server-side so the slug never appears in the URL. Query params understood by the widget:

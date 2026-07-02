@@ -16,7 +16,10 @@
 #
 # The Supabase CLI shells out to `docker inspect` even for --db-url generation;
 # on Trillian the stack runs under podman, so we point DOCKER_HOST at the
-# podman user socket rather than a real Docker daemon.
+# podman user socket rather than a real Docker daemon — but only when that
+# socket actually exists (landr-y3oj.2): GitHub Actions runners have a real
+# Docker daemon at the default location, and forcing DOCKER_HOST at a
+# nonexistent podman socket there would break the CLI.
 #
 # Set LANDR_API_REPO to override which landr-api checkout to generate from
 # (useful when running from a worktree, where the default sibling-dir lookup
@@ -50,11 +53,15 @@ HEADER='// AUTO-GENERATED — DO NOT EDIT BY HAND.
 //
 // landr-52ik.5 adopted this; full adoption across the app rides landr-y3oj.3.'
 
+PODMAN_SOCK="/run/user/$(id -u)/podman/podman.sock"
+if [ -S "$PODMAN_SOCK" ]; then
+  export DOCKER_HOST="unix://${PODMAN_SOCK}"
+fi
+
 echo "$HEADER" > "$OUT_FILE"
 (
   cd "$API_REPO"
-  DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock" \
-    supabase gen types typescript \
+  supabase gen types typescript \
     --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ) >> "$OUT_FILE"
 

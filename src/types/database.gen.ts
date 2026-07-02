@@ -743,141 +743,6 @@ export type Database = {
         }
         Relationships: []
       }
-      audit_log_2026_11: {
-        Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          external_correlation_id: string | null
-          id: string
-          new_row: Json | null
-          occurred_at: string
-          old_row: Json | null
-          operation: string
-          operator_id: string | null
-          row_id: string | null
-          table_name: string
-          user_id: string | null
-        }
-        Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name: string
-          user_id?: string | null
-        }
-        Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation?: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      audit_log_2026_12: {
-        Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          external_correlation_id: string | null
-          id: string
-          new_row: Json | null
-          occurred_at: string
-          old_row: Json | null
-          operation: string
-          operator_id: string | null
-          row_id: string | null
-          table_name: string
-          user_id: string | null
-        }
-        Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name: string
-          user_id?: string | null
-        }
-        Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation?: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      audit_log_2027_01: {
-        Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          external_correlation_id: string | null
-          id: string
-          new_row: Json | null
-          occurred_at: string
-          old_row: Json | null
-          operation: string
-          operator_id: string | null
-          row_id: string | null
-          table_name: string
-          user_id: string | null
-        }
-        Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name: string
-          user_id?: string | null
-        }
-        Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
-          id?: string
-          new_row?: Json | null
-          occurred_at?: string
-          old_row?: Json | null
-          operation?: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       bd_intent: {
         Row: {
           bd_id: string | null
@@ -4941,8 +4806,10 @@ export type Database = {
           country: string
           created_at: string
           default_locale: string
+          default_tax_rate: number
           expose_seats_to_customer: boolean
           first_day_of_week: number
+          group_discount_threshold: number
           holded_api_key_encrypted: string | null
           holded_transfer_mode: Database["public"]["Enums"]["holded_transfer_mode"]
           hotel_email_locale: string | null
@@ -4961,6 +4828,7 @@ export type Database = {
           primary_color: string | null
           public_contact_email: string | null
           region: string | null
+          require_declarations: boolean
           show_premium_teasers: boolean
           skip_general_for_hotel: boolean
           slug: string
@@ -5001,8 +4869,10 @@ export type Database = {
           country: string
           created_at?: string
           default_locale?: string
+          default_tax_rate?: number
           expose_seats_to_customer?: boolean
           first_day_of_week?: number
+          group_discount_threshold?: number
           holded_api_key_encrypted?: string | null
           holded_transfer_mode?: Database["public"]["Enums"]["holded_transfer_mode"]
           hotel_email_locale?: string | null
@@ -5021,6 +4891,7 @@ export type Database = {
           primary_color?: string | null
           public_contact_email?: string | null
           region?: string | null
+          require_declarations?: boolean
           show_premium_teasers?: boolean
           skip_general_for_hotel?: boolean
           slug: string
@@ -5061,8 +4932,10 @@ export type Database = {
           country?: string
           created_at?: string
           default_locale?: string
+          default_tax_rate?: number
           expose_seats_to_customer?: boolean
           first_day_of_week?: number
+          group_discount_threshold?: number
           holded_api_key_encrypted?: string | null
           holded_transfer_mode?: Database["public"]["Enums"]["holded_transfer_mode"]
           hotel_email_locale?: string | null
@@ -5081,6 +4954,7 @@ export type Database = {
           primary_color?: string | null
           public_contact_email?: string | null
           region?: string | null
+          require_declarations?: boolean
           show_premium_teasers?: boolean
           skip_general_for_hotel?: boolean
           slug?: string
@@ -5133,6 +5007,7 @@ export type Database = {
           id: string
           last_error: string | null
           locale: string
+          next_attempt_at: string | null
           operator_id: string
           related_booking_id: string | null
           reply_to: string | null
@@ -5152,6 +5027,7 @@ export type Database = {
           id?: string
           last_error?: string | null
           locale: string
+          next_attempt_at?: string | null
           operator_id: string
           related_booking_id?: string | null
           reply_to?: string | null
@@ -5171,6 +5047,7 @@ export type Database = {
           id?: string
           last_error?: string | null
           locale?: string
+          next_attempt_at?: string | null
           operator_id?: string
           related_booking_id?: string | null
           reply_to?: string | null
@@ -10831,7 +10708,12 @@ export type Database = {
       group_billing_arrangement: "separate_invoices" | "one_invoice" | "custom"
       holded_transfer_mode: "all_finalized" | "only_paid"
       notification_delivery_mode: "immediate" | "digest"
-      outbound_email_status: "queued" | "sending" | "sent" | "failed"
+      outbound_email_status:
+        | "queued"
+        | "sending"
+        | "sent"
+        | "failed"
+        | "skipped"
       payment_provider:
         | "stripe"
         | "manual_cash"
@@ -11117,7 +10999,7 @@ export const Constants = {
       group_billing_arrangement: ["separate_invoices", "one_invoice", "custom"],
       holded_transfer_mode: ["all_finalized", "only_paid"],
       notification_delivery_mode: ["immediate", "digest"],
-      outbound_email_status: ["queued", "sending", "sent", "failed"],
+      outbound_email_status: ["queued", "sending", "sent", "failed", "skipped"],
       payment_provider: [
         "stripe",
         "manual_cash",
