@@ -5,7 +5,7 @@
  * `react-refresh/only-export-components` (see landr-znl history in the
  * CI warning notes).
  */
-import type { Product, ProductAddon } from '@/api/types'
+import type { Product } from '@/api/types'
 
 /** ISO date helpers — UTC-only to avoid TZ drift in derived dates. */
 function isoToUtcDate(iso: string): Date {
@@ -168,44 +168,19 @@ export function totalRoomCapacity(
   return total
 }
 
-/**
- * Identify the set of add-on product ids that look like "breakfast"
- * line items (landr-qpab). Today we use a case-insensitive substring
- * match on the add-on display name because ProductAddon does not carry
- * a slug or a structural flag — see TODO. The Para42 seed names the
- * row 'Breakfast' across locales, so the heuristic catches it without
- * tripping on unrelated add-ons (Video Package etc.).
- *
- * TODO(landr-qpab): replace with a structural flag once add-ons grow
- * a category/kind field; the name match is a pragmatic starter that
- * keeps the overbook warning scoped to the obvious case without
- * blocking the wider epic on a schema migration.
- */
-export function findBreakfastAddonIds(addons: ProductAddon[]): Set<string> {
-  const ids = new Set<string>()
-  for (const addon of addons) {
-    if (/breakfast/i.test(addon.name)) {
-      ids.add(addon.addon_product_id)
-    }
-  }
-  return ids
-}
-
-/**
- * Sum the picked quantity across every add-on whose addon_product_id
- * is in `breakfastIds` (landr-qpab). Callers normally build the id
- * set via findBreakfastAddonIds(addonsForRoom).
- */
-export function totalBreakfastQty(
-  addonSelection: Record<string, number>,
-  breakfastIds: Set<string>,
-): number {
-  let total = 0
-  for (const id of breakfastIds) {
-    total += addonSelection[id] ?? 0
-  }
-  return total
-}
+// landr-c53m.7: findBreakfastAddonIds / totalBreakfastQty (landr-qpab) used
+// to live here — a case-insensitive English substring match on the add-on
+// display name (`/breakfast/i.test(addon.name)`), which would silently
+// match nothing for a non-English operator's own add-on names. They powered
+// the aggregate breakfast-vs-participants warning, which landr-yybu removed
+// in favour of the per-row, add-on-agnostic overbook warning in AddonsList
+// (isOverbooked in addonsState.ts, driven by is_required/min_qty/max_qty —
+// no name/id matching at all). Both helpers were unused dead code (only
+// referenced from their own tests) by the time this ticket landed, so
+// rather than inventing a new heuristic (there is still no structural
+// "this add-on IS breakfast" flag — includes_breakfast on Product means
+// something different: "breakfast is bundled into THIS room's rate") they
+// were deleted along with the substring match instead of being preserved.
 
 /**
  * Flatten a per-room add-on selection map back to the AddonSelection[] shape
