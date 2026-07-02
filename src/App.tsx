@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import {
   AccommodationStep,
@@ -57,6 +57,7 @@ import {
   detailsFromDraft,
   draftFromStep,
   enterReviewOrCustomForm,
+  mergeCapturedDraft,
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepAfterCustomForm,
@@ -299,27 +300,79 @@ function BookingFlowApp() {
     },
     [remoteFlow],
   )
-  // landr-71kz.10: fetch (and cache) a product's flow. Tolerant: getProductFlow
-  // already swallows network/404/malformed → null; we additionally guard so a
-  // throw can NEVER escape and blank the widget. Idempotent per product_id.
-  const ensureProductFlow = useCallback((productId: string) => {
-    void (async () => {
-      try {
-        const flow = await getProductFlow(token!, productId)
-        setRemoteFlow((prev) =>
-          prev && prev.productId === productId && prev.flow === flow
-            ? prev
-            : { productId, flow },
-        )
-      } catch {
-        // Defensive: degrade to the legacy plan. The fetch must not block the
-        // widget on error (no error boundary — landr-9ut4).
-        setRemoteFlow({ productId, flow: null })
-      }
-    })()
+  // landr-71kz.10 / landr-iyyf: fetch (and cache) a product's flow, RETURNING
+  // the promise so callers can await settlement instead of only firing it off.
+  // Deduped per product_id via flowFetchesRef so the boot-time effect below AND
+  // the pre-review readiness gate (withResolvedFlow) never trigger two network
+  // requests for the same product — both share the SAME in-flight promise.
+  // Tolerant: getProductFlow already swallows network/404/malformed → null; we
+  // additionally guard so a throw can NEVER escape and blank the widget.
+  const flowFetchesRef = useRef<Map<string, Promise<ProductFlowResponse | null>>>(
+    new Map(),
+  )
+  const ensureProductFlow = useCallback(
+    (productId: string): Promise<ProductFlowResponse | null> => {
+      const inFlight = flowFetchesRef.current.get(productId)
+      if (inFlight) return inFlight
+      const promise = (async () => {
+        try {
+          const flow = await getProductFlow(token!, productId)
+          setRemoteFlow((prev) =>
+            prev && prev.productId === productId && prev.flow === flow
+              ? prev
+              : { productId, flow },
+          )
+          return flow
+        } catch {
+          // Defensive: degrade to the legacy plan. The fetch must not block
+          // the widget on error (no error boundary — landr-9ut4).
+          setRemoteFlow({ productId, flow: null })
+          return null
+        }
+      })()
+      flowFetchesRef.current.set(productId, promise)
+      return promise
+    },
     // token is stable for the lifetime of this component (read once at mount).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    [],
+  )
+  // landr-iyyf: which product's flow the pre-review transition is currently
+  // WAITING on (null when nothing is pending). Drives the brief "Checking
+  // your booking requirements…" status banner. This is the CLIENT half of
+  // the fix for the ensureProductFlow race — the SERVER remains the
+  // authoritative gate regardless (booking_submit.py rejects a submit that
+  // omits form_responses when the product's flow has an unsatisfied required
+  // custom_form), so this only closes the client-side UX gap where the race
+  // would otherwise silently route past a required declaration.
+  const [pendingFlowProductId, setPendingFlowProductId] = useState<
+    string | null
+  >(null)
+  // landr-iyyf: resolve `productId`'s flow before computing the pre-review
+  // step. When the flow is already cached for this exact product, `onReady`
+  // fires synchronously (byte-identical to the pre-fix fast path — no
+  // behaviour change for the overwhelmingly common case where the fetch
+  // already settled well before Continue is clicked). Otherwise the fetch
+  // hasn't settled yet (still in flight, or not even started) — surface the
+  // loading banner and await it rather than treating "not cached yet" as "no
+  // custom forms" (the race this ticket closes).
+  const withResolvedFlow = useCallback(
+    (
+      productId: string,
+      onReady: (flow: ProductFlowResponse | null) => void,
+    ) => {
+      if (remoteFlow && remoteFlow.productId === productId) {
+        onReady(remoteFlow.flow)
+        return
+      }
+      setPendingFlowProductId(productId)
+      void ensureProductFlow(productId).then((flow) => {
+        setPendingFlowProductId((prev) => (prev === productId ? null : prev))
+        onReady(flow)
+      })
+    },
+    [remoteFlow, ensureProductFlow],
+  )
   // landr-d8rg.4: product groups fetched at boot for the category entrance.
   // null = fetch not yet attempted; [] = fetch done (empty or error fallback).
   // Populated by the useEffect below, which silently falls back to []
@@ -447,7 +500,7 @@ function BookingFlowApp() {
     if (!token || !activeProductId) return
     // Already cached for this product → no refetch (idempotent).
     if (remoteFlow && remoteFlow.productId === activeProductId) return
-    ensureProductFlow(activeProductId)
+    void ensureProductFlow(activeProductId)
     // ensureProductFlow is stable; remoteFlow is the cache guard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeProductId])
@@ -785,16 +838,21 @@ function BookingFlowApp() {
     // the product's remote flow has any custom_form modules). pick-pickup is
     // left unchanged — the pickup step's onConfirm handler runs the same
     // pre-review router. With no remote flow this is identical to fill-form.
+    // landr-iyyf: withResolvedFlow gates this on flow READINESS rather than
+    // reading flowForProduct's possibly-not-yet-cached value directly — a
+    // still-in-flight fetch must never be read as "no custom forms".
     if (next.name === 'fill-form') {
-      setStep(
-        enterReviewOrCustomForm(
-          next,
-          flowForProduct(product.product_id),
-          // landr-nmed: re-seed any custom-form answers from the draft so a
-          // forward pass after a breadcrumb jump restores the customer's input.
-          bookingDraft.customFormAnswers,
-        ),
-      )
+      withResolvedFlow(product.product_id, (flow) => {
+        setStep(
+          enterReviewOrCustomForm(
+            next,
+            flow,
+            // landr-nmed: re-seed any custom-form answers from the draft so a
+            // forward pass after a breadcrumb jump restores the customer's input.
+            bookingDraft.customFormAnswers,
+          ),
+        )
+      })
     } else {
       setStep(next)
     }
@@ -826,7 +884,12 @@ function BookingFlowApp() {
       // companions / accommodation / declarations) is preserved and re-seeded
       // rather than wiped. A no-op (undefined) before any details exist.
       const captured = draftFromStep(step)
-      if (captured) setBookingDraft((prev) => ({ ...prev, ...captured }))
+      // landr-iyyf: mergeCapturedDraft deep-merges `customFormAnswers` instead
+      // of a plain spread, so a breadcrumb jump away from a custom-form step
+      // never drops OTHER forms' already-confirmed answers (see its doc).
+      if (captured) {
+        setBookingDraft((prev) => mergeCapturedDraft(prev, captured))
+      }
       setLiveSelectionDays([])
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
@@ -978,6 +1041,28 @@ function BookingFlowApp() {
           >
             <span className="font-semibold">Preview mode</span>
             <span>— draft products are visible. This link is for operator review only.</span>
+          </div>
+        ) : null}
+
+        {/*
+          landr-iyyf: brief loading state gating the pre-review transition.
+          Visible for the short window (usually well under a second) between
+          Continue and the active product's flow fetch settling, when that
+          fetch hadn't already resolved by click time. Without this, the
+          transition would have to guess whether "no flow yet" means "no
+          custom forms configured" or "still in flight" — and guessing wrong
+          silently skips a required declaration client-side (the SERVER is
+          the authoritative gate regardless — see booking_submit.py — but the
+          widget should never race ahead here either).
+        */}
+        {pendingFlowProductId && pendingFlowProductId === activeProductId ? (
+          <div
+            className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
+            data-testid="flow-readiness-gate"
+            role="status"
+            aria-live="polite"
+          >
+            <span>Checking your booking requirements…</span>
           </div>
         ) : null}
 
@@ -1533,14 +1618,18 @@ function BookingFlowApp() {
               }
               // landr-nmed: persist the chosen pickup into the draft.
               mergeDraft({ pickupLocationId: locationId })
-              setStep(
-                enterReviewOrCustomForm(
-                  fillFormArgs,
-                  flowForProduct(step.product.product_id),
-                  // landr-nmed: restore prior custom-form answers on the forward pass.
-                  bookingDraft.customFormAnswers,
-                ),
-              )
+              // landr-iyyf: gate on flow readiness — see the afterAccommodation
+              // fill-form branch for the full rationale.
+              withResolvedFlow(step.product.product_id, (flow) => {
+                setStep(
+                  enterReviewOrCustomForm(
+                    fillFormArgs,
+                    flow,
+                    // landr-nmed: restore prior custom-form answers on the forward pass.
+                    bookingDraft.customFormAnswers,
+                  ),
+                )
+              })
             }}
           />
         ) : null}

@@ -2206,6 +2206,111 @@ describe('App', () => {
       )
       expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
     })
+
+    // landr-iyyf REGRESSION: a still-in-flight ensureProductFlow fetch must NOT
+    // let the pre-review transition race ahead and silently skip a configured
+    // custom-form (declarations) step. Before the fix, `flowForProduct` read
+    // whatever `remoteFlow` happened to hold at Continue-click time — which,
+    // mid-race, is indistinguishable from "operator configured no custom
+    // forms" — so the widget landed straight on the review screen instead of
+    // waiting for the flow. This holds getProductFlow's promise open past the
+    // Continue click and asserts (1) the "Checking your booking
+    // requirements…" gate appears and the transition is held, (2) once the
+    // flow resolves, the custom-form step renders correctly instead of the
+    // race having skipped it.
+    it('holds the pre-review transition (loading gate) while the flow fetch is still in flight, then routes into the custom form once it resolves', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+
+      // landr-iyyf: CustomFormStep independently re-fetches the flow itself
+      // once mounted (for the field defs) — so "resolve the flow" must mean
+      // "every call from now on resolves immediately", not just the single
+      // in-flight call App's ensureProductFlow made. `flowReady` flips once
+      // and `releaseFirstFlow` unblocks whichever call was pending at that
+      // point; any LATER call (CustomFormStep's) sees `flowReady` already
+      // true and resolves straight away.
+      let flowReady = false
+      let releaseFirstFlow: (() => void) | undefined
+      mocks.getProductFlow.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            if (flowReady) {
+              resolve(declarationsFlow())
+              return
+            }
+            releaseFirstFlow = () => resolve(declarationsFlow())
+          }),
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-race',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Race Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Race Flight')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The flow fetch is still in flight (releaseFirstFlow not yet called) —
+      // the widget must hold on the loading gate, NOT jump to review.
+      await waitFor(() =>
+        expect(screen.getByTestId('flow-readiness-gate')).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
+      expect(screen.queryByTestId('cf-field-license_valid')).not.toBeInTheDocument()
+
+      // The flow resolves — the operator DID configure a required declarations
+      // custom form. The gate must clear and route into it (not review).
+      flowReady = true
+      releaseFirstFlow!()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('flow-readiness-gate')).not.toBeInTheDocument()
+      expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
+    })
   })
 
   // landr-2mgl: reload-resilient booking progress. A mobile pull-to-refresh
