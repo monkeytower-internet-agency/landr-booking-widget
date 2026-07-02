@@ -37,6 +37,14 @@ jobs:
           npm run gen:api-types
           git diff --exit-code -- src/types/api.gen.ts contracts/openapi.json
 
+      # landr-0ji4.2 — TypeScript strict-mode ratchet: tsconfig.app.json
+      # deliberately stays non-strict (see npm run typecheck above), but this
+      # runs the same project with --strict and fails only if the error
+      # count exceeds the checked-in strict-baseline.json. See README
+      # "TypeScript strict ratchet" section for the shrink-on-touch rule.
+      - name: TypeScript strict ratchet
+        run: npm run typecheck:strict
+
       - name: Pick project + API base per branch
         id: env
         env:
