@@ -2311,6 +2311,112 @@ describe('App', () => {
       expect(screen.queryByTestId('flow-readiness-gate')).not.toBeInTheDocument()
       expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
     })
+
+    // landr-db45 REGRESSION: before this fix, App and CustomFormStep each
+    // fetched public_get_product_flow independently with no shared cache.
+    // App's fetch (via ensureProductFlow/withResolvedFlow) resolves the
+    // custom-form step correctly, but CustomFormStep's OWN separate fetch —
+    // fired again on mount — could transiently fail. That set CustomFormStep's
+    // `fetchError` and permanently disabled Continue, stranding the customer
+    // on a forward dead-end (Back still worked; Continue never would). This
+    // proves the fix: CustomFormStep now reuses the flow App already
+    // resolved (threaded down as a prop) instead of re-fetching, so a getProductFlow
+    // failure AFTER the initial resolution can no longer reach this step at all.
+    it('Continue stays enabled even when a later independent getProductFlow call would fail (no second fetch on the happy path)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+
+      // First call (App's ensureProductFlow) resolves with the declarations
+      // flow. EVERY call after that rejects — simulating the flaky-second-
+      // fetch this ticket closes. Pre-fix, CustomFormStep's own mount-time
+      // fetch would be exactly one of those later, failing calls.
+      let calls = 0
+      mocks.getProductFlow.mockImplementation(() => {
+        calls += 1
+        if (calls === 1) return Promise.resolve(declarationsFlow())
+        return Promise.reject(new Error('network blip'))
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-db45',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Flaky Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Flaky Flight')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The custom-form step renders from App's already-resolved flow — no
+      // fetch error, even though any FURTHER getProductFlow call would fail.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('cf-fetch-error')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('cf-loading')).not.toBeInTheDocument()
+
+      // Fill in the form and confirm Continue actually works end-to-end —
+      // not just "not visibly disabled".
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      const submitButton = screen.getByTestId('cf-submit')
+      expect(submitButton).not.toBeDisabled()
+      fireEvent.click(submitButton)
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Only App's single fetch happened — CustomFormStep never re-fetched.
+      expect(calls).toBe(1)
+    })
   })
 
   // landr-iyyf fix-forward: MEDIUM 1 (flowFetchesRef promise cache never
