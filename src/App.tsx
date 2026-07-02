@@ -300,6 +300,26 @@ function BookingFlowApp() {
     },
     [remoteFlow],
   )
+  // landr-db45: same lookup as flowForProduct but preserving the concrete
+  // `ProductFlowResponse` shape (flowForProduct's declared `RemoteFlow`
+  // return type is deliberately looser — all buildFlowPlan/breadcrumb
+  // callers need) so CustomFormStep can be handed the already-fetched flow
+  // as a prop instead of re-fetching public_get_product_flow itself. The
+  // three-way return distinguishes "not yet resolved for this product"
+  // (`undefined` — CustomFormStep falls back to its own fetch, matching the
+  // pre-existing fetch-based behaviour) from "resolved, no flow" (`null` —
+  // CustomFormStep shows the same "form not found" state it always could,
+  // without a further fetch). In practice this step is only ever reached
+  // after `withResolvedFlow` has already settled the fetch for this exact
+  // product, so the common case always yields the resolved flow.
+  const resolvedFlowForProduct = useCallback(
+    (productId: string | undefined): ProductFlowResponse | null | undefined => {
+      if (!productId) return undefined
+      if (!remoteFlow || remoteFlow.productId !== productId) return undefined
+      return remoteFlow.flow
+    },
+    [remoteFlow],
+  )
   // landr-71kz.10 / landr-iyyf: fetch (and cache) a product's flow, RETURNING
   // the promise so callers can await settlement instead of only firing it off.
   // Deduped per product_id via flowFetchesRef so the boot-time effect below AND
@@ -1713,6 +1733,11 @@ function BookingFlowApp() {
             productName={step.product.name}
             // Restore answers from draft on back-nav re-entry.
             initialAnswers={step.initialAnswers as Record<string, unknown> | undefined}
+            // landr-db45: thread the already-resolved flow down so this step
+            // never re-fetches public_get_product_flow independently — see
+            // CustomFormStepProps.flow's doc for the forward-dead-end bug
+            // this closes.
+            flow={resolvedFlowForProduct(step.product.product_id)}
             onBack={() =>
               // landr-71kz.10: Back walks the custom-form chain (the prior
               // custom form, else the hotel-aware non-custom walk) — threading
