@@ -337,6 +337,22 @@ function BookingFlowApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+  // landr-iyyf fix-forward (MEDIUM 1): flowFetchesRef caches SETTLED promises
+  // forever — ensureProductFlow only calls setRemoteFlow inside the async body
+  // that runs the FIRST time a product_id is requested. Clearing `remoteFlow`
+  // alone (as goToProductStep used to) without also clearing this Map left a
+  // stale resolved promise behind: a repeat booking of the SAME product after
+  // a full restart hit the cached promise, which resolves the correct VALUE to
+  // its own `.then()` callers but never re-fires setRemoteFlow — so the
+  // `remoteFlow` state (and everything derived from it: flowForProduct,
+  // activeFlow, the breadcrumb trail, buildFlowPlan) stayed null forever for
+  // that session, silently degrading to the legacy flow even for a product
+  // with a required custom form. Clear BOTH together wherever remoteFlow
+  // resets, so the next ensureProductFlow call always re-fetches + re-populates.
+  const clearProductFlowCache = useCallback(() => {
+    setRemoteFlow(null)
+    flowFetchesRef.current.clear()
+  }, [])
   // landr-iyyf: which product's flow the pre-review transition is currently
   // WAITING on (null when nothing is pending). Drives the brief "Checking
   // your booking requirements…" status banner. This is the CLIENT half of
@@ -505,6 +521,45 @@ function BookingFlowApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeProductId])
 
+  // landr-iyyf fix-forward (MEDIUM 2): mergeCapturedDraft's deep-merge keeps
+  // `customFormAnswers` keyed only by form_key, with NO product context. That
+  // is correct WITHIN one product's funnel (a breadcrumb jump never changes
+  // the active product — buildBreadcrumb only reconstructs prior steps of the
+  // SAME product), but `bookingDraft` is otherwise never reset except on a
+  // full restart (goToProductStep). So a customer who jumps back to the
+  // "product" breadcrumb crumb (product-detail, same product, draft intact),
+  // then backs OUT via ProductDetailStep's onBack (no full restart) and picks
+  // a DIFFERENT product B, would carry product A's custom-form answers
+  // forward as silent pre-fill for product B's own custom-form step — and if
+  // B happens to render a form with the same key (e.g. an operator-wide
+  // shared declarations form), those stale answers could be submitted for B
+  // without the customer ever re-entering them.
+  //
+  // Clear ONLY `customFormAnswers` (booker/participants are still legitimately
+  // reusable across products for the same customer) the moment the active
+  // product genuinely CHANGES to a DIFFERENT one. `lastProductIdRef` tracks
+  // the last DEFINED product id (not the raw, possibly-`undefined`
+  // `activeProductId`) so the comparison survives the intermediate
+  // `undefined` while browsing pick-product/pick-category between products —
+  // without that, backing out to the catalog would reset the tracked id to
+  // `undefined` and the very next product pick would look like an "initial
+  // pick" (prev undefined) rather than a genuine switch, silently skipping
+  // the clear this fix exists for.
+  const lastProductIdRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const lastProductId = lastProductIdRef.current
+    if (activeProductId && lastProductId && lastProductId !== activeProductId) {
+      setBookingDraft((prev) =>
+        prev.customFormAnswers
+          ? { ...prev, customFormAnswers: undefined }
+          : prev,
+      )
+    }
+    if (activeProductId) {
+      lastProductIdRef.current = activeProductId
+    }
+  }, [activeProductId])
+
   // landr-jb1k.2: apply operator's widget_variant once settings resolve.
   // Resolution precedence (highest to lowest):
   //   1. Explicit ?variant= URL param (set at boot OR by the preview switcher
@@ -598,9 +653,18 @@ function BookingFlowApp() {
       setBookingDraft({})
       // landr-71kz.4: also clear accumulated form_responses on restart.
       setFormResponses([])
-      // landr-71kz.10: drop the cached remote flow on a full restart so the
-      // next product's flow is fetched fresh (a new product is being chosen).
-      setRemoteFlow(null)
+      // landr-71kz.10 / landr-iyyf fix-forward: drop the cached remote flow
+      // AND its promise cache on a full restart so the next product's flow is
+      // fetched fresh (a new product is being chosen) — see
+      // clearProductFlowCache's doc for why clearing only `remoteFlow` isn't
+      // enough.
+      clearProductFlowCache()
+      // landr-iyyf fix-forward (MEDIUM 2): a full restart already clears
+      // bookingDraft entirely (above), so also drop the tracked "last
+      // product" — otherwise the very next product pick would be compared
+      // against the product being LEFT, which is harmless (the draft is
+      // already empty) but keeps the bookkeeping honest.
+      lastProductIdRef.current = undefined
       // landr-2mgl: drop the persisted snapshot synchronously on a full
       // restart so a reload immediately after starting over never resurrects
       // the finished/abandoned funnel. The persistence effect would also
@@ -613,7 +677,7 @@ function BookingFlowApp() {
       setStep({ name: 'pick-product' })
       void productGroupSlug // reserved for future use
     },
-    [clearLiveAccommodation],
+    [clearLiveAccommodation, clearProductFlowCache],
   )
 
   /**
@@ -1171,6 +1235,12 @@ function BookingFlowApp() {
               setStep({ name: 'pick-selection', product: step.product })
             }
             onBack={() => {
+              // landr-iyyf fix-forward (MEDIUM 1): this bare setStep back to
+              // pick-product/pick-category used to reset NEITHER remoteFlow
+              // nor its promise cache — align it with goToProductStep so
+              // leaving this product's detail page never leaves a stale
+              // cached flow behind for a later re-visit.
+              clearProductFlowCache()
               // landr-d8rg.4 Back nav:
               //   - If we have a picked group slug, return to the scoped product list.
               //   - If we have multiple non-empty groups (categories were shown)

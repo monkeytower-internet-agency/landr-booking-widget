@@ -2313,6 +2313,212 @@ describe('App', () => {
     })
   })
 
+  // landr-iyyf fix-forward: MEDIUM 1 (flowFetchesRef promise cache never
+  // cleared on restart) + MEDIUM 2 (mergeCapturedDraft's customFormAnswers
+  // survives a product switch). Both reuse the para42-shaped declarations
+  // flow from the describe block above.
+  describe('landr-iyyf fix-forward: flow cache + draft product-scoping', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getByRole('button', { name }))
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
+    }
+
+    const setInput = (name: string, value: string) =>
+      fireEvent.change(
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+        { target: { value } },
+      )
+
+    // Pick a date, then fill + confirm the booker on DetailsStep. Lands on
+    // whatever comes next (the custom-form step, for every product used here).
+    async function fillDateThenBookerDetails() {
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    }
+
+    it('MEDIUM 1: repeat-booking the SAME product after a full restart re-resolves the flow', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-repeat',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Repeat Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      render(<App />)
+      await pickProduct('Repeat Flight')
+      await fillDateThenBookerDetails()
+
+      // First pass: the custom form renders (the flow was fetched fresh).
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      const callsAfterFirstFetch = mocks.getProductFlow.mock.calls.length
+      expect(callsAfterFirstFetch).toBeGreaterThan(0)
+
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+
+      // Restart via "Make another booking" — a full reset (goToProductStep).
+      fireEvent.click(
+        await screen.findByRole('button', { name: /make another booking/i }),
+      )
+
+      // Pick the SAME product again.
+      await pickProduct('Repeat Flight')
+      await fillDateThenBookerDetails()
+
+      // landr-iyyf fix-forward: the flow must be RE-FETCHED (the promise
+      // cache was cleared alongside `remoteFlow`) and the custom-form step
+      // must render again. Before the fix, the stale settled promise in
+      // flowFetchesRef never re-populated `remoteFlow` on this second pass,
+      // so the widget silently degraded to the legacy plan and skipped
+      // straight to the review screen — even though the product has a
+      // required custom form.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(mocks.getProductFlow.mock.calls.length).toBeGreaterThan(
+        callsAfterFirstFetch,
+      )
+    })
+
+    it('MEDIUM 2: switching products after backing out via the product breadcrumb clears foreign customFormAnswers', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      // Both products share the SAME custom-form key (e.g. an operator-wide
+      // declarations form reused across products — the para42 pattern) so a
+      // leak would be directly observable as pre-filled answers on B's step.
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-a',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Product A',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+        makeProduct({
+          product_id: 'svc-b',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Product B',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Product A')
+      await fillDateThenBookerDetails()
+
+      // Fill + confirm Product A's custom form — writes
+      // bookingDraft.customFormAnswers.customer_declarations.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Jump back to the "product" breadcrumb crumb — the reachable path back
+      // to ProductDetailStep WITHOUT a full restart (every step-by-step Back
+      // press instead terminates in goToProductStep via the Dates picker).
+      fireEvent.click(await screen.findByTestId('breadcrumb-product-detail'))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+
+      // Back out to pick-product WITHOUT a full restart — bookingDraft (and
+      // its customFormAnswers) must survive this hop by design (landr-nmed).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      // Pick the DIFFERENT product B.
+      await pickProduct('Product B')
+      await fillDateThenBookerDetails()
+
+      // landr-iyyf fix-forward: Product B's custom-form step (same form_key
+      // as A's) must NOT be pre-filled with Product A's stale answers.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(
+        screen.getByTestId('cf-checkbox-license_valid-yes'),
+      ).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByTestId('cf-field-language')).toHaveValue('')
+    })
+  })
+
   // landr-2mgl: reload-resilient booking progress. A mobile pull-to-refresh
   // (or any intentional reload) remounts <App /> from scratch; these cover
   // the overscroll guard that stops the accidental reload + the
