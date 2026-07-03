@@ -218,25 +218,36 @@ export function buildFlowPlan(
     if (modules == null) return buildLegacyPlan(product, settings)
     if (!Array.isArray(modules)) return buildLegacyPlan(product, settings)
 
-    const middle: FlowModule[] = []
+    // landr-2ed0: correctness must NOT depend on the RPC returning modules in
+    // `position` order — that's an undocumented coupling with the server. Each
+    // parsed middle module is carried alongside its declared `position` (and
+    // its original array index, as a stable tie-break for equal/missing
+    // positions) so the final middle sequence can be DEFENSIVELY re-sorted by
+    // `position` ascending here, regardless of the order the RPC sent them in.
+    const middleEntries: { module: FlowModule; position: number; index: number }[] = []
     // landr-f4dm: track how many entries parsed successfully SEPARATELY from
     // how many survived the product gate below. This distinguishes "every
     // entry was unparseable garbage" (→ fall back to legacy) from "entries
     // parsed fine but the product gate dropped all of them" (→ honour the
     // minimal selection→participants→review flow the operator configured).
     let parsedCount = 0
-    for (const raw of modules) {
+    modules.forEach((raw, index) => {
       const parsed = parseRemoteModule(raw)
-      if (!parsed) continue // unknown / malformed module → skip silently.
+      if (!parsed) return // unknown / malformed module → skip silently.
       parsedCount += 1
       // Product gate: accommodation only when the product actually offers a
       // hotel. Other gated modules (service_addons probe, pickup hotel-skip)
       // remain runtime decisions in the walk, identical to the legacy path.
       if (parsed.kind === 'accommodation' && !productHasHotelOffering(product)) {
-        continue
+        return
       }
-      middle.push(parsed)
-    }
+      // A missing/non-numeric position falls back to the module's original
+      // array index, so unpositioned entries keep the RPC's given order
+      // relative to each other (and to positioned entries at the same rank).
+      const position =
+        typeof raw?.position === 'number' && Number.isFinite(raw.position) ? raw.position : index
+      middleEntries.push({ module: parsed, position, index })
+    })
 
     // Zero modules parsed out of a non-empty array means the payload was
     // garbage (not a deliberate operator choice) → fall back to legacy. When
@@ -246,6 +257,11 @@ export function buildFlowPlan(
     if (parsedCount === 0 && modules.length > 0) {
       return buildLegacyPlan(product, settings)
     }
+
+    // Stable sort by position ascending; ties broken by original array order
+    // so a same/absent position never reshuffles equal-ranked entries.
+    middleEntries.sort((a, b) => a.position - b.position || a.index - b.index)
+    const middle = middleEntries.map((entry) => entry.module)
 
     return [
       { kind: 'selection' },
