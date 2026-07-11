@@ -20,6 +20,8 @@ import {
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
+  isValidPhoneFormat,
+  PHONE_HTML_PATTERN,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -373,6 +375,10 @@ export function DetailsStep({
   // mirror EXACTLY the keys used in the validate(...) calls below and the
   // required set detailsAreComplete() checks — so a Continue tap reveals all
   // the errors at once regardless of platform.
+  //
+  // landr-1url: companion.<idx>.phone is included even though companion
+  // phone is OPTIONAL (not required) — a filled-but-malformed companion
+  // phone can also fail detailsAreComplete(), so it needs to be armable too.
   const requiredFieldKeys = (): string[] => {
     const keys = [
       'booker.first_name',
@@ -384,7 +390,11 @@ export function DetailsStep({
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
     companions.forEach((_, idx) => {
-      keys.push(`companion.${idx}.first_name`, `companion.${idx}.last_name`)
+      keys.push(
+        `companion.${idx}.first_name`,
+        `companion.${idx}.last_name`,
+        `companion.${idx}.phone`,
+      )
     })
     return keys
   }
@@ -419,9 +429,14 @@ export function DetailsStep({
             : 'phone'
       return `p-${pMatch[1]}-${slot}`
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (cMatch) {
-      const slot = cMatch[2] === 'first_name' ? 'first' : 'last'
+      const slot =
+        cMatch[2] === 'first_name'
+          ? 'first'
+          : cMatch[2] === 'last_name'
+            ? 'last'
+            : 'phone'
       return `companion-${cMatch[1]}-${slot}`
     }
     return undefined
@@ -438,20 +453,30 @@ export function DetailsStep({
       case 'booker.email':
         return !booker.email.trim() || !booker.email.includes('@')
       case 'booker.phone':
-        return !booker.phone.trim()
+        // landr-1url: required AND must look internationally-formatted.
+        return !booker.phone.trim() || !isValidPhoneFormat(booker.phone)
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
       const row = additional[Number(pMatch[1])]
       if (!row) return false
       const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
+      if (field === 'phone') {
+        // landr-1url: required AND must look internationally-formatted.
+        return !row.phone.trim() || !isValidPhoneFormat(row.phone)
+      }
       return !row[field].trim()
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (cMatch) {
       const row = companions[Number(cMatch[1])]
       if (!row) return false
-      const field = cMatch[2] as 'first_name' | 'last_name'
+      const field = cMatch[2] as 'first_name' | 'last_name' | 'phone'
+      if (field === 'phone') {
+        // landr-1url: companion phone is OPTIONAL — empty is fine, but a
+        // filled value must look internationally-formatted.
+        return row.phone.trim() !== '' && !isValidPhoneFormat(row.phone)
+      }
       return !row[field].trim()
     }
     return false
@@ -484,16 +509,38 @@ export function DetailsStep({
     if (!value.includes('@')) return 'Enter a valid email address'
     return undefined
   }
+  // landr-1url: a phone additionally needs to look internationally-formatted
+  // (leading '+' + country code). `required` distinguishes booker/participant
+  // phone (required) from companion phone (optional — blank is fine, but a
+  // filled value is still held to the format check).
+  const phoneError = (
+    key: string,
+    value: string,
+    required: boolean,
+  ): string | undefined => {
+    if (!touched.has(key)) return undefined
+    if (!value.trim()) return required ? 'Required' : undefined
+    if (!isValidPhoneFormat(value)) {
+      return 'Add your country code, e.g. +34 600 123 456'
+    }
+    return undefined
+  }
   // Bundle the error + the input props (onBlur to arm, aria-invalid to paint
   // red, aria-describedby to wire the message for screen readers).
   const validate = (
     key: string,
     value: string,
     id: string,
-    kind: 'required' | 'email' = 'required',
+    kind: 'required' | 'email' | 'phone' | 'phone-optional' = 'required',
   ) => {
     const error =
-      kind === 'email' ? emailError(key, value) : requiredError(key, value)
+      kind === 'email'
+        ? emailError(key, value)
+        : kind === 'phone'
+          ? phoneError(key, value, true)
+          : kind === 'phone-optional'
+            ? phoneError(key, value, false)
+            : requiredError(key, value)
     return {
       error,
       inputProps: {
@@ -556,7 +603,12 @@ export function DetailsStep({
   const bookerFirstV = validate('booker.first_name', booker.first_name, 'booker-first')
   const bookerLastV = validate('booker.last_name', booker.last_name, 'booker-last')
   const bookerEmailV = validate('booker.email', booker.email, 'booker-email', 'email')
-  const bookerPhoneV = validate('booker.phone', booker.phone, 'booker-phone')
+  const bookerPhoneV = validate(
+    'booker.phone',
+    booker.phone,
+    'booker-phone',
+    'phone',
+  )
 
   return (
     <Card>
@@ -614,10 +666,16 @@ export function DetailsStep({
                 name="booker_phone"
                 type="tel"
                 autoComplete="tel"
+                placeholder="+34 600 123 456"
+                pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
                 onChange={(e) => updateBookerField('phone', e.target.value)}
                 {...bookerPhoneV.inputProps}
               />
+              {/* landr-1url: nudge toward international format (no new dep). */}
+              <p className="text-xs text-muted-foreground">
+                Include your country code
+              </p>
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
                 operator only has the single default role. */}
@@ -652,7 +710,12 @@ export function DetailsStep({
             // participant (landr-nkbi); email stays optional.
             const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
             const pLastV = validate(`p.${idx}.last_name`, row.last_name, `p-${idx}-last`)
-            const pPhoneV = validate(`p.${idx}.phone`, row.phone, `p-${idx}-phone`)
+            const pPhoneV = validate(
+              `p.${idx}.phone`,
+              row.phone,
+              `p-${idx}-phone`,
+              'phone',
+            )
             return (
             // landr-3mo4: each added participant is a raised sub-card (one
             // level lighter than the step card) so the nested form group
@@ -720,12 +783,18 @@ export function DetailsStep({
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
                   type="tel"
+                  placeholder="+34 600 123 456"
+                  pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
                   onChange={(e) =>
                     updateParticipant(idx, 'phone', e.target.value)
                   }
                   {...pPhoneV.inputProps}
                 />
+                {/* landr-1url: nudge toward international format (no new dep). */}
+                <p className="text-xs text-muted-foreground">
+                  Include your country code
+                </p>
               </Field>
               {showRoleDropdown ? (
                 <Field label="Role" htmlFor={`p-${idx}-role`}>
@@ -871,6 +940,14 @@ export function DetailsStep({
               row.last_name,
               `companion-${idx}-last`,
             )
+            // landr-1url: companion phone stays optional (landr-nkbi) but a
+            // filled value is still nudged toward the international format.
+            const cPhoneV = validate(
+              `companion.${idx}.phone`,
+              row.phone,
+              `companion-${idx}-phone`,
+              'phone-optional',
+            )
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
             // participant rows.
@@ -973,16 +1050,27 @@ export function DetailsStep({
                   }
                 />
               </Field>
-              <Field label="Phone (optional)" htmlFor={`companion-${idx}-phone`}>
+              <Field
+                label="Phone (optional)"
+                htmlFor={`companion-${idx}-phone`}
+                error={cPhoneV.error}
+              >
                 <Input
                   id={`companion-${idx}-phone`}
                   name={`companion_${idx + 1}_phone`}
                   type="tel"
+                  placeholder="+34 600 123 456"
+                  pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
                   onChange={(e) =>
                     updateCompanion(idx, 'phone', e.target.value)
                   }
+                  {...cPhoneV.inputProps}
                 />
+                {/* landr-1url: nudge toward international format (no new dep). */}
+                <p className="text-xs text-muted-foreground">
+                  Include your country code
+                </p>
               </Field>
             </div>
             )
