@@ -12,7 +12,6 @@ import {
   deriveStayWindow,
   disambiguatePartyLabels,
   expandRoomUnits,
-  findBreakfastAddonIds,
   flattenPerRoomAddons,
   formatCurrency,
   hasIncompleteChildAge,
@@ -28,7 +27,6 @@ import {
   roomSubtotal,
   roomUnitKey,
   stayNightIsos,
-  totalBreakfastQty,
   totalRoomCapacity,
   totalStayCost,
   unitBreakfastLabel,
@@ -287,42 +285,6 @@ describe('totalRoomCapacity (landr-qpab)', () => {
       { productId: 'ghost', quantity: 5 },
     ]
     expect(totalRoomCapacity(selections, products)).toBe(1)
-  })
-})
-
-describe('findBreakfastAddonIds (landr-qpab)', () => {
-  it('matches add-ons whose name contains "breakfast" (case-insensitive)', () => {
-    const ids = findBreakfastAddonIds([
-      makeAddon('a1', 'Breakfast'),
-      makeAddon('a2', 'BREAKFAST'),
-      makeAddon('a3', 'Continental breakfast'),
-      makeAddon('a4', 'Video Package'),
-    ])
-    expect(ids.has('a1')).toBe(true)
-    expect(ids.has('a2')).toBe(true)
-    expect(ids.has('a3')).toBe(true)
-    expect(ids.has('a4')).toBe(false)
-    expect(ids.size).toBe(3)
-  })
-
-  it('returns an empty set when no add-ons match', () => {
-    const ids = findBreakfastAddonIds([
-      makeAddon('a1', 'Video Package'),
-      makeAddon('a2', 'Photo Package'),
-    ])
-    expect(ids.size).toBe(0)
-  })
-})
-
-describe('totalBreakfastQty (landr-qpab)', () => {
-  it('sums picked qty across matching ids', () => {
-    const ids = new Set(['bf-1', 'bf-2'])
-    const selection = { 'bf-1': 2, 'bf-2': 3, 'video': 5 }
-    expect(totalBreakfastQty(selection, ids)).toBe(5)
-  })
-
-  it('returns 0 when no breakfast addon is selected', () => {
-    expect(totalBreakfastQty({}, new Set(['bf-1']))).toBe(0)
   })
 })
 

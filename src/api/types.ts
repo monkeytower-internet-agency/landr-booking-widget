@@ -4,6 +4,9 @@
  * (last refactored by `20260519210000_product_kinds_refactor.sql`, landr-glx).
  */
 
+import type { Enums } from '@/types/database.gen'
+import type { FormResponseEntry } from '@/api/flowTypes'
+
 /**
  * What the operator sells. Drives the booking flow shape and the dashboard
  * ProductForm. Mirrors public.product_kind. For everything that is not a
@@ -11,14 +14,13 @@
  * soon" stub. hotel_room products are not exposed in the main catalogue
  * — they're listed only inside the AccommodationStep after the customer
  * picked a service product with hotel_offering != 'none' (landr-vyaz).
+ *
+ * landr-52ik.5 — native Postgres enum; derived from the generated schema
+ * (database.gen.ts, a compile-time-only anchor — this widget never talks to
+ * Supabase directly) instead of hand-declared, so drift between the DB enum
+ * and this wire type is caught by tsc.
  */
-export type ProductKind =
-  | 'service'
-  | 'hotel_room'
-  | 'subscription'
-  | 'digital_good'
-  | 'physical_good'
-  | 'gift_card'
+export type ProductKind = Enums<'product_kind'>
 
 /**
  * How a service product offers hotel accommodation alongside the booking
@@ -73,6 +75,18 @@ export interface ProductImage {
  * in the group subtree (including children via parent_id). image_url is the
  * public URL of the group's cover image (null when none has been uploaded).
  * Localized fields follow the same localized-jsonb convention as Product.
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['OperatorProductGroup']` (src/types/api.gen.ts).
+ * Field names line up 1:1, but openapi-typescript widens the two
+ * `_localized` jsonb columns to `Record<string, unknown>` (no value-type
+ * info survives the jsonb round-trip) and marks image_url/parent_id/etc.
+ * optional purely because the Pydantic fields carry defaults — even
+ * though `OperatorProductGroup` has no `extra=allow` and always
+ * serializes every field. Kept hand-written for the stricter
+ * `Record<string, string>` + required-field guarantees; adopting the
+ * generated type as-is would force casts at every call site for no
+ * behavioural gain. Codegen gap, not a widget bug.
  */
 export interface ProductGroup {
   id: string
@@ -87,6 +101,20 @@ export interface ProductGroup {
   product_count: number
 }
 
+/**
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['OperatorProduct']` (src/types/api.gen.ts, from
+ * `GET /operators/{token}/products` in app/routers/public_operators.py).
+ * `OperatorProduct` is deliberately declared with only 6 fields
+ * (product_id/slug/name/images/thumb_url/price_from) plus
+ * `model_config = {"extra": "allow"}` so the router's RPC-passthrough
+ * columns don't force a response-model bump on every migration — the
+ * *actual* wire payload carries all the fields below (product_kind,
+ * service_time_shape, hotel_offering, …), but the OpenAPI schema doesn't
+ * declare them. Adopting `OperatorProduct` here would silently drop
+ * ~25 fields' worth of type coverage. Codegen gap (by design on the API
+ * side), not something to paper over.
+ */
 export interface Product {
   product_id: string
   slug: string
@@ -679,7 +707,7 @@ export interface SubmitBookingBody {
    * (landr-71kz.2). form_responses_not_supported (422) when sent for a
    * product with no flow; widget only sends it when a configured flow exists.
    */
-  form_responses?: Array<{ form_key: string; answers: Record<string, unknown> }>
+  form_responses?: FormResponseEntry[]
 }
 
 /**
@@ -786,6 +814,14 @@ export interface SubmitBookingResponse {
  * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
  * customer pays the operator at checkout; 'hotel' means the customer
  * settles directly with the hotel on arrival.
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateLineItem']` (src/types/api.gen.ts). The
+ * Python `EstimateLineItem` model types `paid_to: str` (a plain string,
+ * not a `Literal["operator", "hotel"]`), so openapi-typescript emits
+ * `paid_to: string` — adopting it would lose the literal-union narrowing
+ * this interface exists to provide. Codegen gap (needs a `Literal` on the
+ * API side to fix at the source), not something to paper over here.
  */
 export interface EstimateLineItem {
   product_id: string
@@ -812,6 +848,14 @@ export interface EstimateLineItem {
  * the first (short-stay) bracket of the schedule. The widget uses this
  * to show "save €X/day vs standard rate" alongside the applied per-day
  * rate. Absent when the applied tier IS the base tier (no savings).
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateAppliedRule']` (src/types/api.gen.ts).
+ * The generated schema is a strict superset (it also carries
+ * rule_id/before/after/skipped/skipped_reason, and types `kind` as plain
+ * `string`) — this interface intentionally only declares the two fields
+ * the sidebar tag actually reads. Already flagged as a divergence in
+ * landr-y3oj.1's handoff; not re-litigated here.
  */
 export interface EstimateAppliedRule {
   kind: string
@@ -834,6 +878,17 @@ export interface EstimateRequestBody {
   addon_lines: EstimateAddonLine[]
 }
 
+/**
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateResponse']` (src/types/api.gen.ts). The
+ * Python model has `model_config = {"extra": "allow"}`, so
+ * openapi-typescript adds a `& { [key: string]: unknown }` catch-all and
+ * marks `line_items`/`applied_rules` optional (they carry
+ * `Field(default_factory=list)` defaults) even though the router always
+ * serializes them. Kept hand-written for the required-array + nested
+ * literal-type guarantees (see EstimateLineItem/EstimateAppliedRule notes
+ * above). Codegen gap, not something to paper over.
+ */
 export interface EstimateResponse {
   line_items: EstimateLineItem[]
   /** Decimal string. Sum of line_items where paid_to='operator'. */

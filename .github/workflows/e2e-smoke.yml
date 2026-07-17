@@ -1,0 +1,48 @@
+name: E2E smoke (widget)
+
+# landr-t0do: deliberately tiny — ONE Playwright flow (booking-submit happy
+# path) against the live dev stack (bw-dev.landr.de + api-dev.landr.de),
+# using para42's seeded widget token. Non-blocking: this job's failure must
+# never gate deploy.yml — it's a regression *signal*, not a merge gate, and
+# the dev stack it hits is a live shared environment outside this repo's
+# control (see .beads/scratch/handoffs/landr-t0do.md for what "green" here
+# actually depends on).
+on:
+  push:
+    branches: [main, staging, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  widget-booking-smoke:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run booking-submit smoke test
+        env:
+          # Defaults (playwright.config.ts) already point at the public dev
+          # deployments — override here only if that ever needs to change.
+          WIDGET_BASE_URL: https://bw-dev.landr.de
+          WIDGET_TOKEN: para42StableDevToken42
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-e2e-smoke-report
+          path: playwright-report/
+          retention-days: 7

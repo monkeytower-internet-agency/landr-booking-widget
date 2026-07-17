@@ -1000,11 +1000,77 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
 
   it('clears the red state as soon as the customer types a value into a flagged field', () => {
     renderStep()
+    // Use first name (no format constraint, unlike phone post-landr-1url) to
+    // demonstrate the generic required-field "clears on type" behavior.
+    const firstName = byName('booker_first_name')
+    fireEvent.blur(firstName)
+    expect(firstName).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(firstName, { target: { value: 'Ada' } })
+    // Re-render reflects the now-non-empty value → no longer invalid.
+    expect(firstName).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-1url: lightweight international-format nudge (no new dependency).
+  // A non-empty phone lacking a leading '+' + country code is flagged with a
+  // format message distinct from "Required", and clears once fixed.
+  it('flags a booker phone missing the "+" country code, distinct from empty', () => {
+    renderStep()
     const phone = byName('booker_phone')
+    // Missing → Required.
+    fireEvent.blur(phone)
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      'Required',
+    )
+    // Present but no leading '+' → format message, not "Required".
+    fireEvent.change(phone, { target: { value: '600123456' } })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    // Valid international format (with human-friendly spaces) → no error.
+    fireEvent.change(phone, { target: { value: '+34 600 123 456' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows placeholder + help text nudging international format on the booker phone', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    expect(phone).toHaveAttribute('placeholder', '+34 600 123 456')
+    expect(screen.getByText('Include your country code')).toBeInTheDocument()
+  })
+
+  it('flags an added participant phone missing the "+" country code (landr-nkbi + landr-1url)', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const phone = byName('participant_2_phone')
+    fireEvent.change(phone, { target: { value: '600123456' } })
     fireEvent.blur(phone)
     expect(phone).toHaveAttribute('aria-invalid', 'true')
-    fireEvent.change(phone, { target: { value: '7' } })
-    // Re-render reflects the now-non-empty value → no longer invalid.
+    expect(document.getElementById('p-0-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    fireEvent.change(phone, { target: { value: '+34600123456' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-1url: companion phone stays OPTIONAL (landr-nkbi) — blank never
+  // errors — but a filled-but-malformed value is still nudged toward the
+  // international format.
+  it('flags a filled-but-malformed companion phone, but leaves a blank one alone', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const phone = byName('companion_1_phone')
+    // Blank + blurred → no error (optional).
+    fireEvent.blur(phone)
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    // Filled but malformed → flagged.
+    fireEvent.change(phone, { target: { value: '600123456' } })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('companion-0-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    // Fixed → clears.
+    fireEvent.change(phone, { target: { value: '+34 600 123 456' } })
     expect(phone).not.toHaveAttribute('aria-invalid')
   })
 

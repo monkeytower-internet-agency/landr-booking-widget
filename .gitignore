@@ -20,6 +20,11 @@ dist-ssr
 # Built artifacts
 wp-plugin/*.zip
 
+# Playwright (landr-t0do)
+/test-results/
+/playwright-report/
+/blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
