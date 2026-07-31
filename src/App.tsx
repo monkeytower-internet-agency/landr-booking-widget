@@ -78,9 +78,8 @@ import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
-import { variantFromLocation, previewEnabledFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
+import { variantFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
-import { VariantSwitcher } from '@/components/booking/VariantSwitcher'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
@@ -147,10 +146,7 @@ function App() {
   )
   if (route.kind === 'cancel') {
     return (
-      <VariantProvider
-        value={variantFromLocation()}
-        previewEnabled={previewEnabledFromLocation()}
-      >
+      <VariantProvider value={variantFromLocation()}>
         {/* landr-aoak.2: staff session context (inactive ⇒ normal widget). */}
         <StaffModeProvider>
           {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
@@ -163,8 +159,6 @@ function App() {
               <CancelPage bookingId={route.bookingId} />
             </div>
           </div>
-          {/* landr-d8rg.8: live variant switcher (preview links only). */}
-          <VariantSwitcher />
         </StaffModeProvider>
       </VariantProvider>
     )
@@ -172,10 +166,7 @@ function App() {
   // landr-uvfg.4b: custom-offer accept-and-pay page
   if (route.kind === 'offer') {
     return (
-      <VariantProvider
-        value={variantFromLocation()}
-        previewEnabled={previewEnabledFromLocation()}
-      >
+      <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
@@ -183,23 +174,17 @@ function App() {
               <OfferPage token={route.token} />
             </div>
           </div>
-          <VariantSwitcher />
         </StaffModeProvider>
       </VariantProvider>
     )
   }
   return (
-    <VariantProvider
-      value={variantFromLocation()}
-      previewEnabled={previewEnabledFromLocation()}
-    >
+    <VariantProvider value={variantFromLocation()}>
       {/* landr-aoak.2: staff session context (inactive ⇒ normal widget). */}
       <StaffModeProvider>
         {/* landr-7dya.20: fixed tier badge — visible in all iframe embeds */}
         <TierBadge />
         <BookingFlowApp />
-        {/* landr-d8rg.8: live variant switcher (preview links only). */}
-        <VariantSwitcher />
       </StaffModeProvider>
     </VariantProvider>
   )
@@ -594,9 +579,8 @@ function BookingFlowApp() {
 
   // landr-jb1k.2: apply operator's widget_variant once settings resolve.
   // Resolution precedence (highest to lowest):
-  //   1. Explicit ?variant= URL param (set at boot OR by the preview switcher
-  //      — the switcher writes to the URL via writeVariantToUrl, so
-  //      hasVariantInLocation() returns true after any switcher interaction).
+  //   1. Explicit ?variant= URL param, read once at boot (deep link / the
+  //      dashboard's "Preview widget" link, which echoes the saved variant).
   //   2. operatorSettings.widget_variant (this effect — only when no URL param).
   //   3. aurora (the VariantProvider's built-in seed / DEFAULT_VARIANT).
   const { setVariant } = useVariant()
