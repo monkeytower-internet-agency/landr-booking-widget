@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatDayLabel, formatDayRange } from './dateLabel'
+import {
+  formatDayLabel,
+  formatDayRange,
+  formatWindowDate,
+  formatWindowRangeLabel,
+} from './dateLabel'
 
 describe('formatDayLabel', () => {
   it('returns empty string for empty input', () => {
@@ -45,5 +50,25 @@ describe('formatDayRange', () => {
   it('falls back gracefully when only one side is valid', () => {
     expect(formatDayRange('2024-11-23', '', 'en-GB')).toBe('Sat 23 Nov')
     expect(formatDayRange('', '2024-11-30', 'en-GB')).toBe('Sat 30 Nov')
+  })
+})
+
+describe('formatWindowDate', () => {
+  it('formats an ISO date as "Aug 4, 2027"', () => {
+    expect(formatWindowDate('2027-08-04')).toMatch(/Aug 4, 2027/)
+  })
+})
+
+describe('formatWindowRangeLabel', () => {
+  it('joins start/end with an en dash', () => {
+    expect(formatWindowRangeLabel('2027-08-04', '2027-08-10')).toMatch(
+      /Aug 4, 2027 – Aug 10, 2027/,
+    )
+  })
+
+  it('renders a single date when start === end', () => {
+    expect(formatWindowRangeLabel('2027-08-04', '2027-08-04')).toMatch(
+      /^Aug 4, 2027$/,
+    )
   })
 })
