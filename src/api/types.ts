@@ -246,6 +246,18 @@ export interface Product {
    * null. Optional during rolling deploy (see thumb_url note).
    */
   price_from?: string | null
+  /**
+   * landr-4a5j: the soonest upcoming product_fixed_date_windows row for
+   * this product (start_date >= today, still bookable — active, not
+   * soft-deleted, not full), as ISO date strings ("YYYY-MM-DD"). Both
+   * null when the product has no such window (not a fixed-window product,
+   * or every window is past/full/cancelled). Lets the expanded-catalog
+   * first step render a short date teaser (e.g. "12.–19.09.") without an
+   * N+1 getFixedDateWindows call per product. Optional for rolling deploy
+   * — absent API responses treated as null.
+   */
+  next_window_start?: string | null
+  next_window_end?: string | null
 }
 
 /**
@@ -416,6 +428,17 @@ export interface OperatorSettings {
    * JSON key is exactly `contact_email` (set by public_get_operator_settings).
    */
   contact_email?: string | null
+  /**
+   * landr-4a5j: operator-configured first-step catalog layout.
+   * 'categories' (default/current behaviour — the first step shows category
+   * tiles, customer drills in to see products) or 'expanded' (the first
+   * step lists ALL products grouped under category headers, no drill-in).
+   * Null means "use the platform default" ('categories'). Resolution
+   * precedence: explicit ?catalog= URL param ALWAYS wins; else this value
+   * (once settings resolve); else 'categories'. Optional for rolling
+   * deploy — absent API responses treated as null.
+   */
+  widget_catalog_layout?: 'categories' | 'expanded' | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

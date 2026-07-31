@@ -41,6 +41,12 @@ function landr_booking_get_origin() {
  * to the product (the `group=` filter is still forwarded but the widget
  * lands directly on the product).
  *
+ * `catalog=` (landr-4a5j) overrides the first-step layout: "expanded" lists
+ * ALL products grouped under category headers (no drill-in); "categories"
+ * forces the tile entrance. Omitted → the operator's dashboard setting,
+ * else the tile entrance (unchanged default). Mirrors the widget's
+ * ?catalog= URL param exactly.
+ *
  * The shortcode's `src=` attribute always wins so individual pages can pin a
  * specific origin (handy when testing a preview deploy). When omitted, the
  * value from Settings → LANDR Booking is used.
@@ -51,6 +57,7 @@ function landr_booking_shortcode( $atts ) {
             'token'   => '',
             'group'   => '',
             'product' => '',
+            'catalog' => '',
             'height'  => '800',
             'src'     => '',
         ),
@@ -69,6 +76,9 @@ function landr_booking_shortcode( $atts ) {
     }
     if ( ! empty( $atts['product'] ) ) {
         $query['product'] = $atts['product'];
+    }
+    if ( ! empty( $atts['catalog'] ) ) {
+        $query['catalog'] = $atts['catalog'];
     }
 
     $base = $atts['src'] !== '' ? rtrim( $atts['src'], '/' ) . '/' : landr_booking_get_origin();

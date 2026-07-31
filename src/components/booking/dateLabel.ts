@@ -57,3 +57,33 @@ export function formatDayRange(
   if (!last || firstIso === lastIso) return first
   return `${first} → ${last}`
 }
+
+/**
+ * landr-4a5j: compact numeric "DD.–DD.MM." day-range teaser for the
+ * expanded-catalog first step (e.g. a fixed-window product's next upcoming
+ * window: "12.–19.09."). Deliberately locale-agnostic (unlike
+ * formatDayLabel/formatDayRange, which use the viewer's Intl locale) — the
+ * catalogue card is a compact teaser, not a full date, so a single terse
+ * numeric convention reads consistently everywhere. Parses the ISO date
+ * numerically (no Date object, no timezone conversion — a fixed-window's
+ * start/end are calendar dates, not instants).
+ *
+ * Returns '' when either input is empty/unparseable.
+ */
+export function formatDayRangeShort(firstIso: string, lastIso: string): string {
+  const first = parseIsoDayMonth(firstIso)
+  const last = parseIsoDayMonth(lastIso)
+  if (!first) return ''
+  if (!last || firstIso === lastIso) return `${first.day}.${first.month}.`
+  if (first.month === last.month) {
+    return `${first.day}.–${last.day}.${last.month}.`
+  }
+  return `${first.day}.${first.month}. – ${last.day}.${last.month}.`
+}
+
+function parseIsoDayMonth(iso: string): { day: string; month: string } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!match) return null
+  const [, , month, day] = match
+  return { day, month }
+}

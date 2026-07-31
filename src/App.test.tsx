@@ -1725,6 +1725,147 @@ describe('App', () => {
     })
   })
 
+  // landr-4a5j: catalog layout resolution precedence tests.
+  // Precedence: explicit ?catalog= URL param > operatorSettings.widget_catalog_layout
+  // > 'categories' (current tile behaviour — pixel-identical default).
+  describe('catalog layout resolution (landr-4a5j)', () => {
+    function makeGroup(overrides: Partial<{ id: string; slug: string; name: string; product_count: number }> = {}) {
+      return {
+        id: 'g-1',
+        slug: 'guiding',
+        name: 'Guiding',
+        name_localized: null,
+        description: null,
+        description_localized: null,
+        image_url: null,
+        sort_order: 10,
+        parent_id: null,
+        product_count: 2,
+        ...overrides,
+      }
+    }
+
+    function twoGroups() {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'guiding', name: 'Guiding', product_count: 1 }),
+        makeGroup({ id: 'g-2', slug: 'travels', name: 'Travels', product_count: 1 }),
+      ])
+    }
+
+    it('defaults to the category tiles when no URL param and no operator setting', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: null,
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+    })
+
+    it('?catalog=expanded skips tiles and renders the expanded catalog', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&catalog=expanded`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
+          group_slug: 'guiding', bookable: true,
+        }),
+      ])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: null,
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+      // Unscoped fetch — no per-group `group` filter (no N+1).
+      expect(mocks.listProducts).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        expect.not.objectContaining({ group: expect.anything() }),
+      )
+    })
+
+    it('applies operatorSettings.widget_catalog_layout=expanded when no URL param', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: 'expanded',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('expanded-catalog')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?catalog=categories overrides operatorSettings.widget_catalog_layout=expanded', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&catalog=categories`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: 'expanded',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      // Give the settings-driven effect a beat — must NOT clobber the URL param.
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+    })
+
+    it('?group= deep link is unaffected by ?catalog=expanded', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&group=guiding&catalog=expanded`,
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
+          group_slug: 'guiding',
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+      )
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?product= deep link is unaffected by ?catalog=expanded', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=tandem-classic&catalog=expanded`,
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic', name: 'Tandem Classic',
+          service_time_shape: 'single_date', bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+    })
+  })
+
   // landr (breadcrumb): the back affordance becomes a full clickable trail, and
   // jumping back to an earlier step restores its previously-entered state.
   describe('breadcrumb navigation + date restore (landr)', () => {

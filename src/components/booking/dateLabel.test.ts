@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDayLabel, formatDayRange } from './dateLabel'
+import { formatDayLabel, formatDayRange, formatDayRangeShort } from './dateLabel'
 
 describe('formatDayLabel', () => {
   it('returns empty string for empty input', () => {
@@ -45,5 +45,31 @@ describe('formatDayRange', () => {
   it('falls back gracefully when only one side is valid', () => {
     expect(formatDayRange('2024-11-23', '', 'en-GB')).toBe('Sat 23 Nov')
     expect(formatDayRange('', '2024-11-30', 'en-GB')).toBe('Sat 30 Nov')
+  })
+})
+
+// landr-4a5j: compact numeric day-range teaser for the expanded catalog.
+describe('formatDayRangeShort', () => {
+  it('returns empty string when the first input is empty/unparseable', () => {
+    expect(formatDayRangeShort('', '')).toBe('')
+    expect(formatDayRangeShort('not-a-date', '2026-09-19')).toBe('')
+  })
+
+  it('formats a same-month range as "DD.–DD.MM."', () => {
+    expect(formatDayRangeShort('2026-09-12', '2026-09-19')).toBe('12.–19.09.')
+  })
+
+  it('formats a cross-month range with both months shown', () => {
+    expect(formatDayRangeShort('2026-09-28', '2026-10-03')).toBe(
+      '28.09. – 03.10.',
+    )
+  })
+
+  it('formats a single day (same ISO on both sides) as "DD.MM."', () => {
+    expect(formatDayRangeShort('2026-09-12', '2026-09-12')).toBe('12.09.')
+  })
+
+  it('formats a single day when only the first side is given', () => {
+    expect(formatDayRangeShort('2026-09-12', '')).toBe('12.09.')
   })
 })

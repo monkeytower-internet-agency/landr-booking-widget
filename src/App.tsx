@@ -75,6 +75,7 @@ import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
+import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { variantFromLocation, previewEnabledFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
@@ -101,6 +102,7 @@ function readQueryParams() {
       group: null as string | null,
       previewToken: null as string | null,
       showSoldOut: false,
+      catalog: null as string | null,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -122,6 +124,13 @@ function readQueryParams() {
     showSoldOut:
       params.get('show_sold_out') === 'true' ||
       params.get('show_sold_out') === '1',
+    // landr-4a5j: explicit first-step catalog layout override. 'expanded'
+    // forces the all-products expanded catalog; 'categories' forces the
+    // tile entrance. Any other/absent value falls through to
+    // operatorSettings.widget_catalog_layout, then the 'categories'
+    // default — resolved by resolvedCatalogMode below, mirroring the
+    // ?variant= precedence exactly (URL always wins).
+    catalog: params.get('catalog'),
   }
 }
 
@@ -197,7 +206,7 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken, showSoldOut } = useMemo(
+  const { token, product, group, previewToken, showSoldOut, catalog } = useMemo(
     () => readQueryParams(),
     [],
   )
@@ -471,6 +480,9 @@ function BookingFlowApp() {
     widget_tile_aspect: null,
     widget_tile_scrim: null,
     widget_tile_hover: null,
+    // landr-4a5j — first-step catalog layout null until the fetch resolves.
+    // Null = platform default ('categories', current tile behaviour).
+    widget_catalog_layout: null,
   })
   // Operator's active service_roles (landr-mg0a). Starts empty so the
   // DetailsStep dropdown stays hidden during the fetch — BookingForm
@@ -599,6 +611,32 @@ function BookingFlowApp() {
   // field from the settings object.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operatorSettings.widget_variant])
+
+  // landr-4a5j: resolve the first-step catalog layout. Precedence mirrors
+  // ?variant= exactly (highest to lowest):
+  //   1. Explicit ?catalog= URL param (read once at boot — there is no live
+  //      switcher for this one, unlike variant, so the memoized queryParams
+  //      value is always current; no need to re-read window.location).
+  //   2. operatorSettings.widget_catalog_layout (once settings resolve).
+  //   3. 'categories' (current tile behaviour — pixel-identical default).
+  //
+  // Deliberately DERIVED at render time, not stored on the step (no "correct
+  // it in an effect once settings arrive" dance like the variant/Context
+  // case needs): operatorSettings resolves once and never changes again for
+  // the session, so recomputing this on every render is enough — the render
+  // that follows the settings fetch naturally reflects the right mode the
+  // moment it lands, however the groups-fetch and settings-fetch effects
+  // happen to race. Every call site that renders or constructs a
+  // pick-category step reads this directly instead of stashing a `mode` on
+  // the step itself.
+  const resolvedCatalogMode: 'categories' | 'expanded' =
+    catalog === 'expanded'
+      ? 'expanded'
+      : catalog === 'categories'
+        ? 'categories'
+        : operatorSettings.widget_catalog_layout === 'expanded'
+          ? 'expanded'
+          : 'categories'
 
   /**
    * landr-d8rg.4: fetch product groups for the category entrance. Called
@@ -1165,26 +1203,45 @@ function BookingFlowApp() {
           landr-d8rg.4: category entrance — shown when the operator has >1
           non-empty group AND no deep link is set. Selecting a group scopes
           pick-product to that group.
+
+          landr-4a5j: when resolvedCatalogMode === 'expanded' (operator-
+          configured catalog layout, ?catalog= override), render
+          ExpandedCatalog instead — same step, same promotion trigger,
+          different first-step UI: all products under category headers, no
+          drill-in. Deep links (?group=/?product=) already bypass this whole
+          branch via the groups-fetch effect's own guard, unchanged.
         */}
         {step.name === 'pick-category' ? (
-          <CategoryStep
-            groups={step.groups}
-            columns={operatorSettings.widget_category_columns ?? null}
-            tileFont={(operatorSettings.widget_tile_font as TileFontKey | null) ?? null}
-            titleCase={operatorSettings.widget_title_case ?? null}
-            tileRadius={operatorSettings.widget_tile_radius ?? null}
-            tileAspect={operatorSettings.widget_tile_aspect ?? null}
-            tileScrim={operatorSettings.widget_tile_scrim ?? null}
-            tileHover={operatorSettings.widget_tile_hover ?? null}
-            onPick={(g) => {
-              // Scope the product list to the chosen group via state, then
-              // transition to pick-product. ProductList reads pickedGroupSlug
-              // as its productGroup prop (below) so only that group's products
-              // are listed.
-              setPickedGroupSlug(g.slug)
-              setStep({ name: 'pick-product' })
-            }}
-          />
+          resolvedCatalogMode === 'expanded' ? (
+            <ExpandedCatalog
+              operatorToken={token!}
+              previewToken={previewToken ?? undefined}
+              groups={step.groups}
+              showSoldOut={showSoldOut}
+              onSelect={(p) => {
+                setStep({ name: 'product-detail', product: p })
+              }}
+            />
+          ) : (
+            <CategoryStep
+              groups={step.groups}
+              columns={operatorSettings.widget_category_columns ?? null}
+              tileFont={(operatorSettings.widget_tile_font as TileFontKey | null) ?? null}
+              titleCase={operatorSettings.widget_title_case ?? null}
+              tileRadius={operatorSettings.widget_tile_radius ?? null}
+              tileAspect={operatorSettings.widget_tile_aspect ?? null}
+              tileScrim={operatorSettings.widget_tile_scrim ?? null}
+              tileHover={operatorSettings.widget_tile_hover ?? null}
+              onPick={(g) => {
+                // Scope the product list to the chosen group via state, then
+                // transition to pick-product. ProductList reads pickedGroupSlug
+                // as its productGroup prop (below) so only that group's products
+                // are listed.
+                setPickedGroupSlug(g.slug)
+                setStep({ name: 'pick-product' })
+              }}
+            />
+          )
         ) : null}
 
         {/*
@@ -1263,8 +1320,8 @@ function BookingFlowApp() {
               clearProductFlowCache()
               // landr-d8rg.4 Back nav:
               //   - If we have a picked group slug, return to the scoped product list.
-              //   - If we have multiple non-empty groups (categories were shown)
-              //     and no group scope, return to pick-category.
+              //   - If we have multiple non-empty groups (categories/expanded catalog
+              //     were shown) and no group scope, return to pick-category.
               //   - Otherwise return to pick-product unscoped.
               const nonEmptyGroups = (productGroups ?? []).filter(
                 (g) => g.product_count > 0,
@@ -1273,8 +1330,13 @@ function BookingFlowApp() {
                 // Back to scoped list (group scope preserved via pickedGroupSlug state).
                 setStep({ name: 'pick-product' })
               } else if (nonEmptyGroups.length > 1 && productGroups) {
-                // Categories were shown but no group was picked (e.g. ?product= deep link
-                // that bypasses categories). Return to pick-category.
+                // Categories/expanded catalog were shown but no group was picked
+                // (e.g. a product selected directly from the expanded catalog, or
+                // a ?product= deep link that bypasses categories). Return to
+                // pick-category — resolvedCatalogMode (landr-4a5j) is derived at
+                // render time from the SAME inputs regardless of which step
+                // instance this is, so the render swap below picks the right UI
+                // automatically; no mode needs to be threaded onto the step.
                 setStep({ name: 'pick-category', groups: productGroups })
               } else {
                 setStep({ name: 'pick-product' })
