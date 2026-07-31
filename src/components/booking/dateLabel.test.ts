@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatDayLabel, formatDayRange, formatDayRangeShort } from './dateLabel'
+import {
+  formatDayLabel,
+  formatDayRange,
+  formatWindowDate,
+  formatWindowRangeLabel,
+} from './dateLabel'
 
 describe('formatDayLabel', () => {
   it('returns empty string for empty input', () => {
@@ -48,28 +53,22 @@ describe('formatDayRange', () => {
   })
 })
 
-// landr-4a5j: compact numeric day-range teaser for the expanded catalog.
-describe('formatDayRangeShort', () => {
-  it('returns empty string when the first input is empty/unparseable', () => {
-    expect(formatDayRangeShort('', '')).toBe('')
-    expect(formatDayRangeShort('not-a-date', '2026-09-19')).toBe('')
+describe('formatWindowDate', () => {
+  it('formats an ISO date as "Aug 4, 2027"', () => {
+    expect(formatWindowDate('2027-08-04')).toMatch(/Aug 4, 2027/)
   })
+})
 
-  it('formats a same-month range as "DD.–DD.MM."', () => {
-    expect(formatDayRangeShort('2026-09-12', '2026-09-19')).toBe('12.–19.09.')
-  })
-
-  it('formats a cross-month range with both months shown', () => {
-    expect(formatDayRangeShort('2026-09-28', '2026-10-03')).toBe(
-      '28.09. – 03.10.',
+describe('formatWindowRangeLabel', () => {
+  it('joins start/end with an en dash', () => {
+    expect(formatWindowRangeLabel('2027-08-04', '2027-08-10')).toMatch(
+      /Aug 4, 2027 – Aug 10, 2027/,
     )
   })
 
-  it('formats a single day (same ISO on both sides) as "DD.MM."', () => {
-    expect(formatDayRangeShort('2026-09-12', '2026-09-12')).toBe('12.09.')
-  })
-
-  it('formats a single day when only the first side is given', () => {
-    expect(formatDayRangeShort('2026-09-12', '')).toBe('12.09.')
+  it('renders a single date when start === end', () => {
+    expect(formatWindowRangeLabel('2027-08-04', '2027-08-04')).toMatch(
+      /^Aug 4, 2027$/,
+    )
   })
 })

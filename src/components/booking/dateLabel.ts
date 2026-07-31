@@ -59,31 +59,28 @@ export function formatDayRange(
 }
 
 /**
- * landr-4a5j: compact numeric "DD.–DD.MM." day-range teaser for the
- * expanded-catalog first step (e.g. a fixed-window product's next upcoming
- * window: "12.–19.09."). Deliberately locale-agnostic (unlike
- * formatDayLabel/formatDayRange, which use the viewer's Intl locale) — the
- * catalogue card is a compact teaser, not a full date, so a single terse
- * numeric convention reads consistently everywhere. Parses the ISO date
- * numerically (no Date object, no timezone conversion — a fixed-window's
- * start/end are calendar dates, not instants).
- *
- * Returns '' when either input is empty/unparseable.
+ * Format a single ISO date (YYYY-MM-DD) as 'Aug 4, 2027' (viewer's Intl
+ * locale, day/month short/year — no weekday). Used by the fixed-date-window
+ * chip (the "Dates" tab picker, and the expanded-catalog card that mirrors
+ * it) where a full year matters because windows can span into next year.
  */
-export function formatDayRangeShort(firstIso: string, lastIso: string): string {
-  const first = parseIsoDayMonth(firstIso)
-  const last = parseIsoDayMonth(lastIso)
-  if (!first) return ''
-  if (!last || firstIso === lastIso) return `${first.day}.${first.month}.`
-  if (first.month === last.month) {
-    return `${first.day}.–${last.day}.${last.month}.`
-  }
-  return `${first.day}.${first.month}. – ${last.day}.${last.month}.`
+export function formatWindowDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
-function parseIsoDayMonth(iso: string): { day: string; month: string } | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  if (!match) return null
-  const [, , month, day] = match
-  return { day, month }
+/**
+ * Format a fixed-date window as a single-date or range label using
+ * formatWindowDate, e.g. 'Aug 4, 2027 – Aug 10, 2027'.
+ */
+export function formatWindowRangeLabel(
+  startDate: string,
+  endDate: string,
+): string {
+  if (startDate === endDate) return formatWindowDate(startDate)
+  return `${formatWindowDate(startDate)} – ${formatWindowDate(endDate)}`
 }

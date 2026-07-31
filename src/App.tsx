@@ -1218,6 +1218,7 @@ function BookingFlowApp() {
               previewToken={previewToken ?? undefined}
               groups={step.groups}
               showSoldOut={showSoldOut}
+              exposeSeats={operatorSettings.expose_seats_to_customer}
               onSelect={(p) => {
                 setStep({ name: 'product-detail', product: p })
               }}

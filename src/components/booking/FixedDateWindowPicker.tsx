@@ -3,6 +3,7 @@ import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { expandWindowDays } from './expandWindowDays'
+import { formatWindowRangeLabel } from './dateLabel'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -48,20 +49,6 @@ interface Props {
    * first visit.
    */
   initialWindowId?: string
-}
-
-function fmtDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function rangeLabel(window: FixedDateWindow): string {
-  if (window.start_date === window.end_date) return fmtDate(window.start_date)
-  return `${fmtDate(window.start_date)} – ${fmtDate(window.end_date)}`
 }
 
 function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
@@ -229,7 +216,7 @@ export function FixedDateWindowPicker({
                     </span>
                     <span className="flex flex-1 items-center justify-between gap-3">
                       <span className="font-medium tabular-nums">
-                        {rangeLabel(window)}
+                        {formatWindowRangeLabel(window.start_date, window.end_date)}
                       </span>
                       {isFull && canForce ? (
                         // landr-aoak.2: a full window in staff mode shows the
