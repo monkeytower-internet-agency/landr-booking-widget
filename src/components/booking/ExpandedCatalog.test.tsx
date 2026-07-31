@@ -12,10 +12,11 @@
  *    fixed-window products with an upcoming window, and is absent otherwise
  *  - clicking a bookable card calls onSelect with that product
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { FixedDateWindow, Product, ProductGroup } from '@/api/types'
+import { VIEW_MODE_STORAGE_KEY } from './browse/useViewMode'
 import { ExpandedCatalog } from './ExpandedCatalog'
 
 const { mocks } = vi.hoisted(() => ({
@@ -186,6 +187,65 @@ describe('ExpandedCatalog — grouping (landr-4a5j)', () => {
     )
     screen.getByRole('button', { name: 'Guided paragliding day' }).click()
     expect(onSelect).toHaveBeenCalledWith(product)
+  })
+})
+
+describe('ExpandedCatalog — grid/list toggle (landr-xf6p)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    // jsdom has no matchMedia ⇒ default view resolves to grid.
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
+
+  it('renders the toggle, switches layout when used, and persists the choice', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
+        group_slug: 'guiding', bookable: true,
+      }),
+    ])
+    const { unmount } = render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ product_count: 1 })]}
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('view-toggle')).toBeInTheDocument()
+
+    const section = screen.getByTestId('catalog-section-products-guiding')
+    // Default (no stored pref, no matchMedia) is grid.
+    expect(section.className).toContain('grid')
+
+    // Flip to list.
+    fireEvent.click(screen.getByTestId('view-toggle-list'))
+    expect(section.className).not.toContain('grid')
+    expect(section.className).toContain('flex-col')
+    // Persisted to localStorage under the same contract key ProductList uses.
+    expect(window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)).toBe('list')
+
+    // A fresh mount reads the persisted preference (list), not the default.
+    unmount()
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ product_count: 1 })]}
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByTestId('catalog-section-products-guiding').className,
+    ).not.toContain('grid')
   })
 })
 
