@@ -44,6 +44,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductCard } from '@/components/booking/browse/ProductCard'
 import { ProductRow } from '@/components/booking/browse/ProductRow'
 import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
+import { ViewToggle } from '@/components/booking/browse/ViewToggle'
 import { useViewMode } from '@/components/booking/browse/useViewMode'
 
 interface Props {
@@ -86,7 +87,7 @@ export function ExpandedCatalog({
 }: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [view] = useViewMode()
+  const [view, setView] = useViewMode()
   const locale = browserLocale()
   const showDateModel = showDateModelDetail()
 
@@ -154,6 +155,10 @@ export function ExpandedCatalog({
 
   return (
     <div className="flex flex-col gap-8" data-testid="expanded-catalog">
+      <div className="flex items-center justify-end">
+        <ViewToggle value={view} onChange={setView} />
+      </div>
+
       {sections.map(({ group, visible }) => {
         const groupName = pickLocalized(
           group.name,
