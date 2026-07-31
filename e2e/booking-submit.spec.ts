@@ -67,9 +67,13 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.goto(`/?w=${WIDGET_TOKEN}`)
 
   // ---- Catalog -----------------------------------------------------------
-  const categoryStep = page.getByTestId('category-step')
-  await expect(categoryStep).toBeVisible()
-  await page.getByText('Guiding', { exact: true }).click()
+  // landr-xi91: para42's dev seed (landr-4a5j, supabase/seed.sql) pins this
+  // operator's widget_catalog_layout to 'expanded' so the first step lists
+  // every product directly under its category header — no category tile to
+  // drill through. ProductCard (and its product-card-<slug> testid) is
+  // reused as-is by ExpandedCatalog, so only the entry step changes here.
+  const expandedCatalog = page.getByTestId('expanded-catalog')
+  await expect(expandedCatalog).toBeVisible()
 
   const productCard = page.getByTestId('product-card-equipment-rental-day')
   await expect(productCard).toBeVisible()
