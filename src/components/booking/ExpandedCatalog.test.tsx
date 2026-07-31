@@ -8,25 +8,27 @@
  *  - ONE unscoped listProducts call — no per-group N+1 fetch
  *  - sold-out products are hidden by default, shown (within their section)
  *    as "Fully booked" cards when showSoldOut=true — mirrors ProductList
- *  - the next-window date teaser renders for fixed-window products and is
- *    absent otherwise
+ *  - a full date-window chip row (same data as the "Dates" tab) renders for
+ *    fixed-window products with an upcoming window, and is absent otherwise
  *  - clicking a bookable card calls onSelect with that product
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Product, ProductGroup } from '@/api/types'
+import type { FixedDateWindow, Product, ProductGroup } from '@/api/types'
 import { ExpandedCatalog } from './ExpandedCatalog'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     listProducts: vi.fn<() => Promise<Product[]>>(),
+    getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     showDateModelDetail: vi.fn<() => boolean>(),
   },
 }))
 
 vi.mock('@/api/client', () => ({
   listProducts: mocks.listProducts,
+  getFixedDateWindows: mocks.getFixedDateWindows,
 }))
 
 vi.mock('@/lib/tier', () => ({
@@ -270,36 +272,71 @@ describe('ExpandedCatalog — sold-out placement (landr-4a5j)', () => {
   })
 })
 
-describe('ExpandedCatalog — next-window date teaser (landr-4a5j)', () => {
+describe('ExpandedCatalog — date-window chips (landr-4a5j)', () => {
   beforeEach(() => {
     mocks.showDateModelDetail.mockReturnValue(false)
   })
   afterEach(() => vi.clearAllMocks())
 
-  it('renders a short date-range line when next_window_start/end are present', async () => {
+  it('renders the full chip row (same data as the Dates tab) when next_window_start/end are present', async () => {
     mocks.listProducts.mockResolvedValue([
       makeProduct({
-        product_id: 'a', slug: 'denmark-trip', name: 'Denmark paragliding trip',
-        group_slug: 'travels', bookable: true,
-        next_window_start: '2026-09-12', next_window_end: '2026-09-19',
+        product_id: 'a', slug: 'siv-course', name: 'SIV Course',
+        group_slug: 'courses', bookable: true,
+        next_window_start: '2026-08-04', next_window_end: '2026-08-10',
       }),
+    ])
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-1', start_date: '2026-08-04', end_date: '2026-08-10', capacity: 8, capacity_reserved: 0 },
+      { id: 'w-2', start_date: '2026-08-18', end_date: '2026-08-24', capacity: 8, capacity_reserved: 8 },
     ])
     render(
       <ExpandedCatalog
         operatorToken="tok"
-        groups={[makeGroup({ id: 'g-2', slug: 'travels', name: 'Travels', product_count: 1 })]}
+        groups={[makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses', product_count: 1 })]}
         onSelect={vi.fn()}
       />,
     )
     await waitFor(() =>
-      expect(screen.getByText('Denmark paragliding trip')).toBeInTheDocument(),
+      expect(screen.getByText('SIV Course')).toBeInTheDocument(),
     )
-    expect(
-      screen.getByTestId('product-date-line-denmark-trip'),
-    ).toHaveTextContent('12.–19.09.')
+    expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('a')
+    const chips = await waitFor(() =>
+      screen.getByTestId('product-date-chips-siv-course'),
+    )
+    expect(chips).toHaveTextContent(/Aug 4, 2026.*Aug 10, 2026/)
+    expect(chips).toHaveTextContent('8 seats left')
+    expect(chips).toHaveTextContent(/Aug 18, 2026.*Aug 24, 2026/)
+    expect(chips).toHaveTextContent('Full')
   })
 
-  it('renders no date line when next_window_start/end are absent', async () => {
+  it('hides seat counts and just shows Available when exposeSeats is false', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a', slug: 'siv-course', name: 'SIV Course',
+        group_slug: 'courses', bookable: true,
+        next_window_start: '2026-08-04', next_window_end: '2026-08-10',
+      }),
+    ])
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-1', start_date: '2026-08-04', end_date: '2026-08-10', capacity: 8, capacity_reserved: 2 },
+    ])
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses', product_count: 1 })]}
+        exposeSeats={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    const chips = await waitFor(() =>
+      screen.getByTestId('product-date-chips-siv-course'),
+    )
+    expect(chips).toHaveTextContent('Available')
+    expect(chips).not.toHaveTextContent(/seats? left/i)
+  })
+
+  it('does not fetch windows or render chips when next_window_start/end are absent', async () => {
     mocks.listProducts.mockResolvedValue([
       makeProduct({
         product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
@@ -317,7 +354,8 @@ describe('ExpandedCatalog — next-window date teaser (landr-4a5j)', () => {
       expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
     )
     expect(
-      screen.queryByTestId('product-date-line-guided-day'),
+      screen.queryByTestId('product-date-chips-guided-day'),
     ).not.toBeInTheDocument()
+    expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
   })
 })

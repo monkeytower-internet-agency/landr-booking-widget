@@ -3,8 +3,8 @@
  * category-tile entrance (CategoryStep). Instead of drilling into a category
  * to see its products, the first step lists ALL products grouped under
  * category headers ("Guiding → Guided paragliding day, Tandem intro flight",
- * "Travels → Denmark paragliding trip 12.–19.09.", …) so the customer picks
- * a product directly.
+ * "Travels → Denmark paragliding trip [date chips]", …) so the customer
+ * picks a product directly.
  *
  * Selected via ?catalog=expanded / operatorSettings.widget_catalog_layout —
  * App.tsx renders this INSTEAD of CategoryStep when in expanded mode, on the
@@ -15,7 +15,11 @@
  * Data: ONE unscoped listProducts(token) call (no per-group N+1 — Product
  * already carries group_slug/group_name, so grouping happens client-side).
  * `groups` is the SAME array App already fetched for CategoryStep (via
- * listProductGroups at boot) — passed in rather than re-fetched.
+ * listProductGroups at boot) — passed in rather than re-fetched. Per-product
+ * fixed-date windows (the full chip row, same data as the "Dates" tab) are
+ * fetched by FixedDateWindowChips itself, gated on next_window_start/end
+ * being present — bounded to only the fixed_window products with an
+ * upcoming date, not every product in the catalogue.
  *
  * REUSES ProductCard/ProductRow (browse/) for the actual product tile so the
  * expanded layout stays visually consistent with the scoped list, and the
@@ -35,7 +39,7 @@ import {
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { showDateModelDetail } from '@/lib/tier'
 import { isBookable } from '@/components/booking/bookability'
-import { formatDayRangeShort } from '@/components/booking/dateLabel'
+import { FixedDateWindowChips } from '@/components/booking/FixedDateWindowChips'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductCard } from '@/components/booking/browse/ProductCard'
 import { ProductRow } from '@/components/booking/browse/ProductRow'
@@ -54,6 +58,9 @@ interface Props {
    * hidden. Mirrors ProductList's showSoldOut contract exactly.
    */
   showSoldOut?: boolean
+  /** Operator's expose_seats_to_customer flag — passed through to the
+   * per-product date-window chips (mirrors FixedDateWindowPicker). */
+  exposeSeats?: boolean
   onSelect: (product: Product) => void
 }
 
@@ -74,6 +81,7 @@ export function ExpandedCatalog({
   previewToken,
   groups,
   showSoldOut = false,
+  exposeSeats = true,
   onSelect,
 }: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
@@ -188,13 +196,8 @@ export function ExpandedCatalog({
                   )
                 }
 
-                const dateLine =
+                const hasUpcomingWindow =
                   product.next_window_start && product.next_window_end
-                    ? formatDayRangeShort(
-                        product.next_window_start,
-                        product.next_window_end,
-                      )
-                    : null
 
                 return (
                   <div key={product.product_id} className="flex flex-col gap-1">
@@ -213,13 +216,12 @@ export function ExpandedCatalog({
                         onSelect={onSelect}
                       />
                     )}
-                    {dateLine ? (
-                      <p
-                        className="px-1 text-xs text-muted-foreground"
-                        data-testid={`product-date-line-${product.slug}`}
-                      >
-                        {dateLine}
-                      </p>
+                    {hasUpcomingWindow ? (
+                      <FixedDateWindowChips
+                        productId={product.product_id}
+                        slug={product.slug}
+                        exposeSeats={exposeSeats}
+                      />
                     ) : null}
                   </div>
                 )
