@@ -27,6 +27,9 @@
 
 import type { ProductGroup } from '@/api/types'
 import { CategoryTile } from './category/CategoryTile'
+import { CategoryTileRow } from './category/CategoryTileRow'
+import { ViewToggle } from './browse/ViewToggle'
+import { useViewMode } from './browse/useViewMode'
 import { useVariant } from '@/lib/variant'
 import { browserLocale } from '@/lib/locale'
 import { cn } from '@/lib/utils'
@@ -128,6 +131,10 @@ export function CategoryStep({
   const { variant } = useVariant()
   // Resolve the viewer locale once; CategoryTile localizes name/description.
   const locale = browserLocale()
+  // Grid/list toggle — same per-visitor preference ProductList/ExpandedCatalog
+  // use, so the choice carries over once a category is picked and the product
+  // list renders (all three surfaces share the one localStorage-backed hook).
+  const [view, setView] = useViewMode()
 
   // Hide categories with nothing bookable — they would be dead-end tiles.
   const visible = groups.filter((g) => g.product_count > 0)
@@ -206,23 +213,49 @@ export function CategoryStep({
       data-testid="category-step"
       data-variant={variant}
     >
-      <ul className={cn('grid list-none', gridCols, gridGap)}>
-        {visible.map((group) => (
-          <li key={group.id}>
-            <CategoryTile
-              group={group}
-              locale={locale}
-              onPick={onPick}
-              titleFontStyle={titleFontStyle}
-              titleCaseClass={titleCaseClass}
-              tileRadiusClass={tileRadiusClass}
-              tileAspectClass={tileAspectClass}
-              tileScrim={tileScrimResolved}
-              tileHover={tileHoverResolved}
-            />
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-end">
+        <ViewToggle value={view} onChange={setView} />
+      </div>
+
+      {view === 'grid' ? (
+        <ul
+          className={cn('grid list-none', gridCols, gridGap)}
+          data-testid="category-grid"
+        >
+          {visible.map((group) => (
+            <li key={group.id}>
+              <CategoryTile
+                group={group}
+                locale={locale}
+                onPick={onPick}
+                titleFontStyle={titleFontStyle}
+                titleCaseClass={titleCaseClass}
+                tileRadiusClass={tileRadiusClass}
+                tileAspectClass={tileAspectClass}
+                tileScrim={tileScrimResolved}
+                tileHover={tileHoverResolved}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul
+          className={cn('flex list-none flex-col', gridGap)}
+          data-testid="category-list"
+        >
+          {visible.map((group) => (
+            <li key={group.id}>
+              <CategoryTileRow
+                group={group}
+                locale={locale}
+                onPick={onPick}
+                titleFontStyle={titleFontStyle}
+                titleCaseClass={titleCaseClass}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
