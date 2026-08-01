@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProductGroup } from '@/api/types'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { VARIANTS } from '@/lib/variant'
+import { VIEW_MODE_STORAGE_KEY } from './browse/useViewMode'
 import { CategoryStep } from './CategoryStep'
 
 function makeGroup(overrides: Partial<ProductGroup> = {}): ProductGroup {
@@ -457,5 +458,83 @@ describe('CategoryStep tile-style options (landr-jb1k.4)', () => {
     expect(frame?.className).toContain('aspect-[4/3]') // aurora default aspect
     const scrim = screen.getByTestId('category-scrim')
     expect(scrim.className).toContain('from-black/70') // aurora default scrim
+  })
+})
+
+// Grid/list view toggle parity with ProductList/ExpandedCatalog — the
+// "Categories" catalog layout previously had no ViewToggle at all on this
+// first step (only the tile grid). Fixes the bug where "Categories" layout
+// showed no Grid/List buttons while "Expanded catalog" did.
+describe('CategoryStep — grid/list toggle', () => {
+  beforeEach(() => {
+    // jsdom has no matchMedia ⇒ default view resolves to grid.
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('renders the ViewToggle alongside the tile grid', () => {
+    render(
+      <CategoryStep groups={[makeGroup({ slug: 'tandem' })]} onPick={vi.fn()} />,
+    )
+    expect(screen.getByTestId('view-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('category-grid')).toBeInTheDocument()
+    expect(screen.queryByTestId('category-list')).not.toBeInTheDocument()
+  })
+
+  it('switches to a list of category rows when List view is picked, and persists it', () => {
+    const tandem = makeGroup({ id: 'g-1', slug: 'tandem', name: 'Tandem Flights' })
+    const courses = makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses' })
+    const { unmount } = render(
+      <CategoryStep groups={[tandem, courses]} onPick={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByTestId('view-toggle-list'))
+
+    expect(screen.getByTestId('category-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('category-grid')).not.toBeInTheDocument()
+    expect(screen.getByTestId('category-row-tandem')).toBeInTheDocument()
+    expect(screen.getByTestId('category-row-courses')).toBeInTheDocument()
+    expect(window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)).toBe('list')
+
+    // A fresh mount reads the persisted preference (list), not the default.
+    unmount()
+    render(<CategoryStep groups={[tandem, courses]} onPick={vi.fn()} />)
+    expect(screen.getByTestId('category-list')).toBeInTheDocument()
+    expect(screen.queryByTestId('category-grid')).not.toBeInTheDocument()
+  })
+
+  it('a category row shows name, description and the count chip', () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+    render(
+      <CategoryStep
+        groups={[
+          makeGroup({
+            slug: 'tandem',
+            name: 'Tandem Flights',
+            description: 'Fly with a certified pilot.',
+            product_count: 3,
+          }),
+        ]}
+        onPick={vi.fn()}
+      />,
+    )
+    const row = screen.getByTestId('category-row-tandem')
+    expect(row).toHaveTextContent('Tandem Flights')
+    expect(row).toHaveTextContent('Fly with a certified pilot.')
+    expect(screen.getByTestId('category-count-chip')).toHaveTextContent('3 offers')
+  })
+
+  it('fires onPick with the clicked group from a list row', () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+    const onPick = vi.fn()
+    const tandem = makeGroup({ id: 'g-1', slug: 'tandem', name: 'Tandem Flights' })
+    const courses = makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses' })
+    render(<CategoryStep groups={[tandem, courses]} onPick={onPick} />)
+
+    fireEvent.click(screen.getByTestId('category-row-courses'))
+    expect(onPick).toHaveBeenCalledTimes(1)
+    expect(onPick).toHaveBeenCalledWith(courses)
   })
 })
