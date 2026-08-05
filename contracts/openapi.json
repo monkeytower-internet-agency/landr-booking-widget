@@ -8518,6 +8518,53 @@
         "title": "RefundOut",
         "type": "object"
       },
+      "ReissueApprovalRequestIn": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "ReissueApprovalRequestIn",
+        "type": "object"
+      },
+      "ReissueApprovalRequestOut": {
+        "properties": {
+          "outbound_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbound Email Id"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "token_expires_at": {
+            "title": "Token Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "token_expires_at"
+        ],
+        "title": "ReissueApprovalRequestOut",
+        "type": "object"
+      },
       "RejectIn": {
         "properties": {
           "notes": {
@@ -15855,6 +15902,64 @@
         "summary": "Approve Booking",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/approval-request/reissue": {
+      "post": {
+        "description": "Revoke the live reply-link request and mint + send its replacement.\n\nFlow: 409 ``wrong_stage`` when the booking's current stage is outside\nthe approval stage set; else revoke every live\n(``revoked_at IS NULL``) request row for this booking, then call\n:func:`send_hotel_request` \u2014 which, because no live row remains,\nmints a fresh one via ``ensure_approval_request`` and emails the new\nlink. The old token now resolves to the ``superseded`` terminal state\nvia ``public_resolve_approval_request_by_token`` (revocation outranks\nevery other state there \u2014 see that RPC's precedence comment).",
+        "operationId": "staff_reissue_approval_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReissueApprovalRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReissueApprovalRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reissue Approval Request",
+        "tags": [
+          "staff-bookings-approval-request"
         ]
       }
     },

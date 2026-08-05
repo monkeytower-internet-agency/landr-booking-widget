@@ -2070,6 +2070,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/approval-request/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reissue Approval Request
+         * @description Revoke the live reply-link request and mint + send its replacement.
+         *
+         *     Flow: 409 ``wrong_stage`` when the booking's current stage is outside
+         *     the approval stage set; else revoke every live
+         *     (``revoked_at IS NULL``) request row for this booking, then call
+         *     :func:`send_hotel_request` — which, because no live row remains,
+         *     mints a fresh one via ``ensure_approval_request`` and emails the new
+         *     link. The old token now resolves to the ``superseded`` terminal state
+         *     via ``public_resolve_approval_request_by_token`` (revocation outranks
+         *     every other state there — see that RPC's precedence comment).
+         */
+        post: operations["staff_reissue_approval_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
         parameters: {
             query?: never;
@@ -7165,6 +7194,20 @@ export interface components {
             /** Refundable Remaining After */
             refundable_remaining_after: string;
         };
+        /** ReissueApprovalRequestIn */
+        ReissueApprovalRequestIn: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ReissueApprovalRequestOut */
+        ReissueApprovalRequestOut: {
+            /** Outbound Email Id */
+            outbound_email_id?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Token Expires At */
+            token_expires_at: string;
+        };
         /** RejectIn */
         RejectIn: {
             /** Notes */
@@ -11051,6 +11094,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_reissue_approval_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReissueApprovalRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReissueApprovalRequestOut"];
                 };
             };
             /** @description Validation Error */
