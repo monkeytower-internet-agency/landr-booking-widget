@@ -15,12 +15,25 @@ import { expect, test, type Page } from '@playwright/test'
  * booker email is tagged `playwright-smoke@example.com` so it's easy to
  * spot/sweep in the dev DB; no existing rows are touched or deleted.
  *
- * Product: "Paragliding Gear Rental" (equipment-rental-day) — chosen
- * because it's the shortest catalog->confirm path para42's seed offers
- * (single date, no accommodation/addons module). It still exercises a
- * pickup-location step and a custom-form declarations module because
- * that's what this operator's real seed data requires — this spec drives
- * whatever the actual seeded happy path is, it does not stub it out.
+ * Product: "Guided Paragliding Day" (guided-day) — landr-l0mb: the
+ * original target (equipment-rental-day, single_date+needs_pickup+
+ * no-accommodation) was soft-deleted by landr-m2h2's para42 catalog
+ * reshape and no equivalent-shape product survives. Re-picked 2026-08-05
+ * by querying `products` on the live dev DB for every active,
+ * non-deleted para42 product: guided-day is the ONLY remaining
+ * needs_pickup=true product, so it's the closest surviving equivalent —
+ * at the cost of one extra step this spec didn't used to cover
+ * (Accommodation, since guided-day.hotel_offering='optional'; we pick
+ * the "Guiding only" mode to skip past it, same as the original's
+ * no-accommodation shape). It's `days_range` (multi-day picker) rather
+ * than `single_date`, but selecting exactly one day still exercises the
+ * same catalog -> date -> participant -> pickup-location ->
+ * custom-form-declarations -> confirm path the original covered.
+ * Re-pick criteria if this breaks again: `select slug, name,
+ * product_kind, service_time_shape, active, needs_pickup, hotel_offering
+ * from products where deleted_at is null and active;` — want
+ * needs_pickup=true and the smallest hotel_offering/date-shape footprint
+ * available; update this comment with the new reasoning.
  */
 
 const WIDGET_TOKEN = process.env.WIDGET_TOKEN ?? 'para42StableDevToken42'
@@ -61,7 +74,7 @@ async function pickFirstAvailableDate(page: Page) {
   throw new Error('No available booking date found within 3 months')
 }
 
-test('booking-submit happy path: catalog -> date -> participant -> confirm', async ({
+test('booking-submit happy path: catalog -> date -> participant -> accommodation -> confirm', async ({
   page,
 }) => {
   await page.goto(`/?w=${WIDGET_TOKEN}`)
@@ -75,14 +88,19 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   const expandedCatalog = page.getByTestId('expanded-catalog')
   await expect(expandedCatalog).toBeVisible()
 
-  const productCard = page.getByTestId('product-card-equipment-rental-day')
+  const productCard = page.getByTestId('product-card-guided-day')
   await expect(productCard).toBeVisible()
   await productCard.click()
 
   await page.getByTestId('product-detail-book-cta').click()
 
-  // ---- Date ----------------------------------------------------------------
-  await expect(page.getByText('Pick a date')).toBeVisible()
+  // ---- Date (MultiDayStep — guided-day is service_time_shape=days_range) ---
+  // Header differs from the single_date step's "Pick a date". We only ever
+  // select ONE day: the picker's default "Date range" mode still commits a
+  // single-day selection on the first click (no anchor yet), same as
+  // "Individual days" mode would, so pickFirstAvailableDate's single click
+  // is enough — no need to touch the mode toggle.
+  await expect(page.getByText('Pick your dates')).toBeVisible()
   await pickFirstAvailableDate(page)
   await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -92,6 +110,17 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Last name').fill('Smoketest')
   await page.getByLabel('Email').fill('playwright-smoke@example.com')
   await page.getByLabel('Phone').fill('+491701234567')
+  await page.getByRole('button', { name: 'Continue' }).click()
+
+  // ---- Accommodation (guided-day.hotel_offering='optional') ----------------
+  // landr-l0mb: the original target product had no accommodation module at
+  // all; guided-day has one because it's the closest surviving needs_pickup
+  // product. Pick "Guiding only" to opt out of a hotel stay — this keeps the
+  // rest of the flow (pickup-location, then custom-form) identical to what
+  // the original spec covered. The mode fieldset only renders once the
+  // operator's hotel list has loaded, so wait for it before clicking.
+  await expect(page.getByTestId('accommodation-mode-guiding-only')).toBeVisible()
+  await page.getByTestId('accommodation-mode-guiding-only').click()
   await page.getByRole('button', { name: 'Continue' }).click()
 
   // ---- Pickup location (para42's seed data requires one for this product) -
