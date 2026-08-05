@@ -6006,8 +6006,13 @@
         "type": "object"
       },
       "OperatorProductGroup": {
-        "description": "Public category row for the widget's category-first entrance.\n\nproduct_count is the number of currently-listable products in the group's\ndescendant subtree (the widget hides product_count=0 groups itself).",
+        "description": "Public category row for the widget's category-first entrance.\n\nproduct_count is the number of currently-listable products in the group's\ndescendant subtree (the widget hides product_count=0 groups itself).\n\nbookable_count (landr-872c) is the subset of product_count that is\ncurrently bookable \u2014 same descendant subtree, same _product_is_bookable()\npredicate public_get_operator_products.bookable already uses. It governs\nPER-CATEGORY visibility (a fully sold-out category \u2014 product_count > 0,\nbookable_count == 0 \u2014 renders as a disabled/\"Fully booked\" tile+section in\nboth widget layouts, never hidden); show_sold_out keeps governing\nPER-PRODUCT visibility inside a category. Always <= product_count.",
         "properties": {
+          "bookable_count": {
+            "default": 0,
+            "title": "Bookable Count",
+            "type": "integer"
+          },
           "description": {
             "anyOf": [
               {
@@ -14967,7 +14972,7 @@
     },
     "/api/public/operators/{token}/product-groups": {
       "get": {
-        "description": "Operator's product_groups for the widget's category-first entrance\n(epic landr-d8rg, contract item [E]).\n\nReturns every ACTIVE, non-deleted group: id, slug, name, name_localized,\ndescription, description_localized, image_url, sort_order, parent_id, and a\n`product_count` = the number of currently-listable products in the group's\ndescendant subtree (the recursive parent_id walk lives in the RPC). EMPTY\ngroups (product_count=0) are RETURNED \u2014 hiding them is the widget's job, so\ndeep links into a now-empty category still resolve. Ordered by\n(sort_order, name). 404 only on an unknown widget_token.",
+        "description": "Operator's product_groups for the widget's category-first entrance\n(epic landr-d8rg, contract item [E]).\n\nReturns every ACTIVE, non-deleted group: id, slug, name, name_localized,\ndescription, description_localized, image_url, sort_order, parent_id,\n`product_count`, and `bookable_count` (landr-872c). `product_count` = the\nnumber of currently-listable products in the group's descendant subtree\n(the recursive parent_id walk lives in the RPC). `bookable_count` = the\nsubset of those that are currently bookable \u2014 same subtree, same\n_product_is_bookable() predicate the `bookable` flag on GET .../products\nalready uses \u2014 always <= product_count. EMPTY groups (product_count=0)\nare RETURNED \u2014 hiding them is the widget's job, so deep links into a\nnow-empty category still resolve. Ordered by (sort_order, name). 404 only\non an unknown widget_token.",
         "operationId": "get_operator_product_groups",
         "parameters": [
           {

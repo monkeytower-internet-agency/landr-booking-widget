@@ -1621,12 +1621,16 @@ export interface paths {
          *     (epic landr-d8rg, contract item [E]).
          *
          *     Returns every ACTIVE, non-deleted group: id, slug, name, name_localized,
-         *     description, description_localized, image_url, sort_order, parent_id, and a
-         *     `product_count` = the number of currently-listable products in the group's
-         *     descendant subtree (the recursive parent_id walk lives in the RPC). EMPTY
-         *     groups (product_count=0) are RETURNED — hiding them is the widget's job, so
-         *     deep links into a now-empty category still resolve. Ordered by
-         *     (sort_order, name). 404 only on an unknown widget_token.
+         *     description, description_localized, image_url, sort_order, parent_id,
+         *     `product_count`, and `bookable_count` (landr-872c). `product_count` = the
+         *     number of currently-listable products in the group's descendant subtree
+         *     (the recursive parent_id walk lives in the RPC). `bookable_count` = the
+         *     subset of those that are currently bookable — same subtree, same
+         *     _product_is_bookable() predicate the `bookable` flag on GET .../products
+         *     already uses — always <= product_count. EMPTY groups (product_count=0)
+         *     are RETURNED — hiding them is the widget's job, so deep links into a
+         *     now-empty category still resolve. Ordered by (sort_order, name). 404 only
+         *     on an unknown widget_token.
          */
         get: operations["get_operator_product_groups"];
         put?: never;
@@ -6377,8 +6381,21 @@ export interface components {
          *
          *     product_count is the number of currently-listable products in the group's
          *     descendant subtree (the widget hides product_count=0 groups itself).
+         *
+         *     bookable_count (landr-872c) is the subset of product_count that is
+         *     currently bookable — same descendant subtree, same _product_is_bookable()
+         *     predicate public_get_operator_products.bookable already uses. It governs
+         *     PER-CATEGORY visibility (a fully sold-out category — product_count > 0,
+         *     bookable_count == 0 — renders as a disabled/"Fully booked" tile+section in
+         *     both widget layouts, never hidden); show_sold_out keeps governing
+         *     PER-PRODUCT visibility inside a category. Always <= product_count.
          */
         OperatorProductGroup: {
+            /**
+             * Bookable Count
+             * @default 0
+             */
+            bookable_count: number;
             /** Description */
             description?: string | null;
             /** Description Localized */
