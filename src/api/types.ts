@@ -99,6 +99,24 @@ export interface ProductGroup {
   sort_order: number
   parent_id: string | null
   product_count: number
+  /**
+   * landr-872c: server-computed count of currently-bookable products in the
+   * group's descendant subtree — same subtree as product_count, narrowed to
+   * the SAME bookability predicate Product.bookable already reports (see
+   * public_get_operator_product_groups). Always <= product_count. Governs
+   * PER-CATEGORY visibility: product_count > 0 && bookable_count === 0 means
+   * the category is FULLY SOLD OUT and must render as a disabled/"Fully
+   * booked" tile+section rather than being hidden — see
+   * isCategoryFullySoldOut() in bookability.ts and the contract table in
+   * ExpandedCatalog.tsx.
+   *
+   * OPTIONAL for back-compat with an API that predates the field. FAIL OPEN
+   * like Product.bookable/isBookable(): an ABSENT bookable_count must never
+   * be treated as "fully sold out" — isCategoryFullySoldOut() only fires on
+   * an explicit 0, so an older API can never accidentally grey out a whole
+   * catalogue.
+   */
+  bookable_count?: number
 }
 
 /**

@@ -124,19 +124,34 @@ describe('ProductList — bookability visibility (landr-7jgo)', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('renders an empty-state when every product is sold out and showSoldOut is off', async () => {
+  it('landr-872c: renders every product as "Fully booked" (not the empty-state dead end) when every product is sold out, even with showSoldOut off', async () => {
+    // Supersedes the pre-landr-872c behaviour (dead-end "No products in this
+    // category" copy for a fully sold-out fetch) — that was the exact bug
+    // this ticket fixes for a ?group=<slug> deep link into a fully sold-out
+    // category: the category itself is real (products exist), just sold out.
     mocks.listProducts.mockResolvedValue([
       makeProduct({ product_id: 'a', name: 'Sold Out A', bookable: false }),
       makeProduct({ product_id: 'b', name: 'Sold Out B', bookable: false }),
     ])
     render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
     await waitFor(() =>
-      // landr-d8rg.6: empty-state copy is now category-scoped.
+      expect(screen.getByText('Sold Out A')).toBeInTheDocument(),
+    )
+    expect(screen.getByText('Sold Out B')).toBeInTheDocument()
+    expect(screen.getAllByTestId('fully-booked-badge')).toHaveLength(2)
+    expect(
+      screen.queryByText('No products in this category.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps the dead-end empty-state for a genuinely EMPTY group (no products fetched at all)', async () => {
+    mocks.listProducts.mockResolvedValue([])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() =>
       expect(
         screen.getByText(/No products in this category/i),
       ).toBeInTheDocument(),
     )
-    expect(screen.queryByText('Sold Out A')).not.toBeInTheDocument()
   })
 })
 

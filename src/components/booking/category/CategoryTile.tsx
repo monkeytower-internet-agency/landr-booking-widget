@@ -19,12 +19,23 @@
  * prefers-reduced-motion via Tailwind's motion-reduce: variants. focus-visible
  * gets a ring.
  *
+ * landr-872c: a FULLY SOLD-OUT category (product_count > 0, bookable_count
+ * === 0 — isCategoryFullySoldOut()) renders as a DISABLED tile in all three
+ * variants: a real `disabled` <button> (non-interactive, no onPick, skipped
+ * by Tab order and never announced as clickable), muted/desaturated
+ * artwork, no hover lift, and the count chip replaced with the
+ * "Fully booked" badge (FullyBookedNotice's exact copy, reused via
+ * offerCountLabel). It is NEVER hidden — only a genuinely EMPTY category
+ * (product_count === 0) is filtered out upstream in CategoryStep.
+ *
  * Component-only file (react-refresh/only-export-components CI gate); the
  * count-label helper lives in categoryCopy.ts.
  */
 
 import type { ProductGroup } from '@/api/types'
 import { CategoryArt } from '@/components/booking/art/CategoryArt'
+import { isCategoryFullySoldOut } from '@/components/booking/bookability'
+import { FULLY_BOOKED_BLURB } from '@/components/booking/FullyBookedNotice'
 import { useVariant } from '@/lib/variant'
 import { pickLocalized } from '@/lib/locale'
 import { cn } from '@/lib/utils'
@@ -93,7 +104,9 @@ export function CategoryTile({
     group.description_localized,
     locale,
   )
-  const countLabel = offerCountLabel(group.product_count)
+  const countLabel = offerCountLabel(group)
+  // landr-872c: FULLY SOLD-OUT — render disabled, never navigate, never hide.
+  const fullySoldOut = isCategoryFullySoldOut(group)
   // image_url is OPTIONAL on the wire; undefined is treated as "no image".
   const hasImage = Boolean(group.image_url)
 
@@ -109,10 +122,22 @@ export function CategoryTile({
   const scrimOverlay = tileScrim?.overlay ?? tokens.overlayScrim
   const scrimTitleDark = tileScrim?.titleDark ?? false
 
+  // landr-872c: no hover-zoom motion on a disabled tile — it can't be
+  // "entered" in any meaningful sense.
+  const mediaHoverClass = fullySoldOut ? '' : tileHover.image
+
   // The media block — uploaded cover when present, else brand-aware fallback
   // art. Shared across variants; the *frame* differs per variant below.
+  // Desaturated + dimmed when fullySoldOut so the tile reads as disabled at
+  // a glance, independent of the operator's uploaded artwork.
   const media = (
-    <div className={cn('relative w-full overflow-hidden', mediaAspect)}>
+    <div
+      className={cn(
+        'relative w-full overflow-hidden',
+        mediaAspect,
+        fullySoldOut && 'opacity-60 grayscale',
+      )}
+    >
       {hasImage ? (
         <img
           src={group.image_url ?? undefined}
@@ -122,7 +147,7 @@ export function CategoryTile({
           className={cn(
             'h-full w-full object-cover',
             'transition-transform duration-200 ease-out motion-reduce:transition-none',
-            tileHover.image,
+            mediaHoverClass,
           )}
         />
       ) : (
@@ -132,7 +157,7 @@ export function CategoryTile({
           className={cn(
             'h-full w-full',
             'transition-transform duration-200 ease-out motion-reduce:transition-none',
-            tileHover.image,
+            mediaHoverClass,
           )}
         />
       )}
@@ -142,6 +167,10 @@ export function CategoryTile({
   // landr-jb1k.4: on aurora, the count chip sits inside the scrim. With the
   // 'light' (white) scrim it must use a dark-on-light treatment to stay legible;
   // the dark/brand scrims keep the white-on-glass chip.
+  // landr-872c: a fullySoldOut chip always falls back to the neutral muted
+  // treatment (mirrors FullyBookedNotice's badge) regardless of variant/scrim
+  // — the tile is already desaturated, and this keeps "Fully booked" legible
+  // and visually consistent everywhere it appears.
   const auroraChipClass = scrimTitleDark
     ? 'bg-foreground/10 text-foreground backdrop-blur-sm'
     : 'bg-white/20 text-white backdrop-blur-sm'
@@ -151,9 +180,13 @@ export function CategoryTile({
         // landr-d8rg.8: chip radius from the variant token (alpine squares it).
         'inline-flex items-center px-2 py-0.5 text-xs font-medium',
         tokens.chipRadius,
-        variant === 'aurora' ? auroraChipClass : 'bg-muted text-muted-foreground',
+        fullySoldOut
+          ? 'bg-muted text-muted-foreground'
+          : variant === 'aurora'
+            ? auroraChipClass
+            : 'bg-muted text-muted-foreground',
       )}
-      data-testid="category-count-chip"
+      data-testid={fullySoldOut ? 'fully-booked-badge' : 'category-count-chip'}
     >
       {countLabel}
     </span>
@@ -165,25 +198,45 @@ export function CategoryTile({
   // landr-jb1k.4: the button lift comes from the resolved hover treatment
   // (tileHover.button — empty for 'zoom'/'none'); the radius is the operator
   // override when set, else the variant token.
+  // landr-872c: fullySoldOut drops the pointer/lift affordances entirely —
+  // disabled + cursor-not-allowed + no hover class — since there is nothing
+  // to activate.
   const baseButton = cn(
     'group relative block w-full overflow-hidden text-left',
-    'cursor-pointer',
+    fullySoldOut ? 'cursor-not-allowed' : 'cursor-pointer',
     'transition-all duration-200 ease-out motion-reduce:transition-none',
     tokens.focusRing,
-    tileHover.button,
+    !fullySoldOut && tileHover.button,
     tileRadiusClass ?? tokens.cardRadius,
   )
 
   // landr-jb1k.2: inline style for operator-configured font-family on titles.
   const h3Style = titleFontStyle ? { fontFamily: titleFontStyle } : undefined
 
+  // landr-872c: shared disabled-state props for every variant's <button> —
+  // a real `disabled` attribute (non-interactive: no click, not Tab-focusable,
+  // announced as disabled by AT) plus an aria-label carrying the "fully
+  // booked" context (FullyBookedNotice's exact blurb) since the visual chip
+  // alone isn't guaranteed to be read by every screen reader in every
+  // variant's layout.
+  const disabledButtonProps = fullySoldOut
+    ? {
+        disabled: true as const,
+        'aria-label': `${name} — ${countLabel}. ${FULLY_BOOKED_BLURB}`,
+      }
+    : { onClick: () => onPick(group) }
+
   // --- aurora: text-on-image with a brand gradient scrim. ---
   if (variant === 'aurora') {
     return (
       <button
         type="button"
-        onClick={() => onPick(group)}
-        className={cn(baseButton, tokens.cardShadow, 'hover:shadow-xl')}
+        {...disabledButtonProps}
+        className={cn(
+          baseButton,
+          tokens.cardShadow,
+          !fullySoldOut && 'hover:shadow-xl',
+        )}
         data-testid={`category-btn-${group.slug}`}
         data-variant={variant}
       >
@@ -230,7 +283,7 @@ export function CategoryTile({
     return (
       <button
         type="button"
-        onClick={() => onPick(group)}
+        {...disabledButtonProps}
         className={cn(baseButton, tokens.cardShadow, 'bg-card')}
         data-testid={`category-btn-${group.slug}`}
         data-variant={variant}
@@ -260,8 +313,13 @@ export function CategoryTile({
   return (
     <button
       type="button"
-      onClick={() => onPick(group)}
-      className={cn(baseButton, tokens.cardShadow, 'bg-card hover:border-primary/40')}
+      {...disabledButtonProps}
+      className={cn(
+        baseButton,
+        tokens.cardShadow,
+        'bg-card',
+        !fullySoldOut && 'hover:border-primary/40',
+      )}
       data-testid={`category-btn-${group.slug}`}
       data-variant={variant}
     >
