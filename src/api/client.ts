@@ -1,4 +1,7 @@
 import type {
+  ApprovalReplyRequestBody,
+  ApprovalReplyResult,
+  ApprovalRequestContext,
   AvailabilitySlot,
   EstimateRequestBody,
   EstimateResponse,
@@ -587,4 +590,59 @@ export async function initiatePayment(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+// ─── Hotel room-request reply loop (landr-em0r.9) ────────────────────────────
+
+/**
+ * Fetch the read-only context for a hotel reply link (landr-em0r.9).
+ * Backed by `GET /api/public/approval-requests/{token}` — this call is
+ * REQUIRED to be side-effect-free on the API side (SECURITY DEFINER RPC,
+ * STABLE): it mints nothing and records nothing. This is the ONLY call
+ * ApprovalReplyPage makes on mount — email pre-fetchers (Outlook Safe
+ * Links, Gmail) GET every link in an email, and a GET here must be
+ * indistinguishable from "nobody ever opened this" (epic section 4, layer
+ * 2). The `confirm_nonce` in the response is required by
+ * submitApprovalReply below and exists nowhere else a scanner could guess
+ * or replay it from (layer 3).
+ *
+ * No mock fallback — copy of the cancelBooking rationale (below): this
+ * surface is only reached by following an email link and never lands in
+ * the demo/mocks flow. If VITE_USE_MOCKS=1 we still hit the real API —
+ * there is no useful mock for "resolve a token that doesn't exist in mocks".
+ */
+export async function getApprovalRequest(
+  token: string,
+): Promise<ApprovalRequestContext> {
+  return http<ApprovalRequestContext>(
+    `/api/public/approval-requests/${encodeURIComponent(token)}`,
+  )
+}
+
+/**
+ * Submit (or correct) the hotel's answer (landr-em0r.9). Backed by
+ * `POST /api/public/approval-requests/{token}/response`. Called EXACTLY
+ * once per human click of the confirm button — never from an effect, never
+ * on mount (see getApprovalRequest above). `confirm_nonce` must come from
+ * the most recent getApprovalRequest response; the API replies 422
+ * `invalid_confirm_nonce` when it's stale (ApprovalReplyPage silently
+ * re-GETs and retries once — a receptionist leaving the page open >15 min
+ * is the common case, epic section 7) or `comment_required_for_changes`
+ * when a `confirmed_with_changes` decision arrives without one (the widget
+ * also disables the button client-side for this, belt and braces).
+ *
+ * No mock fallback — same reasoning as cancelBooking: this surface is only
+ * reached by following an email link and never lands in the demo/mocks flow.
+ */
+export async function submitApprovalReply(
+  token: string,
+  body: ApprovalReplyRequestBody,
+): Promise<ApprovalReplyResult> {
+  return http<ApprovalReplyResult>(
+    `/api/public/approval-requests/${encodeURIComponent(token)}/response`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
 }

@@ -923,3 +923,118 @@ export interface EstimateResponse {
   currency: string
   applied_rules: EstimateAppliedRule[]
 }
+
+// ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
+//
+// Hand-written, NOT sourced from src/types/api.gen.ts. This PR is built
+// against the epic's frozen HTTP contract (landr-em0r description, section
+// 7) before the API PR (landr-em0r.8) lands or is even mergeable — the same
+// house convention getBookingByToken/PublicBookingOffer already follows
+// (contracts/openapi.json only reflects what's on `main`, and using the
+// generated types here would make this PR depend on a router that doesn't
+// exist yet). W13 (landr-em0r.13) reconciles this against the real
+// generated schema once every worker has landed; until then this is the
+// source of truth for the widget side of the contract.
+
+/**
+ * Lifecycle state of a `booking_approval_requests` row, as returned by
+ * `GET /api/public/approval-requests/{token}`. `open` and `answered` both
+ * render the reply form (answered shows the recorded answer first, with a
+ * "Change my answer" affordance); the other four are read-only named
+ * terminal cards and NEVER a bare/opaque error.
+ */
+export type ApprovalRequestState =
+  | 'open'
+  | 'answered'
+  | 'closed_confirmed'
+  | 'closed_cancelled'
+  | 'superseded'
+  | 'expired'
+
+/**
+ * The hotel's answer. Maps 1:1 to the three reply-email buttons /
+ * `/reply/{token}/{intent}` URL segments: yes → confirmed,
+ * no → declined, changes → confirmed_with_changes.
+ */
+export type ApprovalDecision =
+  | 'confirmed'
+  | 'declined'
+  | 'confirmed_with_changes'
+
+/** Branding fields for the confirm page (epic decision g — branded per operator). */
+export interface ApprovalRequestOperator {
+  name: string
+  logo_url: string | null
+  primary_color: string | null
+  phone: string | null
+}
+
+export interface ApprovalRequestResponder {
+  location_name: string
+}
+
+export interface ApprovalRequestRoomLine {
+  qty: number
+  label: string
+}
+
+/** Allowlisted booking fields only — no prices, no customer PII (epic section 7). */
+export interface ApprovalRequestBooking {
+  reference: string
+  check_in: string
+  check_out: string
+  nights: number
+  guests_count: number
+  room_lines: ApprovalRequestRoomLine[]
+}
+
+/** The currently-recorded answer, present only when `state === 'answered'`. */
+export interface ApprovalRequestCurrentResponse {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  responded_at: string
+}
+
+/**
+ * `GET /api/public/approval-requests/{token}` response body. Read-only —
+ * fetching this must NEVER record anything (prefetcher-safety layer 2 of 4,
+ * epic section 4). `confirm_nonce` exists only in this body and is required
+ * by the POST below (prefetcher-safety layer 3).
+ */
+export interface ApprovalRequestContext {
+  state: ApprovalRequestState
+  can_respond: boolean
+  locale: string
+  request_ref: string
+  confirm_nonce: string
+  operator: ApprovalRequestOperator
+  responder: ApprovalRequestResponder
+  booking: ApprovalRequestBooking
+  current_response: ApprovalRequestCurrentResponse | null
+}
+
+/** `POST /api/public/approval-requests/{token}/response` request body. */
+export interface ApprovalReplyRequestBody {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  confirm_nonce: string
+}
+
+/**
+ * `POST /api/public/approval-requests/{token}/response` 200 response.
+ * `already_recorded: true` means the same decision + normalised comment was
+ * already on file — no new row, no duplicate notification (epic decision d).
+ * A 422 (`invalid_confirm_nonce` / `comment_required_for_changes`) throws an
+ * `HttpError` instead of resolving this type — see submitApprovalReply.
+ */
+export interface ApprovalReplyResult {
+  ok: boolean
+  state: ApprovalRequestState
+  decision: ApprovalDecision
+  recorded_at: string
+  already_recorded: boolean
+  booking_advanced: boolean
+  superseded_previous: boolean
+}
