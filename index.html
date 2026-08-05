@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- landr-em0r.9: the /reply/{token}/{intent} hotel-reply page (and
+         /cancel, /offer) must never be indexed, and outbound links from
+         those pages must never leak the current URL (which carries an
+         opaque token) via a Referer header. -->
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <title>Book — LANDR</title>
   </head>
   <body>
