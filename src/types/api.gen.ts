@@ -1289,6 +1289,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/approval-requests/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Approval Request Context
+         * @description Read-only context for the reply page. Records NOTHING.
+         *
+         *     Safe for any email prefetcher to hit: the resolve RPC is STABLE, the
+         *     confirm-nonce is a stateless HMAC, and the response carries no price, no
+         *     customer identity and no participant roster.
+         */
+        get: operations["public_get_approval_request"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/approval-requests/{token}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Approval Reply
+         * @description Record (or correct) the responder's answer. The ONLY write path.
+         *
+         *     Flow: shape check → rate limit (fail CLOSED) → resolve the token → verify
+         *     the confirm-nonce → validate the comment rule → record → advance the
+         *     booking iff a fresh ``confirmed`` arrived while the booking is still
+         *     parked in the approval stage → notify every operator member.
+         */
+        post: operations["public_record_approval_reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/bookings": {
         parameters: {
             query?: never;
@@ -1498,9 +1547,9 @@ export interface paths {
          *     'Track this booking in the LANDR app' prompt.
          *
          *     Mints a magic link via Supabase admin ``generate_link`` (Supabase sends
-         *     NO email) and delivers it through the OPERATOR'S Gmail + our branded
-         *     ``account_link`` template — so it never depends on a Supabase SMTP
-         *     config (which was the blocker). Gated on the operator's
+         *     NO email) and delivers it through the operator's configured sending domain
+         *     (or platform fallback) with our branded ``account_link`` template — so it
+         *     never depends on a Supabase SMTP config. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
          */
@@ -1837,7 +1886,10 @@ export interface paths {
          *       * 500             — GoTrue create failed, OR the RPC failed AFTER the auth
          *                           user was created (the auth user is then COMPENSATINGLY
          *                           deleted before responding), OR the verification email
-         *                           could not be dispatched (also compensated).
+         *                           could not even be ENQUEUED (also compensated). NOTE:
+         *                           the response 201s as soon as the email is queued —
+         *                           it no longer waits for the actual Resend/SES send
+         *                           (landr-csot; see module docstring).
          *
          *     NOTE (M1): an already-registered EMAIL does NOT yield a distinct error — it
          *     returns the same generic "verification_email_sent" body as a new signup, so
@@ -4109,7 +4161,9 @@ export interface paths {
          *
          *     `code` is uppercased to satisfy vouchers_code_uppercase_check and the
          *     .eq(UPPER(code)) pricing lookup (landr-hy5t). A duplicate code for the
-         *     same operator (among live rows) surfaces as 409.
+         *     same operator (among live rows) surfaces as 409. `applies_to_product_id`
+         *     / `campaign_id`, if supplied, must resolve to a live row on this
+         *     operator — a dangling or cross-operator id surfaces as 400.
          */
         post: operations["create_voucher"];
         delete?: never;
@@ -4143,6 +4197,11 @@ export interface paths {
         /**
          * Patch Voucher
          * @description Edit a voucher. Empty patch → 400. Cross-operator / missing → 404.
+         *
+         *     `applies_to_product_id` / `campaign_id`, if supplied and non-null, must
+         *     resolve to a live row on this operator — a dangling or cross-operator
+         *     id surfaces as 400. Explicitly patching either to null always passes
+         *     (clearing the scope needs no ownership check).
          */
         patch: operations["patch_voucher"];
         trace?: never;
@@ -4166,6 +4225,29 @@ export interface paths {
         get: operations["get_weather_forecast"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/widget-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Operator Widget Token
+         * @description Rotate `widget_token` and return the new value.
+         *
+         *     NOT idempotent — every call publishes a new token and invalidates the
+         *     previous one. `widget_preview_token` is never touched by this write.
+         */
+        post: operations["rotate_operator_widget_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4358,6 +4440,173 @@ export interface components {
             severity: string;
             /** User Id */
             user_id: string;
+        };
+        /**
+         * ApprovalReplyRequest
+         * @description `POST .../{token}/response` body.
+         *
+         *     ``extra="forbid"`` is load-bearing, not hygiene: it is the structural
+         *     guarantee that a token minted for booking A can never name booking B.
+         *     There is no `booking_id` / `operator_id` / `request_id` field here and an
+         *     unknown key is a 422, so the only booking this call can ever touch is the
+         *     one the token resolves to.
+         */
+        ApprovalReplyRequest: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Confirm Nonce
+             * @default
+             */
+            confirm_nonce: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Responder Name */
+            responder_name?: string | null;
+        };
+        /**
+         * ApprovalReplyResult
+         * @description `POST .../{token}/response` 200 body.
+         */
+        ApprovalReplyResult: {
+            /**
+             * Already Recorded
+             * @default false
+             */
+            already_recorded: boolean;
+            /**
+             * Booking Advanced
+             * @default false
+             */
+            booking_advanced: boolean;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Ok */
+            ok: boolean;
+            /**
+             * Recorded At
+             * @default
+             */
+            recorded_at: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "answered" | "expired" | "superseded" | "closed_confirmed" | "closed_cancelled";
+            /**
+             * Superseded Previous
+             * @default false
+             */
+            superseded_previous: boolean;
+        };
+        /**
+         * ApprovalRequestBooking
+         * @description Allowlisted fields ONLY. No price/total/balance, no customer name,
+         *     email or phone, no participant roster — the responder was asked about
+         *     rooms, so it learns about rooms and a head COUNT.
+         */
+        ApprovalRequestBooking: {
+            /**
+             * Check In
+             * @default
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * @default
+             */
+            check_out: string;
+            /**
+             * Guests Count
+             * @default 0
+             */
+            guests_count: number;
+            /**
+             * Nights
+             * @default 0
+             */
+            nights: number;
+            /** Reference */
+            reference: string;
+            /** Room Lines */
+            room_lines?: components["schemas"]["ApprovalRequestRoomLine"][];
+        };
+        /**
+         * ApprovalRequestContext
+         * @description `GET /api/public/approval-requests/{token}` 200 body.
+         *
+         *     Deliberately carries NO `request_id`, `booking_id` or `operator_id`:
+         *     the page needs none of them, and `request_ref` (the first 8 hex chars of
+         *     the request id) is enough for a human to quote on the phone.
+         */
+        ApprovalRequestContext: {
+            booking: components["schemas"]["ApprovalRequestBooking"];
+            /** Can Respond */
+            can_respond: boolean;
+            /** Confirm Nonce */
+            confirm_nonce: string;
+            current_response?: components["schemas"]["ApprovalRequestCurrentResponse"] | null;
+            /** Locale */
+            locale: string;
+            operator: components["schemas"]["ApprovalRequestOperator"];
+            /** Request Ref */
+            request_ref: string;
+            responder: components["schemas"]["ApprovalRequestResponder"];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "answered" | "expired" | "superseded" | "closed_confirmed" | "closed_cancelled";
+        };
+        /** ApprovalRequestCurrentResponse */
+        ApprovalRequestCurrentResponse: {
+            /** Comment */
+            comment?: string | null;
+            /** Decision */
+            decision: string;
+            /** Responded At */
+            responded_at: string;
+            /** Responder Name */
+            responder_name?: string | null;
+        };
+        /**
+         * ApprovalRequestOperator
+         * @description Public branding only — an unbranded card from an unrecognised domain
+         *     reads as phishing to a hotel and suppresses clicks (epic decision g).
+         */
+        ApprovalRequestOperator: {
+            /** Logo Url */
+            logo_url?: string | null;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Primary Color */
+            primary_color?: string | null;
+        };
+        /** ApprovalRequestResponder */
+        ApprovalRequestResponder: {
+            /**
+             * Location Name
+             * @default
+             */
+            location_name: string;
+        };
+        /** ApprovalRequestRoomLine */
+        ApprovalRequestRoomLine: {
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
         };
         /** ApproveIn */
         ApproveIn: {
@@ -6002,6 +6251,8 @@ export interface components {
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
+            /** Require Declarations */
+            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */
@@ -6026,6 +6277,8 @@ export interface components {
             weather_lon?: number | null;
             /** Weather Provider */
             weather_provider?: string | null;
+            /** Widget Catalog Layout */
+            widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
             /** Widget Description */
@@ -6074,6 +6327,10 @@ export interface components {
             images?: components["schemas"]["ProductImage"][];
             /** Name */
             name: string;
+            /** Next Window End */
+            next_window_end?: string | null;
+            /** Next Window Start */
+            next_window_start?: string | null;
             /** Price From */
             price_from?: string | null;
             /** Product Id */
@@ -6181,6 +6438,8 @@ export interface components {
             theme?: {
                 [key: string]: unknown;
             } | null;
+            /** Widget Catalog Layout */
+            widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
             /** Widget Description */
@@ -7008,7 +7267,7 @@ export interface components {
             id: string;
             /**
              * Sent Via
-             * @description 'gmail' | 'dev_fallback' | '' (empty on failure).
+             * @description 'operator_ses' | 'platform_fallback' | 'dev_fallback' | 'skipped_reserved' | '' (empty on failure).
              */
             sent_via: string;
             /**
@@ -7692,6 +7951,10 @@ export interface components {
             active: boolean;
             /** Amount */
             amount: number;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Code */
             code: string;
             /**
@@ -7724,6 +7987,10 @@ export interface components {
             active?: boolean | null;
             /** Amount */
             amount?: number | null;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Code */
             code?: string | null;
             /** Currency */
@@ -9660,6 +9927,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_approval_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalRequestContext"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_record_approval_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalReplyResult"];
                 };
             };
             /** @description Validation Error */
@@ -15895,6 +16228,39 @@ export interface operations {
                 /** @description ISO date YYYY-MM-DD to fetch the forecast for. */
                 date: string;
             };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_operator_widget_token: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 operator_id: string;

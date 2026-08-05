@@ -143,6 +143,333 @@
         "title": "AlertOut",
         "type": "object"
       },
+      "ApprovalReplyRequest": {
+        "additionalProperties": false,
+        "description": "`POST .../{token}/response` body.\n\n``extra=\"forbid\"`` is load-bearing, not hygiene: it is the structural\nguarantee that a token minted for booking A can never name booking B.\nThere is no `booking_id` / `operator_id` / `request_id` field here and an\nunknown key is a 422, so the only booking this call can ever touch is the\none the token resolves to.",
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "confirm_nonce": {
+            "default": "",
+            "maxLength": 256,
+            "minLength": 0,
+            "title": "Confirm Nonce",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "confirmed",
+              "declined",
+              "confirmed_with_changes"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "responder_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responder Name"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ApprovalReplyRequest",
+        "type": "object"
+      },
+      "ApprovalReplyResult": {
+        "description": "`POST .../{token}/response` 200 body.",
+        "properties": {
+          "already_recorded": {
+            "default": false,
+            "title": "Already Recorded",
+            "type": "boolean"
+          },
+          "booking_advanced": {
+            "default": false,
+            "title": "Booking Advanced",
+            "type": "boolean"
+          },
+          "decision": {
+            "enum": [
+              "confirmed",
+              "declined",
+              "confirmed_with_changes"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "recorded_at": {
+            "default": "",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "answered",
+              "expired",
+              "superseded",
+              "closed_confirmed",
+              "closed_cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "superseded_previous": {
+            "default": false,
+            "title": "Superseded Previous",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "state",
+          "decision"
+        ],
+        "title": "ApprovalReplyResult",
+        "type": "object"
+      },
+      "ApprovalRequestBooking": {
+        "description": "Allowlisted fields ONLY. No price/total/balance, no customer name,\nemail or phone, no participant roster \u2014 the responder was asked about\nrooms, so it learns about rooms and a head COUNT.",
+        "properties": {
+          "check_in": {
+            "default": "",
+            "title": "Check In",
+            "type": "string"
+          },
+          "check_out": {
+            "default": "",
+            "title": "Check Out",
+            "type": "string"
+          },
+          "guests_count": {
+            "default": 0,
+            "title": "Guests Count",
+            "type": "integer"
+          },
+          "nights": {
+            "default": 0,
+            "title": "Nights",
+            "type": "integer"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "room_lines": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRequestRoomLine"
+            },
+            "title": "Room Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "ApprovalRequestBooking",
+        "type": "object"
+      },
+      "ApprovalRequestContext": {
+        "description": "`GET /api/public/approval-requests/{token}` 200 body.\n\nDeliberately carries NO `request_id`, `booking_id` or `operator_id`:\nthe page needs none of them, and `request_ref` (the first 8 hex chars of\nthe request id) is enough for a human to quote on the phone.",
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/ApprovalRequestBooking"
+          },
+          "can_respond": {
+            "title": "Can Respond",
+            "type": "boolean"
+          },
+          "confirm_nonce": {
+            "title": "Confirm Nonce",
+            "type": "string"
+          },
+          "current_response": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalRequestCurrentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/ApprovalRequestOperator"
+          },
+          "request_ref": {
+            "title": "Request Ref",
+            "type": "string"
+          },
+          "responder": {
+            "$ref": "#/components/schemas/ApprovalRequestResponder"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "answered",
+              "expired",
+              "superseded",
+              "closed_confirmed",
+              "closed_cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "can_respond",
+          "locale",
+          "request_ref",
+          "confirm_nonce",
+          "operator",
+          "responder",
+          "booking"
+        ],
+        "title": "ApprovalRequestContext",
+        "type": "object"
+      },
+      "ApprovalRequestCurrentResponse": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "responded_at": {
+            "title": "Responded At",
+            "type": "string"
+          },
+          "responder_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responder Name"
+          }
+        },
+        "required": [
+          "decision",
+          "responded_at"
+        ],
+        "title": "ApprovalRequestCurrentResponse",
+        "type": "object"
+      },
+      "ApprovalRequestOperator": {
+        "description": "Public branding only \u2014 an unbranded card from an unrecognised domain\nreads as phishing to a hotel and suppresses clicks (epic decision g).",
+        "properties": {
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          }
+        },
+        "title": "ApprovalRequestOperator",
+        "type": "object"
+      },
+      "ApprovalRequestResponder": {
+        "properties": {
+          "location_name": {
+            "default": "",
+            "title": "Location Name",
+            "type": "string"
+          }
+        },
+        "title": "ApprovalRequestResponder",
+        "type": "object"
+      },
+      "ApprovalRequestRoomLine": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "qty",
+          "label"
+        ],
+        "title": "ApprovalRequestRoomLine",
+        "type": "object"
+      },
       "ApproveIn": {
         "properties": {
           "notes": {
@@ -5247,6 +5574,17 @@
             ],
             "title": "Region"
           },
+          "require_declarations": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Require Declarations"
+          },
           "show_premium_teasers": {
             "anyOf": [
               {
@@ -5381,6 +5719,18 @@
               }
             ],
             "title": "Weather Provider"
+          },
+          "widget_catalog_layout": {
+            "anyOf": [
+              {
+                "pattern": "^(categories|expanded)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Catalog Layout"
           },
           "widget_category_columns": {
             "anyOf": [
@@ -5590,6 +5940,30 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "next_window_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Window End"
+          },
+          "next_window_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Window Start"
           },
           "price_from": {
             "anyOf": [
@@ -5865,6 +6239,17 @@
               }
             ],
             "title": "Theme"
+          },
+          "widget_catalog_layout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Catalog Layout"
           },
           "widget_category_columns": {
             "anyOf": [
@@ -8433,7 +8818,7 @@
             "type": "string"
           },
           "sent_via": {
-            "description": "'gmail' | 'dev_fallback' | '' (empty on failure).",
+            "description": "'operator_ses' | 'platform_fallback' | 'dev_fallback' | 'skipped_reserved' | '' (empty on failure).",
             "title": "Sent Via",
             "type": "string"
           },
@@ -10071,6 +10456,28 @@
             "title": "Amount",
             "type": "number"
           },
+          "applies_to_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies To Product Id"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
           "code": {
             "maxLength": 64,
             "minLength": 1,
@@ -10177,6 +10584,28 @@
               }
             ],
             "title": "Amount"
+          },
+          "applies_to_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies To Product Id"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
           },
           "code": {
             "anyOf": [
@@ -13769,6 +14198,102 @@
         ]
       }
     },
+    "/api/public/approval-requests/{token}": {
+      "get": {
+        "description": "Read-only context for the reply page. Records NOTHING.\n\nSafe for any email prefetcher to hit: the resolve RPC is STABLE, the\nconfirm-nonce is a stateless HMAC, and the response carries no price, no\ncustomer identity and no participant roster.",
+        "operationId": "public_get_approval_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequestContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Approval Request Context",
+        "tags": [
+          "public-approval-replies"
+        ]
+      }
+    },
+    "/api/public/approval-requests/{token}/response": {
+      "post": {
+        "description": "Record (or correct) the responder's answer. The ONLY write path.\n\nFlow: shape check \u2192 rate limit (fail CLOSED) \u2192 resolve the token \u2192 verify\nthe confirm-nonce \u2192 validate the comment rule \u2192 record \u2192 advance the\nbooking iff a fresh ``confirmed`` arrived while the booking is still\nparked in the approval stage \u2192 notify every operator member.",
+        "operationId": "public_record_approval_reply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalReplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalReplyResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Approval Reply",
+        "tags": [
+          "public-approval-replies"
+        ]
+      }
+    },
     "/api/public/bookings": {
       "post": {
         "operationId": "submit_booking",
@@ -14238,7 +14763,7 @@
     },
     "/api/public/operators/{token}/account-link": {
       "post": {
-        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it through the OPERATOR'S Gmail + our branded\n``account_link`` template \u2014 so it never depends on a Supabase SMTP\nconfig (which was the blocker). Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
+        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it through the operator's configured sending domain\n(or platform fallback) with our branded ``account_link`` template \u2014 so it\nnever depends on a Supabase SMTP config. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
         "operationId": "request_account_link",
         "parameters": [
           {
@@ -14886,7 +15411,7 @@
     },
     "/api/public/signup": {
       "post": {
-        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not be dispatched (also compensated).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
+        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
         "operationId": "signup",
         "requestBody": {
           "content": {
@@ -24284,7 +24809,7 @@
         ]
       },
       "post": {
-        "description": "Create a voucher.\n\n`code` is uppercased to satisfy vouchers_code_uppercase_check and the\n.eq(UPPER(code)) pricing lookup (landr-hy5t). A duplicate code for the\nsame operator (among live rows) surfaces as 409.",
+        "description": "Create a voucher.\n\n`code` is uppercased to satisfy vouchers_code_uppercase_check and the\n.eq(UPPER(code)) pricing lookup (landr-hy5t). A duplicate code for the\nsame operator (among live rows) surfaces as 409. `applies_to_product_id`\n/ `campaign_id`, if supplied, must resolve to a live row on this\noperator \u2014 a dangling or cross-operator id surfaces as 400.",
         "operationId": "create_voucher",
         "parameters": [
           {
@@ -24403,7 +24928,7 @@
         ]
       },
       "patch": {
-        "description": "Edit a voucher. Empty patch \u2192 400. Cross-operator / missing \u2192 404.",
+        "description": "Edit a voucher. Empty patch \u2192 400. Cross-operator / missing \u2192 404.\n\n`applies_to_product_id` / `campaign_id`, if supplied and non-null, must\nresolve to a live row on this operator \u2014 a dangling or cross-operator\nid surfaces as 400. Explicitly patching either to null always passes\n(clearing the scope needs no ownership check).",
         "operationId": "patch_voucher",
         "parameters": [
           {
@@ -24529,6 +25054,56 @@
         "summary": "Get Weather Forecast",
         "tags": [
           "staff-operator-weather"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/widget-token": {
+      "post": {
+        "description": "Rotate `widget_token` and return the new value.\n\nNOT idempotent \u2014 every call publishes a new token and invalidates the\nprevious one. `widget_preview_token` is never touched by this write.",
+        "operationId": "rotate_operator_widget_token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rotate Operator Widget Token",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Operator Widget Token",
+        "tags": [
+          "staff-operator-widget-token"
         ]
       }
     },
