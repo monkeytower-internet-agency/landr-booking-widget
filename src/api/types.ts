@@ -926,15 +926,20 @@ export interface EstimateResponse {
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
 //
-// Hand-written, NOT sourced from src/types/api.gen.ts. This PR is built
+// Hand-written, NOT sourced from src/types/api.gen.ts. Originally built
 // against the epic's frozen HTTP contract (landr-em0r description, section
-// 7) before the API PR (landr-em0r.8) lands or is even mergeable — the same
-// house convention getBookingByToken/PublicBookingOffer already follows
-// (contracts/openapi.json only reflects what's on `main`, and using the
-// generated types here would make this PR depend on a router that doesn't
-// exist yet). W13 (landr-em0r.13) reconciles this against the real
-// generated schema once every worker has landed; until then this is the
-// source of truth for the widget side of the contract.
+// 7) before the API PR (landr-em0r.8) landed — the same house convention
+// getBookingByToken/PublicBookingOffer already follows.
+//
+// RECONCILED against the real generated schema in landr-em0r.13 (the router
+// merged in landr-em0r.8, commit 381026e). DECISION: kept hand-written —
+// see src/api/approvalReplyTypes.contract.test.ts for the field-by-field
+// compile-time proof and the one documented gap (`current_response.decision`
+// is typed as a bare `string` on the API side, not the shared
+// `ApprovalDecision` literal its two sibling `decision` fields use — DB
+// CHECK-constrained at runtime, but not schema-guaranteed; flagged as a
+// landr-api follow-up, not fixed here). Everything else below matches the
+// generated components["schemas"][...] shapes exactly.
 
 /**
  * Lifecycle state of a `booking_approval_requests` row, as returned by
