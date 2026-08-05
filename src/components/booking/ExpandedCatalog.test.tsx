@@ -309,7 +309,7 @@ describe('ExpandedCatalog — sold-out placement (landr-4a5j)', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('a group whose only product is sold-out is hidden when showSoldOut is off', async () => {
+  it('a group whose only product is sold-out is hidden when showSoldOut is off AND bookable_count is absent (fail-open, pre-landr-872c API)', async () => {
     mocks.listProducts.mockResolvedValue([
       makeProduct({
         product_id: 'b', slug: 'gone', name: 'Sold Out Product',
@@ -329,6 +329,109 @@ describe('ExpandedCatalog — sold-out placement (landr-4a5j)', () => {
       ).toBeInTheDocument(),
     )
     expect(screen.queryByText('Guiding')).not.toBeInTheDocument()
+  })
+})
+
+// landr-872c contract: show_sold_out (PER-PRODUCT) vs bookable_count
+// (PER-CATEGORY). See the table in ExpandedCatalog.tsx's doc comment.
+describe('ExpandedCatalog — landr-872c FULLY SOLD-OUT / MIXED / EMPTY contract', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+  })
+  afterEach(() => vi.clearAllMocks())
+
+  function soldOutFixture() {
+    return [
+      makeProduct({
+        product_id: 'a', slug: 'grounded-a', name: 'Grounded A',
+        group_slug: 'guiding', bookable: false,
+      }),
+      makeProduct({
+        product_id: 'b', slug: 'grounded-b', name: 'Grounded B',
+        group_slug: 'guiding', bookable: false,
+      }),
+    ]
+  }
+
+  it('FULLY SOLD-OUT (bookable_count=0): section renders with every product as a FullyBookedNotice card when show_sold_out=false', async () => {
+    mocks.listProducts.mockResolvedValue(soldOutFixture())
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ product_count: 2, bookable_count: 0 })]}
+        showSoldOut={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    // The section must NOT be hidden — this is the ONE behaviour change.
+    await waitFor(() => expect(screen.getByText('Guiding')).toBeInTheDocument())
+    const section = screen.getByTestId('catalog-section-products-guiding')
+    expect(section).toHaveTextContent('Grounded A')
+    expect(section).toHaveTextContent('Grounded B')
+    expect(screen.getAllByTestId('fully-booked-badge')).toHaveLength(2)
+    expect(
+      screen.queryByText('No products in this category.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('FULLY SOLD-OUT (bookable_count=0): section renders with every product as a FullyBookedNotice card when show_sold_out=true too', async () => {
+    mocks.listProducts.mockResolvedValue(soldOutFixture())
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ product_count: 2, bookable_count: 0 })]}
+        showSoldOut
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Guiding')).toBeInTheDocument())
+    const section = screen.getByTestId('catalog-section-products-guiding')
+    expect(section).toHaveTextContent('Grounded A')
+    expect(section).toHaveTextContent('Grounded B')
+    expect(screen.getAllByTestId('fully-booked-badge')).toHaveLength(2)
+  })
+
+  it('MIXED (bookable_count > 0, some sold out): show_sold_out governs the sold-out products exactly as before', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a', slug: 'open', name: 'Open Product',
+        group_slug: 'guiding', bookable: true,
+      }),
+      makeProduct({
+        product_id: 'b', slug: 'gone', name: 'Sold Out Product',
+        group_slug: 'guiding', bookable: false,
+      }),
+    ])
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ product_count: 2, bookable_count: 1 })]}
+        showSoldOut={false}
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Open Product')).toBeInTheDocument(),
+    )
+    // MIXED + show_sold_out=false: sold-out product hidden, bookable shown.
+    expect(screen.queryByText('Sold Out Product')).not.toBeInTheDocument()
+  })
+
+  it('EMPTY (product_count=0, bookable_count=0): stays hidden, unchanged', async () => {
+    mocks.listProducts.mockResolvedValue([])
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[makeGroup({ slug: 'siv', name: 'SIV', product_count: 0, bookable_count: 0 })]}
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText('No products in this category.'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByText('SIV')).not.toBeInTheDocument()
   })
 })
 

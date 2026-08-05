@@ -25,7 +25,25 @@
  * expanded layout stays visually consistent with the scoped list, and the
  * bookable/sold-out split from ProductList.tsx (bookable always shown;
  * sold-out shown as informational FullyBookedNotice cards only when
- * showSoldOut is true, split within each category section).
+ * showSoldOut is true, split within each category section) — EXCEPT for a
+ * FULLY SOLD-OUT category, which is always fully shown; see the contract
+ * table below (landr-872c).
+ *
+ * === landr-872c CONTRACT: show_sold_out (PER-PRODUCT) vs bookable_count
+ * (PER-CATEGORY) — two flags, two scopes, decided in bd landr-872c ===
+ *
+ *   MIXED category (some bookable, some not):
+ *     show_sold_out=false -> sold-out products hidden (unchanged)
+ *     show_sold_out=true  -> sold-out products as FullyBookedNotice cards
+ *                            (unchanged)
+ *   FULLY SOLD-OUT category (product_count > 0, bookable_count = 0):
+ *     BOTH states -> section RENDERS, every product as a FullyBookedNotice
+ *                    card. This is the ONE behaviour change — the
+ *                    alternative (hiding the section) is a dead end
+ *                    identical to what CategoryStep used to render.
+ *   EMPTY category (product_count = 0, e.g. staging's 'siv'):
+ *     BOTH states -> stays HIDDEN, unchanged. SCOPE GUARD: do not start
+ *                    rendering empty categories.
  */
 import { useEffect, useState } from 'react'
 import { explainFetchError, listProducts } from '@/api/client'
@@ -38,7 +56,7 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { showDateModelDetail } from '@/lib/tier'
-import { isBookable } from '@/components/booking/bookability'
+import { isBookable, isCategoryFullySoldOut } from '@/components/booking/bookability'
 import { FixedDateWindowChips } from '@/components/booking/FixedDateWindowChips'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductCard } from '@/components/booking/browse/ProductCard'
@@ -65,13 +83,25 @@ interface Props {
   onSelect: (product: Product) => void
 }
 
-/** A single group's products, split bookable-first then sold-out. */
+/**
+ * A single group's products, split bookable-first then sold-out.
+ *
+ * landr-872c: a FULLY SOLD-OUT group (isCategoryFullySoldOut — product_count
+ * > 0, bookable_count === 0) always returns EVERY product in the group, in
+ * BOTH show_sold_out states — see the contract table above. Every one of
+ * them will render as a FullyBookedNotice card below (none pass isBookable).
+ * A MIXED group keeps the existing bookable-always / sold-out-when-opted-in
+ * split.
+ */
 function visibleForGroup(
   products: Product[],
   group: ProductGroup,
   showSoldOut: boolean,
 ): Product[] {
   const inGroup = products.filter((p) => p.group_slug === group.slug)
+  if (isCategoryFullySoldOut(group)) {
+    return inGroup
+  }
   const bookable = inGroup.filter((p) => isBookable(p))
   const soldOut = showSoldOut ? inGroup.filter((p) => !isBookable(p)) : []
   return [...bookable, ...soldOut]
@@ -130,11 +160,16 @@ export function ExpandedCatalog({
     )
   }
 
-  // Non-empty = has at least one product to actually show, mirroring
-  // CategoryStep's `product_count > 0` tile-hiding rule (product_count is
-  // subtree-wide server-side; here we filter on the client's already-fetched
-  // visible set so a group whose only products are sold-out — and
-  // showSoldOut is off — is hidden exactly like an empty category tile).
+  // Non-empty = has at least one product to actually show. This does NOT
+  // mirror CategoryStep's product_count > 0 filter (a prior version of this
+  // comment claimed it did — that was wrong; CategoryStep's filter is
+  // product_count-only and would keep a fully sold-out group, whereas
+  // filtering on `visible` here used to drop it once none of its products
+  // passed isBookable). visibleForGroup() now special-cases the FULLY
+  // SOLD-OUT case to return every product in the group (see its doc
+  // comment), so `visible` is only empty for a genuinely EMPTY group
+  // (nothing fetched with that group_slug at all) — exactly the case this
+  // filter is meant to hide.
   const sections = groups
     .map((group) => ({
       group,

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ProductGroup } from '@/api/types'
@@ -334,5 +334,64 @@ describe('CategoryTile tile-style options (landr-jb1k.4)', () => {
     expect(scrim.className).toContain('from-black/70')
     const overlay = screen.getByText('Tandem Flights').closest('.absolute')
     expect(overlay?.className).toContain('text-white')
+  })
+})
+
+// landr-872c: a FULLY SOLD-OUT category (product_count > 0, bookable_count
+// === 0) renders as a disabled tile in every variant — never hidden, never
+// a normal clickable dead end.
+describe('CategoryTile — landr-872c FULLY SOLD-OUT disabled state', () => {
+  it.each(['aurora', 'summit', 'alpine'] as const)(
+    '%s: renders a disabled <button>, "Fully booked" badge, and never calls onPick',
+    (variant) => {
+      const onPick = vi.fn()
+      render(
+        <VariantProvider value={variant}>
+          <CategoryTile
+            group={makeGroup({ product_count: 3, bookable_count: 0 })}
+            locale="en"
+            onPick={onPick}
+          />
+        </VariantProvider>,
+      )
+      const tile = screen.getByTestId('category-btn-tandem')
+      expect(tile).toBeDisabled()
+
+      const badge = screen.getByTestId('fully-booked-badge')
+      expect(badge).toHaveTextContent('Fully booked')
+      // The normal count-chip testid must NOT also be present.
+      expect(screen.queryByTestId('category-count-chip')).not.toBeInTheDocument()
+
+      fireEvent.click(tile)
+      expect(onPick).not.toHaveBeenCalled()
+    },
+  )
+
+  it('a MIXED category (some bookable) stays a normal, enabled, clickable tile', () => {
+    const onPick = vi.fn()
+    render(
+      <CategoryTile
+        group={makeGroup({ product_count: 3, bookable_count: 1 })}
+        locale="en"
+        onPick={onPick}
+      />,
+    )
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile).not.toBeDisabled()
+    expect(screen.getByTestId('category-count-chip')).toHaveTextContent('3 offers')
+    fireEvent.click(tile)
+    expect(onPick).toHaveBeenCalledTimes(1)
+  })
+
+  it('FAILS OPEN on an absent bookable_count (predates the field) — stays enabled', () => {
+    const onPick = vi.fn()
+    const group = makeGroup({ product_count: 3 })
+    delete (group as { bookable_count?: number }).bookable_count
+    render(<CategoryTile group={group} locale="en" onPick={onPick} />)
+    const tile = screen.getByTestId('category-btn-tandem')
+    expect(tile).not.toBeDisabled()
+    expect(screen.getByTestId('category-count-chip')).toHaveTextContent('3 offers')
+    fireEvent.click(tile)
+    expect(onPick).toHaveBeenCalledTimes(1)
   })
 })
