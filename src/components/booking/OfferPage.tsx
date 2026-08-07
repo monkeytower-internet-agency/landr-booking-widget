@@ -33,6 +33,12 @@ import { formatCurrency } from './accommodationCalc'
  * the offer again. A separate cancel_url (?paid=cancelled) lets them
  * return here from the Stripe "go back" link.
  *
+ * landr-esd3: added mode="pay", rendered at /pay/{token} by the
+ * booking_payment_link email (a booking already sitting at
+ * awaiting_payment with balance_due > 0). Only the copy differs from the
+ * default "offer" mode — the fetch, totals table, initiatePayment call,
+ * and ?paid=1 / ?paid=cancelled return states are all reused untouched.
+ *
  * States:
  *   'loading'    — fetching the offer from the API
  *   'ready'      — offer loaded, customer can review + pay
@@ -54,6 +60,10 @@ type Status =
 
 interface Props {
   token: string
+  // landr-esd3: 'pay' renders the same page for /pay/{token} (booking
+  // already awaiting_payment) with payment-flavored copy. Defaults to the
+  // original 'offer' (custom-offer accept-and-pay) copy.
+  mode?: 'offer' | 'pay'
 }
 
 function _returnBase(): string {
@@ -61,7 +71,7 @@ function _returnBase(): string {
   return `${window.location.origin}${window.location.pathname}`
 }
 
-export function OfferPage({ token }: Props) {
+export function OfferPage({ token, mode = 'offer' }: Props) {
   // Detect if Stripe redirected back to this page.
   const paidParam =
     typeof window !== 'undefined'
@@ -175,7 +185,10 @@ export function OfferPage({ token }: Props) {
     return (
       <Card data-testid="offer-error">
         <CardHeader>
-          <CardTitle>Offer not found</CardTitle>
+          {/* landr-esd3 */}
+          <CardTitle>
+            {mode === 'pay' ? 'Payment link not found' : 'Offer not found'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
@@ -232,10 +245,15 @@ export function OfferPage({ token }: Props) {
   return (
     <Card data-testid="offer-ready">
       <CardHeader>
-        <CardTitle>Your custom offer</CardTitle>
+        {/* landr-esd3: pay mode swaps the title/description copy only —
+            everything below (totals table, CTA, initiatePayment) is shared. */}
+        <CardTitle>
+          {mode === 'pay' ? 'Complete your payment' : 'Your custom offer'}
+        </CardTitle>
         <CardDescription>
-          Review the details below and click Accept &amp; Pay to confirm your
-          booking.
+          {mode === 'pay'
+            ? 'Your booking is confirmed. Pay the outstanding balance below to secure it.'
+            : 'Review the details below and click Accept & Pay to confirm your booking.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -339,11 +357,17 @@ export function OfferPage({ token }: Props) {
           disabled={busy}
           data-testid="offer-accept-pay-btn"
         >
-          {busy ? 'Redirecting to payment…' : 'Accept & Pay'}
+          {busy
+            ? 'Redirecting to payment…'
+            : mode === 'pay'
+              ? 'Pay now'
+              : 'Accept & Pay'}
         </Button>
 
         <p className="text-xs text-muted-foreground">
-          This offer link is personal. Do not share it.
+          {mode === 'pay'
+            ? 'This payment link is personal. Do not share it.'
+            : 'This offer link is personal. Do not share it.'}
         </p>
       </CardContent>
     </Card>
