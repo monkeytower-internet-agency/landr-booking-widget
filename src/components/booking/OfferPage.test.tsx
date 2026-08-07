@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { formatCurrency } from './accommodationCalc'
 import { OfferPage } from './OfferPage'
 
 // ─── Mock API ────────────────────────────────────────────────────────────────
@@ -268,5 +269,113 @@ describe('OfferPage', () => {
     )
 
     expect(screen.queryByTestId('offer-balance-due')).not.toBeInTheDocument()
+  })
+
+  // ── landr-esd3: mode="pay" (rendered at /pay/{token}) ──────────────────────
+  describe('mode="pay"', () => {
+    const payOffer = {
+      ...OFFER,
+      totals: {
+        ...OFFER.totals,
+        balance_due: 1120.0, // less than gross_total = 1190, per the ticket's reference booking
+      },
+    }
+
+    it('renders the payment title and the balance-due amount', async () => {
+      mocks.getBookingByToken.mockResolvedValue(payOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText(/complete your payment/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /^pay now$/i }),
+      ).toBeEnabled()
+      const balanceDue = screen.getByTestId('offer-balance-due')
+      expect(balanceDue).toBeInTheDocument()
+      expect(balanceDue).toHaveTextContent(formatCurrency(1120.0, 'EUR'))
+    })
+
+    it('shows the payment-link-not-found copy on fetch error', async () => {
+      mocks.getBookingByToken.mockRejectedValue(new Error('403 Forbidden'))
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-error')).toBeInTheDocument()
+      })
+      expect(screen.getByText(/payment link not found/i)).toBeInTheDocument()
+    })
+
+    it('shows the personal-payment-link copy', async () => {
+      mocks.getBookingByToken.mockResolvedValue(payOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+      expect(
+        screen.getByText(/this payment link is personal/i),
+      ).toBeInTheDocument()
+    })
+
+    it('clicking Pay now calls initiatePayment with the token and both redirect URLs', async () => {
+      mocks.getBookingByToken.mockResolvedValue(payOffer)
+      mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+
+      let navigatedTo = ''
+      Object.defineProperty(window.location, 'href', {
+        configurable: true,
+        set(v: string) {
+          navigatedTo = v
+        },
+        get() {
+          return `http://stub.invalid/pay/${TOKEN}`
+        },
+      })
+
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /^pay now$/i }))
+
+      // Busy label is shared with 'offer' mode — unchanged in pay mode.
+      expect(
+        screen.getByRole('button', { name: /redirecting to payment/i }),
+      ).toBeDisabled()
+
+      await waitFor(() => {
+        expect(mocks.initiatePayment).toHaveBeenCalledOnce()
+      })
+      const call = mocks.initiatePayment.mock.calls[0][0] as {
+        booking_token: string
+        return_url: string
+        cancel_url: string
+      }
+      expect(call.booking_token).toBe(TOKEN)
+      expect(call.return_url).toContain('paid=1')
+      expect(call.cancel_url).toContain('paid=cancelled')
+      expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+    })
+
+    it('mode omitted keeps every existing "offer" assertion green', async () => {
+      // Sanity check that the default param didn't change default behavior:
+      // same as the very first "renders the offer details" test above.
+      mocks.getBookingByToken.mockResolvedValue(OFFER)
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText(/your custom offer/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /accept & pay/i })).toBeEnabled()
+      expect(
+        screen.getByText(/this offer link is personal/i),
+      ).toBeInTheDocument()
+    })
   })
 })

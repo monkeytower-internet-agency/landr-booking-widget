@@ -16,6 +16,8 @@ import { detectRoute } from './detectRoute'
  * landr-em0r.9: added /reply/{token}/{intent} tests. The intent segment is
  * optional and a pre-selection only, so both /reply/{token} and
  * /reply/{token}/{yes|no|changes} are valid routes.
+ *
+ * landr-esd3: added /pay/{token} tests for the booking_payment_link route.
  */
 describe('detectRoute', () => {
   it('returns cancel for /cancel/{uuid}', () => {
@@ -156,6 +158,29 @@ describe('detectRoute', () => {
       token,
       intent: 'yes',
     })
+  })
+
+  // ── landr-esd3: /pay/{token} ───────────────────────────────────────────
+  it('returns pay for /pay/{token}', () => {
+    expect(detectRoute('/pay/abc.123.def')).toEqual({
+      kind: 'pay',
+      token: 'abc.123.def',
+    })
+  })
+
+  it('returns pay for /pay/{token} with trailing slash', () => {
+    expect(detectRoute('/pay/abc.123.def/')).toEqual({
+      kind: 'pay',
+      token: 'abc.123.def',
+    })
+  })
+
+  it('returns booking for /pay without a token', () => {
+    expect(detectRoute('/pay')).toEqual({ kind: 'booking' })
+  })
+
+  it('returns booking for /paying (prefix collision)', () => {
+    expect(detectRoute('/paying')).toEqual({ kind: 'booking' })
   })
 
   it('does not regress /cancel/{uuid} or /offer/{token} routing', () => {
