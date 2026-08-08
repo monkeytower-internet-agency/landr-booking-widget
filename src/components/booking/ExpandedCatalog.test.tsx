@@ -463,7 +463,9 @@ describe('ExpandedCatalog — date-window chips (landr-4a5j)', () => {
     await waitFor(() =>
       expect(screen.getByText('SIV Course')).toBeInTheDocument(),
     )
-    expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('a')
+    await waitFor(() =>
+      expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('a'),
+    )
     const chips = await waitFor(() =>
       screen.getByTestId('product-date-chips-siv-course'),
     )
