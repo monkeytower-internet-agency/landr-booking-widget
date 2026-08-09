@@ -291,6 +291,35 @@ export async function getFixedDateWindows(
 }
 
 /**
+ * Staff-mode variant of getFixedDateWindows (landr-r2o8). The public RPC
+ * above (public_get_product_fixed_date_windows, landr-drh) WHERE-clauses out
+ * any window where capacity_reserved >= capacity in EVERY mode, including
+ * staff — so FixedDateWindowPicker's force-book branch (landr-aoak.2 [S3])
+ * had no full/overbooked window to ever render for fixed-date-window
+ * products: the public RPC hid it before the branch could run.
+ *
+ * Backed by GET /api/staff/operators/{operator_id}/products/{product_id}/
+ * fixed-date-window-availability?staff_session=<token> — a staff_session-
+ * gated FastAPI route (landr-r2o8 api half) that requires the force_book
+ * power and returns the SAME shape MINUS the capacity filter. Called ONLY
+ * when FixedDateWindowPicker has resolved canForce (staff.active AND the
+ * force_book power AND a decoded operatorId) — every other caller (normal
+ * customer mode, catalogue chips) keeps using getFixedDateWindows unchanged,
+ * so the byte-identical-with-no-session invariant holds.
+ */
+export async function getStaffFixedDateWindows(
+  operatorId: string,
+  productId: string,
+  staffSessionToken: string,
+): Promise<FixedDateWindow[]> {
+  if (mocksEnabled()) return mockFixedDateWindows()
+  const qs = new URLSearchParams({ staff_session: staffSessionToken })
+  return http<FixedDateWindow[]>(
+    `/api/staff/operators/${encodeURIComponent(operatorId)}/products/${encodeURIComponent(productId)}/fixed-date-window-availability?${qs}`,
+  )
+}
+
+/**
  * Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
  * Backed by GET /api/public/products/{id}/addons → SECURITY DEFINER RPC
  * public_get_product_addons. Returns an empty array when the parent has
