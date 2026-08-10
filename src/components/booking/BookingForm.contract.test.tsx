@@ -530,6 +530,87 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(companions[0]).not.toHaveProperty('service_role_code')
   })
 
+  // landr-6stj: PINNED wire contract — a 'slot' selection (AvailabilityPicker
+  // / FixedDateWindowPicker) carries the exact product_availability row the
+  // customer clicked as slot.availability_id; the primary service line must
+  // forward it as product_availability_id so the API can persist it instead
+  // of leaving booking_products.product_availability_id NULL forever.
+  it('forwards slot.availability_id as product_availability_id on the primary service line for a slot selection', async () => {
+    const SLOT_SELECTION: BookingSelection = {
+      kind: 'slot',
+      slot: {
+        availability_id: 'avail-123',
+        date: '2026-06-10',
+        start_time: '09:00:00',
+        end_time: '11:00:00',
+        capacity: 10,
+        capacity_reserved: 2,
+        available_seats: 8,
+        status: 'open',
+      },
+    }
+
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SLOT_SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'room-deluxe', quantity: 1 }]}
+        addons={[{ productId: 'breakfast-1', quantity: 1 }]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    const products = body.products as Array<Record<string, unknown>>
+
+    // Primary service line carries the picked availability row.
+    expect(products[0]).toMatchObject({
+      product_id: 'svc-main',
+      product_availability_id: 'avail-123',
+    })
+
+    // Non-primary lines (rooms/addons span the whole stay, not one slot)
+    // must NOT carry the field.
+    expect(products[1]).not.toHaveProperty('product_availability_id')
+    expect(products[2]).not.toHaveProperty('product_availability_id')
+  })
+
+  it('omits product_availability_id for a days-range selection (no single slot to attach)', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products[0]).not.toHaveProperty('product_availability_id')
+  })
+
   it('omits the companions field entirely when there are no companions', async () => {
     render(
       <BookingForm
