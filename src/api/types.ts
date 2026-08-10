@@ -675,6 +675,15 @@ export interface ProductLine {
   date_range_start?: string | null
   date_range_end?: string | null
   selected_days?: string[] | null
+  /**
+   * landr-6stj: the exact product_availability row the customer picked in
+   * AvailabilityPicker/FixedDateWindowPicker (AvailabilitySlot.availability_id).
+   * Optional — only the primary service ProductLine for a 'slot' selection
+   * sets this; server-side it stays NULL when omitted (no auto-resolution,
+   * since a date can map to more than one time_slot). PINNED wire contract
+   * — landr-ax1c on the API persists this verbatim when present.
+   */
+  product_availability_id?: string | null
 }
 
 export interface SubmitBookingBody {

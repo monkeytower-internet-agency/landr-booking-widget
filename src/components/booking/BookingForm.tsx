@@ -504,6 +504,16 @@ export function BookingForm({
           product_id: product.product_id,
           quantity: 1,
           selected_days: selectedDaysForSubmit,
+          // landr-6stj: forward the exact product_availability row the
+          // customer clicked (AvailabilityPicker/FixedDateWindowPicker both
+          // populate slot.availability_id) so the RPC can persist it instead
+          // of leaving booking_products.product_availability_id NULL. Only
+          // the primary service line carries a single time slot — the
+          // accommodationRooms/addons lines below span the whole stay and
+          // have no one availability row to attach.
+          ...(selection.kind === 'slot'
+            ? { product_availability_id: selection.slot.availability_id }
+            : {}),
         },
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
           product_id: room.productId,
