@@ -701,6 +701,34 @@ describe('App', () => {
         expect(screen.getByTestId('shop-coming-soon-stub')).toBeInTheDocument()
       })
     })
+
+    // landr-1kk.5: subscription is the one non-service kind that gets a
+    // real checkout CTA instead of the stub — the deferred slice of
+    // landr-c3t (ShopComingSoonStub's own comment used to list it under
+    // "no code change needed there [for c3t]").
+    it('product_kind=subscription → MembershipCheckoutStep, NOT ShopComingSoonStub', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'sub-1',
+          product_kind: 'subscription',
+          service_time_shape: null,
+          name: 'On-Air Card',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('On-Air Card')
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('membership-checkout-form'),
+        ).toBeInTheDocument()
+      })
+      expect(
+        screen.queryByTestId('shop-coming-soon-stub'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /become a member/i }),
+      ).toBeInTheDocument()
+    })
   })
 
   describe('details step (landr-8c03, replacing landr-mbge participants count)', () => {
@@ -2812,6 +2840,47 @@ describe('App', () => {
       })
       expect(
         document.querySelector('input[name="booker_first_name"]'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // landr-1kk.5: Stripe redirects back to the widget's OWN base URL
+  // (?w=…&member=1/cancelled) rather than a token-addressed path, so this
+  // branches on a query param instead of `detectRoute`'s pathname — mirrors
+  // the cancel/offer/pay/reply route tests above, just for a query-param
+  // "route".
+  describe('membership checkout return (?member=, landr-1kk.5)', () => {
+    it('renders MembershipReturnPage(success) on ?member=1 without fetching operator/product data', () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=1`)
+      render(<App />)
+      expect(
+        screen.getByTestId('membership-return-success'),
+      ).toBeInTheDocument()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+      expect(mocks.listProducts).not.toHaveBeenCalled()
+    })
+
+    it('renders MembershipReturnPage(cancelled) on ?member=cancelled', () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=cancelled`)
+      render(<App />)
+      expect(
+        screen.getByTestId('membership-return-cancelled'),
+      ).toBeInTheDocument()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+    })
+
+    it('an unrecognised ?member= value falls through to the normal booking flow', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=bogus`)
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      })
+      expect(
+        screen.queryByTestId('membership-return-success'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('membership-return-cancelled'),
       ).not.toBeInTheDocument()
     })
   })

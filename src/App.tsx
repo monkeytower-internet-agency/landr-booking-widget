@@ -31,6 +31,8 @@ import type {
 } from '@/components/booking/detailsTypes'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
+import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
+import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
@@ -207,6 +209,34 @@ function App() {
           <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
+  // landr-1kk.5: Stripe redirected back from the membership checkout
+  // ("become a member") flow. This is a QUERY param, not a path (the
+  // customer never left the widget's base URL), so it can't be part of
+  // `detectRoute` — it coexists with `?w=`/`?product=`. Checked here,
+  // before BookingFlowApp mounts, so we never re-fetch operator/product
+  // data just to show a redirect confirmation. Mirrors OfferPage's
+  // `?paid=1` / `?paid=cancelled` pair exactly, just query-flagged
+  // `member=` instead of `paid=` since this isn't a token-addressed page.
+  const memberParam =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('member')
+      : null
+  if (memberParam === '1' || memberParam === 'cancelled') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+              <MembershipReturnPage
+                status={memberParam === '1' ? 'success' : 'cancelled'}
+              />
             </div>
           </div>
         </StaffModeProvider>
@@ -1389,16 +1419,30 @@ function BookingFlowApp() {
 
         {/*
           Step machine branching (landr-y9k). First branch is product_kind:
-          non-service kinds (digital_good, physical_good, gift_card) render
-          the ShopComingSoonStub since the booking widget doesn't take
-          checkout for shop kinds yet. For services, branch on
+          non-service, non-subscription kinds (digital_good, physical_good,
+          gift_card) render the ShopComingSoonStub since the booking widget
+          doesn't take checkout for shop kinds yet. subscription is the one
+          exception (landr-1kk.5) — it gets a real checkout CTA, branched
+          separately just below. For services, branch on
           service_time_shape to pick the right picker; MultiDayPicker also
           consumes product.is_contiguous to switch between any-day-toggle
           and consecutive-only modes.
         */}
         {step.name === 'pick-selection' &&
-        step.product.product_kind !== 'service' ? (
+        step.product.product_kind !== 'service' &&
+        step.product.product_kind !== 'subscription' ? (
           <ShopComingSoonStub product={step.product} onBack={goToProductStep} />
+        ) : null}
+
+        {/* landr-1kk.5: "become a member" Stripe checkout for
+            product_kind='subscription' — the deferred slice of landr-c3t. */}
+        {step.name === 'pick-selection' &&
+        step.product.product_kind === 'subscription' ? (
+          <MembershipCheckoutStep
+            product={step.product}
+            onBack={goToProductStep}
+            widgetToken={token!}
+          />
         ) : null}
 
         {step.name === 'pick-selection' &&

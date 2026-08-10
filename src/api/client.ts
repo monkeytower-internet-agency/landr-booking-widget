@@ -621,6 +621,64 @@ export async function initiatePayment(
   })
 }
 
+/**
+ * Request body for POST /api/public/subscriptions/checkout (landr-1kk.5).
+ *
+ * Kept structurally in step with the generated
+ * `components['schemas']['SubscriptionCheckoutIn']`, asserted at COMPILE time by
+ * `src/api/subscriptionCheckoutTypes.contract.test.ts` (the house pattern —
+ * see approvalReplyTypes.contract.test.ts), so a landr-api change to the
+ * endpoint breaks `npm run typecheck` rather than failing at runtime.
+ * Hand-written (rather than
+ * aliasing the generated type) for the same reason every other request type in
+ * this file is: openapi-typescript marks a field optional whenever the Pydantic
+ * model gives it a default, which would push `?? ''` into every call site.
+ */
+export interface SubscriptionCheckoutRequest {
+  widget_token: string
+  product_id: string
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+  return_url: string
+  cancel_url: string
+}
+
+/**
+ * Response from POST /api/public/subscriptions/checkout.
+ *
+ * The endpoint's response_model is an open `dict`, so the generated schema is
+ * only `{ [k: string]: unknown }` — these are the two keys landr-api
+ * documents and returns (`app/routers/public_subscriptions.py`).
+ * `checkout_session_id` is returned for landr-1kk.5's post-redirect poll, which
+ * is out of scope here; keep it typed so adopting it later is additive.
+ */
+export interface SubscriptionCheckoutResponse {
+  checkout_url: string
+  checkout_session_id: string
+}
+
+/**
+ * Kick off a Stripe Checkout session for an operator's MEMBERSHIP product
+ * (product_kind='subscription') — landr-1kk.5.
+ *
+ * Mirrors `initiatePayment` deliberately: same `http()` transport, same
+ * caller-redirects-to-`checkout_url` contract. The API side also reuses the
+ * same open-redirect allowlist (`validate_redirect_url`), so `return_url` /
+ * `cancel_url` must be on the operator's configured origins or the call 400s.
+ *
+ * No mock fallback: this hits a third party's live Stripe account, so a
+ * fabricated success would be actively misleading in mock mode.
+ */
+export async function initiateSubscriptionCheckout(
+  body: SubscriptionCheckoutRequest,
+): Promise<SubscriptionCheckoutResponse> {
+  return http<SubscriptionCheckoutResponse>(
+    '/api/public/subscriptions/checkout',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
 // ─── Hotel room-request reply loop (landr-em0r.9) ────────────────────────────
 
 /**
