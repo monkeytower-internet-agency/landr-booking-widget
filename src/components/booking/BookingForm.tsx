@@ -195,6 +195,18 @@ interface Props {
    * byte-identical to the pre-71kz path. Optional for backward compat.
    */
   formResponses?: import('@/api/flowTypes').FormResponseEntry[]
+  /**
+   * landr-fn4i / landr-5krc: the one-time subscription-perk code the
+   * customer typed into DetailsStep's optional inline field, lifted live
+   * into App.tsx's top-level state (NOT threaded through the Step union —
+   * unlike booker/participants it only ever matters at this final submit,
+   * and its 5-minute TTL makes full back-nav round-tripping pointless).
+   * Trimmed and sent as `member_perk_otp` when non-empty; omitted otherwise
+   * so the payload stays byte-identical to the pre-fn4i shape for a booking
+   * with no code entered. Wrong/expired/spent/absent all price at list —
+   * never a 4xx — so an empty/undefined value here is always safe.
+   */
+  memberPerkOtp?: string
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -303,6 +315,7 @@ export function BookingForm({
   roomProductNames,
   breakfastMap = {},
   formResponses,
+  memberPerkOtp,
   onBack,
   onConfirmed,
 }: Props) {
@@ -660,6 +673,14 @@ export function BookingForm({
         // Server prunes again for defence-in-depth (landr-9ut4 lesson).
         ...(formResponses && formResponses.length > 0
           ? { form_responses: formResponses }
+          : {}),
+        // landr-fn4i / landr-5krc: only sent when the customer actually typed
+        // a code — omitted (not even an empty string) so a booking with no
+        // code entered is byte-identical to the pre-fn4i submit body. The API
+        // treats a wrong/expired/spent code the same as an absent one (list
+        // price, never a 4xx), so trimming here is purely payload hygiene.
+        ...(memberPerkOtp && memberPerkOtp.trim() !== ''
+          ? { member_perk_otp: memberPerkOtp.trim() }
           : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and

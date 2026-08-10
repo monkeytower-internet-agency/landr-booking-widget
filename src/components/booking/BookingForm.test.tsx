@@ -604,6 +604,97 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(body.participants[1]!.last_name).toBe('Hopper')
   })
 
+  // landr-fn4i / landr-5krc: the optional member-perk code, lifted from
+  // DetailsStep via App.tsx's top-level state, must ride as `member_perk_otp`
+  // on submit when present — and be OMITTED entirely (not even an empty
+  // string) when absent, so a booking with no code entered is byte-identical
+  // to the pre-fn4i submit body.
+  it('forwards a non-empty memberPerkOtp as member_perk_otp on submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-1',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        memberPerkOtp="123456"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.member_perk_otp).toBe('123456')
+  })
+
+  it('omits member_perk_otp entirely when no code was entered (undefined, empty, or whitespace-only)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-2',
+      semantic_state: 'pending',
+    })
+    for (const memberPerkOtp of [undefined, '', '   ']) {
+      submitMock.mockClear()
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          memberPerkOtp={memberPerkOtp}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      await act(async () => {
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /Confirm booking/i }).at(-1)!,
+        )
+      })
+      await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+      const body = submitMock.mock.calls[0]![0]
+      expect(body).not.toHaveProperty('member_perk_otp')
+    }
+  })
+
+  it('trims surrounding whitespace off a member-perk code before submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-3',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        memberPerkOtp="  654321  "
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.member_perk_otp).toBe('654321')
+  })
+
   it('forwards per-participant phone on submit (landr-zaan)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({

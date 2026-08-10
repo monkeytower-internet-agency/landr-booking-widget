@@ -20,6 +20,9 @@ const { mocks } = vi.hoisted(() => ({
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     listLocations: vi.fn(),
     submitBooking: vi.fn(),
+    // landr-fn4i / landr-5krc: default {ok:true} so DetailsStep's email-blur
+    // handler never hits the real (unconfigured-in-tests) network path.
+    requestSubscriptionPerkOtp: vi.fn(),
     // landr-87n9: hotel-flow + price-estimate mocks for the at-hotel
     // back-nav + live-total tests.
     getHotelsForOperator: vi.fn(),
@@ -48,6 +51,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getFixedDateWindows: mocks.getFixedDateWindows,
     listLocations: mocks.listLocations,
     submitBooking: mocks.submitBooking,
+    requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
     getProductAddons: mocks.getProductAddons,
@@ -162,6 +166,10 @@ describe('App', () => {
     mocks.getHotelsForOperator.mockResolvedValue([])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
     mocks.getProductAddons.mockResolvedValue([])
+    // landr-fn4i / landr-5krc: always answers 202 {ok:true} by contract —
+    // see requestSubscriptionPerkOtp's doc for why no test should ever need
+    // a different value here.
+    mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
     // landr-71kz.10: default to no remote flow → legacy plan → no custom-form /
     // declarations step. Tests that exercise the data path override this.
     mocks.getProductFlow.mockResolvedValue({ modules: null })
@@ -922,6 +930,110 @@ describe('App', () => {
       expect(value('participant_2_last_name')).toBe('Hopper')
       // landr-nkbi: phone round-trips through back-nav.
       expect(value('participant_2_phone')).toBe('+34600000002')
+    })
+
+    // landr-fn4i / landr-5krc (widget half of landr-5krc): end-to-end —
+    // blurring the checkout email fires the OTP request, the optional code
+    // field appears, and a typed code rides through App.tsx's top-level lift
+    // (NOT the Step union — see BookingForm's memberPerkOtp doc) all the way
+    // to the final submitBooking call as `member_perk_otp`. Also proves the
+    // Back-then-forward round-trip: the code re-appears on DetailsStep
+    // without re-firing the OTP request, and still reaches submit.
+    it('threads the member-perk OTP code from DetailsStep through to the submit body, surviving a Back round-trip', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-fn4i-e2e',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      // The OTP request fires on the email's blur, not on every keystroke.
+      fireEvent.blur(
+        document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
+      )
+      await waitFor(() =>
+        expect(mocks.requestSubscriptionPerkOtp).toHaveBeenCalledWith(
+          MOCK_TOKEN,
+          'ada@example.com',
+        ),
+      )
+      const codeInput = await screen.findByTestId('member-perk-otp-input')
+      fireEvent.change(codeInput, { target: { value: '123456' } })
+
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Back to DetailsStep: the code re-appears (top-level App state, not
+      // wiped by the remount) and the OTP request is NOT fired again for an
+      // unchanged email.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const restoredCode = await screen.findByTestId('member-perk-otp-input')
+      expect(restoredCode).toHaveValue('123456')
+      expect(mocks.requestSubscriptionPerkOtp).toHaveBeenCalledTimes(1)
+
+      // Forward again without retyping anything, then Confirm.
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() =>
+        expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
+      )
+      const body = mocks.submitBooking.mock.calls[0]![0]
+      expect(body.member_perk_otp).toBe('123456')
     })
   })
 
