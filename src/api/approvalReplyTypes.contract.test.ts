@@ -30,21 +30,23 @@
  *      hand-written type with ZERO casts.
  *   2. The two shared literal unions (ApprovalRequestState, ApprovalDecision)
  *      are the exact same member sets as the generated unions.
- *   3. The ONE known, deliberate gap: `ApprovalRequestCurrentResponse.decision`
- *      is typed as a bare `string` in the generated schema (landr-api
- *      app/routers/public_approval_replies.py:191), NOT via the shared
- *      `ApprovalDecision = Literal["confirmed", "declined",
- *      "confirmed_with_changes"]` alias that the OTHER two `decision` fields
- *      in the same module use (lines 228 and 243). At runtime this is safe —
- *      the value is read straight off the `booking_approval_responses
- *      .decision` column, which carries a DB CHECK restricting it to the
- *      same 3 values — but the OpenAPI contract does not guarantee it, and
- *      ApprovalReplyPage's `decisionLabel()` (that file, ~line 92) silently
- *      falls back to the "confirmed_with_changes" label for any 4th value
- *      instead of erroring. Flagged to landr-api as a follow-up (tighten
- *      `ApprovalRequestCurrentResponse.decision` to `ApprovalDecision` to
- *      match its two siblings) — not fixed here; this ticket only syncs
- *      contracts into the frontends.
+ *   3. `ApprovalRequestCurrentResponse.decision` now matches its two siblings.
+ *      HISTORY: this used to be the ONE documented gap — the generated schema
+ *      typed it as a bare `string` while the other two `decision` fields in
+ *      the same landr-api module used the shared `ApprovalDecision` literal
+ *      union, so `decisionLabel()` in ApprovalReplyPage silently fell back to
+ *      the "confirmed_with_changes" label for any 4th value. It was flagged
+ *      to landr-api as a follow-up, and landr-api has since tightened it: the
+ *      schema now carries `enum: ["confirmed", "declined",
+ *      "confirmed_with_changes"]`, identical to ApprovalReplyResult.decision.
+ *
+ *      That tightening was surfaced by THIS FILE working exactly as designed —
+ *      landr-fn4i's contracts/openapi.json regen (for the unrelated
+ *      subscription-perk OTP endpoint) made the old `Equal<…, string>`
+ *      assertion fail to compile, as its own comment promised it would.
+ *      `decision` is therefore now folded into the full current_response
+ *      structural check below, like every other field, and the isolated
+ *      assertion is gone.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -84,15 +86,14 @@ export type _DecisionSharedAcrossBothFields = Expect<
 export type _StateMatchesHandWritten = Expect<Equal<ApprovalRequestState, GenState>>
 export type _DecisionMatchesHandWritten = Expect<Equal<ApprovalDecision, GenDecision>>
 
-// The one deliberate, documented gap (see file header). This assertion
-// FAILS TO COMPILE — forcing this comment + the header to be revisited —
-// the day landr-api tightens ApprovalRequestCurrentResponse.decision to
-// ApprovalDecision. At that point delete this block and fold `decision`
-// into the full current_response check below like every other field.
-type GenCurrentResponseDecision =
-  components['schemas']['ApprovalRequestCurrentResponse']['decision']
-export type _CurrentResponseDecisionIsIntentionallyLooseOnTheApiSide = Expect<
-  Equal<GenCurrentResponseDecision, string>
+// `decision` on current_response is no longer a special case — landr-api
+// tightened it to the shared union (see header note 3), so it is asserted
+// here alongside its siblings and folded into the structural check below.
+export type _CurrentResponseDecisionMatchesHandWritten = Expect<
+  Equal<
+    components['schemas']['ApprovalRequestCurrentResponse']['decision'],
+    ApprovalDecision
+  >
 >
 
 // ---- compile-time structural equivalence (every OTHER field) -------------
@@ -132,8 +133,8 @@ const genBooking = {
 } satisfies components['schemas']['ApprovalRequestBooking']
 export const _bookingMatches: ApprovalRequestBooking = genBooking
 
-// current_response deliberately kept null here — its one incompatible field
-// (decision) is isolated + documented above, not swept into this check.
+// current_response kept null here to exercise the nullable branch; the
+// present-and-non-null shape is proven in full further down.
 const genContext = {
   state: 'answered',
   can_respond: true,
@@ -167,17 +168,16 @@ const genReplyResult = {
 export const _replyResultMatches: ApprovalReplyResult = genReplyResult
 
 // current_response IS present-and-non-null on a real "answered" response —
-// prove the rest of it (everything but the documented `decision` gap above)
-// also matches exactly.
-const genCurrentResponseSansDecision = {
+// prove ALL of it matches exactly, `decision` included now that landr-api
+// tightened it (header note 3). No Omit<> carve-out any more.
+const genCurrentResponse = {
+  decision: 'confirmed_with_changes',
   comment: 'Requesting a later check-in.',
   responder_name: 'Front desk',
   responded_at: '2026-09-01T09:00:00Z',
-} satisfies Omit<components['schemas']['ApprovalRequestCurrentResponse'], 'decision'>
-export const _currentResponseSansDecisionMatches: Omit<
-  ApprovalRequestCurrentResponse,
-  'decision'
-> = genCurrentResponseSansDecision
+} satisfies components['schemas']['ApprovalRequestCurrentResponse']
+export const _currentResponseMatches: ApprovalRequestCurrentResponse =
+  genCurrentResponse
 
 describe('widget hand-written approval-reply types vs generated schema (landr-em0r.13)', () => {
   it('type-checks only — see the compile-time assertions above this describe block', () => {

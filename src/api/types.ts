@@ -687,6 +687,16 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /**
+   * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
+   * typed into the optional inline field DetailsStep shows after
+   * requestSubscriptionPerkOtp fires (api/client.ts). The API spends it
+   * server-side WHILE pricing this submit — wrong, expired, already-spent,
+   * or simply absent all fall back to list price, never a 4xx. The widget
+   * never learns whether a code "worked"; the priced total is the only
+   * signal, and only after this submit resolves.
+   */
+  member_perk_otp?: string | null
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]

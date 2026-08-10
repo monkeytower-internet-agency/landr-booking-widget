@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import * as client from '@/api/client'
 import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
@@ -1176,5 +1177,250 @@ describe('DetailsStep — reveal required errors on Continue tap (mobile, landr-
     // First required field is the booker first name → it receives focus so the
     // mobile customer is taken straight to it.
     expect(document.activeElement).toBe(byName('booker_first_name'))
+  })
+})
+
+// landr-fn4i / landr-5krc (widget half of landr-5krc): the optional
+// member-perk code field + the OTP request fired on email blur.
+describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('does not show the code field before the email has been blurred', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('fires requestSubscriptionPerkOtp on blur once the email looks valid, and reveals the code field', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledWith('para42', 'ada@example.com')
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    expect(
+      screen.getByText(/enter the 6-digit code we emailed you/i),
+    ).toBeInTheDocument()
+  })
+
+  it('does NOT fire the request (or show the field) on a blur with no email / an "@"-less value', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    // Blank blur — nothing to request.
+    fireEvent.blur(email)
+    expect(spy).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+    // Present but no '@' — same as above (matches the existing
+    // isFieldInvalid loose email check the rest of this file already uses).
+    fireEvent.change(email, { target: { value: 'not-an-email' } })
+    fireEvent.blur(email)
+    expect(spy).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not re-fire on a second blur of the SAME unchanged email (dedup, rate-limit friendly)', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    // Tab away and back, blurring the unchanged field again.
+    fireEvent.blur(email)
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('fires again when the email is EDITED before the next blur', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    fireEvent.change(email, { target: { value: 'ada2@example.com' } })
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(spy).toHaveBeenNthCalledWith(1, 'para42', 'ada@example.com')
+    expect(spy).toHaveBeenNthCalledWith(2, 'para42', 'ada2@example.com')
+  })
+
+  it('never surfaces a network failure to the customer (swallowed, field stays usable)', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockRejectedValue(new Error('network down'))
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          operatorToken="para42"
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      const email = byName('booker_email')
+      fireEvent.change(email, { target: { value: 'ada@example.com' } })
+      fireEvent.blur(email)
+    }).not.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+    // The field still appears — the customer is never told anything failed.
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
+  })
+
+  it('is dismissible/ignorable: Continue advances with the code left blank', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.blur(byName('booker_email'))
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    // Deliberately leave the code blank.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('sanitises the code input to digits only, capped at 6, and lifts it via onMemberPerkOtpChange', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    const onChange = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onMemberPerkOtpChange={onChange}
+      />,
+    )
+    fireEvent.blur(byName('booker_email')) // no email yet — field stays hidden
+    fireEvent.change(byName('booker_email'), {
+      target: { value: 'ada@example.com' },
+    })
+    fireEvent.blur(byName('booker_email'))
+    const code = screen.getByTestId('member-perk-otp-input')
+    fireEvent.change(code, { target: { value: '12a3-45 6789' } })
+    expect(code).toHaveValue('123456')
+    expect(onChange).toHaveBeenLastCalledWith('123456')
+  })
+
+  it('restores a prior code + shows the field immediately via initialMemberPerkOtp/initialBooker (Back-restore), without re-firing the request', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        initialBooker={{
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          email: 'ada@example.com',
+          phone: '+34 600 000 000',
+        }}
+        initialMemberPerkOtp="654321"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    // Shown immediately, pre-filled — no blur needed on re-entry.
+    const code = screen.getByTestId('member-perk-otp-input')
+    expect(code).toHaveValue('654321')
+    // A Back-restore remount must NOT burn another OTP request for an email
+    // that was already blurred on the way forward.
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('does not throw when onMemberPerkOtpChange is not provided (backward compat)', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          operatorToken="para42"
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      fireEvent.change(byName('booker_email'), {
+        target: { value: 'ada@example.com' },
+      })
+      fireEvent.blur(byName('booker_email'))
+      fireEvent.change(screen.getByTestId('member-perk-otp-input'), {
+        target: { value: '123456' },
+      })
+    }).not.toThrow()
   })
 })
