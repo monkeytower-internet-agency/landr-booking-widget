@@ -714,7 +714,10 @@ export interface paths {
          * @description Take a photo down: set moderation_status='removed'. Landr-staff only.
          *
          *     photo_id is the media_assets.id (not the site_photos/gear_photos link id,
-         *     matching the shape of POST /api/community/photos/{id}/flag).
+         *     matching the shape of POST /api/community/photos/{id}/flag). Also
+         *     relocates the storage object to a quarantine path to force Supabase's
+         *     documented CDN-cache invalidation on the original path (landr-rqun.1;
+         *     see module docstring).
          */
         post: operations["remove_photo"];
         delete?: never;
@@ -2507,6 +2510,38 @@ export interface paths {
          *     strand ``bookings.gross_total`` at the old headcount.
          */
         patch: operations["patch_booking_product"];
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reprice Booking Product At Current Entitlement
+         * @description Deliberately re-evaluate a line's price against the customer's CURRENT
+         *     subscription-perk entitlement (landr-n0zj).
+         *
+         *     ``PATCH .../products/{id}`` FREEZES whichever perk (if any) the line
+         *     already carried — id, kind, and discount value — across every other field
+         *     edit, so an unrelated date shift can no longer silently re-bill a lapsed
+         *     member, silently credit one who just joined, or silently move
+         *     ``balance_due`` because the perk's config changed — see
+         *     ``extract_frozen_perk``. This endpoint is the escape hatch for the rare
+         *     case an operator genuinely wants that re-check: a deliberate,
+         *     staff-initiated, staff-visible action rather than an incidental side
+         *     effect of editing something else. It takes no body — it re-prices the
+         *     line's CURRENTLY stored ``selected_days``.
+         */
+        post: operations["reprice_booking_product_at_current_entitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/healthz": {
@@ -12426,6 +12461,40 @@ export interface operations {
                 "application/json": components["schemas"]["BookingProductPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reprice_booking_product_at_current_entitlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

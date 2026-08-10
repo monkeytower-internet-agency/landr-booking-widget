@@ -13848,7 +13848,7 @@
     },
     "/api/landr-staff/community-photos/{photo_id}/remove": {
       "post": {
-        "description": "Take a photo down: set moderation_status='removed'. Landr-staff only.\n\nphoto_id is the media_assets.id (not the site_photos/gear_photos link id,\nmatching the shape of POST /api/community/photos/{id}/flag).",
+        "description": "Take a photo down: set moderation_status='removed'. Landr-staff only.\n\nphoto_id is the media_assets.id (not the site_photos/gear_photos link id,\nmatching the shape of POST /api/community/photos/{id}/flag). Also\nrelocates the storage object to a quarantine path to force Supabase's\ndocumented CDN-cache invalidation on the original path (landr-rqun.1;\nsee module docstring).",
         "operationId": "remove_photo",
         "parameters": [
           {
@@ -17284,6 +17284,65 @@
           }
         ],
         "summary": "Patch Booking Product",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
+      "post": {
+        "description": "Deliberately re-evaluate a line's price against the customer's CURRENT\nsubscription-perk entitlement (landr-n0zj).\n\n``PATCH .../products/{id}`` FREEZES whichever perk (if any) the line\nalready carried \u2014 id, kind, and discount value \u2014 across every other field\nedit, so an unrelated date shift can no longer silently re-bill a lapsed\nmember, silently credit one who just joined, or silently move\n``balance_due`` because the perk's config changed \u2014 see\n``extract_frozen_perk``. This endpoint is the escape hatch for the rare\ncase an operator genuinely wants that re-check: a deliberate,\nstaff-initiated, staff-visible action rather than an incidental side\neffect of editing something else. It takes no body \u2014 it re-prices the\nline's CURRENTLY stored ``selected_days``.",
+        "operationId": "reprice_booking_product_at_current_entitlement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Reprice Booking Product At Current Entitlement",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reprice Booking Product At Current Entitlement",
         "tags": [
           "staff-bookings"
         ]
