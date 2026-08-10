@@ -31,22 +31,22 @@
  *   2. The two shared literal unions (ApprovalRequestState, ApprovalDecision)
  *      are the exact same member sets as the generated unions.
  *   3. `ApprovalRequestCurrentResponse.decision` now matches its two siblings.
- *      HISTORY (landr-1kk.5): this used to be the ONE documented gap — the
- *      generated schema typed it as a bare `string` while the other two
- *      `decision` fields in the same landr-api module used the shared
- *      `ApprovalDecision` literal union, so `decisionLabel()` in
- *      ApprovalReplyPage silently fell back to the "confirmed_with_changes"
- *      label for any 4th value. It was flagged to landr-api as a follow-up and
- *      landr-api HAS since tightened it: the schema now carries
- *      `enum: ["confirmed", "declined", "confirmed_with_changes"]`, identical
- *      to ApprovalReplyResult.decision.
+ *      HISTORY: this used to be the ONE documented gap — the generated schema
+ *      typed it as a bare `string` while the other two `decision` fields in
+ *      the same landr-api module used the shared `ApprovalDecision` literal
+ *      union, so `decisionLabel()` in ApprovalReplyPage silently fell back to
+ *      the "confirmed_with_changes" label for any 4th value. It was flagged
+ *      to landr-api as a follow-up, and landr-api has since tightened it: the
+ *      schema now carries `enum: ["confirmed", "declined",
+ *      "confirmed_with_changes"]`, identical to ApprovalReplyResult.decision.
  *
  *      That tightening was surfaced by THIS FILE working exactly as designed —
- *      refreshing contracts/openapi.json for the subscription-checkout endpoint
- *      made the old `Equal<…, string>` assertion fail to compile, as its own
- *      comment promised it would. `decision` is therefore now folded into the
- *      full current_response structural check below, like every other field,
- *      and the isolated assertion is gone.
+ *      landr-fn4i's contracts/openapi.json regen (for the unrelated
+ *      subscription-perk OTP endpoint) made the old `Equal<…, string>`
+ *      assertion fail to compile, as its own comment promised it would.
+ *      `decision` is therefore now folded into the full current_response
+ *      structural check below, like every other field, and the isolated
+ *      assertion is gone.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -87,8 +87,8 @@ export type _StateMatchesHandWritten = Expect<Equal<ApprovalRequestState, GenSta
 export type _DecisionMatchesHandWritten = Expect<Equal<ApprovalDecision, GenDecision>>
 
 // `decision` on current_response is no longer a special case — landr-api
-// tightened it to the shared union (see header note 3), so it is asserted here
-// alongside its siblings and folded into the structural check below.
+// tightened it to the shared union (see header note 3), so it is asserted
+// here alongside its siblings and folded into the structural check below.
 export type _CurrentResponseDecisionMatchesHandWritten = Expect<
   Equal<
     components['schemas']['ApprovalRequestCurrentResponse']['decision'],

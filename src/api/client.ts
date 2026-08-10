@@ -215,6 +215,46 @@ export async function getOperatorServiceRoles(
 }
 
 /**
+ * Response from POST /api/public/operators/{token}/subscription-perk/otp.
+ * ALWAYS `{ ok: true }` — see requestSubscriptionPerkOtp for why.
+ */
+export interface RequestSubscriptionPerkOtpResponse {
+  ok: boolean
+}
+
+/**
+ * landr-fn4i (widget half of landr-5krc): fire the one-time subscription-perk
+ * code email. Call this when the checkout email field is completed/blurred
+ * (DetailsStep does this on the booker email's onBlur).
+ *
+ * CRITICAL: the endpoint ALWAYS responds 202 `{ok: true}` — member,
+ * non-member, malformed address, or rate-limited caller all get the
+ * IDENTICAL response, BY DESIGN, so the widget can never be used to probe
+ * membership status. Callers MUST NOT branch UI on the response body (the
+ * `ok` field carries no information — it's here only so the return type
+ * isn't `void`); a network/host error is equally uninformative and should be
+ * swallowed, not surfaced to the customer. A 404 means the widget_token
+ * itself is wrong, which every other call on the page would also be failing
+ * on — not something this call needs to handle specially.
+ *
+ * No mock-mode branch needed beyond the standard `{ok: true}` — there is no
+ * meaningful "mock" for an endpoint whose whole point is to reveal nothing.
+ */
+export async function requestSubscriptionPerkOtp(
+  operatorToken: string,
+  email: string,
+): Promise<RequestSubscriptionPerkOtpResponse> {
+  if (mocksEnabled()) return { ok: true }
+  return http<RequestSubscriptionPerkOtpResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/subscription-perk/otp`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    },
+  )
+}
+
+/**
  * Stub pointing at the GET /api/public/operators/{token}/locations endpoint (landr-e10.8).
  * Falls back to mock data until the backend lands.
  */

@@ -290,6 +290,15 @@ function BookingFlowApp() {
   // when leaving the details step so back-nav starts fresh.
   const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
   const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
+  // landr-fn4i / landr-5krc: the optional member-perk code, lifted live from
+  // DetailsStep (mirrors liveParticipant* above) straight to BookingForm's
+  // submit — deliberately NOT part of the Step union / BookingDraft (unlike
+  // booker/participants/companions): it only ever matters at the final
+  // submit, its 5-minute server-side TTL makes round-tripping it through
+  // every intermediate step + sessionStorage pointless, and DetailsStep
+  // re-seeds its own field from this same state via initialMemberPerkOtp so
+  // a Back-then-forward loop still shows (and re-sends) whatever was typed.
+  const [memberPerkOtp, setMemberPerkOtp] = useState<string>('')
   // landr-87n9.2: live-lifted room + per-room add-on selection from
   // AccommodationStep so the PriceSidebar's "At-hotel total" pill updates
   // WHILE the customer picks rooms — without waiting for Continue. Mirrors
@@ -752,6 +761,9 @@ function BookingFlowApp() {
       // landr-gb2f.1: also clear live participant state on a full restart.
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
+      // landr-fn4i / landr-5krc: a full restart is a brand-new booking —
+      // any previously-typed member-perk code must not silently ride along.
+      setMemberPerkOtp('')
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
       // landr-nmed: a full restart (post-booking, or "← All categories" /
@@ -1554,6 +1566,11 @@ function BookingFlowApp() {
             initialParticipants={step.participants}
             // landr-87n9.3: restore the non-guiding companions on Back.
             initialCompanions={step.companions}
+            // landr-fn4i / landr-5krc: restore the member-perk code on Back —
+            // this is the top-level lifted state, not the Step union, so it
+            // survives the remount on its own regardless of how step changed.
+            initialMemberPerkOtp={memberPerkOtp}
+            onMemberPerkOtpChange={setMemberPerkOtp}
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -1977,6 +1994,10 @@ function BookingFlowApp() {
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
+            // landr-fn4i / landr-5krc: top-level lifted state from
+            // DetailsStep — see memberPerkOtp's declaration above for why
+            // this isn't threaded through step.* like booker/participants.
+            memberPerkOtp={memberPerkOtp}
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator
