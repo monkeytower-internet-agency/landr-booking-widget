@@ -170,6 +170,51 @@ describe('CategoryStep (landr-d8rg.5)', () => {
   })
 })
 
+// landr-872c: FULLY SOLD-OUT (product_count > 0, bookable_count === 0) is
+// NOT filtered out like an EMPTY (product_count === 0) group — it still
+// renders, as a disabled tile. Only genuinely EMPTY groups are hidden.
+describe('CategoryStep — landr-872c FULLY SOLD-OUT categories', () => {
+  it('renders a FULLY SOLD-OUT category tile (not hidden like an empty group)', () => {
+    const onPick = vi.fn()
+    render(
+      <CategoryStep
+        groups={[
+          makeGroup({ slug: 'tandem', product_count: 3, bookable_count: 3 }),
+          makeGroup({ slug: 'grounded', product_count: 2, bookable_count: 0 }),
+          makeGroup({ slug: 'empty', product_count: 0, bookable_count: 0 }),
+        ]}
+        onPick={onPick}
+      />,
+    )
+    expect(screen.getByTestId('category-btn-tandem')).toBeInTheDocument()
+    // Fully sold out: rendered, but disabled and never navigable.
+    const grounded = screen.getByTestId('category-btn-grounded')
+    expect(grounded).toBeInTheDocument()
+    expect(grounded).toBeDisabled()
+    fireEvent.click(grounded)
+    expect(onPick).not.toHaveBeenCalled()
+    // Genuinely empty: still hidden entirely.
+    expect(screen.queryByTestId('category-btn-empty')).not.toBeInTheDocument()
+  })
+
+  it('list view: a FULLY SOLD-OUT category row is disabled and shows the "Fully booked" badge', () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+    const onPick = vi.fn()
+    render(
+      <CategoryStep
+        groups={[makeGroup({ slug: 'grounded', product_count: 2, bookable_count: 0 })]}
+        onPick={onPick}
+      />,
+    )
+    const row = screen.getByTestId('category-row-grounded')
+    expect(row).toBeDisabled()
+    expect(screen.getByTestId('fully-booked-badge')).toHaveTextContent('Fully booked')
+    fireEvent.click(row)
+    expect(onPick).not.toHaveBeenCalled()
+    window.localStorage.clear()
+  })
+})
+
 // The built-in "What are you looking for?" heading was removed entirely
 // (landr-pd3x). Embedded widgets must show nothing when no headline is
 // configured — the operator's host page may already have its own heading.

@@ -99,6 +99,24 @@ export interface ProductGroup {
   sort_order: number
   parent_id: string | null
   product_count: number
+  /**
+   * landr-872c: server-computed count of currently-bookable products in the
+   * group's descendant subtree — same subtree as product_count, narrowed to
+   * the SAME bookability predicate Product.bookable already reports (see
+   * public_get_operator_product_groups). Always <= product_count. Governs
+   * PER-CATEGORY visibility: product_count > 0 && bookable_count === 0 means
+   * the category is FULLY SOLD OUT and must render as a disabled/"Fully
+   * booked" tile+section rather than being hidden — see
+   * isCategoryFullySoldOut() in bookability.ts and the contract table in
+   * ExpandedCatalog.tsx.
+   *
+   * OPTIONAL for back-compat with an API that predates the field. FAIL OPEN
+   * like Product.bookable/isBookable(): an ABSENT bookable_count must never
+   * be treated as "fully sold out" — isCategoryFullySoldOut() only fires on
+   * an explicit 0, so an older API can never accidentally grey out a whole
+   * catalogue.
+   */
+  bookable_count?: number
 }
 
 /**
@@ -657,6 +675,15 @@ export interface ProductLine {
   date_range_start?: string | null
   date_range_end?: string | null
   selected_days?: string[] | null
+  /**
+   * landr-6stj: the exact product_availability row the customer picked in
+   * AvailabilityPicker/FixedDateWindowPicker (AvailabilitySlot.availability_id).
+   * Optional — only the primary service ProductLine for a 'slot' selection
+   * sets this; server-side it stays NULL when omitted (no auto-resolution,
+   * since a date can map to more than one time_slot). PINNED wire contract
+   * — landr-ax1c on the API persists this verbatim when present.
+   */
+  product_availability_id?: string | null
 }
 
 export interface SubmitBookingBody {
@@ -669,6 +696,16 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /**
+   * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
+   * typed into the optional inline field DetailsStep shows after
+   * requestSubscriptionPerkOtp fires (api/client.ts). The API spends it
+   * server-side WHILE pricing this submit — wrong, expired, already-spent,
+   * or simply absent all fall back to list price, never a 4xx. The widget
+   * never learns whether a code "worked"; the priced total is the only
+   * signal, and only after this submit resolves.
+   */
+  member_perk_otp?: string | null
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -922,4 +959,124 @@ export interface EstimateResponse {
   grand_total: string
   currency: string
   applied_rules: EstimateAppliedRule[]
+}
+
+// ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
+//
+// Hand-written, NOT sourced from src/types/api.gen.ts. Originally built
+// against the epic's frozen HTTP contract (landr-em0r description, section
+// 7) before the API PR (landr-em0r.8) landed — the same house convention
+// getBookingByToken/PublicBookingOffer already follows.
+//
+// RECONCILED against the real generated schema in landr-em0r.13 (the router
+// merged in landr-em0r.8, commit 381026e). DECISION: kept hand-written —
+// see src/api/approvalReplyTypes.contract.test.ts for the field-by-field
+// compile-time proof and the one documented gap (`current_response.decision`
+// is typed as a bare `string` on the API side, not the shared
+// `ApprovalDecision` literal its two sibling `decision` fields use — DB
+// CHECK-constrained at runtime, but not schema-guaranteed; flagged as a
+// landr-api follow-up, not fixed here). Everything else below matches the
+// generated components["schemas"][...] shapes exactly.
+
+/**
+ * Lifecycle state of a `booking_approval_requests` row, as returned by
+ * `GET /api/public/approval-requests/{token}`. `open` and `answered` both
+ * render the reply form (answered shows the recorded answer first, with a
+ * "Change my answer" affordance); the other four are read-only named
+ * terminal cards and NEVER a bare/opaque error.
+ */
+export type ApprovalRequestState =
+  | 'open'
+  | 'answered'
+  | 'closed_confirmed'
+  | 'closed_cancelled'
+  | 'superseded'
+  | 'expired'
+
+/**
+ * The hotel's answer. Maps 1:1 to the three reply-email buttons /
+ * `/reply/{token}/{intent}` URL segments: yes → confirmed,
+ * no → declined, changes → confirmed_with_changes.
+ */
+export type ApprovalDecision =
+  | 'confirmed'
+  | 'declined'
+  | 'confirmed_with_changes'
+
+/** Branding fields for the confirm page (epic decision g — branded per operator). */
+export interface ApprovalRequestOperator {
+  name: string
+  logo_url: string | null
+  primary_color: string | null
+  phone: string | null
+}
+
+export interface ApprovalRequestResponder {
+  location_name: string
+}
+
+export interface ApprovalRequestRoomLine {
+  qty: number
+  label: string
+}
+
+/** Allowlisted booking fields only — no prices, no customer PII (epic section 7). */
+export interface ApprovalRequestBooking {
+  reference: string
+  check_in: string
+  check_out: string
+  nights: number
+  guests_count: number
+  room_lines: ApprovalRequestRoomLine[]
+}
+
+/** The currently-recorded answer, present only when `state === 'answered'`. */
+export interface ApprovalRequestCurrentResponse {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  responded_at: string
+}
+
+/**
+ * `GET /api/public/approval-requests/{token}` response body. Read-only —
+ * fetching this must NEVER record anything (prefetcher-safety layer 2 of 4,
+ * epic section 4). `confirm_nonce` exists only in this body and is required
+ * by the POST below (prefetcher-safety layer 3).
+ */
+export interface ApprovalRequestContext {
+  state: ApprovalRequestState
+  can_respond: boolean
+  locale: string
+  request_ref: string
+  confirm_nonce: string
+  operator: ApprovalRequestOperator
+  responder: ApprovalRequestResponder
+  booking: ApprovalRequestBooking
+  current_response: ApprovalRequestCurrentResponse | null
+}
+
+/** `POST /api/public/approval-requests/{token}/response` request body. */
+export interface ApprovalReplyRequestBody {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  confirm_nonce: string
+}
+
+/**
+ * `POST /api/public/approval-requests/{token}/response` 200 response.
+ * `already_recorded: true` means the same decision + normalised comment was
+ * already on file — no new row, no duplicate notification (epic decision d).
+ * A 422 (`invalid_confirm_nonce` / `comment_required_for_changes`) throws an
+ * `HttpError` instead of resolving this type — see submitApprovalReply.
+ */
+export interface ApprovalReplyResult {
+  ok: boolean
+  state: ApprovalRequestState
+  decision: ApprovalDecision
+  recorded_at: string
+  already_recorded: boolean
+  booking_advanced: boolean
+  superseded_previous: boolean
 }

@@ -29,8 +29,12 @@ interface Props {
   compact?: boolean
 }
 
-const FULLY_BOOKED_LABEL = 'Fully booked'
-const FULLY_BOOKED_BLURB =
+// Exported (landr-872c) so the Categories layout's disabled category tiles
+// (CategoryTile/CategoryTileRow, via categoryCopy.ts) can reuse the exact
+// same "fully booked" copy instead of inventing a second set of strings for
+// the same concept at the category level.
+export const FULLY_BOOKED_LABEL = 'Fully booked'
+export const FULLY_BOOKED_BLURB =
   'There are no upcoming dates available for this product right now. Please check back later.'
 
 export function FullyBookedNotice({ name, description, onBack, compact }: Props) {

@@ -3,6 +3,14 @@
  * (capacity == reserved) becomes selectable inside an active StaffModeProvider
  * and confirms via onConfirm(slot, window, forced=true). Normal-mode behaviour
  * is covered by FixedDateWindowPicker.test.tsx (untouched).
+ *
+ * landr-r2o8: the public RPC (getFixedDateWindows) hides any full/overbooked
+ * window unconditionally, in every mode, so staff mode must fetch via
+ * getStaffFixedDateWindows (the staff-session-gated endpoint) instead — that
+ * is the ONLY way a full window can ever reach this picker for real. These
+ * tests mock getStaffFixedDateWindows and assert getFixedDateWindows is NOT
+ * called when canForce is true, proving the picker actually takes the new
+ * path rather than the (RPC-filtered) public one.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,17 +23,33 @@ import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
+    getStaffFixedDateWindows:
+      vi.fn<
+        (
+          operatorId: string,
+          productId: string,
+          staffSessionToken: string,
+        ) => Promise<FixedDateWindow[]>
+      >(),
   },
 }))
 
 vi.mock('@/api/client', () => ({
   getFixedDateWindows: mocks.getFixedDateWindows,
+  getStaffFixedDateWindows: mocks.getStaffFixedDateWindows,
 }))
 
 const STAFF: StaffSession = {
   active: true,
   token: 'staff.token',
   powers: ALL_STAFF_POWERS,
+  operatorId: 'op-uuid-1',
+}
+
+const NO_FORCE_STAFF: StaffSession = {
+  active: true,
+  token: 'staff.token',
+  powers: ALL_STAFF_POWERS.filter((p) => p !== 'force_book'),
   operatorId: 'op-uuid-1',
 }
 
@@ -62,9 +86,9 @@ const FULL_WINDOW: FixedDateWindow = {
   capacity_reserved: 8,
 }
 
-function renderStaff(onConfirm = vi.fn()) {
+function renderStaff(onConfirm = vi.fn(), session = STAFF) {
   render(
-    <StaffModeProvider value={STAFF}>
+    <StaffModeProvider value={session}>
       <FixedDateWindowPicker
         product={makeProduct()}
         onBack={() => {}}
@@ -78,7 +102,8 @@ function renderStaff(onConfirm = vi.fn()) {
 describe('FixedDateWindowPicker — staff force-book', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getFixedDateWindows.mockResolvedValue([FULL_WINDOW])
+    mocks.getStaffFixedDateWindows.mockResolvedValue([FULL_WINDOW])
+    mocks.getFixedDateWindows.mockResolvedValue([])
   })
   afterEach(() => vi.restoreAllMocks())
 
@@ -110,5 +135,27 @@ describe('FixedDateWindowPicker — staff force-book', () => {
     fireEvent.click(screen.getByRole('button', { name: /Aug 4, 2027/ }))
     // Continue stays disabled — nothing selected.
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('landr-r2o8: fetches via the staff endpoint, not the public RPC', async () => {
+    renderStaff()
+    await waitFor(() => expect(screen.getByText(/Aug 4, 2027/)).toBeInTheDocument())
+    expect(mocks.getStaffFixedDateWindows).toHaveBeenCalledWith(
+      'op-uuid-1',
+      'p-1',
+      'staff.token',
+    )
+    // The public RPC — which would hide this exact full window server-side —
+    // must never be called on this path.
+    expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
+  })
+
+  it('landr-r2o8: a session without force_book falls back to the public RPC', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([])
+    renderStaff(vi.fn(), NO_FORCE_STAFF)
+    await waitFor(() =>
+      expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('p-1'),
+    )
+    expect(mocks.getStaffFixedDateWindows).not.toHaveBeenCalled()
   })
 })

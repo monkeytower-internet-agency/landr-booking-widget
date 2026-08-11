@@ -15,12 +15,22 @@ import { expect, test, type Page } from '@playwright/test'
  * booker email is tagged `playwright-smoke@example.com` so it's easy to
  * spot/sweep in the dev DB; no existing rows are touched or deleted.
  *
- * Product: "Paragliding Gear Rental" (equipment-rental-day) — chosen
- * because it's the shortest catalog->confirm path para42's seed offers
- * (single date, no accommodation/addons module). It still exercises a
- * pickup-location step and a custom-form declarations module because
- * that's what this operator's real seed data requires — this spec drives
- * whatever the actual seeded happy path is, it does not stub it out.
+ * Product: "E2E Smoke Test Fixture" (e2e-widget-fixture) — landr-ebba.
+ * Targeting a real para42 catalog product broke this spec once already:
+ * landr-m2h2's catalog reshape soft-deleted the original target
+ * (equipment-rental-day), and every widget PR went red until landr-l0mb
+ * re-picked guided-day as a stand-in (2026-08-05, at the cost of an extra
+ * Accommodation step guided-day has and the original didn't). This
+ * fixture product is seeded by landr-api
+ * (supabase/migrations/20260809162539_para42_widget_e2e_fixture_product.sql
+ * + a dev-only activation block in supabase/seed.sql) specifically so this
+ * spec never again depends on which real products happen to survive a
+ * catalog reshape. Shape mirrors the original target exactly: service /
+ * single_date / needs_pickup=true / hotel_offering='none' (no
+ * accommodation step) / one flat per-day pricing rule, reusing para42's
+ * 'customer_declarations' form for the custom-form step. If this product
+ * is ever missing, the fix is re-running that migration + seed against dev
+ * — do NOT re-point this spec at another real catalog product again.
  */
 
 const WIDGET_TOKEN = process.env.WIDGET_TOKEN ?? 'para42StableDevToken42'
@@ -75,13 +85,13 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   const expandedCatalog = page.getByTestId('expanded-catalog')
   await expect(expandedCatalog).toBeVisible()
 
-  const productCard = page.getByTestId('product-card-equipment-rental-day')
+  const productCard = page.getByTestId('product-card-e2e-widget-fixture')
   await expect(productCard).toBeVisible()
   await productCard.click()
 
   await page.getByTestId('product-detail-book-cta').click()
 
-  // ---- Date ----------------------------------------------------------------
+  // ---- Date (single_date step) ----------------------------------------------
   await expect(page.getByText('Pick a date')).toBeVisible()
   await pickFirstAvailableDate(page)
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -94,7 +104,7 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Phone').fill('+491701234567')
   await page.getByRole('button', { name: 'Continue' }).click()
 
-  // ---- Pickup location (para42's seed data requires one for this product) -
+  // ---- Pickup location (fixture has needs_pickup=true, no accommodation) --
   // Two "Pickup location" nodes render here (CardTitle + sr-only <legend>);
   // .first() avoids a strict-mode multi-match, we just want "did we land
   // on this step".

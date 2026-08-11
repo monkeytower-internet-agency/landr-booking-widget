@@ -76,6 +76,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/activity-sites/{site_id}/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Site Services
+         * @description List bookable operator services linked to an activity_site.
+         */
+        get: operations["get_site_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/alerts": {
         parameters: {
             query?: never;
@@ -383,6 +403,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/sites/{activity_site_id}/warnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish Site Warning
+         * @description Publish a site warning and fan out the safety-override notification.
+         *
+         *     ``PublishSiteWarningRequest.severity`` only accepts 'critical' for now
+         *     (see that field's comment), so dispatch always runs.
+         */
+        post: operations["publish_site_warning"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/sites/{activity_site_id}/warnings/{warning_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Resolve Site Warning
+         * @description Resolve (soft-close) a site warning. Does not delete the row or re-notify.
+         */
+        delete: operations["resolve_site_warning"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/sites/{site_id}/flyability": {
         parameters: {
             query?: never;
@@ -554,6 +617,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/signoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relay Signoff
+         * @description Record a relayed operator sign/decline.
+         *
+         *     Auth: X-Release-Relay-Token (service-to-service, same as customer-signoff
+         *     above). Re-resolves ``signer_email`` → a real signer user id independently
+         *     (defence in depth — the relay token authenticates the STAGING SERVICE, not
+         *     the human; staging already checked ``is_release_signer`` before relaying,
+         *     but this endpoint does not trust that check transitively).
+         *
+         *     404 ``signoff_row_not_found`` if this (run_id, signer) pair was never
+         *     invited by ``open_signoff_window`` — e.g. a stale run_id, or a signer
+         *     who wasn't a release-signer for any operator when the window opened.
+         *     400 ``invalid_request`` for anything else ``record_signoff`` rejects.
+         */
+        post: operations["relay_signoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/signoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay My Signoffs
+         * @description The caller's own PENDING signoff invitations + minimal run context.
+         *
+         *     Auth: X-Release-Relay-Token. Only ``pending`` rows — once a signer has
+         *     decided (signed/declined) there is nothing actionable left to show them
+         *     here (the staff console's matrix is the durable record; this endpoint is
+         *     purely "what do I still need to act on"). Capped at 20, newest-first.
+         *
+         *     Two queries rather than a PostgREST embed (``promotion_run_signoffs``
+         *     select + a follow-up ``promotion_runs`` ``in_`` lookup) — simpler to
+         *     reason about and to mock in tests than relying on the embed syntax
+         *     resolving correctly against the FK.
+         */
+        get: operations["relay_my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/stripe/webhook": {
         parameters: {
             query?: never;
@@ -570,6 +694,32 @@ export interface paths {
          *     Behaviour UNCHANGED by landr-1nwu.3 (platform / single-tenant back-compat).
          */
         post: operations["stripe_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/community-photos/{photo_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Photo
+         * @description Take a photo down: set moderation_status='removed'. Landr-staff only.
+         *
+         *     photo_id is the media_assets.id (not the site_photos/gear_photos link id,
+         *     matching the shape of POST /api/community/photos/{id}/flag). Also
+         *     relocates the storage object to a quarantine path to force Supabase's
+         *     documented CDN-cache invalidation on the original path (landr-rqun.1;
+         *     see module docstring).
+         */
+        post: operations["remove_photo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -729,6 +879,19 @@ export interface paths {
          *     Tier gate (landr-7dya.21): only the STAGING api may create
          *     staging_to_main runs. Dev + prod 403 with ``wrong_tier_for_promotion``.
          *     Decisions (approve / reject / cancel) are likewise staging-only.
+         *
+         *     landr-a99u.13.2 design call — WHEN the advisory signoff window opens:
+         *     automatically, right here, rather than a separate explicit "open signoff
+         *     window" console action. Reasoning: (1) the parent proposal's own language
+         *     ("each staging→main promotion run opens a SIGNOFF WINDOW... automatically")
+         *     already picks this; (2) a separate step is one more thing a promoter can
+         *     forget, silently leaving a run with no signoff coverage; (3)
+         *     ``open_signoff_window`` is idempotent, so this is safe to call
+         *     unconditionally even if a future path also calls it for the same run.
+         *     Same call is made from the customer-relay path
+         *     (``operator_release_internal.customer_signoff``) so EVERY staging→main
+         *     run gets a window regardless of who proposed it, per the parent proposal
+         *     ("staff-proposed or customer-proposed, doesn't matter").
          */
         post: operations["propose_staging_to_main"];
         delete?: never;
@@ -803,6 +966,17 @@ export interface paths {
          *     Tier gate (landr-7dya.21): approve is a staging_to_main-only operation
          *     (dev_to_staging never enters the ``proposed`` state). Only the STAGING
          *     api may execute decisions; dev + prod 403 with ``wrong_tier_for_promotion``.
+         *
+         *     landr-a99u.13.2 — 409 ``signoff_declined_needs_override`` when
+         *     ``release_signoff.is_signoff_blocking(run)`` is true. This is the actual
+         *     teeth behind the override button: without this check an approver could
+         *     click "Approve & promote" straight past an unresolved signoff decline
+         *     with no audit trail explaining why — the whole "does NOT hard-block...
+         *     landr-staff decides: fix-first or override-with-reason (AUDITED)" model
+         *     from the parent proposal only holds if proceeding past a decline always
+         *     leaves the override record behind. ``POST …/{id}/signoff-override`` must
+         *     be called first (it does NOT itself approve/queue anything — it only
+         *     clears the block so this endpoint will proceed).
          */
         post: operations["approve"];
         delete?: never;
@@ -855,6 +1029,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/promotions/{run_id}/signoff-override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Override Signoff
+         * @description Staff override-with-reason past an unresolved signoff decline (landr-a99u.13.2).
+         *
+         *     Approver only (``is_release_approver`` — reuses ``can_approve_prod``, the
+         *     same capability that gates approve/reject; the parent proposal does not
+         *     call for a separate role for this). Tier gate: staging-only, same as
+         *     approve/reject/cancel — the signoff ledger for a ``staging_to_main`` run
+         *     lives on whichever tier's DB holds the run itself.
+         *
+         *     409 ``not_blocking`` if the run has no unresolved decline to override —
+         *     ``record_override``'s own docstring only *recommends* the console enable
+         *     the button while ``is_signoff_blocking`` is true; this endpoint enforces
+         *     it server-side too (defence in depth, and consistent with every other
+         *     decision endpoint here validating run state before mutating — e.g.
+         *     approve/reject 409 when the run isn't ``proposed``). A stray/duplicate
+         *     override call on an already-resolved run is therefore a no-op rejection,
+         *     not a spurious audit-log row.
+         */
+        post: operations["override_signoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/{run_id}/signoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Signoffs
+         * @description The N-of-M signoff ledger for a run (landr-a99u.13.2).
+         *
+         *     No tier gate — mirrors ``get_run``: a read is safe on whichever tier's DB
+         *     happens to hold the row (404 otherwise). Before reading, lazily settles
+         *     any still-``pending`` rows past an expired window to ``expired_silent``
+         *     (``release_signoff.settle_expired_signoffs`` — idempotent, cheap, and safe
+         *     to call on every read) so the matrix reflects reality even before
+         *     landr-a99u.13.3's periodic sweep exists. This NEVER affects ``blocking``
+         *     below, which does not consult row status at all (see
+         *     ``is_signoff_blocking``'s docstring — silence, including post-expiry
+         *     silence, is never a veto).
+         *
+         *     ``window_expired`` is informational only (countdown display) — same
+         *     caveat. ``blocking`` is the single source of truth the override button
+         *     should gate its *enabled* state on.
+         */
+        get: operations["get_run_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/revenue": {
         parameters: {
             query?: never;
@@ -877,6 +1120,30 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/site-warnings/operators/{operator_id}/members/{user_id}/publisher": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Site Warning Publisher
+         * @description Grant (``can_publish=true``) or revoke (``false``) the flag for one
+         *     operator-staff member. Idempotent — setting the same value twice is a
+         *     no-op 200, not an error. The target must already have an
+         *     ``operator_memberships`` row for ``operator_id`` (this endpoint does not
+         *     create memberships, only flags an existing one).
+         */
+        patch: operations["set_site_warning_publisher"];
         trace?: never;
     };
     "/api/landr-staff/tickets/{ticket_id}/bd-intent": {
@@ -1188,6 +1455,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/release/signoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Signoff
+         * @description Sign or decline an advisory staging→main signoff. Relays to DEV.
+         *
+         *     Mirrors ``request_golive``'s shape exactly: native staging auth →
+         *     coarse ``is_release_signer`` gate → relay over the shared secret. The
+         *     FINE-grained check (this caller was actually invited to sign THIS
+         *     run_id) happens on the DEV side inside
+         *     ``app.services.release_signoff.record_signoff`` — a run_id/signer pair
+         *     that was never invited comes back as 404 ``signoff_row_not_found`` via
+         *     ``_raise_for_relay_error``'s passthrough.
+         */
+        post: operations["submit_signoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/release/signoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Signoffs
+         * @description The caller's own pending signoff invitations, relayed from DEV.
+         *
+         *     Degrades to ``{"signoffs": []}`` (never errors) off the relay side or for
+         *     a non-signer — read-only convenience, not a gated action. A genuine relay
+         *     transport/5xx failure still raises 502 so the dashboard query can tell
+         *     "you have none" apart from "couldn't check" (it currently treats either
+         *     as "don't render the section", but the distinction is there for a future
+         *     retry affordance without another backend change).
+         */
+        get: operations["my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/{email_id}/resend": {
         parameters: {
             query?: never;
@@ -1283,6 +1605,55 @@ export interface paths {
          *     the auth guard already blocks cross-operator requests by membership check).
          */
         post: operations["resolve_pending_decision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/approval-requests/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Approval Request Context
+         * @description Read-only context for the reply page. Records NOTHING.
+         *
+         *     Safe for any email prefetcher to hit: the resolve RPC is STABLE, the
+         *     confirm-nonce is a stateless HMAC, and the response carries no price, no
+         *     customer identity and no participant roster.
+         */
+        get: operations["public_get_approval_request"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/approval-requests/{token}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Approval Reply
+         * @description Record (or correct) the responder's answer. The ONLY write path.
+         *
+         *     Flow: shape check → rate limit (fail CLOSED) → resolve the token → verify
+         *     the confirm-nonce → validate the comment rule → record → advance the
+         *     booking iff a fresh ``confirmed`` arrived while the booking is still
+         *     parked in the approval stage → notify every operator member.
+         */
+        post: operations["public_record_approval_reply"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1498,9 +1869,9 @@ export interface paths {
          *     'Track this booking in the LANDR app' prompt.
          *
          *     Mints a magic link via Supabase admin ``generate_link`` (Supabase sends
-         *     NO email) and delivers it through the OPERATOR'S Gmail + our branded
-         *     ``account_link`` template — so it never depends on a Supabase SMTP
-         *     config (which was the blocker). Gated on the operator's
+         *     NO email) and delivers it through the operator's configured sending domain
+         *     (or platform fallback) with our branded ``account_link`` template — so it
+         *     never depends on a Supabase SMTP config. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
          */
@@ -1572,12 +1943,16 @@ export interface paths {
          *     (epic landr-d8rg, contract item [E]).
          *
          *     Returns every ACTIVE, non-deleted group: id, slug, name, name_localized,
-         *     description, description_localized, image_url, sort_order, parent_id, and a
-         *     `product_count` = the number of currently-listable products in the group's
-         *     descendant subtree (the recursive parent_id walk lives in the RPC). EMPTY
-         *     groups (product_count=0) are RETURNED — hiding them is the widget's job, so
-         *     deep links into a now-empty category still resolve. Ordered by
-         *     (sort_order, name). 404 only on an unknown widget_token.
+         *     description, description_localized, image_url, sort_order, parent_id,
+         *     `product_count`, and `bookable_count` (landr-872c). `product_count` = the
+         *     number of currently-listable products in the group's descendant subtree
+         *     (the recursive parent_id walk lives in the RPC). `bookable_count` = the
+         *     subset of those that are currently bookable — same subtree, same
+         *     _product_is_bookable() predicate the `bookable` flag on GET .../products
+         *     already uses — always <= product_count. EMPTY groups (product_count=0)
+         *     are RETURNED — hiding them is the widget's job, so deep links into a
+         *     now-empty category still resolve. Ordered by (sort_order, name). 404 only
+         *     on an unknown widget_token.
          */
         get: operations["get_operator_product_groups"];
         put?: never;
@@ -1742,6 +2117,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/operators/{token}/subscription-perk/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Subscription Perk Otp
+         * @description landr-5krc: request a one-time code proving control of a subscription
+         *     member's inbox, BEFORE the anonymous public-booking pricing engine is ever
+         *     told to price perks against that email.
+         *
+         *     The response is UNCONDITIONALLY ``202 {"ok": true}`` — member, non-member,
+         *     malformed address, or over either issuance budget. That is load-bearing, not
+         *     politeness: the whole point of this ticket is that a caller must not be able
+         *     to learn whether an address holds a membership, and a status code, an error
+         *     body, or a "sent"/"not sent" flag would rebuild exactly the oracle the perk
+         *     lookup's own rate limit was added to close (AC2). ``request_otp`` therefore
+         *     returns nothing and swallows everything; keep it that way.
+         *
+         *     An unknown widget token still 404s via ``_resolve_operator_by_token``, in
+         *     line with every other endpoint on this router — that leaks nothing about any
+         *     customer, only about a token the caller already had to guess.
+         */
+        post: operations["request_subscription_perk_otp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/payments/initiate": {
         parameters: {
             query?: never;
@@ -1837,7 +2246,10 @@ export interface paths {
          *       * 500             — GoTrue create failed, OR the RPC failed AFTER the auth
          *                           user was created (the auth user is then COMPENSATINGLY
          *                           deleted before responding), OR the verification email
-         *                           could not be dispatched (also compensated).
+         *                           could not even be ENQUEUED (also compensated). NOTE:
+         *                           the response 201s as soon as the email is queued —
+         *                           it no longer waits for the actual Resend/SES send
+         *                           (landr-csot; see module docstring).
          *
          *     NOTE (M1): an already-registered EMAIL does NOT yield a distinct error — it
          *     returns the same generic "verification_email_sent" body as a new signup, so
@@ -1914,6 +2326,30 @@ export interface paths {
         get: operations["slug_availability"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/subscriptions/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Subscription Checkout
+         * @description Create a subscription Checkout Session on the operator's own account.
+         *
+         *     Order of operations is cheapest-and-safest-first (the landr-3trh rule): a
+         *     malformed or hostile request must never reach Stripe, and must never cost
+         *     the operator an API call.
+         */
+        post: operations["initiate_subscription_checkout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2018,6 +2454,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/approval-request/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reissue Approval Request
+         * @description Revoke the live reply-link request and mint + send its replacement.
+         *
+         *     Flow: 409 ``wrong_stage`` when the booking's current stage is outside
+         *     the approval stage set; else revoke every live
+         *     (``revoked_at IS NULL``) request row for this booking, then call
+         *     :func:`send_hotel_request` — which, because no live row remains,
+         *     mints a fresh one via ``ensure_approval_request`` and emails the new
+         *     link. The old token now resolves to the ``superseded`` terminal state
+         *     via ``public_resolve_approval_request_by_token`` (revocation outranks
+         *     every other state there — see that RPC's precedence comment).
+         */
+        post: operations["staff_reissue_approval_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
         parameters: {
             query?: never;
@@ -2037,8 +2502,46 @@ export interface paths {
          *
          *     If selected_days or date_range changes, re-runs the pricing engine
          *     and updates computed_price_breakdown + rolls up booking totals.
+         *
+         *     A ``quantity`` edit does NOT re-run the engine (the stored breakdown is
+         *     per-unit, so it does not move) but DOES roll the booking totals up:
+         *     since landr-hgol the totals are SUM(per-unit × quantity), so changing a
+         *     quantity changes the booking's money and leaving the roll-up out would
+         *     strand ``bookings.gross_total`` at the old headcount.
          */
         patch: operations["patch_booking_product"];
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reprice Booking Product At Current Entitlement
+         * @description Deliberately re-evaluate a line's price against the customer's CURRENT
+         *     subscription-perk entitlement (landr-n0zj).
+         *
+         *     ``PATCH .../products/{id}`` FREEZES whichever perk (if any) the line
+         *     already carried — id, kind, and discount value — across every other field
+         *     edit, so an unrelated date shift can no longer silently re-bill a lapsed
+         *     member, silently credit one who just joined, or silently move
+         *     ``balance_due`` because the perk's config changed — see
+         *     ``extract_frozen_perk``. This endpoint is the escape hatch for the rare
+         *     case an operator genuinely wants that re-check: a deliberate,
+         *     staff-initiated, staff-visible action rather than an incidental side
+         *     effect of editing something else. It takes no body — it re-prices the
+         *     line's CURRENTLY stored ``selected_days``.
+         */
+        post: operations["reprice_booking_product_at_current_entitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/healthz": {
@@ -2121,6 +2624,39 @@ export interface paths {
          */
         get: operations["agent_earnings_summary"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bank-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bank Details
+         * @description Masked read-back of this operator's bank details.
+         *
+         *     Never a 404 for "nothing stored" — that's a normal empty state (200,
+         *     has_iban/has_bic false). 404 is reserved for the operator row itself
+         *     being missing.
+         */
+        get: operations["get_bank_details"];
+        /**
+         * Upsert Bank Details
+         * @description Create/rotate/clear this operator's bank details.
+         *
+         *     Auth is deliberately the SAME any-role dependency the Stripe/Holded
+         *     credentials above use (landr-yx73's REVISION overrides the ticket's
+         *     original owner-only decision) — an operator who can write a live Stripe
+         *     secret key can certainly write their own IBAN.
+         */
+        put: operations["upsert_bank_details"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2625,6 +3161,10 @@ export interface paths {
          *     operator_id is server-stamped from the path. A duplicate code among
          *     the operator's active campaigns surfaces as 409 (the partial unique
          *     index allows re-using a soft-deleted code).
+         *
+         *     landr-t6nh: 403s when the operator's `campaigns` feature is disabled —
+         *     server-side defence-in-depth for a beta module the dashboard already
+         *     hides when off (landr-sbhz.6).
          */
         post: operations["create_campaign"];
         delete?: never;
@@ -3289,6 +3829,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/integrations/{provider}/{mode}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Integration Credential
+         * @description Live-verify the STORED (provider, mode) credential against the
+         *     provider. Always 200 — `ok` carries the verdict.
+         */
+        post: operations["verify_integration_credential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/location-role-types": {
         parameters: {
             query?: never;
@@ -3681,6 +4242,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/fixed-date-window-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff Get Fixed Date Windows */
+        get: operations["staff_get_fixed_date_windows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/fixed-date-windows": {
         parameters: {
             query?: never;
@@ -3715,6 +4293,31 @@ export interface paths {
         head?: never;
         /** Patch Window */
         patch: operations["patch_window"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/subscription-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Subscription Config
+         * @description Create the billing config for a product_kind='subscription' product.
+         *
+         *     404 if the product isn't this operator's; 400 if it isn't
+         *     product_kind='subscription' (the DB trigger would also reject this, but
+         *     fail with a clean 400 rather than a raw trigger exception); 409 if a
+         *     config already exists (1:1 with the product — use PATCH to edit it).
+         */
+        post: operations["create_subscription_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/provider-role-types": {
@@ -3974,6 +4577,129 @@ export interface paths {
         patch: operations["patch_service_role"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Holder
+         * @description Cancel on Stripe, then flip the holder to 'cancelled' (terminal).
+         *
+         *     Idempotent: the RPC's terminal-status guard is `status = 'cancelled' AND
+         *     intent <> 'cancel'` — 'cancel' itself is exempt, so re-cancelling an
+         *     already-cancelled holder re-applies the same UPDATE and still comes back
+         *     handled=true. A double-click is a safe no-op, not an error.
+         */
+        post: operations["cancel_holder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause Holder
+         * @description Pause collection on Stripe, then flip the holder to 'paused'.
+         *
+         *     409 when the holder isn't currently active/past_due (already paused,
+         *     cancelled, or expired — nothing to pause).
+         */
+        post: operations["pause_holder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Holder
+         * @description Clear the Stripe pause, then flip the holder back to 'active'.
+         *
+         *     409 when the holder isn't currently paused. Deliberately does NOT
+         *     recover past_due/expired holders — that's 'renew' territory (a
+         *     successful late payment), a different situation than a staff-initiated
+         *     resume.
+         */
+        post: operations["resume_holder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Subscription Config
+         * @description Edit price/currency/billing_interval/trial_period_days/active.
+         *
+         *     Empty patch -> 400. Cross-operator / missing -> 404.
+         */
+        patch: operations["patch_subscription_config"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/provision-price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision Subscription Price
+         * @description Create-or-validate this membership's Stripe Price. Idempotent.
+         *
+         *     Already provisioned -> the stored id is VALIDATED against the landr row
+         *     (active, interval, currency, amount, and that it exists on THIS operator's
+         *     account) and returned unchanged. Not provisioned -> created and stored.
+         *
+         *     Returns 404 for a subscription that is not this operator's, 409 when
+         *     ``subscriptions.price`` is NULL or a stored Price no longer matches, and 503
+         *     when the operator has not configured their own Stripe key.
+         */
+        post: operations["provision_subscription_price"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/tags": {
         parameters: {
             query?: never;
@@ -4109,7 +4835,13 @@ export interface paths {
          *
          *     `code` is uppercased to satisfy vouchers_code_uppercase_check and the
          *     .eq(UPPER(code)) pricing lookup (landr-hy5t). A duplicate code for the
-         *     same operator (among live rows) surfaces as 409.
+         *     same operator (among live rows) surfaces as 409. `applies_to_product_id`
+         *     / `campaign_id`, if supplied, must resolve to a live row on this
+         *     operator — a dangling or cross-operator id surfaces as 400.
+         *
+         *     landr-t6nh: 403s when the operator's `vouchers` feature is disabled —
+         *     server-side defence-in-depth for a beta module the dashboard already
+         *     hides when off (landr-sbhz.6).
          */
         post: operations["create_voucher"];
         delete?: never;
@@ -4143,6 +4875,11 @@ export interface paths {
         /**
          * Patch Voucher
          * @description Edit a voucher. Empty patch → 400. Cross-operator / missing → 404.
+         *
+         *     `applies_to_product_id` / `campaign_id`, if supplied and non-null, must
+         *     resolve to a live row on this operator — a dangling or cross-operator
+         *     id surfaces as 400. Explicitly patching either to null always passes
+         *     (clearing the scope needs no ownership check).
          */
         patch: operations["patch_voucher"];
         trace?: never;
@@ -4166,6 +4903,29 @@ export interface paths {
         get: operations["get_weather_forecast"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/widget-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Operator Widget Token
+         * @description Rotate `widget_token` and return the new value.
+         *
+         *     NOT idempotent — every call publishes a new token and invalidates the
+         *     previous one. `widget_preview_token` is never touched by this write.
+         */
+        post: operations["rotate_operator_widget_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4359,6 +5119,176 @@ export interface components {
             /** User Id */
             user_id: string;
         };
+        /**
+         * ApprovalReplyRequest
+         * @description `POST .../{token}/response` body.
+         *
+         *     ``extra="forbid"`` is load-bearing, not hygiene: it is the structural
+         *     guarantee that a token minted for booking A can never name booking B.
+         *     There is no `booking_id` / `operator_id` / `request_id` field here and an
+         *     unknown key is a 422, so the only booking this call can ever touch is the
+         *     one the token resolves to.
+         */
+        ApprovalReplyRequest: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Confirm Nonce
+             * @default
+             */
+            confirm_nonce: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Responder Name */
+            responder_name?: string | null;
+        };
+        /**
+         * ApprovalReplyResult
+         * @description `POST .../{token}/response` 200 body.
+         */
+        ApprovalReplyResult: {
+            /**
+             * Already Recorded
+             * @default false
+             */
+            already_recorded: boolean;
+            /**
+             * Booking Advanced
+             * @default false
+             */
+            booking_advanced: boolean;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Ok */
+            ok: boolean;
+            /**
+             * Recorded At
+             * @default
+             */
+            recorded_at: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "answered" | "expired" | "superseded" | "closed_confirmed" | "closed_cancelled";
+            /**
+             * Superseded Previous
+             * @default false
+             */
+            superseded_previous: boolean;
+        };
+        /**
+         * ApprovalRequestBooking
+         * @description Allowlisted fields ONLY. No price/total/balance, no customer name,
+         *     email or phone, no participant roster — the responder was asked about
+         *     rooms, so it learns about rooms and a head COUNT.
+         */
+        ApprovalRequestBooking: {
+            /**
+             * Check In
+             * @default
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * @default
+             */
+            check_out: string;
+            /**
+             * Guests Count
+             * @default 0
+             */
+            guests_count: number;
+            /**
+             * Nights
+             * @default 0
+             */
+            nights: number;
+            /** Reference */
+            reference: string;
+            /** Room Lines */
+            room_lines?: components["schemas"]["ApprovalRequestRoomLine"][];
+        };
+        /**
+         * ApprovalRequestContext
+         * @description `GET /api/public/approval-requests/{token}` 200 body.
+         *
+         *     Deliberately carries NO `request_id`, `booking_id` or `operator_id`:
+         *     the page needs none of them, and `request_ref` (the first 8 hex chars of
+         *     the request id) is enough for a human to quote on the phone.
+         */
+        ApprovalRequestContext: {
+            booking: components["schemas"]["ApprovalRequestBooking"];
+            /** Can Respond */
+            can_respond: boolean;
+            /** Confirm Nonce */
+            confirm_nonce: string;
+            current_response?: components["schemas"]["ApprovalRequestCurrentResponse"] | null;
+            /** Locale */
+            locale: string;
+            operator: components["schemas"]["ApprovalRequestOperator"];
+            /** Request Ref */
+            request_ref: string;
+            responder: components["schemas"]["ApprovalRequestResponder"];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "answered" | "expired" | "superseded" | "closed_confirmed" | "closed_cancelled";
+        };
+        /** ApprovalRequestCurrentResponse */
+        ApprovalRequestCurrentResponse: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Responded At */
+            responded_at: string;
+            /** Responder Name */
+            responder_name?: string | null;
+        };
+        /**
+         * ApprovalRequestOperator
+         * @description Public branding only — an unbranded card from an unrecognised domain
+         *     reads as phishing to a hotel and suppresses clicks (epic decision g).
+         */
+        ApprovalRequestOperator: {
+            /** Logo Url */
+            logo_url?: string | null;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Primary Color */
+            primary_color?: string | null;
+        };
+        /** ApprovalRequestResponder */
+        ApprovalRequestResponder: {
+            /**
+             * Location Name
+             * @default
+             */
+            location_name: string;
+        };
+        /** ApprovalRequestRoomLine */
+        ApprovalRequestRoomLine: {
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+        };
         /** ApproveIn */
         ApproveIn: {
             /** Notes */
@@ -4450,6 +5380,26 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * BankDetailsIn
+         * @description PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above):
+         *
+         *       * field OMITTED             -> left untouched.
+         *       * field explicitly ``null`` -> CLEAR (writes SQL NULL).
+         *       * field is ``""`` / blank   -> 422 blank_not_allowed (an explicit
+         *         divergence from CredentialUpsertIn's _strip_blanks, which silently
+         *         maps blank -> untouched; that router puts clearing out of scope, but
+         *         once null means clear here, silently swallowing "" is ambiguous).
+         *
+         *     max_length validates the PLAINTEXT on the way in — never the ciphertext
+         *     (a ~34-char IBAN becomes a ~150-char 'fernet:' token).
+         */
+        BankDetailsIn: {
+            /** Bic */
+            bic?: string | null;
+            /** Iban */
+            iban?: string | null;
         };
         /**
          * BdIntentIn
@@ -6002,6 +6952,8 @@ export interface components {
             public_contact_email?: string | null;
             /** Region */
             region?: string | null;
+            /** Require Declarations */
+            require_declarations?: boolean | null;
             /** Show Premium Teasers */
             show_premium_teasers?: boolean | null;
             /** Street */
@@ -6026,6 +6978,8 @@ export interface components {
             weather_lon?: number | null;
             /** Weather Provider */
             weather_provider?: string | null;
+            /** Widget Catalog Layout */
+            widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
             /** Widget Description */
@@ -6074,6 +7028,10 @@ export interface components {
             images?: components["schemas"]["ProductImage"][];
             /** Name */
             name: string;
+            /** Next Window End */
+            next_window_end?: string | null;
+            /** Next Window Start */
+            next_window_start?: string | null;
             /** Price From */
             price_from?: string | null;
             /** Product Id */
@@ -6091,8 +7049,21 @@ export interface components {
          *
          *     product_count is the number of currently-listable products in the group's
          *     descendant subtree (the widget hides product_count=0 groups itself).
+         *
+         *     bookable_count (landr-872c) is the subset of product_count that is
+         *     currently bookable — same descendant subtree, same _product_is_bookable()
+         *     predicate public_get_operator_products.bookable already uses. It governs
+         *     PER-CATEGORY visibility (a fully sold-out category — product_count > 0,
+         *     bookable_count == 0 — renders as a disabled/"Fully booked" tile+section in
+         *     both widget layouts, never hidden); show_sold_out keeps governing
+         *     PER-PRODUCT visibility inside a category. Always <= product_count.
          */
         OperatorProductGroup: {
+            /**
+             * Bookable Count
+             * @default 0
+             */
+            bookable_count: number;
             /** Description */
             description?: string | null;
             /** Description Localized */
@@ -6181,6 +7152,8 @@ export interface components {
             theme?: {
                 [key: string]: unknown;
             } | null;
+            /** Widget Catalog Layout */
+            widget_catalog_layout?: string | null;
             /** Widget Category Columns */
             widget_category_columns?: number | null;
             /** Widget Description */
@@ -6612,6 +7585,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Product Availability Id */
+            product_availability_id?: string | null;
             /** Product Id */
             product_id: string;
             /**
@@ -6827,6 +7802,8 @@ export interface components {
              * @default false
              */
             is_shared_double: boolean;
+            /** Member Perk Otp */
+            member_perk_otp?: string | null;
             /** Participants */
             participants?: components["schemas"]["ParticipantIn"][];
             /** Preview Token */
@@ -6837,6 +7814,21 @@ export interface components {
             voucher_code?: string | null;
             /** Widget Token */
             widget_token: string;
+        };
+        /** PublishSiteWarningRequest */
+        PublishSiteWarningRequest: {
+            /** Body */
+            body?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Severity
+             * @default critical
+             * @constant
+             */
+            severity: "critical";
+            /** Title */
+            title: string;
         };
         /** QuickCreateIn */
         QuickCreateIn: {
@@ -6906,6 +7898,20 @@ export interface components {
             /** Refundable Remaining After */
             refundable_remaining_after: string;
         };
+        /** ReissueApprovalRequestIn */
+        ReissueApprovalRequestIn: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ReissueApprovalRequestOut */
+        ReissueApprovalRequestOut: {
+            /** Outbound Email Id */
+            outbound_email_id?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Token Expires At */
+            token_expires_at: string;
+        };
         /** RejectIn */
         RejectIn: {
             /** Notes */
@@ -6968,6 +7974,13 @@ export interface components {
             /** Type */
             type: string;
         };
+        /** RemovePhotoResponse */
+        RemovePhotoResponse: {
+            /** Id */
+            id: string;
+            /** Moderation Status */
+            moderation_status: string;
+        };
         /** RequestGoliveIn */
         RequestGoliveIn: {
             /** Notes */
@@ -7008,7 +8021,7 @@ export interface components {
             id: string;
             /**
              * Sent Via
-             * @description 'gmail' | 'dev_fallback' | '' (empty on failure).
+             * @description 'operator_ses' | 'platform_fallback' | 'dev_fallback' | 'skipped_reserved' | '' (empty on failure).
              */
             sent_via: string;
             /**
@@ -7211,6 +8224,11 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** SetSiteWarningPublisherRequest */
+        SetSiteWarningPublisherRequest: {
+            /** Can Publish */
+            can_publish: boolean;
+        };
         /** SetStageRequest */
         SetStageRequest: {
             /**
@@ -7271,6 +8289,48 @@ export interface components {
             signed_url: string;
         };
         /**
+         * SignoffIn
+         * @description landr-a99u.13.2 — operator sign/decline of an open advisory signoff window.
+         */
+        SignoffIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "signed" | "declined";
+            /** Notes */
+            notes?: string | null;
+            /** Run Id */
+            run_id: string;
+        };
+        /**
+         * SignoffOverrideIn
+         * @description landr-a99u.13.2 — mirrors RejectIn's non-empty-reason convention; the
+         *     override is an audited exception to the advisory gate, so a reason is
+         *     mandatory the same way a rejection reason is.
+         */
+        SignoffOverrideIn: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * SignoffRelayIn
+         * @description landr-a99u.13.2 — relayed operator sign/decline of an advisory window.
+         */
+        SignoffRelayIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "signed" | "declined";
+            /** Notes */
+            notes?: string | null;
+            /** Run Id */
+            run_id: string;
+            /** Signer Email */
+            signer_email: string;
+        };
+        /**
          * SignupRequest
          * @description POST /api/public/signup body.
          *
@@ -7310,6 +8370,42 @@ export interface components {
             forecasts: components["schemas"]["ForecastItem"][];
             /** Site Id */
             site_id: string;
+        };
+        /** SiteWarningPublisherResponse */
+        SiteWarningPublisherResponse: {
+            /** Can Publish Site Warnings */
+            can_publish_site_warnings: boolean;
+            /** Operator Id */
+            operator_id: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** SiteWarningResponse */
+        SiteWarningResponse: {
+            /** Activity Site Id */
+            activity_site_id: string;
+            /** Body */
+            body: string | null;
+            /** Created At */
+            created_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Id */
+            id: string;
+            /** Notified Count */
+            notified_count: number;
+            /** Published By */
+            published_by: string;
+            /** Published By Operator Id */
+            published_by_operator_id: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Resolved By */
+            resolved_by: string | null;
+            /** Severity */
+            severity: string;
+            /** Title */
+            title: string;
         };
         /** SlotTime */
         SlotTime: {
@@ -7500,6 +8596,66 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** SubscriptionCheckoutIn */
+        SubscriptionCheckoutIn: {
+            /** Cancel Url */
+            cancel_url: string;
+            /** Email */
+            email: string;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Product Id */
+            product_id: string;
+            /** Return Url */
+            return_url: string;
+            /** Widget Token */
+            widget_token: string;
+        };
+        /**
+         * SubscriptionConfigIn
+         * @description Create payload — mirrors the subscriptions table's own CHECK
+         *     constraints (billing_interval, price >= 0) so a bad value 400s here
+         *     with a field-level Pydantic error rather than an opaque Postgres one.
+         */
+        SubscriptionConfigIn: {
+            /** Billing Interval */
+            billing_interval: string;
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /** Price */
+            price: number;
+            /** Trial Period Days */
+            trial_period_days?: number | null;
+        };
+        /**
+         * SubscriptionConfigPatch
+         * @description Partial edit — every field optional. stripe_price_id is NOT
+         *     editable here — it is owned exclusively by provision-price/
+         *     ensure_stripe_price, never hand-set (that would let a client point a
+         *     membership's billing at an arbitrary, unvalidated Stripe Price id).
+         */
+        SubscriptionConfigPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Billing Interval */
+            billing_interval?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Price */
+            price?: number | null;
+            /** Trial Period Days */
+            trial_period_days?: number | null;
+        };
+        /** SubscriptionPerkOtpRequest */
+        SubscriptionPerkOtpRequest: {
+            /** Email */
+            email: string;
+        };
         /** SyncResponse */
         SyncResponse: {
             /**
@@ -7633,6 +8789,18 @@ export interface components {
             type: string;
         };
         /**
+         * VerifyResult
+         * @description Result of POST .../integrations/{provider}/{mode}/verify. Never
+         *     persisted server-side — the dashboard holds this in local component state
+         *     only, so a page refresh reverts to the "Configured" (stored) badge.
+         */
+        VerifyResult: {
+            /** Detail */
+            detail?: string | null;
+            /** Ok */
+            ok: boolean;
+        };
+        /**
          * ViewReorderItem
          * @description One element of the bulk reorder payload — a (view_id, sort_order)
          *     pair scoped to the caller's view_user_state rows.
@@ -7692,6 +8860,10 @@ export interface components {
             active: boolean;
             /** Amount */
             amount: number;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Code */
             code: string;
             /**
@@ -7724,6 +8896,10 @@ export interface components {
             active?: boolean | null;
             /** Amount */
             amount?: number | null;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Code */
             code?: string | null;
             /** Currency */
@@ -8104,6 +9280,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AckStatusOut"];
+                };
+            };
+        };
+    };
+    get_site_services: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8647,6 +9856,73 @@ export interface operations {
             };
         };
     };
+    publish_site_warning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_site_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishSiteWarningRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteWarningResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_site_warning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_site_id: string;
+                warning_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteWarningResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_site_flyability: {
         parameters: {
             query?: never;
@@ -8853,6 +10129,78 @@ export interface operations {
             };
         };
     };
+    relay_signoff: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignoffRelayIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_my_signoffs: {
+        parameters: {
+            query: {
+                signer_email: string;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stripe_webhook: {
         parameters: {
             query?: never;
@@ -8871,6 +10219,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    remove_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovePhotoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -9204,6 +10583,76 @@ export interface operations {
             };
         };
     };
+    override_signoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignoffOverrideIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_signoffs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_revenue_overview: {
         parameters: {
             query?: {
@@ -9222,6 +10671,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevenueOverview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_site_warning_publisher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetSiteWarningPublisherRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteWarningPublisherResponse"];
                 };
             };
             /** @description Validation Error */
@@ -9535,6 +11020,63 @@ export interface operations {
             };
         };
     };
+    submit_signoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignoffIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_signoffs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     resend_email: {
         parameters: {
             query?: never;
@@ -9660,6 +11202,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_approval_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalRequestContext"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_record_approval_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalReplyResult"];
                 };
             };
             /** @description Validation Error */
@@ -10325,6 +11933,43 @@ export interface operations {
             };
         };
     };
+    request_subscription_perk_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkOtpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     initiate_payment: {
         parameters: {
             query?: never;
@@ -10505,6 +12150,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    initiate_subscription_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionCheckoutIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -10731,6 +12411,41 @@ export interface operations {
             };
         };
     };
+    staff_reissue_approval_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReissueApprovalRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReissueApprovalRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_booking_product: {
         parameters: {
             query?: never;
@@ -10746,6 +12461,40 @@ export interface operations {
                 "application/json": components["schemas"]["BookingProductPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reprice_booking_product_at_current_entitlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -10918,6 +12667,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bank_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_bank_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankDetailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -13444,6 +15263,39 @@ export interface operations {
             };
         };
     };
+    verify_integration_credential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                provider: string;
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_role_types: {
         parameters: {
             query?: never;
@@ -14784,6 +16636,42 @@ export interface operations {
             };
         };
     };
+    staff_get_fixed_date_windows: {
+        parameters: {
+            query: {
+                staff_session: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_windows: {
         parameters: {
             query?: never;
@@ -14910,6 +16798,44 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_subscription_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionConfigIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15536,6 +17462,180 @@ export interface operations {
             };
         };
     };
+    cancel_holder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                holder_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pause_holder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                holder_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_holder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                holder_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_subscription_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionConfigPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provision_subscription_price: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tags: {
         parameters: {
             query?: never;
@@ -15895,6 +17995,39 @@ export interface operations {
                 /** @description ISO date YYYY-MM-DD to fetch the forecast for. */
                 date: string;
             };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_operator_widget_token: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
                 operator_id: string;

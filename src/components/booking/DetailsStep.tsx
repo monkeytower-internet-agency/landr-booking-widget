@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
+import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
@@ -82,6 +83,14 @@ interface Props {
    * when the customer hits Back from a downstream step.
    */
   initialCompanions?: CompanionDetails[]
+  /**
+   * landr-fn4i / landr-5krc: prior value of the optional member-perk code,
+   * carried by App.tsx's top-level state (NOT the Step union — see
+   * BookingForm's memberPerkOtp doc) so a Back-then-forward re-entry shows
+   * the code the customer already typed instead of a blank field that would
+   * silently contradict what's actually still armed for submit.
+   */
+  initialMemberPerkOtp?: string
   onBack: () => void
   onConfirm: (
     booker: BookerDetails,
@@ -109,6 +118,16 @@ interface Props {
     names: string[],
     companionCount: number,
   ) => void
+  /**
+   * landr-fn4i / landr-5krc: fires on every keystroke in the optional
+   * member-perk code field, lifting the live value straight into App.tsx's
+   * top-level state (mirrors onLiveParticipantsChange's "fire from the event
+   * handler, not an effect" pattern). By the time the customer reaches
+   * BookingForm's Confirm button — several steps later — the lifted value is
+   * already current; there's no separate "commit on Continue" step for this
+   * field.
+   */
+  onMemberPerkOtpChange?: (code: string) => void
 }
 
 /**
@@ -169,9 +188,11 @@ export function DetailsStep({
   initialBooker,
   initialParticipants,
   initialCompanions,
+  initialMemberPerkOtp,
   onBack,
   onConfirm,
   onLiveParticipantsChange,
+  onMemberPerkOtpChange,
 }: Props) {
   const locale = browserLocale()
   // landr-mg0a: defaultRoleCode is the first row served by
@@ -205,6 +226,32 @@ export function DetailsStep({
   // Restored from initialCompanions on Back-restore, else empty.
   const [companions, setCompanions] = useState<CompanionDetails[]>(
     () => initialCompanions ?? [],
+  )
+
+  // landr-fn4i / landr-5krc: optional member-perk code. Seeded from
+  // initialMemberPerkOtp on Back-restore (mirrors the booker/companions
+  // pattern above) so the field never shows blank while App.tsx's lifted
+  // copy still holds a previously-typed value.
+  const [memberPerkOtp, setMemberPerkOtpState] = useState<string>(
+    () => initialMemberPerkOtp ?? '',
+  )
+  // The OTP-request endpoint is fired on email BLUR, not on every keystroke
+  // (matches the backend contract + keeps us well under its per-token/per-
+  // email rate limits). otpRequested drives whether the always-on optional
+  // code field is shown at all — seeded true when re-entering with an
+  // already-valid-looking email (Back-restore), since a request for that
+  // email would already have fired on the forward pass.
+  const [otpRequested, setOtpRequested] = useState<boolean>(() =>
+    Boolean(initialBooker?.email?.trim() && initialBooker.email.includes('@')),
+  )
+  // Dedupes repeated blurs of an UNCHANGED email against re-firing the
+  // network call (a customer tabbing back and forth across the form blurs
+  // the same field many times). Seeded from initialBooker so a Back-restore
+  // remount doesn't re-request for an email that already got one on the way
+  // forward — only an actual EDIT to the email (a genuine new blur target)
+  // fires a fresh request.
+  const otpSentForEmailRef = useRef<string | null>(
+    initialBooker?.email?.trim() ? initialBooker.email.trim() : null,
   )
 
   // If the service-roles fetch resolves AFTER DetailsStep first mounted,
@@ -342,6 +389,44 @@ export function DetailsStep({
       notifyLive(next, additional, companions)
       return next
     })
+  }
+
+  // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
+  // Fires POST .../subscription-perk/otp for a non-empty, '@'-shaped email —
+  // the same loose check the rest of this file already uses for "does this
+  // look like an email" (isFieldInvalid's booker.email case), not full RFC
+  // validation. Reveals the optional code field regardless of whether the
+  // network call itself succeeds (the endpoint is fire-and-forget by design
+  // — see requestSubscriptionPerkOtp's doc — so there is nothing useful to
+  // gate the UI on). Dedupes against otpSentForEmailRef so repeated blurs of
+  // an unchanged email (tabbing back and forth) don't re-request and burn
+  // into the server's per-email rate limit.
+  const requestMemberPerkOtpIfNeeded = () => {
+    const email = booker.email.trim()
+    if (!email || !email.includes('@')) return
+    setOtpRequested(true)
+    if (otpSentForEmailRef.current === email) return
+    otpSentForEmailRef.current = email
+    // No operatorToken (legacy/test call-sites that omit it) → nothing to
+    // hit; the field still shows so the customer isn't blocked either way.
+    if (!operatorToken) return
+    void requestSubscriptionPerkOtp(operatorToken, email).catch(() => {
+      // Deliberately swallowed. The endpoint always answers 202 {ok:true}
+      // for a valid widget_token regardless of member/non-member/malformed/
+      // rate-limited — a network/host failure here is equally uninformative
+      // and must never surface to the customer (landr-fn4i: never branch UI
+      // on this call, and never turn a non-member's blur into an error toast).
+    })
+  }
+
+  // landr-fn4i / landr-5krc: the optional code field's onChange. Strips
+  // non-digits and caps at 6 so a paste (e.g. from the email client) can't
+  // leave stray whitespace or punctuation in the value that eventually rides
+  // as member_perk_otp on submit.
+  const updateMemberPerkOtp = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 6)
+    setMemberPerkOtpState(digits)
+    onMemberPerkOtpChange?.(digits)
   }
 
   const updateParticipant = (
@@ -658,6 +743,13 @@ export function DetailsStep({
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
                 {...bookerEmailV.inputProps}
+                onBlur={() => {
+                  bookerEmailV.inputProps.onBlur()
+                  // landr-fn4i / landr-5krc: fire the subscription-perk OTP
+                  // request on the same blur that arms the "Required" error
+                  // check above — one blur, two independent concerns.
+                  requestMemberPerkOtpIfNeeded()
+                }}
               />
             </Field>
             <Field label="Phone" htmlFor="booker-phone" error={bookerPhoneV.error}>
@@ -692,6 +784,44 @@ export function DetailsStep({
               </Field>
             ) : null}
           </div>
+
+          {/* landr-fn4i / landr-5krc: always-on, OPTIONAL member-perk code
+              field. Shown once the OTP request has fired for the current
+              email (member or not — the response carries no signal either
+              way, so this can't and doesn't try to say "code sent" vs "not a
+              member"). Never required, never validated red — a non-member
+              leaving it blank must feel exactly as unremarkable as a member
+              filling it in. The price only changes on submit (the code is
+              spent server-side during pricing), so there is deliberately no
+              client-side preview here. */}
+          {otpRequested ? (
+            <div
+              className="rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="member-perk-otp-section"
+            >
+              <Label htmlFor="member-perk-otp" className="text-xs">
+                Member? Enter the 6-digit code we emailed you to apply your
+                member price.
+              </Label>
+              <Input
+                id="member-perk-otp"
+                name="member_perk_otp"
+                data-testid="member-perk-otp-input"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                className="mt-1 max-w-[10rem]"
+                value={memberPerkOtp}
+                onChange={(e) => updateMemberPerkOtp(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Not a member, or don&rsquo;t have a code? Leave this blank —
+                it won&rsquo;t affect your booking.
+              </p>
+            </div>
+          ) : null}
         </fieldset>
 
         {/* Additional participants — same stepper pattern as the legacy

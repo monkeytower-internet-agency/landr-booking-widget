@@ -21,6 +21,7 @@ import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { OfferPage } from '@/components/booking/OfferPage'
+import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import type {
@@ -30,6 +31,8 @@ import type {
 } from '@/components/booking/detailsTypes'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
+import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
+import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
@@ -178,6 +181,68 @@ function App() {
       </VariantProvider>
     )
   }
+  // landr-esd3: booking_payment_link "pay outstanding balance" page. Same
+  // OfferPage component as the /offer branch above, in mode="pay".
+  if (route.kind === 'pay') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+              <OfferPage token={route.token} mode="pay" />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
+  // landr-em0r.9: hotel room-request reply page. Same unauthenticated,
+  // pre-BookingFlowApp shell as cancel/offer above — App never fetches
+  // operator/product data for this route, and the branded header comes
+  // from the token's own GET response instead.
+  if (route.kind === 'reply') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+              <ApprovalReplyPage token={route.token} intent={route.intent} />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
+  // landr-1kk.5: Stripe redirected back from the membership checkout
+  // ("become a member") flow. This is a QUERY param, not a path (the
+  // customer never left the widget's base URL), so it can't be part of
+  // `detectRoute` — it coexists with `?w=`/`?product=`. Checked here,
+  // before BookingFlowApp mounts, so we never re-fetch operator/product
+  // data just to show a redirect confirmation. Mirrors OfferPage's
+  // `?paid=1` / `?paid=cancelled` pair exactly, just query-flagged
+  // `member=` instead of `paid=` since this isn't a token-addressed page.
+  const memberParam =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('member')
+      : null
+  if (memberParam === '1' || memberParam === 'cancelled') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+              <MembershipReturnPage
+                status={memberParam === '1' ? 'success' : 'cancelled'}
+              />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
   return (
     <VariantProvider value={variantFromLocation()}>
       {/* landr-aoak.2: staff session context (inactive ⇒ normal widget). */}
@@ -225,6 +290,15 @@ function BookingFlowApp() {
   // when leaving the details step so back-nav starts fresh.
   const [liveParticipantCount, setLiveParticipantCount] = useState<number>(0)
   const [liveParticipantNames, setLiveParticipantNames] = useState<string[]>([])
+  // landr-fn4i / landr-5krc: the optional member-perk code, lifted live from
+  // DetailsStep (mirrors liveParticipant* above) straight to BookingForm's
+  // submit — deliberately NOT part of the Step union / BookingDraft (unlike
+  // booker/participants/companions): it only ever matters at the final
+  // submit, its 5-minute server-side TTL makes round-tripping it through
+  // every intermediate step + sessionStorage pointless, and DetailsStep
+  // re-seeds its own field from this same state via initialMemberPerkOtp so
+  // a Back-then-forward loop still shows (and re-sends) whatever was typed.
+  const [memberPerkOtp, setMemberPerkOtp] = useState<string>('')
   // landr-87n9.2: live-lifted room + per-room add-on selection from
   // AccommodationStep so the PriceSidebar's "At-hotel total" pill updates
   // WHILE the customer picks rooms — without waiting for Continue. Mirrors
@@ -687,6 +761,9 @@ function BookingFlowApp() {
       // landr-gb2f.1: also clear live participant state on a full restart.
       setLiveParticipantCount(0)
       setLiveParticipantNames([])
+      // landr-fn4i / landr-5krc: a full restart is a brand-new booking —
+      // any previously-typed member-perk code must not silently ride along.
+      setMemberPerkOtp('')
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
       // landr-nmed: a full restart (post-booking, or "← All categories" /
@@ -1354,16 +1431,30 @@ function BookingFlowApp() {
 
         {/*
           Step machine branching (landr-y9k). First branch is product_kind:
-          non-service kinds (digital_good, physical_good, gift_card) render
-          the ShopComingSoonStub since the booking widget doesn't take
-          checkout for shop kinds yet. For services, branch on
+          non-service, non-subscription kinds (digital_good, physical_good,
+          gift_card) render the ShopComingSoonStub since the booking widget
+          doesn't take checkout for shop kinds yet. subscription is the one
+          exception (landr-1kk.5) — it gets a real checkout CTA, branched
+          separately just below. For services, branch on
           service_time_shape to pick the right picker; MultiDayPicker also
           consumes product.is_contiguous to switch between any-day-toggle
           and consecutive-only modes.
         */}
         {step.name === 'pick-selection' &&
-        step.product.product_kind !== 'service' ? (
+        step.product.product_kind !== 'service' &&
+        step.product.product_kind !== 'subscription' ? (
           <ShopComingSoonStub product={step.product} onBack={goToProductStep} />
+        ) : null}
+
+        {/* landr-1kk.5: "become a member" Stripe checkout for
+            product_kind='subscription' — the deferred slice of landr-c3t. */}
+        {step.name === 'pick-selection' &&
+        step.product.product_kind === 'subscription' ? (
+          <MembershipCheckoutStep
+            product={step.product}
+            onBack={goToProductStep}
+            widgetToken={token!}
+          />
         ) : null}
 
         {step.name === 'pick-selection' &&
@@ -1475,6 +1566,11 @@ function BookingFlowApp() {
             initialParticipants={step.participants}
             // landr-87n9.3: restore the non-guiding companions on Back.
             initialCompanions={step.companions}
+            // landr-fn4i / landr-5krc: restore the member-perk code on Back —
+            // this is the top-level lifted state, not the Step union, so it
+            // survives the remount on its own regardless of how step changed.
+            initialMemberPerkOtp={memberPerkOtp}
+            onMemberPerkOtpChange={setMemberPerkOtp}
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -1898,6 +1994,10 @@ function BookingFlowApp() {
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
+            // landr-fn4i / landr-5krc: top-level lifted state from
+            // DetailsStep — see memberPerkOtp's declaration above for why
+            // this isn't threaded through step.* like booker/participants.
+            memberPerkOtp={memberPerkOtp}
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator

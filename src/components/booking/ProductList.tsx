@@ -129,7 +129,23 @@ export function ProductList({
   // booked" cards, no CTA) when the embed opted in via show_sold_out=true.
   const bookable = products.filter((p) => isBookable(p))
   const soldOut = showSoldOut ? products.filter((p) => !isBookable(p)) : []
-  const visible = [...bookable, ...soldOut]
+  let visible = [...bookable, ...soldOut]
+
+  // landr-872c: a FULLY SOLD-OUT category (products exist, none bookable)
+  // stays reachable via its ?group=<slug> deep link even though its
+  // CategoryTile is disabled — render every product as a FullyBookedNotice
+  // card, in BOTH show_sold_out states, instead of the dead-end copy below
+  // (mirrors ExpandedCatalog's FULLY SOLD-OUT row, and the existing
+  // ?product= deep-link precedent: a resolved product is always rendered).
+  // ProductList has no group-level bookable_count to read (it only ever
+  // fetches products, never groups) — "fully sold out" is derived straight
+  // from the fetched products themselves: some exist, none are bookable.
+  // A genuinely EMPTY group (products.length === 0 — unknown slug or no
+  // products at all) is NOT this case and keeps the dead-end copy below.
+  const fullySoldOut = products.length > 0 && bookable.length === 0
+  if (fullySoldOut) {
+    visible = products
+  }
 
   if (visible.length === 0) {
     return (
