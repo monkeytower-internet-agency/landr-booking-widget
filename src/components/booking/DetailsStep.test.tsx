@@ -1,6 +1,28 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+// landr-bx5y: jsdom has no global AnimationEvent constructor. Without one,
+// react-dom's animation-event feature detection (react-dom-client.development.js,
+// getVendorPrefixedEventName) falls back to listening for the legacy
+// 'webkitAnimationStart' event name instead of the standard 'animationstart'
+// that real browsers (and our production CSS-animation autofill-detection
+// trick in index.css) actually use. Polyfilling AnimationEvent here — via
+// vi.hoisted so it lands before react-dom is first imported/evaluated —
+// makes react-dom compute the same event name a real browser would, so this
+// suite exercises production behavior rather than a jsdom-only quirk.
+vi.hoisted(() => {
+  if (typeof globalThis.AnimationEvent !== 'undefined') return
+  class AnimationEventPolyfill extends Event {
+    animationName: string
+    constructor(type: string, init: AnimationEventInit = {}) {
+      super(type, init)
+      this.animationName = init.animationName ?? ''
+    }
+  }
+  // @ts-expect-error -- test-only polyfill for a jsdom gap, not a real DOM global
+  globalThis.AnimationEvent = AnimationEventPolyfill
+})
+
 import * as client from '@/api/client'
 import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
@@ -1038,6 +1060,65 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
     const phone = byName('booker_phone')
     expect(phone).toHaveAttribute('placeholder', '+34 600 123 456')
     expect(screen.getByText('Include your country code')).toBeInTheDocument()
+  })
+
+  // landr-bx5y: browser autofill can hand the field an already-mangled value
+  // (the '+CC' stripped before our JS runs) — the CSS in index.css fires an
+  // 'onAutoFillStart' animation while the browser considers the input
+  // autofilled, and DetailsStep treats that as an implicit touch so the
+  // format error appears immediately, without waiting for blur/Continue.
+  it('flags a phone left country-code-less by browser autofill as soon as the autofill animation fires, without a blur', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    // Simulates what the browser does on autofill: the value lands via a
+    // change event, then the browser marks the field autofilled (the
+    // animation), with no blur in between.
+    fireEvent.change(phone, { target: { value: '677620730' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+  })
+
+  it('does NOT touch the phone field on an unrelated animation (only the autofill-start one counts)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.change(phone, { target: { value: '677620730' } })
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillCancel' })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('does not flag a correctly-autofilled phone (autofill animation fires but the value is already valid)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.change(phone, { target: { value: '+34 677 62 07 30' } })
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('wires the same autofill detection to participant and companion phone inputs', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const pPhone = byName('participant_2_phone')
+    const cPhone = byName('companion_1_phone')
+    fireEvent.change(pPhone, { target: { value: '677620730' } })
+    fireEvent.animationStart(pPhone, { animationName: 'onAutoFillStart' })
+    expect(pPhone).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(cPhone, { target: { value: '677620730' } })
+    fireEvent.animationStart(cPhone, { animationName: 'onAutoFillStart' })
+    expect(cPhone).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('sets autoComplete="tel" on the booker, participant, and companion phone inputs', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(byName('booker_phone')).toHaveAttribute('autocomplete', 'tel')
+    expect(byName('participant_2_phone')).toHaveAttribute('autocomplete', 'tel')
+    expect(byName('companion_1_phone')).toHaveAttribute('autocomplete', 'tel')
   })
 
   it('flags an added participant phone missing the "+" country code (landr-nkbi + landr-1url)', () => {
