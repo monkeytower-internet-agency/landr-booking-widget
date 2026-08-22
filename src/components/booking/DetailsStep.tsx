@@ -734,7 +734,23 @@ export function DetailsStep({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {/* Booker section — required fields for the person making the
-            booking. They're also automatically participant 1. */}
+            booking. They're also automatically participant 1.
+
+            landr-jruv follow-up: confirmed live on bw-dev — the browser
+            fills the booker phone with the full +CC number but reformats
+            every OTHER phone field (added participants, companions) to a
+            bare national number (a German +49… autofills as 0…). Every
+            row's fields now carry a `section-<row>` autocomplete prefix
+            (WHATWG autofill spec —
+            https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-detail-tokens),
+            the standards mechanism for telling the browser that repeated
+            field groups on one page (here: one per person) are independent
+            identities rather than one profile's alternate phone numbers —
+            our best working theory for why only the first phone field kept
+            its country code. Not independently re-confirmed against a real
+            browser after this change (none available in this environment);
+            the bulk-fill touch-detection above is the fallback that catches
+            a mangled value either way, regardless of whether this helps. */}
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">Your contact details</legend>
           <p className="text-xs text-muted-foreground">
@@ -746,7 +762,7 @@ export function DetailsStep({
               <Input
                 id="booker-first"
                 name="booker_first_name"
-                autoComplete="given-name"
+                autoComplete="section-booker given-name"
                 value={booker.first_name}
                 onChange={(e) => updateBookerField('first_name', e.target.value)}
                 {...bookerFirstV.inputProps}
@@ -756,7 +772,7 @@ export function DetailsStep({
               <Input
                 id="booker-last"
                 name="booker_last_name"
-                autoComplete="family-name"
+                autoComplete="section-booker family-name"
                 value={booker.last_name}
                 onChange={(e) => updateBookerField('last_name', e.target.value)}
                 {...bookerLastV.inputProps}
@@ -767,7 +783,7 @@ export function DetailsStep({
                 id="booker-email"
                 name="booker_email"
                 type="email"
-                autoComplete="email"
+                autoComplete="section-booker email"
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
                 {...bookerEmailV.inputProps}
@@ -785,7 +801,7 @@ export function DetailsStep({
                 id="booker-phone"
                 name="booker_phone"
                 type="tel"
-                autoComplete="tel"
+                autoComplete="section-booker tel"
                 placeholder="+34 600 123 456"
                 pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
@@ -912,6 +928,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
+                  autoComplete={`section-participant-${idx + 2} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
@@ -923,6 +940,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
+                  autoComplete={`section-participant-${idx + 2} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
@@ -935,6 +953,7 @@ export function DetailsStep({
                   id={`p-${idx}-email`}
                   name={`participant_${idx + 2}_email`}
                   type="email"
+                  autoComplete={`section-participant-${idx + 2} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
@@ -947,7 +966,7 @@ export function DetailsStep({
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
                   type="tel"
-                  autoComplete="tel"
+                  autoComplete={`section-participant-${idx + 2} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
@@ -1190,6 +1209,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
+                  autoComplete={`section-companion-${idx + 1} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'first_name', e.target.value)
@@ -1201,6 +1221,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
+                  autoComplete={`section-companion-${idx + 1} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'last_name', e.target.value)
@@ -1213,6 +1234,7 @@ export function DetailsStep({
                   id={`companion-${idx}-email`}
                   name={`companion_${idx + 1}_email`}
                   type="email"
+                  autoComplete={`section-companion-${idx + 1} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateCompanion(idx, 'email', e.target.value)
@@ -1228,7 +1250,7 @@ export function DetailsStep({
                   id={`companion-${idx}-phone`}
                   name={`companion_${idx + 1}_phone`}
                   type="tel"
-                  autoComplete="tel"
+                  autoComplete={`section-companion-${idx + 1} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}

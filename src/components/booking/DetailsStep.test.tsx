@@ -1144,13 +1144,51 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
     expect(phone).not.toHaveAttribute('aria-invalid')
   })
 
-  it('sets autoComplete="tel" on the booker, participant, and companion phone inputs', () => {
+  // landr-jruv follow-up: every row's fields carry a `section-<row>`
+  // autocomplete prefix (WHATWG autofill spec) so the browser treats
+  // booker/participant-N/companion-N as independent identities, rather
+  // than folding them into one profile and defaulting every phone field
+  // past the first to a country-code-less national format (confirmed live
+  // on bw-dev: a German +49… autofilled every non-booker phone field as a
+  // bare 0…, while the booker phone kept its full international format).
+  it('sets a distinct autocomplete "tel" section per row on the booker, participant, and companion phone inputs', () => {
     renderStep()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
-    expect(byName('booker_phone')).toHaveAttribute('autocomplete', 'tel')
-    expect(byName('participant_2_phone')).toHaveAttribute('autocomplete', 'tel')
-    expect(byName('companion_1_phone')).toHaveAttribute('autocomplete', 'tel')
+    expect(byName('booker_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-booker tel',
+    )
+    expect(byName('participant_2_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-participant-2 tel',
+    )
+    expect(byName('companion_1_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-companion-1 tel',
+    )
+  })
+
+  it('sets a matching autocomplete section on each row\'s name and email fields too', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(byName('booker_first_name')).toHaveAttribute(
+      'autocomplete',
+      'section-booker given-name',
+    )
+    expect(byName('booker_email')).toHaveAttribute(
+      'autocomplete',
+      'section-booker email',
+    )
+    expect(byName('participant_2_last_name')).toHaveAttribute(
+      'autocomplete',
+      'section-participant-2 family-name',
+    )
+    expect(byName('companion_1_first_name')).toHaveAttribute(
+      'autocomplete',
+      'section-companion-1 given-name',
+    )
   })
 
   it('flags an added participant phone missing the "+" country code (landr-nkbi + landr-1url)', () => {
