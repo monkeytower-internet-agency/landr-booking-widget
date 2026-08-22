@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AnimationEvent } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
@@ -452,6 +453,33 @@ export function DetailsStep({
   const markTouched = (key: string) =>
     setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
 
+  // landr-bx5y: browser autofill can hand a phone field a value with the
+  // '+CC' already stripped (a Safari/Chrome autofill quirk, not something
+  // our onChange sees separately from a normal edit) — the customer would
+  // otherwise not find out until they blur the field or tap Continue. The
+  // CSS in index.css fires a (visually inert) animation while a tel input
+  // is in the browser's autofilled state; treat that as an implicit touch
+  // so the "add your country code" validation appears immediately.
+  const handlePhoneAutofill =
+    (key: string) => (e: AnimationEvent<HTMLInputElement>) => {
+      if (e.animationName === 'onAutoFillStart') markTouched(key)
+    }
+
+  // landr-bx5y follow-up: the :-webkit-autofill/onAnimationStart trick above
+  // turned out to only fire reliably on the booker phone field — the one
+  // present when the page first loads. Participant/companion rows are
+  // mounted later (revealed by "+ Add participant"/"+ Add companion"), and
+  // in the field a real browser's autofill engine doesn't consistently
+  // apply the :-webkit-autofill state to those, even though it still hands
+  // them a (possibly mangled) value. So this is the actual primary signal:
+  // a real keystroke changes a field's length by one character at a time —
+  // only autofill or a paste can jump a field from empty straight to a
+  // multi-character value in a single onChange. That distinction doesn't
+  // depend on any browser-specific pseudo-class or on when the field was
+  // mounted, so it covers every row equally.
+  const looksLikeBulkFill = (prevValue: string, nextValue: string): boolean =>
+    prevValue.trim() === '' && nextValue.trim().length >= 4
+
   // landr-79re: the onBlur path alone is unreliable on mobile (tapping
   // between fields, dismissing the keyboard, or tapping a disabled button
   // often don't fire a blur), so an incomplete form could show NO red
@@ -706,7 +734,23 @@ export function DetailsStep({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {/* Booker section — required fields for the person making the
-            booking. They're also automatically participant 1. */}
+            booking. They're also automatically participant 1.
+
+            landr-jruv follow-up: confirmed live on bw-dev — the browser
+            fills the booker phone with the full +CC number but reformats
+            every OTHER phone field (added participants, companions) to a
+            bare national number (a German +49… autofills as 0…). Every
+            row's fields now carry a `section-<row>` autocomplete prefix
+            (WHATWG autofill spec —
+            https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-detail-tokens),
+            the standards mechanism for telling the browser that repeated
+            field groups on one page (here: one per person) are independent
+            identities rather than one profile's alternate phone numbers —
+            our best working theory for why only the first phone field kept
+            its country code. Not independently re-confirmed against a real
+            browser after this change (none available in this environment);
+            the bulk-fill touch-detection above is the fallback that catches
+            a mangled value either way, regardless of whether this helps. */}
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">Your contact details</legend>
           <p className="text-xs text-muted-foreground">
@@ -718,7 +762,7 @@ export function DetailsStep({
               <Input
                 id="booker-first"
                 name="booker_first_name"
-                autoComplete="given-name"
+                autoComplete="section-booker given-name"
                 value={booker.first_name}
                 onChange={(e) => updateBookerField('first_name', e.target.value)}
                 {...bookerFirstV.inputProps}
@@ -728,7 +772,7 @@ export function DetailsStep({
               <Input
                 id="booker-last"
                 name="booker_last_name"
-                autoComplete="family-name"
+                autoComplete="section-booker family-name"
                 value={booker.last_name}
                 onChange={(e) => updateBookerField('last_name', e.target.value)}
                 {...bookerLastV.inputProps}
@@ -739,7 +783,7 @@ export function DetailsStep({
                 id="booker-email"
                 name="booker_email"
                 type="email"
-                autoComplete="email"
+                autoComplete="section-booker email"
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
                 {...bookerEmailV.inputProps}
@@ -757,11 +801,17 @@ export function DetailsStep({
                 id="booker-phone"
                 name="booker_phone"
                 type="tel"
-                autoComplete="tel"
+                autoComplete="section-booker tel"
                 placeholder="+34 600 123 456"
                 pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
-                onChange={(e) => updateBookerField('phone', e.target.value)}
+                onChange={(e) => {
+                  if (looksLikeBulkFill(booker.phone, e.target.value)) {
+                    markTouched('booker.phone')
+                  }
+                  updateBookerField('phone', e.target.value)
+                }}
+                onAnimationStart={handlePhoneAutofill('booker.phone')}
                 {...bookerPhoneV.inputProps}
               />
               {/* landr-1url: nudge toward international format (no new dep). */}
@@ -878,6 +928,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
+                  autoComplete={`section-participant-${idx + 2} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
@@ -889,6 +940,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
+                  autoComplete={`section-participant-${idx + 2} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
@@ -901,6 +953,7 @@ export function DetailsStep({
                   id={`p-${idx}-email`}
                   name={`participant_${idx + 2}_email`}
                   type="email"
+                  autoComplete={`section-participant-${idx + 2} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
@@ -913,12 +966,17 @@ export function DetailsStep({
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
                   type="tel"
+                  autoComplete={`section-participant-${idx + 2} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`p.${idx}.phone`)
+                    }
                     updateParticipant(idx, 'phone', e.target.value)
-                  }
+                  }}
+                  onAnimationStart={handlePhoneAutofill(`p.${idx}.phone`)}
                   {...pPhoneV.inputProps}
                 />
                 {/* landr-1url: nudge toward international format (no new dep). */}
@@ -1151,6 +1209,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
+                  autoComplete={`section-companion-${idx + 1} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'first_name', e.target.value)
@@ -1162,6 +1221,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
+                  autoComplete={`section-companion-${idx + 1} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'last_name', e.target.value)
@@ -1174,6 +1234,7 @@ export function DetailsStep({
                   id={`companion-${idx}-email`}
                   name={`companion_${idx + 1}_email`}
                   type="email"
+                  autoComplete={`section-companion-${idx + 1} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateCompanion(idx, 'email', e.target.value)
@@ -1189,12 +1250,17 @@ export function DetailsStep({
                   id={`companion-${idx}-phone`}
                   name={`companion_${idx + 1}_phone`}
                   type="tel"
+                  autoComplete={`section-companion-${idx + 1} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`companion.${idx}.phone`)
+                    }
                     updateCompanion(idx, 'phone', e.target.value)
-                  }
+                  }}
+                  onAnimationStart={handlePhoneAutofill(`companion.${idx}.phone`)}
                   {...cPhoneV.inputProps}
                 />
                 {/* landr-1url: nudge toward international format (no new dep). */}
