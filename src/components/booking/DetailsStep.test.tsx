@@ -1063,53 +1063,85 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
   })
 
   // landr-bx5y: browser autofill can hand the field an already-mangled value
-  // (the '+CC' stripped before our JS runs) — the CSS in index.css fires an
-  // 'onAutoFillStart' animation while the browser considers the input
-  // autofilled, and DetailsStep treats that as an implicit touch so the
-  // format error appears immediately, without waiting for blur/Continue.
-  it('flags a phone left country-code-less by browser autofill as soon as the autofill animation fires, without a blur', () => {
+  // (the '+CC' stripped before our JS runs). The PRIMARY detection is
+  // content-driven, not tied to any browser pseudo-class: a real keystroke
+  // changes a field's length by one character at a time, so a jump from
+  // empty straight to a multi-character value in one onChange (autofill, or
+  // a paste) is treated as an implicit touch — the format error appears
+  // immediately, without waiting for blur/Continue. This matters because
+  // the :-webkit-autofill/onAnimationStart signal (still wired as a second,
+  // best-effort layer below) turned out to only fire reliably for the
+  // booker phone field in the field — not for participant/companion rows
+  // mounted later via "+ Add participant"/"+ Add companion" — so the bulk
+  // heuristic is what actually has to carry this for every row.
+  it('flags a phone left country-code-less by browser autofill (bulk value jump from empty), without a blur', () => {
     renderStep()
     const phone = byName('booker_phone')
-    // Simulates what the browser does on autofill: the value lands via a
-    // change event, then the browser marks the field autofilled (the
-    // animation), with no blur in between.
     fireEvent.change(phone, { target: { value: '677620730' } })
-    expect(phone).not.toHaveAttribute('aria-invalid')
-    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
     expect(phone).toHaveAttribute('aria-invalid', 'true')
     expect(document.getElementById('booker-phone-error')).toHaveTextContent(
       /country code/i,
     )
   })
 
-  it('does NOT touch the phone field on an unrelated animation (only the autofill-start one counts)', () => {
+  it('does NOT flag a phone while it is being typed one character at a time', () => {
     renderStep()
     const phone = byName('booker_phone')
-    fireEvent.change(phone, { target: { value: '677620730' } })
-    fireEvent.animationStart(phone, { animationName: 'onAutoFillCancel' })
-    expect(phone).not.toHaveAttribute('aria-invalid')
+    // Each change grows the value by exactly one character, like real
+    // keystrokes — the bulk-fill heuristic must not mistake this for a
+    // paste/autofill and must not nag mid-typing.
+    for (const partial of ['+', '+3', '+34']) {
+      fireEvent.change(phone, { target: { value: partial } })
+      expect(phone).not.toHaveAttribute('aria-invalid')
+    }
   })
 
-  it('does not flag a correctly-autofilled phone (autofill animation fires but the value is already valid)', () => {
+  it('does not flag a correctly-autofilled phone (bulk value jump, but already valid)', () => {
     renderStep()
     const phone = byName('booker_phone')
     fireEvent.change(phone, { target: { value: '+34 677 62 07 30' } })
-    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
     expect(phone).not.toHaveAttribute('aria-invalid')
   })
 
-  it('wires the same autofill detection to participant and companion phone inputs', () => {
+  it('flags a bulk-filled phone on every row equally: booker, an added participant, and a companion', () => {
     renderStep()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const bookerPhone = byName('booker_phone')
     const pPhone = byName('participant_2_phone')
     const cPhone = byName('companion_1_phone')
+    fireEvent.change(bookerPhone, { target: { value: '677620730' } })
     fireEvent.change(pPhone, { target: { value: '677620730' } })
-    fireEvent.animationStart(pPhone, { animationName: 'onAutoFillStart' })
-    expect(pPhone).toHaveAttribute('aria-invalid', 'true')
     fireEvent.change(cPhone, { target: { value: '677620730' } })
-    fireEvent.animationStart(cPhone, { animationName: 'onAutoFillStart' })
+    expect(bookerPhone).toHaveAttribute('aria-invalid', 'true')
+    expect(pPhone).toHaveAttribute('aria-invalid', 'true')
     expect(cPhone).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  // landr-bx5y: the CSS-animation signal as a secondary layer — still worth
+  // keeping for browsers/cases where the browser genuinely does apply
+  // :-webkit-autofill, tested in isolation from the bulk-fill heuristic by
+  // building the value up one character at a time first (so the heuristic
+  // above never fires), then firing the autofill animation on top of it.
+  it('also treats the autofill animation event as a touch, independent of the bulk-fill heuristic', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    for (const partial of ['6', '67', '677', '6776']) {
+      fireEvent.change(phone, { target: { value: partial } })
+    }
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('does NOT touch the phone field on an unrelated animation (only the autofill-start one counts)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    for (const partial of ['6', '67', '677', '6776']) {
+      fireEvent.change(phone, { target: { value: partial } })
+    }
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillCancel' })
+    expect(phone).not.toHaveAttribute('aria-invalid')
   })
 
   it('sets autoComplete="tel" on the booker, participant, and companion phone inputs', () => {

@@ -465,6 +465,21 @@ export function DetailsStep({
       if (e.animationName === 'onAutoFillStart') markTouched(key)
     }
 
+  // landr-bx5y follow-up: the :-webkit-autofill/onAnimationStart trick above
+  // turned out to only fire reliably on the booker phone field — the one
+  // present when the page first loads. Participant/companion rows are
+  // mounted later (revealed by "+ Add participant"/"+ Add companion"), and
+  // in the field a real browser's autofill engine doesn't consistently
+  // apply the :-webkit-autofill state to those, even though it still hands
+  // them a (possibly mangled) value. So this is the actual primary signal:
+  // a real keystroke changes a field's length by one character at a time —
+  // only autofill or a paste can jump a field from empty straight to a
+  // multi-character value in a single onChange. That distinction doesn't
+  // depend on any browser-specific pseudo-class or on when the field was
+  // mounted, so it covers every row equally.
+  const looksLikeBulkFill = (prevValue: string, nextValue: string): boolean =>
+    prevValue.trim() === '' && nextValue.trim().length >= 4
+
   // landr-79re: the onBlur path alone is unreliable on mobile (tapping
   // between fields, dismissing the keyboard, or tapping a disabled button
   // often don't fire a blur), so an incomplete form could show NO red
@@ -774,7 +789,12 @@ export function DetailsStep({
                 placeholder="+34 600 123 456"
                 pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
-                onChange={(e) => updateBookerField('phone', e.target.value)}
+                onChange={(e) => {
+                  if (looksLikeBulkFill(booker.phone, e.target.value)) {
+                    markTouched('booker.phone')
+                  }
+                  updateBookerField('phone', e.target.value)
+                }}
                 onAnimationStart={handlePhoneAutofill('booker.phone')}
                 {...bookerPhoneV.inputProps}
               />
@@ -931,9 +951,12 @@ export function DetailsStep({
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`p.${idx}.phone`)
+                    }
                     updateParticipant(idx, 'phone', e.target.value)
-                  }
+                  }}
                   onAnimationStart={handlePhoneAutofill(`p.${idx}.phone`)}
                   {...pPhoneV.inputProps}
                 />
@@ -1209,9 +1232,12 @@ export function DetailsStep({
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`companion.${idx}.phone`)
+                    }
                     updateCompanion(idx, 'phone', e.target.value)
-                  }
+                  }}
                   onAnimationStart={handlePhoneAutofill(`companion.${idx}.phone`)}
                   {...cPhoneV.inputProps}
                 />
