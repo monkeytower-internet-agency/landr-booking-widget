@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AnimationEvent } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
@@ -452,6 +453,18 @@ export function DetailsStep({
   const markTouched = (key: string) =>
     setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
 
+  // landr-bx5y: browser autofill can hand a phone field a value with the
+  // '+CC' already stripped (a Safari/Chrome autofill quirk, not something
+  // our onChange sees separately from a normal edit) — the customer would
+  // otherwise not find out until they blur the field or tap Continue. The
+  // CSS in index.css fires a (visually inert) animation while a tel input
+  // is in the browser's autofilled state; treat that as an implicit touch
+  // so the "add your country code" validation appears immediately.
+  const handlePhoneAutofill =
+    (key: string) => (e: AnimationEvent<HTMLInputElement>) => {
+      if (e.animationName === 'onAutoFillStart') markTouched(key)
+    }
+
   // landr-79re: the onBlur path alone is unreliable on mobile (tapping
   // between fields, dismissing the keyboard, or tapping a disabled button
   // often don't fire a blur), so an incomplete form could show NO red
@@ -762,6 +775,7 @@ export function DetailsStep({
                 pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
                 onChange={(e) => updateBookerField('phone', e.target.value)}
+                onAnimationStart={handlePhoneAutofill('booker.phone')}
                 {...bookerPhoneV.inputProps}
               />
               {/* landr-1url: nudge toward international format (no new dep). */}
@@ -913,12 +927,14 @@ export function DetailsStep({
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
                   type="tel"
+                  autoComplete="tel"
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
                   onChange={(e) =>
                     updateParticipant(idx, 'phone', e.target.value)
                   }
+                  onAnimationStart={handlePhoneAutofill(`p.${idx}.phone`)}
                   {...pPhoneV.inputProps}
                 />
                 {/* landr-1url: nudge toward international format (no new dep). */}
@@ -1189,12 +1205,14 @@ export function DetailsStep({
                   id={`companion-${idx}-phone`}
                   name={`companion_${idx + 1}_phone`}
                   type="tel"
+                  autoComplete="tel"
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
                   onChange={(e) =>
                     updateCompanion(idx, 'phone', e.target.value)
                   }
+                  onAnimationStart={handlePhoneAutofill(`companion.${idx}.phone`)}
                   {...cPhoneV.inputProps}
                 />
                 {/* landr-1url: nudge toward international format (no new dep). */}
