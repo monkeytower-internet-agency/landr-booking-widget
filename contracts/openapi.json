@@ -7017,6 +7017,10 @@
             "title": "Product Addon Id",
             "type": "string"
           },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
@@ -7028,7 +7032,8 @@
           "name",
           "is_required",
           "min_qty",
-          "sort_order"
+          "sort_order",
+          "product_kind"
         ],
         "title": "ProductAddon",
         "type": "object"

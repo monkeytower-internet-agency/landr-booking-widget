@@ -196,8 +196,12 @@ export function totalRoomCapacity(
  *      Double). The resulting line items are unique by productId.
  *   4. Omits entries with a summed qty of 0.
  *
- * Returns an array of { productId, quantity } sorted by productId for
- * deterministic ordering (stable for tests and submit payloads).
+ * Returns an array of { productId, quantity, productKind } sorted by
+ * productId for deterministic ordering (stable for tests and submit
+ * payloads). landr-fxza.4: `productKind` is threaded through from each
+ * addon's own ProductAddon row (its product_kind, e.g. 'hotel_room' for
+ * breakfast) so BookingForm.onConfirm can give room-tied add-ons the
+ * room's NIGHT window instead of the raw service-day window.
  */
 export function flattenPerRoomAddons(
   addonSelection: Record<string, Record<string, number>>,
@@ -205,6 +209,7 @@ export function flattenPerRoomAddons(
   addonsByRoom: Record<string, import('@/api/types').ProductAddon[]>,
 ): import('./addonsState').AddonSelection[] {
   const totals = new Map<string, number>()
+  const kindById = new Map<string, import('@/api/types').ProductKind>()
   for (const [roomId, roomQty] of Object.entries(roomSelection)) {
     if ((roomQty ?? 0) <= 0) continue
     const roomAddons = addonsByRoom[roomId] ?? []
@@ -214,12 +219,19 @@ export function flattenPerRoomAddons(
       const qty = roomQtys[id] ?? 0
       if (qty <= 0) continue
       totals.set(id, (totals.get(id) ?? 0) + qty)
+      if (!kindById.has(id)) kindById.set(id, addon.product_kind)
     }
   }
   return [...totals.entries()]
     .filter(([, qty]) => qty > 0)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([productId, quantity]) => ({ productId, quantity }))
+    .map(([productId, quantity]) => ({
+      productId,
+      quantity,
+      ...(kindById.has(productId)
+        ? { productKind: kindById.get(productId) }
+        : {}),
+    }))
 }
 
 /**

@@ -5,12 +5,22 @@
  * component as default — adding non-component exports there would
  * trigger the rule and block CI; see landr-znl history).
  */
-import type { ProductAddon } from '@/api/types'
+import type { ProductAddon, ProductKind } from '@/api/types'
 
 /** Single line item: an add-on product + how many of it the customer picked. */
 export interface AddonSelection {
   productId: string
   quantity: number
+  /**
+   * landr-fxza.4: the add-on PRODUCT's own product_kind, threaded through
+   * from the ProductAddon row that produced this selection (via
+   * flattenPerRoomAddons / selectionToLines). 'hotel_room' tells
+   * BookingForm.onConfirm to give this line the room's NIGHT window
+   * instead of the raw service-day window — see BookingForm.tsx. Optional
+   * and absent means "not known to be room-tied" (the pre-existing,
+   * still-correct behavior for a plain service-tied add-on).
+   */
+  productKind?: ProductKind
 }
 
 /**
@@ -106,11 +116,25 @@ export function isOverbooked(
  * Convert a selection map into the line-item array shape consumed by
  * the booking submit payload. Filters out entries with qty <= 0 so the
  * caller never sends an opt-out as a zero-qty line.
+ *
+ * landr-fxza.4: `addons` (the resolved catalogue, e.g. from getProductAddons)
+ * is optional and defaults to `[]` for back-compat with existing callers;
+ * when supplied, each output line's `productKind` is threaded through from
+ * the matching ProductAddon row so BookingForm can discriminate room-tied
+ * vs service-tied add-ons at submit time (see addons/BookingForm.tsx).
  */
 export function selectionToLines(
   selection: Record<string, number>,
+  addons: readonly Pick<ProductAddon, 'addon_product_id' | 'product_kind'>[] = [],
 ): AddonSelection[] {
+  const kindById = new Map(addons.map((a) => [a.addon_product_id, a.product_kind]))
   return Object.entries(selection)
     .filter(([, qty]) => qty > 0)
-    .map(([productId, quantity]) => ({ productId, quantity }))
+    .map(([productId, quantity]) => ({
+      productId,
+      quantity,
+      ...(kindById.has(productId)
+        ? { productKind: kindById.get(productId) }
+        : {}),
+    }))
 }
