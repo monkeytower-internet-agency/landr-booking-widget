@@ -16,6 +16,7 @@ function makeAddon(overrides: Partial<ProductAddon> = {}): ProductAddon {
     sort_order: 10,
     price_per_unit: 10,
     currency: 'EUR',
+    product_kind: 'hotel_room',
     ...overrides,
   }
 }

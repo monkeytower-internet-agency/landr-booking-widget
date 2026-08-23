@@ -723,6 +723,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
 
@@ -793,6 +794,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
 
@@ -1007,6 +1009,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
     const onConfirm = vi.fn()
@@ -1046,7 +1049,7 @@ describe('AccommodationStep', () => {
     expect(onConfirm).toHaveBeenCalledWith(
       [{ productId: 'double-room', quantity: 1 }],
       'hotel-a',
-      [{ productId: 'bf-1', quantity: 3 }],
+      [{ productId: 'bf-1', quantity: 3, productKind: 'hotel_room' }],
       undefined,
       false,
       // Both guests auto-assigned to the double room's only unit → it is full.
@@ -1225,6 +1228,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
 
@@ -1279,6 +1283,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
     const onConfirm = vi.fn()
@@ -1342,7 +1347,9 @@ describe('AccommodationStep', () => {
     const [rooms, , addons] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
     expect(rooms).toHaveLength(2)
     // bf-1 total = 1 (single) + 2 (double) = 3
-    expect(addons).toEqual([{ productId: 'bf-1', quantity: 3 }])
+    expect(addons).toEqual([
+      { productId: 'bf-1', quantity: 3, productKind: 'hotel_room' },
+    ])
   })
 
   it('aggregate breakfast warning is GONE; per-room under-warning fires (landr-yybu)', async () => {
@@ -1364,6 +1371,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
 
@@ -1424,6 +1432,7 @@ describe('AccommodationStep', () => {
       sort_order: 10,
       price_per_unit: 10,
       currency: 'EUR',
+      product_kind: 'hotel_room',
     }
     mocks.getProductAddons.mockResolvedValue([breakfastAddon])
     const onConfirm = vi.fn()
@@ -1468,7 +1477,9 @@ describe('AccommodationStep', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1)
     const [, , addonLines] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
     // Flattened: 1 + 2 = 3
-    expect(addonLines).toEqual([{ productId: 'bf-1', quantity: 3 }])
+    expect(addonLines).toEqual([
+      { productId: 'bf-1', quantity: 3, productKind: 'hotel_room' },
+    ])
   })
 
   // ── landr-87n9.2: live-lift room + add-on selection ─────────────────
@@ -1527,6 +1538,7 @@ describe('AccommodationStep', () => {
         sort_order: 10,
         price_per_unit: 10,
         currency: 'EUR',
+        product_kind: 'hotel_room',
       }
       mocks.getProductAddons.mockResolvedValue([breakfastAddon])
       const onLive = vi.fn()
@@ -1554,7 +1566,7 @@ describe('AccommodationStep', () => {
       )
       expect(onLive).toHaveBeenLastCalledWith(
         [{ productId: 'single-room', quantity: 1 }],
-        [{ productId: 'bf-1', quantity: 1 }],
+        [{ productId: 'bf-1', quantity: 1, productKind: 'hotel_room' }],
       )
     })
 

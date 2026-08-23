@@ -507,11 +507,18 @@ export function BookingForm({
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
-      // (landr-cip6). Service add-ons piggyback on the service days;
-      // room-tied add-ons (e.g. breakfast) intentionally use the same
-      // service-day window today — the engine prices per-line based on
-      // quantity × per_unit × len(selected_days), so for daily add-ons
-      // the two windows produce the same total (selectedDays.length).
+      // (landr-cip6). landr-fxza.4: service-tied add-ons (e.g. a Video
+      // Package) correctly piggyback on the service days, but ROOM-tied
+      // add-ons (e.g. breakfast) must use the SAME night window room
+      // lines get below — nightIsos.length only equals
+      // selectedDaysForSubmit.length when the stay is a single
+      // already-padded day, which is never true once deriveStayWindow's
+      // check-in/check-out padding is in play (accommodationCalc.ts), so
+      // the old "same total either way" assumption undercounted every
+      // multi-night breakfast by construction. Discriminate by the
+      // add-on's own product_kind === 'hotel_room' (addon.productKind,
+      // threaded through from ProductAddon — see addonsState.ts /
+      // accommodationCalc.ts's flattenPerRoomAddons), NOT by name/slug.
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
@@ -536,7 +543,12 @@ export function BookingForm({
         ...(addons ?? []).map<ProductLine>((addon) => ({
           product_id: addon.productId,
           quantity: addon.quantity,
-          selected_days: selectedDaysForSubmit,
+          // landr-fxza.4: a room-tied add-on (product_kind='hotel_room',
+          // e.g. breakfast) derives from the room stay — same night
+          // window as the room lines above. A service-tied add-on (e.g.
+          // Video Package) keeps the raw service-day window.
+          selected_days:
+            addon.productKind === 'hotel_room' ? nightIsos : selectedDaysForSubmit,
         })),
       ]
       // Drop participant phone before submit — backend ParticipantIn

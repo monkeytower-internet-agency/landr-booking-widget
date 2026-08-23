@@ -116,7 +116,12 @@ export function ServiceAddonsStep({
 
   function handleContinue() {
     if (!canContinue) return
-    onConfirm(selectionToLines(selection))
+    // landr-fxza.4: thread each add-on's product_kind through so
+    // BookingForm can tell a room-tied add-on apart from a service-tied
+    // one (this step is only ever the LATTER — services with a hotel
+    // offering render add-ons inside AccommodationStep instead — but
+    // passing the real catalogue keeps this correct if that ever changes).
+    onConfirm(selectionToLines(selection, addons ?? []))
   }
 
   return (

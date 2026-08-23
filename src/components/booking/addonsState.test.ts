@@ -21,6 +21,7 @@ function makeAddon(overrides: Partial<ProductAddon> = {}): ProductAddon {
     sort_order: 10,
     price_per_unit: 10,
     currency: 'EUR',
+    product_kind: 'hotel_room',
     ...overrides,
   }
 }
@@ -166,6 +167,31 @@ describe('addonsState (landr-cip6)', () => {
 
     it('returns empty for an empty selection', () => {
       expect(selectionToLines({})).toEqual([])
+    })
+
+    // landr-fxza.4: threading the add-on catalogue through attaches
+    // productKind so BookingForm can discriminate room-tied vs
+    // service-tied add-ons at submit time.
+    it('attaches productKind from the matching catalogue entry when provided', () => {
+      const lines = selectionToLines(
+        { 'breakfast-1': 2, 'video-1': 1 },
+        [
+          makeAddon({ addon_product_id: 'breakfast-1', product_kind: 'hotel_room' }),
+          makeAddon({ addon_product_id: 'video-1', product_kind: 'service' }),
+        ],
+      )
+      expect(lines).toEqual(
+        expect.arrayContaining([
+          { productId: 'breakfast-1', quantity: 2, productKind: 'hotel_room' },
+          { productId: 'video-1', quantity: 1, productKind: 'service' },
+        ]),
+      )
+    })
+
+    it('omits productKind when the catalogue has no matching entry', () => {
+      const lines = selectionToLines({ unknown_addon: 3 })
+      expect(lines).toEqual([{ productId: 'unknown_addon', quantity: 3 }])
+      expect(lines[0]).not.toHaveProperty('productKind')
     })
   })
 })

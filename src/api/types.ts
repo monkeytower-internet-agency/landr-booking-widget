@@ -501,6 +501,15 @@ export interface ProductAddon {
    */
   price_per_unit: number | null
   currency: string | null
+  /**
+   * landr-fxza.4: the add-on PRODUCT's own product_kind (NOT the parent
+   * product's kind). 'hotel_room' means this add-on is tied to a room and
+   * must derive its selected_days from the room's NIGHT window at submit
+   * time (BookingForm.onConfirm), not the raw service-day window — the
+   * natural discriminator for room-tied vs service-tied add-ons. Do NOT
+   * special-case the slug/name (e.g. 'breakfast') instead of this field.
+   */
+  product_kind: ProductKind
 }
 
 export interface AvailabilitySlot {
