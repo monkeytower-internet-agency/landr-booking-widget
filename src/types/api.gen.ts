@@ -7400,6 +7400,8 @@ export interface components {
             price_per_unit?: number | null;
             /** Product Addon Id */
             product_addon_id: string;
+            /** Product Kind */
+            product_kind: string;
             /** Sort Order */
             sort_order: number;
         } & {
