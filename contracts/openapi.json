@@ -1098,6 +1098,7 @@
                   "format": "date",
                   "type": "string"
                 },
+                "minItems": 1,
                 "type": "array"
               },
               {
@@ -6946,6 +6947,93 @@
         "title": "PriceOverrideOut",
         "type": "object"
       },
+      "PricingBreakdownLineItem": {
+        "additionalProperties": true,
+        "description": "One priced line \u2014 mirrors ``EstimateLineItem``'s wire shape (see\n``app/routers/public_operators.py``) minus the live-estimate-only\n``applied_rules`` trace.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line_total": {
+            "title": "Line Total",
+            "type": "string"
+          },
+          "paid_to": {
+            "title": "Paid To",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "label",
+          "qty",
+          "units",
+          "unit_price",
+          "line_total",
+          "paid_to"
+        ],
+        "title": "PricingBreakdownLineItem",
+        "type": "object"
+      },
+      "PricingBreakdownResponse": {
+        "additionalProperties": true,
+        "description": "Response of GET .../pricing-breakdown.\n\nSame field names as ``EstimateResponse`` (public_operators.py) plus\n``has_hotel`` \u2014 the confirmation email's own context key,\n``booking_emails._build_context`` sets it the same way (both call\n``booking_line_items()``).",
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "grand_total": {
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "has_hotel": {
+            "title": "Has Hotel",
+            "type": "boolean"
+          },
+          "hotel_total": {
+            "title": "Hotel Total",
+            "type": "string"
+          },
+          "line_items": {
+            "items": {
+              "$ref": "#/components/schemas/PricingBreakdownLineItem"
+            },
+            "title": "Line Items",
+            "type": "array"
+          },
+          "operator_total": {
+            "title": "Operator Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_total",
+          "hotel_total",
+          "grand_total",
+          "currency",
+          "has_hotel"
+        ],
+        "title": "PricingBreakdownResponse",
+        "type": "object"
+      },
       "ProductAddon": {
         "additionalProperties": true,
         "description": "One row returned by the public_get_product_addons RPC (landr-cip6 /\nepic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript\ninterface (src/api/types.ts) field-for-field.",
@@ -7017,6 +7105,10 @@
             "title": "Product Addon Id",
             "type": "string"
           },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
@@ -7028,7 +7120,8 @@
           "name",
           "is_required",
           "min_qty",
-          "sort_order"
+          "sort_order",
+          "product_kind"
         ],
         "title": "ProductAddon",
         "type": "object"
@@ -19081,6 +19174,63 @@
         "summary": "Set Price Override",
         "tags": [
           "staff-bookings-price-override"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/pricing-breakdown": {
+      "get": {
+        "description": "Return the operator/hotel line-item split for ``booking_id``.\n\nDelegates to the same ``booking_line_items()`` pure function the\nconfirmation email calls (``booking_emails._build_context``), so the\ndashboard and the email can never drift. Reads\n``booking_products.computed_price_breakdown`` \u2014 the PERSISTED\nper-line gross \u2014 never recomputes.\n\nLocale is fixed to ``\"en\"``: this is a staff-facing money table, not\na customer email. A product with no ``name_localized[\"en\"]`` falls\nback to its base ``name`` (see ``_localized``'s fallback chain).",
+        "operationId": "get_booking_pricing_breakdown",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingBreakdownResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Pricing Breakdown",
+        "tags": [
+          "staff-bookings-pricing-breakdown"
         ]
       }
     },

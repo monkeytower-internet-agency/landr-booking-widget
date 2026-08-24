@@ -3003,6 +3003,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/pricing-breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Pricing Breakdown
+         * @description Return the operator/hotel line-item split for ``booking_id``.
+         *
+         *     Delegates to the same ``booking_line_items()`` pure function the
+         *     confirmation email calls (``booking_emails._build_context``), so the
+         *     dashboard and the email can never drift. Reads
+         *     ``booking_products.computed_price_breakdown`` — the PERSISTED
+         *     per-line gross — never recomputes.
+         *
+         *     Locale is fixed to ``"en"``: this is a staff-facing money table, not
+         *     a customer email. A product with no ``name_localized["en"]`` falls
+         *     back to its base ``name`` (see ``_localized``'s fallback chain).
+         */
+        get: operations["get_booking_pricing_breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/provider-assignments": {
         parameters: {
             query?: never;
@@ -7374,6 +7404,55 @@ export interface components {
             override_reason: string | null;
         };
         /**
+         * PricingBreakdownLineItem
+         * @description One priced line — mirrors ``EstimateLineItem``'s wire shape (see
+         *     ``app/routers/public_operators.py``) minus the live-estimate-only
+         *     ``applied_rules`` trace.
+         */
+        PricingBreakdownLineItem: {
+            /** Label */
+            label: string;
+            /** Line Total */
+            line_total: string;
+            /** Paid To */
+            paid_to: string;
+            /** Product Id */
+            product_id: string;
+            /** Qty */
+            qty: number;
+            /** Unit Price */
+            unit_price: string;
+            /** Units */
+            units: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PricingBreakdownResponse
+         * @description Response of GET .../pricing-breakdown.
+         *
+         *     Same field names as ``EstimateResponse`` (public_operators.py) plus
+         *     ``has_hotel`` — the confirmation email's own context key,
+         *     ``booking_emails._build_context`` sets it the same way (both call
+         *     ``booking_line_items()``).
+         */
+        PricingBreakdownResponse: {
+            /** Currency */
+            currency: string;
+            /** Grand Total */
+            grand_total: string;
+            /** Has Hotel */
+            has_hotel: boolean;
+            /** Hotel Total */
+            hotel_total: string;
+            /** Line Items */
+            line_items?: components["schemas"]["PricingBreakdownLineItem"][];
+            /** Operator Total */
+            operator_total: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ProductAddon
          * @description One row returned by the public_get_product_addons RPC (landr-cip6 /
          *     epic landr-ie8g). Mirrors the widget's ``ProductAddon`` TypeScript
@@ -7400,6 +7479,8 @@ export interface components {
             price_per_unit?: number | null;
             /** Product Addon Id */
             product_addon_id: string;
+            /** Product Kind */
+            product_kind: string;
             /** Sort Order */
             sort_order: number;
         } & {
@@ -13500,6 +13581,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PriceOverrideOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_pricing_breakdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingBreakdownResponse"];
                 };
             };
             /** @description Validation Error */

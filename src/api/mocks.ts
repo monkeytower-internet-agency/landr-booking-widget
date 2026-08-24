@@ -518,6 +518,7 @@ export const mockProductAddons = (productId: string): ProductAddon[] => {
         sort_order: 10,
         price_per_unit: 39,
         currency: 'EUR',
+        product_kind: 'service',
       },
     ]
   }
@@ -538,6 +539,7 @@ export const mockProductAddons = (productId: string): ProductAddon[] => {
         sort_order: 10,
         price_per_unit: 10,
         currency: 'EUR',
+        product_kind: 'hotel_room',
       },
     ]
   }

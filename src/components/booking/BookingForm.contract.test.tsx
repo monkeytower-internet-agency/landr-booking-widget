@@ -132,8 +132,8 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
         pickupLocationId="loc-pickup-1"
         accommodationRooms={[{ productId: 'room-deluxe', quantity: 2 }]}
         addons={[
-          { productId: 'breakfast-1', quantity: 4 },
-          { productId: 'video-pkg', quantity: 1 },
+          { productId: 'breakfast-1', quantity: 4, productKind: 'hotel_room' },
+          { productId: 'video-pkg', quantity: 1, productKind: 'service' },
         ]}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
@@ -199,9 +199,25 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
       selected_days: ['2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12'],
     })
 
-    // Add-on lines (per-line item, not folded into a separate field)
-    expect(products[2]).toMatchObject({ product_id: 'breakfast-1', quantity: 4 })
-    expect(products[3]).toMatchObject({ product_id: 'video-pkg', quantity: 1 })
+    // Add-on lines (per-line item, not folded into a separate field).
+    // landr-fxza.4: THE MISSING ASSERTION — a room-tied add-on
+    // (product_kind='hotel_room', e.g. breakfast) must get the SAME night
+    // window as the room line above (products[1]), NOT the 3 raw service
+    // days. Pre-fix this line asserted only { product_id, quantity },
+    // deliberately never checking selected_days — that omission WAS the
+    // bug (BookingForm.tsx gave it SELECTED_DAYS instead of the 4 nights).
+    expect(products[2]).toMatchObject({
+      product_id: 'breakfast-1',
+      quantity: 4,
+      selected_days: ['2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12'],
+    })
+    // A service-tied add-on (product_kind='service', e.g. Video Package)
+    // correctly keeps the raw service-day window — NOT the room's nights.
+    expect(products[3]).toMatchObject({
+      product_id: 'video-pkg',
+      quantity: 1,
+      selected_days: SELECTED_DAYS,
+    })
 
     // participants: 2 entries, each with required ParticipantIn fields
     const participants = body.participants as Array<Record<string, unknown>>
@@ -231,6 +247,45 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(body).not.toHaveProperty('addon_lines')
     expect(body).not.toHaveProperty('selected_days')
     expect(body).not.toHaveProperty('pickup_location_id')
+  })
+
+  it('landr-fxza.4: a single guided day yields a 2-night stay, so a room-tied add-on (breakfast) gets 2 nights, not 1 raw day', async () => {
+    // The ticket's own worked example (booking a453eae2): one activity day
+    // pads to check-in the evening before + check-out the morning after —
+    // 2026-09-01 alone becomes the 2-night stay [2026-08-31, 2026-09-01].
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={{ kind: 'days', selectedDays: ['2026-09-01'] }}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId="loc-pickup-1"
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        addons={[{ productId: 'breakfast-1', quantity: 1, productKind: 'hotel_room' }]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    const products = body.products as Array<Record<string, unknown>>
+
+    const room = products.find((p) => p.product_id === 'room-1')
+    const breakfast = products.find((p) => p.product_id === 'breakfast-1')
+    expect(room?.selected_days).toEqual(['2026-08-31', '2026-09-01'])
+    // THE FIX: breakfast must match the room's 2-night window (2 billable
+    // units at submit time — see app/services/pricing.py's per_day_base
+    // evaluator, units = len(selected_days)) — not the single raw
+    // activity day it got pre-fix.
+    expect(breakfast?.selected_days).toEqual(['2026-08-31', '2026-09-01'])
+    expect((breakfast?.selected_days as unknown[]).length).toBe(2)
   })
 
   it('surfaces a FastAPI 422 detail array instead of a generic error string', async () => {

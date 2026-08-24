@@ -473,52 +473,96 @@ export type Database = {
           },
         ]
       }
-      audit_log: {
+      approval_state_transitions: {
         Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          external_correlation_id: string | null
+          booking_id: string
+          branch: string
+          decision: string | null
+          from_stage_id: string | null
           id: string
-          new_row: Json | null
           occurred_at: string
-          old_row: Json | null
-          operation: string
-          operator_id: string | null
-          row_id: string | null
-          table_name: string
-          user_id: string | null
+          operator_id: string
+          reason: string | null
+          to_stage_id: string
+          triggered_by_user_id: string | null
         }
         Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
+          booking_id: string
+          branch: string
+          decision?: string | null
+          from_stage_id?: string | null
           id?: string
-          new_row?: Json | null
           occurred_at?: string
-          old_row?: Json | null
-          operation: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name: string
-          user_id?: string | null
+          operator_id: string
+          reason?: string | null
+          to_stage_id: string
+          triggered_by_user_id?: string | null
         }
         Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          external_correlation_id?: string | null
+          booking_id?: string
+          branch?: string
+          decision?: string | null
+          from_stage_id?: string | null
           id?: string
-          new_row?: Json | null
           occurred_at?: string
-          old_row?: Json | null
-          operation?: string
-          operator_id?: string | null
-          row_id?: string | null
-          table_name?: string
-          user_id?: string | null
+          operator_id?: string
+          reason?: string | null
+          to_stage_id?: string
+          triggered_by_user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "approval_state_transitions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "booking_lifecycle_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "booking_lifecycle_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_triggered_by_user_id_fkey"
+            columns: ["triggered_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_state_transitions_triggered_by_user_id_fkey"
+            columns: ["triggered_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      audit_log_2026_06: {
+      audit_log: {
         Row: {
           actor_kind: Database["public"]["Enums"]["actor_kind"]
           actor_subkind: string | null
@@ -743,6 +787,51 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log_2026_11: {
+        Row: {
+          actor_kind: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind: string | null
+          external_correlation_id: string | null
+          id: string
+          new_row: Json | null
+          occurred_at: string
+          old_row: Json | null
+          operation: string
+          operator_id: string | null
+          row_id: string | null
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          actor_kind: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind?: string | null
+          external_correlation_id?: string | null
+          id?: string
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation: string
+          operator_id?: string | null
+          row_id?: string | null
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          actor_kind?: Database["public"]["Enums"]["actor_kind"]
+          actor_subkind?: string | null
+          external_correlation_id?: string | null
+          id?: string
+          new_row?: Json | null
+          occurred_at?: string
+          old_row?: Json | null
+          operation?: string
+          operator_id?: string | null
+          row_id?: string | null
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bd_intent: {
         Row: {
           bd_id: string | null
@@ -816,6 +905,196 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_approval_requests: {
+        Row: {
+          booking_id: string
+          branch: string
+          created_at: string
+          id: string
+          locale: string
+          operator_id: string
+          outbound_email_id: string | null
+          public_token: string
+          requested_at: string
+          resolved_at: string | null
+          resolved_response_id: string | null
+          responder_email: string
+          responder_location_id: string
+          revoked_at: string | null
+          token_expires_at: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          branch?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          operator_id: string
+          outbound_email_id?: string | null
+          public_token?: string
+          requested_at?: string
+          resolved_at?: string | null
+          resolved_response_id?: string | null
+          responder_email: string
+          responder_location_id: string
+          revoked_at?: string | null
+          token_expires_at?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          branch?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          operator_id?: string
+          outbound_email_id?: string | null
+          public_token?: string
+          requested_at?: string
+          resolved_at?: string | null
+          resolved_response_id?: string | null
+          responder_email?: string
+          responder_location_id?: string
+          revoked_at?: string | null
+          token_expires_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_approval_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_outbound_email_id_fkey"
+            columns: ["outbound_email_id"]
+            isOneToOne: false
+            referencedRelation: "outbound_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_resolved_response_id_fkey"
+            columns: ["resolved_response_id"]
+            isOneToOne: false
+            referencedRelation: "booking_approval_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_requests_responder_location_id_fkey"
+            columns: ["responder_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_approval_responses: {
+        Row: {
+          booking_id: string
+          branch: string
+          comment: string | null
+          created_at: string
+          decision: string
+          id: string
+          operator_id: string
+          request_id: string
+          responded_at: string
+          responder_email: string
+          responder_name: string | null
+          source: string
+          superseded_at: string | null
+          supersedes_response_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          branch?: string
+          comment?: string | null
+          created_at?: string
+          decision: string
+          id?: string
+          operator_id: string
+          request_id: string
+          responded_at?: string
+          responder_email: string
+          responder_name?: string | null
+          source?: string
+          superseded_at?: string | null
+          supersedes_response_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          branch?: string
+          comment?: string | null
+          created_at?: string
+          decision?: string
+          id?: string
+          operator_id?: string
+          request_id?: string
+          responded_at?: string
+          responder_email?: string
+          responder_name?: string | null
+          source?: string
+          superseded_at?: string | null
+          supersedes_response_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_approval_responses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_responses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "booking_approval_responses_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "booking_approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_approval_responses_supersedes_response_id_fkey"
+            columns: ["supersedes_response_id"]
+            isOneToOne: false
+            referencedRelation: "booking_approval_responses"
             referencedColumns: ["id"]
           },
         ]
@@ -1367,11 +1646,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "booking_form_responses_form_id_fkey"
-            columns: ["form_id"]
+            foreignKeyName: "booking_form_responses_form_id_operator_id_fkey"
+            columns: ["form_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "forms"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "operator_id"]
           },
           {
             foreignKeyName: "booking_form_responses_operator_id_fkey"
@@ -1655,6 +1934,7 @@ export type Database = {
           date_range_start: string | null
           id: string
           operator_id: string
+          product_availability_id: string | null
           product_id: string
           quantity: number
           selected_days: string[] | null
@@ -1668,6 +1948,7 @@ export type Database = {
           date_range_start?: string | null
           id?: string
           operator_id: string
+          product_availability_id?: string | null
           product_id: string
           quantity?: number
           selected_days?: string[] | null
@@ -1681,6 +1962,7 @@ export type Database = {
           date_range_start?: string | null
           id?: string
           operator_id?: string
+          product_availability_id?: string | null
           product_id?: string
           quantity?: number
           selected_days?: string[] | null
@@ -1709,81 +1991,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "booking_products_product_availability_id_fkey"
+            columns: ["product_availability_id"]
+            isOneToOne: false
+            referencedRelation: "product_availability"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_products_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      booking_state_transitions: {
-        Row: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind: string | null
-          actor_user_id: string | null
-          booking_id: string
-          external_correlation_id: string | null
-          from_state: string | null
-          id: string
-          occurred_at: string
-          operator_id: string
-          reason: string | null
-          to_state: string
-        }
-        Insert: {
-          actor_kind: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          actor_user_id?: string | null
-          booking_id: string
-          external_correlation_id?: string | null
-          from_state?: string | null
-          id?: string
-          occurred_at?: string
-          operator_id: string
-          reason?: string | null
-          to_state: string
-        }
-        Update: {
-          actor_kind?: Database["public"]["Enums"]["actor_kind"]
-          actor_subkind?: string | null
-          actor_user_id?: string | null
-          booking_id?: string
-          external_correlation_id?: string | null
-          from_state?: string | null
-          id?: string
-          occurred_at?: string
-          operator_id?: string
-          reason?: string | null
-          to_state?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_state_transitions_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "assignable_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "booking_state_transitions_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "booking_state_transitions_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "feedback_inbox_operator_summary"
-            referencedColumns: ["operator_id"]
-          },
-          {
-            foreignKeyName: "booking_state_transitions_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operators"
             referencedColumns: ["id"]
           },
         ]
@@ -1831,6 +2049,7 @@ export type Database = {
           created_at: string
           currency: string
           current_semantic_state: Database["public"]["Enums"]["booking_semantic_state"]
+          current_stage_code: string
           current_stage_id: string
           custom_offer_applied: boolean | null
           custom_offer_applied_at: string | null
@@ -1882,6 +2101,7 @@ export type Database = {
           created_at?: string
           currency?: string
           current_semantic_state: Database["public"]["Enums"]["booking_semantic_state"]
+          current_stage_code: string
           current_stage_id: string
           custom_offer_applied?: boolean | null
           custom_offer_applied_at?: string | null
@@ -1933,6 +2153,7 @@ export type Database = {
           created_at?: string
           currency?: string
           current_semantic_state?: Database["public"]["Enums"]["booking_semantic_state"]
+          current_stage_code?: string
           current_stage_id?: string
           custom_offer_applied?: boolean | null
           custom_offer_applied_at?: string | null
@@ -3351,11 +3572,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "form_fields_form_id_fkey"
-            columns: ["form_id"]
+            foreignKeyName: "form_fields_form_id_operator_id_fkey"
+            columns: ["form_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "forms"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "operator_id"]
           },
           {
             foreignKeyName: "form_fields_operator_id_fkey"
@@ -4426,7 +4647,7 @@ export type Database = {
         Row: {
           config: Json | null
           created_at: string
-          enabled: boolean
+          enabled: boolean | null
           enabled_at: string
           enabled_by_user_id: string | null
           feature_id: string
@@ -4437,7 +4658,7 @@ export type Database = {
         Insert: {
           config?: Json | null
           created_at?: string
-          enabled?: boolean
+          enabled?: boolean | null
           enabled_at?: string
           enabled_by_user_id?: string | null
           feature_id: string
@@ -4448,7 +4669,7 @@ export type Database = {
         Update: {
           config?: Json | null
           created_at?: string
-          enabled?: boolean
+          enabled?: boolean | null
           enabled_at?: string
           enabled_by_user_id?: string | null
           feature_id?: string
@@ -4600,9 +4821,11 @@ export type Database = {
       }
       operator_memberships: {
         Row: {
+          can_publish_site_warnings: boolean
           contact_id: string | null
           created_at: string
           id: string
+          is_release_signer: boolean
           operator_id: string
           permissions: Json | null
           role: string
@@ -4610,9 +4833,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_publish_site_warnings?: boolean
           contact_id?: string | null
           created_at?: string
           id?: string
+          is_release_signer?: boolean
           operator_id: string
           permissions?: Json | null
           role: string
@@ -4620,9 +4845,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_publish_site_warnings?: boolean
           contact_id?: string | null
           created_at?: string
           id?: string
+          is_release_signer?: boolean
           operator_id?: string
           permissions?: Json | null
           role?: string
@@ -4754,6 +4981,54 @@ export type Database = {
           },
         ]
       }
+      operator_site_services: {
+        Row: {
+          active: boolean
+          activity_site_id: string
+          created_at: string
+          id: string
+          note: string | null
+          operator_id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          activity_site_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          operator_id: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          activity_site_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          operator_id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_site_services_activity_site_fkey"
+            columns: ["activity_site_id"]
+            isOneToOne: false
+            referencedRelation: "activity_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_site_services_operator_product_fkey"
+            columns: ["operator_id", "product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["operator_id", "id"]
+          },
+        ]
+      }
       operator_tags: {
         Row: {
           color: string
@@ -4844,6 +5119,7 @@ export type Database = {
           weather_lat: number | null
           weather_lon: number | null
           weather_provider: string | null
+          widget_catalog_layout: string | null
           widget_category_columns: number | null
           widget_description: string | null
           widget_description_first_page_only: boolean
@@ -4907,6 +5183,7 @@ export type Database = {
           weather_lat?: number | null
           weather_lon?: number | null
           weather_provider?: string | null
+          widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_description?: string | null
           widget_description_first_page_only?: boolean
@@ -4970,6 +5247,7 @@ export type Database = {
           weather_lat?: number | null
           weather_lon?: number | null
           weather_provider?: string | null
+          widget_catalog_layout?: string | null
           widget_category_columns?: number | null
           widget_description?: string | null
           widget_description_first_page_only?: boolean
@@ -5547,6 +5825,57 @@ export type Database = {
           },
         ]
       }
+      platform_outbound_emails: {
+        Row: {
+          body_html: string
+          body_text: string
+          created_at: string
+          id: string
+          last_error: string | null
+          locale: string
+          next_attempt_at: string | null
+          retries: number
+          sent_at: string | null
+          sent_via: string | null
+          status: Database["public"]["Enums"]["outbound_email_status"]
+          subject: string
+          template_kind: string
+          to_address: string
+        }
+        Insert: {
+          body_html: string
+          body_text: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locale: string
+          next_attempt_at?: string | null
+          retries?: number
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: Database["public"]["Enums"]["outbound_email_status"]
+          subject: string
+          template_kind: string
+          to_address: string
+        }
+        Update: {
+          body_html?: string
+          body_text?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locale?: string
+          next_attempt_at?: string | null
+          retries?: number
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: Database["public"]["Enums"]["outbound_email_status"]
+          subject?: string
+          template_kind?: string
+          to_address?: string
+        }
+        Relationships: []
+      }
       pricing_rules: {
         Row: {
           active: boolean
@@ -6017,11 +6346,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "product_flow_modules_form_id_fkey"
-            columns: ["form_id"]
+            foreignKeyName: "product_flow_modules_form_id_operator_id_fkey"
+            columns: ["form_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "forms"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "operator_id"]
           },
           {
             foreignKeyName: "product_flow_modules_operator_id_fkey"
@@ -6038,11 +6367,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_flow_modules_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "product_flow_modules_product_id_operator_id_fkey"
+            columns: ["product_id", "operator_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "operator_id"]
           },
         ]
       }
@@ -6856,6 +7185,78 @@ export type Database = {
           },
         ]
       }
+      promotion_run_signoffs: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          id: string
+          notes: string | null
+          operator_id: string
+          run_id: string
+          signer_user_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          notes?: string | null
+          operator_id: string
+          run_id: string
+          signer_user_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string
+          run_id?: string
+          signer_user_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_run_signoffs_operator_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "promotion_run_signoffs_operator_fk"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_run_signoffs_run_fk"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_run_signoffs_signer_fk"
+            columns: ["signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_run_signoffs_signer_fk"
+            columns: ["signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promotion_runs: {
         Row: {
           created_at: string
@@ -6871,7 +7272,14 @@ export type Database = {
           requested_at: string
           requested_by: string | null
           signoff_by_label: string | null
+          signoff_override_at: string | null
+          signoff_override_by: string | null
+          signoff_override_reason: string | null
+          signoff_paused_at: string | null
           signoff_source: string
+          signoff_window_closes_at: string | null
+          signoff_window_hours: number
+          signoff_window_opens_at: string | null
           status: string
           updated_at: string
         }
@@ -6889,7 +7297,14 @@ export type Database = {
           requested_at?: string
           requested_by?: string | null
           signoff_by_label?: string | null
+          signoff_override_at?: string | null
+          signoff_override_by?: string | null
+          signoff_override_reason?: string | null
+          signoff_paused_at?: string | null
           signoff_source?: string
+          signoff_window_closes_at?: string | null
+          signoff_window_hours?: number
+          signoff_window_opens_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -6907,7 +7322,14 @@ export type Database = {
           requested_at?: string
           requested_by?: string | null
           signoff_by_label?: string | null
+          signoff_override_at?: string | null
+          signoff_override_by?: string | null
+          signoff_override_reason?: string | null
+          signoff_paused_at?: string | null
           signoff_source?: string
+          signoff_window_closes_at?: string | null
+          signoff_window_hours?: number
+          signoff_window_opens_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -6936,6 +7358,20 @@ export type Database = {
           {
             foreignKeyName: "promotion_runs_requested_by_fk"
             columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_runs_signoff_override_by_fkey"
+            columns: ["signoff_override_by"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_runs_signoff_override_by_fkey"
+            columns: ["signoff_override_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -7459,95 +7895,6 @@ export type Database = {
           },
         ]
       }
-      secondary_approval_state_transitions: {
-        Row: {
-          booking_id: string
-          branch: string
-          decision: string | null
-          from_stage_id: string | null
-          id: string
-          occurred_at: string
-          operator_id: string
-          reason: string | null
-          to_stage_id: string
-          triggered_by_user_id: string | null
-        }
-        Insert: {
-          booking_id: string
-          branch: string
-          decision?: string | null
-          from_stage_id?: string | null
-          id?: string
-          occurred_at?: string
-          operator_id: string
-          reason?: string | null
-          to_stage_id: string
-          triggered_by_user_id?: string | null
-        }
-        Update: {
-          booking_id?: string
-          branch?: string
-          decision?: string | null
-          from_stage_id?: string | null
-          id?: string
-          occurred_at?: string
-          operator_id?: string
-          reason?: string | null
-          to_stage_id?: string
-          triggered_by_user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "secondary_approval_state_transitions_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_from_stage_id_fkey"
-            columns: ["from_stage_id"]
-            isOneToOne: false
-            referencedRelation: "booking_lifecycle_stages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "feedback_inbox_operator_summary"
-            referencedColumns: ["operator_id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_operator_id_fkey"
-            columns: ["operator_id"]
-            isOneToOne: false
-            referencedRelation: "operators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_to_stage_id_fkey"
-            columns: ["to_stage_id"]
-            isOneToOne: false
-            referencedRelation: "booking_lifecycle_stages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_triggered_by_user_id_fkey"
-            columns: ["triggered_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "assignable_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "secondary_approval_state_transitions_triggered_by_user_id_fkey"
-            columns: ["triggered_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       service_roles: {
         Row: {
           active: boolean
@@ -7676,6 +8023,138 @@ export type Database = {
             columns: ["media_id"]
             isOneToOne: true
             referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_warning_subscriptions: {
+        Row: {
+          activity_site_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_site_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_site_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_warning_subscriptions_activity_site_id_fkey"
+            columns: ["activity_site_id"]
+            isOneToOne: false
+            referencedRelation: "activity_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warning_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "site_warning_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "member_profiles_public"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      site_warnings: {
+        Row: {
+          activity_site_id: string
+          body: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          published_by: string
+          published_by_operator_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: Database["public"]["Enums"]["site_warning_severity"]
+          title: string
+        }
+        Insert: {
+          activity_site_id: string
+          body?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          published_by: string
+          published_by_operator_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: Database["public"]["Enums"]["site_warning_severity"]
+          title: string
+        }
+        Update: {
+          activity_site_id?: string
+          body?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          published_by?: string
+          published_by_operator_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: Database["public"]["Enums"]["site_warning_severity"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_warnings_activity_site_id_fkey"
+            columns: ["activity_site_id"]
+            isOneToOne: false
+            referencedRelation: "activity_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warnings_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warnings_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warnings_published_by_operator_id_fkey"
+            columns: ["published_by_operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "site_warnings_published_by_operator_id_fkey"
+            columns: ["published_by_operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warnings_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_warnings_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -7850,6 +8329,150 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_webhook_events: {
+        Row: {
+          event_created: string | null
+          event_id: string
+          event_type: string
+          operator_id: string
+          received_at: string
+          result: Json | null
+        }
+        Insert: {
+          event_created?: string | null
+          event_id: string
+          event_type: string
+          operator_id: string
+          received_at?: string
+          result?: Json | null
+        }
+        Update: {
+          event_created?: string | null
+          event_id?: string
+          event_type?: string
+          operator_id?: string
+          received_at?: string
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_webhook_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "stripe_webhook_events_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_holders: {
+        Row: {
+          cancel_at_period_end: boolean
+          contact_id: string
+          created_at: string
+          current_period_end: string | null
+          id: string
+          last_payment_failed_at: string | null
+          last_stripe_event_at: string | null
+          operator_id: string
+          reminder_t0_sent_at: string | null
+          reminder_t3_sent_at: string | null
+          reminder_t7_sent_at: string | null
+          started_at: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_status: string | null
+          stripe_subscription_id: string | null
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          contact_id: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          last_payment_failed_at?: string | null
+          last_stripe_event_at?: string | null
+          operator_id: string
+          reminder_t0_sent_at?: string | null
+          reminder_t3_sent_at?: string | null
+          reminder_t7_sent_at?: string | null
+          started_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          contact_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          last_payment_failed_at?: string | null
+          last_stripe_event_at?: string | null
+          operator_id?: string
+          reminder_t0_sent_at?: string | null
+          reminder_t3_sent_at?: string | null
+          reminder_t7_sent_at?: string | null
+          started_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_holders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_holders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts_with_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_holders_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_holders_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_holders_subscription_op_fkey"
+            columns: ["subscription_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id", "operator_id"]
+          },
+        ]
+      }
       subscription_packages: {
         Row: {
           active: boolean
@@ -7882,6 +8505,192 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      subscription_perk_verifications: {
+        Row: {
+          attempts: number
+          client_ip: string | null
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          email_normalized: string
+          expires_at: string
+          id: string
+          max_attempts: number
+          operator_id: string
+        }
+        Insert: {
+          attempts?: number
+          client_ip?: string | null
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          email_normalized: string
+          expires_at: string
+          id?: string
+          max_attempts?: number
+          operator_id: string
+        }
+        Update: {
+          attempts?: number
+          client_ip?: string | null
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          email_normalized?: string
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          operator_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_perk_verifications_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_perk_verifications_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_perks: {
+        Row: {
+          active: boolean
+          amount: number
+          applies_to_product_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          label: string | null
+          operator_id: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          applies_to_product_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          label?: string | null
+          operator_id: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          applies_to_product_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          operator_id?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_perks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_perks_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_perks_product_op_fkey"
+            columns: ["applies_to_product_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id", "operator_id"]
+          },
+          {
+            foreignKeyName: "subscription_perks_subscription_op_fkey"
+            columns: ["subscription_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id", "operator_id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          active: boolean
+          billing_interval: string
+          created_at: string
+          currency: string
+          id: string
+          operator_id: string
+          price: number | null
+          product_id: string
+          stripe_price_id: string | null
+          trial_period_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          billing_interval: string
+          created_at?: string
+          currency?: string
+          id?: string
+          operator_id: string
+          price?: number | null
+          product_id: string
+          stripe_price_id?: string | null
+          trial_period_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          billing_interval?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          operator_id?: string
+          price?: number | null
+          product_id?: string
+          stripe_price_id?: string | null
+          trial_period_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_templates: {
         Row: {
@@ -8731,6 +9540,62 @@ export type Database = {
           },
         ]
       }
+      voucher_redemptions: {
+        Row: {
+          booking_id: string
+          discount_amount_at_redemption: number
+          id: string
+          operator_id: string
+          redeemed_at: string
+          voucher_id: string
+        }
+        Insert: {
+          booking_id: string
+          discount_amount_at_redemption: number
+          id?: string
+          operator_id: string
+          redeemed_at?: string
+          voucher_id: string
+        }
+        Update: {
+          booking_id?: string
+          discount_amount_at_redemption?: number
+          id?: string
+          operator_id?: string
+          redeemed_at?: string
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_redemptions_booking_id_operator_id_fkey"
+            columns: ["booking_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "operator_id"]
+          },
+          {
+            foreignKeyName: "voucher_redemptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "voucher_redemptions_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_redemptions_voucher_id_operator_id_fkey"
+            columns: ["voucher_id", "operator_id"]
+            isOneToOne: false
+            referencedRelation: "vouchers"
+            referencedColumns: ["id", "operator_id"]
+          },
+        ]
+      }
       vouchers: {
         Row: {
           active: boolean
@@ -9547,6 +10412,27 @@ export type Database = {
           trip_end_date: string
         }[]
       }
+      anonymize_user_pii: { Args: { p_user_id: string }; Returns: boolean }
+      append_overflow_incident: {
+        Args: { p_line: string; p_max_lines?: number; p_source_ref: string }
+        Returns: string
+      }
+      applicable_subscription_perks: {
+        Args: {
+          p_contact_id?: string
+          p_email?: string
+          p_operator_id: string
+          p_product_id: string
+        }
+        Returns: {
+          amount: number
+          applies_to_product_id: string
+          id: string
+          kind: string
+          label: string
+          subscription_id: string
+        }[]
+      }
       apply_custom_offer: {
         Args: {
           p_applied_by: string
@@ -9568,6 +10454,17 @@ export type Database = {
         Args: { event_id: string; event_object: Json; event_type: string }
         Returns: Json
       }
+      apply_subscription_billing_event: {
+        Args: {
+          p_actor_subkind?: string
+          p_event_at?: string
+          p_event_id?: string
+          p_intent: string
+          p_operator_id: string
+          p_payload: Json
+        }
+        Returns: Json
+      }
       apply_tenant_rls: { Args: { p_table_name: string }; Returns: undefined }
       bookings_rebuild_search_text: {
         Args: { p_booking_id: string }
@@ -9577,6 +10474,10 @@ export type Database = {
       community_soft_delete_message: {
         Args: { p_message_id: string }
         Returns: undefined
+      }
+      consume_subscription_perk_otp: {
+        Args: { p_code_hash: string; p_email: string; p_operator_id: string }
+        Returns: boolean
       }
       create_audit_log_partition: {
         Args: { p_month_start: string }
@@ -9728,6 +10629,10 @@ export type Database = {
           sync_logs_reenqueued: number
         }[]
       }
+      inquiry_rate_limit_increment: {
+        Args: { p_ip_addr: string; p_token: string; p_window_start: string }
+        Returns: number
+      }
       is_tenant_visible: { Args: { p_operator_id: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       notify_ticket_bell: {
@@ -9823,6 +10728,7 @@ export type Database = {
       public_get_operator_product_groups: {
         Args: { operator_slug: string }
         Returns: {
+          bookable_count: number
           description: string
           description_localized: Json
           id: string
@@ -9856,6 +10762,8 @@ export type Database = {
           name: string
           name_localized: Json
           needs_pickup: boolean
+          next_window_end: string
+          next_window_start: string
           price_from: number
           price_per_unit: number
           product_group_id: string
@@ -9891,6 +10799,7 @@ export type Database = {
           primary_color: string
           slug: string
           theme: Json
+          widget_catalog_layout: string
           widget_category_columns: number
           widget_description: string
           widget_description_first_page_only: boolean
@@ -9919,6 +10828,7 @@ export type Database = {
           name_localized: Json
           price_per_unit: number
           product_addon_id: string
+          product_kind: string
           sort_order: number
         }[]
       }
@@ -9938,6 +10848,7 @@ export type Database = {
       public_get_product_fixed_date_windows: {
         Args: { p_product_id: string }
         Returns: {
+          available_seats: number
           capacity: number
           capacity_reserved: number
           end_date: string
@@ -9948,6 +10859,24 @@ export type Database = {
       public_get_product_flow: {
         Args: { p_operator_slug: string; p_product_id: string }
         Returns: Json
+      }
+      public_get_site_services: {
+        Args: { p_site_id: string }
+        Returns: {
+          link_id: string
+          note: string
+          operator_id: string
+          operator_name: string
+          operator_slug: string
+          product_id: string
+          product_kind: string
+          product_name: string
+          product_name_localized: Json
+          product_slug: string
+          service_time_shape: string
+          short_description: string
+          short_description_localized: Json
+        }[]
       }
       public_initiate_payment: { Args: { payload: Json }; Returns: Json }
       public_preview_operator_products: {
@@ -9972,6 +10901,8 @@ export type Database = {
           name: string
           name_localized: Json
           needs_pickup: boolean
+          next_window_end: string
+          next_window_start: string
           price_from: number
           price_per_unit: number
           product_group_id: string
@@ -9986,14 +10917,39 @@ export type Database = {
           thumb_path: string
         }[]
       }
+      public_record_booking_approval_response: {
+        Args: {
+          p_comment: string
+          p_decision: string
+          p_request_id: string
+          p_responder_name: string
+        }
+        Returns: Json
+      }
+      public_resolve_approval_request_by_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       public_resolve_briefing_booking_by_token: {
         Args: { p_token: string }
         Returns: Json
       }
       public_submit_booking: { Args: { p_payload: Json }; Returns: Json }
+      purge_user_operational_rows: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       recompute_booking_balance_due: {
         Args: { booking_id_arg: string }
         Returns: undefined
+      }
+      reinstate_subscription_perk_otp: {
+        Args: { p_code_hash: string; p_email: string; p_operator_id: string }
+        Returns: boolean
+      }
+      resolve_contact_by_email: {
+        Args: { p_email: string; p_operator_id: string }
+        Returns: string
       }
       resolve_ticket_notify_setting: {
         Args: { p_ticket_id: string; p_user_id: string }
@@ -10004,7 +10960,24 @@ export type Database = {
           push: boolean
         }[]
       }
+      resolve_user_by_email: { Args: { p_email: string }; Returns: string }
       roll_audit_log_partitions_ahead: { Args: never; Returns: undefined }
+      set_member_disciplines: {
+        Args: { p_entries: Json }
+        Returns: {
+          created_at: string
+          discipline_id: string
+          hours_per_year: number | null
+          skill_level: string | null
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "member_disciplines"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       signup_create_operator: {
@@ -10015,6 +10988,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      site_warnings_nearby_pilots: {
+        Args: { p_radius_m?: number; p_site_id: string }
+        Returns: {
+          name: string
+          tier: string
+          user_id: string
+        }[]
       }
       sos_nearby_members: {
         Args: { p_lat: number; p_lng: number; p_radius_m?: number }
@@ -10611,6 +11592,31 @@ export type Database = {
         Returns: Json
       }
       staff_submit_booking: { Args: { p_payload: Json }; Returns: Json }
+      stale_approval_bookings: {
+        Args: { p_limit?: number; p_stale_after_hours?: number }
+        Returns: {
+          booking_id: string
+          booking_reference: string
+          branch: string
+          current_stage_code: string
+          hours_pending: number
+          last_comment: string
+          last_decision: string
+          last_responded_at: string
+          operator_id: string
+          request_id: string
+          responder_location_name: string
+          stage_entered_at: string
+        }[]
+      }
+      subscription_has_live_member: {
+        Args: {
+          p_email: string
+          p_operator_id: string
+          p_subscription_id: string
+        }
+        Returns: boolean
+      }
       transition_booking_approval: {
         Args: {
           p_booking_id: string
@@ -10761,6 +11767,7 @@ export type Database = {
         | "days_range"
         | "fixed_window"
         | "time_slot"
+      site_warning_severity: "critical" | "advisory"
       tax_id_kind:
         | "es_nif"
         | "es_cif"
@@ -11054,6 +12061,7 @@ export const Constants = {
         "fixed_window",
         "time_slot",
       ],
+      site_warning_severity: ["critical", "advisory"],
       tax_id_kind: [
         "es_nif",
         "es_cif",
