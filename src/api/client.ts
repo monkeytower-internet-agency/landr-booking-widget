@@ -1,4 +1,7 @@
 import type {
+  ApprovalReplyRequestBody,
+  ApprovalReplyResult,
+  ApprovalRequestContext,
   AvailabilitySlot,
   EstimateRequestBody,
   EstimateResponse,
@@ -212,6 +215,46 @@ export async function getOperatorServiceRoles(
 }
 
 /**
+ * Response from POST /api/public/operators/{token}/subscription-perk/otp.
+ * ALWAYS `{ ok: true }` — see requestSubscriptionPerkOtp for why.
+ */
+export interface RequestSubscriptionPerkOtpResponse {
+  ok: boolean
+}
+
+/**
+ * landr-fn4i (widget half of landr-5krc): fire the one-time subscription-perk
+ * code email. Call this when the checkout email field is completed/blurred
+ * (DetailsStep does this on the booker email's onBlur).
+ *
+ * CRITICAL: the endpoint ALWAYS responds 202 `{ok: true}` — member,
+ * non-member, malformed address, or rate-limited caller all get the
+ * IDENTICAL response, BY DESIGN, so the widget can never be used to probe
+ * membership status. Callers MUST NOT branch UI on the response body (the
+ * `ok` field carries no information — it's here only so the return type
+ * isn't `void`); a network/host error is equally uninformative and should be
+ * swallowed, not surfaced to the customer. A 404 means the widget_token
+ * itself is wrong, which every other call on the page would also be failing
+ * on — not something this call needs to handle specially.
+ *
+ * No mock-mode branch needed beyond the standard `{ok: true}` — there is no
+ * meaningful "mock" for an endpoint whose whole point is to reveal nothing.
+ */
+export async function requestSubscriptionPerkOtp(
+  operatorToken: string,
+  email: string,
+): Promise<RequestSubscriptionPerkOtpResponse> {
+  if (mocksEnabled()) return { ok: true }
+  return http<RequestSubscriptionPerkOtpResponse>(
+    `/api/public/operators/${encodeURIComponent(operatorToken)}/subscription-perk/otp`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    },
+  )
+}
+
+/**
  * Stub pointing at the GET /api/public/operators/{token}/locations endpoint (landr-e10.8).
  * Falls back to mock data until the backend lands.
  */
@@ -285,6 +328,35 @@ export async function getFixedDateWindows(
     throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`)
   }
   return (await res.json()) as FixedDateWindow[]
+}
+
+/**
+ * Staff-mode variant of getFixedDateWindows (landr-r2o8). The public RPC
+ * above (public_get_product_fixed_date_windows, landr-drh) WHERE-clauses out
+ * any window where capacity_reserved >= capacity in EVERY mode, including
+ * staff — so FixedDateWindowPicker's force-book branch (landr-aoak.2 [S3])
+ * had no full/overbooked window to ever render for fixed-date-window
+ * products: the public RPC hid it before the branch could run.
+ *
+ * Backed by GET /api/staff/operators/{operator_id}/products/{product_id}/
+ * fixed-date-window-availability?staff_session=<token> — a staff_session-
+ * gated FastAPI route (landr-r2o8 api half) that requires the force_book
+ * power and returns the SAME shape MINUS the capacity filter. Called ONLY
+ * when FixedDateWindowPicker has resolved canForce (staff.active AND the
+ * force_book power AND a decoded operatorId) — every other caller (normal
+ * customer mode, catalogue chips) keeps using getFixedDateWindows unchanged,
+ * so the byte-identical-with-no-session invariant holds.
+ */
+export async function getStaffFixedDateWindows(
+  operatorId: string,
+  productId: string,
+  staffSessionToken: string,
+): Promise<FixedDateWindow[]> {
+  if (mocksEnabled()) return mockFixedDateWindows()
+  const qs = new URLSearchParams({ staff_session: staffSessionToken })
+  return http<FixedDateWindow[]>(
+    `/api/staff/operators/${encodeURIComponent(operatorId)}/products/${encodeURIComponent(productId)}/fixed-date-window-availability?${qs}`,
+  )
 }
 
 /**
@@ -476,6 +548,225 @@ export async function submitGroupInquiry(
   if (mocksEnabled()) return { ok: true }
   return http<GroupInquiryResponse>(
     `/api/public/operators/${encodeURIComponent(operatorToken)}/group-inquiry`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+// ─── Offer page (landr-uvfg Track B) ─────────────────────────────────────────
+
+/**
+ * A single price-breakdown line from the offer.
+ */
+export interface OfferProductLine {
+  product_id: string
+  name: string
+  name_localized: Record<string, string> | null
+  date_range_start: string | null
+  date_range_end: string | null
+  selected_days: string[] | null
+  quantity: number
+}
+
+/**
+ * A participant listed on the offer.
+ */
+export interface OfferParticipant {
+  first_name: string
+  last_name: string | null
+  service_role_label: string | null
+}
+
+/**
+ * Totals block from the offer.
+ */
+export interface OfferTotals {
+  gross_total: number
+  tax_total: number
+  net_total: number
+  balance_due: number
+  currency: string
+}
+
+/**
+ * Customer details from the offer.
+ */
+export interface OfferCustomer {
+  first_name: string
+  last_name: string | null
+  email: string | null
+}
+
+/**
+ * Full offer data returned by GET /api/public/bookings/{token}.
+ * Shape mirrors the public_get_booking_by_token RPC
+ * (migration 20260512221007).
+ */
+export interface PublicBookingOffer {
+  booking_id: string
+  customer_semantic_state: string
+  cancellation_deadline: string | null
+  totals: OfferTotals
+  customer: OfferCustomer
+  product_lines: OfferProductLine[]
+  participants: OfferParticipant[]
+}
+
+/**
+ * Fetch offer details for a booking token (landr-uvfg.4b).
+ * Backed by GET /api/public/bookings/{token} — the same token minted by
+ * POST /api/staff/…/send-offer. No mock fallback: this surface is only
+ * reached from the custom-offer email link.
+ */
+export async function getBookingByToken(
+  token: string,
+): Promise<PublicBookingOffer> {
+  return http<PublicBookingOffer>(
+    `/api/public/bookings/${encodeURIComponent(token)}`,
+  )
+}
+
+/**
+ * Request body for POST /api/public/payments/initiate.
+ */
+export interface InitiatePaymentRequest {
+  booking_token: string
+  return_url: string
+  cancel_url: string
+}
+
+/**
+ * Response from POST /api/public/payments/initiate.
+ */
+export interface InitiatePaymentResponse {
+  checkout_url: string
+  payment_id: string | null
+  stripe_payment_intent_id: string | null
+}
+
+/**
+ * Kick off a Stripe Checkout session for the offer (landr-uvfg.4b).
+ * Backed by the existing POST /api/public/payments/initiate.
+ * On success, the caller should redirect to `checkout_url`.
+ * No mock fallback: the offer link is email-deep-link only.
+ */
+export async function initiatePayment(
+  body: InitiatePaymentRequest,
+): Promise<InitiatePaymentResponse> {
+  return http<InitiatePaymentResponse>('/api/public/payments/initiate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/**
+ * Request body for POST /api/public/subscriptions/checkout (landr-1kk.5).
+ *
+ * Kept structurally in step with the generated
+ * `components['schemas']['SubscriptionCheckoutIn']`, asserted at COMPILE time by
+ * `src/api/subscriptionCheckoutTypes.contract.test.ts` (the house pattern —
+ * see approvalReplyTypes.contract.test.ts), so a landr-api change to the
+ * endpoint breaks `npm run typecheck` rather than failing at runtime.
+ * Hand-written (rather than
+ * aliasing the generated type) for the same reason every other request type in
+ * this file is: openapi-typescript marks a field optional whenever the Pydantic
+ * model gives it a default, which would push `?? ''` into every call site.
+ */
+export interface SubscriptionCheckoutRequest {
+  widget_token: string
+  product_id: string
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+  return_url: string
+  cancel_url: string
+}
+
+/**
+ * Response from POST /api/public/subscriptions/checkout.
+ *
+ * The endpoint's response_model is an open `dict`, so the generated schema is
+ * only `{ [k: string]: unknown }` — these are the two keys landr-api
+ * documents and returns (`app/routers/public_subscriptions.py`).
+ * `checkout_session_id` is returned for landr-1kk.5's post-redirect poll, which
+ * is out of scope here; keep it typed so adopting it later is additive.
+ */
+export interface SubscriptionCheckoutResponse {
+  checkout_url: string
+  checkout_session_id: string
+}
+
+/**
+ * Kick off a Stripe Checkout session for an operator's MEMBERSHIP product
+ * (product_kind='subscription') — landr-1kk.5.
+ *
+ * Mirrors `initiatePayment` deliberately: same `http()` transport, same
+ * caller-redirects-to-`checkout_url` contract. The API side also reuses the
+ * same open-redirect allowlist (`validate_redirect_url`), so `return_url` /
+ * `cancel_url` must be on the operator's configured origins or the call 400s.
+ *
+ * No mock fallback: this hits a third party's live Stripe account, so a
+ * fabricated success would be actively misleading in mock mode.
+ */
+export async function initiateSubscriptionCheckout(
+  body: SubscriptionCheckoutRequest,
+): Promise<SubscriptionCheckoutResponse> {
+  return http<SubscriptionCheckoutResponse>(
+    '/api/public/subscriptions/checkout',
+    { method: 'POST', body: JSON.stringify(body) },
+  )
+}
+
+// ─── Hotel room-request reply loop (landr-em0r.9) ────────────────────────────
+
+/**
+ * Fetch the read-only context for a hotel reply link (landr-em0r.9).
+ * Backed by `GET /api/public/approval-requests/{token}` — this call is
+ * REQUIRED to be side-effect-free on the API side (SECURITY DEFINER RPC,
+ * STABLE): it mints nothing and records nothing. This is the ONLY call
+ * ApprovalReplyPage makes on mount — email pre-fetchers (Outlook Safe
+ * Links, Gmail) GET every link in an email, and a GET here must be
+ * indistinguishable from "nobody ever opened this" (epic section 4, layer
+ * 2). The `confirm_nonce` in the response is required by
+ * submitApprovalReply below and exists nowhere else a scanner could guess
+ * or replay it from (layer 3).
+ *
+ * No mock fallback — copy of the cancelBooking rationale (below): this
+ * surface is only reached by following an email link and never lands in
+ * the demo/mocks flow. If VITE_USE_MOCKS=1 we still hit the real API —
+ * there is no useful mock for "resolve a token that doesn't exist in mocks".
+ */
+export async function getApprovalRequest(
+  token: string,
+): Promise<ApprovalRequestContext> {
+  return http<ApprovalRequestContext>(
+    `/api/public/approval-requests/${encodeURIComponent(token)}`,
+  )
+}
+
+/**
+ * Submit (or correct) the hotel's answer (landr-em0r.9). Backed by
+ * `POST /api/public/approval-requests/{token}/response`. Called EXACTLY
+ * once per human click of the confirm button — never from an effect, never
+ * on mount (see getApprovalRequest above). `confirm_nonce` must come from
+ * the most recent getApprovalRequest response; the API replies 422
+ * `invalid_confirm_nonce` when it's stale (ApprovalReplyPage silently
+ * re-GETs and retries once — a receptionist leaving the page open >15 min
+ * is the common case, epic section 7) or `comment_required_for_changes`
+ * when a `confirmed_with_changes` decision arrives without one (the widget
+ * also disables the button client-side for this, belt and braces).
+ *
+ * No mock fallback — same reasoning as cancelBooking: this surface is only
+ * reached by following an email link and never lands in the demo/mocks flow.
+ */
+export async function submitApprovalReply(
+  token: string,
+  body: ApprovalReplyRequestBody,
+): Promise<ApprovalReplyResult> {
+  return http<ApprovalReplyResult>(
+    `/api/public/approval-requests/${encodeURIComponent(token)}/response`,
     {
       method: 'POST',
       body: JSON.stringify(body),

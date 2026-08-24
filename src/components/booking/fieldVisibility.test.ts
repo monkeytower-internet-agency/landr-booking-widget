@@ -301,6 +301,40 @@ describe('isFieldVisible — parity: null-value contract (landr-noyq)', () => {
   })
 })
 
+describe('isFieldVisible — parity: null (not undefined) scalar answer (landr-f4dm)', () => {
+  // A `null` answer must behave exactly like an ABSENT (undefined) answer —
+  // never like the literal string "null" — to stay in lock-step with the
+  // Python twin's `_scalar_eq` (a is None → False regardless of b).
+  it('eq with a null scalar answer → hidden, even when the rule value is the string "null"', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'ref', op: 'eq', value: 'null' },
+    })
+    expect(isFieldVisible(f, { ref: null })).toBe(false)
+  })
+
+  it('neq with a null scalar answer → visible, even when the rule value is the string "null"', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'ref', op: 'neq', value: 'null' },
+    })
+    expect(isFieldVisible(f, { ref: null })).toBe(true)
+  })
+
+  it('in with a null scalar answer → hidden, even when the rule array contains the string "null"', () => {
+    const f = field({
+      key: 'd',
+      visibility_rule: { field_key: 'ref', op: 'in', value: ['null', 'x'] },
+    })
+    expect(isFieldVisible(f, { ref: null })).toBe(false)
+  })
+
+  it('pruneHiddenAnswers drops a null answer for a visible field', () => {
+    const fields = [field({ key: 'd' })]
+    expect(pruneHiddenAnswers(fields, { d: null })).toEqual({})
+  })
+})
+
 describe('isFieldVisible — parity: empty-array truthy is hidden (landr-noyq)', () => {
   it('empty list is NOT truthy → hidden; non-empty list → visible', () => {
     const f = field({

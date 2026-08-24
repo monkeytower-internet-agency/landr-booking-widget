@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Check } from 'lucide-react'
-import { getFixedDateWindows } from '@/api/client'
+import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { expandWindowDays } from './expandWindowDays'
+import { formatWindowRangeLabel } from './dateLabel'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -50,20 +51,6 @@ interface Props {
   initialWindowId?: string
 }
 
-function fmtDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function rangeLabel(window: FixedDateWindow): string {
-  if (window.start_date === window.end_date) return fmtDate(window.start_date)
-  return `${fmtDate(window.start_date)} – ${fmtDate(window.end_date)}`
-}
-
 function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
   const available = Math.max(0, window.capacity - window.capacity_reserved)
   return {
@@ -102,7 +89,20 @@ export function FixedDateWindowPicker({
     let cancelled = false
     void (async () => {
       try {
-        const data = await getFixedDateWindows(product.product_id)
+        // landr-r2o8: in staff mode with the force_book power AND a resolved
+        // operatorId, fetch via the staff-session-gated endpoint so a FULL /
+        // overbooked window is actually returned (the public RPC hides it
+        // unconditionally — see getStaffFixedDateWindows). Any other case
+        // (no session, missing power, undecodable operatorId/token) falls
+        // back to the normal public call — byte-identical to today.
+        const data =
+          canForce && staff.operatorId && staff.token
+            ? await getStaffFixedDateWindows(
+                staff.operatorId,
+                product.product_id,
+                staff.token,
+              )
+            : await getFixedDateWindows(product.product_id)
         if (!cancelled) setWindows(data)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
@@ -111,7 +111,7 @@ export function FixedDateWindowPicker({
     return () => {
       cancelled = true
     }
-  }, [product.product_id])
+  }, [product.product_id, canForce, staff.operatorId, staff.token])
 
   const selectedWindow = useMemo(
     () => windows?.find((w) => w.id === selectedId) ?? null,
@@ -229,7 +229,7 @@ export function FixedDateWindowPicker({
                     </span>
                     <span className="flex flex-1 items-center justify-between gap-3">
                       <span className="font-medium tabular-nums">
-                        {rangeLabel(window)}
+                        {formatWindowRangeLabel(window.start_date, window.end_date)}
                       </span>
                       {isFull && canForce ? (
                         // landr-aoak.2: a full window in staff mode shows the

@@ -57,3 +57,30 @@ export function formatDayRange(
   if (!last || firstIso === lastIso) return first
   return `${first} → ${last}`
 }
+
+/**
+ * Format a single ISO date (YYYY-MM-DD) as 'Aug 4, 2027' (viewer's Intl
+ * locale, day/month short/year — no weekday). Used by the fixed-date-window
+ * chip (the "Dates" tab picker, and the expanded-catalog card that mirrors
+ * it) where a full year matters because windows can span into next year.
+ */
+export function formatWindowDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/**
+ * Format a fixed-date window as a single-date or range label using
+ * formatWindowDate, e.g. 'Aug 4, 2027 – Aug 10, 2027'.
+ */
+export function formatWindowRangeLabel(
+  startDate: string,
+  endDate: string,
+): string {
+  if (startDate === endDate) return formatWindowDate(startDate)
+  return `${formatWindowDate(startDate)} – ${formatWindowDate(endDate)}`
+}

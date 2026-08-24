@@ -1,6 +1,29 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+// landr-bx5y: jsdom has no global AnimationEvent constructor. Without one,
+// react-dom's animation-event feature detection (react-dom-client.development.js,
+// getVendorPrefixedEventName) falls back to listening for the legacy
+// 'webkitAnimationStart' event name instead of the standard 'animationstart'
+// that real browsers (and our production CSS-animation autofill-detection
+// trick in index.css) actually use. Polyfilling AnimationEvent here — via
+// vi.hoisted so it lands before react-dom is first imported/evaluated —
+// makes react-dom compute the same event name a real browser would, so this
+// suite exercises production behavior rather than a jsdom-only quirk.
+vi.hoisted(() => {
+  if (typeof globalThis.AnimationEvent !== 'undefined') return
+  class AnimationEventPolyfill extends Event {
+    animationName: string
+    constructor(type: string, init: AnimationEventInit = {}) {
+      super(type, init)
+      this.animationName = init.animationName ?? ''
+    }
+  }
+  // @ts-expect-error -- test-only polyfill for a jsdom gap, not a real DOM global
+  globalThis.AnimationEvent = AnimationEventPolyfill
+})
+
+import * as client from '@/api/client'
 import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
@@ -1000,11 +1023,206 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
 
   it('clears the red state as soon as the customer types a value into a flagged field', () => {
     renderStep()
+    // Use first name (no format constraint, unlike phone post-landr-1url) to
+    // demonstrate the generic required-field "clears on type" behavior.
+    const firstName = byName('booker_first_name')
+    fireEvent.blur(firstName)
+    expect(firstName).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(firstName, { target: { value: 'Ada' } })
+    // Re-render reflects the now-non-empty value → no longer invalid.
+    expect(firstName).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-1url: lightweight international-format nudge (no new dependency).
+  // A non-empty phone lacking a leading '+' + country code is flagged with a
+  // format message distinct from "Required", and clears once fixed.
+  it('flags a booker phone missing the "+" country code, distinct from empty', () => {
+    renderStep()
     const phone = byName('booker_phone')
+    // Missing → Required.
+    fireEvent.blur(phone)
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      'Required',
+    )
+    // Present but no leading '+' → format message, not "Required".
+    fireEvent.change(phone, { target: { value: '600123456' } })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    // Valid international format (with human-friendly spaces) → no error.
+    fireEvent.change(phone, { target: { value: '+34 600 123 456' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows placeholder + help text nudging international format on the booker phone', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    expect(phone).toHaveAttribute('placeholder', '+34 600 123 456')
+    expect(screen.getByText('Include your country code')).toBeInTheDocument()
+  })
+
+  // landr-bx5y: browser autofill can hand the field an already-mangled value
+  // (the '+CC' stripped before our JS runs). The PRIMARY detection is
+  // content-driven, not tied to any browser pseudo-class: a real keystroke
+  // changes a field's length by one character at a time, so a jump from
+  // empty straight to a multi-character value in one onChange (autofill, or
+  // a paste) is treated as an implicit touch — the format error appears
+  // immediately, without waiting for blur/Continue. This matters because
+  // the :-webkit-autofill/onAnimationStart signal (still wired as a second,
+  // best-effort layer below) turned out to only fire reliably for the
+  // booker phone field in the field — not for participant/companion rows
+  // mounted later via "+ Add participant"/"+ Add companion" — so the bulk
+  // heuristic is what actually has to carry this for every row.
+  it('flags a phone left country-code-less by browser autofill (bulk value jump from empty), without a blur', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.change(phone, { target: { value: '677620730' } })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('booker-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+  })
+
+  it('does NOT flag a phone while it is being typed one character at a time', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    // Each change grows the value by exactly one character, like real
+    // keystrokes — the bulk-fill heuristic must not mistake this for a
+    // paste/autofill and must not nag mid-typing.
+    for (const partial of ['+', '+3', '+34']) {
+      fireEvent.change(phone, { target: { value: partial } })
+      expect(phone).not.toHaveAttribute('aria-invalid')
+    }
+  })
+
+  it('does not flag a correctly-autofilled phone (bulk value jump, but already valid)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    fireEvent.change(phone, { target: { value: '+34 677 62 07 30' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('flags a bulk-filled phone on every row equally: booker, an added participant, and a companion', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const bookerPhone = byName('booker_phone')
+    const pPhone = byName('participant_2_phone')
+    const cPhone = byName('companion_1_phone')
+    fireEvent.change(bookerPhone, { target: { value: '677620730' } })
+    fireEvent.change(pPhone, { target: { value: '677620730' } })
+    fireEvent.change(cPhone, { target: { value: '677620730' } })
+    expect(bookerPhone).toHaveAttribute('aria-invalid', 'true')
+    expect(pPhone).toHaveAttribute('aria-invalid', 'true')
+    expect(cPhone).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  // landr-bx5y: the CSS-animation signal as a secondary layer — still worth
+  // keeping for browsers/cases where the browser genuinely does apply
+  // :-webkit-autofill, tested in isolation from the bulk-fill heuristic by
+  // building the value up one character at a time first (so the heuristic
+  // above never fires), then firing the autofill animation on top of it.
+  it('also treats the autofill animation event as a touch, independent of the bulk-fill heuristic', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    for (const partial of ['6', '67', '677', '6776']) {
+      fireEvent.change(phone, { target: { value: partial } })
+    }
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillStart' })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('does NOT touch the phone field on an unrelated animation (only the autofill-start one counts)', () => {
+    renderStep()
+    const phone = byName('booker_phone')
+    for (const partial of ['6', '67', '677', '6776']) {
+      fireEvent.change(phone, { target: { value: partial } })
+    }
+    fireEvent.animationStart(phone, { animationName: 'onAutoFillCancel' })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-jruv follow-up: every row's fields carry a `section-<row>`
+  // autocomplete prefix (WHATWG autofill spec) so the browser treats
+  // booker/participant-N/companion-N as independent identities, rather
+  // than folding them into one profile and defaulting every phone field
+  // past the first to a country-code-less national format (confirmed live
+  // on bw-dev: a German +49… autofilled every non-booker phone field as a
+  // bare 0…, while the booker phone kept its full international format).
+  it('sets a distinct autocomplete "tel" section per row on the booker, participant, and companion phone inputs', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(byName('booker_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-booker tel',
+    )
+    expect(byName('participant_2_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-participant-2 tel',
+    )
+    expect(byName('companion_1_phone')).toHaveAttribute(
+      'autocomplete',
+      'section-companion-1 tel',
+    )
+  })
+
+  it('sets a matching autocomplete section on each row\'s name and email fields too', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(byName('booker_first_name')).toHaveAttribute(
+      'autocomplete',
+      'section-booker given-name',
+    )
+    expect(byName('booker_email')).toHaveAttribute(
+      'autocomplete',
+      'section-booker email',
+    )
+    expect(byName('participant_2_last_name')).toHaveAttribute(
+      'autocomplete',
+      'section-participant-2 family-name',
+    )
+    expect(byName('companion_1_first_name')).toHaveAttribute(
+      'autocomplete',
+      'section-companion-1 given-name',
+    )
+  })
+
+  it('flags an added participant phone missing the "+" country code (landr-nkbi + landr-1url)', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const phone = byName('participant_2_phone')
+    fireEvent.change(phone, { target: { value: '600123456' } })
     fireEvent.blur(phone)
     expect(phone).toHaveAttribute('aria-invalid', 'true')
-    fireEvent.change(phone, { target: { value: '7' } })
-    // Re-render reflects the now-non-empty value → no longer invalid.
+    expect(document.getElementById('p-0-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    fireEvent.change(phone, { target: { value: '+34600123456' } })
+    expect(phone).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-1url: companion phone stays OPTIONAL (landr-nkbi) — blank never
+  // errors — but a filled-but-malformed value is still nudged toward the
+  // international format.
+  it('flags a filled-but-malformed companion phone, but leaves a blank one alone', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const phone = byName('companion_1_phone')
+    // Blank + blurred → no error (optional).
+    fireEvent.blur(phone)
+    expect(phone).not.toHaveAttribute('aria-invalid')
+    // Filled but malformed → flagged.
+    fireEvent.change(phone, { target: { value: '600123456' } })
+    expect(phone).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('companion-0-phone-error')).toHaveTextContent(
+      /country code/i,
+    )
+    // Fixed → clears.
+    fireEvent.change(phone, { target: { value: '+34 600 123 456' } })
     expect(phone).not.toHaveAttribute('aria-invalid')
   })
 
@@ -1110,5 +1328,250 @@ describe('DetailsStep — reveal required errors on Continue tap (mobile, landr-
     // First required field is the booker first name → it receives focus so the
     // mobile customer is taken straight to it.
     expect(document.activeElement).toBe(byName('booker_first_name'))
+  })
+})
+
+// landr-fn4i / landr-5krc (widget half of landr-5krc): the optional
+// member-perk code field + the OTP request fired on email blur.
+describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('does not show the code field before the email has been blurred', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('fires requestSubscriptionPerkOtp on blur once the email looks valid, and reveals the code field', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledWith('para42', 'ada@example.com')
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    expect(
+      screen.getByText(/enter the 6-digit code we emailed you/i),
+    ).toBeInTheDocument()
+  })
+
+  it('does NOT fire the request (or show the field) on a blur with no email / an "@"-less value', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    // Blank blur — nothing to request.
+    fireEvent.blur(email)
+    expect(spy).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+    // Present but no '@' — same as above (matches the existing
+    // isFieldInvalid loose email check the rest of this file already uses).
+    fireEvent.change(email, { target: { value: 'not-an-email' } })
+    fireEvent.blur(email)
+    expect(spy).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not re-fire on a second blur of the SAME unchanged email (dedup, rate-limit friendly)', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    // Tab away and back, blurring the unchanged field again.
+    fireEvent.blur(email)
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('fires again when the email is EDITED before the next blur', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+    fireEvent.change(email, { target: { value: 'ada2@example.com' } })
+    fireEvent.blur(email)
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(spy).toHaveBeenNthCalledWith(1, 'para42', 'ada@example.com')
+    expect(spy).toHaveBeenNthCalledWith(2, 'para42', 'ada2@example.com')
+  })
+
+  it('never surfaces a network failure to the customer (swallowed, field stays usable)', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockRejectedValue(new Error('network down'))
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          operatorToken="para42"
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      const email = byName('booker_email')
+      fireEvent.change(email, { target: { value: 'ada@example.com' } })
+      fireEvent.blur(email)
+    }).not.toThrow()
+    expect(spy).toHaveBeenCalledTimes(1)
+    // The field still appears — the customer is never told anything failed.
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
+  })
+
+  it('is dismissible/ignorable: Continue advances with the code left blank', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.blur(byName('booker_email'))
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    // Deliberately leave the code blank.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('sanitises the code input to digits only, capped at 6, and lifts it via onMemberPerkOtpChange', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    const onChange = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onMemberPerkOtpChange={onChange}
+      />,
+    )
+    fireEvent.blur(byName('booker_email')) // no email yet — field stays hidden
+    fireEvent.change(byName('booker_email'), {
+      target: { value: 'ada@example.com' },
+    })
+    fireEvent.blur(byName('booker_email'))
+    const code = screen.getByTestId('member-perk-otp-input')
+    fireEvent.change(code, { target: { value: '12a3-45 6789' } })
+    expect(code).toHaveValue('123456')
+    expect(onChange).toHaveBeenLastCalledWith('123456')
+  })
+
+  it('restores a prior code + shows the field immediately via initialMemberPerkOtp/initialBooker (Back-restore), without re-firing the request', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        initialBooker={{
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          email: 'ada@example.com',
+          phone: '+34 600 000 000',
+        }}
+        initialMemberPerkOtp="654321"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    // Shown immediately, pre-filled — no blur needed on re-entry.
+    const code = screen.getByTestId('member-perk-otp-input')
+    expect(code).toHaveValue('654321')
+    // A Back-restore remount must NOT burn another OTP request for an email
+    // that was already blurred on the way forward.
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('does not throw when onMemberPerkOtpChange is not provided (backward compat)', () => {
+    vi.spyOn(client, 'requestSubscriptionPerkOtp').mockResolvedValue({
+      ok: true,
+    })
+    expect(() => {
+      render(
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          operatorToken="para42"
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      fireEvent.change(byName('booker_email'), {
+        target: { value: 'ada@example.com' },
+      })
+      fireEvent.blur(byName('booker_email'))
+      fireEvent.change(screen.getByTestId('member-perk-otp-input'), {
+        target: { value: '123456' },
+      })
+    }).not.toThrow()
   })
 })

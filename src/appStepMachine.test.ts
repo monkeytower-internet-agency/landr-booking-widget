@@ -12,10 +12,12 @@ import {
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
+  mergeCapturedDraft,
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepBefore,
   stepBeforeReview,
+  type BookingDraft,
   type Step,
 } from './appStepMachine'
 
@@ -753,6 +755,107 @@ describe('booking-draft preservation (landr-nmed)', () => {
           selection: SLOT_SELECTION,
         }),
       ).toBeUndefined()
+    })
+
+    function customFormStep(
+      overrides: Partial<Extract<Step, { name: 'custom-form' }>> = {},
+    ): Extract<Step, { name: 'custom-form' }> {
+      return {
+        name: 'custom-form',
+        product: makeProduct(),
+        selection: SLOT_SELECTION,
+        booker: ADA,
+        participants: makeParticipants(1),
+        companions: makeCompanions(0),
+        pickupLocationId: null,
+        accommodationRooms: [],
+        addons: [],
+        formKey: 'formA',
+        ...overrides,
+      }
+    }
+
+    // landr-iyyf: captures ONLY the single form's keyed slot — it has no
+    // visibility into any OTHER form's answers, which is exactly why the
+    // CALLER (mergeCapturedDraft) must deep-merge rather than replace.
+    it('captures a single custom-form step keyed by its own formKey', () => {
+      const draft = draftFromStep(
+        customFormStep({ initialAnswers: { name: 'Ada' } }),
+      )
+      expect(draft).toBeDefined()
+      expect(draft!.customFormAnswers).toEqual({ formA: { name: 'Ada' } })
+    })
+
+    it('omits customFormAnswers when the custom-form step has no initialAnswers yet', () => {
+      const draft = draftFromStep(customFormStep())
+      // booker/participants still make this a defined draft, but no
+      // customFormAnswers slot was captured (nothing to restore yet).
+      expect(draft).toBeDefined()
+      expect(draft!.customFormAnswers).toBeUndefined()
+    })
+  })
+
+  // landr-iyyf: regression coverage for the breadcrumb-jump data-loss bug —
+  // draftFromStep can only ever see the ONE form the customer was just on, so
+  // the caller merging its capture into the persistent draft MUST deep-merge
+  // customFormAnswers, not replace the whole map.
+  describe('mergeCapturedDraft (landr-iyyf)', () => {
+    it('preserves other forms already in the draft when the captured slice names only one form', () => {
+      const prev: BookingDraft = {
+        booker: ADA,
+        customFormAnswers: {
+          formA: { name: 'Ada' },
+          formB: { agree: true },
+        },
+      }
+      // Simulates leaving a reconstructed formB step (initialAnswers restored
+      // on a prior back-nav) — draftFromStep would only ever emit formB's slot.
+      const captured: BookingDraft = {
+        booker: ADA,
+        customFormAnswers: { formB: { agree: true } },
+      }
+      const merged = mergeCapturedDraft(prev, captured)
+      expect(merged.customFormAnswers).toEqual({
+        formA: { name: 'Ada' },
+        formB: { agree: true },
+      })
+    })
+
+    it('overwrites only the captured form, keeping siblings untouched', () => {
+      const prev: BookingDraft = {
+        customFormAnswers: { formA: { name: 'old' }, formB: { agree: true } },
+      }
+      const captured: BookingDraft = {
+        customFormAnswers: { formA: { name: 'new' } },
+      }
+      const merged = mergeCapturedDraft(prev, captured)
+      expect(merged.customFormAnswers).toEqual({
+        formA: { name: 'new' },
+        formB: { agree: true },
+      })
+    })
+
+    it('passes prior customFormAnswers through untouched when captured has none', () => {
+      const prev: BookingDraft = {
+        customFormAnswers: { formA: { name: 'Ada' } },
+      }
+      const captured: BookingDraft = { booker: ADA }
+      const merged = mergeCapturedDraft(prev, captured)
+      expect(merged.customFormAnswers).toEqual({ formA: { name: 'Ada' } })
+      expect(merged.booker).toEqual(ADA)
+    })
+
+    it('stays undefined when neither side has ever captured a custom form', () => {
+      const merged = mergeCapturedDraft({ booker: ADA }, { participants: [] })
+      expect(merged.customFormAnswers).toBeUndefined()
+    })
+
+    it('merges every other captured slice as a plain overwrite (non-form fields)', () => {
+      const prev: BookingDraft = { booker: ADA, pickupLocationId: 'old' }
+      const captured: BookingDraft = { pickupLocationId: 'new' }
+      const merged = mergeCapturedDraft(prev, captured)
+      expect(merged.booker).toEqual(ADA)
+      expect(merged.pickupLocationId).toBe('new')
     })
   })
 

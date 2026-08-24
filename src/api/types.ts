@@ -4,6 +4,9 @@
  * (last refactored by `20260519210000_product_kinds_refactor.sql`, landr-glx).
  */
 
+import type { Enums } from '@/types/database.gen'
+import type { FormResponseEntry } from '@/api/flowTypes'
+
 /**
  * What the operator sells. Drives the booking flow shape and the dashboard
  * ProductForm. Mirrors public.product_kind. For everything that is not a
@@ -11,14 +14,13 @@
  * soon" stub. hotel_room products are not exposed in the main catalogue
  * — they're listed only inside the AccommodationStep after the customer
  * picked a service product with hotel_offering != 'none' (landr-vyaz).
+ *
+ * landr-52ik.5 — native Postgres enum; derived from the generated schema
+ * (database.gen.ts, a compile-time-only anchor — this widget never talks to
+ * Supabase directly) instead of hand-declared, so drift between the DB enum
+ * and this wire type is caught by tsc.
  */
-export type ProductKind =
-  | 'service'
-  | 'hotel_room'
-  | 'subscription'
-  | 'digital_good'
-  | 'physical_good'
-  | 'gift_card'
+export type ProductKind = Enums<'product_kind'>
 
 /**
  * How a service product offers hotel accommodation alongside the booking
@@ -73,6 +75,18 @@ export interface ProductImage {
  * in the group subtree (including children via parent_id). image_url is the
  * public URL of the group's cover image (null when none has been uploaded).
  * Localized fields follow the same localized-jsonb convention as Product.
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['OperatorProductGroup']` (src/types/api.gen.ts).
+ * Field names line up 1:1, but openapi-typescript widens the two
+ * `_localized` jsonb columns to `Record<string, unknown>` (no value-type
+ * info survives the jsonb round-trip) and marks image_url/parent_id/etc.
+ * optional purely because the Pydantic fields carry defaults — even
+ * though `OperatorProductGroup` has no `extra=allow` and always
+ * serializes every field. Kept hand-written for the stricter
+ * `Record<string, string>` + required-field guarantees; adopting the
+ * generated type as-is would force casts at every call site for no
+ * behavioural gain. Codegen gap, not a widget bug.
  */
 export interface ProductGroup {
   id: string
@@ -85,8 +99,40 @@ export interface ProductGroup {
   sort_order: number
   parent_id: string | null
   product_count: number
+  /**
+   * landr-872c: server-computed count of currently-bookable products in the
+   * group's descendant subtree — same subtree as product_count, narrowed to
+   * the SAME bookability predicate Product.bookable already reports (see
+   * public_get_operator_product_groups). Always <= product_count. Governs
+   * PER-CATEGORY visibility: product_count > 0 && bookable_count === 0 means
+   * the category is FULLY SOLD OUT and must render as a disabled/"Fully
+   * booked" tile+section rather than being hidden — see
+   * isCategoryFullySoldOut() in bookability.ts and the contract table in
+   * ExpandedCatalog.tsx.
+   *
+   * OPTIONAL for back-compat with an API that predates the field. FAIL OPEN
+   * like Product.bookable/isBookable(): an ABSENT bookable_count must never
+   * be treated as "fully sold out" — isCategoryFullySoldOut() only fires on
+   * an explicit 0, so an older API can never accidentally grey out a whole
+   * catalogue.
+   */
+  bookable_count?: number
 }
 
+/**
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['OperatorProduct']` (src/types/api.gen.ts, from
+ * `GET /operators/{token}/products` in app/routers/public_operators.py).
+ * `OperatorProduct` is deliberately declared with only 6 fields
+ * (product_id/slug/name/images/thumb_url/price_from) plus
+ * `model_config = {"extra": "allow"}` so the router's RPC-passthrough
+ * columns don't force a response-model bump on every migration — the
+ * *actual* wire payload carries all the fields below (product_kind,
+ * service_time_shape, hotel_offering, …), but the OpenAPI schema doesn't
+ * declare them. Adopting `OperatorProduct` here would silently drop
+ * ~25 fields' worth of type coverage. Codegen gap (by design on the API
+ * side), not something to paper over.
+ */
 export interface Product {
   product_id: string
   slug: string
@@ -218,6 +264,18 @@ export interface Product {
    * null. Optional during rolling deploy (see thumb_url note).
    */
   price_from?: string | null
+  /**
+   * landr-4a5j: the soonest upcoming product_fixed_date_windows row for
+   * this product (start_date >= today, still bookable — active, not
+   * soft-deleted, not full), as ISO date strings ("YYYY-MM-DD"). Both
+   * null when the product has no such window (not a fixed-window product,
+   * or every window is past/full/cancelled). Lets the expanded-catalog
+   * first step render a short date teaser (e.g. "12.–19.09.") without an
+   * N+1 getFixedDateWindows call per product. Optional for rolling deploy
+   * — absent API responses treated as null.
+   */
+  next_window_start?: string | null
+  next_window_end?: string | null
 }
 
 /**
@@ -388,6 +446,17 @@ export interface OperatorSettings {
    * JSON key is exactly `contact_email` (set by public_get_operator_settings).
    */
   contact_email?: string | null
+  /**
+   * landr-4a5j: operator-configured first-step catalog layout.
+   * 'categories' (default/current behaviour — the first step shows category
+   * tiles, customer drills in to see products) or 'expanded' (the first
+   * step lists ALL products grouped under category headers, no drill-in).
+   * Null means "use the platform default" ('categories'). Resolution
+   * precedence: explicit ?catalog= URL param ALWAYS wins; else this value
+   * (once settings resolve); else 'categories'. Optional for rolling
+   * deploy — absent API responses treated as null.
+   */
+  widget_catalog_layout?: 'categories' | 'expanded' | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
@@ -432,6 +501,15 @@ export interface ProductAddon {
    */
   price_per_unit: number | null
   currency: string | null
+  /**
+   * landr-fxza.4: the add-on PRODUCT's own product_kind (NOT the parent
+   * product's kind). 'hotel_room' means this add-on is tied to a room and
+   * must derive its selected_days from the room's NIGHT window at submit
+   * time (BookingForm.onConfirm), not the raw service-day window — the
+   * natural discriminator for room-tied vs service-tied add-ons. Do NOT
+   * special-case the slug/name (e.g. 'breakfast') instead of this field.
+   */
+  product_kind: ProductKind
 }
 
 export interface AvailabilitySlot {
@@ -606,6 +684,15 @@ export interface ProductLine {
   date_range_start?: string | null
   date_range_end?: string | null
   selected_days?: string[] | null
+  /**
+   * landr-6stj: the exact product_availability row the customer picked in
+   * AvailabilityPicker/FixedDateWindowPicker (AvailabilitySlot.availability_id).
+   * Optional — only the primary service ProductLine for a 'slot' selection
+   * sets this; server-side it stays NULL when omitted (no auto-resolution,
+   * since a date can map to more than one time_slot). PINNED wire contract
+   * — landr-ax1c on the API persists this verbatim when present.
+   */
+  product_availability_id?: string | null
 }
 
 export interface SubmitBookingBody {
@@ -618,6 +705,16 @@ export interface SubmitBookingBody {
   cancellation_deadline: string
   voucher_code?: string | null
   campaign_id?: string | null
+  /**
+   * landr-fn4i / landr-5krc: one-time subscription-perk code the customer
+   * typed into the optional inline field DetailsStep shows after
+   * requestSubscriptionPerkOtp fires (api/client.ts). The API spends it
+   * server-side WHILE pricing this submit — wrong, expired, already-spent,
+   * or simply absent all fall back to list price, never a 4xx. The widget
+   * never learns whether a code "worked"; the priced total is the only
+   * signal, and only after this submit resolves.
+   */
+  member_perk_otp?: string | null
   booking_channel?: string
   products: ProductLine[]
   participants: Participant[]
@@ -679,7 +776,7 @@ export interface SubmitBookingBody {
    * (landr-71kz.2). form_responses_not_supported (422) when sent for a
    * product with no flow; widget only sends it when a configured flow exists.
    */
-  form_responses?: Array<{ form_key: string; answers: Record<string, unknown> }>
+  form_responses?: FormResponseEntry[]
 }
 
 /**
@@ -786,6 +883,14 @@ export interface SubmitBookingResponse {
  * `paid_to` mirrors revenue_flows_through_operator: 'operator' means the
  * customer pays the operator at checkout; 'hotel' means the customer
  * settles directly with the hotel on arrival.
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateLineItem']` (src/types/api.gen.ts). The
+ * Python `EstimateLineItem` model types `paid_to: str` (a plain string,
+ * not a `Literal["operator", "hotel"]`), so openapi-typescript emits
+ * `paid_to: string` — adopting it would lose the literal-union narrowing
+ * this interface exists to provide. Codegen gap (needs a `Literal` on the
+ * API side to fix at the source), not something to paper over here.
  */
 export interface EstimateLineItem {
   product_id: string
@@ -812,6 +917,14 @@ export interface EstimateLineItem {
  * the first (short-stay) bracket of the schedule. The widget uses this
  * to show "save €X/day vs standard rate" alongside the applied per-day
  * rate. Absent when the applied tier IS the base tier (no savings).
+ *
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateAppliedRule']` (src/types/api.gen.ts).
+ * The generated schema is a strict superset (it also carries
+ * rule_id/before/after/skipped/skipped_reason, and types `kind` as plain
+ * `string`) — this interface intentionally only declares the two fields
+ * the sidebar tag actually reads. Already flagged as a divergence in
+ * landr-y3oj.1's handoff; not re-litigated here.
  */
 export interface EstimateAppliedRule {
   kind: string
@@ -834,6 +947,17 @@ export interface EstimateRequestBody {
   addon_lines: EstimateAddonLine[]
 }
 
+/**
+ * landr-y3oj.3 codegen note: NOT sourced from the generated
+ * `components['schemas']['EstimateResponse']` (src/types/api.gen.ts). The
+ * Python model has `model_config = {"extra": "allow"}`, so
+ * openapi-typescript adds a `& { [key: string]: unknown }` catch-all and
+ * marks `line_items`/`applied_rules` optional (they carry
+ * `Field(default_factory=list)` defaults) even though the router always
+ * serializes them. Kept hand-written for the required-array + nested
+ * literal-type guarantees (see EstimateLineItem/EstimateAppliedRule notes
+ * above). Codegen gap, not something to paper over.
+ */
 export interface EstimateResponse {
   line_items: EstimateLineItem[]
   /** Decimal string. Sum of line_items where paid_to='operator'. */
@@ -844,4 +968,124 @@ export interface EstimateResponse {
   grand_total: string
   currency: string
   applied_rules: EstimateAppliedRule[]
+}
+
+// ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
+//
+// Hand-written, NOT sourced from src/types/api.gen.ts. Originally built
+// against the epic's frozen HTTP contract (landr-em0r description, section
+// 7) before the API PR (landr-em0r.8) landed — the same house convention
+// getBookingByToken/PublicBookingOffer already follows.
+//
+// RECONCILED against the real generated schema in landr-em0r.13 (the router
+// merged in landr-em0r.8, commit 381026e). DECISION: kept hand-written —
+// see src/api/approvalReplyTypes.contract.test.ts for the field-by-field
+// compile-time proof and the one documented gap (`current_response.decision`
+// is typed as a bare `string` on the API side, not the shared
+// `ApprovalDecision` literal its two sibling `decision` fields use — DB
+// CHECK-constrained at runtime, but not schema-guaranteed; flagged as a
+// landr-api follow-up, not fixed here). Everything else below matches the
+// generated components["schemas"][...] shapes exactly.
+
+/**
+ * Lifecycle state of a `booking_approval_requests` row, as returned by
+ * `GET /api/public/approval-requests/{token}`. `open` and `answered` both
+ * render the reply form (answered shows the recorded answer first, with a
+ * "Change my answer" affordance); the other four are read-only named
+ * terminal cards and NEVER a bare/opaque error.
+ */
+export type ApprovalRequestState =
+  | 'open'
+  | 'answered'
+  | 'closed_confirmed'
+  | 'closed_cancelled'
+  | 'superseded'
+  | 'expired'
+
+/**
+ * The hotel's answer. Maps 1:1 to the three reply-email buttons /
+ * `/reply/{token}/{intent}` URL segments: yes → confirmed,
+ * no → declined, changes → confirmed_with_changes.
+ */
+export type ApprovalDecision =
+  | 'confirmed'
+  | 'declined'
+  | 'confirmed_with_changes'
+
+/** Branding fields for the confirm page (epic decision g — branded per operator). */
+export interface ApprovalRequestOperator {
+  name: string
+  logo_url: string | null
+  primary_color: string | null
+  phone: string | null
+}
+
+export interface ApprovalRequestResponder {
+  location_name: string
+}
+
+export interface ApprovalRequestRoomLine {
+  qty: number
+  label: string
+}
+
+/** Allowlisted booking fields only — no prices, no customer PII (epic section 7). */
+export interface ApprovalRequestBooking {
+  reference: string
+  check_in: string
+  check_out: string
+  nights: number
+  guests_count: number
+  room_lines: ApprovalRequestRoomLine[]
+}
+
+/** The currently-recorded answer, present only when `state === 'answered'`. */
+export interface ApprovalRequestCurrentResponse {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  responded_at: string
+}
+
+/**
+ * `GET /api/public/approval-requests/{token}` response body. Read-only —
+ * fetching this must NEVER record anything (prefetcher-safety layer 2 of 4,
+ * epic section 4). `confirm_nonce` exists only in this body and is required
+ * by the POST below (prefetcher-safety layer 3).
+ */
+export interface ApprovalRequestContext {
+  state: ApprovalRequestState
+  can_respond: boolean
+  locale: string
+  request_ref: string
+  confirm_nonce: string
+  operator: ApprovalRequestOperator
+  responder: ApprovalRequestResponder
+  booking: ApprovalRequestBooking
+  current_response: ApprovalRequestCurrentResponse | null
+}
+
+/** `POST /api/public/approval-requests/{token}/response` request body. */
+export interface ApprovalReplyRequestBody {
+  decision: ApprovalDecision
+  comment: string | null
+  responder_name: string | null
+  confirm_nonce: string
+}
+
+/**
+ * `POST /api/public/approval-requests/{token}/response` 200 response.
+ * `already_recorded: true` means the same decision + normalised comment was
+ * already on file — no new row, no duplicate notification (epic decision d).
+ * A 422 (`invalid_confirm_nonce` / `comment_required_for_changes`) throws an
+ * `HttpError` instead of resolving this type — see submitApprovalReply.
+ */
+export interface ApprovalReplyResult {
+  ok: boolean
+  state: ApprovalRequestState
+  decision: ApprovalDecision
+  recorded_at: string
+  already_recorded: boolean
+  booking_advanced: boolean
+  superseded_previous: boolean
 }

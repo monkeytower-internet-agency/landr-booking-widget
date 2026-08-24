@@ -14,7 +14,11 @@
  *     at 2 so big tiles don't look sparse), OR exactly 3 groups (landr-jb1k.2).
  *   • alpine packs denser (3 on md, 4 on lg ≥5) to honour its utilitarian feel.
  *
- * Empty groups (product_count === 0) are hidden — they have nothing bookable.
+ * Empty groups (product_count === 0) are hidden — nothing has ever been
+ * listed there. landr-872c: a FULLY SOLD-OUT group (product_count > 0,
+ * bookable_count === 0) is NOT hidden — it still renders, as a disabled
+ * "Fully booked" tile (see CategoryTile). Two different states, two
+ * different treatments; see the contract table in ExpandedCatalog.tsx.
  *
  * No skeleton: App.tsx fetches product groups at boot and only promotes the UI
  * to the pick-category step once the groups have resolved (see App.tsx
@@ -27,6 +31,9 @@
 
 import type { ProductGroup } from '@/api/types'
 import { CategoryTile } from './category/CategoryTile'
+import { CategoryTileRow } from './category/CategoryTileRow'
+import { ViewToggle } from './browse/ViewToggle'
+import { useViewMode } from './browse/useViewMode'
 import { useVariant } from '@/lib/variant'
 import { browserLocale } from '@/lib/locale'
 import { cn } from '@/lib/utils'
@@ -128,8 +135,21 @@ export function CategoryStep({
   const { variant } = useVariant()
   // Resolve the viewer locale once; CategoryTile localizes name/description.
   const locale = browserLocale()
+  // Grid/list toggle — same per-visitor preference ProductList/ExpandedCatalog
+  // use, so the choice carries over once a category is picked and the product
+  // list renders (all three surfaces share the one localStorage-backed hook).
+  const [view, setView] = useViewMode()
 
-  // Hide categories with nothing bookable — they would be dead-end tiles.
+  // landr-872c: hide only genuinely EMPTY categories (product_count === 0
+  // — nothing has ever been listed here). This does NOT filter out FULLY
+  // SOLD-OUT categories (product_count > 0, bookable_count === 0) — those
+  // still render, via CategoryTile/CategoryTileRow's disabled state, so the
+  // tile is never a dead end and never silently vanishes. (The comment this
+  // replaces claimed the opposite — that it hid "nothing bookable" — which
+  // was wrong: product_count never measured bookability, so a sold-out
+  // category always passed this filter and rendered as a normal clickable
+  // tile that dead-ended on "No products in this category." That was the
+  // bug; see bd landr-872c.)
   const visible = groups.filter((g) => g.product_count > 0)
 
   // landr-jb1k.2: resolve the grid column classes.
@@ -206,23 +226,49 @@ export function CategoryStep({
       data-testid="category-step"
       data-variant={variant}
     >
-      <ul className={cn('grid list-none', gridCols, gridGap)}>
-        {visible.map((group) => (
-          <li key={group.id}>
-            <CategoryTile
-              group={group}
-              locale={locale}
-              onPick={onPick}
-              titleFontStyle={titleFontStyle}
-              titleCaseClass={titleCaseClass}
-              tileRadiusClass={tileRadiusClass}
-              tileAspectClass={tileAspectClass}
-              tileScrim={tileScrimResolved}
-              tileHover={tileHoverResolved}
-            />
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-end">
+        <ViewToggle value={view} onChange={setView} />
+      </div>
+
+      {view === 'grid' ? (
+        <ul
+          className={cn('grid list-none', gridCols, gridGap)}
+          data-testid="category-grid"
+        >
+          {visible.map((group) => (
+            <li key={group.id}>
+              <CategoryTile
+                group={group}
+                locale={locale}
+                onPick={onPick}
+                titleFontStyle={titleFontStyle}
+                titleCaseClass={titleCaseClass}
+                tileRadiusClass={tileRadiusClass}
+                tileAspectClass={tileAspectClass}
+                tileScrim={tileScrimResolved}
+                tileHover={tileHoverResolved}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul
+          className={cn('flex list-none flex-col', gridGap)}
+          data-testid="category-list"
+        >
+          {visible.map((group) => (
+            <li key={group.id}>
+              <CategoryTileRow
+                group={group}
+                locale={locale}
+                onPick={onPick}
+                titleFontStyle={titleFontStyle}
+                titleCaseClass={titleCaseClass}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -570,10 +570,61 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
     ])
   })
 
+  it('landr-2ed0: sorts remote modules by position, NOT by their array order', () => {
+    // Deliberately out-of-order array: `custom_form` (position 2) is listed
+    // first, `accommodation` (position 1) second, `pickup` (position 0) last.
+    // The plan must still land in position order — array order must not leak
+    // through — proving the builder doesn't just trust RPC ordering.
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'custom_form', position: 2, form: { key: 'waiver' } },
+        { kind: 'accommodation', position: 1 },
+        { kind: 'pickup', position: 0 },
+      ],
+    })
+    expect(plan.map((m) => m.kind)).toEqual([
+      'selection',
+      'participants',
+      'pickup',
+      'accommodation',
+      'custom_form',
+      'review',
+    ])
+  })
+
+  it('landr-2ed0: modules missing a position keep their relative array order (stable sort)', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [{ kind: 'pickup' }, { kind: 'accommodation' }],
+    })
+    expect(plan.map((m) => m.kind)).toEqual([
+      'selection',
+      'participants',
+      'pickup',
+      'accommodation',
+      'review',
+    ])
+  })
+
   it('does NOT inject the legacy declarations step on the remote path', () => {
     const plan = buildFlowPlan(product(), { slug: 'para42' }, {
       modules: [{ kind: 'pickup' }],
     })
     expect(plan.map((m) => m.kind)).not.toContain('declarations')
+  })
+
+  it('landr-f4dm: a remote flow whose only module is product-gated-out is a valid minimal flow, NOT a legacy fallback', () => {
+    // The remote flow parses fine (one well-formed `accommodation` module)
+    // but the product offers no hotel, so the product gate drops it. That
+    // must NOT be confused with "every entry was unparseable garbage" — the
+    // operator's deliberate minimal flow (selection → participants → review)
+    // must be honoured instead of silently reverting to the full legacy plan
+    // (which, on this needs_pickup product, would also inject a `pickup` step
+    // the remote flow never asked for).
+    const plan = buildFlowPlan(
+      makeProduct({ hotel_offering: 'none', needs_pickup: true }),
+      {},
+      { modules: [{ kind: 'accommodation' }] },
+    )
+    expect(plan.map((m) => m.kind)).toEqual(['selection', 'participants', 'review'])
   })
 })

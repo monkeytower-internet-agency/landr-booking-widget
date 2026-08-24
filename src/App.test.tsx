@@ -20,6 +20,9 @@ const { mocks } = vi.hoisted(() => ({
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     listLocations: vi.fn(),
     submitBooking: vi.fn(),
+    // landr-fn4i / landr-5krc: default {ok:true} so DetailsStep's email-blur
+    // handler never hits the real (unconfigured-in-tests) network path.
+    requestSubscriptionPerkOtp: vi.fn(),
     // landr-87n9: hotel-flow + price-estimate mocks for the at-hotel
     // back-nav + live-total tests.
     getHotelsForOperator: vi.fn(),
@@ -48,6 +51,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getFixedDateWindows: mocks.getFixedDateWindows,
     listLocations: mocks.listLocations,
     submitBooking: mocks.submitBooking,
+    requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
     getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
     getProductAddons: mocks.getProductAddons,
@@ -162,6 +166,10 @@ describe('App', () => {
     mocks.getHotelsForOperator.mockResolvedValue([])
     mocks.getHotelRoomsForHotel.mockResolvedValue([])
     mocks.getProductAddons.mockResolvedValue([])
+    // landr-fn4i / landr-5krc: always answers 202 {ok:true} by contract —
+    // see requestSubscriptionPerkOtp's doc for why no test should ever need
+    // a different value here.
+    mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
     // landr-71kz.10: default to no remote flow → legacy plan → no custom-form /
     // declarations step. Tests that exercise the data path override this.
     mocks.getProductFlow.mockResolvedValue({ modules: null })
@@ -701,6 +709,34 @@ describe('App', () => {
         expect(screen.getByTestId('shop-coming-soon-stub')).toBeInTheDocument()
       })
     })
+
+    // landr-1kk.5: subscription is the one non-service kind that gets a
+    // real checkout CTA instead of the stub — the deferred slice of
+    // landr-c3t (ShopComingSoonStub's own comment used to list it under
+    // "no code change needed there [for c3t]").
+    it('product_kind=subscription → MembershipCheckoutStep, NOT ShopComingSoonStub', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'sub-1',
+          product_kind: 'subscription',
+          service_time_shape: null,
+          name: 'On-Air Card',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('On-Air Card')
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('membership-checkout-form'),
+        ).toBeInTheDocument()
+      })
+      expect(
+        screen.queryByTestId('shop-coming-soon-stub'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /become a member/i }),
+      ).toBeInTheDocument()
+    })
   })
 
   describe('details step (landr-8c03, replacing landr-mbge participants count)', () => {
@@ -922,6 +958,110 @@ describe('App', () => {
       expect(value('participant_2_last_name')).toBe('Hopper')
       // landr-nkbi: phone round-trips through back-nav.
       expect(value('participant_2_phone')).toBe('+34600000002')
+    })
+
+    // landr-fn4i / landr-5krc (widget half of landr-5krc): end-to-end —
+    // blurring the checkout email fires the OTP request, the optional code
+    // field appears, and a typed code rides through App.tsx's top-level lift
+    // (NOT the Step union — see BookingForm's memberPerkOtp doc) all the way
+    // to the final submitBooking call as `member_perk_otp`. Also proves the
+    // Back-then-forward round-trip: the code re-appears on DetailsStep
+    // without re-firing the OTP request, and still reaches submit.
+    it('threads the member-perk OTP code from DetailsStep through to the submit body, surviving a Back round-trip', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-fn4i-e2e',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      // The OTP request fires on the email's blur, not on every keystroke.
+      fireEvent.blur(
+        document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
+      )
+      await waitFor(() =>
+        expect(mocks.requestSubscriptionPerkOtp).toHaveBeenCalledWith(
+          MOCK_TOKEN,
+          'ada@example.com',
+        ),
+      )
+      const codeInput = await screen.findByTestId('member-perk-otp-input')
+      fireEvent.change(codeInput, { target: { value: '123456' } })
+
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Back to DetailsStep: the code re-appears (top-level App state, not
+      // wiped by the remount) and the OTP request is NOT fired again for an
+      // unchanged email.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const restoredCode = await screen.findByTestId('member-perk-otp-input')
+      expect(restoredCode).toHaveValue('123456')
+      expect(mocks.requestSubscriptionPerkOtp).toHaveBeenCalledTimes(1)
+
+      // Forward again without retyping anything, then Confirm.
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() =>
+        expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
+      )
+      const body = mocks.submitBooking.mock.calls[0]![0]
+      expect(body.member_perk_otp).toBe('123456')
     })
   })
 
@@ -1350,41 +1490,6 @@ describe('App', () => {
     })
   })
 
-  // landr-d8rg.8: the floating preview variant switcher is gated on preview
-  // mode (?preview=1 or a preview_token) — it must NEVER ship to a
-  // customer-facing embed.
-  describe('variant switcher gating (landr-d8rg.8)', () => {
-    it('renders the switcher when ?preview=1 is present', async () => {
-      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview=1`)
-      mocks.listProducts.mockResolvedValue([
-        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
-      ])
-      render(<App />)
-      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
-      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
-    })
-
-    it('renders the switcher when a preview_token is present', async () => {
-      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&preview_token=prev-xyz`)
-      mocks.listProducts.mockResolvedValue([
-        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
-      ])
-      render(<App />)
-      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
-      expect(screen.getByTestId('variant-switcher')).toBeInTheDocument()
-    })
-
-    it('does NOT render the switcher on a plain customer-facing embed', async () => {
-      // beforeEach sets /?w=MOCK_TOKEN — no preview flag / token.
-      mocks.listProducts.mockResolvedValue([
-        makeProduct({ product_id: 'p-1', name: 'Product A', is_publicly_listed: true }),
-      ])
-      render(<App />)
-      await waitFor(() => expect(screen.getByText('Product A')).toBeInTheDocument())
-      expect(screen.queryByTestId('variant-switcher')).not.toBeInTheDocument()
-    })
-  })
-
   // landr-7jgo: hide sold-out products in the overview; deep-link a sold-out
   // product to a standalone "Fully booked" state; per-embed show_sold_out opt-in.
   describe('bookability / sold-out (landr-7jgo)', () => {
@@ -1722,6 +1827,147 @@ describe('App', () => {
       await waitFor(() => {
         expect(step.dataset.variant).toBe('aurora')
       })
+    })
+  })
+
+  // landr-4a5j: catalog layout resolution precedence tests.
+  // Precedence: explicit ?catalog= URL param > operatorSettings.widget_catalog_layout
+  // > 'categories' (current tile behaviour — pixel-identical default).
+  describe('catalog layout resolution (landr-4a5j)', () => {
+    function makeGroup(overrides: Partial<{ id: string; slug: string; name: string; product_count: number }> = {}) {
+      return {
+        id: 'g-1',
+        slug: 'guiding',
+        name: 'Guiding',
+        name_localized: null,
+        description: null,
+        description_localized: null,
+        image_url: null,
+        sort_order: 10,
+        parent_id: null,
+        product_count: 2,
+        ...overrides,
+      }
+    }
+
+    function twoGroups() {
+      mocks.listProductGroups.mockResolvedValue([
+        makeGroup({ id: 'g-1', slug: 'guiding', name: 'Guiding', product_count: 1 }),
+        makeGroup({ id: 'g-2', slug: 'travels', name: 'Travels', product_count: 1 }),
+      ])
+    }
+
+    it('defaults to the category tiles when no URL param and no operator setting', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: null,
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+    })
+
+    it('?catalog=expanded skips tiles and renders the expanded catalog', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&catalog=expanded`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
+          group_slug: 'guiding', bookable: true,
+        }),
+      ])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: null,
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+      // Unscoped fetch — no per-group `group` filter (no N+1).
+      expect(mocks.listProducts).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        expect.not.objectContaining({ group: expect.anything() }),
+      )
+    })
+
+    it('applies operatorSettings.widget_catalog_layout=expanded when no URL param', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: 'expanded',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('expanded-catalog')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?catalog=categories overrides operatorSettings.widget_catalog_layout=expanded', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&catalog=categories`)
+      twoGroups()
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        widget_catalog_layout: 'expanded',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('category-step')).toBeInTheDocument(),
+      )
+      // Give the settings-driven effect a beat — must NOT clobber the URL param.
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+    })
+
+    it('?group= deep link is unaffected by ?catalog=expanded', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&group=guiding&catalog=expanded`,
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'a', slug: 'guided-day', name: 'Guided paragliding day',
+          group_slug: 'guiding',
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText('Guided paragliding day')).toBeInTheDocument(),
+      )
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('category-step')).not.toBeInTheDocument()
+    })
+
+    it('?product= deep link is unaffected by ?catalog=expanded', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=tandem-classic&catalog=expanded`,
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic', name: 'Tandem Classic',
+          service_time_shape: 'single_date', bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('expanded-catalog')).not.toBeInTheDocument()
     })
   })
 
@@ -2206,6 +2452,423 @@ describe('App', () => {
       )
       expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
     })
+
+    // landr-iyyf REGRESSION: a still-in-flight ensureProductFlow fetch must NOT
+    // let the pre-review transition race ahead and silently skip a configured
+    // custom-form (declarations) step. Before the fix, `flowForProduct` read
+    // whatever `remoteFlow` happened to hold at Continue-click time — which,
+    // mid-race, is indistinguishable from "operator configured no custom
+    // forms" — so the widget landed straight on the review screen instead of
+    // waiting for the flow. This holds getProductFlow's promise open past the
+    // Continue click and asserts (1) the "Checking your booking
+    // requirements…" gate appears and the transition is held, (2) once the
+    // flow resolves, the custom-form step renders correctly instead of the
+    // race having skipped it.
+    it('holds the pre-review transition (loading gate) while the flow fetch is still in flight, then routes into the custom form once it resolves', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+
+      // landr-iyyf: CustomFormStep independently re-fetches the flow itself
+      // once mounted (for the field defs) — so "resolve the flow" must mean
+      // "every call from now on resolves immediately", not just the single
+      // in-flight call App's ensureProductFlow made. `flowReady` flips once
+      // and `releaseFirstFlow` unblocks whichever call was pending at that
+      // point; any LATER call (CustomFormStep's) sees `flowReady` already
+      // true and resolves straight away.
+      let flowReady = false
+      let releaseFirstFlow: (() => void) | undefined
+      mocks.getProductFlow.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            if (flowReady) {
+              resolve(declarationsFlow())
+              return
+            }
+            releaseFirstFlow = () => resolve(declarationsFlow())
+          }),
+      )
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-race',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Race Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Race Flight')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The flow fetch is still in flight (releaseFirstFlow not yet called) —
+      // the widget must hold on the loading gate, NOT jump to review.
+      await waitFor(() =>
+        expect(screen.getByTestId('flow-readiness-gate')).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
+      expect(screen.queryByTestId('cf-field-license_valid')).not.toBeInTheDocument()
+
+      // The flow resolves — the operator DID configure a required declarations
+      // custom form. The gate must clear and route into it (not review).
+      flowReady = true
+      releaseFirstFlow!()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('flow-readiness-gate')).not.toBeInTheDocument()
+      expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument()
+    })
+
+    // landr-db45 REGRESSION: before this fix, App and CustomFormStep each
+    // fetched public_get_product_flow independently with no shared cache.
+    // App's fetch (via ensureProductFlow/withResolvedFlow) resolves the
+    // custom-form step correctly, but CustomFormStep's OWN separate fetch —
+    // fired again on mount — could transiently fail. That set CustomFormStep's
+    // `fetchError` and permanently disabled Continue, stranding the customer
+    // on a forward dead-end (Back still worked; Continue never would). This
+    // proves the fix: CustomFormStep now reuses the flow App already
+    // resolved (threaded down as a prop) instead of re-fetching, so a getProductFlow
+    // failure AFTER the initial resolution can no longer reach this step at all.
+    it('Continue stays enabled even when a later independent getProductFlow call would fail (no second fetch on the happy path)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+
+      // First call (App's ensureProductFlow) resolves with the declarations
+      // flow. EVERY call after that rejects — simulating the flaky-second-
+      // fetch this ticket closes. Pre-fix, CustomFormStep's own mount-time
+      // fetch would be exactly one of those later, failing calls.
+      let calls = 0
+      mocks.getProductFlow.mockImplementation(() => {
+        calls += 1
+        if (calls === 1) return Promise.resolve(declarationsFlow())
+        return Promise.reject(new Error('network blip'))
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-db45',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Flaky Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await pickProduct('Flaky Flight')
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The custom-form step renders from App's already-resolved flow — no
+      // fetch error, even though any FURTHER getProductFlow call would fail.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('cf-fetch-error')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('cf-loading')).not.toBeInTheDocument()
+
+      // Fill in the form and confirm Continue actually works end-to-end —
+      // not just "not visibly disabled".
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      const submitButton = screen.getByTestId('cf-submit')
+      expect(submitButton).not.toBeDisabled()
+      fireEvent.click(submitButton)
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Only App's single fetch happened — CustomFormStep never re-fetched.
+      expect(calls).toBe(1)
+    })
+  })
+
+  // landr-iyyf fix-forward: MEDIUM 1 (flowFetchesRef promise cache never
+  // cleared on restart) + MEDIUM 2 (mergeCapturedDraft's customFormAnswers
+  // survives a product switch). Both reuse the para42-shaped declarations
+  // flow from the describe block above.
+  describe('landr-iyyf fix-forward: flow cache + draft product-scoping', () => {
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getByRole('button', { name }))
+      const bookBtn = await screen.findByTestId('product-detail-book-cta')
+      fireEvent.click(bookBtn)
+    }
+
+    const setInput = (name: string, value: string) =>
+      fireEvent.change(
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+        { target: { value } },
+      )
+
+    // Pick a date, then fill + confirm the booker on DetailsStep. Lands on
+    // whatever comes next (the custom-form step, for every product used here).
+    async function fillDateThenBookerDetails() {
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    }
+
+    it('MEDIUM 1: repeat-booking the SAME product after a full restart re-resolves the flow', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-repeat',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Repeat Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+
+      render(<App />)
+      await pickProduct('Repeat Flight')
+      await fillDateThenBookerDetails()
+
+      // First pass: the custom form renders (the flow was fetched fresh).
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      const callsAfterFirstFetch = mocks.getProductFlow.mock.calls.length
+      expect(callsAfterFirstFetch).toBeGreaterThan(0)
+
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+
+      // Restart via "Make another booking" — a full reset (goToProductStep).
+      fireEvent.click(
+        await screen.findByRole('button', { name: /make another booking/i }),
+      )
+
+      // Pick the SAME product again.
+      await pickProduct('Repeat Flight')
+      await fillDateThenBookerDetails()
+
+      // landr-iyyf fix-forward: the flow must be RE-FETCHED (the promise
+      // cache was cleared alongside `remoteFlow`) and the custom-form step
+      // must render again. Before the fix, the stale settled promise in
+      // flowFetchesRef never re-populated `remoteFlow` on this second pass,
+      // so the widget silently degraded to the legacy plan and skipped
+      // straight to the review screen — even though the product has a
+      // required custom form.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(mocks.getProductFlow.mock.calls.length).toBeGreaterThan(
+        callsAfterFirstFetch,
+      )
+    })
+
+    it('MEDIUM 2: switching products after backing out via the product breadcrumb clears foreign customFormAnswers', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      // Both products share the SAME custom-form key (e.g. an operator-wide
+      // declarations form reused across products — the para42 pattern) so a
+      // leak would be directly observable as pre-filled answers on B's step.
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-a',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Product A',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+        makeProduct({
+          product_id: 'svc-b',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Product B',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await pickProduct('Product A')
+      await fillDateThenBookerDetails()
+
+      // Fill + confirm Product A's custom form — writes
+      // bookingDraft.customFormAnswers.customer_declarations.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Jump back to the "product" breadcrumb crumb — the reachable path back
+      // to ProductDetailStep WITHOUT a full restart (every step-by-step Back
+      // press instead terminates in goToProductStep via the Dates picker).
+      fireEvent.click(await screen.findByTestId('breadcrumb-product-detail'))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+
+      // Back out to pick-product WITHOUT a full restart — bookingDraft (and
+      // its customFormAnswers) must survive this hop by design (landr-nmed).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      // Pick the DIFFERENT product B.
+      await pickProduct('Product B')
+      await fillDateThenBookerDetails()
+
+      // landr-iyyf fix-forward: Product B's custom-form step (same form_key
+      // as A's) must NOT be pre-filled with Product A's stale answers.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(
+        screen.getByTestId('cf-checkbox-license_valid-yes'),
+      ).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByTestId('cf-field-language')).toHaveValue('')
+    })
   })
 
   // landr-2mgl: reload-resilient booking progress. A mobile pull-to-refresh
@@ -2289,6 +2952,47 @@ describe('App', () => {
       })
       expect(
         document.querySelector('input[name="booker_first_name"]'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // landr-1kk.5: Stripe redirects back to the widget's OWN base URL
+  // (?w=…&member=1/cancelled) rather than a token-addressed path, so this
+  // branches on a query param instead of `detectRoute`'s pathname — mirrors
+  // the cancel/offer/pay/reply route tests above, just for a query-param
+  // "route".
+  describe('membership checkout return (?member=, landr-1kk.5)', () => {
+    it('renders MembershipReturnPage(success) on ?member=1 without fetching operator/product data', () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=1`)
+      render(<App />)
+      expect(
+        screen.getByTestId('membership-return-success'),
+      ).toBeInTheDocument()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+      expect(mocks.listProducts).not.toHaveBeenCalled()
+    })
+
+    it('renders MembershipReturnPage(cancelled) on ?member=cancelled', () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=cancelled`)
+      render(<App />)
+      expect(
+        screen.getByTestId('membership-return-cancelled'),
+      ).toBeInTheDocument()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+    })
+
+    it('an unrecognised ?member= value falls through to the normal booking flow', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&member=bogus`)
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      })
+      expect(
+        screen.queryByTestId('membership-return-success'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('membership-return-cancelled'),
       ).not.toBeInTheDocument()
     })
   })

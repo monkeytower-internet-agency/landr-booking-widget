@@ -209,3 +209,38 @@
     animation: none;
   }
 }
+
+/*
+ * landr-bx5y: browser autofill (Chrome/Safari) can silently strip a phone
+ * number's leading '+CC' before our JS ever sees it — the value that lands
+ * in the field is already mangled, so onChange has nothing to catch. There
+ * is no HTML/JS way to stop the browser doing this; the best we can do is
+ * notice it happened and surface the "add your country code" validation
+ * immediately instead of leaving it silent until blur/Continue.
+ *
+ * Standard cross-browser (Chromium + WebKit) autofill-detection trick:
+ * `:-webkit-autofill` only matches while the browser considers the field
+ * autofilled, so binding a (visually inert) animation to it lets JS listen
+ * for `animationstart`/`animationend` as a proxy for "autofill just ran".
+ * Scoped to tel inputs — this is only wired up for phone fields.
+ */
+@keyframes onAutoFillStart {
+  from {
+  }
+  to {
+  }
+}
+@keyframes onAutoFillCancel {
+  from {
+  }
+  to {
+  }
+}
+input[type='tel']:-webkit-autofill {
+  animation-name: onAutoFillStart;
+  animation-duration: 1ms;
+}
+input[type='tel']:not(:-webkit-autofill) {
+  animation-name: onAutoFillCancel;
+  animation-duration: 1ms;
+}

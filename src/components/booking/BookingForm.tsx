@@ -195,6 +195,18 @@ interface Props {
    * byte-identical to the pre-71kz path. Optional for backward compat.
    */
   formResponses?: import('@/api/flowTypes').FormResponseEntry[]
+  /**
+   * landr-fn4i / landr-5krc: the one-time subscription-perk code the
+   * customer typed into DetailsStep's optional inline field, lifted live
+   * into App.tsx's top-level state (NOT threaded through the Step union —
+   * unlike booker/participants it only ever matters at this final submit,
+   * and its 5-minute TTL makes full back-nav round-tripping pointless).
+   * Trimmed and sent as `member_perk_otp` when non-empty; omitted otherwise
+   * so the payload stays byte-identical to the pre-fn4i shape for a booking
+   * with no code entered. Wrong/expired/spent/absent all price at list —
+   * never a 4xx — so an empty/undefined value here is always safe.
+   */
+  memberPerkOtp?: string
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -303,6 +315,7 @@ export function BookingForm({
   roomProductNames,
   breakfastMap = {},
   formResponses,
+  memberPerkOtp,
   onBack,
   onConfirmed,
 }: Props) {
@@ -430,7 +443,10 @@ export function BookingForm({
             ) {
               const memberIdx = Number(memberIdxStr)
               const name = allPartyNames[memberIdx]
-              if (name) occupantNames.push(name)
+              // landr-f4dm: push unconditionally so occupantNames stays
+              // index-aligned with occupantIndices (a falsy name must not
+              // shift the positional pairing used by the `occupants` map).
+              occupantNames.push(name ?? '?')
               occupantIndices.push(memberIdx)
             }
           }
@@ -491,16 +507,33 @@ export function BookingForm({
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
-      // (landr-cip6). Service add-ons piggyback on the service days;
-      // room-tied add-ons (e.g. breakfast) intentionally use the same
-      // service-day window today — the engine prices per-line based on
-      // quantity × per_unit × len(selected_days), so for daily add-ons
-      // the two windows produce the same total (selectedDays.length).
+      // (landr-cip6). landr-fxza.4: service-tied add-ons (e.g. a Video
+      // Package) correctly piggyback on the service days, but ROOM-tied
+      // add-ons (e.g. breakfast) must use the SAME night window room
+      // lines get below — nightIsos.length only equals
+      // selectedDaysForSubmit.length when the stay is a single
+      // already-padded day, which is never true once deriveStayWindow's
+      // check-in/check-out padding is in play (accommodationCalc.ts), so
+      // the old "same total either way" assumption undercounted every
+      // multi-night breakfast by construction. Discriminate by the
+      // add-on's own product_kind === 'hotel_room' (addon.productKind,
+      // threaded through from ProductAddon — see addonsState.ts /
+      // accommodationCalc.ts's flattenPerRoomAddons), NOT by name/slug.
       const productLines: ProductLine[] = [
         {
           product_id: product.product_id,
           quantity: 1,
           selected_days: selectedDaysForSubmit,
+          // landr-6stj: forward the exact product_availability row the
+          // customer clicked (AvailabilityPicker/FixedDateWindowPicker both
+          // populate slot.availability_id) so the RPC can persist it instead
+          // of leaving booking_products.product_availability_id NULL. Only
+          // the primary service line carries a single time slot — the
+          // accommodationRooms/addons lines below span the whole stay and
+          // have no one availability row to attach.
+          ...(selection.kind === 'slot'
+            ? { product_availability_id: selection.slot.availability_id }
+            : {}),
         },
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
           product_id: room.productId,
@@ -510,7 +543,12 @@ export function BookingForm({
         ...(addons ?? []).map<ProductLine>((addon) => ({
           product_id: addon.productId,
           quantity: addon.quantity,
-          selected_days: selectedDaysForSubmit,
+          // landr-fxza.4: a room-tied add-on (product_kind='hotel_room',
+          // e.g. breakfast) derives from the room stay — same night
+          // window as the room lines above. A service-tied add-on (e.g.
+          // Video Package) keeps the raw service-day window.
+          selected_days:
+            addon.productKind === 'hotel_room' ? nightIsos : selectedDaysForSubmit,
         })),
       ]
       // Drop participant phone before submit — backend ParticipantIn
@@ -647,6 +685,14 @@ export function BookingForm({
         // Server prunes again for defence-in-depth (landr-9ut4 lesson).
         ...(formResponses && formResponses.length > 0
           ? { form_responses: formResponses }
+          : {}),
+        // landr-fn4i / landr-5krc: only sent when the customer actually typed
+        // a code — omitted (not even an empty string) so a booking with no
+        // code entered is byte-identical to the pre-fn4i submit body. The API
+        // treats a wrong/expired/spent code the same as an absent one (list
+        // price, never a 4xx), so trimming here is purely payload hygiene.
+        ...(memberPerkOtp && memberPerkOtp.trim() !== ''
+          ? { member_perk_otp: memberPerkOtp.trim() }
           : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and

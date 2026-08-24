@@ -1165,6 +1165,37 @@ export function draftFromStep(step: Step): BookingDraft | undefined {
 }
 
 /**
+ * landr-iyyf: fold a freshly `draftFromStep`-captured slice into the
+ * persistent draft, correctly for `customFormAnswers`.
+ *
+ * A `custom-form` Step variant only ever carries ONE form's answers (its own
+ * `formKey` + `initialAnswers`) — it has no visibility into any OTHER form's
+ * answers the customer already confirmed earlier in the flow. So
+ * `captured.customFormAnswers` (when present) is always a single-key slice.
+ * A naive `{...prev, ...captured}` spread would REPLACE the whole
+ * `customFormAnswers` map with that one entry, silently dropping every other
+ * form's already-confirmed answers on a breadcrumb jump (the landr-iyyf
+ * finding). Deep-merge the keyed slot instead — same pattern the custom-form
+ * `onConfirm` handler already uses when it first writes an entry in.
+ *
+ * When `captured` carries no `customFormAnswers` slice at all (the step being
+ * left isn't a custom-form step, or it has no `initialAnswers` yet), `prev`'s
+ * map is passed through untouched.
+ */
+export function mergeCapturedDraft(
+  prev: BookingDraft,
+  captured: BookingDraft,
+): BookingDraft {
+  return {
+    ...prev,
+    ...captured,
+    customFormAnswers: captured.customFormAnswers
+      ? { ...prev.customFormAnswers, ...captured.customFormAnswers }
+      : prev.customFormAnswers,
+  }
+}
+
+/**
  * landr-nmed: rebuild the `details` step from a BookingDraft + the (possibly
  * just-edited) product/selection. Threads the booker / participants /
  * companions forward so DetailsStep re-mounts pre-filled after a breadcrumb

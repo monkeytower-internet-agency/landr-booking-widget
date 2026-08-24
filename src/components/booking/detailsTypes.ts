@@ -83,6 +83,34 @@ export interface CompanionDetails {
   companion_kind: 'guest' | 'separate_guiding'
 }
 
+/**
+ * landr-1url: lightweight international-format nudge for phone inputs
+ * (no new dependency — a real country-selector + E.164 component was
+ * explicitly deferred). `PHONE_HTML_PATTERN` is used as the native
+ * `pattern` attribute on the phone `<input>`s (documentation / mobile
+ * keyboard hint — there is no `<form>`/submit wrapping these inputs, so
+ * it is not itself enforced by the browser).
+ *
+ * `isValidPhoneFormat` is the actual client-side check: separators
+ * (spaces, dashes) commonly used in human-formatted numbers like
+ * "+34 600 123 456" are stripped before testing, then the remainder must
+ * be a leading '+' followed by 7-15 digits (loose E.164 bound). An empty
+ * value is treated as valid here — required-ness is checked separately
+ * so this helper works for both required (booker/participant) and
+ * optional (companion) phone fields.
+ */
+export const PHONE_HTML_PATTERN = '\\+[1-9][0-9 -]{6,14}'
+
+function normalizePhone(phone: string): string {
+  return phone.trim().replace(/[\s-]/g, '')
+}
+
+export function isValidPhoneFormat(phone: string): boolean {
+  const trimmed = phone.trim()
+  if (!trimmed) return true
+  return /^\+[1-9]\d{6,14}$/.test(normalizePhone(trimmed))
+}
+
 export function emptyBooker(): BookerDetails {
   return { first_name: '', last_name: '', email: '', phone: '' }
 }
@@ -158,6 +186,9 @@ export function detailsAreComplete(
   // basic email shape — full validation happens via the form library on
   // submit, but for enable/disable we just want non-empty and an @
   if (!booker.email.includes('@')) return false
+  // landr-1url: the booker's phone must also look internationally-formatted
+  // (leading '+' + country code).
+  if (!isValidPhoneFormat(booker.phone)) return false
   // participants[0] is the booker (mirrored) — skip; validate 1..N
   for (let i = 0; i < participants.length; i++) {
     const p = participants[i]!
@@ -165,10 +196,16 @@ export function detailsAreComplete(
     // landr-nkbi: every participant (other than the booker who is validated
     // separately above) must supply a non-empty phone number.
     if (i > 0 && !p.phone.trim()) return false
+    // landr-1url: when a participant phone is present it must also look
+    // internationally-formatted. i===0 is the booker, already checked above.
+    if (i > 0 && !isValidPhoneFormat(p.phone)) return false
   }
   // landr-rxjo: each companion needs both first and last name; phone optional.
+  // landr-1url: companion phone stays optional but if filled must also look
+  // internationally-formatted (isValidPhoneFormat treats '' as valid).
   for (const c of companions) {
     if (!c.first_name.trim() || !c.last_name.trim()) return false
+    if (!isValidPhoneFormat(c.phone)) return false
   }
   return true
 }

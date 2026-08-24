@@ -55,6 +55,7 @@ function makeAddon(overrides: Partial<ProductAddon> = {}): ProductAddon {
     sort_order: 10,
     price_per_unit: 39,
     currency: 'EUR',
+    product_kind: 'service',
     ...overrides,
   }
 }
@@ -88,7 +89,7 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledWith([
-      { productId: 'video-1', quantity: 1 },
+      { productId: 'video-1', quantity: 1, productKind: 'service' },
     ])
   })
 
@@ -177,7 +178,9 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     await waitFor(() => expect(screen.getByText('Pack')).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
-    expect(onConfirm).toHaveBeenCalledWith([{ productId: 'pack-1', quantity: 3 }])
+    expect(onConfirm).toHaveBeenCalledWith([
+      { productId: 'pack-1', quantity: 3, productKind: 'service' },
+    ])
   })
 
   // ── Back-nav state restoration (landr-yf0n) ──────────────────────
@@ -208,7 +211,7 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     // items unchanged (quantity=2, not the min_qty default of 0).
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledWith([
-      { productId: 'video-1', quantity: 2 },
+      { productId: 'video-1', quantity: 2, productKind: 'service' },
     ])
   })
 
@@ -239,7 +242,7 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
     expect(onConfirm).toHaveBeenCalledWith([
-      { productId: 'pack-1', quantity: 5 },
+      { productId: 'pack-1', quantity: 5, productKind: 'service' },
     ])
   })
 

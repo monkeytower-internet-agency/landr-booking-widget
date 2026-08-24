@@ -604,6 +604,97 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(body.participants[1]!.last_name).toBe('Hopper')
   })
 
+  // landr-fn4i / landr-5krc: the optional member-perk code, lifted from
+  // DetailsStep via App.tsx's top-level state, must ride as `member_perk_otp`
+  // on submit when present — and be OMITTED entirely (not even an empty
+  // string) when absent, so a booking with no code entered is byte-identical
+  // to the pre-fn4i submit body.
+  it('forwards a non-empty memberPerkOtp as member_perk_otp on submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-1',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        memberPerkOtp="123456"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.member_perk_otp).toBe('123456')
+  })
+
+  it('omits member_perk_otp entirely when no code was entered (undefined, empty, or whitespace-only)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-2',
+      semantic_state: 'pending',
+    })
+    for (const memberPerkOtp of [undefined, '', '   ']) {
+      submitMock.mockClear()
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          memberPerkOtp={memberPerkOtp}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      await act(async () => {
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /Confirm booking/i }).at(-1)!,
+        )
+      })
+      await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+      const body = submitMock.mock.calls[0]![0]
+      expect(body).not.toHaveProperty('member_perk_otp')
+    }
+  })
+
+  it('trims surrounding whitespace off a member-perk code before submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-fn4i-3',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        memberPerkOtp="  654321  "
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.member_perk_otp).toBe('654321')
+  })
+
   it('forwards per-participant phone on submit (landr-zaan)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({
@@ -847,6 +938,58 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
     const graceOccupant = screen.getByTestId('room-occupant-breakfast-0-1')
     expect(graceOccupant).toHaveTextContent('Grace')
     expect(graceOccupant).toHaveTextContent('· no breakfast')
+  })
+
+  it('landr-f4dm: keeps occupantNames index-aligned when an occupant has an empty first name', () => {
+    // Regression: the first occupant (member 0) has an empty first_name, so
+    // its disambiguated label is '' (falsy). Before the fix, a conditional
+    // `if (name) occupantNames.push(name)` would SKIP pushing for member 0
+    // while occupantIndices still got 0 — shifting 'Grace' (member 1) into
+    // member 0's slot and misattributing her breakfast flag.
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          {
+            first_name: '',
+            last_name: 'Lovelace',
+            email: 'ada@example.com',
+            phone: '+34 600 000 000',
+            service_role_code: '',
+          },
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            service_role_code: '',
+          },
+        ]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'double-room', quantity: 1 }]}
+        perRoomAddons={{ 'double-room': { 'bf-1': 1 } }}
+        roomProductNames={{ 'double-room': 'Double Room' }}
+        roomAssignment={{
+          0: { roomProductId: 'double-room', unitIndex: 0 },
+          1: { roomProductId: 'double-room', unitIndex: 0 },
+        }}
+        // Member 0 (empty name) has NO breakfast; member 1 (Grace) DOES.
+        breakfastMap={{ 0: false, 1: true }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    // Member 0's slot must show the '?' fallback label with NO breakfast —
+    // Grace's name/flag must land in member 1's slot, not member 0's.
+    const slot0 = screen.getByTestId('room-occupant-breakfast-0-0')
+    expect(slot0).toHaveTextContent('?')
+    expect(slot0).toHaveTextContent('· no breakfast')
+    const slot1 = screen.getByTestId('room-occupant-breakfast-0-1')
+    expect(slot1).toHaveTextContent('Grace')
+    expect(slot1).toHaveTextContent('· with breakfast')
   })
 
   it('shows "breakfast included" and all occupants "with breakfast" when all have it', () => {

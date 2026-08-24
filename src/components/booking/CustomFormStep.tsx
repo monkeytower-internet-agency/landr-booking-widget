@@ -36,7 +36,12 @@ import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { pickLocalized } from '@/lib/locale'
 import { getProductFlow } from '@/api/client'
-import type { FlowFieldDef, FlowFormDef, FormResponseEntry } from '@/api/flowTypes'
+import type {
+  FlowFieldDef,
+  FlowFormDef,
+  FormResponseEntry,
+  ProductFlowResponse,
+} from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
 
@@ -53,9 +58,69 @@ export interface CustomFormStepProps {
   productName: string
   /** Initial answers for back-nav restoration from draft.customFormAnswers[formKey]. */
   initialAnswers?: Record<string, unknown>
+  /**
+   * landr-db45: the already-resolved product flow, threaded down from the
+   * parent (App's `ensureProductFlow`/`withResolvedFlow` cache — the same
+   * flow that routed the funnel INTO this custom-form step in the first
+   * place) so this component reuses it instead of firing its own,
+   * independent `getProductFlow` request.
+   *
+   * Before this prop existed, App and CustomFormStep each fetched the flow
+   * separately with no shared cache: if App's fetch produced the custom-form
+   * step but CustomFormStep's own later fetch transiently failed (or somehow
+   * returned a flow missing this form's key), CustomFormStep set its
+   * `fetchError` and permanently disabled Continue — a forward dead-end
+   * under flaky networks (Back still worked; Continue never would). Since
+   * the flow that put the customer on this exact step already contains the
+   * matching `custom_form` module, deriving the form def from it here is
+   * synchronous and can never race a second, flaky request.
+   *
+   * `undefined` = the prop was genuinely not supplied (older/standalone
+   * callers, e.g. tests that render this component directly) → falls back to
+   * the original self-fetch behaviour, unchanged. `null` = the parent
+   * resolved the flow and it settled to `null` (its own fetch failed, or the
+   * product has no remote flow) — treated as "form not found" WITHOUT a
+   * further fetch here, since re-fetching couldn't recover data the parent's
+   * fetch didn't have; only a genuinely absent prop triggers the fallback.
+   */
+  flow?: ProductFlowResponse | null
   onBack: () => void
   /** Called with the pruned answers + form metadata when the customer submits. */
   onConfirm: (entry: FormResponseEntry, rawAnswers: Record<string, unknown>) => void
+}
+
+/**
+ * Locate the `custom_form` module matching `formKey` inside an already-
+ * resolved flow and sort its fields by position. Pure + shared by both the
+ * prop path (the common case since landr-db45) and the fallback self-fetch
+ * path (prop genuinely absent) — the exact same lookup either way. Never
+ * throws — a malformed/missing flow degrades to a "form not found" message
+ * rather than blanking the widget (bd memory landr-9ut4).
+ */
+function findFormInFlow(
+  flow: ProductFlowResponse | null,
+  formKey: string,
+): { form: FlowFormDef | null; error: string | null } {
+  if (!flow || !flow.modules) {
+    return { form: null, error: 'No form configuration found for this product.' }
+  }
+  let found: FlowFormDef | null = null
+  for (const mod of flow.modules) {
+    if (mod.kind === 'custom_form' && mod.form && mod.form.key === formKey) {
+      found = mod.form
+      break
+    }
+  }
+  if (!found) {
+    return { form: null, error: 'Form definition not found.' }
+  }
+  return {
+    form: {
+      ...found,
+      fields: [...found.fields].sort((a, b) => a.position - b.position),
+    },
+    error: null,
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -441,6 +506,7 @@ export function CustomFormStep({
   formKey,
   productName,
   initialAnswers,
+  flow,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -453,59 +519,59 @@ export function CustomFormStep({
   // public operator-settings RPC doesn't expose default_locale yet.)
   const locale = 'en'
 
-  const [formDef, setFormDef] = useState<FlowFormDef | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+  // landr-db45: `flow !== undefined` means the parent supplied the
+  // already-resolved flow — derive the form def SYNCHRONOUSLY from it on
+  // every render (no fetch, no loading state, and no possibility of a second
+  // independently-flaky request producing a forward dead-end). Recomputed
+  // whenever `flow` or `formKey` change, which also covers a chained series
+  // of custom-form steps for the same product re-using one mounted instance
+  // (App doesn't remount CustomFormStep between them — only its props
+  // change) — each step's form is picked out of the SAME already-fetched
+  // flow object.
+  const resolvedFromProp =
+    flow !== undefined ? findFormInFlow(flow, formKey) : null
 
-  // Answers keyed by field key. Initialised from draft (back-nav restoration).
-  const [answers, setAnswers] = useState<AnswerMap>(() =>
-    normaliseInitial(initialAnswers),
-  )
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  // Fallback self-fetch path — used ONLY when the prop is genuinely absent
+  // (older/standalone callers). Kept byte-for-bit equivalent to the
+  // pre-landr-db45 behaviour via the shared findFormInFlow helper.
+  const [fetchedFormDef, setFetchedFormDef] = useState<FlowFormDef | null>(null)
+  const [fetchedError, setFetchedError] = useState<string | null>(null)
+  const [fetchLoading, setFetchLoading] = useState(flow === undefined)
 
-  // Fetch the flow and find our form by key.
   useEffect(() => {
+    // Prop path — nothing to fetch. `loading` below ignores `fetchLoading`
+    // whenever `resolvedFromProp` is set, so there is nothing to reset here.
+    if (flow !== undefined) return
     let cancelled = false
     void (async () => {
       try {
-        const flow = await getProductFlow(operatorToken, productId)
+        const fetchedFlow = await getProductFlow(operatorToken, productId)
         if (cancelled) return
-        if (!flow || !flow.modules) {
-          setFetchError('No form configuration found for this product.')
-          setLoading(false)
-          return
-        }
-        // Find the custom_form module whose form.key matches.
-        let found: FlowFormDef | null = null
-        for (const mod of flow.modules) {
-          if (mod.kind === 'custom_form' && mod.form && mod.form.key === formKey) {
-            found = mod.form
-            break
-          }
-        }
-        if (!found) {
-          setFetchError('Form definition not found.')
-          setLoading(false)
-          return
-        }
-        // Sort fields by position.
-        found = {
-          ...found,
-          fields: [...found.fields].sort((a, b) => a.position - b.position),
-        }
-        setFormDef(found)
-        setLoading(false)
+        const resolved = findFormInFlow(fetchedFlow, formKey)
+        setFetchedFormDef(resolved.form)
+        setFetchedError(resolved.error)
+        setFetchLoading(false)
       } catch {
         if (!cancelled) {
-          setFetchError('Could not load the form. Please go back and try again.')
-          setLoading(false)
+          setFetchedError('Could not load the form. Please go back and try again.')
+          setFetchLoading(false)
         }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [operatorToken, productId, formKey])
+  }, [flow, operatorToken, productId, formKey])
+
+  const formDef = resolvedFromProp ? resolvedFromProp.form : fetchedFormDef
+  const fetchError = resolvedFromProp ? resolvedFromProp.error : fetchedError
+  const loading = resolvedFromProp ? false : fetchLoading
+
+  // Answers keyed by field key. Initialised from draft (back-nav restoration).
+  const [answers, setAnswers] = useState<AnswerMap>(() =>
+    normaliseInitial(initialAnswers),
+  )
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))

@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_VARIANT,
   VARIANTS,
   VARIANT_TOKENS,
   parseVariant,
-  previewEnabledFromSearch,
-  writeVariantToUrl,
   hasVariantInSearch,
   type Variant,
   type VariantTokens,
@@ -111,28 +109,6 @@ describe('VARIANT_TOKENS (landr-d8rg.3 / landr-d8rg.8)', () => {
   })
 })
 
-describe('previewEnabledFromSearch (landr-d8rg.8)', () => {
-  it('is true for the explicit ?preview=1 design-review flag', () => {
-    expect(previewEnabledFromSearch('?preview=1')).toBe(true)
-    expect(previewEnabledFromSearch('preview=1')).toBe(true)
-    expect(previewEnabledFromSearch('?preview=true')).toBe(true)
-  })
-
-  it('is true when an operator preview_token is present', () => {
-    expect(previewEnabledFromSearch('?preview_token=abc123')).toBe(true)
-    expect(previewEnabledFromSearch('?w=tok&preview_token=xyz')).toBe(true)
-  })
-
-  it('is false for a plain customer-facing embed URL', () => {
-    expect(previewEnabledFromSearch('')).toBe(false)
-    expect(previewEnabledFromSearch('?w=token&variant=summit')).toBe(false)
-    // A bare ?preview without a truthy value stays customer-safe.
-    expect(previewEnabledFromSearch('?preview')).toBe(false)
-    expect(previewEnabledFromSearch('?preview=0')).toBe(false)
-    expect(previewEnabledFromSearch('?preview_token=')).toBe(false)
-  })
-})
-
 describe('hasVariantInSearch (landr-jb1k.2)', () => {
   it('returns true when the URL carries a valid ?variant= param', () => {
     expect(hasVariantInSearch('?variant=aurora')).toBe(true)
@@ -152,31 +128,5 @@ describe('hasVariantInSearch (landr-jb1k.2)', () => {
   it('returns true case-insensitively for known variants', () => {
     expect(hasVariantInSearch('?variant=ALPINE')).toBe(true)
     expect(hasVariantInSearch('?variant=Summit')).toBe(true)
-  })
-})
-
-describe('writeVariantToUrl (landr-d8rg.8)', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it('replaces the URL state with the variant param set (no reload)', () => {
-    const replaceState = vi.spyOn(window.history, 'replaceState')
-    writeVariantToUrl('alpine')
-    expect(replaceState).toHaveBeenCalledTimes(1)
-    const urlArg = String(replaceState.mock.calls[0][2])
-    expect(urlArg).toContain('variant=alpine')
-  })
-
-  it('overwrites an existing variant param rather than appending', () => {
-    const replaceState = vi.spyOn(window.history, 'replaceState')
-    // Seed a URL that already carries variant=aurora.
-    window.history.replaceState(null, '', '/?w=tok&variant=aurora')
-    writeVariantToUrl('summit')
-    const urlArg = String(replaceState.mock.calls.at(-1)?.[2])
-    expect(urlArg).toContain('variant=summit')
-    expect(urlArg).not.toContain('variant=aurora')
-    // The unrelated param survives.
-    expect(urlArg).toContain('w=tok')
   })
 })

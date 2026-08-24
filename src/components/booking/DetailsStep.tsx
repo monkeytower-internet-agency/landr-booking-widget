@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AnimationEvent } from 'react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
+import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
@@ -20,6 +22,8 @@ import {
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
+  isValidPhoneFormat,
+  PHONE_HTML_PATTERN,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -80,6 +84,14 @@ interface Props {
    * when the customer hits Back from a downstream step.
    */
   initialCompanions?: CompanionDetails[]
+  /**
+   * landr-fn4i / landr-5krc: prior value of the optional member-perk code,
+   * carried by App.tsx's top-level state (NOT the Step union — see
+   * BookingForm's memberPerkOtp doc) so a Back-then-forward re-entry shows
+   * the code the customer already typed instead of a blank field that would
+   * silently contradict what's actually still armed for submit.
+   */
+  initialMemberPerkOtp?: string
   onBack: () => void
   onConfirm: (
     booker: BookerDetails,
@@ -107,6 +119,16 @@ interface Props {
     names: string[],
     companionCount: number,
   ) => void
+  /**
+   * landr-fn4i / landr-5krc: fires on every keystroke in the optional
+   * member-perk code field, lifting the live value straight into App.tsx's
+   * top-level state (mirrors onLiveParticipantsChange's "fire from the event
+   * handler, not an effect" pattern). By the time the customer reaches
+   * BookingForm's Confirm button — several steps later — the lifted value is
+   * already current; there's no separate "commit on Continue" step for this
+   * field.
+   */
+  onMemberPerkOtpChange?: (code: string) => void
 }
 
 /**
@@ -167,9 +189,11 @@ export function DetailsStep({
   initialBooker,
   initialParticipants,
   initialCompanions,
+  initialMemberPerkOtp,
   onBack,
   onConfirm,
   onLiveParticipantsChange,
+  onMemberPerkOtpChange,
 }: Props) {
   const locale = browserLocale()
   // landr-mg0a: defaultRoleCode is the first row served by
@@ -203,6 +227,32 @@ export function DetailsStep({
   // Restored from initialCompanions on Back-restore, else empty.
   const [companions, setCompanions] = useState<CompanionDetails[]>(
     () => initialCompanions ?? [],
+  )
+
+  // landr-fn4i / landr-5krc: optional member-perk code. Seeded from
+  // initialMemberPerkOtp on Back-restore (mirrors the booker/companions
+  // pattern above) so the field never shows blank while App.tsx's lifted
+  // copy still holds a previously-typed value.
+  const [memberPerkOtp, setMemberPerkOtpState] = useState<string>(
+    () => initialMemberPerkOtp ?? '',
+  )
+  // The OTP-request endpoint is fired on email BLUR, not on every keystroke
+  // (matches the backend contract + keeps us well under its per-token/per-
+  // email rate limits). otpRequested drives whether the always-on optional
+  // code field is shown at all — seeded true when re-entering with an
+  // already-valid-looking email (Back-restore), since a request for that
+  // email would already have fired on the forward pass.
+  const [otpRequested, setOtpRequested] = useState<boolean>(() =>
+    Boolean(initialBooker?.email?.trim() && initialBooker.email.includes('@')),
+  )
+  // Dedupes repeated blurs of an UNCHANGED email against re-firing the
+  // network call (a customer tabbing back and forth across the form blurs
+  // the same field many times). Seeded from initialBooker so a Back-restore
+  // remount doesn't re-request for an email that already got one on the way
+  // forward — only an actual EDIT to the email (a genuine new blur target)
+  // fires a fresh request.
+  const otpSentForEmailRef = useRef<string | null>(
+    initialBooker?.email?.trim() ? initialBooker.email.trim() : null,
   )
 
   // If the service-roles fetch resolves AFTER DetailsStep first mounted,
@@ -342,6 +392,44 @@ export function DetailsStep({
     })
   }
 
+  // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
+  // Fires POST .../subscription-perk/otp for a non-empty, '@'-shaped email —
+  // the same loose check the rest of this file already uses for "does this
+  // look like an email" (isFieldInvalid's booker.email case), not full RFC
+  // validation. Reveals the optional code field regardless of whether the
+  // network call itself succeeds (the endpoint is fire-and-forget by design
+  // — see requestSubscriptionPerkOtp's doc — so there is nothing useful to
+  // gate the UI on). Dedupes against otpSentForEmailRef so repeated blurs of
+  // an unchanged email (tabbing back and forth) don't re-request and burn
+  // into the server's per-email rate limit.
+  const requestMemberPerkOtpIfNeeded = () => {
+    const email = booker.email.trim()
+    if (!email || !email.includes('@')) return
+    setOtpRequested(true)
+    if (otpSentForEmailRef.current === email) return
+    otpSentForEmailRef.current = email
+    // No operatorToken (legacy/test call-sites that omit it) → nothing to
+    // hit; the field still shows so the customer isn't blocked either way.
+    if (!operatorToken) return
+    void requestSubscriptionPerkOtp(operatorToken, email).catch(() => {
+      // Deliberately swallowed. The endpoint always answers 202 {ok:true}
+      // for a valid widget_token regardless of member/non-member/malformed/
+      // rate-limited — a network/host failure here is equally uninformative
+      // and must never surface to the customer (landr-fn4i: never branch UI
+      // on this call, and never turn a non-member's blur into an error toast).
+    })
+  }
+
+  // landr-fn4i / landr-5krc: the optional code field's onChange. Strips
+  // non-digits and caps at 6 so a paste (e.g. from the email client) can't
+  // leave stray whitespace or punctuation in the value that eventually rides
+  // as member_perk_otp on submit.
+  const updateMemberPerkOtp = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 6)
+    setMemberPerkOtpState(digits)
+    onMemberPerkOtpChange?.(digits)
+  }
+
   const updateParticipant = (
     idx: number,
     key: keyof ParticipantDetails,
@@ -365,6 +453,33 @@ export function DetailsStep({
   const markTouched = (key: string) =>
     setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
 
+  // landr-bx5y: browser autofill can hand a phone field a value with the
+  // '+CC' already stripped (a Safari/Chrome autofill quirk, not something
+  // our onChange sees separately from a normal edit) — the customer would
+  // otherwise not find out until they blur the field or tap Continue. The
+  // CSS in index.css fires a (visually inert) animation while a tel input
+  // is in the browser's autofilled state; treat that as an implicit touch
+  // so the "add your country code" validation appears immediately.
+  const handlePhoneAutofill =
+    (key: string) => (e: AnimationEvent<HTMLInputElement>) => {
+      if (e.animationName === 'onAutoFillStart') markTouched(key)
+    }
+
+  // landr-bx5y follow-up: the :-webkit-autofill/onAnimationStart trick above
+  // turned out to only fire reliably on the booker phone field — the one
+  // present when the page first loads. Participant/companion rows are
+  // mounted later (revealed by "+ Add participant"/"+ Add companion"), and
+  // in the field a real browser's autofill engine doesn't consistently
+  // apply the :-webkit-autofill state to those, even though it still hands
+  // them a (possibly mangled) value. So this is the actual primary signal:
+  // a real keystroke changes a field's length by one character at a time —
+  // only autofill or a paste can jump a field from empty straight to a
+  // multi-character value in a single onChange. That distinction doesn't
+  // depend on any browser-specific pseudo-class or on when the field was
+  // mounted, so it covers every row equally.
+  const looksLikeBulkFill = (prevValue: string, nextValue: string): boolean =>
+    prevValue.trim() === '' && nextValue.trim().length >= 4
+
   // landr-79re: the onBlur path alone is unreliable on mobile (tapping
   // between fields, dismissing the keyboard, or tapping a disabled button
   // often don't fire a blur), so an incomplete form could show NO red
@@ -373,6 +488,10 @@ export function DetailsStep({
   // mirror EXACTLY the keys used in the validate(...) calls below and the
   // required set detailsAreComplete() checks — so a Continue tap reveals all
   // the errors at once regardless of platform.
+  //
+  // landr-1url: companion.<idx>.phone is included even though companion
+  // phone is OPTIONAL (not required) — a filled-but-malformed companion
+  // phone can also fail detailsAreComplete(), so it needs to be armable too.
   const requiredFieldKeys = (): string[] => {
     const keys = [
       'booker.first_name',
@@ -384,7 +503,11 @@ export function DetailsStep({
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
     companions.forEach((_, idx) => {
-      keys.push(`companion.${idx}.first_name`, `companion.${idx}.last_name`)
+      keys.push(
+        `companion.${idx}.first_name`,
+        `companion.${idx}.last_name`,
+        `companion.${idx}.phone`,
+      )
     })
     return keys
   }
@@ -419,9 +542,14 @@ export function DetailsStep({
             : 'phone'
       return `p-${pMatch[1]}-${slot}`
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (cMatch) {
-      const slot = cMatch[2] === 'first_name' ? 'first' : 'last'
+      const slot =
+        cMatch[2] === 'first_name'
+          ? 'first'
+          : cMatch[2] === 'last_name'
+            ? 'last'
+            : 'phone'
       return `companion-${cMatch[1]}-${slot}`
     }
     return undefined
@@ -438,20 +566,30 @@ export function DetailsStep({
       case 'booker.email':
         return !booker.email.trim() || !booker.email.includes('@')
       case 'booker.phone':
-        return !booker.phone.trim()
+        // landr-1url: required AND must look internationally-formatted.
+        return !booker.phone.trim() || !isValidPhoneFormat(booker.phone)
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
       const row = additional[Number(pMatch[1])]
       if (!row) return false
       const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
+      if (field === 'phone') {
+        // landr-1url: required AND must look internationally-formatted.
+        return !row.phone.trim() || !isValidPhoneFormat(row.phone)
+      }
       return !row[field].trim()
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (cMatch) {
       const row = companions[Number(cMatch[1])]
       if (!row) return false
-      const field = cMatch[2] as 'first_name' | 'last_name'
+      const field = cMatch[2] as 'first_name' | 'last_name' | 'phone'
+      if (field === 'phone') {
+        // landr-1url: companion phone is OPTIONAL — empty is fine, but a
+        // filled value must look internationally-formatted.
+        return row.phone.trim() !== '' && !isValidPhoneFormat(row.phone)
+      }
       return !row[field].trim()
     }
     return false
@@ -484,16 +622,38 @@ export function DetailsStep({
     if (!value.includes('@')) return 'Enter a valid email address'
     return undefined
   }
+  // landr-1url: a phone additionally needs to look internationally-formatted
+  // (leading '+' + country code). `required` distinguishes booker/participant
+  // phone (required) from companion phone (optional — blank is fine, but a
+  // filled value is still held to the format check).
+  const phoneError = (
+    key: string,
+    value: string,
+    required: boolean,
+  ): string | undefined => {
+    if (!touched.has(key)) return undefined
+    if (!value.trim()) return required ? 'Required' : undefined
+    if (!isValidPhoneFormat(value)) {
+      return 'Add your country code, e.g. +34 600 123 456'
+    }
+    return undefined
+  }
   // Bundle the error + the input props (onBlur to arm, aria-invalid to paint
   // red, aria-describedby to wire the message for screen readers).
   const validate = (
     key: string,
     value: string,
     id: string,
-    kind: 'required' | 'email' = 'required',
+    kind: 'required' | 'email' | 'phone' | 'phone-optional' = 'required',
   ) => {
     const error =
-      kind === 'email' ? emailError(key, value) : requiredError(key, value)
+      kind === 'email'
+        ? emailError(key, value)
+        : kind === 'phone'
+          ? phoneError(key, value, true)
+          : kind === 'phone-optional'
+            ? phoneError(key, value, false)
+            : requiredError(key, value)
     return {
       error,
       inputProps: {
@@ -556,7 +716,12 @@ export function DetailsStep({
   const bookerFirstV = validate('booker.first_name', booker.first_name, 'booker-first')
   const bookerLastV = validate('booker.last_name', booker.last_name, 'booker-last')
   const bookerEmailV = validate('booker.email', booker.email, 'booker-email', 'email')
-  const bookerPhoneV = validate('booker.phone', booker.phone, 'booker-phone')
+  const bookerPhoneV = validate(
+    'booker.phone',
+    booker.phone,
+    'booker-phone',
+    'phone',
+  )
 
   return (
     <Card>
@@ -569,7 +734,23 @@ export function DetailsStep({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {/* Booker section — required fields for the person making the
-            booking. They're also automatically participant 1. */}
+            booking. They're also automatically participant 1.
+
+            landr-jruv follow-up: confirmed live on bw-dev — the browser
+            fills the booker phone with the full +CC number but reformats
+            every OTHER phone field (added participants, companions) to a
+            bare national number (a German +49… autofills as 0…). Every
+            row's fields now carry a `section-<row>` autocomplete prefix
+            (WHATWG autofill spec —
+            https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-detail-tokens),
+            the standards mechanism for telling the browser that repeated
+            field groups on one page (here: one per person) are independent
+            identities rather than one profile's alternate phone numbers —
+            our best working theory for why only the first phone field kept
+            its country code. Not independently re-confirmed against a real
+            browser after this change (none available in this environment);
+            the bulk-fill touch-detection above is the fallback that catches
+            a mangled value either way, regardless of whether this helps. */}
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">Your contact details</legend>
           <p className="text-xs text-muted-foreground">
@@ -581,7 +762,7 @@ export function DetailsStep({
               <Input
                 id="booker-first"
                 name="booker_first_name"
-                autoComplete="given-name"
+                autoComplete="section-booker given-name"
                 value={booker.first_name}
                 onChange={(e) => updateBookerField('first_name', e.target.value)}
                 {...bookerFirstV.inputProps}
@@ -591,7 +772,7 @@ export function DetailsStep({
               <Input
                 id="booker-last"
                 name="booker_last_name"
-                autoComplete="family-name"
+                autoComplete="section-booker family-name"
                 value={booker.last_name}
                 onChange={(e) => updateBookerField('last_name', e.target.value)}
                 {...bookerLastV.inputProps}
@@ -602,10 +783,17 @@ export function DetailsStep({
                 id="booker-email"
                 name="booker_email"
                 type="email"
-                autoComplete="email"
+                autoComplete="section-booker email"
                 value={booker.email}
                 onChange={(e) => updateBookerField('email', e.target.value)}
                 {...bookerEmailV.inputProps}
+                onBlur={() => {
+                  bookerEmailV.inputProps.onBlur()
+                  // landr-fn4i / landr-5krc: fire the subscription-perk OTP
+                  // request on the same blur that arms the "Required" error
+                  // check above — one blur, two independent concerns.
+                  requestMemberPerkOtpIfNeeded()
+                }}
               />
             </Field>
             <Field label="Phone" htmlFor="booker-phone" error={bookerPhoneV.error}>
@@ -613,11 +801,23 @@ export function DetailsStep({
                 id="booker-phone"
                 name="booker_phone"
                 type="tel"
-                autoComplete="tel"
+                autoComplete="section-booker tel"
+                placeholder="+34 600 123 456"
+                pattern={PHONE_HTML_PATTERN}
                 value={booker.phone}
-                onChange={(e) => updateBookerField('phone', e.target.value)}
+                onChange={(e) => {
+                  if (looksLikeBulkFill(booker.phone, e.target.value)) {
+                    markTouched('booker.phone')
+                  }
+                  updateBookerField('phone', e.target.value)
+                }}
+                onAnimationStart={handlePhoneAutofill('booker.phone')}
                 {...bookerPhoneV.inputProps}
               />
+              {/* landr-1url: nudge toward international format (no new dep). */}
+              <p className="text-xs text-muted-foreground">
+                Include your country code
+              </p>
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
                 operator only has the single default role. */}
@@ -634,6 +834,44 @@ export function DetailsStep({
               </Field>
             ) : null}
           </div>
+
+          {/* landr-fn4i / landr-5krc: always-on, OPTIONAL member-perk code
+              field. Shown once the OTP request has fired for the current
+              email (member or not — the response carries no signal either
+              way, so this can't and doesn't try to say "code sent" vs "not a
+              member"). Never required, never validated red — a non-member
+              leaving it blank must feel exactly as unremarkable as a member
+              filling it in. The price only changes on submit (the code is
+              spent server-side during pricing), so there is deliberately no
+              client-side preview here. */}
+          {otpRequested ? (
+            <div
+              className="rounded-lg border border-dashed bg-surface-raised p-3"
+              data-testid="member-perk-otp-section"
+            >
+              <Label htmlFor="member-perk-otp" className="text-xs">
+                Member? Enter the 6-digit code we emailed you to apply your
+                member price.
+              </Label>
+              <Input
+                id="member-perk-otp"
+                name="member_perk_otp"
+                data-testid="member-perk-otp-input"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                className="mt-1 max-w-[10rem]"
+                value={memberPerkOtp}
+                onChange={(e) => updateMemberPerkOtp(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Not a member, or don&rsquo;t have a code? Leave this blank —
+                it won&rsquo;t affect your booking.
+              </p>
+            </div>
+          ) : null}
         </fieldset>
 
         {/* Additional participants — same stepper pattern as the legacy
@@ -652,7 +890,12 @@ export function DetailsStep({
             // participant (landr-nkbi); email stays optional.
             const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
             const pLastV = validate(`p.${idx}.last_name`, row.last_name, `p-${idx}-last`)
-            const pPhoneV = validate(`p.${idx}.phone`, row.phone, `p-${idx}-phone`)
+            const pPhoneV = validate(
+              `p.${idx}.phone`,
+              row.phone,
+              `p-${idx}-phone`,
+              'phone',
+            )
             return (
             // landr-3mo4: each added participant is a raised sub-card (one
             // level lighter than the step card) so the nested form group
@@ -685,6 +928,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
+                  autoComplete={`section-participant-${idx + 2} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
@@ -696,6 +940,7 @@ export function DetailsStep({
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
+                  autoComplete={`section-participant-${idx + 2} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
@@ -708,6 +953,7 @@ export function DetailsStep({
                   id={`p-${idx}-email`}
                   name={`participant_${idx + 2}_email`}
                   type="email"
+                  autoComplete={`section-participant-${idx + 2} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
@@ -720,12 +966,23 @@ export function DetailsStep({
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
                   type="tel"
+                  autoComplete={`section-participant-${idx + 2} tel`}
+                  placeholder="+34 600 123 456"
+                  pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`p.${idx}.phone`)
+                    }
                     updateParticipant(idx, 'phone', e.target.value)
-                  }
+                  }}
+                  onAnimationStart={handlePhoneAutofill(`p.${idx}.phone`)}
                   {...pPhoneV.inputProps}
                 />
+                {/* landr-1url: nudge toward international format (no new dep). */}
+                <p className="text-xs text-muted-foreground">
+                  Include your country code
+                </p>
               </Field>
               {showRoleDropdown ? (
                 <Field label="Role" htmlFor={`p-${idx}-role`}>
@@ -871,6 +1128,14 @@ export function DetailsStep({
               row.last_name,
               `companion-${idx}-last`,
             )
+            // landr-1url: companion phone stays optional (landr-nkbi) but a
+            // filled value is still nudged toward the international format.
+            const cPhoneV = validate(
+              `companion.${idx}.phone`,
+              row.phone,
+              `companion-${idx}-phone`,
+              'phone-optional',
+            )
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
             // participant rows.
@@ -944,6 +1209,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
+                  autoComplete={`section-companion-${idx + 1} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'first_name', e.target.value)
@@ -955,6 +1221,7 @@ export function DetailsStep({
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
+                  autoComplete={`section-companion-${idx + 1} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateCompanion(idx, 'last_name', e.target.value)
@@ -967,22 +1234,39 @@ export function DetailsStep({
                   id={`companion-${idx}-email`}
                   name={`companion_${idx + 1}_email`}
                   type="email"
+                  autoComplete={`section-companion-${idx + 1} email`}
                   value={row.email}
                   onChange={(e) =>
                     updateCompanion(idx, 'email', e.target.value)
                   }
                 />
               </Field>
-              <Field label="Phone (optional)" htmlFor={`companion-${idx}-phone`}>
+              <Field
+                label="Phone (optional)"
+                htmlFor={`companion-${idx}-phone`}
+                error={cPhoneV.error}
+              >
                 <Input
                   id={`companion-${idx}-phone`}
                   name={`companion_${idx + 1}_phone`}
                   type="tel"
+                  autoComplete={`section-companion-${idx + 1} tel`}
+                  placeholder="+34 600 123 456"
+                  pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (looksLikeBulkFill(row.phone, e.target.value)) {
+                      markTouched(`companion.${idx}.phone`)
+                    }
                     updateCompanion(idx, 'phone', e.target.value)
-                  }
+                  }}
+                  onAnimationStart={handlePhoneAutofill(`companion.${idx}.phone`)}
+                  {...cPhoneV.inputProps}
                 />
+                {/* landr-1url: nudge toward international format (no new dep). */}
+                <p className="text-xs text-muted-foreground">
+                  Include your country code
+                </p>
               </Field>
             </div>
             )

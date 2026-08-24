@@ -28,6 +28,23 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+      # landr-y3oj.2 — contracts drift: regenerate src/types/api.gen.ts from
+      # the committed contracts/openapi.json (a synced copy of landr-api's
+      # openapi.json) and fail if it doesn't match what's checked in. Fast
+      # (no DB/network) — see landr-api README "Contracts codegen" section.
+      - name: Verify generated API contracts are current
+        run: |
+          npm run gen:api-types
+          git diff --exit-code -- src/types/api.gen.ts contracts/openapi.json
+
+      # landr-0ji4.2 — TypeScript strict-mode ratchet: tsconfig.app.json
+      # deliberately stays non-strict (see npm run typecheck above), but this
+      # runs the same project with --strict and fails only if the error
+      # count exceeds the checked-in strict-baseline.json. See README
+      # "TypeScript strict ratchet" section for the shrink-on-touch rule.
+      - name: TypeScript strict ratchet
+        run: npm run typecheck:strict
+
       - name: Pick project + API base per branch
         id: env
         env:
