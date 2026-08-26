@@ -7259,6 +7259,7 @@ export type Database = {
       }
       promotion_runs: {
         Row: {
+          changelog: Json
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -7282,8 +7283,11 @@ export type Database = {
           signoff_window_opens_at: string | null
           status: string
           updated_at: string
+          version: string | null
+          version_bump: string | null
         }
         Insert: {
+          changelog?: Json
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -7307,8 +7311,11 @@ export type Database = {
           signoff_window_opens_at?: string | null
           status?: string
           updated_at?: string
+          version?: string | null
+          version_bump?: string | null
         }
         Update: {
+          changelog?: Json
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -7332,6 +7339,8 @@ export type Database = {
           signoff_window_opens_at?: string | null
           status?: string
           updated_at?: string
+          version?: string | null
+          version_bump?: string | null
         }
         Relationships: [
           {

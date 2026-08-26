@@ -588,6 +588,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/changelog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Changelog
+         * @description The control-plane-side implementation of operator_release.get_changelog.
+         *
+         *     Auth: X-Release-Relay-Token. Returns the FULL entry shape (category,
+         *     description, sha, author, url, repo) — operator_release.py trims to
+         *     category/description before handing the untrusted end-user response
+         *     back (``ChangelogEntryOut``); this internal, service-to-service boundary
+         *     carries the richer data so it isn't lost if a future internal consumer
+         *     needs it. Also carries ``partial`` straight through (landr-zxgs) — always
+         *     False for the staging/prod tiers this relay is actually ever called with
+         *     in practice (see operator_release.py's module docstring: tier='dev'
+         *     never relays), but correct if a future internal consumer ever asks this
+         *     endpoint for tier='dev' directly.
+         */
+        get: operations["relay_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/customer-signoff": {
         parameters: {
             query?: never;
@@ -670,6 +701,33 @@ export interface paths {
          *     resolving correctly against the FK.
          */
         get: operations["relay_my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Version
+         * @description The control-plane-side implementation of operator_release.get_version.
+         *
+         *     Auth: X-Release-Relay-Token (service-to-service — staging/prod relay
+         *     here because their OWN local promotion_runs table is always empty; see
+         *     this module's docstring). Identical logic to what operator_release.py
+         *     runs directly when IT is the control plane — same
+         *     ``app.services.promotion.get_version`` call, same lazy GitHub-client
+         *     construction only for tier='dev'.
+         */
+        get: operations["relay_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1406,6 +1464,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/release/changelog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Changelog
+         * @description Changelog entries for ``tier``, newest-first, capped at ``limit``.
+         *
+         *     * staging/prod → ``changelog`` jsonb arrays off recent COMPLETED
+         *       promotion_runs rows of the matching kind (dev_to_staging for staging,
+         *       staging_to_main for prod), flattened newest-run-first.
+         *     * dev → LIVE-parsed from dev's ahead-of-staging commit range across
+         *       every deployable repo, through the same Changelog-* trailer parser
+         *       landr-rfqp.3 uses at run-finalise time — nothing persisted. Per-repo
+         *       compare failures are swallowed (that repo contributes zero entries),
+         *       mirroring promotion_executor._aggregate_changelog's own resilience —
+         *       unlike /version there is no single "the" GitHub call whose failure
+         *       must invalidate the whole answer, so this endpoint never 502s on a
+         *       GitHub hiccup for tier='dev' (only on ``promotion_not_configured``
+         *       when the token itself is unset — that still 503s, same as /version).
+         *       Instead, a per-repo compare failure sets ``partial=True`` (landr-zxgs)
+         *       so the caller can tell "GitHub hiccuped, some entries may be missing"
+         *       apart from "genuinely nothing changelog-worthy" — see
+         *       ``ChangelogOut.partial``'s docstring.
+         *
+         *     ``entries`` is ``[]`` (never a 404) when nothing has completed for that
+         *     tier yet, or the live dev range has no trailer-carrying commits (or
+         *     every repo's compare failed) — same "empty means nothing
+         *     changelog-worthy" convention the persisted ``changelog`` column itself
+         *     documents. ``partial`` disambiguates the last case (every repo's compare
+         *     failed) from real emptiness.
+         *
+         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
+         *     process itself IS the control plane — same rule as ``get_version``
+         *     above (see the module docstring's "Data locality" section). Response
+         *     entries only ever carry ``category``/``description`` — see
+         *     ``ChangelogEntryOut``'s docstring for why the richer git metadata
+         *     ``app.services.promotion.get_changelog`` returns is trimmed here.
+         */
+        get: operations["get_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/release/eligibility": {
         parameters: {
             query?: never;
@@ -1502,6 +1611,51 @@ export interface paths {
          *     retry affordance without another backend change).
          */
         get: operations["my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/release/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Version
+         * @description The version currently on ``tier``.
+         *
+         *     * staging → the version the last COMPLETED dev_to_staging run produced
+         *       (that run is what put it on staging).
+         *     * prod    → the version the last COMPLETED staging_to_main run produced.
+         *     * dev     → LIVE, never persisted: ``{base}-dev.{short_sha}`` where
+         *       ``base`` is the last completed staging version (or ``0.0.0`` if
+         *       staging has never had one) and ``short_sha`` is landr-api's current
+         *       dev-branch HEAD, mirroring how ``build_env_matrix`` already computes
+         *       ``ahead_by`` live via the same GitHub compare API rather than a
+         *       persisted table (see app.services.promotion.get_version's docstring
+         *       for why landr-api's SHA specifically, and why no bump counter).
+         *
+         *     ``version`` is ``null`` (never a 404) when nothing has completed for
+         *     that tier yet — landr-rfqp.4's documented choice: a fresh
+         *     dev/staging/prod with no promotion history is an expected initial
+         *     state, not an error condition the dashboard needs to special-case as
+         *     "not found". Any authenticated user may call this (staff or operator) —
+         *     see the module docstring for why this endpoint isn't staff-gated.
+         *
+         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
+         *     process itself IS the control plane (see ``_is_control_plane`` /
+         *     the module docstring's "Data locality" section) — 503
+         *     ``promotion_control_plane_not_configured`` if
+         *     ``RELEASE_CONTROL_PLANE_URL`` isn't set here. tier='dev' always computes
+         *     locally, unconditionally.
+         */
+        get: operations["get_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5714,6 +5868,39 @@ export interface components {
          */
         CampaignScope: "booking" | "subscription" | "any";
         /**
+         * ChangelogEntryOut
+         * @description Deliberately ``category``/``description`` ONLY.
+         *
+         *     ``app.services.promotion.get_changelog`` returns richer entries (``sha``,
+         *     ``author``, ``url``, ``repo``) — internal git metadata including a link
+         *     into the PRIVATE ``monkeytower-internet-agency`` GitHub org. This
+         *     endpoint has no staff/signer gate (see the module docstring), so those
+         *     fields are trimmed here rather than exposed to every authenticated
+         *     identity on the platform. Neither rfqp.5's version badge nor rfqp.6's
+         *     "What's New" panel consume them.
+         */
+        ChangelogEntryOut: {
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+        };
+        /** ChangelogOut */
+        ChangelogOut: {
+            /** Entries */
+            entries: components["schemas"]["ChangelogEntryOut"][];
+            /**
+             * Partial
+             * @default false
+             */
+            partial: boolean;
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "dev" | "staging" | "prod";
+        };
+        /**
          * CheckinIn
          * @description POST body for a customer check-in.
          */
@@ -8881,6 +9068,16 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** VersionOut */
+        VersionOut: {
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "dev" | "staging" | "prod";
+            /** Version */
+            version: string | null;
+        };
         /**
          * ViewReorderItem
          * @description One element of the bulk reorder payload — a (view_id, sort_order)
@@ -10173,6 +10370,42 @@ export interface operations {
             };
         };
     };
+    relay_changelog: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+                limit?: number;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     customer_signoff: {
         parameters: {
             query?: never;
@@ -10251,6 +10484,41 @@ export interface operations {
         parameters: {
             query: {
                 signer_email: string;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_version: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
             };
             header?: {
                 "X-Release-Relay-Token"?: string | null;
@@ -11044,6 +11312,38 @@ export interface operations {
             };
         };
     };
+    get_changelog: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangelogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     eligibility: {
         parameters: {
             query?: never;
@@ -11154,6 +11454,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_version: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
