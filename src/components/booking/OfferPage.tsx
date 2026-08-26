@@ -242,6 +242,27 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const busy = status === 'paying'
   const currencyCode = totals.currency
 
+  // landr-yimp: in mode="pay" the prominent figure must be the amount
+  // Stripe will actually charge (balance_due) — never gross_total, which
+  // can include an at-hotel portion (paid by the customer to the hotel
+  // directly at check-in) that Stripe never touches. gross_total is still
+  // shown, but only as a secondary, explicitly-labelled breakdown line.
+  // This mirrors the split booking_confirmation already makes between its
+  // "Booking total" (operator-collected) and "At-hotel total" rows — see
+  // landr-api's booking_confirmation_en.html.j2.
+  //
+  // totals.balance_due is typed non-null, but the API layer has drifted
+  // from its generated types before (see landr-2ll8) — defend against a
+  // missing/null value at runtime by falling back to gross_total, which
+  // reproduces the pre-fix (whole-total) behavior rather than rendering a
+  // broken figure.
+  const chargeAmount = totals.balance_due ?? totals.gross_total
+  // balance_due <= 0 means the booking is already fully settled (or in
+  // credit) — there is nothing left for this page to collect.
+  const alreadySettled = mode === 'pay' && chargeAmount <= 0
+  const hasAtHotelPortion =
+    mode === 'pay' && !alreadySettled && totals.gross_total !== chargeAmount
+
   return (
     <Card data-testid="offer-ready">
       <CardHeader>
@@ -321,30 +342,73 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </td>
                 </tr>
               )}
-              <tr className="border-t">
-                <td className="py-1 pr-4 font-semibold">Total</td>
-                <td
-                  className="py-1 text-right font-semibold"
-                  data-testid="offer-gross-total"
-                >
-                  {formatCurrency(totals.gross_total, currencyCode)}
-                </td>
-              </tr>
-              {totals.balance_due !== totals.gross_total && (
-                <tr>
-                  <td className="py-0.5 pr-4 text-muted-foreground">
-                    Amount due now
-                  </td>
-                  <td
-                    className="py-0.5 text-right"
-                    data-testid="offer-balance-due"
-                  >
-                    {formatCurrency(totals.balance_due, currencyCode)}
-                  </td>
-                </tr>
+              {mode === 'pay' ? (
+                <>
+                  {/* landr-yimp: the charged amount is the headline figure
+                      in pay mode — mirrors booking_payment_link_en's
+                      "Amount due" row word-for-word. */}
+                  <tr className="border-t">
+                    <td className="py-1 pr-4 font-semibold">Amount due</td>
+                    <td
+                      className="py-1 text-right font-semibold"
+                      data-testid="offer-balance-due"
+                    >
+                      {alreadySettled
+                        ? 'Nothing due'
+                        : formatCurrency(chargeAmount, currencyCode)}
+                    </td>
+                  </tr>
+                  {hasAtHotelPortion && (
+                    <tr>
+                      <td className="py-0.5 pr-4 text-muted-foreground">
+                        Total booking value
+                      </td>
+                      <td
+                        className="py-0.5 text-right text-muted-foreground"
+                        data-testid="offer-gross-total"
+                      >
+                        {formatCurrency(totals.gross_total, currencyCode)}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ) : (
+                <>
+                  <tr className="border-t">
+                    <td className="py-1 pr-4 font-semibold">Total</td>
+                    <td
+                      className="py-1 text-right font-semibold"
+                      data-testid="offer-gross-total"
+                    >
+                      {formatCurrency(totals.gross_total, currencyCode)}
+                    </td>
+                  </tr>
+                  {totals.balance_due !== totals.gross_total && (
+                    <tr>
+                      <td className="py-0.5 pr-4 text-muted-foreground">
+                        Amount due now
+                      </td>
+                      <td
+                        className="py-0.5 text-right"
+                        data-testid="offer-balance-due"
+                      >
+                        {formatCurrency(totals.balance_due, currencyCode)}
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>
+          {hasAtHotelPortion && (
+            <p
+              className="mt-1 text-xs text-muted-foreground"
+              data-testid="offer-at-hotel-note"
+            >
+              Includes an amount payable directly to the hotel at check-in —
+              not part of this card payment.
+            </p>
+          )}
         </section>
 
         {/* CTA */}
@@ -354,20 +418,24 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           onClick={() => {
             void onAcceptAndPay()
           }}
-          disabled={busy}
+          disabled={busy || alreadySettled}
           data-testid="offer-accept-pay-btn"
         >
-          {busy
-            ? 'Redirecting to payment…'
-            : mode === 'pay'
-              ? 'Pay now'
-              : 'Accept & Pay'}
+          {alreadySettled
+            ? 'Nothing to pay'
+            : busy
+              ? 'Redirecting to payment…'
+              : mode === 'pay'
+                ? 'Pay now'
+                : 'Accept & Pay'}
         </Button>
 
         <p className="text-xs text-muted-foreground">
-          {mode === 'pay'
-            ? 'This payment link is personal. Do not share it.'
-            : 'This offer link is personal. Do not share it.'}
+          {alreadySettled
+            ? 'This booking has already been paid in full.'
+            : mode === 'pay'
+              ? 'This payment link is personal. Do not share it.'
+              : 'This offer link is personal. Do not share it.'}
         </p>
       </CardContent>
     </Card>
