@@ -243,13 +243,25 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const currencyCode = totals.currency
 
   // landr-yimp: in mode="pay" the prominent figure must be the amount
-  // Stripe will actually charge (balance_due) — never gross_total, which
-  // can include an at-hotel portion (paid by the customer to the hotel
-  // directly at check-in) that Stripe never touches. gross_total is still
-  // shown, but only as a secondary, explicitly-labelled breakdown line.
-  // This mirrors the split booking_confirmation already makes between its
-  // "Booking total" (operator-collected) and "At-hotel total" rows — see
-  // landr-api's booking_confirmation_en.html.j2.
+  // Stripe will actually charge (balance_due) — never gross_total.
+  // gross_total is still shown, but only as a secondary line, and — review
+  // round 2 — WITHOUT asserting *why* it differs from the charge. The gap
+  // between gross_total and balance_due (recompute_booking_balance_due,
+  // landr-api migration 20260606100000) is
+  //   (gross_total - operator_gross_total)   at-hotel lines, PLUS
+  //   - succeeded payments already collected, MINUS
+  //   succeeded refunds, PLUS/MINUS
+  //   any operator price-override delta
+  // — four independent producers. A first-time /pay visit (right after the
+  // one-time booking_payment_link send) usually only has the first
+  // producer, but the token is valid 30 days and a customer can reopen it
+  // after a partial payment or price override, at which point the gap is
+  // NOT an at-hotel amount. The widget has no field that isolates the
+  // at-hotel portion specifically (OfferTotals only carries
+  // gross/tax/net/balance_due/currency — see landr-gkj0, filed to add
+  // that split to the API). So the secondary line states only what's
+  // always true: this is the full booking value, not the amount being
+  // charged now.
   //
   // totals.balance_due is typed non-null, but the API layer has drifted
   // from its generated types before (see landr-2ll8) — defend against a
@@ -257,10 +269,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
   // broken figure.
   const chargeAmount = totals.balance_due ?? totals.gross_total
-  // balance_due <= 0 means the booking is already fully settled (or in
-  // credit) — there is nothing left for this page to collect.
+  // balance_due <= 0 means this card payment is settled (fully paid, or in
+  // credit) — there is nothing left for THIS LINK to collect. It does NOT
+  // mean the whole booking is settled: at-hotel lines are never reflected
+  // in balance_due, so money can still be owed to the hotel directly.
   const alreadySettled = mode === 'pay' && chargeAmount <= 0
-  const hasAtHotelPortion =
+  const showTotalBookingValue =
     mode === 'pay' && !alreadySettled && totals.gross_total !== chargeAmount
 
   return (
@@ -354,11 +368,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       data-testid="offer-balance-due"
                     >
                       {alreadySettled
-                        ? 'Nothing due'
+                        ? 'Nothing due now'
                         : formatCurrency(chargeAmount, currencyCode)}
                     </td>
                   </tr>
-                  {hasAtHotelPortion && (
+                  {showTotalBookingValue && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
                         Total booking value
@@ -400,13 +414,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               )}
             </tbody>
           </table>
-          {hasAtHotelPortion && (
+          {showTotalBookingValue && (
             <p
               className="mt-1 text-xs text-muted-foreground"
-              data-testid="offer-at-hotel-note"
+              data-testid="offer-total-booking-value-note"
             >
-              Includes an amount payable directly to the hotel at check-in —
-              not part of this card payment.
+              This is the full value of the booking — not the amount being
+              charged now.
             </p>
           )}
         </section>
@@ -432,7 +446,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
         <p className="text-xs text-muted-foreground">
           {alreadySettled
-            ? 'This booking has already been paid in full.'
+            ? // landr-yimp review round 2: balance_due <= 0 only means this
+              // card payment is settled — at-hotel lines never enter
+              // balance_due, so the booking as a whole can still have money
+              // owed directly to the hotel. Don't claim "paid in full".
+              "There's nothing further to pay through this link right now."
             : mode === 'pay'
               ? 'This payment link is personal. Do not share it.'
               : 'This offer link is personal. Do not share it.'}
