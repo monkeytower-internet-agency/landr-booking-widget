@@ -3977,9 +3977,22 @@ export interface paths {
         };
         /**
          * List Integration Credentials
-         * @description Masked list of this operator's credential bundles.
+         * @description Masked list of this operator's credential bundles + the resolved Stripe mode.
          *
-         *     One entry per stored (provider, mode). NEVER returns a decrypted secret.
+         *     ``items``: one entry per stored (provider, mode) row. NEVER returns a
+         *     decrypted secret.
+         *
+         *     ``stripe_mode`` (landr-1hd6): the SAME value ``stripe_mode_for_env()``
+         *     resolves everywhere else that matters — ``stripe_configured_for_operator``,
+         *     ``send_payment_link``'s token mint, and the per-operator webhook route's
+         *     secret lookup all key off it. Before this, the dashboard had no way to
+         *     know which of the two stored Stripe rows ('test'/'live') THIS environment
+         *     actually reads: ``activeStripeMode()`` (landr-dashboard's
+         *     src/lib/operatorSettings.ts) guessed it from ``VITE_DEPLOY_TIER``, which
+         *     is unset or stale on some deployed tiers. A key typed on the
+         *     non-active tab was silently never read by anything, with nothing on the
+         *     page saying so — this field is what lets the dashboard mark the real
+         *     active tab instead of guessing.
          */
         get: operations["list_integration_credentials"];
         put?: never;
@@ -5672,14 +5685,19 @@ export interface components {
         };
         /**
          * BankDetailsIn
-         * @description PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above):
+         * @description PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above,
+         *     landr-sh8u):
          *
          *       * field OMITTED             -> left untouched.
          *       * field explicitly ``null`` -> CLEAR (writes SQL NULL).
-         *       * field is ``""`` / blank   -> 422 blank_not_allowed (an explicit
-         *         divergence from CredentialUpsertIn's _strip_blanks, which silently
-         *         maps blank -> untouched; that router puts clearing out of scope, but
-         *         once null means clear here, silently swallowing "" is ambiguous).
+         *       * field is ``""`` / blank   -> 422 blank_not_allowed. An explicit
+         *         divergence from CredentialUpsertIn, which silently maps blank ->
+         *         untouched instead of erroring: that router had a pre-existing
+         *         "blank is silently ignored" contract to preserve when landr-sh8u
+         *         added null-clear to it, and preserving it took priority over
+         *         matching this route's stricter blank handling. This route had no
+         *         such precedent, so it 422s a blank outright — the more honest
+         *         answer when null and blank are BOTH being given meaning at once.
          *
          *     max_length validates the PLAINTEXT on the way in — never the ciphertext
          *     (a ~34-char IBAN becomes a ~150-char 'fernet:' token).
@@ -6092,13 +6110,37 @@ export interface components {
          * @description PUT body for one (provider, mode) bundle.
          *
          *     All fields optional so the dashboard can rotate a single secret without
-         *     re-sending the others. A field that is OMITTED (exclude_unset) is left
-         *     untouched; a field sent as null/empty is NOT written (we never clear a
-         *     stored secret by accident — clearing is out of scope for this slice).
+         *     re-sending the others. Sparse-merge, three-way disposition per field
+         *     (landr-sh8u — mirrors BankDetailsIn's contract below, with one
+         *     deliberate divergence noted at the bottom):
+         *
+         *       * field OMITTED              -> left untouched.
+         *       * field explicitly ``null``  -> CLEAR (writes SQL NULL to the
+         *         corresponding column — see ``_apply_credential_field`` in the
+         *         handler). NEVER re-encrypts an empty string for this: secret_box
+         *         would happily produce a *valid* Fernet token for ``""``, which would
+         *         flip ``has_secret_key``/``has_webhook_secret``/``has_holded_key``
+         *         true over an unusable value — the same footgun the bank-details PUT
+         *         documents at its own null-clear branch.
+         *       * field is ``""`` / whitespace-only -> treated as NOT PROVIDED, i.e.
+         *         exactly like omitted: never written, never a clear, never an error
+         *         by itself. This was already the behaviour before landr-sh8u (a
+         *         stray space in a form field must never overwrite — and now, must
+         *         never accidentally CLEAR — a real stored secret); landr-sh8u's ask
+         *         was specifically to leave it unchanged and let ONLY an explicit
+         *         ``null`` become destructive.
+         *
+         *     DIVERGENCE from BankDetailsIn: bank-details 422s a blank string outright
+         *     (``blank_not_allowed``) rather than silently ignoring it, because that
+         *     router's pre-existing contract had no "ignore a blank" precedent to
+         *     preserve. This router does — every existing rotate-one-secret test
+         *     depends on a blank OTHER field being silently skipped rather than
+         *     rejecting the whole request — so blank handling here stays exactly as it
+         *     was pre-landr-sh8u; only the ``null`` branch is new.
          *
          *     The provider is taken from the URL path, not the body — these fields are a
          *     superset and field-coherence is enforced against the path provider in
-         *     :meth:`_validate_against_path` (called from the handler).
+         *     the handler.
          */
         CredentialUpsertIn: {
             /** Holded Api Key */
@@ -16019,7 +16061,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
-                    }[];
+                    };
                 };
             };
             /** @description Validation Error */
