@@ -361,6 +361,178 @@ describe('OfferPage', () => {
       expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
     })
 
+    // ── landr-yimp: /pay must headline balance_due, not gross_total ────────
+    it('headlines balance_due (not gross_total) and shows gross_total as a neutral secondary line', async () => {
+      // Ticket's reference booking: email says "Amount due: 90.00 EUR",
+      // page bug showed a bold "Total" of 286.00 (gross_total, which here
+      // happens to include a 196.00 at-hotel portion) with balance_due
+      // muted below it. The page itself has no way to know the gap is
+      // specifically a hotel amount (review round 2 — see OfferPage.tsx
+      // comment), so it must not assert that; it states only that
+      // gross_total is the full booking value, not the charge.
+      const referenceOffer = {
+        ...OFFER,
+        totals: {
+          gross_total: 286.0,
+          tax_total: 0,
+          net_total: 286.0,
+          balance_due: 90.0,
+          currency: 'EUR',
+        },
+      }
+      mocks.getBookingByToken.mockResolvedValue(referenceOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      // The charged amount is the prominent figure, under the "Amount due"
+      // label — matching booking_payment_link_en's wording verbatim.
+      expect(screen.getByText('Amount due')).toBeInTheDocument()
+      const balanceDue = screen.getByTestId('offer-balance-due')
+      expect(balanceDue).toHaveTextContent(formatCurrency(90.0, 'EUR'))
+      expect(balanceDue.className).toContain('font-semibold')
+
+      // gross_total is present but demoted to a secondary, muted line —
+      // labelled with what's true (the full booking value), never with a
+      // claim about *why* it's higher than the charge.
+      const grossTotal = screen.getByTestId('offer-gross-total')
+      expect(grossTotal).toHaveTextContent(formatCurrency(286.0, 'EUR'))
+      expect(grossTotal.className).not.toContain('font-semibold')
+      expect(grossTotal.className).toContain('text-muted-foreground')
+      const note = screen.getByTestId('offer-total-booking-value-note')
+      expect(note).toHaveTextContent(/full value of the booking/i)
+      expect(note).not.toHaveTextContent(/hotel/i)
+    })
+
+    it('renders no dangling secondary line when balance_due equals gross_total', async () => {
+      const noGapOffer = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: OFFER.totals.gross_total },
+      }
+      mocks.getBookingByToken.mockResolvedValue(noGapOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        formatCurrency(OFFER.totals.gross_total, 'EUR'),
+      )
+      expect(screen.queryByTestId('offer-gross-total')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('offer-total-booking-value-note'),
+      ).not.toBeInTheDocument()
+    })
+
+    // ── landr-yimp review round 2: gross/balance gap is not always a hotel
+    // portion — a partial payment already collected produces the exact
+    // same shape and must NOT be mislabelled as at-hotel money.
+    it('does not claim an at-hotel portion when the gap is from a partial payment already collected (no hotel line)', async () => {
+      const partiallyPaidOffer = {
+        ...OFFER,
+        totals: {
+          gross_total: 286.0,
+          tax_total: 0,
+          net_total: 286.0,
+          // e.g. a 100.00 bank-transfer deposit already recorded via
+          // mark-paid — nothing here is owed to a hotel.
+          balance_due: 186.0,
+          currency: 'EUR',
+        },
+      }
+      mocks.getBookingByToken.mockResolvedValue(partiallyPaidOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        formatCurrency(186.0, 'EUR'),
+      )
+      const grossTotal = screen.getByTestId('offer-gross-total')
+      expect(grossTotal).toHaveTextContent(formatCurrency(286.0, 'EUR'))
+      // The secondary line is shown (there IS a gap) but must not assert
+      // a hotel is involved — this booking has no at-hotel line at all.
+      expect(screen.queryByText(/hotel/i)).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('offer-total-booking-value-note'),
+      ).toHaveTextContent(/full value of the booking/i)
+    })
+
+    it('shows a settled state and disables Pay now when balance_due is zero', async () => {
+      const settledOffer = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 0 },
+      }
+      mocks.getBookingByToken.mockResolvedValue(settledOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        /nothing due/i,
+      )
+      expect(screen.queryByTestId('offer-gross-total')).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /nothing to pay/i }),
+      ).toBeDisabled()
+      // Must NOT claim the whole booking is paid in full — at-hotel money
+      // (if any) is never reflected in balance_due, so it can still be owed.
+      expect(
+        screen.getByText(/nothing further to pay through this link/i),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/paid in full/i)).not.toBeInTheDocument()
+    })
+
+    it('shows a settled state when balance_due is negative (refund owed)', async () => {
+      const overpaidOffer = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: -30.0 },
+      }
+      mocks.getBookingByToken.mockResolvedValue(overpaidOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        /nothing due/i,
+      )
+      expect(
+        screen.getByRole('button', { name: /nothing to pay/i }),
+      ).toBeDisabled()
+    })
+
+    it('falls back to gross_total when balance_due is missing/null', async () => {
+      const nullBalanceOffer = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: null },
+      }
+      mocks.getBookingByToken.mockResolvedValue(nullBalanceOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() =>
+        expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+      )
+
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        formatCurrency(OFFER.totals.gross_total, 'EUR'),
+      )
+      // Falls back to charging the full total — no dangling secondary
+      // line since there's nothing left to reconcile against.
+      expect(screen.queryByTestId('offer-gross-total')).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /^pay now$/i }),
+      ).toBeEnabled()
+    })
+
     it('mode omitted keeps every existing "offer" assertion green', async () => {
       // Sanity check that the default param didn't change default behavior:
       // same as the very first "renders the offer details" test above.
