@@ -1499,12 +1499,12 @@ export interface paths {
          *     documents. ``partial`` disambiguates the last case (every repo's compare
          *     failed) from real emptiness.
          *
-         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
-         *     process itself IS the control plane — same rule as ``get_version``
-         *     above (see the module docstring's "Data locality" section). Response
-         *     entries only ever carry ``category``/``description`` — see
-         *     ``ChangelogEntryOut``'s docstring for why the richer git metadata
-         *     ``app.services.promotion.get_changelog`` returns is trimmed here.
+         *     tier='staging'/'prod' read locally only on the deployment that OWNS the
+         *     backing runs, and relay there otherwise — same rule as ``get_version``
+         *     above (see ``_TIER_DATA_OWNER_ENV``). Response entries only ever carry
+         *     ``category``/``description`` — see ``ChangelogEntryOut``'s docstring for
+         *     why the richer git metadata ``app.services.promotion.get_changelog``
+         *     returns is trimmed here.
          */
         get: operations["get_changelog"];
         put?: never;
@@ -1648,12 +1648,12 @@ export interface paths {
          *     "not found". Any authenticated user may call this (staff or operator) —
          *     see the module docstring for why this endpoint isn't staff-gated.
          *
-         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
-         *     process itself IS the control plane (see ``_is_control_plane`` /
-         *     the module docstring's "Data locality" section) — 503
-         *     ``promotion_control_plane_not_configured`` if
-         *     ``RELEASE_CONTROL_PLANE_URL`` isn't set here. tier='dev' always computes
-         *     locally, unconditionally.
+         *     tier='staging'/'prod' read locally only on the deployment that OWNS the
+         *     backing runs (staging ← dev's dev_to_staging rows, prod ← staging's
+         *     staging_to_main rows — see ``_TIER_DATA_OWNER_ENV``); otherwise they relay
+         *     there. 503 ``promotion_control_plane_not_configured`` naming the missing
+         *     env var if this deployment does not know that owner's URL. tier='dev'
+         *     always computes locally, unconditionally.
          */
         get: operations["get_version"];
         put?: never;
