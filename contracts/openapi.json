@@ -778,7 +778,7 @@
         "type": "object"
       },
       "BankDetailsIn": {
-        "description": "PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above):\n\n  * field OMITTED             -> left untouched.\n  * field explicitly ``null`` -> CLEAR (writes SQL NULL).\n  * field is ``\"\"`` / blank   -> 422 blank_not_allowed (an explicit\n    divergence from CredentialUpsertIn's _strip_blanks, which silently\n    maps blank -> untouched; that router puts clearing out of scope, but\n    once null means clear here, silently swallowing \"\" is ambiguous).\n\nmax_length validates the PLAINTEXT on the way in \u2014 never the ciphertext\n(a ~34-char IBAN becomes a ~150-char 'fernet:' token).",
+        "description": "PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above,\nlandr-sh8u):\n\n  * field OMITTED             -> left untouched.\n  * field explicitly ``null`` -> CLEAR (writes SQL NULL).\n  * field is ``\"\"`` / blank   -> 422 blank_not_allowed. An explicit\n    divergence from CredentialUpsertIn, which silently maps blank ->\n    untouched instead of erroring: that router had a pre-existing\n    \"blank is silently ignored\" contract to preserve when landr-sh8u\n    added null-clear to it, and preserving it took priority over\n    matching this route's stricter blank handling. This route had no\n    such precedent, so it 422s a blank outright \u2014 the more honest\n    answer when null and blank are BOTH being given meaning at once.\n\nmax_length validates the PLAINTEXT on the way in \u2014 never the ciphertext\n(a ~34-char IBAN becomes a ~150-char 'fernet:' token).",
         "properties": {
           "bic": {
             "anyOf": [
@@ -1928,7 +1928,7 @@
         "type": "object"
       },
       "CredentialUpsertIn": {
-        "description": "PUT body for one (provider, mode) bundle.\n\nAll fields optional so the dashboard can rotate a single secret without\nre-sending the others. A field that is OMITTED (exclude_unset) is left\nuntouched; a field sent as null/empty is NOT written (we never clear a\nstored secret by accident \u2014 clearing is out of scope for this slice).\n\nThe provider is taken from the URL path, not the body \u2014 these fields are a\nsuperset and field-coherence is enforced against the path provider in\n:meth:`_validate_against_path` (called from the handler).",
+        "description": "PUT body for one (provider, mode) bundle.\n\nAll fields optional so the dashboard can rotate a single secret without\nre-sending the others. Sparse-merge, three-way disposition per field\n(landr-sh8u \u2014 mirrors BankDetailsIn's contract below, with one\ndeliberate divergence noted at the bottom):\n\n  * field OMITTED              -> left untouched.\n  * field explicitly ``null``  -> CLEAR (writes SQL NULL to the\n    corresponding column \u2014 see ``_apply_credential_field`` in the\n    handler). NEVER re-encrypts an empty string for this: secret_box\n    would happily produce a *valid* Fernet token for ``\"\"``, which would\n    flip ``has_secret_key``/``has_webhook_secret``/``has_holded_key``\n    true over an unusable value \u2014 the same footgun the bank-details PUT\n    documents at its own null-clear branch.\n  * field is ``\"\"`` / whitespace-only -> treated as NOT PROVIDED, i.e.\n    exactly like omitted: never written, never a clear, never an error\n    by itself. This was already the behaviour before landr-sh8u (a\n    stray space in a form field must never overwrite \u2014 and now, must\n    never accidentally CLEAR \u2014 a real stored secret); landr-sh8u's ask\n    was specifically to leave it unchanged and let ONLY an explicit\n    ``null`` become destructive.\n\nDIVERGENCE from BankDetailsIn: bank-details 422s a blank string outright\n(``blank_not_allowed``) rather than silently ignoring it, because that\nrouter's pre-existing contract had no \"ignore a blank\" precedent to\npreserve. This router does \u2014 every existing rotate-one-secret test\ndepends on a blank OTHER field being silently skipped rather than\nrejecting the whole request \u2014 so blank handling here stays exactly as it\nwas pre-landr-sh8u; only the ``null`` branch is new.\n\nThe provider is taken from the URL path, not the body \u2014 these fields are a\nsuperset and field-coherence is enforced against the path provider in\nthe handler.",
         "properties": {
           "holded_api_key": {
             "anyOf": [
@@ -22903,7 +22903,7 @@
     },
     "/api/staff/operators/{operator_id}/integration-credentials": {
       "get": {
-        "description": "Masked list of this operator's credential bundles.\n\nOne entry per stored (provider, mode). NEVER returns a decrypted secret.",
+        "description": "Masked list of this operator's credential bundles + the resolved Stripe mode.\n\n``items``: one entry per stored (provider, mode) row. NEVER returns a\ndecrypted secret.\n\n``stripe_mode`` (landr-1hd6): the SAME value ``stripe_mode_for_env()``\nresolves everywhere else that matters \u2014 ``stripe_configured_for_operator``,\n``send_payment_link``'s token mint, and the per-operator webhook route's\nsecret lookup all key off it. Before this, the dashboard had no way to\nknow which of the two stored Stripe rows ('test'/'live') THIS environment\nactually reads: ``activeStripeMode()`` (landr-dashboard's\nsrc/lib/operatorSettings.ts) guessed it from ``VITE_DEPLOY_TIER``, which\nis unset or stale on some deployed tiers. A key typed on the\nnon-active tab was silently never read by anything, with nothing on the\npage saying so \u2014 this field is what lets the dashboard mark the real\nactive tab instead of guessing.",
         "operationId": "list_integration_credentials",
         "parameters": [
           {
@@ -22921,12 +22921,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
+                  "additionalProperties": true,
                   "title": "Response List Integration Credentials",
-                  "type": "array"
+                  "type": "object"
                 }
               }
             },
