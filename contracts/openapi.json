@@ -143,6 +143,35 @@
         "title": "AlertOut",
         "type": "object"
       },
+      "ApiBudget": {
+        "description": "landr-g1ao.7: the operator's latest known Holded API quota snapshot,\nfrom ``operator_integration_usage`` (populated by\n``app/workers/holded_usage_probe.py``, itself opt-in and default-off \u2014\nsee ``Settings.holded_usage_probe_enabled``). The dashboard renders a\nwarning band once ``used`` crosses the same 95% threshold\n``run_holded_sync`` itself guards on (``HOLDED_BUDGET_GUARD_THRESHOLD``).",
+        "properties": {
+          "checked_at": {
+            "title": "Checked At",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "period",
+          "checked_at"
+        ],
+        "title": "ApiBudget",
+        "type": "object"
+      },
       "ApprovalReplyRequest": {
         "additionalProperties": false,
         "description": "`POST .../{token}/response` body.\n\n``extra=\"forbid\"`` is load-bearing, not hygiene: it is the structural\nguarantee that a token minted for booking A can never name booking B.\nThere is no `booking_id` / `operator_id` / `request_id` field here and an\nunknown key is a 422, so the only booking this call can ever touch is the\none the token resolves to.",
@@ -749,7 +778,7 @@
         "type": "object"
       },
       "BankDetailsIn": {
-        "description": "PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above):\n\n  * field OMITTED             -> left untouched.\n  * field explicitly ``null`` -> CLEAR (writes SQL NULL).\n  * field is ``\"\"`` / blank   -> 422 blank_not_allowed (an explicit\n    divergence from CredentialUpsertIn's _strip_blanks, which silently\n    maps blank -> untouched; that router puts clearing out of scope, but\n    once null means clear here, silently swallowing \"\" is ambiguous).\n\nmax_length validates the PLAINTEXT on the way in \u2014 never the ciphertext\n(a ~34-char IBAN becomes a ~150-char 'fernet:' token).",
+        "description": "PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above,\nlandr-sh8u):\n\n  * field OMITTED             -> left untouched.\n  * field explicitly ``null`` -> CLEAR (writes SQL NULL).\n  * field is ``\"\"`` / blank   -> 422 blank_not_allowed. An explicit\n    divergence from CredentialUpsertIn, which silently maps blank ->\n    untouched instead of erroring: that router had a pre-existing\n    \"blank is silently ignored\" contract to preserve when landr-sh8u\n    added null-clear to it, and preserving it took priority over\n    matching this route's stricter blank handling. This route had no\n    such precedent, so it 422s a blank outright \u2014 the more honest\n    answer when null and blank are BOTH being given meaning at once.\n\nmax_length validates the PLAINTEXT on the way in \u2014 never the ciphertext\n(a ~34-char IBAN becomes a ~150-char 'fernet:' token).",
         "properties": {
           "bic": {
             "anyOf": [
@@ -1899,7 +1928,7 @@
         "type": "object"
       },
       "CredentialUpsertIn": {
-        "description": "PUT body for one (provider, mode) bundle.\n\nAll fields optional so the dashboard can rotate a single secret without\nre-sending the others. A field that is OMITTED (exclude_unset) is left\nuntouched; a field sent as null/empty is NOT written (we never clear a\nstored secret by accident \u2014 clearing is out of scope for this slice).\n\nThe provider is taken from the URL path, not the body \u2014 these fields are a\nsuperset and field-coherence is enforced against the path provider in\n:meth:`_validate_against_path` (called from the handler).",
+        "description": "PUT body for one (provider, mode) bundle.\n\nAll fields optional so the dashboard can rotate a single secret without\nre-sending the others. Sparse-merge, three-way disposition per field\n(landr-sh8u \u2014 mirrors BankDetailsIn's contract below, with one\ndeliberate divergence noted at the bottom):\n\n  * field OMITTED              -> left untouched.\n  * field explicitly ``null``  -> CLEAR (writes SQL NULL to the\n    corresponding column \u2014 see ``_apply_credential_field`` in the\n    handler). NEVER re-encrypts an empty string for this: secret_box\n    would happily produce a *valid* Fernet token for ``\"\"``, which would\n    flip ``has_secret_key``/``has_webhook_secret``/``has_holded_key``\n    true over an unusable value \u2014 the same footgun the bank-details PUT\n    documents at its own null-clear branch.\n  * field is ``\"\"`` / whitespace-only -> treated as NOT PROVIDED, i.e.\n    exactly like omitted: never written, never a clear, never an error\n    by itself. This was already the behaviour before landr-sh8u (a\n    stray space in a form field must never overwrite \u2014 and now, must\n    never accidentally CLEAR \u2014 a real stored secret); landr-sh8u's ask\n    was specifically to leave it unchanged and let ONLY an explicit\n    ``null`` become destructive.\n\nDIVERGENCE from BankDetailsIn: bank-details 422s a blank string outright\n(``blank_not_allowed``) rather than silently ignoring it, because that\nrouter's pre-existing contract had no \"ignore a blank\" precedent to\npreserve. This router does \u2014 every existing rotate-one-secret test\ndepends on a blank OTHER field being silently skipped rather than\nrejecting the whole request \u2014 so blank handling here stays exactly as it\nwas pre-landr-sh8u; only the ``null`` branch is new.\n\nThe provider is taken from the URL path, not the body \u2014 these fields are a\nsuperset and field-coherence is enforced against the path provider in\nthe handler.",
         "properties": {
           "holded_api_key": {
             "anyOf": [
@@ -1912,6 +1941,30 @@
               }
             ],
             "title": "Holded Api Key"
+          },
+          "holded_numbering_series_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Numbering Series Id"
+          },
+          "holded_sales_tax_key": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Sales Tax Key"
           },
           "stripe_publishable_key": {
             "anyOf": [
@@ -4216,6 +4269,16 @@
       },
       "InvoicesResponse": {
         "properties": {
+          "api_budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiBudget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/InvoiceRow"
@@ -5067,6 +5130,74 @@
         "title": "NotifyMentionsOut",
         "type": "object"
       },
+      "NumberingSeriesItem": {
+        "description": "One GET /api/v2/numbering-series/invoice entry, projected to the\nfields the picker needs. Fields Holded omits come back None rather than\nraising \u2014 the exact wire shape is unverified against a real account\n(epic landr-g1ao.13); ``id`` is the one field we require, dropping any\nitem Holded returns without one.",
+        "properties": {
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last": {
+            "title": "Last"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "verifactu_excluded": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifactu Excluded"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "NumberingSeriesItem",
+        "type": "object"
+      },
+      "NumberingSeriesListResult": {
+        "properties": {
+          "holded_not_connected": {
+            "default": false,
+            "title": "Holded Not Connected",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NumberingSeriesItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "NumberingSeriesListResult",
+        "type": "object"
+      },
       "OfferCreateIn": {
         "description": "POST body. title is required; the rest are optional.",
         "properties": {
@@ -5516,6 +5647,36 @@
               }
             ],
             "title": "Group Discount Threshold"
+          },
+          "holded_approve_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "never",
+                  "on_push"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Approve Mode"
+          },
+          "holded_transfer_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all_finalized",
+                  "only_paid"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holded Transfer Mode"
           },
           "hotel_email_locale": {
             "anyOf": [
@@ -11075,8 +11236,15 @@
         "type": "object"
       },
       "VerifyResult": {
-        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.",
+        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.",
         "properties": {
+          "checks": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
           "detail": {
             "anyOf": [
               {
@@ -11088,9 +11256,23 @@
             ],
             "title": "Detail"
           },
+          "missing_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Scopes",
+            "type": "array"
+          },
           "ok": {
             "title": "Ok",
             "type": "boolean"
+          },
+          "required_scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Scopes",
+            "type": "array"
           }
         },
         "required": [
@@ -11491,6 +11673,139 @@
           }
         },
         "title": "VoucherPatch",
+        "type": "object"
+      },
+      "WebhookConnectIn": {
+        "description": "POST body. Optional \u2014 a bare POST means \"connect if not already\".\n\n``recreate`` is the explicit, separately-confirmed escalation: DELETE the\nmatching endpoint and create a fresh one. It exists because a signing\nsecret is capturable exactly once, at creation, so an endpoint whose\nsecret we no longer hold is unrecoverable any other way. It is destructive\n(Stripe drops the old endpoint and its delivery history), which is why it\nis never implied by a plain press.",
+        "properties": {
+          "recreate": {
+            "default": false,
+            "title": "Recreate",
+            "type": "boolean"
+          }
+        },
+        "title": "WebhookConnectIn",
+        "type": "object"
+      },
+      "WebhookConnectResult": {
+        "description": "Outcome of a \"Connect webhook\" press. NEVER carries the signing secret.\n\nSame masked-read contract as _mask_row: the browser learns THAT a secret is\non file (``has_webhook_secret``), never what it is.\n\n``ok`` IS THE STRONG CLAIM and only the CREATE path can earn it: the\nendpoint exists, its signing secret came to us from Stripe's own create\nresponse and survived the store/decrypt round trip, it is subscribed to\nevery event we dispatch, and the signed probe came back 200/handled:false.\nA reuse of an existing endpoint can NEVER be ``ok`` \u2014 see\n``already_connected_unverified`` below.\n\n``code`` \u2014 the outcome the dashboard maps to copy:\n  * ``connected``            \u2014 created (or recreated) and the secret is stored.\n  * ``connected_stale_endpoint_remains`` \u2014 recreate created the new endpoint\n                               and stored its secret, but could not delete\n                               the old one. Both now deliver; the old one's\n                               signature checks fail. Needs a manual delete\n                               in Stripe, so it is reported LOUDLY (ok=False)\n                               rather than as a success with a footnote.\n  * ``already_connected_unverified`` \u2014 an endpoint on this exact URL already\n                               existed and we hold A signing secret for this\n                               mode, but we CANNOT confirm the two match.\n                               Stripe reveals a signing secret only at\n                               creation, so this is genuinely unknowable \u2014\n                               not a check we skipped. We did NOT create a\n                               second endpoint (Stripe would happily register\n                               a duplicate and deliver every event twice).\n                               Recreate is the only way to obtain a\n                               known-good secret.\n  * ``already_connected_disabled`` \u2014 the endpoint exists but Stripe has it\n                               DISABLED, so it delivers nothing however\n                               correct the secret is. Recreate replaces it\n                               with a fresh, enabled one.\n  * ``secret_missing``       \u2014 the endpoint exists but landr has no whsec_ for\n                               it at all. Unrecoverable without ``recreate``.\n  * ``mode_not_active``      \u2014 this deployment tier resolves the OTHER Stripe\n                               mode, and the endpoint URL carries no mode\n                               discriminator (see _operator_webhook_url), so\n                               connecting this mode could only produce an\n                               endpoint whose events we would refuse. On a\n                               non-production tier it would also point a LIVE\n                               Stripe account at a non-production host.\n  * ``no_secret_key``        \u2014 no Stripe secret key stored for this mode.\n  * ``credential_unreadable`` \u2014 stored ciphertext will not decrypt.\n  * ``key_mode_mismatch``    \u2014 a live key on the test tab, or vice versa.\n  * ``key_rejected``         \u2014 Stripe rejected the stored key.\n  * ``key_lacks_webhook_permission`` \u2014 authenticates, but cannot write\n                               webhook endpoints (a narrowly-scoped ``rk_``).\n  * ``endpoint_quota_reached`` \u2014 the account is at Stripe's endpoint cap.\n  * ``stripe_unavailable``   \u2014 anything else, reported generically.\n  * ``no_widget_token``      \u2014 the operator row has no widget_token.\n\n``probe`` vs ``self_check`` \u2014 TWO FIELDS ON PURPOSE, and the distinction is\nload-bearing. Both hold a :class:`WebhookProbeResult`; what they license a\ncaller to claim is completely different:\n\n  * ``probe`` is set ONLY on the create path, where the secret we signed\n    with came from Stripe and the verifier read it back out of the\n    database. There it is real evidence of end-to-end delivery.\n  * ``self_check`` is set ONLY on the reuse path, where we signed with the\n    same stored value the verifier reads. It proves our URL, token\n    resolution, storage, decryption and signature verification all work \u2014\n    and NOTHING about whether that stored secret is the one Stripe's\n    endpoint signs with. Rendering it as \"verified\" would recreate exactly\n    the landr-9nhv failure: a green check over a webhook that never works.\n\n``missing_events`` is non-empty only on the reuse paths: an endpoint someone\nregistered by hand may be subscribed to fewer types than we dispatch, which\nis silent data loss \u2014 those event classes simply never arrive. Reported\nrather than silently patched; the remedy is a recreate.\n\n``detail`` is a safe, canned sentence. It NEVER carries Stripe's raw error\ntext (which can echo request parameters back) and never a secret \u2014 the\nsame rule _verify_stripe and staff_subscription_holders._stripe_error follow.",
+        "properties": {
+          "action": {
+            "enum": [
+              "created",
+              "recreated",
+              "reused",
+              "none"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "enabled_events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Enabled Events",
+            "type": "array"
+          },
+          "endpoint_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint Url"
+          },
+          "has_webhook_secret": {
+            "default": false,
+            "title": "Has Webhook Secret",
+            "type": "boolean"
+          },
+          "missing_events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Events",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "probe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebhookProbeResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "self_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebhookProbeResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ok",
+          "code",
+          "action"
+        ],
+        "title": "WebhookConnectResult",
+        "type": "object"
+      },
+      "WebhookProbeResult": {
+        "description": "Verdict of the self-signed round trip (see _probe_operator_webhook).\n\nREAD THE SCOPE NOTE FIRST \u2014 it is the difference between an honest check\nand a tautology.\n\nThe probe signs an event with a secret WE hold and posts it to our own\npublic endpoint, which verifies against the secret stored in\n``operator_integration_credentials``. What that comparison proves depends\nentirely on WHERE the signing secret came from:\n\n  * On the CREATE path the secret came from Stripe's create response and\n    was written to the database in between. The probe therefore proves the\n    store/encrypt/decrypt round trip AND the whole network path \u2014 the\n    stored value really is the one Stripe issued for this endpoint. The\n    secret's provenance is what makes it correct; the probe is what proves\n    we did not mangle it in transit.\n  * On the REUSE path (an endpoint that already existed) the secret is read\n    from the SAME ROW the verifier reads. It therefore verifies no matter\n    what Stripe's endpoint actually signs with, so it can say NOTHING about\n    whether the stored secret matches Stripe. Stripe never reveals an\n    existing endpoint's secret, so that is genuinely unknowable \u2014 see\n    ``WebhookConnectResult.self_check``, which is the field the reuse path\n    reports into precisely so it cannot be mistaken for the above.\n\n``code`` is the operator-facing diagnostic \u2014 each value maps to ONE\nremedy, and the dashboard renders plain language, never the status code:\n\n  * ``delivered``       \u2014 200 + handled:false. Reachable, the token\n                          resolves, a secret is stored, the signature\n                          verifies, dispatch ran, nothing was written.\n  * ``unknown_endpoint`` \u2014 404. The URL is wrong, or widget_token rotated\n                          after the Stripe endpoint was registered.\n  * ``secret_not_stored`` \u2014 503. No webhook secret on file for this mode.\n  * ``signature_mismatch`` \u2014 400. On the create path: what we stored does\n                          not decrypt back to what Stripe issued (a\n                          mangled write, or a Fernet key that rotated\n                          between the write and this read). NOT reachable\n                          on the reuse path \u2014 see the scope note above.\n  * ``unexpected_status`` \u2014 any other response; our handler is up but\n                          answering something we do not model.\n  * ``unreachable``     \u2014 timeout / connection error. Stripe could not\n                          have reached us either.\n\n``http_status`` is the raw status for support/debugging. There is no\n``detail`` field on purpose: everything here is landr's own response to\nlandr's own request, so there is no third-party error text to sanitise.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "code"
+        ],
+        "title": "WebhookProbeResult",
         "type": "object"
       },
       "WindowIn": {
@@ -22588,7 +22903,7 @@
     },
     "/api/staff/operators/{operator_id}/integration-credentials": {
       "get": {
-        "description": "Masked list of this operator's credential bundles.\n\nOne entry per stored (provider, mode). NEVER returns a decrypted secret.",
+        "description": "Masked list of this operator's credential bundles + the resolved Stripe mode.\n\n``items``: one entry per stored (provider, mode) row. NEVER returns a\ndecrypted secret.\n\n``stripe_mode`` (landr-1hd6): the SAME value ``stripe_mode_for_env()``\nresolves everywhere else that matters \u2014 ``stripe_configured_for_operator``,\n``send_payment_link``'s token mint, and the per-operator webhook route's\nsecret lookup all key off it. Before this, the dashboard had no way to\nknow which of the two stored Stripe rows ('test'/'live') THIS environment\nactually reads: ``activeStripeMode()`` (landr-dashboard's\nsrc/lib/operatorSettings.ts) guessed it from ``VITE_DEPLOY_TIER``, which\nis unset or stale on some deployed tiers. A key typed on the\nnon-active tab was silently never read by anything, with nothing on the\npage saying so \u2014 this field is what lets the dashboard mark the real\nactive tab instead of guessing.",
         "operationId": "list_integration_credentials",
         "parameters": [
           {
@@ -22606,12 +22921,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
+                  "additionalProperties": true,
                   "title": "Response List Integration Credentials",
-                  "type": "array"
+                  "type": "object"
                 }
               }
             },
@@ -22712,6 +23024,137 @@
           }
         ],
         "summary": "Upsert Integration Credential",
+        "tags": [
+          "staff-operator-integration-credentials"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/integrations/holded/{mode}/numbering-series": {
+      "get": {
+        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nMirrors the verify endpoint immediately above: same auth dependency\n(cross-operator access 403s via get_staff_operator_membership_by_op, bare/\ninvalid bearer 401s via its own get_current_user), same {mode} path-\nscoping \u2014 resolved via HoldedClient.for_operator_resolved's ``mode``\noverride (landr-g1ao.3) so this reads the EXACT (operator_id, holded,\nmode) row the path names, not whichever mode ``Settings.environment``\nwould derive \u2014 and the same 5/min rate limit. No stored credential for\nthat row -> ``holded_not_connected=True`` at 200 (never a 404/503),\nmatching every other Holded-status shape in this router /\nstaff_holded_invoicing.py. A live Holded error (revoked key, missing\nscope, transient outage) is the one divergence from the verify\nendpoint's \"always 200\" contract \u2014 this endpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
+        "operationId": "list_holded_numbering_series",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberingSeriesListResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Holded Numbering Series",
+        "tags": [
+          "staff-operator-integration-credentials"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/integrations/stripe/{mode}/webhook-endpoint": {
+      "post": {
+        "description": "Create this operator's Stripe webhook endpoint and store its whsec_.\n\nVerdict contract mirrors the /verify sibling above: 200 with ``ok``\ncarrying the outcome for everything this handler can diagnose, so the\ndashboard renders success and failure through one path. The exceptions are\nthe boundary conditions that are not verdicts at all \u2014 401/403 (auth),\n422 (bad mode), 429 (rate limit) and 503 (encryption unavailable).\n\nThe manual \"Webhook signing secret\" field stays exactly as it is. This is\nthe fast path, not the only path: operators who manage their own Stripe\nestate, or who hand landr a restricted key without webhook write access,\nstill need it \u2014 and it is the recovery route when this fails.\n\nApplies ONLY to the per-operator endpoint. The legacy app-level\nPOST /api/internal/stripe/webhook and its app-level secret are untouched.",
+        "operationId": "connect_stripe_webhook_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookConnectIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookConnectResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Connect Stripe Webhook Endpoint",
         "tags": [
           "staff-operator-integration-credentials"
         ]
@@ -27755,6 +28198,29 @@
         "summary": "Dispatch @mention notifications for a comment \u2014 overrides quiet/silenced per-ticket settings for the mentioned users.",
         "tags": [
           "ticket-mentions"
+        ]
+      }
+    },
+    "/api/webhooks/holded": {
+      "post": {
+        "operationId": "holded_webhook",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Holded Webhook",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Holded Webhook",
+        "tags": [
+          "holded-webhook"
         ]
       }
     },
