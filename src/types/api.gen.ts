@@ -588,6 +588,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/changelog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Changelog
+         * @description The control-plane-side implementation of operator_release.get_changelog.
+         *
+         *     Auth: X-Release-Relay-Token. Returns the FULL entry shape (category,
+         *     description, sha, author, url, repo) — operator_release.py trims to
+         *     category/description before handing the untrusted end-user response
+         *     back (``ChangelogEntryOut``); this internal, service-to-service boundary
+         *     carries the richer data so it isn't lost if a future internal consumer
+         *     needs it. Also carries ``partial`` straight through (landr-zxgs) — always
+         *     False for the staging/prod tiers this relay is actually ever called with
+         *     in practice (see operator_release.py's module docstring: tier='dev'
+         *     never relays), but correct if a future internal consumer ever asks this
+         *     endpoint for tier='dev' directly.
+         */
+        get: operations["relay_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/customer-signoff": {
         parameters: {
             query?: never;
@@ -670,6 +701,33 @@ export interface paths {
          *     resolving correctly against the FK.
          */
         get: operations["relay_my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Version
+         * @description The control-plane-side implementation of operator_release.get_version.
+         *
+         *     Auth: X-Release-Relay-Token (service-to-service — staging/prod relay
+         *     here because their OWN local promotion_runs table is always empty; see
+         *     this module's docstring). Identical logic to what operator_release.py
+         *     runs directly when IT is the control plane — same
+         *     ``app.services.promotion.get_version`` call, same lazy GitHub-client
+         *     construction only for tier='dev'.
+         */
+        get: operations["relay_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1406,6 +1464,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operator/release/changelog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Changelog
+         * @description Changelog entries for ``tier``, newest-first, capped at ``limit``.
+         *
+         *     * staging/prod → ``changelog`` jsonb arrays off recent COMPLETED
+         *       promotion_runs rows of the matching kind (dev_to_staging for staging,
+         *       staging_to_main for prod), flattened newest-run-first.
+         *     * dev → LIVE-parsed from dev's ahead-of-staging commit range across
+         *       every deployable repo, through the same Changelog-* trailer parser
+         *       landr-rfqp.3 uses at run-finalise time — nothing persisted. Per-repo
+         *       compare failures are swallowed (that repo contributes zero entries),
+         *       mirroring promotion_executor._aggregate_changelog's own resilience —
+         *       unlike /version there is no single "the" GitHub call whose failure
+         *       must invalidate the whole answer, so this endpoint never 502s on a
+         *       GitHub hiccup for tier='dev' (only on ``promotion_not_configured``
+         *       when the token itself is unset — that still 503s, same as /version).
+         *       Instead, a per-repo compare failure sets ``partial=True`` (landr-zxgs)
+         *       so the caller can tell "GitHub hiccuped, some entries may be missing"
+         *       apart from "genuinely nothing changelog-worthy" — see
+         *       ``ChangelogOut.partial``'s docstring.
+         *
+         *     ``entries`` is ``[]`` (never a 404) when nothing has completed for that
+         *     tier yet, or the live dev range has no trailer-carrying commits (or
+         *     every repo's compare failed) — same "empty means nothing
+         *     changelog-worthy" convention the persisted ``changelog`` column itself
+         *     documents. ``partial`` disambiguates the last case (every repo's compare
+         *     failed) from real emptiness.
+         *
+         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
+         *     process itself IS the control plane — same rule as ``get_version``
+         *     above (see the module docstring's "Data locality" section). Response
+         *     entries only ever carry ``category``/``description`` — see
+         *     ``ChangelogEntryOut``'s docstring for why the richer git metadata
+         *     ``app.services.promotion.get_changelog`` returns is trimmed here.
+         */
+        get: operations["get_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operator/release/eligibility": {
         parameters: {
             query?: never;
@@ -1502,6 +1611,51 @@ export interface paths {
          *     retry affordance without another backend change).
          */
         get: operations["my_signoffs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/release/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Version
+         * @description The version currently on ``tier``.
+         *
+         *     * staging → the version the last COMPLETED dev_to_staging run produced
+         *       (that run is what put it on staging).
+         *     * prod    → the version the last COMPLETED staging_to_main run produced.
+         *     * dev     → LIVE, never persisted: ``{base}-dev.{short_sha}`` where
+         *       ``base`` is the last completed staging version (or ``0.0.0`` if
+         *       staging has never had one) and ``short_sha`` is landr-api's current
+         *       dev-branch HEAD, mirroring how ``build_env_matrix`` already computes
+         *       ``ahead_by`` live via the same GitHub compare API rather than a
+         *       persisted table (see app.services.promotion.get_version's docstring
+         *       for why landr-api's SHA specifically, and why no bump counter).
+         *
+         *     ``version`` is ``null`` (never a 404) when nothing has completed for
+         *     that tier yet — landr-rfqp.4's documented choice: a fresh
+         *     dev/staging/prod with no promotion history is an expected initial
+         *     state, not an error condition the dashboard needs to special-case as
+         *     "not found". Any authenticated user may call this (staff or operator) —
+         *     see the module docstring for why this endpoint isn't staff-gated.
+         *
+         *     tier='staging'/'prod' RELAY to the DEV control plane unless this
+         *     process itself IS the control plane (see ``_is_control_plane`` /
+         *     the module docstring's "Data locality" section) — 503
+         *     ``promotion_control_plane_not_configured`` if
+         *     ``RELEASE_CONTROL_PLANE_URL`` isn't set here. tier='dev' always computes
+         *     locally, unconditionally.
+         */
+        get: operations["get_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3823,9 +3977,22 @@ export interface paths {
         };
         /**
          * List Integration Credentials
-         * @description Masked list of this operator's credential bundles.
+         * @description Masked list of this operator's credential bundles + the resolved Stripe mode.
          *
-         *     One entry per stored (provider, mode). NEVER returns a decrypted secret.
+         *     ``items``: one entry per stored (provider, mode) row. NEVER returns a
+         *     decrypted secret.
+         *
+         *     ``stripe_mode`` (landr-1hd6): the SAME value ``stripe_mode_for_env()``
+         *     resolves everywhere else that matters — ``stripe_configured_for_operator``,
+         *     ``send_payment_link``'s token mint, and the per-operator webhook route's
+         *     secret lookup all key off it. Before this, the dashboard had no way to
+         *     know which of the two stored Stripe rows ('test'/'live') THIS environment
+         *     actually reads: ``activeStripeMode()`` (landr-dashboard's
+         *     src/lib/operatorSettings.ts) guessed it from ``VITE_DEPLOY_TIER``, which
+         *     is unset or stale on some deployed tiers. A key typed on the
+         *     non-active tab was silently never read by anything, with nothing on the
+         *     page saying so — this field is what lets the dashboard mark the real
+         *     active tab instead of guessing.
          */
         get: operations["list_integration_credentials"];
         put?: never;
@@ -3853,6 +4020,75 @@ export interface paths {
          */
         put: operations["upsert_integration_credential"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/integrations/holded/{mode}/numbering-series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Holded Numbering Series
+         * @description List this operator's Holded invoice numbering series for the (provider,
+         *     mode)-scoped dashboard picker.
+         *
+         *     Mirrors the verify endpoint immediately above: same auth dependency
+         *     (cross-operator access 403s via get_staff_operator_membership_by_op, bare/
+         *     invalid bearer 401s via its own get_current_user), same {mode} path-
+         *     scoping — resolved via HoldedClient.for_operator_resolved's ``mode``
+         *     override (landr-g1ao.3) so this reads the EXACT (operator_id, holded,
+         *     mode) row the path names, not whichever mode ``Settings.environment``
+         *     would derive — and the same 5/min rate limit. No stored credential for
+         *     that row -> ``holded_not_connected=True`` at 200 (never a 404/503),
+         *     matching every other Holded-status shape in this router /
+         *     staff_holded_invoicing.py. A live Holded error (revoked key, missing
+         *     scope, transient outage) is the one divergence from the verify
+         *     endpoint's "always 200" contract — this endpoint returns real picker
+         *     data, so a real failure surfaces as 502 rather than being masked.
+         */
+        get: operations["list_holded_numbering_series"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/integrations/stripe/{mode}/webhook-endpoint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Stripe Webhook Endpoint
+         * @description Create this operator's Stripe webhook endpoint and store its whsec_.
+         *
+         *     Verdict contract mirrors the /verify sibling above: 200 with ``ok``
+         *     carrying the outcome for everything this handler can diagnose, so the
+         *     dashboard renders success and failure through one path. The exceptions are
+         *     the boundary conditions that are not verdicts at all — 401/403 (auth),
+         *     422 (bad mode), 429 (rate limit) and 503 (encryption unavailable).
+         *
+         *     The manual "Webhook signing secret" field stays exactly as it is. This is
+         *     the fast path, not the only path: operators who manage their own Stripe
+         *     estate, or who hand landr a restricted key without webhook write access,
+         *     still need it — and it is the recovery route when this fails.
+         *
+         *     Applies ONLY to the per-operator endpoint. The legacy app-level
+         *     POST /api/internal/stripe/webhook and its app-level secret are untouched.
+         */
+        post: operations["connect_stripe_webhook_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5014,6 +5250,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/holded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Holded Webhook */
+        post: operations["holded_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/stripe/{operator_token}": {
         parameters: {
             query?: never;
@@ -5148,6 +5401,25 @@ export interface components {
             severity: string;
             /** User Id */
             user_id: string;
+        };
+        /**
+         * ApiBudget
+         * @description landr-g1ao.7: the operator's latest known Holded API quota snapshot,
+         *     from ``operator_integration_usage`` (populated by
+         *     ``app/workers/holded_usage_probe.py``, itself opt-in and default-off —
+         *     see ``Settings.holded_usage_probe_enabled``). The dashboard renders a
+         *     warning band once ``used`` crosses the same 95% threshold
+         *     ``run_holded_sync`` itself guards on (``HOLDED_BUDGET_GUARD_THRESHOLD``).
+         */
+        ApiBudget: {
+            /** Checked At */
+            checked_at: string;
+            /** Limit */
+            limit: number;
+            /** Period */
+            period: string;
+            /** Used */
+            used: number;
         };
         /**
          * ApprovalReplyRequest
@@ -5413,14 +5685,19 @@ export interface components {
         };
         /**
          * BankDetailsIn
-         * @description PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above):
+         * @description PUT body. Sparse-merge semantics (mirrors CredentialUpsertIn above,
+         *     landr-sh8u):
          *
          *       * field OMITTED             -> left untouched.
          *       * field explicitly ``null`` -> CLEAR (writes SQL NULL).
-         *       * field is ``""`` / blank   -> 422 blank_not_allowed (an explicit
-         *         divergence from CredentialUpsertIn's _strip_blanks, which silently
-         *         maps blank -> untouched; that router puts clearing out of scope, but
-         *         once null means clear here, silently swallowing "" is ambiguous).
+         *       * field is ``""`` / blank   -> 422 blank_not_allowed. An explicit
+         *         divergence from CredentialUpsertIn, which silently maps blank ->
+         *         untouched instead of erroring: that router had a pre-existing
+         *         "blank is silently ignored" contract to preserve when landr-sh8u
+         *         added null-clear to it, and preserving it took priority over
+         *         matching this route's stricter blank handling. This route had no
+         *         such precedent, so it 422s a blank outright — the more honest
+         *         answer when null and blank are BOTH being given meaning at once.
          *
          *     max_length validates the PLAINTEXT on the way in — never the ciphertext
          *     (a ~34-char IBAN becomes a ~150-char 'fernet:' token).
@@ -5714,6 +5991,39 @@ export interface components {
          */
         CampaignScope: "booking" | "subscription" | "any";
         /**
+         * ChangelogEntryOut
+         * @description Deliberately ``category``/``description`` ONLY.
+         *
+         *     ``app.services.promotion.get_changelog`` returns richer entries (``sha``,
+         *     ``author``, ``url``, ``repo``) — internal git metadata including a link
+         *     into the PRIVATE ``monkeytower-internet-agency`` GitHub org. This
+         *     endpoint has no staff/signer gate (see the module docstring), so those
+         *     fields are trimmed here rather than exposed to every authenticated
+         *     identity on the platform. Neither rfqp.5's version badge nor rfqp.6's
+         *     "What's New" panel consume them.
+         */
+        ChangelogEntryOut: {
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+        };
+        /** ChangelogOut */
+        ChangelogOut: {
+            /** Entries */
+            entries: components["schemas"]["ChangelogEntryOut"][];
+            /**
+             * Partial
+             * @default false
+             */
+            partial: boolean;
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "dev" | "staging" | "prod";
+        };
+        /**
          * CheckinIn
          * @description POST body for a customer check-in.
          */
@@ -5800,17 +6110,45 @@ export interface components {
          * @description PUT body for one (provider, mode) bundle.
          *
          *     All fields optional so the dashboard can rotate a single secret without
-         *     re-sending the others. A field that is OMITTED (exclude_unset) is left
-         *     untouched; a field sent as null/empty is NOT written (we never clear a
-         *     stored secret by accident — clearing is out of scope for this slice).
+         *     re-sending the others. Sparse-merge, three-way disposition per field
+         *     (landr-sh8u — mirrors BankDetailsIn's contract below, with one
+         *     deliberate divergence noted at the bottom):
+         *
+         *       * field OMITTED              -> left untouched.
+         *       * field explicitly ``null``  -> CLEAR (writes SQL NULL to the
+         *         corresponding column — see ``_apply_credential_field`` in the
+         *         handler). NEVER re-encrypts an empty string for this: secret_box
+         *         would happily produce a *valid* Fernet token for ``""``, which would
+         *         flip ``has_secret_key``/``has_webhook_secret``/``has_holded_key``
+         *         true over an unusable value — the same footgun the bank-details PUT
+         *         documents at its own null-clear branch.
+         *       * field is ``""`` / whitespace-only -> treated as NOT PROVIDED, i.e.
+         *         exactly like omitted: never written, never a clear, never an error
+         *         by itself. This was already the behaviour before landr-sh8u (a
+         *         stray space in a form field must never overwrite — and now, must
+         *         never accidentally CLEAR — a real stored secret); landr-sh8u's ask
+         *         was specifically to leave it unchanged and let ONLY an explicit
+         *         ``null`` become destructive.
+         *
+         *     DIVERGENCE from BankDetailsIn: bank-details 422s a blank string outright
+         *     (``blank_not_allowed``) rather than silently ignoring it, because that
+         *     router's pre-existing contract had no "ignore a blank" precedent to
+         *     preserve. This router does — every existing rotate-one-secret test
+         *     depends on a blank OTHER field being silently skipped rather than
+         *     rejecting the whole request — so blank handling here stays exactly as it
+         *     was pre-landr-sh8u; only the ``null`` branch is new.
          *
          *     The provider is taken from the URL path, not the body — these fields are a
          *     superset and field-coherence is enforced against the path provider in
-         *     :meth:`_validate_against_path` (called from the handler).
+         *     the handler.
          */
         CredentialUpsertIn: {
             /** Holded Api Key */
             holded_api_key?: string | null;
+            /** Holded Numbering Series Id */
+            holded_numbering_series_id?: string | null;
+            /** Holded Sales Tax Key */
+            holded_sales_tax_key?: string | null;
             /** Stripe Publishable Key */
             stripe_publishable_key?: string | null;
             /** Stripe Secret Key */
@@ -6565,6 +6903,7 @@ export interface components {
         };
         /** InvoicesResponse */
         InvoicesResponse: {
+            api_budget?: components["schemas"]["ApiBudget"] | null;
             /** Rows */
             rows: components["schemas"]["InvoiceRow"][];
             summary: components["schemas"]["InvoiceSummary"];
@@ -6827,6 +7166,36 @@ export interface components {
             skipped: string[];
         };
         /**
+         * NumberingSeriesItem
+         * @description One GET /api/v2/numbering-series/invoice entry, projected to the
+         *     fields the picker needs. Fields Holded omits come back None rather than
+         *     raising — the exact wire shape is unverified against a real account
+         *     (epic landr-g1ao.13); ``id`` is the one field we require, dropping any
+         *     item Holded returns without one.
+         */
+        NumberingSeriesItem: {
+            /** Format */
+            format?: string | null;
+            /** Id */
+            id: string;
+            /** Last */
+            last?: unknown;
+            /** Name */
+            name?: string | null;
+            /** Verifactu Excluded */
+            verifactu_excluded?: boolean | null;
+        };
+        /** NumberingSeriesListResult */
+        NumberingSeriesListResult: {
+            /**
+             * Holded Not Connected
+             * @default false
+             */
+            holded_not_connected: boolean;
+            /** Items */
+            items?: components["schemas"]["NumberingSeriesItem"][];
+        };
+        /**
          * OfferCreateIn
          * @description POST body. title is required; the rest are optional.
          */
@@ -6958,6 +7327,10 @@ export interface components {
             first_day_of_week?: number | null;
             /** Group Discount Threshold */
             group_discount_threshold?: number | null;
+            /** Holded Approve Mode */
+            holded_approve_mode?: ("never" | "on_push") | null;
+            /** Holded Transfer Mode */
+            holded_transfer_mode?: ("all_finalized" | "only_paid") | null;
             /** Hotel Email Locale */
             hotel_email_locale?: string | null;
             /** Invoice Notes */
@@ -8874,12 +9247,64 @@ export interface components {
          * @description Result of POST .../integrations/{provider}/{mode}/verify. Never
          *     persisted server-side — the dashboard holds this in local component state
          *     only, so a page refresh reverts to the "Configured" (stored) badge.
+         *
+         *     ``checks``/``missing_scopes``/``required_scopes`` are populated only for
+         *     provider='holded' (landr-g1ao.4's scope preflight — see
+         *     :meth:`HoldedClient.preflight`); Stripe verification stays a plain
+         *     liveness check and leaves all three at their empty defaults.
+         *
+         *     For Holded, ``checks``/``missing_scopes`` cover ONLY the three READ
+         *     scopes :meth:`HoldedClient.preflight` can cheaply probe without writing
+         *     data — ``contacts:contacts.read``, ``sales:invoices.read``,
+         *     ``accounting:taxes.read``. The two WRITE scopes
+         *     (``contacts:contacts.write``, ``sales:invoices.write``) and
+         *     ``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded
+         *     has no scope-catalogue endpoint, and a write scope can only be proven
+         *     by an actual write — which this always-safe "Test connection" check
+         *     never performs. ``required_scopes`` carries the full six-scope set
+         *     (mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)
+         *     so neither frontend has to hard-code that list; diff it against
+         *     ``checks``'s keys to know which three of the six this call actually
+         *     verified, and render the other three as advertised-not-verified.
+         *
+         *     ``detail`` is a SHORT CODE — one of ``'rejected_key'``,
+         *     ``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see
+         *     ``_verify_holded``) — for the paths this handler fully controls, OR A
+         *     PLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only
+         *     have a safe, generic message to give: an unexpected Holded error, an
+         *     unreachable Holded, a stored-credential decrypt failure, "no
+         *     credentials configured", and a probe that got a 200 whose body wasn't
+         *     JSON (Holded is documented to serve its SPA HTML shell with a 200 on
+         *     endpoints it isn't actually answering — a 200 alone is not proof a
+         *     scope exists). A frontend MUST NOT build a fixed lookup keyed only on
+         *     the four short codes above and fall through to blank/raw output on
+         *     everything else — treat any ``detail`` that isn't one of the four known
+         *     codes as already-safe prose and render it as-is. A scope name itself
+         *     never goes in ``detail``, only in ``missing_scopes``.
          */
         VerifyResult: {
+            /** Checks */
+            checks?: {
+                [key: string]: boolean;
+            };
             /** Detail */
             detail?: string | null;
+            /** Missing Scopes */
+            missing_scopes?: string[];
             /** Ok */
             ok: boolean;
+            /** Required Scopes */
+            required_scopes?: string[];
+        };
+        /** VersionOut */
+        VersionOut: {
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "dev" | "staging" | "prod";
+            /** Version */
+            version: string | null;
         };
         /**
          * ViewReorderItem
@@ -8997,6 +9422,185 @@ export interface components {
             valid_from?: string | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /**
+         * WebhookConnectIn
+         * @description POST body. Optional — a bare POST means "connect if not already".
+         *
+         *     ``recreate`` is the explicit, separately-confirmed escalation: DELETE the
+         *     matching endpoint and create a fresh one. It exists because a signing
+         *     secret is capturable exactly once, at creation, so an endpoint whose
+         *     secret we no longer hold is unrecoverable any other way. It is destructive
+         *     (Stripe drops the old endpoint and its delivery history), which is why it
+         *     is never implied by a plain press.
+         */
+        WebhookConnectIn: {
+            /**
+             * Recreate
+             * @default false
+             */
+            recreate: boolean;
+        };
+        /**
+         * WebhookConnectResult
+         * @description Outcome of a "Connect webhook" press. NEVER carries the signing secret.
+         *
+         *     Same masked-read contract as _mask_row: the browser learns THAT a secret is
+         *     on file (``has_webhook_secret``), never what it is.
+         *
+         *     ``ok`` IS THE STRONG CLAIM and only the CREATE path can earn it: the
+         *     endpoint exists, its signing secret came to us from Stripe's own create
+         *     response and survived the store/decrypt round trip, it is subscribed to
+         *     every event we dispatch, and the signed probe came back 200/handled:false.
+         *     A reuse of an existing endpoint can NEVER be ``ok`` — see
+         *     ``already_connected_unverified`` below.
+         *
+         *     ``code`` — the outcome the dashboard maps to copy:
+         *       * ``connected``            — created (or recreated) and the secret is stored.
+         *       * ``connected_stale_endpoint_remains`` — recreate created the new endpoint
+         *                                    and stored its secret, but could not delete
+         *                                    the old one. Both now deliver; the old one's
+         *                                    signature checks fail. Needs a manual delete
+         *                                    in Stripe, so it is reported LOUDLY (ok=False)
+         *                                    rather than as a success with a footnote.
+         *       * ``already_connected_unverified`` — an endpoint on this exact URL already
+         *                                    existed and we hold A signing secret for this
+         *                                    mode, but we CANNOT confirm the two match.
+         *                                    Stripe reveals a signing secret only at
+         *                                    creation, so this is genuinely unknowable —
+         *                                    not a check we skipped. We did NOT create a
+         *                                    second endpoint (Stripe would happily register
+         *                                    a duplicate and deliver every event twice).
+         *                                    Recreate is the only way to obtain a
+         *                                    known-good secret.
+         *       * ``already_connected_disabled`` — the endpoint exists but Stripe has it
+         *                                    DISABLED, so it delivers nothing however
+         *                                    correct the secret is. Recreate replaces it
+         *                                    with a fresh, enabled one.
+         *       * ``secret_missing``       — the endpoint exists but landr has no whsec_ for
+         *                                    it at all. Unrecoverable without ``recreate``.
+         *       * ``mode_not_active``      — this deployment tier resolves the OTHER Stripe
+         *                                    mode, and the endpoint URL carries no mode
+         *                                    discriminator (see _operator_webhook_url), so
+         *                                    connecting this mode could only produce an
+         *                                    endpoint whose events we would refuse. On a
+         *                                    non-production tier it would also point a LIVE
+         *                                    Stripe account at a non-production host.
+         *       * ``no_secret_key``        — no Stripe secret key stored for this mode.
+         *       * ``credential_unreadable`` — stored ciphertext will not decrypt.
+         *       * ``key_mode_mismatch``    — a live key on the test tab, or vice versa.
+         *       * ``key_rejected``         — Stripe rejected the stored key.
+         *       * ``key_lacks_webhook_permission`` — authenticates, but cannot write
+         *                                    webhook endpoints (a narrowly-scoped ``rk_``).
+         *       * ``endpoint_quota_reached`` — the account is at Stripe's endpoint cap.
+         *       * ``stripe_unavailable``   — anything else, reported generically.
+         *       * ``no_widget_token``      — the operator row has no widget_token.
+         *
+         *     ``probe`` vs ``self_check`` — TWO FIELDS ON PURPOSE, and the distinction is
+         *     load-bearing. Both hold a :class:`WebhookProbeResult`; what they license a
+         *     caller to claim is completely different:
+         *
+         *       * ``probe`` is set ONLY on the create path, where the secret we signed
+         *         with came from Stripe and the verifier read it back out of the
+         *         database. There it is real evidence of end-to-end delivery.
+         *       * ``self_check`` is set ONLY on the reuse path, where we signed with the
+         *         same stored value the verifier reads. It proves our URL, token
+         *         resolution, storage, decryption and signature verification all work —
+         *         and NOTHING about whether that stored secret is the one Stripe's
+         *         endpoint signs with. Rendering it as "verified" would recreate exactly
+         *         the landr-9nhv failure: a green check over a webhook that never works.
+         *
+         *     ``missing_events`` is non-empty only on the reuse paths: an endpoint someone
+         *     registered by hand may be subscribed to fewer types than we dispatch, which
+         *     is silent data loss — those event classes simply never arrive. Reported
+         *     rather than silently patched; the remedy is a recreate.
+         *
+         *     ``detail`` is a safe, canned sentence. It NEVER carries Stripe's raw error
+         *     text (which can echo request parameters back) and never a secret — the
+         *     same rule _verify_stripe and staff_subscription_holders._stripe_error follow.
+         */
+        WebhookConnectResult: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "created" | "recreated" | "reused" | "none";
+            /** Code */
+            code: string;
+            /** Detail */
+            detail?: string | null;
+            /** Enabled Events */
+            enabled_events?: string[];
+            /** Endpoint Url */
+            endpoint_url?: string | null;
+            /**
+             * Has Webhook Secret
+             * @default false
+             */
+            has_webhook_secret: boolean;
+            /** Missing Events */
+            missing_events?: string[];
+            /** Ok */
+            ok: boolean;
+            probe?: components["schemas"]["WebhookProbeResult"] | null;
+            self_check?: components["schemas"]["WebhookProbeResult"] | null;
+        };
+        /**
+         * WebhookProbeResult
+         * @description Verdict of the self-signed round trip (see _probe_operator_webhook).
+         *
+         *     READ THE SCOPE NOTE FIRST — it is the difference between an honest check
+         *     and a tautology.
+         *
+         *     The probe signs an event with a secret WE hold and posts it to our own
+         *     public endpoint, which verifies against the secret stored in
+         *     ``operator_integration_credentials``. What that comparison proves depends
+         *     entirely on WHERE the signing secret came from:
+         *
+         *       * On the CREATE path the secret came from Stripe's create response and
+         *         was written to the database in between. The probe therefore proves the
+         *         store/encrypt/decrypt round trip AND the whole network path — the
+         *         stored value really is the one Stripe issued for this endpoint. The
+         *         secret's provenance is what makes it correct; the probe is what proves
+         *         we did not mangle it in transit.
+         *       * On the REUSE path (an endpoint that already existed) the secret is read
+         *         from the SAME ROW the verifier reads. It therefore verifies no matter
+         *         what Stripe's endpoint actually signs with, so it can say NOTHING about
+         *         whether the stored secret matches Stripe. Stripe never reveals an
+         *         existing endpoint's secret, so that is genuinely unknowable — see
+         *         ``WebhookConnectResult.self_check``, which is the field the reuse path
+         *         reports into precisely so it cannot be mistaken for the above.
+         *
+         *     ``code`` is the operator-facing diagnostic — each value maps to ONE
+         *     remedy, and the dashboard renders plain language, never the status code:
+         *
+         *       * ``delivered``       — 200 + handled:false. Reachable, the token
+         *                               resolves, a secret is stored, the signature
+         *                               verifies, dispatch ran, nothing was written.
+         *       * ``unknown_endpoint`` — 404. The URL is wrong, or widget_token rotated
+         *                               after the Stripe endpoint was registered.
+         *       * ``secret_not_stored`` — 503. No webhook secret on file for this mode.
+         *       * ``signature_mismatch`` — 400. On the create path: what we stored does
+         *                               not decrypt back to what Stripe issued (a
+         *                               mangled write, or a Fernet key that rotated
+         *                               between the write and this read). NOT reachable
+         *                               on the reuse path — see the scope note above.
+         *       * ``unexpected_status`` — any other response; our handler is up but
+         *                               answering something we do not model.
+         *       * ``unreachable``     — timeout / connection error. Stripe could not
+         *                               have reached us either.
+         *
+         *     ``http_status`` is the raw status for support/debugging. There is no
+         *     ``detail`` field on purpose: everything here is landr's own response to
+         *     landr's own request, so there is no third-party error text to sanitise.
+         */
+        WebhookProbeResult: {
+            /** Code */
+            code: string;
+            /** Http Status */
+            http_status?: number | null;
+            /** Ok */
+            ok: boolean;
         };
         /** WindowIn */
         WindowIn: {
@@ -10173,6 +10777,42 @@ export interface operations {
             };
         };
     };
+    relay_changelog: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+                limit?: number;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     customer_signoff: {
         parameters: {
             query?: never;
@@ -10251,6 +10891,41 @@ export interface operations {
         parameters: {
             query: {
                 signer_email: string;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relay_version: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
             };
             header?: {
                 "X-Release-Relay-Token"?: string | null;
@@ -11044,6 +11719,38 @@ export interface operations {
             };
         };
     };
+    get_changelog: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangelogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     eligibility: {
         parameters: {
             query?: never;
@@ -11154,6 +11861,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_version: {
+        parameters: {
+            query: {
+                tier: "dev" | "staging" | "prod";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -15323,7 +16061,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
-                    }[];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -15363,6 +16101,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_holded_numbering_series: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NumberingSeriesListResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_stripe_webhook_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WebhookConnectIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookConnectResult"];
                 };
             };
             /** @description Validation Error */
@@ -18237,6 +19043,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    holded_webhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
