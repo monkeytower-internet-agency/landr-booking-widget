@@ -74,6 +74,8 @@ const SAMPLE: EstimateResponse = {
       detail: { days: 3, tier: { threshold_min: 3 } },
     },
   ],
+  warnings: [],
+  un_priceable: false,
 }
 
 describe('PriceSidebar (landr-qez0)', () => {
@@ -492,6 +494,8 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
           },
         },
       ],
+      warnings: [],
+      un_priceable: false,
     }
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(streakSample)
     render(
@@ -549,6 +553,8 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
           },
         },
       ],
+      warnings: [],
+      un_priceable: false,
     }
     vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(
       perParticipantSample,
@@ -668,5 +674,105 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
       screen.getByTestId('price-sidebar-desktop'),
     ).toHaveTextContent('Pick your options to see the price.')
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+})
+
+// landr-zenj.1: a misconfigured operator price list (tier gap / no active
+// rules / deleted-in-use scheme) makes the engine un-priceable rather than
+// silently returning gross_total 0.00 as a real, bookable price. The
+// sidebar must block the whole breakdown behind an explanatory message —
+// never render any of the response's totals — and must report the flag up
+// via onUnPriceableChange so BookingForm can block its Confirm CTA too.
+describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const UN_PRICEABLE_SAMPLE: EstimateResponse = {
+    ...SAMPLE,
+    un_priceable: true,
+    warnings: ['Pricing is not available for one or more selected days.'],
+  }
+
+  it('blocks the breakdown behind a message and never renders a total', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(
+      UN_PRICEABLE_SAMPLE,
+    )
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-unpriceable').length,
+      ).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    expect(desktop).toHaveTextContent(
+      "Pricing for this selection isn't available right now",
+    )
+    expect(desktop).toHaveTextContent(
+      'Pricing is not available for one or more selected days.',
+    )
+    // None of the (non-zero, but not-a-real-quote) SAMPLE totals leak
+    // through — the whole breakdown is replaced by the message.
+    expect(
+      screen.queryByTestId('price-sidebar-booking-total'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('price-sidebar-grand-total'),
+    ).not.toBeInTheDocument()
+    expect(desktop).not.toHaveTextContent('180')
+    expect(desktop).not.toHaveTextContent('456')
+  })
+
+  it('reports un_priceable=true via onUnPriceableChange', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(
+      UN_PRICEABLE_SAMPLE,
+    )
+    const onUnPriceableChange = vi.fn()
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        onUnPriceableChange={onUnPriceableChange}
+      />,
+    )
+    await waitFor(() => {
+      expect(onUnPriceableChange).toHaveBeenCalledWith(true)
+    })
+  })
+
+  it('reports un_priceable=false for a normal priceable estimate', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    const onUnPriceableChange = vi.fn()
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        onUnPriceableChange={onUnPriceableChange}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-booking-total').length,
+      ).toBeGreaterThan(0)
+    })
+    expect(onUnPriceableChange).toHaveBeenCalledWith(false)
+    expect(onUnPriceableChange).not.toHaveBeenCalledWith(true)
   })
 })

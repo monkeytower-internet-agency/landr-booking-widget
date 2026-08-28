@@ -62,6 +62,18 @@ export function formatMoney(amount: string, currency: string): string {
   }
 }
 
+/**
+ * landr-zenj.1: shown instead of a price breakdown whenever the API flags
+ * un_priceable=true — an operator price-list misconfiguration (a tier gap,
+ * a scheme with no active rules, a deleted-in-use scheme), NOT a real €0
+ * price. Shared verbatim between PriceSidebar (pre-emptive block on the
+ * estimate) and BookingForm (defensive mapping of the submit endpoint's
+ * 422 {"error":"un_priceable"}, for the rare case an estimate goes stale)
+ * so the customer sees identical wording whichever path catches it.
+ */
+export const UN_PRICEABLE_MESSAGE =
+  "Pricing for this selection isn't available right now — please contact us."
+
 /** Partition the line items into operator-paid vs hotel-paid groups. */
 export function splitLineItems(items: EstimateLineItem[]): {
   operator: EstimateLineItem[]

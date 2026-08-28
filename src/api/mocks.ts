@@ -650,5 +650,10 @@ export const mockEstimate = (
     grand_total: (opTotal + hotelTotal).toFixed(2),
     currency: 'EUR',
     applied_rules: rules,
+    // landr-zenj.1: the mock catalogue has no misconfigured products, so
+    // mock mode never simulates un_priceable — always priceable, no
+    // warnings. Real API responses carry both keys on every estimate.
+    warnings: [],
+    un_priceable: false,
   }
 }

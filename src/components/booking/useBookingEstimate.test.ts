@@ -21,6 +21,8 @@ const SAMPLE_ESTIMATE: EstimateResponse = {
   grand_total: '180.00',
   currency: 'EUR',
   applied_rules: [],
+  warnings: [],
+  un_priceable: false,
 }
 
 describe('useBookingEstimate (landr-qez0)', () => {

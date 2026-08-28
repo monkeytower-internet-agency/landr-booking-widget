@@ -2542,7 +2542,7 @@
             "type": "string"
           },
           "body_text": {
-            "minLength": 1,
+            "default": "",
             "title": "Body Text",
             "type": "string"
           },
@@ -2569,8 +2569,7 @@
           "template_kind",
           "locale",
           "subject",
-          "body_html",
-          "body_text"
+          "body_html"
         ],
         "title": "EmailTemplateIn",
         "type": "object"
@@ -2603,7 +2602,6 @@
           "body_text": {
             "anyOf": [
               {
-                "minLength": 1,
                 "type": "string"
               },
               {
@@ -2817,6 +2815,18 @@
           "operator_total": {
             "title": "Operator Total",
             "type": "string"
+          },
+          "un_priceable": {
+            "default": false,
+            "title": "Un Priceable",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
@@ -12650,6 +12660,7 @@
           "amount_per_unit": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -12661,6 +12672,7 @@
           "amount_total": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -12711,6 +12723,7 @@
           "amount_per_unit": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -12722,6 +12735,7 @@
           "amount_total": {
             "anyOf": [
               {
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -15619,7 +15633,7 @@
     },
     "/api/operator/release/changelog": {
       "get": {
-        "description": "Changelog entries for ``tier``, newest-first, capped at ``limit``.\n\n* staging/prod \u2192 ``changelog`` jsonb arrays off recent COMPLETED\n  promotion_runs rows of the matching kind (dev_to_staging for staging,\n  staging_to_main for prod), flattened newest-run-first.\n* dev \u2192 LIVE-parsed from dev's ahead-of-staging commit range across\n  every deployable repo, through the same Changelog-* trailer parser\n  landr-rfqp.3 uses at run-finalise time \u2014 nothing persisted. Per-repo\n  compare failures are swallowed (that repo contributes zero entries),\n  mirroring promotion_executor._aggregate_changelog's own resilience \u2014\n  unlike /version there is no single \"the\" GitHub call whose failure\n  must invalidate the whole answer, so this endpoint never 502s on a\n  GitHub hiccup for tier='dev' (only on ``promotion_not_configured``\n  when the token itself is unset \u2014 that still 503s, same as /version).\n  Instead, a per-repo compare failure sets ``partial=True`` (landr-zxgs)\n  so the caller can tell \"GitHub hiccuped, some entries may be missing\"\n  apart from \"genuinely nothing changelog-worthy\" \u2014 see\n  ``ChangelogOut.partial``'s docstring.\n\n``entries`` is ``[]`` (never a 404) when nothing has completed for that\ntier yet, or the live dev range has no trailer-carrying commits (or\nevery repo's compare failed) \u2014 same \"empty means nothing\nchangelog-worthy\" convention the persisted ``changelog`` column itself\ndocuments. ``partial`` disambiguates the last case (every repo's compare\nfailed) from real emptiness.\n\ntier='staging'/'prod' RELAY to the DEV control plane unless this\nprocess itself IS the control plane \u2014 same rule as ``get_version``\nabove (see the module docstring's \"Data locality\" section). Response\nentries only ever carry ``category``/``description`` \u2014 see\n``ChangelogEntryOut``'s docstring for why the richer git metadata\n``app.services.promotion.get_changelog`` returns is trimmed here.",
+        "description": "Changelog entries for ``tier``, newest-first, capped at ``limit``.\n\n* staging/prod \u2192 ``changelog`` jsonb arrays off recent COMPLETED\n  promotion_runs rows of the matching kind (dev_to_staging for staging,\n  staging_to_main for prod), flattened newest-run-first.\n* dev \u2192 LIVE-parsed from dev's ahead-of-staging commit range across\n  every deployable repo, through the same Changelog-* trailer parser\n  landr-rfqp.3 uses at run-finalise time \u2014 nothing persisted. Per-repo\n  compare failures are swallowed (that repo contributes zero entries),\n  mirroring promotion_executor._aggregate_changelog's own resilience \u2014\n  unlike /version there is no single \"the\" GitHub call whose failure\n  must invalidate the whole answer, so this endpoint never 502s on a\n  GitHub hiccup for tier='dev' (only on ``promotion_not_configured``\n  when the token itself is unset \u2014 that still 503s, same as /version).\n  Instead, a per-repo compare failure sets ``partial=True`` (landr-zxgs)\n  so the caller can tell \"GitHub hiccuped, some entries may be missing\"\n  apart from \"genuinely nothing changelog-worthy\" \u2014 see\n  ``ChangelogOut.partial``'s docstring.\n\n``entries`` is ``[]`` (never a 404) when nothing has completed for that\ntier yet, or the live dev range has no trailer-carrying commits (or\nevery repo's compare failed) \u2014 same \"empty means nothing\nchangelog-worthy\" convention the persisted ``changelog`` column itself\ndocuments. ``partial`` disambiguates the last case (every repo's compare\nfailed) from real emptiness.\n\ntier='staging'/'prod' read locally only on the deployment that OWNS the\nbacking runs, and relay there otherwise \u2014 same rule as ``get_version``\nabove (see ``_TIER_DATA_OWNER_ENV``). Response entries only ever carry\n``category``/``description`` \u2014 see ``ChangelogEntryOut``'s docstring for\nwhy the richer git metadata ``app.services.promotion.get_changelog``\nreturns is trimmed here.",
         "operationId": "get_changelog",
         "parameters": [
           {
@@ -15840,7 +15854,7 @@
     },
     "/api/operator/release/version": {
       "get": {
-        "description": "The version currently on ``tier``.\n\n* staging \u2192 the version the last COMPLETED dev_to_staging run produced\n  (that run is what put it on staging).\n* prod    \u2192 the version the last COMPLETED staging_to_main run produced.\n* dev     \u2192 LIVE, never persisted: ``{base}-dev.{short_sha}`` where\n  ``base`` is the last completed staging version (or ``0.0.0`` if\n  staging has never had one) and ``short_sha`` is landr-api's current\n  dev-branch HEAD, mirroring how ``build_env_matrix`` already computes\n  ``ahead_by`` live via the same GitHub compare API rather than a\n  persisted table (see app.services.promotion.get_version's docstring\n  for why landr-api's SHA specifically, and why no bump counter).\n\n``version`` is ``null`` (never a 404) when nothing has completed for\nthat tier yet \u2014 landr-rfqp.4's documented choice: a fresh\ndev/staging/prod with no promotion history is an expected initial\nstate, not an error condition the dashboard needs to special-case as\n\"not found\". Any authenticated user may call this (staff or operator) \u2014\nsee the module docstring for why this endpoint isn't staff-gated.\n\ntier='staging'/'prod' RELAY to the DEV control plane unless this\nprocess itself IS the control plane (see ``_is_control_plane`` /\nthe module docstring's \"Data locality\" section) \u2014 503\n``promotion_control_plane_not_configured`` if\n``RELEASE_CONTROL_PLANE_URL`` isn't set here. tier='dev' always computes\nlocally, unconditionally.",
+        "description": "The version currently on ``tier``.\n\n* staging \u2192 the version the last COMPLETED dev_to_staging run produced\n  (that run is what put it on staging).\n* prod    \u2192 the version the last COMPLETED staging_to_main run produced.\n* dev     \u2192 LIVE, never persisted: ``{base}-dev.{short_sha}`` where\n  ``base`` is the last completed staging version (or ``0.0.0`` if\n  staging has never had one) and ``short_sha`` is landr-api's current\n  dev-branch HEAD, mirroring how ``build_env_matrix`` already computes\n  ``ahead_by`` live via the same GitHub compare API rather than a\n  persisted table (see app.services.promotion.get_version's docstring\n  for why landr-api's SHA specifically, and why no bump counter).\n\n``version`` is ``null`` (never a 404) when nothing has completed for\nthat tier yet \u2014 landr-rfqp.4's documented choice: a fresh\ndev/staging/prod with no promotion history is an expected initial\nstate, not an error condition the dashboard needs to special-case as\n\"not found\". Any authenticated user may call this (staff or operator) \u2014\nsee the module docstring for why this endpoint isn't staff-gated.\n\ntier='staging'/'prod' read locally only on the deployment that OWNS the\nbacking runs (staging \u2190 dev's dev_to_staging rows, prod \u2190 staging's\nstaging_to_main rows \u2014 see ``_TIER_DATA_OWNER_ENV``); otherwise they relay\nthere. 503 ``promotion_control_plane_not_configured`` naming the missing\nenv var if this deployment does not know that owner's URL. tier='dev'\nalways computes locally, unconditionally.",
         "operationId": "get_version",
         "parameters": [
           {
