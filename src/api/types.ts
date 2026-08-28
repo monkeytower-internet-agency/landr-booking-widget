@@ -968,6 +968,28 @@ export interface EstimateResponse {
   grand_total: string
   currency: string
   applied_rules: EstimateAppliedRule[]
+  /**
+   * landr-zenj.1: customer-safe warnings from the pricing engine — neutral
+   * mappings, never the raw engine strings (which can carry rule/scheme/
+   * product UUIDs). Empty when nothing was flagged. Always present (the
+   * router emits it on every response, never omitted).
+   */
+  warnings: string[]
+  /**
+   * landr-zenj.1: true when at least one line could not be priced at all
+   * (a per_total_days_tier gap the booked length falls into, a scheme with
+   * no active rules, or a deleted/missing scheme) — the reachable
+   * misconfigurations that used to silently price at gross_total 0.00 as
+   * if it were a real, bookable price. The totals above are NOT a quote
+   * when this is true: PriceSidebar MUST block the breakdown behind an
+   * explanatory message instead of rendering €0 (or any total) as
+   * bookable, and BookingForm MUST disable the Confirm CTA. POST
+   * …/bookings independently hard-fails 422 {"error":"un_priceable"} for
+   * the same conditions (fail-closed server-side either way), but the
+   * widget must not let the customer attempt — and be confused by — a
+   * doomed submit. Always present, defaults false.
+   */
+  un_priceable: boolean
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────
