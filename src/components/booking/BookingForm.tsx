@@ -25,6 +25,7 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from './detailsTypes'
+import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 
 export type BookingSelection =
   | {
@@ -207,6 +208,17 @@ interface Props {
    * never a 4xx — so an empty/undefined value here is always safe.
    */
   memberPerkOtp?: string
+  /**
+   * landr-zenj.1: true when App.tsx's PriceSidebar has flagged the
+   * currently-priced selection as un_priceable (see PriceSidebar's
+   * onUnPriceableChange doc — both components are fed the same inputs on
+   * this step, so this mirrors what a live estimate for this exact
+   * submission would say). Disables the Confirm CTA and shows
+   * UN_PRICEABLE_MESSAGE instead of letting the customer attempt a submit
+   * the API would 422 anyway. Defaults false so existing callers/tests
+   * are unaffected.
+   */
+  unPriceable?: boolean
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -234,6 +246,22 @@ const cancellationDeadline = (slotDateIso: string) => {
  * stringified detail when the shape is unexpected.
  */
 const formatHttpError = (err: HttpError): string => {
+  // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
+  // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
+  // [...]} — reachable if an estimate the customer is looking at goes
+  // stale (the operator's price list changes mid-session) between the
+  // last estimate fetch and Confirm. Map it to the SAME customer-facing
+  // message PriceSidebar shows pre-emptively, not the generic 422 dump
+  // below (which would otherwise print raw Pydantic-shaped noise for a
+  // detail that isn't a validation-error array).
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    (err.detail as { error?: unknown }).error === 'un_priceable'
+  ) {
+    return UN_PRICEABLE_MESSAGE
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
@@ -316,6 +344,7 @@ export function BookingForm({
   breakfastMap = {},
   formResponses,
   memberPerkOtp,
+  unPriceable = false,
   onBack,
   onConfirmed,
 }: Props) {
@@ -496,6 +525,13 @@ export function BookingForm({
 
   const onConfirm = async () => {
     setServerError(null)
+    // landr-zenj.1: belt-and-braces — the Confirm button below is already
+    // disabled while unPriceable, but a disabled control shouldn't be the
+    // ONLY thing standing between the customer and a doomed submit.
+    if (unPriceable) {
+      setServerError(UN_PRICEABLE_MESSAGE)
+      return
+    }
     setSubmitting(true)
     try {
       const selectedDaysForSubmit =
@@ -1052,6 +1088,22 @@ export function BookingForm({
           </section>
         ) : null}
 
+        {/* landr-zenj.1: mirrors PriceSidebar's un_priceable block — see
+            that component's onUnPriceableChange doc for why this reads a
+            prop instead of fetching its own estimate. Takes priority over
+            serverError below (the same wording covers the belt-and-braces
+            422 case in onConfirm's catch block too). */}
+        {unPriceable ? (
+          <div
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+            data-testid="review-unpriceable"
+          >
+            <p className="text-amber-900 dark:text-amber-100">
+              {UN_PRICEABLE_MESSAGE}
+            </p>
+          </div>
+        ) : null}
+
         {serverError ? (
           <p className="text-sm text-destructive" data-testid="review-error">
             {serverError}
@@ -1062,7 +1114,7 @@ export function BookingForm({
           <Button
             type="button"
             onClick={() => void onConfirm()}
-            disabled={submitting}
+            disabled={submitting || unPriceable}
           >
             {submitting ? 'Submitting…' : 'Confirm booking'}
           </Button>

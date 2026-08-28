@@ -45,6 +45,7 @@ import {
   formatMoney,
   isDiscountRule,
   splitLineItems,
+  UN_PRICEABLE_MESSAGE,
 } from './priceSidebarHelpers'
 
 interface Props {
@@ -63,6 +64,20 @@ interface Props {
   addons: AddonSelection[]
   /** Debounce delay in ms before firing the estimate RPC (default 300). */
   debounceMs?: number
+  /**
+   * landr-zenj.1: fires whenever the currently-visible estimate's
+   * un_priceable flag changes (including back to false, and to false when
+   * there is no visible estimate at all). BookingForm — a sibling, not a
+   * child, of this component — has no other way to learn that the price
+   * it's about to submit against is un-priceable, so App.tsx lifts this
+   * into shared state and threads it into BookingForm's `unPriceable`
+   * prop to gate the Confirm CTA. Deliberately reuses THIS component's
+   * existing useBookingEstimate fetch rather than giving BookingForm its
+   * own — on the review step both components are fed byte-identical
+   * inputs (see sidebarInputsForStep's 'fill-form' case), so a second
+   * fetch would just double the request for the same answer.
+   */
+  onUnPriceableChange?: (unPriceable: boolean) => void
 }
 
 /**
@@ -102,6 +117,30 @@ function BookingOverviewBody({
       <p className="text-sm text-muted-foreground">
         Pick your options to see the price.
       </p>
+    )
+  }
+  if (data.un_priceable) {
+    // landr-zenj.1: the API flagged this selection as un-priceable (a
+    // tier-set gap / scheme with no active rules / deleted-in-use scheme
+    // — an operator misconfiguration, not a real €0 price). Block the
+    // breakdown entirely rather than rendering any of data's totals —
+    // gross_total 0.00 must never reach the screen as a bookable price.
+    return (
+      <div
+        className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+        data-testid="price-sidebar-unpriceable"
+      >
+        <p className="text-amber-900 dark:text-amber-100">
+          {UN_PRICEABLE_MESSAGE}
+        </p>
+        {data.warnings.length > 0 ? (
+          <ul className="mt-2 space-y-1 text-xs text-amber-800 dark:text-amber-200">
+            {data.warnings.map((warning, idx) => (
+              <li key={idx}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     )
   }
   const { operator, hotel } = splitLineItems(data.line_items)
@@ -333,6 +372,7 @@ export default function PriceSidebar(props: Props) {
     accommodationRooms,
     addons,
     debounceMs,
+    onUnPriceableChange,
   } = props
 
   const addonLines = useMemo(
@@ -386,6 +426,15 @@ export default function PriceSidebar(props: Props) {
         error: null,
         refresh: estimate.refresh,
       }
+
+  // landr-zenj.1: report the visible estimate's un_priceable flag up to
+  // the parent (App.tsx lifts it into BookingForm's `unPriceable` prop —
+  // see the Props doc above). Reports false whenever there's no visible
+  // estimate (loading/error/empty-selection), never leaving the CTA
+  // gated on stale information.
+  useEffect(() => {
+    onUnPriceableChange?.(visible.data?.un_priceable === true)
+  }, [visible.data, onUnPriceableChange])
 
   // Mobile drawer open state — collapsed by default so the customer
   // sees just the grand total + a tap target. Resetting it to false on

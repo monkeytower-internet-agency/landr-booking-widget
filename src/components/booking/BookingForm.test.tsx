@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
-import { submitBooking } from '@/api/client'
+import { HttpError, submitBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -768,6 +768,98 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     )
     const btn = screen.getByRole('button', { name: /Confirm booking/i })
     expect(btn).not.toBeDisabled()
+  })
+
+  // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
+  // with 422 {"error":"un_priceable",...} — reachable if the estimate the
+  // customer looked at goes stale before Confirm. Must read the same
+  // customer-facing copy PriceSidebar shows pre-emptively, not a raw dump
+  // of the detail object (which carries no useful info for a customer).
+  it('maps a 422 un_priceable submit error to the shared customer-facing message', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'un_priceable',
+            product_ids: ['service-1'],
+            warnings: ['Pricing is not available for this selection.'],
+            message: 'This booking cannot be priced with the operator’s current price list.',
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        "Pricing for this selection isn't available right now",
+      ),
+    )
+    // Not the generic 422-detail dump — no raw product_ids/JSON noise.
+    expect(screen.getByTestId('review-error')).not.toHaveTextContent(
+      'product_ids',
+    )
+  })
+})
+
+// landr-zenj.1: App.tsx lifts PriceSidebar's live un_priceable flag (see
+// PriceSidebar's onUnPriceableChange doc) into this `unPriceable` prop so
+// the widget can't let a customer attempt a submit the API would 422
+// anyway just because the estimate happens to render in a sibling panel.
+describe('BookingForm — un_priceable CTA gating (landr-zenj.1)', () => {
+  it('disables the Confirm CTA and shows the shared message when unPriceable=true', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        unPriceable
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    expect(screen.getByTestId('review-unpriceable')).toHaveTextContent(
+      "Pricing for this selection isn't available right now",
+    )
+  })
+
+  it('renders no un_priceable notice and a live CTA by default', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('review-unpriceable')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Confirm booking/i }),
+    ).not.toBeDisabled()
   })
 })
 

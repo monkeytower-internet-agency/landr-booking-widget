@@ -336,6 +336,12 @@ function BookingFlowApp() {
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
   // submit payload.
   const [formResponses, setFormResponses] = useState<FormResponseEntry[]>([])
+  // landr-zenj.1: mirrors PriceSidebar's live estimate un_priceable flag
+  // (see PriceSidebar's onUnPriceableChange prop doc). BookingForm is a
+  // sibling of PriceSidebar, not a child, so this is how it learns its
+  // Confirm CTA must be blocked instead of submitting against a price the
+  // API will 422 anyway.
+  const [estimateUnPriceable, setEstimateUnPriceable] = useState(false)
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
     setFormResponses((prev) => {
       const idx = prev.findIndex((e) => e.form_key === entry.form_key)
@@ -1998,6 +2004,9 @@ function BookingFlowApp() {
             // DetailsStep — see memberPerkOtp's declaration above for why
             // this isn't threaded through step.* like booker/participants.
             memberPerkOtp={memberPerkOtp}
+            // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
+            // onUnPriceableChange prop for where this state comes from.
+            unPriceable={estimateUnPriceable}
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator
@@ -2098,6 +2107,10 @@ function BookingFlowApp() {
                 : sidebarInputs.addons
             }
             debounceMs={step.name === 'pick-selection' ? 1500 : undefined}
+            // landr-zenj.1: reports the visible estimate's un_priceable
+            // flag up so BookingForm (a sibling, not a child) can block
+            // its Confirm CTA on it — see the prop's doc on PriceSidebar.
+            onUnPriceableChange={setEstimateUnPriceable}
           />
         ) : null}
       </div>
