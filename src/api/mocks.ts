@@ -463,6 +463,10 @@ export const mockOperatorSettings = (operatorSlug: string): OperatorSettings => 
   // local mock-mode dev exercises the mailto path; real operators set their own
   // (or leave it null → the copy shows without a link).
   contact_email: `bookings@${operatorSlug}.example`,
+  // landr-y1t4 — mock operators run no membership programme, so the
+  // member-perk code field stays hidden in mock mode. Flip to true locally to
+  // exercise the member path.
+  has_member_perks: false,
 })
 
 /**

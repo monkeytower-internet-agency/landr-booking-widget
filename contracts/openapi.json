@@ -5947,6 +5947,8 @@
           "weather_lat": {
             "anyOf": [
               {
+                "maximum": 90.0,
+                "minimum": -90.0,
                 "type": "number"
               },
               {
@@ -5958,6 +5960,8 @@
           "weather_lon": {
             "anyOf": [
               {
+                "maximum": 180.0,
+                "minimum": -180.0,
                 "type": "number"
               },
               {
@@ -6447,6 +6451,11 @@
           "expose_seats_to_customer": {
             "default": false,
             "title": "Expose Seats To Customer",
+            "type": "boolean"
+          },
+          "has_member_perks": {
+            "default": false,
+            "title": "Has Member Perks",
             "type": "boolean"
           },
           "logo_url": {
