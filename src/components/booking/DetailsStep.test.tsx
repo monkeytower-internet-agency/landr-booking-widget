@@ -1344,6 +1344,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
@@ -1362,6 +1363,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
@@ -1385,6 +1387,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
@@ -1415,6 +1418,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
@@ -1437,6 +1441,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
@@ -1461,6 +1466,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
           product={makeProduct()}
           selection={DAYS_SELECTION}
           operatorToken="para42"
+          hasMemberPerks
           onBack={vi.fn()}
           onConfirm={vi.fn()}
         />,
@@ -1485,6 +1491,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={onConfirm}
       />,
@@ -1507,6 +1514,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         onBack={vi.fn()}
         onConfirm={vi.fn()}
         onMemberPerkOtpChange={onChange}
@@ -1532,6 +1540,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         product={makeProduct()}
         selection={DAYS_SELECTION}
         operatorToken="para42"
+        hasMemberPerks
         initialBooker={{
           first_name: 'Ada',
           last_name: 'Lovelace',
@@ -1561,6 +1570,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
           product={makeProduct()}
           selection={DAYS_SELECTION}
           operatorToken="para42"
+          hasMemberPerks
           onBack={vi.fn()}
           onConfirm={vi.fn()}
         />,
@@ -1573,5 +1583,103 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
         target: { value: '123456' },
       })
     }).not.toThrow()
+  })
+})
+
+// landr-y1t4: the operator-level gate. The member-perk code field is dead UI
+// for an operator with no membership programme — the copy promises a "member
+// price" they do not offer, and no code can ever be emailed because
+// request_otp short-circuits at its _is_active_member() check. These tests pin
+// that the field and the network call are BOTH gated on hasMemberPerks, and
+// that the safe default is "hidden".
+describe('DetailsStep — member-perk field is gated on hasMemberPerks (landr-y1t4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const renderWith = (props: Record<string, unknown>) =>
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        {...props}
+      />,
+    )
+
+  it('shows nothing and fires no request when the operator has no membership programme', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    renderWith({ hasMemberPerks: false })
+
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/enter the 6-digit code we emailed you/i),
+    ).not.toBeInTheDocument()
+    // Not merely hidden — no request is made at all, so the operator's
+    // per-email issuance budget is never spent on a code nobody can use.
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('defaults to hidden when the prop is omitted entirely (older API / pre-fetch)', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    // No hasMemberPerks at all — the shape App.tsx produces before
+    // getOperatorSettings resolves, and the shape an API predating the RPC
+    // column produces forever. Hiding is the safe direction: a member loses
+    // the field, never a wrong price.
+    renderWith({})
+
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('stays hidden on a Back-restore with a valid email when the gate is off', () => {
+    // The otpRequested seed (DetailsStep useState initializer) turns TRUE for a
+    // restored non-empty email. The render must still AND it with the operator
+    // gate, or the field reappears on a Back-then-forward pass for an operator
+    // with no programme.
+    renderWith({
+      hasMemberPerks: false,
+      initialBooker: {
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        email: 'ada@example.com',
+        phone: '+34600123456',
+      },
+    })
+    expect(
+      screen.queryByTestId('member-perk-otp-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('still shows for an operator that DOES run a membership programme', () => {
+    const spy = vi
+      .spyOn(client, 'requestSubscriptionPerkOtp')
+      .mockResolvedValue({ ok: true })
+    renderWith({ hasMemberPerks: true })
+
+    const email = byName('booker_email')
+    fireEvent.change(email, { target: { value: 'ada@example.com' } })
+    fireEvent.blur(email)
+
+    expect(screen.getByTestId('member-perk-otp-section')).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledWith('para42', 'ada@example.com')
   })
 })
