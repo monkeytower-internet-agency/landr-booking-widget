@@ -7548,6 +7548,11 @@ export interface components {
              * @default false
              */
             expose_seats_to_customer: boolean;
+            /**
+             * Has Member Perks
+             * @default false
+             */
+            has_member_perks: boolean;
             /** Logo Url */
             logo_url?: string | null;
             /** Name */
