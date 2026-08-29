@@ -1409,3 +1409,70 @@ describe('disambiguatePartyLabels (landr-sjrd)', () => {
     expect(disambiguatePartyLabels([])).toEqual([])
   })
 })
+
+// ── landr-abme: party-identity hygiene in the assignment map ────────────
+describe('assignment-map hygiene (landr-abme)', () => {
+  const SINGLE = {
+    roomProductId: 'single-room',
+    unitIndex: 0,
+    capacity: 1,
+    roomName: 'Single Room',
+  }
+  const DOUBLE = {
+    roomProductId: 'double-room',
+    unitIndex: 0,
+    capacity: 2,
+    roomName: 'Double Room',
+  }
+
+  it('drops entries for members who have left the party', () => {
+    // The party shrank from 3 to 2 (a participant was removed). Index 2 no
+    // longer names anybody, but pruneAssignments only knows about UNITS, so
+    // the entry used to survive as an invisible occupant: RoomAssignment
+    // renders no chip for it, yet occupancyStatus counted it — so the Double
+    // read as full while a real person sat unassigned.
+    const stale = {
+      0: { roomProductId: 'single-room', unitIndex: 0 },
+      1: { roomProductId: 'double-room', unitIndex: 0 },
+      2: { roomProductId: 'double-room', unitIndex: 0 },
+    }
+    const next = autoAssignParticipants([SINGLE, DOUBLE], 2, stale)
+    expect(next).toEqual({
+      0: { roomProductId: 'single-room', unitIndex: 0 },
+      1: { roomProductId: 'double-room', unitIndex: 0 },
+    })
+    // The freed bed is real: the Double now has room for the next member.
+    expect(occupancyStatus([SINGLE, DOUBLE], 2, next).partialUnits).toEqual([
+      DOUBLE,
+    ])
+  })
+
+  it('keeps every in-party entry untouched while dropping the out-of-party one', () => {
+    const withGhost = {
+      0: { roomProductId: 'double-room', unitIndex: 0, slot: 0 },
+      1: { roomProductId: 'single-room', unitIndex: 0, slot: 0 },
+      2: { roomProductId: 'double-room', unitIndex: 0, slot: 1 },
+      7: { roomProductId: 'double-room', unitIndex: 0 },
+    }
+    expect(autoAssignParty([SINGLE, DOUBLE], 2, 1, withGhost)).toEqual({
+      0: { roomProductId: 'double-room', unitIndex: 0, slot: 0 },
+      1: { roomProductId: 'single-room', unitIndex: 0, slot: 0 },
+      2: { roomProductId: 'double-room', unitIndex: 0, slot: 1 },
+    })
+  })
+
+  it('treats a drop onto a zero-capacity unit as a no-op', () => {
+    // An operator who set capacity_per_unit to 0. The rotation branch used to
+    // read occupants[-1] → undefined and write an `undefined`-keyed entry.
+    const zeroCap = {
+      roomProductId: 'broom-cupboard',
+      unitIndex: 0,
+      capacity: 0,
+      roomName: 'Broom Cupboard',
+    }
+    const before = { 0: { roomProductId: 'single-room', unitIndex: 0, slot: 0 } }
+    const after = applyAssignment(before, 0, zeroCap)
+    expect(after).toEqual(before)
+    expect(Object.keys(after)).not.toContain('undefined')
+  })
+})
