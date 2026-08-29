@@ -111,6 +111,31 @@ export function isValidPhoneFormat(phone: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(normalizePhone(trimmed))
 }
 
+/**
+ * landr-ujsm: real email-shape validation, matching the API's own gate
+ * (`_EMAIL_RE` in `app/core/contact_format.py` —
+ * `^[^\s@]+@[^\s@]+\.[^\s@]+$`, used by `assert_contact_details` to 422
+ * with `{"error": "invalid_email"}` before anything — an OTP included — is
+ * spent). Deliberately permissive, matching that same server-side bar: no
+ * full RFC 5322 maximalism, just "an @ with something before it, a dot with
+ * something after it, no whitespace" — but unlike the old `includes('@')`
+ * gate this does reject the obvious garbage (`no-at-sign`, `user@nodot`,
+ * `@nouser.com`). `EMAIL_MAX_LENGTH` mirrors the API's bound so a client-side
+ * pass and the eventual server-side pass agree on the same email.
+ *
+ * Empty is treated as valid here (mirrors `isValidPhoneFormat`) — required-
+ * ness is checked separately so this works for both the required booker
+ * email and the optional participant/companion emails.
+ */
+const EMAIL_MAX_LENGTH = 320
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function isValidEmailFormat(email: string): boolean {
+  const trimmed = email.trim()
+  if (!trimmed) return true
+  return trimmed.length <= EMAIL_MAX_LENGTH && EMAIL_RE.test(trimmed)
+}
+
 export function emptyBooker(): BookerDetails {
   return { first_name: '', last_name: '', email: '', phone: '' }
 }
@@ -164,11 +189,14 @@ export function bookerToParticipant(
 /**
  * Validity check used to enable the Continue button.
  *
- * - Booker: all four fields required (first, last, email, phone).
+ * - Booker: all four fields required (first, last, email, phone); email
+ *     must additionally have a valid shape (landr-ujsm).
  * - Participants (additional, i.e. participants[1..N] in the final array):
- *     first + last + phone required (landr-nkbi); email stays optional.
+ *     first + last + phone required (landr-nkbi); email stays optional but
+ *     a filled value must have a valid shape (landr-ujsm).
  *     participants[0] is the booker, already validated above.
- * - Companions (landr-87n9.3): only first name required; phone is optional.
+ * - Companions (landr-87n9.3): only first name required; phone and email
+ *     are optional but, if filled, must have a valid shape.
  *
  * `companions` is optional so existing call-sites keep working.
  *
@@ -183,9 +211,11 @@ export function detailsAreComplete(
 ): boolean {
   if (!booker.first_name.trim() || !booker.last_name.trim()) return false
   if (!booker.email.trim() || !booker.phone.trim()) return false
-  // basic email shape — full validation happens via the form library on
-  // submit, but for enable/disable we just want non-empty and an @
-  if (!booker.email.includes('@')) return false
+  // landr-ujsm: the booker's email must have a valid shape — matches the
+  // API's own gate (assert_contact_details / is_valid_email) so a typo
+  // is caught here instead of 422ing after the booking form's Continue
+  // gate has already waved it through.
+  if (!isValidEmailFormat(booker.email)) return false
   // landr-1url: the booker's phone must also look internationally-formatted
   // (leading '+' + country code).
   if (!isValidPhoneFormat(booker.phone)) return false
@@ -199,13 +229,21 @@ export function detailsAreComplete(
     // landr-1url: when a participant phone is present it must also look
     // internationally-formatted. i===0 is the booker, already checked above.
     if (i > 0 && !isValidPhoneFormat(p.phone)) return false
+    // landr-ujsm: participant email stays optional (isValidEmailFormat
+    // treats '' as valid) but a filled value must have a valid shape.
+    // i===0 is the booker, already checked above, but re-checking here is
+    // harmless (same value) and keeps the loop uniform.
+    if (!isValidEmailFormat(p.email)) return false
   }
   // landr-rxjo: each companion needs both first and last name; phone optional.
   // landr-1url: companion phone stays optional but if filled must also look
   // internationally-formatted (isValidPhoneFormat treats '' as valid).
+  // landr-ujsm: same treatment for companion email (isValidEmailFormat
+  // treats '' as valid).
   for (const c of companions) {
     if (!c.first_name.trim() || !c.last_name.trim()) return false
     if (!isValidPhoneFormat(c.phone)) return false
+    if (!isValidEmailFormat(c.email)) return false
   }
   return true
 }

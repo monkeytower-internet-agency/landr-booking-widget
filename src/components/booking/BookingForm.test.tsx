@@ -816,6 +816,51 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
       'product_ids',
     )
   })
+
+  // landr-ujsm: the submit endpoint 422s an unstorable email/phone with
+  // {"error":"invalid_email"|"invalid_phone","invalid":[...]} — reachable
+  // only if the widget's own client-side checks (DetailsStep, landr-ujsm)
+  // ever drift from the API's gate, since the shapes now match. When it
+  // does fire, the message must name the actual bad field, not the raw
+  // Pydantic-shaped dump below.
+  it('maps a 422 invalid_email submit error to a field-naming message', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'invalid_email',
+            invalid: [{ role: 'participant', field: 'email', index: 2, value: 'grace@nodot' }],
+            message: 'Some contact details could not be accepted.',
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /participant 2.*email address/i,
+      ),
+    )
+    // Not the generic 422-detail dump — no raw JSON/array noise.
+    expect(screen.getByTestId('review-error')).not.toHaveTextContent('loc')
+  })
 })
 
 // landr-zenj.1: App.tsx lifts PriceSidebar's live un_priceable flag (see

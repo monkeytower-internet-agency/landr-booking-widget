@@ -22,6 +22,7 @@ import {
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
+  isValidEmailFormat,
   isValidPhoneFormat,
   PHONE_HTML_PATTERN,
   type BookerDetails,
@@ -243,7 +244,9 @@ export function DetailsStep({
   // already-valid-looking email (Back-restore), since a request for that
   // email would already have fired on the forward pass.
   const [otpRequested, setOtpRequested] = useState<boolean>(() =>
-    Boolean(initialBooker?.email?.trim() && initialBooker.email.includes('@')),
+    Boolean(
+      initialBooker?.email?.trim() && isValidEmailFormat(initialBooker.email),
+    ),
   )
   // Dedupes repeated blurs of an UNCHANGED email against re-firing the
   // network call (a customer tabbing back and forth across the form blurs
@@ -393,18 +396,19 @@ export function DetailsStep({
   }
 
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
-  // Fires POST .../subscription-perk/otp for a non-empty, '@'-shaped email —
-  // the same loose check the rest of this file already uses for "does this
-  // look like an email" (isFieldInvalid's booker.email case), not full RFC
-  // validation. Reveals the optional code field regardless of whether the
-  // network call itself succeeds (the endpoint is fire-and-forget by design
-  // — see requestSubscriptionPerkOtp's doc — so there is nothing useful to
-  // gate the UI on). Dedupes against otpSentForEmailRef so repeated blurs of
-  // an unchanged email (tabbing back and forth) don't re-request and burn
-  // into the server's per-email rate limit.
+  // Fires POST .../subscription-perk/otp for a non-empty, valid-shaped
+  // email — the same check the rest of this file already uses for "does
+  // this look like an email" (isFieldInvalid's booker.email case; landr-ujsm
+  // upgraded both from a bare `includes('@')` to isValidEmailFormat), not
+  // full RFC validation. Reveals the optional code field regardless of
+  // whether the network call itself succeeds (the endpoint is fire-and-
+  // forget by design — see requestSubscriptionPerkOtp's doc — so there is
+  // nothing useful to gate the UI on). Dedupes against otpSentForEmailRef so
+  // repeated blurs of an unchanged email (tabbing back and forth) don't
+  // re-request and burn into the server's per-email rate limit.
   const requestMemberPerkOtpIfNeeded = () => {
     const email = booker.email.trim()
-    if (!email || !email.includes('@')) return
+    if (!email || !isValidEmailFormat(email)) return
     setOtpRequested(true)
     if (otpSentForEmailRef.current === email) return
     otpSentForEmailRef.current = email
@@ -492,6 +496,9 @@ export function DetailsStep({
   // landr-1url: companion.<idx>.phone is included even though companion
   // phone is OPTIONAL (not required) — a filled-but-malformed companion
   // phone can also fail detailsAreComplete(), so it needs to be armable too.
+  // landr-ujsm: same reasoning for p.<idx>.email / companion.<idx>.email —
+  // both are optional, but a filled-but-malformed value also fails
+  // detailsAreComplete(), so it needs to be armable so the error is visible.
   const requiredFieldKeys = (): string[] => {
     const keys = [
       'booker.first_name',
@@ -500,13 +507,19 @@ export function DetailsStep({
       'booker.phone',
     ]
     additional.forEach((_, idx) => {
-      keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
+      keys.push(
+        `p.${idx}.first_name`,
+        `p.${idx}.last_name`,
+        `p.${idx}.phone`,
+        `p.${idx}.email`,
+      )
     })
     companions.forEach((_, idx) => {
       keys.push(
         `companion.${idx}.first_name`,
         `companion.${idx}.last_name`,
         `companion.${idx}.phone`,
+        `companion.${idx}.email`,
       )
     })
     return keys
@@ -532,24 +545,30 @@ export function DetailsStep({
       case 'booker.phone':
         return 'booker-phone'
     }
-    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone|email)$/.exec(key)
     if (pMatch) {
       const slot =
         pMatch[2] === 'first_name'
           ? 'first'
           : pMatch[2] === 'last_name'
             ? 'last'
-            : 'phone'
+            : pMatch[2] === 'phone'
+              ? 'phone'
+              : 'email'
       return `p-${pMatch[1]}-${slot}`
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone|email)$/.exec(
+      key,
+    )
     if (cMatch) {
       const slot =
         cMatch[2] === 'first_name'
           ? 'first'
           : cMatch[2] === 'last_name'
             ? 'last'
-            : 'phone'
+            : cMatch[2] === 'phone'
+              ? 'phone'
+              : 'email'
       return `companion-${cMatch[1]}-${slot}`
     }
     return undefined
@@ -564,31 +583,44 @@ export function DetailsStep({
       case 'booker.last_name':
         return !booker.last_name.trim()
       case 'booker.email':
-        return !booker.email.trim() || !booker.email.includes('@')
+        // landr-ujsm: required AND must have a valid shape.
+        return !booker.email.trim() || !isValidEmailFormat(booker.email)
       case 'booker.phone':
         // landr-1url: required AND must look internationally-formatted.
         return !booker.phone.trim() || !isValidPhoneFormat(booker.phone)
     }
-    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    const pMatch = /^p\.(\d+)\.(first_name|last_name|phone|email)$/.exec(key)
     if (pMatch) {
       const row = additional[Number(pMatch[1])]
       if (!row) return false
-      const field = pMatch[2] as 'first_name' | 'last_name' | 'phone'
+      const field = pMatch[2] as 'first_name' | 'last_name' | 'phone' | 'email'
       if (field === 'phone') {
         // landr-1url: required AND must look internationally-formatted.
         return !row.phone.trim() || !isValidPhoneFormat(row.phone)
       }
+      if (field === 'email') {
+        // landr-ujsm: participant email is OPTIONAL — empty is fine, but a
+        // filled value must have a valid shape.
+        return row.email.trim() !== '' && !isValidEmailFormat(row.email)
+      }
       return !row[field].trim()
     }
-    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
+    const cMatch = /^companion\.(\d+)\.(first_name|last_name|phone|email)$/.exec(
+      key,
+    )
     if (cMatch) {
       const row = companions[Number(cMatch[1])]
       if (!row) return false
-      const field = cMatch[2] as 'first_name' | 'last_name' | 'phone'
+      const field = cMatch[2] as 'first_name' | 'last_name' | 'phone' | 'email'
       if (field === 'phone') {
         // landr-1url: companion phone is OPTIONAL — empty is fine, but a
         // filled value must look internationally-formatted.
         return row.phone.trim() !== '' && !isValidPhoneFormat(row.phone)
+      }
+      if (field === 'email') {
+        // landr-ujsm: companion email is OPTIONAL — empty is fine, but a
+        // filled value must have a valid shape.
+        return row.email.trim() !== '' && !isValidEmailFormat(row.email)
       }
       return !row[field].trim()
     }
@@ -615,11 +647,19 @@ export function DetailsStep({
   // A required text field is invalid once touched and still blank.
   const requiredError = (key: string, value: string): string | undefined =>
     touched.has(key) && !value.trim() ? 'Required' : undefined
-  // The booker email additionally needs an '@' (mirrors detailsAreComplete).
-  const emailError = (key: string, value: string): string | undefined => {
+  // landr-ujsm: an email additionally needs a valid shape (mirrors
+  // detailsAreComplete's isValidEmailFormat check, which matches the API's
+  // own gate). `required` distinguishes the booker email (required) from
+  // participant/companion email (optional — blank is fine, but a filled
+  // value is still held to the format check) — mirrors phoneError below.
+  const emailError = (
+    key: string,
+    value: string,
+    required: boolean,
+  ): string | undefined => {
     if (!touched.has(key)) return undefined
-    if (!value.trim()) return 'Required'
-    if (!value.includes('@')) return 'Enter a valid email address'
+    if (!value.trim()) return required ? 'Required' : undefined
+    if (!isValidEmailFormat(value)) return 'Enter a valid email address'
     return undefined
   }
   // landr-1url: a phone additionally needs to look internationally-formatted
@@ -644,16 +684,23 @@ export function DetailsStep({
     key: string,
     value: string,
     id: string,
-    kind: 'required' | 'email' | 'phone' | 'phone-optional' = 'required',
+    kind:
+      | 'required'
+      | 'email'
+      | 'email-optional'
+      | 'phone'
+      | 'phone-optional' = 'required',
   ) => {
     const error =
       kind === 'email'
-        ? emailError(key, value)
-        : kind === 'phone'
-          ? phoneError(key, value, true)
-          : kind === 'phone-optional'
-            ? phoneError(key, value, false)
-            : requiredError(key, value)
+        ? emailError(key, value, true)
+        : kind === 'email-optional'
+          ? emailError(key, value, false)
+          : kind === 'phone'
+            ? phoneError(key, value, true)
+            : kind === 'phone-optional'
+              ? phoneError(key, value, false)
+              : requiredError(key, value)
     return {
       error,
       inputProps: {
@@ -896,6 +943,14 @@ export function DetailsStep({
               `p-${idx}-phone`,
               'phone',
             )
+            // landr-ujsm: participant email stays optional but a filled
+            // value is now held to the same shape check as the booker's.
+            const pEmailV = validate(
+              `p.${idx}.email`,
+              row.email,
+              `p-${idx}-email`,
+              'email-optional',
+            )
             return (
             // landr-3mo4: each added participant is a raised sub-card (one
             // level lighter than the step card) so the nested form group
@@ -948,7 +1003,11 @@ export function DetailsStep({
                   {...pLastV.inputProps}
                 />
               </Field>
-              <Field label="Email (optional)" htmlFor={`p-${idx}-email`}>
+              <Field
+                label="Email (optional)"
+                htmlFor={`p-${idx}-email`}
+                error={pEmailV.error}
+              >
                 <Input
                   id={`p-${idx}-email`}
                   name={`participant_${idx + 2}_email`}
@@ -958,6 +1017,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
                   }
+                  {...pEmailV.inputProps}
                 />
               </Field>
               {/* landr-nkbi: phone is required for every participant. */}
@@ -1136,6 +1196,14 @@ export function DetailsStep({
               `companion-${idx}-phone`,
               'phone-optional',
             )
+            // landr-ujsm: companion email stays optional but a filled value
+            // is now held to the same shape check as the booker's.
+            const cEmailV = validate(
+              `companion.${idx}.email`,
+              row.email,
+              `companion-${idx}-email`,
+              'email-optional',
+            )
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
             // participant rows.
@@ -1229,7 +1297,11 @@ export function DetailsStep({
                   {...cLastV.inputProps}
                 />
               </Field>
-              <Field label="Email (optional)" htmlFor={`companion-${idx}-email`}>
+              <Field
+                label="Email (optional)"
+                htmlFor={`companion-${idx}-email`}
+                error={cEmailV.error}
+              >
                 <Input
                   id={`companion-${idx}-email`}
                   name={`companion_${idx + 1}_email`}
@@ -1239,6 +1311,7 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'email', e.target.value)
                   }
+                  {...cEmailV.inputProps}
                 />
               </Field>
               <Field

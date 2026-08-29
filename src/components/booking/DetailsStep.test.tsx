@@ -254,6 +254,51 @@ describe('DetailsStep (landr-8c03)', () => {
     })
   })
 
+  // landr-ujsm: participant email stays optional (empty is fine, tested
+  // above) but a FILLED value must now have a valid shape — matching the
+  // API's own assert_contact_details gate — instead of riding through raw.
+  it('blocks Continue on a filled-but-malformed participant email, and clears once fixed', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: 'Grace' },
+    })
+    fireEvent.change(byName('participant_2_last_name'), {
+      target: { value: 'Hopper' },
+    })
+    fireEvent.change(byName('participant_2_phone'), {
+      target: { value: '+34600000002' },
+    })
+    fireEvent.change(byName('participant_2_email'), {
+      target: { value: 'not-an-email' },
+    })
+
+    const cont = screen.getByRole('button', { name: /continue/i })
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(byName('participant_2_email')).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('p-0-email-error')).toHaveTextContent(
+      /valid email/i,
+    )
+
+    fireEvent.change(byName('participant_2_email'), {
+      target: { value: 'grace@example.com' },
+    })
+    fireEvent.click(cont)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, participants] = onConfirm.mock.calls[0]!
+    expect(participants[1]).toMatchObject({ email: 'grace@example.com' })
+  })
+
   // landr-4uyu: at the participant max the "+ Add participant" button is
   // replaced by the "Maximum …" notice (no longer a disabled stepper button).
   it('caps additional participants at 5 (total 6) and hides Add at max', () => {
@@ -1264,6 +1309,44 @@ describe('DetailsStep required-field blur validation (landr-opi3)', () => {
     fireEvent.blur(email)
     expect(email).not.toHaveAttribute('aria-invalid')
     expect(document.getElementById('p-0-email-error')).toBeNull()
+  })
+
+  // landr-ujsm: participant email stays OPTIONAL — blank never errors — but
+  // a filled-but-malformed value is now held to the same shape check as the
+  // booker's (matches the API's assert_contact_details gate).
+  it('flags a filled-but-malformed participant email, but leaves a blank one alone', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const email = byName('participant_2_email')
+    // Blank + blurred → no error (optional).
+    fireEvent.blur(email)
+    expect(email).not.toHaveAttribute('aria-invalid')
+    // Filled but malformed → flagged.
+    fireEvent.change(email, { target: { value: 'not-an-email' } })
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('p-0-email-error')).toHaveTextContent(
+      /valid email/i,
+    )
+    // Fixed → clears.
+    fireEvent.change(email, { target: { value: 'grace@example.com' } })
+    expect(email).not.toHaveAttribute('aria-invalid')
+  })
+
+  // landr-ujsm: same treatment for companion email (optional, but format-
+  // checked once filled).
+  it('flags a filled-but-malformed companion email, but leaves a blank one alone', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    const email = byName('companion_1_email')
+    fireEvent.blur(email)
+    expect(email).not.toHaveAttribute('aria-invalid')
+    fireEvent.change(email, { target: { value: 'not-an-email' } })
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+    expect(document.getElementById('companion-0-email-error')).toHaveTextContent(
+      /valid email/i,
+    )
+    fireEvent.change(email, { target: { value: 'friend@example.com' } })
+    expect(email).not.toHaveAttribute('aria-invalid')
   })
 })
 

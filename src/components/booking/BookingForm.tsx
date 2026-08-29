@@ -262,6 +262,45 @@ const formatHttpError = (err: HttpError): string => {
   ) {
     return UN_PRICEABLE_MESSAGE
   }
+  // landr-ujsm: the submit endpoint also hard-rejects any email/phone that
+  // cannot be stored as a contact with 422 {"error": "invalid_email" |
+  // "invalid_phone", "invalid": [{role, field, value, index?}], "message":
+  // ...} (InvalidContactDetail — app/services/booking_submit_errors.py,
+  // raised by assert_contact_details). The widget's own DetailsStep checks
+  // (isValidEmailFormat / isValidPhoneFormat in detailsTypes.ts) now match
+  // the API's gate, so this should only fire if the two ever drift apart —
+  // but when it does, name the actual bad field(s) as a field error instead
+  // of falling through to the raw Pydantic-shaped dump below.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    ((err.detail as { error?: unknown }).error === 'invalid_email' ||
+      (err.detail as { error?: unknown }).error === 'invalid_phone')
+  ) {
+    const invalid =
+      (
+        err.detail as {
+          invalid?: Array<{ role?: string; field?: string; index?: number }>
+        }
+      ).invalid ?? []
+    const describe = (entry: {
+      role?: string
+      field?: string
+      index?: number
+    }): string => {
+      const label = entry.field === 'phone' ? 'phone number' : 'email address'
+      if (entry.role === 'customer') return `your ${label}`
+      if (entry.role === 'participant') {
+        return `participant ${entry.index ?? '?'}'s ${label}`
+      }
+      if (entry.role === 'companion') return `guest ${entry.index ?? '?'}'s ${label}`
+      return `a contact's ${label}`
+    }
+    const named =
+      invalid.length > 0 ? invalid.map(describe).join(', ') : 'a contact detail'
+    return `Please go back and check ${named} — it doesn't look right.`
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
