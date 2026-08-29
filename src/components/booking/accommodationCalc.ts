@@ -438,6 +438,12 @@ export function applyAssignment(
     return assignment
   }
 
+  // landr-abme: a unit with capacity <= 0 (an operator who set
+  // capacity_per_unit to 0) can never hold anyone. Without this guard the
+  // rotation branch below reads `occupants[target.capacity - 1]` at index -1,
+  // gets `undefined`, and writes an `undefined`-keyed entry into the map.
+  if (target.capacity <= 0) return assignment
+
   // Give the target's current occupants contiguous slots (0..k-1) in their
   // existing display order before we insert. This anchors "the last slot" even
   // when the unit was filled by auto-assign (slot-less, index-ordered), so both
@@ -514,6 +520,19 @@ export function autoAssignParticipants(
   existing: RoomAssignmentMap = {},
 ): RoomAssignmentMap {
   const next = pruneAssignments(existing, units)
+  // landr-abme: pruneAssignments only knows about UNITS, so a member who has
+  // left the party (a removed participant / companion) keeps their entry and
+  // goes on occupying a bed. That ghost is invisible — RoomAssignment only
+  // renders chips for indices 0..partyCount-1 — but occupancyStatus and
+  // applyAssignment both count it, so a room can read as full-and-complete
+  // with a phantom in it while a real person sits unassigned. Drop any key
+  // outside the current party here, where the party size is known.
+  for (const pid of Object.keys(next)) {
+    const idx = Number(pid)
+    if (!Number.isInteger(idx) || idx < 0 || idx >= participantCount) {
+      delete next[idx]
+    }
+  }
   // Remaining capacity per unit after honouring existing assignments.
   const remaining = new Map<string, number>()
   for (const unit of units) {
