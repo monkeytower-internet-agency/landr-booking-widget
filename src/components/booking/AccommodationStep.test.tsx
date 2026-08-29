@@ -1756,7 +1756,7 @@ describe('AccommodationStep — restored state survives re-entry (landr-abme)', 
     participantCount: 2,
     participantNames: ['Olaf', 'Matthias'],
     companionNames: ['Alyda'],
-  } as const
+  }
   // What the customer actually arranged by hand: Matthias alone in the Single,
   // Olaf + Alyda in the Double. Deliberately NOT the index-order default,
   // which would be 0→single, 1→double, 2→double.
