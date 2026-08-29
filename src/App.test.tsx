@@ -968,6 +968,14 @@ describe('App', () => {
     // Back-then-forward round-trip: the code re-appears on DetailsStep
     // without re-firing the OTP request, and still reaches submit.
     it('threads the member-perk OTP code from DetailsStep through to the submit body, surviving a Back round-trip', async () => {
+      // landr-y1t4: the code field only renders for an operator that actually
+      // runs a membership programme, so this test has to be one. Without the
+      // flag the field is (correctly) absent and there is no code to thread.
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        has_member_perks: true,
+      })
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.listProducts.mockResolvedValue([

@@ -1566,6 +1566,12 @@ function BookingFlowApp() {
             // operator hasn't set one (or the API predates the key) — the
             // copy still renders but the mailto is omitted.
             contactEmail={operatorSettings.contact_email ?? null}
+            // landr-y1t4: only operators with an ACTIVE subscription perk get
+            // the member-perk code field. `?? false` is the load-bearing half —
+            // until getOperatorSettings resolves (and on an API old enough to
+            // predate the key) the field stays hidden rather than flashing in
+            // and then vanishing.
+            hasMemberPerks={operatorSettings.has_member_perks ?? false}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             initialBooker={step.booker}

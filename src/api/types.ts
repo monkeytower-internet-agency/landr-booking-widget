@@ -457,6 +457,26 @@ export interface OperatorSettings {
    * deploy — absent API responses treated as null.
    */
   widget_catalog_layout?: 'categories' | 'expanded' | null
+  /**
+   * landr-y1t4: does this operator have any ACTIVE subscription perk — i.e.
+   * does a "member price" exist here at all? Computed server-side as an
+   * EXISTS over subscription_perks (see the RPC in
+   * 20260829090000_operator_settings_has_member_perks.sql), never an operator
+   * toggle, so it cannot drift from the entitlement check the pricing engine
+   * actually runs.
+   *
+   * Gates the member-perk code field on the Details step. Absent (older API,
+   * mid-rolling-deploy) is treated as FALSE by every consumer: showing a
+   * customer a code box for a membership programme their operator does not
+   * run is the bug this flag exists to fix, and hiding it briefly costs a real
+   * member only their discount, never a wrong price — the server still
+   * verifies any submitted code exactly as before.
+   *
+   * NOT a membership-status oracle: it says a programme exists, not whether
+   * the person filling in the form belongs to it. That question is answered
+   * only by the emailed OTP (landr-5krc).
+   */
+  has_member_perks?: boolean
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
