@@ -816,6 +816,67 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
       'product_ids',
     )
   })
+
+  // landr-f7ae: a stale picked availability slot (operator regenerated the
+  // schedule template mid-checkout) makes public_submit_booking's RPC
+  // RAISE EXCEPTION with the raw product/operator/availability UUIDs
+  // interpolated into the message text, which booking_submit.py's generic
+  // `except Exception as exc: raise RpcSubmit(str(exc))` forwards verbatim
+  // as a plain-string 400 `detail`. The widget must never render that
+  // string straight into the customer-facing banner.
+  it('sanitizes a raw backend 400 detail containing internal UUIDs instead of rendering them', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+    const availabilityId = '3fa2c1d0-9b4e-4a7f-8c2a-1e6f0d5b7c88'
+    const productId = 'a1b2c3d4-e5f6-4789-9abc-def012345678'
+    const operatorId = 'f0e1d2c3-b4a5-4678-9def-0123456789ab'
+    submitMock.mockRejectedValue(
+      new HttpError(
+        400,
+        'Bad Request',
+        JSON.stringify({
+          detail: `submission rejected: availability slot ${availabilityId} does not belong to product ${productId} / operator ${operatorId}`,
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        'one of your selections just changed',
+      ),
+    )
+    const bannerText = screen.getByTestId('review-error').textContent ?? ''
+    // The customer-visible banner must never contain any of the raw
+    // internal UUIDs, or any UUID-shaped token at all.
+    expect(bannerText).not.toContain(availabilityId)
+    expect(bannerText).not.toContain(productId)
+    expect(bannerText).not.toContain(operatorId)
+    expect(bannerText).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    )
+    // The raw diagnostic is still available to developers via the console.
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('sanitized'),
+      expect.stringContaining(availabilityId),
+    )
+    consoleErrorSpy.mockRestore()
+  })
 })
 
 // landr-zenj.1: App.tsx lifts PriceSidebar's live un_priceable flag (see

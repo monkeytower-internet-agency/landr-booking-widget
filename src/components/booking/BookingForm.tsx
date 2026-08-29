@@ -239,6 +239,32 @@ const cancellationDeadline = (slotDateIso: string) => {
 }
 
 /**
+ * landr-f7ae: a plain-string `detail` on a 4xx can be a raw Postgres
+ * exception forwarded verbatim from the RPC (booking_submit.py's generic
+ * `except Exception as exc: raise RpcSubmit(str(exc))`). Several
+ * `RAISE EXCEPTION` branches in `public_submit_booking` interpolate
+ * internal product/operator/availability-slot UUIDs straight into the
+ * message text — e.g. a booking's picked availability slot going stale
+ * between selection and Confirm (the operator regenerated the schedule
+ * template mid-checkout) raises "...does not belong to product % /
+ * operator %". Detected generically by UUID shape rather than by
+ * matching this one message, since the same leak pattern likely repeats
+ * in other branches (e.g. a stale voucher rejection) that this widget
+ * has never specifically audited for.
+ */
+const UUID_PATTERN =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+
+/**
+ * Customer-facing stand-in for a detail string that leaked internal
+ * UUIDs (see UUID_PATTERN above). Deliberately generic — the underlying
+ * cause varies by which RPC branch raised it — but actionable: go back,
+ * re-check the selection, try again.
+ */
+const SANITIZED_REJECTION_MESSAGE =
+  'This booking could not be confirmed because one of your selections just changed (for example, a time slot became unavailable). Please go back, double-check your choices, and try again.'
+
+/**
  * Pretty-print a FastAPI 422 `detail` payload. Pydantic emits an array
  * of {loc, msg, type} entries — we surface up to the first few as
  * "field: message" lines so the user sees the actual contract issue
@@ -279,6 +305,16 @@ const formatHttpError = (err: HttpError): string => {
     return `Booking rejected (422): ${lines.join('; ')}`
   }
   if (err.status >= 400 && err.detail && typeof err.detail === 'string') {
+    if (UUID_PATTERN.test(err.detail)) {
+      // The raw detail is never customer-safe once it contains a UUID, but
+      // it's still the real diagnostic — keep it available to developers
+      // and telemetry via the console instead of dropping it entirely.
+      console.error(
+        '[booking-widget] sanitized a raw backend error before display:',
+        err.detail,
+      )
+      return SANITIZED_REJECTION_MESSAGE
+    }
     return `Booking rejected (${err.status}): ${err.detail}`
   }
   return err.message
