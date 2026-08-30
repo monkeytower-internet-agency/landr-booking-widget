@@ -14,7 +14,13 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+      # landr-imrd: name the environment after the tier actually being
+      # deployed, not a blanket 'production' — pushes to dev/staging were
+      # previously recorded as GitHub Deployments into an environment
+      # literally named 'production'. push events resolve to their branch
+      # tier (main -> production, staging -> staging, dev -> dev); anything
+      # else (PR, workflow_dispatch) keeps the prior 'preview' behavior.
+      name: ${{ github.event_name != 'push' && 'preview' || github.ref_name == 'main' && 'production' || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 

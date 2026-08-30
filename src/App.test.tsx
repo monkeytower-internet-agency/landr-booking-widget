@@ -968,6 +968,14 @@ describe('App', () => {
     // Back-then-forward round-trip: the code re-appears on DetailsStep
     // without re-firing the OTP request, and still reaches submit.
     it('threads the member-perk OTP code from DetailsStep through to the submit body, surviving a Back round-trip', async () => {
+      // landr-y1t4: the code field only renders for an operator that actually
+      // runs a membership programme, so this test has to be one. Without the
+      // flag the field is (correctly) absent and there is no code to thread.
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        has_member_perks: true,
+      })
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.listProducts.mockResolvedValue([
@@ -1411,6 +1419,210 @@ describe('App', () => {
           selector: '[data-slot="card-title"]',
         }),
       ).toBeInTheDocument()
+    })
+  })
+
+  // landr-uwvl: the room-assignment / age / breakfast maps used to be keyed by
+  // a bare party-member INDEX. DetailsStep.removeParticipant splices the
+  // roster, so every member after the removed one slides down an index while
+  // the map — carried untouched in the BookingDraft — stays put. The person now
+  // at index k inherits the room of whoever used to be at index k, and the
+  // booking SUBMITS that way (the landr-abme wrong-occupant class, by a
+  // different mechanism).
+  //
+  // This is the full-funnel repro. It is RED on the pre-fix bundle: Alan ends
+  // up in Grace's single room after Grace is removed.
+  describe('room assignment survives a participant removal (landr-uwvl)', () => {
+    const SINGLE_KEY = 'room-single::0'
+    const DOUBLE_KEY = 'room-double::0'
+
+    function setupRoomAssignmentFlow() {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Guided Para Week',
+          needs_pickup: false,
+          hotel_offering: 'mandatory',
+          price_per_unit: 90,
+          currency: 'EUR',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getHotelsForOperator.mockResolvedValue([
+        {
+          location_id: 'hotel-mirador',
+          name: 'Hotel Mirador',
+          name_localized: null,
+          parent_id: null,
+          role_type: { code: 'hotel', label: 'Hotel' },
+        },
+      ])
+      // One capacity-1 single + one capacity-2 double = exactly 3 beds for the
+      // 3-person party, so occupancy is complete and Continue is enabled.
+      mocks.getHotelRoomsForHotel.mockResolvedValue([
+        {
+          ...makeProduct({
+            product_id: 'room-single',
+            name: 'Single Room',
+            product_kind: 'hotel_room',
+            service_time_shape: null,
+          }),
+          price_per_unit: 50,
+          currency: 'EUR',
+          capacity_per_unit: 1,
+        } as Product,
+        {
+          ...makeProduct({
+            product_id: 'room-double',
+            name: 'Double Room',
+            product_kind: 'hotel_room',
+            service_time_shape: null,
+          }),
+          price_per_unit: 80,
+          currency: 'EUR',
+          capacity_per_unit: 2,
+        } as Product,
+      ])
+    }
+
+    const setInput = (name: string, value: string) =>
+      fireEvent.change(
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+        { target: { value } },
+      )
+
+    const assignSelect = (memberIndex: number) =>
+      screen.getByTestId(`assign-select-${memberIndex}`) as HTMLSelectElement
+
+    const assignTo = (memberIndex: number, unitKey: string) =>
+      fireEvent.change(assignSelect(memberIndex), { target: { value: unitKey } })
+
+    async function advanceToRoomAssignment() {
+      await waitFor(() => screen.getByText('Guided Para Week'))
+      fireEvent.click(screen.getByRole('button', { name: 'Guided Para Week' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // Details — booker Ada + Grace + Alan.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByTestId('add-participant'))
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByTestId('add-participant'))
+      setInput('participant_3_first_name', 'Alan')
+      setInput('participant_3_last_name', 'Turing')
+      setInput('participant_3_phone', '+34600000003')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Accommodation — take one of each room.
+      await waitFor(() =>
+        expect(screen.getByText('Double Room')).toBeInTheDocument(),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Single Room quantity/i }),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+      )
+      await waitFor(() =>
+        expect(screen.getByTestId('room-assignment')).toBeInTheDocument(),
+      )
+    }
+
+    it('removing a middle participant leaves everyone else in their own room', async () => {
+      setupRoomAssignmentFlow()
+      render(<App />)
+      await advanceToRoomAssignment()
+
+      // The customer's own arrangement, deliberately NOT the index-order
+      // default: Grace alone in the single, Ada + Alan sharing the double.
+      // (Unassign Ada first so the capacity-1 single is free for Grace.)
+      assignTo(0, '')
+      assignTo(1, SINGLE_KEY)
+      assignTo(2, DOUBLE_KEY)
+      assignTo(0, DOUBLE_KEY)
+      await waitFor(() => expect(assignSelect(0).value).toBe(DOUBLE_KEY))
+      expect(assignSelect(1).value).toBe(SINGLE_KEY)
+      expect(assignSelect(2).value).toBe(DOUBLE_KEY)
+
+      // Continue so the arrangement is COMMITTED into the booking draft (it
+      // only lives in AccommodationStep state until then).
+      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Breadcrumb back to the details form and remove Grace — the MIDDLE
+      // participant. Alan slides from party index 2 to index 1.
+      fireEvent.click(screen.getByTestId('breadcrumb-details'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(
+        document.querySelector<HTMLInputElement>(
+          'input[name="participant_2_first_name"]',
+        )!.value,
+      ).toBe('Grace')
+      fireEvent.click(screen.getByTestId('remove-participant-2'))
+      await waitFor(() =>
+        expect(
+          document.querySelector<HTMLInputElement>(
+            'input[name="participant_2_first_name"]',
+          )!.value,
+        ).toBe('Alan'),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Forward into the accommodation step again.
+      await waitFor(() =>
+        expect(screen.getByTestId('room-assignment')).toBeInTheDocument(),
+      )
+      await waitFor(() => expect(assignSelect(1)).toBeInTheDocument())
+
+      // THE ASSERTION. Party is now [Ada, Alan].
+      //   • Ada keeps the double she picked.
+      //   • Alan keeps the double — he must NOT inherit Grace's single just
+      //     because he now sits at the index Grace used to occupy.
+      expect(assignSelect(0).value).toBe(DOUBLE_KEY)
+      expect(assignSelect(1).value).toBe(DOUBLE_KEY)
+      expect(assignSelect(1).value).not.toBe(SINGLE_KEY)
+      // Sanity: index 1 really is Alan now, so the check above is about the
+      // person and not about a stale label.
+      expect(assignSelect(1).closest('label')!.textContent).toContain('Alan')
+      // And nobody was silently invented into the vacated single.
+      expect(screen.queryByTestId('assign-select-2')).not.toBeInTheDocument()
     })
   })
 

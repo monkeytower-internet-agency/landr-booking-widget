@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Hotel, Product, ProductAddon } from '@/api/types'
@@ -1715,5 +1715,227 @@ describe('AccommodationStep — companions + occupancy gating (landr-87n9.3)', (
       0: { roomProductId: 'single-room', unitIndex: 0 },
       1: { roomProductId: 'single-room', unitIndex: 1 },
     })
+  })
+})
+
+// ── landr-abme: back-nav re-entry must not re-derive restored state ──────
+//
+// Reported by the operator against dev booking c3842d1d: a customer picked a
+// Single + a Double, hand-assigned Matthias to the Single and Olaf + Alyda to
+// the Double, continued, then jumped back to the date picker via the
+// breadcrumb, changed the dates and walked forward again. The rooms came back
+// but the people had been shuffled — and the booking was SUBMITTED that way
+// (booking_participants had Olaf in the Single, Matthias in the Double).
+//
+// Root cause: AccommodationStep restores `initialAssignment` synchronously in
+// useState, but the room catalogue arrives over the network. The whole-party
+// auto-assign effect fired once on mount, while `rooms` was still null — so
+// `roomUnits` was [] and `pruneAssignments(prev, [])` threw the restored map
+// away. `initialAssignment` is never read again, so when the catalogue landed
+// the effect re-filled the party in raw index order. These tests pin the
+// distinction the fix turns on: an empty `roomUnits` means "empty cart" ONLY
+// once the catalogue has resolved.
+describe('AccommodationStep — restored state survives re-entry (landr-abme)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getProductAddons.mockResolvedValue([])
+  })
+
+  const TWO_ROOMS = () => [
+    makeRoom('single-room', 'Single Room', 49, 1),
+    makeRoom('double-room', 'Double Room', 73, 2),
+  ]
+  const RESTORED_ROOMS = [
+    { productId: 'single-room', quantity: 1 },
+    { productId: 'double-room', quantity: 1 },
+  ]
+  // The party as DetailsStep builds it: participants[0] is the booker (Olaf),
+  // then the additional participant (Matthias), then companions (Alyda).
+  // Party index space: 0=Olaf, 1=Matthias, 2=Alyda.
+  const PARTY = {
+    participantCount: 2,
+    participantNames: ['Olaf', 'Matthias'],
+    companionNames: ['Alyda'],
+  }
+  // What the customer actually arranged by hand: Matthias alone in the Single,
+  // Olaf + Alyda in the Double. Deliberately NOT the index-order default,
+  // which would be 0→single, 1→double, 2→double.
+  const MANUAL_ASSIGNMENT = {
+    0: { roomProductId: 'double-room', unitIndex: 0, slot: 0 },
+    1: { roomProductId: 'single-room', unitIndex: 0, slot: 0 },
+    2: { roomProductId: 'double-room', unitIndex: 0, slot: 1 },
+  }
+
+  function renderRestored(extra: Record<string, unknown> = {}) {
+    return render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10', '2026-06-11']}
+        operatorToken="para42"
+        onBack={vi.fn()}
+        initialMode="package"
+        initialHotelLocationId="hotel-a"
+        initialRooms={RESTORED_ROOMS}
+        initialAssignment={MANUAL_ASSIGNMENT}
+        onConfirm={vi.fn()}
+        {...PARTY}
+        {...extra}
+      />,
+    )
+  }
+
+  it('keeps a hand-made room assignment that differs from the auto-assign default', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+
+    renderRestored()
+
+    await waitFor(() =>
+      expect(screen.getByTestId('room-unit-single-room::0')).toBeInTheDocument(),
+    )
+    const single = screen.getByTestId('room-unit-single-room::0')
+    const double = screen.getByTestId('room-unit-double-room::0')
+
+    // Matthias (party index 1) is in the Single — NOT Olaf (index 0), which is
+    // what a from-scratch index-order auto-assign would have produced and what
+    // the operator actually saw.
+    expect(within(single).getByTestId('occupant-row-1')).toBeInTheDocument()
+    expect(within(single).queryByTestId('occupant-row-0')).toBeNull()
+    expect(within(double).getByTestId('occupant-row-0')).toBeInTheDocument()
+    expect(within(double).getByTestId('occupant-row-2')).toBeInTheDocument()
+  })
+
+  it('submits the restored assignment verbatim, slots intact (never rebuilt)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+    const onConfirm = vi.fn()
+
+    renderRestored({ onConfirm })
+
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
+    const cont = screen.getByRole('button', { name: /Continue/i })
+    await waitFor(() => expect(cont).not.toBeDisabled())
+    fireEvent.click(cont)
+
+    const [, , , , , roomAssignment] = onConfirm.mock.calls[0]!
+    // Byte-for-byte the map that came in. A rebuilt map would be slot-less
+    // (autoAssignParticipants writes no `slot`), so asserting the slots is
+    // what actually distinguishes "preserved" from "coincidentally the same".
+    expect(roomAssignment).toEqual(MANUAL_ASSIGNMENT)
+  })
+
+  it('keeps the restored breakfast-chip holders instead of re-seeding the default', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+      product_kind: 'hotel_room',
+    }
+    mocks.getProductAddons.mockResolvedValue([breakfastAddon])
+    const onConfirm = vi.fn()
+
+    // ONE breakfast on the Double (capacity 2) → 'partial' mode, exactly one
+    // holder. The customer gave it to Alyda (index 2); the deterministic
+    // default would hand it to the lowest-index occupant, Olaf (index 0).
+    renderRestored({
+      onConfirm,
+      initialPerRoomAddons: { 'double-room': { 'bf-1': 1 } },
+      initialBreakfastMap: { 2: true },
+    })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('room-unit-double-room::0')).toBeInTheDocument(),
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('breakfast-chip-2')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('breakfast-chip-0')).toBeNull()
+
+    const cont = screen.getByRole('button', { name: /Continue/i })
+    await waitFor(() => expect(cont).not.toBeDisabled())
+    fireEvent.click(cont)
+    const [, , , , , , , , , breakfastMap] = onConfirm.mock.calls[0]!
+    expect(breakfastMap).toEqual({ 2: true })
+  })
+
+  it('blocks Continue until the per-room add-on catalogue has resolved', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+    // Hold the add-on fetch open: the rooms resolve (so occupancy is complete)
+    // while addonsByRoom is still {}. Clicking Continue in that window used to
+    // submit an empty add-on set and wipe the customer's restored breakfast.
+    let releaseAddons: (v: ProductAddon[]) => void = () => {}
+    mocks.getProductAddons.mockReturnValue(
+      new Promise<ProductAddon[]>((resolve) => {
+        releaseAddons = resolve
+      }),
+    )
+
+    renderRestored({ initialPerRoomAddons: { 'double-room': { 'bf-1': 1 } } })
+
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+
+    releaseAddons([])
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+  })
+
+  it('does not flash a false "0 beds" overbook warning while the catalogue loads', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    let releaseRooms: (v: Product[]) => void = () => {}
+    mocks.getHotelRoomsForHotel.mockReturnValue(
+      new Promise<Product[]>((resolve) => {
+        releaseRooms = resolve
+      }),
+    )
+
+    renderRestored()
+
+    // `selection` is restored synchronously, so totalRoomsPicked > 0 from the
+    // first render while totalCapacity is still 0. The warning is role="alert"
+    // — screen readers announced it on every single re-entry.
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('overbook-capacity-warning')).toBeNull()
+
+    releaseRooms(TWO_ROOMS())
+    await waitFor(() =>
+      expect(screen.getByTestId('room-unit-single-room::0')).toBeInTheDocument(),
+    )
+    // 3 people, 3 beds — still no warning once the truth is known.
+    expect(screen.queryByTestId('overbook-capacity-warning')).toBeNull()
+  })
+
+  it('pads short participantNames so companion chips keep their party index', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue(TWO_ROOMS())
+
+    // participantCount=2 but only one name typed so far. The companion must
+    // stay at party index 2 — the index the assignment map is keyed on.
+    renderRestored({ participantNames: ['Olaf'] })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('room-unit-double-room::0')).toBeInTheDocument(),
+    )
+    const double = screen.getByTestId('room-unit-double-room::0')
+    expect(within(double).getByTestId('occupant-row-2')).toHaveTextContent(
+      /Alyda/,
+    )
   })
 })

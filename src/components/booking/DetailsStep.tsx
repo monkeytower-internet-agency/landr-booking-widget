@@ -28,6 +28,8 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+// landr-uwvl: stable per-member identity for the room-assignment maps.
+import { withMemberId } from './partyIdentity'
 import { GroupInquiryForm } from './GroupInquiryForm'
 import {
   Dialog,
@@ -69,6 +71,20 @@ interface Props {
    * (broken) mailto is omitted. Optional so existing tests need no change.
    */
   contactEmail?: string | null
+  /**
+   * landr-y1t4: does this operator have any ACTIVE subscription perk? When
+   * false the member-perk code field never renders and no OTP is ever
+   * requested — for an operator with no membership programme that field is a
+   * control which can do nothing, while its copy ("apply your member price")
+   * promises a rate the operator does not offer. Martin (Para42) asked what
+   * the code was; nobody could have used it.
+   *
+   * Defaults FALSE so every existing call-site (and every test that predates
+   * this prop) keeps the field hidden unless it opts in. UI-ONLY: the server
+   * still verifies any member_perk_otp that reaches it, so a hand-crafted
+   * payload gains exactly nothing from this gate.
+   */
+  hasMemberPerks?: boolean
   /**
    * landr-ehye: opaque widget token used to POST the group-inquiry form.
    * When absent (e.g. existing test call-sites) the form still renders but
@@ -185,6 +201,7 @@ export function DetailsStep({
   selection,
   serviceRoles = [],
   contactEmail,
+  hasMemberPerks = false,
   operatorToken = '',
   initialBooker,
   initialParticipants,
@@ -219,14 +236,20 @@ export function DetailsStep({
   // restore the additional slots from initialParticipants[1..].
   const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
     if (initialParticipants && initialParticipants.length > 1) {
-      return initialParticipants.slice(1)
+      // landr-uwvl: every row this step emits must carry a stable id — it is
+      // what the draft's room-assignment / age / breakfast maps are keyed by.
+      // Rows restored from the draft already have one; this backfills the only
+      // remaining source of id-less rows (a caller that hand-built the array),
+      // and does it ONCE in the state initialiser so a re-render can never
+      // re-mint and detach someone from their room.
+      return initialParticipants.slice(1).map(withMemberId)
     }
     return []
   })
   // landr-87n9.3: non-guiding companions ("Others joining the activity").
   // Restored from initialCompanions on Back-restore, else empty.
-  const [companions, setCompanions] = useState<CompanionDetails[]>(
-    () => initialCompanions ?? [],
+  const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
+    (initialCompanions ?? []).map(withMemberId),
   )
 
   // landr-fn4i / landr-5krc: optional member-perk code. Seeded from
@@ -242,6 +265,11 @@ export function DetailsStep({
   // code field is shown at all — seeded true when re-entering with an
   // already-valid-looking email (Back-restore), since a request for that
   // email would already have fired on the forward pass.
+  //
+  // landr-y1t4: this seed is deliberately NOT gated on hasMemberPerks. It
+  // tracks one thing only — "has a request fired for this email" — and the
+  // render below ANDs it with hasMemberPerks, so the operator gate has exactly
+  // one home. Duplicating the condition here would let the two drift.
   const [otpRequested, setOtpRequested] = useState<boolean>(() =>
     Boolean(initialBooker?.email?.trim() && initialBooker.email.includes('@')),
   )
@@ -403,6 +431,15 @@ export function DetailsStep({
   // an unchanged email (tabbing back and forth) don't re-request and burn
   // into the server's per-email rate limit.
   const requestMemberPerkOtpIfNeeded = () => {
+    // landr-y1t4: hard gate, first line. An operator with no ACTIVE
+    // subscription perk has no member price to apply, so we neither reveal the
+    // field nor spend one of their per-email issuance budgets asking for a code
+    // the server would refuse to send anyway. Returning BEFORE
+    // otpSentForEmailRef is written is deliberate: nothing is recorded as
+    // "already requested", so if hasMemberPerks were to arrive late a later
+    // blur still fires a real request. (In practice it cannot: settings are
+    // fetched on App mount and Details is several steps downstream.)
+    if (!hasMemberPerks) return
     const email = booker.email.trim()
     if (!email || !email.includes('@')) return
     setOtpRequested(true)
@@ -835,8 +872,11 @@ export function DetailsStep({
             ) : null}
           </div>
 
-          {/* landr-fn4i / landr-5krc: always-on, OPTIONAL member-perk code
-              field. Shown once the OTP request has fired for the current
+          {/* landr-fn4i / landr-5krc: OPTIONAL member-perk code field.
+              landr-y1t4: shown ONLY for operators that actually run a
+              membership programme (hasMemberPerks — an ACTIVE
+              subscription_perks row exists), and then only once the OTP
+              request has fired for the current
               email (member or not — the response carries no signal either
               way, so this can't and doesn't try to say "code sent" vs "not a
               member"). Never required, never validated red — a non-member
@@ -844,7 +884,7 @@ export function DetailsStep({
               filling it in. The price only changes on submit (the code is
               spent server-side during pricing), so there is deliberately no
               client-side preview here. */}
-          {otpRequested ? (
+          {hasMemberPerks && otpRequested ? (
             <div
               className="rounded-lg border border-dashed bg-surface-raised p-3"
               data-testid="member-perk-otp-section"

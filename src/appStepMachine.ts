@@ -5,12 +5,17 @@
  * exports there would trigger the rule and block CI).
  */
 import type { AccommodationMode } from '@/components/booking/AccommodationStep'
+import type { RoomSelection } from '@/components/booking/accommodationCalc'
+// landr-uwvl: the step machine + the persistent draft carry the three
+// party maps keyed by STABLE PartyMemberId, never by party index — they
+// outlive DetailsStep roster edits, which renumber the index space. The
+// positional twins (RoomAssignmentMap / OccupantAgeMap / BreakfastMap) never
+// leave AccommodationStep; App.tsx converts at the seam. See partyIdentity.ts.
 import type {
-  BreakfastMap,
-  OccupantAgeMap,
-  RoomAssignmentMap,
-  RoomSelection,
-} from '@/components/booking/accommodationCalc'
+  PartyAssignmentMap,
+  PartyBreakfastMap,
+  PartyOccupantAgeMap,
+} from '@/components/booking/partyIdentity'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 
@@ -67,11 +72,11 @@ export interface BookingDraft {
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
-  roomAssignment?: RoomAssignmentMap
-  occupantAgeMap?: OccupantAgeMap
+  roomAssignment?: PartyAssignmentMap
+  occupantAgeMap?: PartyOccupantAgeMap
   perRoomAddons?: PerRoomAddons
   roomProductNames?: Record<string, string>
-  breakfastMap?: BreakfastMap
+  breakfastMap?: PartyBreakfastMap
   // Intermediate-step provenance + their entered values.
   pickupLocationId?: string | null
   hadServiceAddons?: boolean
@@ -192,15 +197,15 @@ export type Step =
       // landr-gb2f.2 / landr-87n9.3: persisted WHOLE-PARTY → room assignment
       // (unified index space: participants 0..P-1, companions P..P+C-1) for
       // back-nav restoration of the chips/units layout.
-      roomAssignment?: RoomAssignmentMap
+      roomAssignment?: PartyAssignmentMap
       // landr-doam.1: per-occupant age band + age for back-nav restoration.
-      occupantAgeMap?: OccupantAgeMap
+      occupantAgeMap?: PartyOccupantAgeMap
       // landr-gb2f.5: raw per-room add-on selection for back-nav restoration.
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
       // landr-a4fy: per-occupant breakfast flag map for back-nav restoration.
-      breakfastMap?: BreakfastMap
+      breakfastMap?: PartyBreakfastMap
     }
   // landr-yf0n: optional addons lets ServiceAddonsStep re-seed its
   // selection map on back-nav re-entry.
@@ -239,15 +244,15 @@ export type Step =
       accommodationMode?: AccommodationMode
       // landr-gb2f.2: carry the assignment through the pickup step so the
       // back-nav into pick-accommodation restores it.
-      roomAssignment?: RoomAssignmentMap
+      roomAssignment?: PartyAssignmentMap
       // landr-doam.1: carry the age map through the pickup step.
-      occupantAgeMap?: OccupantAgeMap
+      occupantAgeMap?: PartyOccupantAgeMap
       // landr-gb2f.5: carry the per-room add-on map through the pickup step.
       perRoomAddons?: PerRoomAddons
       // landr-gb2f.5: room product display names for the review labels.
       roomProductNames?: Record<string, string>
       // landr-a4fy: carry the breakfast map through the pickup step.
-      breakfastMap?: BreakfastMap
+      breakfastMap?: PartyBreakfastMap
     }
   // landr-71kz.10: the legacy hardcoded `declarations` Step variant has been
   // retired. Para42's eligibility declarations are now an operator-configured
@@ -278,11 +283,11 @@ export type Step =
       includeHotel?: boolean
       isSharedDouble?: boolean
       accommodationMode?: AccommodationMode
-      roomAssignment?: RoomAssignmentMap
-      occupantAgeMap?: OccupantAgeMap
+      roomAssignment?: PartyAssignmentMap
+      occupantAgeMap?: PartyOccupantAgeMap
       perRoomAddons?: PerRoomAddons
       roomProductNames?: Record<string, string>
-      breakfastMap?: BreakfastMap
+      breakfastMap?: PartyBreakfastMap
       // landr-71kz.3: which operator form this step renders.
       formKey: string
       // landr-71kz.4 (forward-compat): prior answers for back-nav restoration.
@@ -315,10 +320,10 @@ export type Step =
       // landr-gb2f.2 / landr-87n9.3: WHOLE-PARTY assignment BookingForm maps
       // onto each participant + companion's room_product_id + room_unit_index
       // on submit (unified index: participants first, companions after).
-      roomAssignment?: RoomAssignmentMap
+      roomAssignment?: PartyAssignmentMap
       // landr-doam.1: per-occupant age band + age threaded to BookingForm
       // for populating occupant_age_band + occupant_age on submit.
-      occupantAgeMap?: OccupantAgeMap
+      occupantAgeMap?: PartyOccupantAgeMap
       // landr-gb2f.5: raw per-room add-on map threaded to BookingForm so
       // the review can show which room unit has breakfast vs not.
       perRoomAddons?: PerRoomAddons
@@ -326,7 +331,7 @@ export type Step =
       roomProductNames?: Record<string, string>
       // landr-a4fy: per-occupant breakfast flag map threaded to BookingForm
       // for has_breakfast on each Participant / Companion in the submit body.
-      breakfastMap?: BreakfastMap
+      breakfastMap?: PartyBreakfastMap
       // landr-sbhz.3: declarations confirmed upstream by DeclarationsStep.
       // Only present when the operator requires declarations.
       customerDeclarations?: Record<string, true> | null
@@ -520,15 +525,15 @@ export function stepAfterAccommodation(
   // landr-ffyg.2: top-level accommodation mode for back-nav restoration.
   accommodationMode: AccommodationMode | undefined = undefined,
   // landr-gb2f.2: participant → room assignment, threaded to the submit step.
-  roomAssignment: RoomAssignmentMap | undefined = undefined,
+  roomAssignment: PartyAssignmentMap | undefined = undefined,
   // landr-doam.1: per-occupant age band + age, threaded to the submit step.
-  occupantAgeMap: OccupantAgeMap | undefined = undefined,
+  occupantAgeMap: PartyOccupantAgeMap | undefined = undefined,
   // landr-gb2f.5: raw per-room add-on map, threaded to the review screen.
   perRoomAddons: PerRoomAddons | undefined = undefined,
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames: Record<string, string> | undefined = undefined,
   // landr-a4fy: per-occupant breakfast flag map, threaded to the review screen.
-  breakfastMap: BreakfastMap | undefined = undefined,
+  breakfastMap: PartyBreakfastMap | undefined = undefined,
 ): Step {
   // landr-71kz.3: plan walk for the post-accommodation forward target. The
   // legacy forward contract out of this call is EXACTLY three branches, and
@@ -648,15 +653,15 @@ export interface StepBeforeReviewArgs {
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
-  roomAssignment?: RoomAssignmentMap
+  roomAssignment?: PartyAssignmentMap
   // landr-doam.1: carry the age map back for pick-accommodation restoration.
-  occupantAgeMap?: OccupantAgeMap
+  occupantAgeMap?: PartyOccupantAgeMap
   // landr-gb2f.5: carry the per-room add-on map back for review restoration.
   perRoomAddons?: PerRoomAddons
   // landr-gb2f.5: room product display names for the review labels.
   roomProductNames?: Record<string, string>
   // landr-a4fy: carry the breakfast map back for pick-accommodation restoration.
-  breakfastMap?: BreakfastMap
+  breakfastMap?: PartyBreakfastMap
   // landr-71kz.10: the operator-configured remote flow (when fetched) so the
   // backward walk sees the custom_form modules in their configured positions.
   // Absent → legacy plan (no custom forms), identical to before.
@@ -865,11 +870,11 @@ export interface PreReviewArgs {
   includeHotel?: boolean
   isSharedDouble?: boolean
   accommodationMode?: AccommodationMode
-  roomAssignment?: RoomAssignmentMap
-  occupantAgeMap?: OccupantAgeMap
+  roomAssignment?: PartyAssignmentMap
+  occupantAgeMap?: PartyOccupantAgeMap
   perRoomAddons?: PerRoomAddons
   roomProductNames?: Record<string, string>
-  breakfastMap?: BreakfastMap
+  breakfastMap?: PartyBreakfastMap
 }
 
 /** Build the terminal `fill-form` (review) step from the provenance bag. */

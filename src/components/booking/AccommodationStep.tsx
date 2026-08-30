@@ -339,9 +339,23 @@ export function AccommodationStep({
   // links it. This is best-effort — a full per-room restore would require the
   // submit payload to carry per-room breakdown, which is out of scope here.
   // Documented as a known limitation.
+  //
+  // landr-abme: the initialPerRoomAddons restore is seeded SYNCHRONOUSLY here
+  // rather than waiting for the per-room catalogue effect below. That map is
+  // already in the exact addonSelection shape, so nothing about it needs the
+  // catalogue — and waiting left `addonSelection` empty for the first few
+  // renders after re-entry, which made every consumer (the breakfast clamp,
+  // the required-add-on gate, handleContinue) read "the customer ordered no
+  // add-ons" when the truth was "the catalogue hasn't arrived yet". The
+  // seeding effect below still owns the legacy initialAddons fallback; its
+  // "only seed when empty" guard makes it a no-op once we've seeded here.
   const [addonSelection, setAddonSelection] = useState<
     Record<string, Record<string, number>>
-  >({})
+  >(() =>
+    initialPerRoomAddons && Object.keys(initialPerRoomAddons).length > 0
+      ? { ...initialPerRoomAddons }
+      : {},
+  )
 
   // landr-gb2f.2: participant → room assignment. participantIndex →
   // {roomProductId, unitIndex}. Seeded from initialAssignment on back-nav
@@ -620,6 +634,27 @@ export function AccommodationStep({
     [mode, roomSelections, rooms],
   )
 
+  // landr-abme: CATALOGUE READINESS. The hotel + room + per-room-add-on
+  // catalogues all arrive asynchronously, but `selection`, `assignment`,
+  // `addonSelection` and `breakfastMap` are all restored SYNCHRONOUSLY from
+  // the initial-* props on back-nav re-entry. In the window between those two
+  // facts, `roomUnits` is [] and the add-on catalogue is {} — and that is
+  // indistinguishable, to every prune/clamp helper, from "the customer just
+  // emptied their cart". Re-deriving restored state against a catalogue that
+  // hasn't loaded is what silently destroyed the customer's manual room
+  // assignment (and their breakfast placement) on every re-entry. Gate on
+  // these flags rather than on `roomUnits.length`, which cannot tell the two
+  // apart.
+  //
+  // Non-package modes book no rooms at all, so they are trivially "ready".
+  // A hotel with zero rooms resolves `rooms` to [] and fires no add-on
+  // fetches, so it is ready too; the only unready state is genuinely in-flight.
+  const roomCatalogueReady = mode !== 'package' || rooms !== null
+  const addonCatalogueReady =
+    mode !== 'package' ||
+    (rooms !== null &&
+      (rooms.length === 0 || Object.keys(addonsByRoom).length > 0))
+
   // landr-87n9.3: total party headcount = participants + companions. This
   // is the unified index space the assignment map + auto-assign operate on
   // (participants 0..P-1, companions P..P+C-1). Companions DO occupy beds /
@@ -639,7 +674,20 @@ export function AccommodationStep({
   const unitSignature = roomUnits
     .map((u) => `${u.roomProductId}:${u.unitIndex}:${u.capacity}`)
     .join('|')
+  //
+  // landr-abme: GATED on roomCatalogueReady. Without the gate this effect
+  // fired once on mount, while `rooms` was still null — so `roomUnits` was []
+  // and autoAssignParty -> pruneAssignments(prev, []) threw away the restored
+  // `initialAssignment` wholesale. `initialAssignment` is only read in the
+  // useState initializer, so nothing ever put it back: when the catalogue
+  // finally landed the effect re-ran against an empty map and re-filled the
+  // party in raw index order. A customer who had dragged people into
+  // non-default rooms got that arrangement silently rewritten — and, because
+  // occupancy then reads as complete, SUBMITTED. Once the catalogue has
+  // resolved, an empty `roomUnits` genuinely means an empty cart and the
+  // prune is correct, which is exactly the distinction the flag encodes.
   useEffect(() => {
+    if (!roomCatalogueReady) return
     let cancelled = false
     void (async () => {
       if (cancelled) return
@@ -651,7 +699,7 @@ export function AccommodationStep({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitSignature, participantCount, companionCount])
+  }, [unitSignature, participantCount, companionCount, roomCatalogueReady])
   // ^ keyed on unitSignature (a stable string) + participantCount +
   //   companionCount rather than the roomUnits array identity (which changes
   //   every render). The setAssignment functional update reads the latest
@@ -676,8 +724,15 @@ export function AccommodationStep({
   // removed; per-room over/under warnings in AddonsList replace it.
   // landr-87n9.3: the capacity check now compares against the WHOLE PARTY
   // (partyCount = participants + companions) since companions occupy beds.
+  // landr-abme: also gated on roomCatalogueReady — `selection` is restored
+  // synchronously but `totalCapacity` is computed from the not-yet-fetched
+  // catalogue, so every re-entry used to flash a role="alert" "3 people, 0
+  // beds" box before correcting itself.
   const showCapacityWarning =
-    mode === 'package' && totalRoomsPicked > 0 && totalCapacity < partyCount
+    mode === 'package' &&
+    roomCatalogueReady &&
+    totalRoomsPicked > 0 &&
+    totalCapacity < partyCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
@@ -713,11 +768,17 @@ export function AccommodationStep({
   // RoomAssignment. Index space: participants 0..P-1, companions P..P+C-1.
   // Names fall back to '' (the chip renders "Guest N"); guestFlags marks the
   // companion tail so those chips show the muted "guest" badge.
+  //
+  // landr-abme: the participant slice is built by INDEX rather than by
+  // slicing, so it is always exactly participantCount long. A short
+  // participantNames (fewer names than the count) previously produced a short
+  // array, which shifted every companion's label one index down and desynced
+  // the chip labels from the assignment map's index space.
   const partyMemberNames = useMemo(() => {
-    const participants =
-      participantNames.length > 0
-        ? participantNames.slice(0, participantCount)
-        : Array.from({ length: participantCount }, () => '')
+    const participants = Array.from(
+      { length: participantCount },
+      (_, i) => participantNames[i] ?? '',
+    )
     return [...participants, ...companionNames]
   }, [participantNames, participantCount, companionNames])
   const partyGuestFlags = useMemo(
@@ -787,6 +848,14 @@ export function AccommodationStep({
       : mode === 'shared-double'
         ? Boolean(selectedHotelId)
         : Boolean(selectedHotelId) &&
+          // landr-abme: the room catalogue can resolve a full round-trip
+          // before the per-room add-on catalogue does. In that window
+          // occupancy already reads complete, so Continue was clickable while
+          // `addonsByRoom` was still {} — which makes unmetRequiredAddon
+          // vacuously false (the required-breakfast gate silently open) and
+          // makes handleContinue's flattenPerRoomAddons / clampBreakfastMap
+          // submit an empty add-on set, deleting restored breakfast lines.
+          addonCatalogueReady &&
           totalRoomsPicked > 0 &&
           !unmetRequiredAddon &&
           occupancy.complete &&
@@ -912,7 +981,21 @@ export function AccommodationStep({
   // react-hooks/set-state-in-effect lint rule happy (no sync setState in body).
   const breakfastSignatureAddon = JSON.stringify(addonSelection)
   const breakfastSignatureAssignment = JSON.stringify(assignment)
+  //
+  // landr-abme: GATED on roomCatalogueReady for the same reason as the
+  // auto-assign effect above. clampBreakfastMap walks the assignment's room
+  // products and drops every holder whose room shows a breakfast qty of 0
+  // (accommodationCalc: `if (qty <= 0) continue`), so running it at mount —
+  // against a null room catalogue and a not-yet-seeded add-on map — returned
+  // {} and destroyed the restored placement before it could ever be clamped.
+  // Every later re-fire then saw an empty `prev` and re-seeded the
+  // DETERMINISTIC DEFAULT holders instead of the customer's choice, which is a
+  // wrong-person-gets-breakfast bug whenever fewer breakfasts than occupants
+  // are ordered. The synchronous initialPerRoomAddons seeding above is the
+  // other half of this fix: the clamp needs the real add-on qtys to preserve
+  // holders, not just the real units.
   useEffect(() => {
+    if (!roomCatalogueReady) return
     let cancelled = false
     void (async () => {
       if (cancelled) return
@@ -922,7 +1005,7 @@ export function AccommodationStep({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [breakfastSignatureAddon, breakfastSignatureAssignment])
+  }, [breakfastSignatureAddon, breakfastSignatureAssignment, roomCatalogueReady])
   // ^ keyed on stable JSON signatures rather than object identity so the effect
   //   only re-fires when the data actually changes. setBreakfastMap reads the
   //   latest holders, so these are the only real triggers.

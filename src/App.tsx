@@ -29,6 +29,15 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from '@/components/booking/detailsTypes'
+// landr-uwvl: the draft/step carry the three party maps keyed by a STABLE
+// PartyMemberId; AccommodationStep + BookingForm consume them positionally.
+// App.tsx is the ONLY place the two coordinate systems meet — see the module
+// doc in partyIdentity.ts for why the line is drawn here.
+import {
+  buildPartyRoster,
+  toIdentityKeyed,
+  toIndexKeyedOrUndefined,
+} from '@/components/booking/partyIdentity'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -975,6 +984,22 @@ function BookingFlowApp() {
     // clear the live-lift so a later Back into pick-accommodation falls back
     // to the restored step values rather than stale live values.
     clearLiveAccommodation()
+    // landr-uwvl: THE OUTBOUND SEAM. AccommodationStep confirms the three maps
+    // in its own party-INDEX space; from here on they live in the draft + the
+    // Step union, both of which outlive a DetailsStep roster edit. Re-key them
+    // to stable PartyMemberIds now, against the very roster the step was
+    // rendered with, so a later add/remove of a participant or companion can
+    // never renumber the party out from under them.
+    const partyRoster = buildPartyRoster(participants, companions)
+    const partyAssignment = roomAssignment
+      ? toIdentityKeyed(roomAssignment, partyRoster)
+      : undefined
+    const partyAgeMap = occupantAgeMap
+      ? toIdentityKeyed(occupantAgeMap, partyRoster)
+      : undefined
+    const partyBreakfastMap = breakfastMap
+      ? toIdentityKeyed(breakfastMap, partyRoster)
+      : undefined
     // landr-nmed: commit the accommodation + booker/participant context into
     // the persistent draft so a later breadcrumb jump back to Dates / the
     // product crumb re-seeds it all on the way forward.
@@ -989,11 +1014,11 @@ function BookingFlowApp() {
       includeHotel,
       isSharedDouble,
       accommodationMode,
-      roomAssignment,
-      occupantAgeMap,
+      roomAssignment: partyAssignment,
+      occupantAgeMap: partyAgeMap,
       perRoomAddons,
       roomProductNames,
-      breakfastMap,
+      breakfastMap: partyBreakfastMap,
     })
     const next = stepAfterAccommodation(
       product,
@@ -1011,16 +1036,17 @@ function BookingFlowApp() {
       isSharedDouble,
       // landr-ffyg.2: accommodation mode threads through for back-nav.
       accommodationMode,
-      // landr-gb2f.2: participant → room assignment threads through.
-      roomAssignment,
+      // landr-gb2f.2 / landr-uwvl: participant → room assignment threads
+      // through, identity-keyed.
+      partyAssignment,
       // landr-doam.1: per-occupant age band + age threads through.
-      occupantAgeMap,
+      partyAgeMap,
       // landr-gb2f.5: per-room add-on map threads through to the review.
       perRoomAddons,
       // landr-gb2f.5: room product names thread through to the review.
       roomProductNames,
       // landr-a4fy: breakfast map threads through to the review.
-      breakfastMap,
+      partyBreakfastMap,
     )
     // landr-71kz.10: if stepAfterAccommodation resolved straight to the review
     // screen, route into the operator-configured custom-form chain first (when
@@ -1566,6 +1592,12 @@ function BookingFlowApp() {
             // operator hasn't set one (or the API predates the key) — the
             // copy still renders but the mailto is omitted.
             contactEmail={operatorSettings.contact_email ?? null}
+            // landr-y1t4: only operators with an ACTIVE subscription perk get
+            // the member-perk code field. `?? false` is the load-bearing half —
+            // until getOperatorSettings resolves (and on an API old enough to
+            // predate the key) the field stays hidden rather than flashing in
+            // and then vanishing.
+            hasMemberPerks={operatorSettings.has_member_perks ?? false}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             initialBooker={step.booker}
@@ -1655,13 +1687,35 @@ function BookingFlowApp() {
             initialPerRoomAddons={step.perRoomAddons}
             initialIncludeHotel={step.includeHotel}
             initialMode={step.accommodationMode}
-            // landr-gb2f.2: restore the participant → room assignment.
-            initialAssignment={step.roomAssignment}
-            // landr-doam.1: restore the per-occupant age map on back-nav.
-            initialAgeMap={step.occupantAgeMap}
-            // landr-z59y: restore which occupants hold a breakfast chip on
-            // back-nav; AccommodationStep re-clamps it to the restored rooms.
-            initialBreakfastMap={step.breakfastMap}
+            // landr-gb2f.2 / landr-doam.1 / landr-z59y: restore the room
+            // assignment, the per-occupant age map and which occupants hold a
+            // breakfast chip (AccommodationStep re-clamps that to the restored
+            // rooms).
+            //
+            // landr-uwvl: THE INBOUND SEAM. The step carries these keyed by
+            // stable PartyMemberId; AccommodationStep works in the party-INDEX
+            // space. Resolve against the CURRENT roster — the same list, in the
+            // same order, that built participantNames/companionNames above — so
+            // a member removed in DetailsStep drops out (freeing their bed for
+            // autoAssignParty to top up) while everyone else keeps the exact
+            // room they were in, instead of inheriting their neighbour's.
+            {...(() => {
+              const roster = buildPartyRoster(step.participants, step.companions)
+              return {
+                initialAssignment: toIndexKeyedOrUndefined(
+                  step.roomAssignment,
+                  roster,
+                ),
+                initialAgeMap: toIndexKeyedOrUndefined(
+                  step.occupantAgeMap,
+                  roster,
+                ),
+                initialBreakfastMap: toIndexKeyedOrUndefined(
+                  step.breakfastMap,
+                  roster,
+                ),
+              }
+            })()}
             // landr-87n9.2: live-lift the room + add-on selection so the
             // sidebar's at-hotel total updates as the customer picks rooms.
             // Sets the `touched` sentinel so App prefers live values over the
@@ -1983,20 +2037,34 @@ function BookingFlowApp() {
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
             isSharedDouble={step.isSharedDouble}
-            // landr-gb2f.2: thread the participant → room assignment so
-            // BookingForm attaches room_product_id + room_unit_index per
-            // participant on submit.
-            roomAssignment={step.roomAssignment}
-            // landr-doam.1: thread the age map so BookingForm attaches
+            // landr-gb2f.2 / landr-doam.1: thread the room assignment + age
+            // map so BookingForm attaches room_product_id + room_unit_index and
             // occupant_age_band + occupant_age per occupant on submit.
-            occupantAgeMap={step.occupantAgeMap}
+            //
+            // landr-uwvl: same inbound seam as AccommodationStep above — the
+            // step's identity-keyed maps resolved against the current roster
+            // (participants first, then companions: the unified index space
+            // BookingForm indexes into). The breakfast map rides along in the
+            // same conversion below.
+            {...(() => {
+              const roster = buildPartyRoster(step.participants, step.companions)
+              return {
+                roomAssignment: toIndexKeyedOrUndefined(
+                  step.roomAssignment,
+                  roster,
+                ),
+                occupantAgeMap: toIndexKeyedOrUndefined(
+                  step.occupantAgeMap,
+                  roster,
+                ),
+                breakfastMap: toIndexKeyedOrUndefined(step.breakfastMap, roster),
+              }
+            })()}
             // landr-gb2f.5: thread the per-room add-on map so BookingForm
             // can show breakfast status per room unit in the review.
             perRoomAddons={step.perRoomAddons}
             // landr-gb2f.5: thread room product names for the review labels.
             roomProductNames={step.roomProductNames}
-            // landr-a4fy: thread breakfast map for has_breakfast per occupant.
-            breakfastMap={step.breakfastMap}
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
