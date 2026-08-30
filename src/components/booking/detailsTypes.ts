@@ -20,6 +20,12 @@
  * is unchanged — participants 2..N continue to see an optional phone
  * input — but the value is now sent on submit instead of dropped.
  */
+import {
+  BOOKER_MEMBER_ID,
+  newMemberId,
+  type PartyMemberId,
+} from './partyIdentity'
+
 export interface BookerDetails {
   first_name: string
   last_name: string
@@ -28,6 +34,17 @@ export interface BookerDetails {
 }
 
 export interface ParticipantDetails {
+  /**
+   * landr-uwvl: STABLE client-side identity. Optional only so the many
+   * hand-rolled literals across the test suite keep compiling — every
+   * production construction site mints one (`emptyParticipant`,
+   * `bookerToParticipant`, DetailsStep's restore backfill, the
+   * sessionStorage normalizer). It is what the draft's room-assignment /
+   * age / breakfast maps are keyed by, so it MUST survive a roster edit and
+   * MUST NOT be regenerated on re-render. Never sent to the API: the submit
+   * payload is built from an explicit field list, not a spread.
+   */
+  id?: PartyMemberId
   first_name: string
   last_name: string
   /** Optional. Empty string when not provided — normalised to null on submit. */
@@ -67,6 +84,8 @@ export interface ParticipantDetails {
  * semantics.
  */
 export interface CompanionDetails {
+  /** landr-uwvl: stable client-side identity — see ParticipantDetails.id. */
+  id?: PartyMemberId
   first_name: string
   /** Optional. Empty string when not provided — normalised to null on submit. */
   last_name: string
@@ -117,7 +136,14 @@ export function emptyBooker(): BookerDetails {
 
 /** Empty companion scaffold for a freshly-added "Others joining" row. */
 export function emptyCompanion(): CompanionDetails {
-  return { first_name: '', last_name: '', email: '', phone: '', companion_kind: 'guest' }
+  return {
+    id: newMemberId(),
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    companion_kind: 'guest',
+  }
 }
 
 /**
@@ -130,6 +156,7 @@ export function emptyParticipant(
   serviceRoleCode: string = '',
 ): ParticipantDetails {
   return {
+    id: newMemberId(),
     first_name: '',
     last_name: '',
     email: '',
@@ -153,6 +180,12 @@ export function bookerToParticipant(
   serviceRoleCode: string = '',
 ): ParticipantDetails {
   return {
+    // landr-uwvl: a FIXED sentinel, never a fresh id. This function is
+    // called inline on every DetailsStep render (participantsForValidation),
+    // so minting here would churn the booker's identity on every keystroke
+    // and detach them from their own room. There is exactly one booker and
+    // they are always participants[0], so a constant is the correct key.
+    id: BOOKER_MEMBER_ID,
     first_name: b.first_name,
     last_name: b.last_name,
     email: b.email,

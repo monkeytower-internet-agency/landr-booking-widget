@@ -28,6 +28,8 @@ import {
   type CompanionDetails,
   type ParticipantDetails,
 } from './detailsTypes'
+// landr-uwvl: stable per-member identity for the room-assignment maps.
+import { withMemberId } from './partyIdentity'
 import { GroupInquiryForm } from './GroupInquiryForm'
 import {
   Dialog,
@@ -234,14 +236,20 @@ export function DetailsStep({
   // restore the additional slots from initialParticipants[1..].
   const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
     if (initialParticipants && initialParticipants.length > 1) {
-      return initialParticipants.slice(1)
+      // landr-uwvl: every row this step emits must carry a stable id — it is
+      // what the draft's room-assignment / age / breakfast maps are keyed by.
+      // Rows restored from the draft already have one; this backfills the only
+      // remaining source of id-less rows (a caller that hand-built the array),
+      // and does it ONCE in the state initialiser so a re-render can never
+      // re-mint and detach someone from their room.
+      return initialParticipants.slice(1).map(withMemberId)
     }
     return []
   })
   // landr-87n9.3: non-guiding companions ("Others joining the activity").
   // Restored from initialCompanions on Back-restore, else empty.
-  const [companions, setCompanions] = useState<CompanionDetails[]>(
-    () => initialCompanions ?? [],
+  const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
+    (initialCompanions ?? []).map(withMemberId),
   )
 
   // landr-fn4i / landr-5krc: optional member-perk code. Seeded from
