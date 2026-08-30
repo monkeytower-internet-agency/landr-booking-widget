@@ -6453,11 +6453,6 @@
             "title": "Expose Seats To Customer",
             "type": "boolean"
           },
-          "has_member_perks": {
-            "default": false,
-            "title": "Has Member Perks",
-            "type": "boolean"
-          },
           "logo_url": {
             "anyOf": [
               {
