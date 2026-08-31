@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { formatCurrency } from './accommodationCalc'
@@ -95,6 +95,7 @@ describe('OfferPage', () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('shows loading card while the API call is in flight', () => {
@@ -225,13 +226,105 @@ describe('OfferPage', () => {
     expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
   })
 
-  it('renders the paid confirmation card when ?paid=1 is in the URL', () => {
-    setupQueryParam('paid', '1')
-    // getBookingByToken should NOT be called — we're already past the offer.
-    render(<OfferPage token={TOKEN} />)
-    expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
-    expect(screen.getByText(/payment complete/i)).toBeInTheDocument()
-    expect(mocks.getBookingByToken).not.toHaveBeenCalled()
+  // ── landr-6l7y: ?paid=1 is a TRIGGER to re-check, never evidence ─────────
+  describe('?paid=1 return from Stripe (landr-6l7y)', () => {
+    it('shows a verifying interstitial first, then re-fetches the booking', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockReturnValue(new Promise(() => {})) // never resolves
+      render(<OfferPage token={TOKEN} />)
+
+      expect(screen.getByTestId('offer-payment-verifying')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+      })
+    })
+
+    it('renders the paid confirmation card once the server confirms the balance is settled', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 0 },
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      })
+      expect(screen.getByText(/payment complete/i)).toBeInTheDocument()
+      expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+    })
+
+    it('renders the paid confirmation card when the balance is in credit (overpaid)', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: -5.0 },
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      })
+    })
+
+    it('a booking already fully paid before this visit still shows the success state', async () => {
+      // e.g. the customer reopens an old ?paid=1 link, or Stripe redirected
+      // back to a booking that was already settled by an earlier visit.
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 0 },
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      })
+    })
+
+    it('does NOT render the confirmation copy while the booking is still pending, and reaches the honest pending-terminal state once the bounded poll is exhausted', async () => {
+      vi.useFakeTimers()
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 1190.0 }, // unchanged — webhook hasn't landed
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      // Initial (immediate) check.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+
+      // Walk the full backoff schedule — 4 retries after the initial check —
+      // in one advance; advanceTimersByTimeAsync drains microtasks between
+      // each timer it fires, so the fetch→setTimeout→fetch chain unrolls.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20000)
+      })
+
+      expect(screen.getByTestId('offer-payment-pending')).toBeInTheDocument()
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+      expect(screen.queryByText(/payment complete/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/booking is confirmed/i)).not.toBeInTheDocument()
+      // Bounded — 1 initial check + 4 retries, then stop.
+      expect(mocks.getBookingByToken).toHaveBeenCalledTimes(5)
+    })
+
+    it('does NOT render the confirmation copy when the re-check itself fails', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockRejectedValue(new Error('500'))
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-payment-unknown')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+      expect(screen.queryByText(/payment complete/i)).not.toBeInTheDocument()
+      // Fails fast — no retry loop on a hard fetch failure.
+      expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+    })
   })
 
   it('renders the payment-cancelled card when ?paid=cancelled is in the URL', () => {
