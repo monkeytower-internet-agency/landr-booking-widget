@@ -5557,9 +5557,80 @@
             "title": "Gross Total",
             "type": "number"
           },
+          "has_hotel_lines": {
+            "default": false,
+            "title": "Has Hotel Lines",
+            "type": "boolean"
+          },
+          "hotel_gross_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotel Gross Total"
+          },
+          "hotel_net_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotel Net Total"
+          },
+          "hotel_tax_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotel Tax Total"
+          },
           "net_total": {
             "title": "Net Total",
             "type": "number"
+          },
+          "operator_gross_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Gross Total"
+          },
+          "operator_net_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Net Total"
+          },
+          "operator_tax_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Tax Total"
           },
           "tax_total": {
             "title": "Tax Total",

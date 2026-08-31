@@ -124,6 +124,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         window.location.href = resp.checkout_url
       }
     } catch (err) {
+      // The thrown Error carries the server's own explanation — e.g.
+      // `400 Bad Request: {"detail":"return_url origin not in allowlist:
+      // https://bw-dev.landr.de"}`. Swallowing it entirely is what turned a
+      // one-line config bug into a blind investigation on 2026-08-31, so log
+      // it verbatim: the console is developer-only, the customer still sees
+      // the friendly copy below, and no secret is ever in this payload.
+      console.error('[landr] initiatePayment failed', err)
       setErrorMessage(
         err instanceof Error && err.message
           ? 'We could not start the payment. Please try again or contact us.'
@@ -269,13 +276,52 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
   // broken figure.
   const chargeAmount = totals.balance_due ?? totals.gross_total
+
+  // landr-gkj0: the API now ships the operator/hotel split, so the breakdown
+  // rows can describe the money THIS PAGE collects instead of the whole
+  // booking. Before this, a booking with a 180.00 guiding line and 526.00 of
+  // pay-at-hotel rooms rendered "Subtotal 659.81 / Tax 46.19 / Amount due
+  // 180.00" — three rows that do not add up, mixing money owed to the hotel
+  // on arrival into the figure being charged now.
+  //
+  // Absent (legacy bookings with no persisted per-line breakdown) => fall
+  // back to the booking-wide net/tax exactly as before, rather than showing
+  // a 0.00 breakdown. `splitAvailable` gates every use.
+  const hasSplit =
+    totals.operator_net_total != null && totals.operator_tax_total != null
+  // Only meaningful in pay mode: the offer ("Accept & Pay") flow quotes the
+  // whole booking on purpose, and its Total row is the grand total.
+  const splitAvailable = mode === 'pay' && hasSplit
+  const breakdownNet = splitAvailable
+    ? (totals.operator_net_total as number)
+    : totals.net_total
+  const breakdownTax = splitAvailable
+    ? (totals.operator_tax_total as number)
+    : totals.tax_total
+  const hotelAmount = totals.hotel_gross_total ?? 0
+  // Name the at-hotel money only when we actually read it off the lines.
+  const showHotelLine = splitAvailable && hotelAmount > 0
+  // The operator share before payments/refunds/overrides. Shown only when it
+  // differs from what is being charged now (a partial payment or an operator
+  // price override), so the customer can see why the two differ instead of
+  // the rows silently not summing.
+  const operatorGross = totals.operator_gross_total
+  const showOperatorGross =
+    splitAvailable &&
+    operatorGross != null &&
+    Math.abs(operatorGross - chargeAmount) >= 0.005
   // balance_due <= 0 means this card payment is settled (fully paid, or in
   // credit) — there is nothing left for THIS LINK to collect. It does NOT
   // mean the whole booking is settled: at-hotel lines are never reflected
   // in balance_due, so money can still be owed to the hotel directly.
   const alreadySettled = mode === 'pay' && chargeAmount <= 0
+  // With the split present the at-hotel row already explains the gap, so the
+  // vague "Total booking value" line is only needed as the legacy fallback.
   const showTotalBookingValue =
-    mode === 'pay' && !alreadySettled && totals.gross_total !== chargeAmount
+    mode === 'pay' &&
+    !alreadySettled &&
+    totals.gross_total !== chargeAmount &&
+    !splitAvailable
 
   return (
     <Card data-testid="offer-ready">
@@ -345,14 +391,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               <tr>
                 <td className="py-0.5 pr-4 text-muted-foreground">Subtotal</td>
                 <td className="py-0.5 text-right" data-testid="offer-net-total">
-                  {formatCurrency(totals.net_total, currencyCode)}
+                  {formatCurrency(breakdownNet, currencyCode)}
                 </td>
               </tr>
-              {totals.tax_total > 0 && (
+              {breakdownTax > 0 && (
                 <tr>
                   <td className="py-0.5 pr-4 text-muted-foreground">Tax</td>
                   <td className="py-0.5 text-right" data-testid="offer-tax-total">
-                    {formatCurrency(totals.tax_total, currencyCode)}
+                    {formatCurrency(breakdownTax, currencyCode)}
                   </td>
                 </tr>
               )}
@@ -372,6 +418,22 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         : formatCurrency(chargeAmount, currencyCode)}
                     </td>
                   </tr>
+                  {showOperatorGross && (
+                    <tr>
+                      <td className="py-0.5 pr-4 text-muted-foreground">
+                        Your share of this booking
+                      </td>
+                      <td
+                        className="py-0.5 text-right text-muted-foreground"
+                        data-testid="offer-operator-gross-total"
+                      >
+                        {formatCurrency(
+                          operatorGross as number,
+                          currencyCode,
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {showTotalBookingValue && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
@@ -422,6 +484,29 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               This is the full value of the booking — not the amount being
               charged now.
             </p>
+          )}
+          {/* landr-gkj0: with the per-line split available we can finally
+              state the at-hotel amount as a fact rather than hinting at a
+              gap. Kept OUT of the table above so it reads as a separate
+              obligation, not another row of the sum being charged. */}
+          {showHotelLine && (
+            <div
+              className="mt-3 rounded-md border border-dashed px-3 py-2"
+              data-testid="offer-hotel-due"
+            >
+              <div className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">
+                  Payable directly to the hotel on arrival
+                </span>
+                <span className="font-medium">
+                  {formatCurrency(hotelAmount, currencyCode)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your accommodation is settled with the hotel at check-in. It is
+                not part of the amount charged here.
+              </p>
+            </div>
           )}
         </section>
 
