@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import {
   getBookingByToken,
   initiatePayment,
+  type OfferTotals,
   type PublicBookingOffer,
 } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -28,10 +29,19 @@ import { formatCurrency } from './accommodationCalc'
  * and redirects to the Stripe Checkout URL.
  *
  * After Stripe redirects back, Stripe appends a success indicator to
- * the return_url. We use the same page with ?paid=1 as the return_url
- * so the customer sees a "Payment complete" confirmation rather than
- * the offer again. A separate cancel_url (?paid=cancelled) lets them
- * return here from the Stripe "go back" link.
+ * the return_url. We use the same page with ?paid=1 as the return_url —
+ * but landr-6l7y: ?paid=1 is only ever the TRIGGER to re-check, never the
+ * evidence. It is the exact URL this component itself built before
+ * redirecting to Stripe, so anyone can type it onto their own link, and a
+ * failed webhook would otherwise leave the customer reading "confirmed"
+ * while the booking is still 'pending'. On ?paid=1 we re-fetch
+ * GET /api/public/bookings/{token} and render from the SERVER's state: a
+ * settled balance shows the confirmation, a still-pending balance shows an
+ * honest "confirming your payment" interstitial with a bounded poll (never
+ * an unbounded one), and a failed re-fetch shows neutral copy — never a
+ * confirmation. A separate cancel_url (?paid=cancelled) lets the customer
+ * return here from the Stripe "go back" link; that state is trusted as-is
+ * since it asserts nothing about payment success.
  *
  * landr-esd3: added mode="pay", rendered at /pay/{token} by the
  * booking_payment_link email (a booking already sitting at
@@ -40,23 +50,55 @@ import { formatCurrency } from './accommodationCalc'
  * and ?paid=1 / ?paid=cancelled return states are all reused untouched.
  *
  * States:
- *   'loading'    — fetching the offer from the API
- *   'ready'      — offer loaded, customer can review + pay
- *   'paying'     — POST /initiate in flight, button disabled
- *   'paid'       — returned from Stripe with ?paid=1 (success)
- *   'cancelled'  — returned from Stripe with ?paid=cancelled
- *   'fetch_error' — offer fetch failed (token invalid / expired)
- *   'pay_error'  — payment initiation failed
+ *   'loading'         — fetching the offer from the API
+ *   'ready'           — offer loaded, customer can review + pay
+ *   'paying'          — POST /initiate in flight, button disabled
+ *   'verifying'       — returned with ?paid=1; re-checking the booking with
+ *                        the server (initial check + bounded poll)
+ *   'paid'            — server confirms the balance is settled
+ *   'paid_pending'    — poll exhausted, server still shows a balance due;
+ *                        honest terminal state, never claims confirmation
+ *   'paid_unknown'    — the ?paid=1 re-check itself failed; neutral copy,
+ *                        never claims confirmation
+ *   'cancelled'       — returned from Stripe with ?paid=cancelled
+ *   'fetch_error'     — offer fetch failed (token invalid / expired)
+ *   'pay_error'       — payment initiation failed
  */
 
 type Status =
   | 'loading'
   | 'ready'
   | 'paying'
+  | 'verifying'
   | 'paid'
+  | 'paid_pending'
+  | 'paid_unknown'
   | 'cancelled'
   | 'fetch_error'
   | 'pay_error'
+
+// landr-6l7y: bounded poll for the ?paid=1 re-check. The first check is
+// immediate (attempt 0); these are the delays before each retry if the
+// booking still shows a balance due — 4 retries, ~12.5s of real time total.
+// Generous versus typical webhook latency (seconds), but bounded so we
+// never poll forever — after the last attempt we show an honest terminal
+// state instead of continuing to spin.
+const VERIFY_POLL_DELAYS_MS = [1500, 2500, 3500, 5000]
+const VERIFY_MAX_ATTEMPTS = VERIFY_POLL_DELAYS_MS.length + 1
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// landr-2ll8: balance_due is typed non-null but the API layer has drifted
+// from its generated types before — defend against a missing/null value by
+// falling back to gross_total (the pre-fix, whole-total behavior) rather
+// than treating a broken payload as "nothing owed". Shared by the render
+// below and the ?paid=1 settled check so both apply the exact same
+// definition of "nothing left to collect".
+function chargeRemaining(totals: OfferTotals): number {
+  return totals.balance_due ?? totals.gross_total
+}
 
 interface Props {
   token: string
@@ -79,7 +121,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       : null
 
   const [status, setStatus] = useState<Status>(() => {
-    if (paidParam === '1') return 'paid'
+    if (paidParam === '1') return 'verifying'
     if (paidParam === 'cancelled') return 'cancelled'
     return 'loading'
   })
@@ -109,6 +151,44 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // landr-6l7y: ?paid=1 return from Stripe — re-check with the server
+  // instead of trusting the query string. Runs once on mount (mirrors the
+  // 'loading' effect above); only actually fires when the initial status
+  // was 'verifying'.
+  useEffect(() => {
+    if (status !== 'verifying') return
+    let cancelled = false
+    void (async () => {
+      for (let attempt = 0; attempt < VERIFY_MAX_ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+          await sleep(VERIFY_POLL_DELAYS_MS[attempt - 1])
+          if (cancelled) return
+        }
+        try {
+          const data = await getBookingByToken(token)
+          if (cancelled) return
+          if (chargeRemaining(data.totals) <= 0) {
+            setOffer(data)
+            setStatus('paid')
+            return
+          }
+          // Still pending — loop to the next attempt (or fall through to
+          // the terminal 'paid_pending' state once attempts are exhausted).
+        } catch {
+          if (cancelled) return
+          setStatus('paid_unknown')
+          return
+        }
+      }
+      if (!cancelled) setStatus('paid_pending')
+    })()
+    return () => {
+      cancelled = true
+    }
+  // token is stable for the lifetime of this component
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const onAcceptAndPay = async () => {
     setStatus('paying')
     setErrorMessage(null)
@@ -124,6 +204,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         window.location.href = resp.checkout_url
       }
     } catch (err) {
+      // The thrown Error carries the server's own explanation — e.g.
+      // `400 Bad Request: {"detail":"return_url origin not in allowlist:
+      // https://bw-dev.landr.de"}`. Swallowing it entirely is what turned a
+      // one-line config bug into a blind investigation on 2026-08-31, so log
+      // it verbatim: the console is developer-only, the customer still sees
+      // the friendly copy below, and no secret is ever in this payload.
+      console.error('[landr] initiatePayment failed', err)
       setErrorMessage(
         err instanceof Error && err.message
           ? 'We could not start the payment. Please try again or contact us.'
@@ -133,7 +220,24 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     }
   }
 
-  // ── Stripe return: payment complete ──────────────────────────────────────
+  // ── Stripe return: re-checking with the server ────────────────────────────
+  if (status === 'verifying') {
+    return (
+      <Card data-testid="offer-payment-verifying">
+        <CardHeader>
+          <CardTitle>Confirming your payment…</CardTitle>
+          <CardDescription>This usually takes a few seconds.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Please wait while we confirm your payment with our records.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: payment complete (server-confirmed) ────────────────────
   if (status === 'paid') {
     return (
       <Card data-testid="offer-paid">
@@ -145,6 +249,51 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           <p className="text-sm">
             Thank you! We have received your payment and your booking is
             confirmed. You will receive a confirmation email shortly.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: still pending after the bounded poll ───────────────────
+  // landr-6l7y: NEVER claim confirmation here — the server still shows a
+  // balance due, most likely because the Stripe webhook hasn't landed yet
+  // (or failed). Honest interstitial-turned-terminal state instead.
+  if (status === 'paid_pending') {
+    return (
+      <Card data-testid="offer-payment-pending">
+        <CardHeader>
+          <CardTitle>Still confirming your payment</CardTitle>
+          <CardDescription>
+            This is taking longer than usual.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">
+            We have not been able to confirm your payment yet. This does not
+            necessarily mean anything is wrong — we will email you a
+            confirmation as soon as it is processed. If you do not hear from
+            us shortly, please contact us.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: the re-check itself failed ─────────────────────────────
+  // landr-6l7y: a network/API failure while verifying is NOT evidence either
+  // way — neutral copy, never a confirmation.
+  if (status === 'paid_unknown') {
+    return (
+      <Card data-testid="offer-payment-unknown">
+        <CardHeader>
+          <CardTitle>We could not check your payment status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">
+            We were unable to reach our records just now. If your payment
+            succeeded, you will receive a confirmation email shortly. If
+            you are not sure, please contact us.
           </p>
         </CardContent>
       </Card>
@@ -267,15 +416,54 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // from its generated types before (see landr-2ll8) — defend against a
   // missing/null value at runtime by falling back to gross_total, which
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
-  // broken figure.
-  const chargeAmount = totals.balance_due ?? totals.gross_total
+  // broken figure. Same definition the ?paid=1 settled check uses (landr-6l7y).
+  const chargeAmount = chargeRemaining(totals)
+
+  // landr-gkj0: the API now ships the operator/hotel split, so the breakdown
+  // rows can describe the money THIS PAGE collects instead of the whole
+  // booking. Before this, a booking with a 180.00 guiding line and 526.00 of
+  // pay-at-hotel rooms rendered "Subtotal 659.81 / Tax 46.19 / Amount due
+  // 180.00" — three rows that do not add up, mixing money owed to the hotel
+  // on arrival into the figure being charged now.
+  //
+  // Absent (legacy bookings with no persisted per-line breakdown) => fall
+  // back to the booking-wide net/tax exactly as before, rather than showing
+  // a 0.00 breakdown. `splitAvailable` gates every use.
+  const hasSplit =
+    totals.operator_net_total != null && totals.operator_tax_total != null
+  // Only meaningful in pay mode: the offer ("Accept & Pay") flow quotes the
+  // whole booking on purpose, and its Total row is the grand total.
+  const splitAvailable = mode === 'pay' && hasSplit
+  const breakdownNet = splitAvailable
+    ? (totals.operator_net_total as number)
+    : totals.net_total
+  const breakdownTax = splitAvailable
+    ? (totals.operator_tax_total as number)
+    : totals.tax_total
+  const hotelAmount = totals.hotel_gross_total ?? 0
+  // Name the at-hotel money only when we actually read it off the lines.
+  const showHotelLine = splitAvailable && hotelAmount > 0
+  // The operator share before payments/refunds/overrides. Shown only when it
+  // differs from what is being charged now (a partial payment or an operator
+  // price override), so the customer can see why the two differ instead of
+  // the rows silently not summing.
+  const operatorGross = totals.operator_gross_total
+  const showOperatorGross =
+    splitAvailable &&
+    operatorGross != null &&
+    Math.abs(operatorGross - chargeAmount) >= 0.005
   // balance_due <= 0 means this card payment is settled (fully paid, or in
   // credit) — there is nothing left for THIS LINK to collect. It does NOT
   // mean the whole booking is settled: at-hotel lines are never reflected
   // in balance_due, so money can still be owed to the hotel directly.
   const alreadySettled = mode === 'pay' && chargeAmount <= 0
+  // With the split present the at-hotel row already explains the gap, so the
+  // vague "Total booking value" line is only needed as the legacy fallback.
   const showTotalBookingValue =
-    mode === 'pay' && !alreadySettled && totals.gross_total !== chargeAmount
+    mode === 'pay' &&
+    !alreadySettled &&
+    totals.gross_total !== chargeAmount &&
+    !splitAvailable
 
   return (
     <Card data-testid="offer-ready">
@@ -345,14 +533,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               <tr>
                 <td className="py-0.5 pr-4 text-muted-foreground">Subtotal</td>
                 <td className="py-0.5 text-right" data-testid="offer-net-total">
-                  {formatCurrency(totals.net_total, currencyCode)}
+                  {formatCurrency(breakdownNet, currencyCode)}
                 </td>
               </tr>
-              {totals.tax_total > 0 && (
+              {breakdownTax > 0 && (
                 <tr>
                   <td className="py-0.5 pr-4 text-muted-foreground">Tax</td>
                   <td className="py-0.5 text-right" data-testid="offer-tax-total">
-                    {formatCurrency(totals.tax_total, currencyCode)}
+                    {formatCurrency(breakdownTax, currencyCode)}
                   </td>
                 </tr>
               )}
@@ -372,6 +560,22 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         : formatCurrency(chargeAmount, currencyCode)}
                     </td>
                   </tr>
+                  {showOperatorGross && (
+                    <tr>
+                      <td className="py-0.5 pr-4 text-muted-foreground">
+                        Your share of this booking
+                      </td>
+                      <td
+                        className="py-0.5 text-right text-muted-foreground"
+                        data-testid="offer-operator-gross-total"
+                      >
+                        {formatCurrency(
+                          operatorGross as number,
+                          currencyCode,
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {showTotalBookingValue && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
@@ -422,6 +626,29 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               This is the full value of the booking — not the amount being
               charged now.
             </p>
+          )}
+          {/* landr-gkj0: with the per-line split available we can finally
+              state the at-hotel amount as a fact rather than hinting at a
+              gap. Kept OUT of the table above so it reads as a separate
+              obligation, not another row of the sum being charged. */}
+          {showHotelLine && (
+            <div
+              className="mt-3 rounded-md border border-dashed px-3 py-2"
+              data-testid="offer-hotel-due"
+            >
+              <div className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">
+                  Payable directly to the hotel on arrival
+                </span>
+                <span className="font-medium">
+                  {formatCurrency(hotelAmount, currencyCode)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your accommodation is settled with the hotel at check-in. It is
+                not part of the amount charged here.
+              </p>
+            </div>
           )}
         </section>
 

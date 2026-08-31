@@ -588,6 +588,29 @@ export interface OfferTotals {
   net_total: number
   balance_due: number
   currency: string
+
+  /**
+   * landr-gkj0 — the operator/hotel money split.
+   *
+   * `gross_total` / `tax_total` / `net_total` above are BOOKING-WIDE: they
+   * include pay-at-hotel lines the operator never collects. `balance_due` is
+   * operator-only (landr-api migration 20260606100000), so a page that
+   * charges `balance_due` must render the `operator_*` figures beside it or
+   * the rows do not add up — a 706.00 booking with a 180.00 guiding line and
+   * 526.00 of hotel rooms used to show "Subtotal 659.81 / Tax 46.19 /
+   * Amount due 180.00".
+   *
+   * `null`/absent for bookings whose lines carry no persisted price
+   * breakdown (legacy rows). Fall back to the booking-wide figures then —
+   * never render a 0.00 breakdown.
+   */
+  operator_gross_total?: number | null
+  operator_tax_total?: number | null
+  operator_net_total?: number | null
+  hotel_gross_total?: number | null
+  hotel_tax_total?: number | null
+  hotel_net_total?: number | null
+  has_hotel_lines?: boolean
 }
 
 /**
