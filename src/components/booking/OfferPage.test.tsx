@@ -551,3 +551,141 @@ describe('OfferPage', () => {
     })
   })
 })
+
+// ─── landr-gkj0: operator/hotel money split on the /pay page ─────────────────
+//
+// Reported against dev booking fd4daaba on 2026-08-31: the pay page mixed the
+// hotel money into the breakdown. A booking of a 180.00 guiding day plus two
+// pay-at-hotel rooms totalling 526.00 rendered
+//     Subtotal 659.81 / Tax 46.19 / Amount due 180.00
+// — the net + tax describe the WHOLE booking while the charge is operator-only,
+// so the rows do not add up and imply the customer is being billed for the
+// hotel. These pin the real numbers from that booking.
+const SPLIT_OFFER = {
+  ...OFFER,
+  totals: {
+    gross_total: 706.0,
+    tax_total: 46.19,
+    net_total: 659.81,
+    balance_due: 180.0,
+    currency: 'EUR',
+    operator_gross_total: 180.0,
+    operator_tax_total: 11.78,
+    operator_net_total: 168.22,
+    hotel_gross_total: 526.0,
+    hotel_tax_total: 34.41,
+    hotel_net_total: 491.59,
+    has_hotel_lines: true,
+  },
+}
+
+describe('OfferPage — operator/hotel split (mode="pay")', () => {
+  it('breaks down only the operator share, not the whole booking', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // Subtotal + Tax now describe the 180.00 being charged...
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(168.22, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-tax-total')).toHaveTextContent(
+      formatCurrency(11.78, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+      formatCurrency(180.0, 'EUR'),
+    )
+    // ...and they add up: 168.22 + 11.78 === 180.00
+    expect(168.22 + 11.78).toBeCloseTo(180.0, 2)
+
+    // The booking-wide figures must NOT appear in the breakdown any more.
+    expect(screen.getByTestId('offer-net-total')).not.toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-tax-total')).not.toHaveTextContent(
+      formatCurrency(46.19, 'EUR'),
+    )
+  })
+
+  it('names the at-hotel amount explicitly instead of a vague total', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const hotel = screen.getByTestId('offer-hotel-due')
+    expect(hotel).toHaveTextContent(formatCurrency(526.0, 'EUR'))
+    expect(hotel).toHaveTextContent(/hotel on arrival/i)
+
+    // The old "Total booking value" hedge is replaced by the explicit line.
+    expect(
+      screen.queryByTestId('offer-total-booking-value-note'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('falls back to booking-wide totals when the split is absent (legacy rows)', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...OFFER,
+      totals: {
+        gross_total: 706.0,
+        tax_total: 46.19,
+        net_total: 659.81,
+        balance_due: 180.0,
+        currency: 'EUR',
+      },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // Pre-split behaviour preserved exactly — never a 0.00 breakdown.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.queryByTestId('offer-hotel-due')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(
+      formatCurrency(706.0, 'EUR'),
+    )
+  })
+
+  it('shows the operator share separately once a partial payment lands', async () => {
+    // 80.00 already paid against the 180.00 operator share.
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPLIT_OFFER,
+      totals: { ...SPLIT_OFFER.totals, balance_due: 100.0 },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+      formatCurrency(100.0, 'EUR'),
+    )
+    // Without this row the breakdown would silently fail to sum to the charge.
+    expect(
+      screen.getByTestId('offer-operator-gross-total'),
+    ).toHaveTextContent(formatCurrency(180.0, 'EUR'))
+    // The hotel money is still called out, and still not part of the charge.
+    expect(screen.getByTestId('offer-hotel-due')).toHaveTextContent(
+      formatCurrency(526.0, 'EUR'),
+    )
+  })
+
+  it('leaves the offer ("Accept & Pay") flow quoting the whole booking', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // mode="offer" deliberately quotes the grand total — the split only
+    // changes the pay link, which charges the operator share alone.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(
+      formatCurrency(706.0, 'EUR'),
+    )
+    expect(screen.queryByTestId('offer-hotel-due')).not.toBeInTheDocument()
+  })
+})
