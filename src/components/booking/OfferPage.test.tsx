@@ -267,19 +267,44 @@ describe('OfferPage', () => {
       })
     })
 
-    it('a booking already fully paid before this visit still shows the success state', async () => {
-      // e.g. the customer reopens an old ?paid=1 link, or Stripe redirected
-      // back to a booking that was already settled by an earlier visit.
+    it('settles mid-poll: keeps checking until a LATER response reports the balance paid', async () => {
+      // The whole point of the retry loop. Review gate on PR #185 found this
+      // unpinned: a mutation that fires the retries but only ever evaluates
+      // attempt 0's response (e.g. hoisting the settled check out of the loop)
+      // passed every other test in this block — the two neighbours settle
+      // immediately or never settle, so neither can see the difference. That
+      // mutation would make the poll decorative against exactly the late
+      // webhook it exists for (landr-jlu5).
+      vi.useFakeTimers()
       setupQueryParam('paid', '1')
-      mocks.getBookingByToken.mockResolvedValue({
+      const pending = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 1190.0 },
+      }
+      const settled = {
         ...OFFER,
         totals: { ...OFFER.totals, balance_due: 0 },
-      })
+      }
+      mocks.getBookingByToken
+        .mockResolvedValueOnce(pending) // initial check — webhook hasn't landed
+        .mockResolvedValueOnce(pending) // retry 1 — still not
+        .mockResolvedValue(settled) //    retry 2 — webhook lands here
       render(<OfferPage token={TOKEN} />)
 
-      await waitFor(() => {
-        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
       })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+
+      // Past the first two backoff delays (1500 + 2500) — the third response
+      // is the settled one.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4100)
+      })
+
+      expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      // Stopped as soon as it settled — did NOT run the remaining retries.
+      expect(mocks.getBookingByToken).toHaveBeenCalledTimes(3)
     })
 
     it('does NOT render the confirmation copy while the booking is still pending, and reaches the honest pending-terminal state once the bounded poll is exhausted', async () => {
