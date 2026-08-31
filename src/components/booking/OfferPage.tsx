@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import {
   getBookingByToken,
   initiatePayment,
+  type OfferTotals,
   type PublicBookingOffer,
 } from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -28,10 +29,19 @@ import { formatCurrency } from './accommodationCalc'
  * and redirects to the Stripe Checkout URL.
  *
  * After Stripe redirects back, Stripe appends a success indicator to
- * the return_url. We use the same page with ?paid=1 as the return_url
- * so the customer sees a "Payment complete" confirmation rather than
- * the offer again. A separate cancel_url (?paid=cancelled) lets them
- * return here from the Stripe "go back" link.
+ * the return_url. We use the same page with ?paid=1 as the return_url —
+ * but landr-6l7y: ?paid=1 is only ever the TRIGGER to re-check, never the
+ * evidence. It is the exact URL this component itself built before
+ * redirecting to Stripe, so anyone can type it onto their own link, and a
+ * failed webhook would otherwise leave the customer reading "confirmed"
+ * while the booking is still 'pending'. On ?paid=1 we re-fetch
+ * GET /api/public/bookings/{token} and render from the SERVER's state: a
+ * settled balance shows the confirmation, a still-pending balance shows an
+ * honest "confirming your payment" interstitial with a bounded poll (never
+ * an unbounded one), and a failed re-fetch shows neutral copy — never a
+ * confirmation. A separate cancel_url (?paid=cancelled) lets the customer
+ * return here from the Stripe "go back" link; that state is trusted as-is
+ * since it asserts nothing about payment success.
  *
  * landr-esd3: added mode="pay", rendered at /pay/{token} by the
  * booking_payment_link email (a booking already sitting at
@@ -40,23 +50,55 @@ import { formatCurrency } from './accommodationCalc'
  * and ?paid=1 / ?paid=cancelled return states are all reused untouched.
  *
  * States:
- *   'loading'    — fetching the offer from the API
- *   'ready'      — offer loaded, customer can review + pay
- *   'paying'     — POST /initiate in flight, button disabled
- *   'paid'       — returned from Stripe with ?paid=1 (success)
- *   'cancelled'  — returned from Stripe with ?paid=cancelled
- *   'fetch_error' — offer fetch failed (token invalid / expired)
- *   'pay_error'  — payment initiation failed
+ *   'loading'         — fetching the offer from the API
+ *   'ready'           — offer loaded, customer can review + pay
+ *   'paying'          — POST /initiate in flight, button disabled
+ *   'verifying'       — returned with ?paid=1; re-checking the booking with
+ *                        the server (initial check + bounded poll)
+ *   'paid'            — server confirms the balance is settled
+ *   'paid_pending'    — poll exhausted, server still shows a balance due;
+ *                        honest terminal state, never claims confirmation
+ *   'paid_unknown'    — the ?paid=1 re-check itself failed; neutral copy,
+ *                        never claims confirmation
+ *   'cancelled'       — returned from Stripe with ?paid=cancelled
+ *   'fetch_error'     — offer fetch failed (token invalid / expired)
+ *   'pay_error'       — payment initiation failed
  */
 
 type Status =
   | 'loading'
   | 'ready'
   | 'paying'
+  | 'verifying'
   | 'paid'
+  | 'paid_pending'
+  | 'paid_unknown'
   | 'cancelled'
   | 'fetch_error'
   | 'pay_error'
+
+// landr-6l7y: bounded poll for the ?paid=1 re-check. The first check is
+// immediate (attempt 0); these are the delays before each retry if the
+// booking still shows a balance due — 4 retries, ~12.5s of real time total.
+// Generous versus typical webhook latency (seconds), but bounded so we
+// never poll forever — after the last attempt we show an honest terminal
+// state instead of continuing to spin.
+const VERIFY_POLL_DELAYS_MS = [1500, 2500, 3500, 5000]
+const VERIFY_MAX_ATTEMPTS = VERIFY_POLL_DELAYS_MS.length + 1
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// landr-2ll8: balance_due is typed non-null but the API layer has drifted
+// from its generated types before — defend against a missing/null value by
+// falling back to gross_total (the pre-fix, whole-total behavior) rather
+// than treating a broken payload as "nothing owed". Shared by the render
+// below and the ?paid=1 settled check so both apply the exact same
+// definition of "nothing left to collect".
+function chargeRemaining(totals: OfferTotals): number {
+  return totals.balance_due ?? totals.gross_total
+}
 
 interface Props {
   token: string
@@ -79,7 +121,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       : null
 
   const [status, setStatus] = useState<Status>(() => {
-    if (paidParam === '1') return 'paid'
+    if (paidParam === '1') return 'verifying'
     if (paidParam === 'cancelled') return 'cancelled'
     return 'loading'
   })
@@ -101,6 +143,44 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           setStatus('fetch_error')
         }
       }
+    })()
+    return () => {
+      cancelled = true
+    }
+  // token is stable for the lifetime of this component
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // landr-6l7y: ?paid=1 return from Stripe — re-check with the server
+  // instead of trusting the query string. Runs once on mount (mirrors the
+  // 'loading' effect above); only actually fires when the initial status
+  // was 'verifying'.
+  useEffect(() => {
+    if (status !== 'verifying') return
+    let cancelled = false
+    void (async () => {
+      for (let attempt = 0; attempt < VERIFY_MAX_ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+          await sleep(VERIFY_POLL_DELAYS_MS[attempt - 1])
+          if (cancelled) return
+        }
+        try {
+          const data = await getBookingByToken(token)
+          if (cancelled) return
+          if (chargeRemaining(data.totals) <= 0) {
+            setOffer(data)
+            setStatus('paid')
+            return
+          }
+          // Still pending — loop to the next attempt (or fall through to
+          // the terminal 'paid_pending' state once attempts are exhausted).
+        } catch {
+          if (cancelled) return
+          setStatus('paid_unknown')
+          return
+        }
+      }
+      if (!cancelled) setStatus('paid_pending')
     })()
     return () => {
       cancelled = true
@@ -140,7 +220,24 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     }
   }
 
-  // ── Stripe return: payment complete ──────────────────────────────────────
+  // ── Stripe return: re-checking with the server ────────────────────────────
+  if (status === 'verifying') {
+    return (
+      <Card data-testid="offer-payment-verifying">
+        <CardHeader>
+          <CardTitle>Confirming your payment…</CardTitle>
+          <CardDescription>This usually takes a few seconds.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Please wait while we confirm your payment with our records.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: payment complete (server-confirmed) ────────────────────
   if (status === 'paid') {
     return (
       <Card data-testid="offer-paid">
@@ -152,6 +249,51 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           <p className="text-sm">
             Thank you! We have received your payment and your booking is
             confirmed. You will receive a confirmation email shortly.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: still pending after the bounded poll ───────────────────
+  // landr-6l7y: NEVER claim confirmation here — the server still shows a
+  // balance due, most likely because the Stripe webhook hasn't landed yet
+  // (or failed). Honest interstitial-turned-terminal state instead.
+  if (status === 'paid_pending') {
+    return (
+      <Card data-testid="offer-payment-pending">
+        <CardHeader>
+          <CardTitle>Still confirming your payment</CardTitle>
+          <CardDescription>
+            This is taking longer than usual.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">
+            We have not been able to confirm your payment yet. This does not
+            necessarily mean anything is wrong — we will email you a
+            confirmation as soon as it is processed. If you do not hear from
+            us shortly, please contact us.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Stripe return: the re-check itself failed ─────────────────────────────
+  // landr-6l7y: a network/API failure while verifying is NOT evidence either
+  // way — neutral copy, never a confirmation.
+  if (status === 'paid_unknown') {
+    return (
+      <Card data-testid="offer-payment-unknown">
+        <CardHeader>
+          <CardTitle>We could not check your payment status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">
+            We were unable to reach our records just now. If your payment
+            succeeded, you will receive a confirmation email shortly. If
+            you are not sure, please contact us.
           </p>
         </CardContent>
       </Card>
@@ -274,8 +416,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // from its generated types before (see landr-2ll8) — defend against a
   // missing/null value at runtime by falling back to gross_total, which
   // reproduces the pre-fix (whole-total) behavior rather than rendering a
-  // broken figure.
-  const chargeAmount = totals.balance_due ?? totals.gross_total
+  // broken figure. Same definition the ?paid=1 settled check uses (landr-6l7y).
+  const chargeAmount = chargeRemaining(totals)
 
   // landr-gkj0: the API now ships the operator/hotel split, so the breakdown
   // rows can describe the money THIS PAGE collects instead of the whole
