@@ -24,6 +24,12 @@
 # Set LANDR_API_REPO to override which landr-api checkout to generate from
 # (useful when running from a worktree, where the default sibling-dir lookup
 # doesn't apply).
+#
+# Set SUPABASE_DB_URL to override the target Postgres DSN (default:
+# 127.0.0.1:54322, Trillian's interactive dev port). landr-api's
+# scripts/check-downstream-db-types.sh (landr-qwlp.3) sets this to its CI
+# slot's isolated port so the downstream drift check validates a PR's OWN
+# migrations instead of whatever is in interactive dev at the time.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -62,7 +68,7 @@ echo "$HEADER" > "$OUT_FILE"
 (
   cd "$API_REPO"
   supabase gen types typescript \
-    --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    --db-url "${SUPABASE_DB_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}"
 ) >> "$OUT_FILE"
 
 echo "Wrote $OUT_FILE"
