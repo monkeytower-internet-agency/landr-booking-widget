@@ -14132,7 +14132,7 @@
     },
     "/api/community/sos": {
       "post": {
-        "description": "Raise an emergency SOS and compute the broadcast recipient set.\n\nPush delivery is stubbed in v1. The response includes `broadcast_recipients`\n(who WOULD be notified) so the mobile UI can display a \"help is on the way\"\ncount immediately. Real push delivery lands with landr-71a2.",
+        "description": "Raise an emergency SOS and compute the broadcast recipient set.\n\nPush delivery is stubbed in v1. The response includes `broadcast_recipients`\n(who WOULD be notified) so the mobile UI can display a \"help is on the way\"\ncount immediately. Real push delivery lands with landr-71a2.\n\nRate-limited to `RATE_LIMIT_PER_HOUR` (currently 3) raises per sender per\nrolling hour \u2014 a 429 past that, not a 4xx caller-input error, so retry\nlogic should back off rather than treat it as a malformed request.",
         "operationId": "raise_sos",
         "requestBody": {
           "content": {
@@ -14244,7 +14244,7 @@
     },
     "/api/internal/feedback/relay": {
       "post": {
-        "description": "Idempotently upsert a relayed staging ticket into landr (prod).\n\nAuth: X-Feedback-Relay-Token (service-to-service, fail-closed).\n\nBehaviour (idempotent, keyed on source_ref):\n  * if a relayed row with this source_ref exists \u2192 UPDATE it (\"updated\").\n  * else INSERT a new staging-origin row (\"created\").\nThe row is stamped origin_tier='staging', operator_id NULL,\norigin_operator_label set. Comments are appended (monotonic reconcile on\nre-relay).\n\nReturns {\"status\": \"created\"|\"updated\", \"ticket_id\": ..., \"comments_synced\": n}.",
+        "description": "Idempotently upsert a relayed staging ticket into landr (prod).\n\nAuth: X-Feedback-Relay-Token (service-to-service, fail-closed \u2014 401 on a\nmissing, unset, or mismatched token; PROD rejects every call if it has\nno feedback_relay_secret configured, rather than accepting one\nunauthenticated).\n\nBehaviour (idempotent, keyed on source_ref):\n  * if a relayed row with this source_ref exists \u2192 UPDATE it (\"updated\").\n  * else INSERT a new staging-origin row (\"created\").\nThe row is stamped origin_tier='staging', operator_id NULL,\norigin_operator_label set. Comments are appended (monotonic reconcile on\nre-relay).\n\nReturns {\"status\": \"created\"|\"updated\", \"ticket_id\": ..., \"comments_synced\": n}.",
         "operationId": "relay_ingest",
         "parameters": [
           {
