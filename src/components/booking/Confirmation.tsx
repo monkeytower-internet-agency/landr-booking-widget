@@ -109,12 +109,26 @@ export function Confirmation({ response, onRestart }: Props) {
            * above). Ask the customer to contact the operator directly.
            * role="status" makes screen readers announce this without requiring
            * focus, matching the urgency of the message without being assertive.
+           *
+           * landr-5oox.27 (OD-7 follow-up of landr-5oox.6): this panel used to
+           * say "your booking is confirmed" unconditionally, which was wrong
+           * for a manual outcome — the booking is only requested, not
+           * confirmed, until the operator approves it. Branch on the same
+           * approvalKind used for the title/body above: auto_approved keeps
+           * the "confirmed" copy, every manual outcome (or an absent
+           * approval_outcome, e.g. an older API deploy) gets "we received
+           * your booking request" instead. Recovery guidance (contact the
+           * operator) is unchanged either way.
            */
           <div
             role="status"
             className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
           >
-            <p className="font-medium">Your booking is confirmed — but we could not send the confirmation email.</p>
+            <p className="font-medium">
+              {approvalKind === 'auto'
+                ? 'Your booking is confirmed — but we could not send the confirmation email.'
+                : 'We received your booking request, but we could not send the confirmation email.'}
+            </p>
             <p className="mt-1">
               {/*
                * Operator name/contact: SubmitBookingResponse does not carry

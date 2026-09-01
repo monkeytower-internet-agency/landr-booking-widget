@@ -260,14 +260,18 @@ describe('Confirmation', () => {
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
   })
 
-  it('shows amber failure panel with role="status" when confirmation_email_status is "failed"', () => {
+  it('shows amber failure panel with role="status" when confirmation_email_status is "failed" (approval_outcome absent, old-API back-compat)', () => {
+    // landr-5oox.27: no approval_outcome field on this response (simulates
+    // an older API deploy) — resolveApprovalKind treats that as 'manual',
+    // same as the title/body above, so the panel must NOT claim "confirmed".
     const response = baseResponse({ confirmation_email_status: 'failed' })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     const panel = screen.getByRole('status')
     expect(panel).toBeInTheDocument()
-    // Must communicate that the booking IS confirmed.
-    expect(panel).toHaveTextContent(/booking is confirmed/i)
+    // Must NOT claim the booking is confirmed — outcome is unknown/manual.
+    expect(panel).toHaveTextContent(/we received your booking request/i)
+    expect(panel).not.toHaveTextContent(/booking is confirmed/i)
     // Must instruct customer to contact the operator.
     expect(panel).toHaveTextContent(/contact/i)
     // The regular "confirmation email" paragraph must NOT appear.
@@ -278,6 +282,11 @@ describe('Confirmation', () => {
     expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
     // "Make another booking" button still present.
     expect(screen.getByRole('button', { name: /make another booking/i })).toBeInTheDocument()
+    // OD-7: no bus/seat/capacity/approval-policy language.
+    expect(screen.queryByText(/bus/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/seat/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/approval policy/i)).not.toBeInTheDocument()
   })
 
   it('shows neutral "will receive" copy when confirmation_email_status is "pending"', () => {
@@ -360,5 +369,56 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
     expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-5oox.27 (follow-up of landr-5oox.6, OD-7): the failed-email
+  // amber panel must be outcome-aware too, not just the title/body — a
+  // manual outcome is only requested, never confirmed, even when the
+  // confirmation email itself failed to send.
+  // ------------------------------------------------------------------
+
+  it('failed email × manual outcome: "we received your booking request" panel, never "confirmed"', () => {
+    const response = baseResponse({
+      confirmation_email_status: 'failed',
+      approval_outcome: 'requires_general_approval',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const panel = screen.getByRole('status')
+    expect(panel).toHaveTextContent(/we received your booking request/i)
+    expect(panel).not.toHaveTextContent(/booking is confirmed/i)
+    // Same recovery guidance regardless of outcome.
+    expect(panel).toHaveTextContent(/contact the operator/i)
+    // Title reflects the manual outcome too — never "Booking confirmed".
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
+    // OD-7: no bus/seat/capacity/approval-policy language, no raw state.
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/bus/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/seat/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/approval policy/i)).not.toBeInTheDocument()
+  })
+
+  it('failed email × auto_approved outcome: existing "booking is confirmed" panel copy is preserved', () => {
+    const response = baseResponse({
+      confirmation_email_status: 'failed',
+      approval_outcome: 'auto_approved',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const panel = screen.getByRole('status')
+    expect(panel).toHaveTextContent(/booking is confirmed/i)
+    expect(panel).not.toHaveTextContent(/we received your booking request/i)
+    expect(panel).toHaveTextContent(/contact the operator/i)
+    // Title reflects the auto outcome.
+    expect(screen.getByText(/booking confirmed/i)).toBeInTheDocument()
+    // OD-7: no bus/seat/capacity/approval-policy language, no raw state.
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/bus/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/seat/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/approval policy/i)).not.toBeInTheDocument()
   })
 })
