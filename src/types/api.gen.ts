@@ -482,6 +482,10 @@ export interface paths {
          *     Push delivery is stubbed in v1. The response includes `broadcast_recipients`
          *     (who WOULD be notified) so the mobile UI can display a "help is on the way"
          *     count immediately. Real push delivery lands with landr-71a2.
+         *
+         *     Rate-limited to `RATE_LIMIT_PER_HOUR` (currently 3) raises per sender per
+         *     rolling hour — a 429 past that, not a 4xx caller-input error, so retry
+         *     logic should back off rather than treat it as a malformed request.
          */
         post: operations["raise_sos"];
         delete?: never;
@@ -537,7 +541,10 @@ export interface paths {
          * Ingest a relayed STAGING ticket (+ comments) into the PROD inbox (service-to-service).
          * @description Idempotently upsert a relayed staging ticket into landr (prod).
          *
-         *     Auth: X-Feedback-Relay-Token (service-to-service, fail-closed).
+         *     Auth: X-Feedback-Relay-Token (service-to-service, fail-closed — 401 on a
+         *     missing, unset, or mismatched token; PROD rejects every call if it has
+         *     no feedback_relay_secret configured, rather than accepting one
+         *     unauthenticated).
          *
          *     Behaviour (idempotent, keyed on source_ref):
          *       * if a relayed row with this source_ref exists → UPDATE it ("updated").
