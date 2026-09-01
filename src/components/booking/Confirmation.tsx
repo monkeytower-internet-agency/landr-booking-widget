@@ -90,7 +90,7 @@ export function Confirmation({ response, onRestart }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
+        <CardTitle data-testid="confirmation-title">
           {staff.active
             ? 'Booking created'
             : approvalKind === 'auto'
