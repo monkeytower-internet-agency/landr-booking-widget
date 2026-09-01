@@ -868,6 +868,13 @@ export interface SubmitBookingResponse {
   next_steps?: string
   /** Approval-engine outcome, e.g. 'auto_approved'. */
   approval_outcome?: string
+  /**
+   * landr-5oox.6/E1b: true when a Stripe payment link was generated and
+   * sent for this (auto-approved) booking. Optional so the widget tolerates
+   * API deploys before E1b lands the field; absent/false both render as
+   * "no payment-link line" on the confirmation screen.
+   */
+  payment_link_sent?: boolean
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
