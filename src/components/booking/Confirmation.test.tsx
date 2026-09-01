@@ -298,4 +298,67 @@ describe('Confirmation', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
   })
+
+  // ------------------------------------------------------------------
+  // landr-5oox.6 (OD-7): confirmed vs awaiting-confirmation copy, driven
+  // by approval_outcome + payment_link_sent. Never leaks raw semantic_state
+  // or mentions buses/seats/capacity/approval policy to the customer.
+  // ------------------------------------------------------------------
+
+  it('auto_approved + payment_link_sent: "Booking confirmed" title, inbox copy, payment-link line', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_link_sent: true,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/booking confirmed/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/your booking is confirmed — the details are in your inbox/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/a payment link is on its way/i)).toBeInTheDocument()
+    // Never leak the raw semantic_state value, and never mention capacity.
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+  })
+
+  it('auto_approved without payment_link_sent: same confirmed copy, no payment-link line', () => {
+    const response = baseResponse({ approval_outcome: 'auto_approved' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/booking confirmed/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/your booking is confirmed — the details are in your inbox/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+  })
+
+  it('requires_general_approval: "Booking received" title, awaiting-confirmation copy, no raw state', () => {
+    const response = baseResponse({ approval_outcome: 'requires_general_approval' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(screen.getByText(/awaiting confirmation/i)).toBeInTheDocument()
+    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/bus/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/seat/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/approval policy/i)).not.toBeInTheDocument()
+  })
+
+  it('requires_hotel_approval: same awaiting-confirmation copy as the general-approval manual path', () => {
+    const response = baseResponse({ approval_outcome: 'requires_hotel_approval' })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(/booking received/i)).toBeInTheDocument()
+    expect(screen.getByText(/awaiting confirmation/i)).toBeInTheDocument()
+    expect(screen.getByText(/you will receive a confirmation email shortly/i)).toBeInTheDocument()
+    expect(screen.queryByText(/booking confirmed/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
+    expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+  })
 })
