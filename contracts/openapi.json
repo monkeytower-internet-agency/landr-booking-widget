@@ -172,6 +172,72 @@
         "title": "ApiBudget",
         "type": "object"
       },
+      "ApprovalPeriodRange": {
+        "description": "One inclusive date range. ``end_date >= start_date`` is enforced by the\nRPC (typed 422) rather than here, so a multi-range body reports every bad\nrange in one machine-readable payload instead of one Pydantic error.",
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "title": "ApprovalPeriodRange",
+        "type": "object"
+      },
+      "ApprovalPeriodsIn": {
+        "description": "``PUT .../approval-periods`` \u2014 one policy, applied to N ranges.\n\n``released_units`` is a stepper value 0\u2026N, not a flag (OD-1): 0 means \"ask\nme for each unit, including the first\" and is a legitimate saved state, so\nit is validated `ge=0`, never `gt=0`. The mode/units consistency rule and\nthe 0\u2026active-unit-count bound both live in the RPC \u2014 one definition, and\nthe same typed body whichever way the request arrives.",
+        "properties": {
+          "mode": {
+            "enum": [
+              "ask_every_time",
+              "ask_per_unit",
+              "units_released"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "ranges": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalPeriodRange"
+            },
+            "minItems": 1,
+            "title": "Ranges",
+            "type": "array"
+          },
+          "released_units": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Released Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ranges",
+          "mode"
+        ],
+        "title": "ApprovalPeriodsIn",
+        "type": "object"
+      },
       "ApprovalReplyRequest": {
         "additionalProperties": false,
         "description": "`POST .../{token}/response` body.\n\n``extra=\"forbid\"`` is load-bearing, not hygiene: it is the structural\nguarantee that a token minted for booking A can never name booking B.\nThere is no `booking_id` / `operator_id` / `request_id` field here and an\nunknown key is a 422, so the only booking this call can ever touch is the\none the token resolves to.",
@@ -563,6 +629,57 @@
           "assignment_date"
         ],
         "title": "AssignmentIn",
+        "type": "object"
+      },
+      "AvailabilityBatchIn": {
+        "description": "The day editor's whole diff, applied atomically (plan \u00a73c).\n\n- ``upsert`` \u2014 new bookable days, seat-count changes, and Reopen (a closed\n  day upserted back to ``status='open'``).\n- ``close``  \u2014 booked days the operator removed. The row survives with its\n  ``capacity`` untouched and ``status='closed'`` (OD-5), so the existing\n  bookings keep their seats and the day stays visible + reopenable.\n- ``delete`` \u2014 unbooked days the operator removed. Row gone.\n\nA date may appear in at most ONE list: two upserts for the same date would\ntrip Postgres 21000 (\"ON CONFLICT DO UPDATE command cannot affect row a\nsecond time\" \u2014 the same trap `AvailabilityBulkIn._check_slot_times_unique`\ndocuments), and close+delete for one date is simply ambiguous.",
+        "properties": {
+          "close": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Close",
+            "type": "array"
+          },
+          "delete": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Delete",
+            "type": "array"
+          },
+          "upsert": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityBatchUpsert"
+            },
+            "title": "Upsert",
+            "type": "array"
+          }
+        },
+        "title": "AvailabilityBatchIn",
+        "type": "object"
+      },
+      "AvailabilityBatchUpsert": {
+        "description": "One day the editor wants bookable at a given seat count.\n\nNo start_time/end_time: the batch is defined for whole-day shapes only\n(`BATCH_DAY_SHAPES`), which carry `start_time IS NULL` \u2014 that is also what\nmakes `(product_id, date, start_time)` a stable upsert key here.",
+        "properties": {
+          "capacity": {
+            "minimum": 0.0,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "capacity"
+        ],
+        "title": "AvailabilityBatchUpsert",
         "type": "object"
       },
       "AvailabilityBulkIn": {
@@ -9482,6 +9599,21 @@
         "title": "ResolveDecisionOut",
         "type": "object"
       },
+      "ResourcePoolPatch": {
+        "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.",
+        "properties": {
+          "default_released_units": {
+            "minimum": 0.0,
+            "title": "Default Released Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_released_units"
+        ],
+        "title": "ResourcePoolPatch",
+        "type": "object"
+      },
       "RetrievePatchIn": {
         "description": "PATCH body \u2014 operator sets the retrieve workflow state/note.\n\nBoth optional; only fields explicitly set are written. retrieve_state is\nfree text by design (operator-defined pickup workflow); the customer-set\nfields (status/coords/note) are NOT settable here.",
         "properties": {
@@ -10783,7 +10915,7 @@
       },
       "SubmitBookingResponse": {
         "additionalProperties": true,
-        "description": "Response of POST /api/public/bookings (booking submit).\n\nMirrors public_submit_booking's jsonb response (booking_id,\nsemantic_state, stage_code, approval_outcome, next_steps) plus the\nfields this router injects afterwards (confirmation_email_status,\nical_url, calendar_event). Mirrors the widget's\n``SubmitBookingResponse`` TypeScript interface (src/api/types.ts)\nfield-for-field \u2014 including its optional ``token`` field, which is\nnever actually populated by the current RPC (see landr-y3oj.1\nhandoff for this divergence). ``extra=\"allow\"`` keeps this\nforward-compatible with RPC columns not yet consumed here.",
+        "description": "Response of POST /api/public/bookings (booking submit).\n\nMirrors public_submit_booking's jsonb response (booking_id,\nsemantic_state, stage_code, approval_outcome, next_steps) plus the\nfields this router injects afterwards (confirmation_email_status,\nical_url, calendar_event, payment_link_sent). ``next_steps`` is the\nONE exception to \"mirrors the RPC verbatim\": booking_submit.finalize()\nalways OVERRIDES the RPC's hard-coded string with outcome-based,\nOD-7-compliant copy (landr-5oox.7) \u2014 see\n``next_steps_for_approval_outcome``. Mirrors the widget's\n``SubmitBookingResponse`` TypeScript interface (src/api/types.ts)\nfield-for-field \u2014 including its optional ``token`` field, which is\nnever actually populated by the current RPC (see landr-y3oj.1\nhandoff for this divergence). ``extra=\"allow\"`` keeps this\nforward-compatible with RPC columns not yet consumed here.",
         "properties": {
           "approval_outcome": {
             "anyOf": [
@@ -10842,6 +10974,17 @@
               }
             ],
             "title": "Next Steps"
+          },
+          "payment_link_sent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Link Sent"
           },
           "semantic_state": {
             "title": "Semantic State",
@@ -17694,6 +17837,7 @@
     },
     "/api/staff/availability/{availability_id}": {
       "delete": {
+        "description": "Delete one availability row, refusing (409) if the day is really booked.\n\nlandr-5oox.9 \u2014 the guard has TWO signals, and needs both:\n\n* ``booking_products.product_availability_id`` (landr-0zsz, the original\n  match). Precise, but populated by nobody today\n  (20260810170000:414-417 \u2014 \"Absent for every caller\"), so on its own it\n  has never fired for the day products this endpoint is mostly used on.\n* per-day seat load through ``booking_products.selected_days``\n  (``load_per_day`` \u2192 ``product_day_seat_load``), which is how a\n  days_range / single_date booking actually records the days it occupies.\n  This is the one that makes the guard real.\n\nEither signal blocks the delete. The 409 keeps ``live_booking_count`` (a\nDISTINCT booking count from the pointer signal, unchanged) and adds\n``booked_participants`` (guiding seats consumed on the day) so the client\ncan say *why*.\n\nCaveat, recorded rather than papered over: the seat-load signal counts\nGUIDING participants (landr-5oox.4's seat definition), so a live booking\non the day carrying zero guiding participants reads as load 0. That shape\nshould not exist \u2014 a booking with no guiding participant consumes no seat\nanywhere in the system \u2014 and using the same definition here as the batch\npre-check and the widget is worth more than a third, divergent notion of\n\"booked\". See the landr-5oox.9 handoff follow-ups.\n\nlandr-5oox.29: ``load_per_day`` is a DAY-grain signal \u2014 it sums every\nlive booking whose ``selected_days`` contains the date, ACROSS every row\non that date. That is only meaningful for whole-day shapes\n(``_is_whole_day_row`` / ``BATCH_DAY_SHAPES``, the same gate the batch\nsave endpoint uses). For a ``time_slot`` row it used to block deleting\nan empty 09:00 slot because the day's 14:00 slot was booked \u2014 an\nun-overridable false-positive 409 on a legitimate operator action, and\nbefore landr-5oox.9 the delete succeeded. A slot row instead relies\nentirely on the pointer signal (``live_count``, already the correct\nper-slot match) for both the block decision AND ``booked_participants``.",
         "operationId": "delete_availability",
         "parameters": [
           {
@@ -25569,6 +25713,75 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/products/{product_id}/availability/batch": {
+      "put": {
+        "description": "Apply the day editor's whole diff in ONE transaction (landr-5oox.9).\n\nOrder of operations, and why:\n\n1. `resolve_operator_product` \u2014 the membership dep only proves the caller\n   belongs to the PATH operator, not that the product does (landr-zenj.5).\n2. `raise_if_not_schedulable(..., allowed_shapes=BATCH_DAY_SHAPES)` \u2014 this\n   endpoint reasons in whole days; time_slot products keep the sheet/popover\n   path and fixed_window capacity lives in `product_fixed_date_windows`.\n3. No past dates for NEW rows, in the OPERATOR's timezone. Rows that already\n   exist are exempt \u2014 removing or closing last season has to stay possible.\n4. The conflict pre-check, so the operator gets a per-day 409 body naming\n   exactly which days clash. Nothing is written when it fires.\n5. The RPC, which re-asserts the same guard inside the writing transaction\n   (a booking can land between step 4 and here) and rolls the whole diff\n   back on a clash \u2014 surfaced by `batch_conflict_as_409` as the identical\n   409 body.",
+        "operationId": "save_availability_batch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityBatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Save Availability Batch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Availability Batch",
+        "tags": [
+          "staff-availability"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/products/{product_id}/availability/bulk": {
       "post": {
         "operationId": "bulk_create_availability",
@@ -26400,6 +26613,301 @@
         "summary": "Patch Provider",
         "tags": [
           "staff-providers"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
+      "patch": {
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.",
+        "operationId": "patch_resource_pool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePoolPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Resource Pool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Resource Pool",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-calendar": {
+      "get": {
+        "description": "One row per day in ``[from, to]`` (\u2264366 days).\n\nEvery policy/load number is the evaluator's own, computed with\n``capacity._approval_policy_for`` + ``_existing_load_per_day`` +\n``_open_capacity`` \u2014 the same three calls ``evaluate_capacity`` makes for a\nbooking, for a date range instead of for one product.\n\nPer-day fields:\n\n``mode`` / ``released_units_policy``\n    The resolved policy: a covering period, else the pool default\n    (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``\n    is ``n`` AFTER the clamp to the active unit count.\n``released_units`` / ``released_cap``\n    ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity \u2014\n    what actually auto-approves, policy floor OR earned by approved load.\n``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``\n    Seats: all units combined; seats held by live bookings; the part of\n    that the operator has already said yes to; and the difference \u2014 seats\n    held by requests still at the gate.\n``pending_count`` / ``staff_count``\n    Head-counts (see :func:`_booking_counts_per_day`).\n``bookable``\n    Whether any product on this pool is on sale that day. Policy never\n    moves this (OD-1) \u2014 the UI draws the two bands independently so\n    \"bookable + ask me for each unit\" is visibly different from \"not\n    bookable\".\n``units``\n    Per unit, in release order: ``{id, name, capacity, load, state,\n    released_by}``. ``load`` fills units in ``sort_order``, which is how the\n    release ladder reads them. ``state`` is ``full`` when the unit has no\n    seats left, else ``released`` (inside the released prefix) or\n    ``needs_ok``. ``released_by`` is ``policy`` for units the period/default\n    released outright, ``approval`` for the ones approved load earned, and\n    ``null`` for a unit that is not released \u2014 so a ``full`` unit with\n    ``released_by = null`` reads correctly as \"full of requests that are\n    still waiting for you\", not \"auto-approving\". On an ``ask_every_time``\n    day NO unit is ever ``released`` regardless of load \u2014 every unit is\n    ``needs_ok`` or ``full``, ``released_by`` always ``null``\n    (``released_units``/``released_cap`` above still carry the numeric\n    parity value, they just describe no unit's on-screen state that day).\n``kind``\n    Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same\n    vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone\n    decides it); else ``shortage`` when ``total_load > total_cap``; else\n    ``opens`` when ``total_load > released_cap`` (load already sits past\n    what's released \u2014 the next unit is waiting to open); else ``null``. D5\n    draws the day pill from this rather than re-deriving it from the unit\n    list.\n``period_id``\n    The covering period row, or ``null`` where the pool default applies.\n\n``periods`` carries the full period rows overlapping the span so the\nPeriods tab and the Calendar tab can be rendered from one request, and\n``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,\n``default_released_units`` seeds the default control).",
+        "operationId": "get_approval_calendar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Approval Calendar",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Approval Calendar",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-periods": {
+      "put": {
+        "description": "Set one policy across one or more date ranges, atomically.\n\nThe whole write is ``apply_resource_pool_approval_periods`` (migration\n20260903010000, actor param added by 20260903040000): one transaction\nthat trims/splits neighbouring periods, merges identical adjacent ones,\nsoft-deletes what it replaces (stamping ``deleted_by_user_id =\nmembership.user_id``) and ensures the pool's ``capacity_threshold`` rule\n(OD-2). A bad range anywhere in the body means NOTHING is written \u2014\nvalidation runs before the first write and the transaction rolls back\nregardless.\n\n``?dry_run=1`` returns exactly the rows the real call would produce\n(``id`` populated for the rows that would survive untouched, ``null`` for\nthe ones that would be created) and writes nothing at all \u2014 no period, no\nrule, no audit row. That is what the edit sheet's preview line is built\nfrom.",
+        "operationId": "apply_approval_periods",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalPeriodsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Approval Periods",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Approval Periods",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-periods/{period_id}": {
+      "delete": {
+        "description": "Soft-delete one period (Pattern A + ``active = false``).\n\nThe days it covered fall back to the pool's ``default_released_units`` on\nthe very next read \u2014 there is no gap state and nothing to backfill. Both\nflags are set for the same reason the units editor sets both: the\nnon-overlap guard and the evaluator each filter on one of them, and a row\nthat is \"deleted\" must be out of both sets.\n\nDeliberately NOT a hard delete: the audit trail for \"who took the peak\nseason policy off, and when\" is the whole point of Pattern A.",
+        "operationId": "delete_approval_period",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Approval Period",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Approval Period",
+        "tags": [
+          "staff-approval-periods"
         ]
       }
     },
