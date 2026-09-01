@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { formatCurrency } from './accommodationCalc'
@@ -95,6 +95,7 @@ describe('OfferPage', () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('shows loading card while the API call is in flight', () => {
@@ -225,13 +226,130 @@ describe('OfferPage', () => {
     expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
   })
 
-  it('renders the paid confirmation card when ?paid=1 is in the URL', () => {
-    setupQueryParam('paid', '1')
-    // getBookingByToken should NOT be called — we're already past the offer.
-    render(<OfferPage token={TOKEN} />)
-    expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
-    expect(screen.getByText(/payment complete/i)).toBeInTheDocument()
-    expect(mocks.getBookingByToken).not.toHaveBeenCalled()
+  // ── landr-6l7y: ?paid=1 is a TRIGGER to re-check, never evidence ─────────
+  describe('?paid=1 return from Stripe (landr-6l7y)', () => {
+    it('shows a verifying interstitial first, then re-fetches the booking', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockReturnValue(new Promise(() => {})) // never resolves
+      render(<OfferPage token={TOKEN} />)
+
+      expect(screen.getByTestId('offer-payment-verifying')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+      })
+    })
+
+    it('renders the paid confirmation card once the server confirms the balance is settled', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 0 },
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      })
+      expect(screen.getByText(/payment complete/i)).toBeInTheDocument()
+      expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+    })
+
+    it('renders the paid confirmation card when the balance is in credit (overpaid)', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: -5.0 },
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      })
+    })
+
+    it('settles mid-poll: keeps checking until a LATER response reports the balance paid', async () => {
+      // The whole point of the retry loop. Review gate on PR #185 found this
+      // unpinned: a mutation that fires the retries but only ever evaluates
+      // attempt 0's response (e.g. hoisting the settled check out of the loop)
+      // passed every other test in this block — the two neighbours settle
+      // immediately or never settle, so neither can see the difference. That
+      // mutation would make the poll decorative against exactly the late
+      // webhook it exists for (landr-jlu5).
+      vi.useFakeTimers()
+      setupQueryParam('paid', '1')
+      const pending = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 1190.0 },
+      }
+      const settled = {
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 0 },
+      }
+      mocks.getBookingByToken
+        .mockResolvedValueOnce(pending) // initial check — webhook hasn't landed
+        .mockResolvedValueOnce(pending) // retry 1 — still not
+        .mockResolvedValue(settled) //    retry 2 — webhook lands here
+      render(<OfferPage token={TOKEN} />)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+
+      // Past the first two backoff delays (1500 + 2500) — the third response
+      // is the settled one.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4100)
+      })
+
+      expect(screen.getByTestId('offer-paid')).toBeInTheDocument()
+      // Stopped as soon as it settled — did NOT run the remaining retries.
+      expect(mocks.getBookingByToken).toHaveBeenCalledTimes(3)
+    })
+
+    it('does NOT render the confirmation copy while the booking is still pending, and reaches the honest pending-terminal state once the bounded poll is exhausted', async () => {
+      vi.useFakeTimers()
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockResolvedValue({
+        ...OFFER,
+        totals: { ...OFFER.totals, balance_due: 1190.0 }, // unchanged — webhook hasn't landed
+      })
+      render(<OfferPage token={TOKEN} />)
+
+      // Initial (immediate) check.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+
+      // Walk the full backoff schedule — 4 retries after the initial check —
+      // in one advance; advanceTimersByTimeAsync drains microtasks between
+      // each timer it fires, so the fetch→setTimeout→fetch chain unrolls.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20000)
+      })
+
+      expect(screen.getByTestId('offer-payment-pending')).toBeInTheDocument()
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+      expect(screen.queryByText(/payment complete/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/booking is confirmed/i)).not.toBeInTheDocument()
+      // Bounded — 1 initial check + 4 retries, then stop.
+      expect(mocks.getBookingByToken).toHaveBeenCalledTimes(5)
+    })
+
+    it('does NOT render the confirmation copy when the re-check itself fails', async () => {
+      setupQueryParam('paid', '1')
+      mocks.getBookingByToken.mockRejectedValue(new Error('500'))
+      render(<OfferPage token={TOKEN} />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('offer-payment-unknown')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('offer-paid')).not.toBeInTheDocument()
+      expect(screen.queryByText(/payment complete/i)).not.toBeInTheDocument()
+      // Fails fast — no retry loop on a hard fetch failure.
+      expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
+    })
   })
 
   it('renders the payment-cancelled card when ?paid=cancelled is in the URL', () => {
@@ -549,5 +667,143 @@ describe('OfferPage', () => {
         screen.getByText(/this offer link is personal/i),
       ).toBeInTheDocument()
     })
+  })
+})
+
+// ─── landr-gkj0: operator/hotel money split on the /pay page ─────────────────
+//
+// Reported against dev booking fd4daaba on 2026-08-31: the pay page mixed the
+// hotel money into the breakdown. A booking of a 180.00 guiding day plus two
+// pay-at-hotel rooms totalling 526.00 rendered
+//     Subtotal 659.81 / Tax 46.19 / Amount due 180.00
+// — the net + tax describe the WHOLE booking while the charge is operator-only,
+// so the rows do not add up and imply the customer is being billed for the
+// hotel. These pin the real numbers from that booking.
+const SPLIT_OFFER = {
+  ...OFFER,
+  totals: {
+    gross_total: 706.0,
+    tax_total: 46.19,
+    net_total: 659.81,
+    balance_due: 180.0,
+    currency: 'EUR',
+    operator_gross_total: 180.0,
+    operator_tax_total: 11.78,
+    operator_net_total: 168.22,
+    hotel_gross_total: 526.0,
+    hotel_tax_total: 34.41,
+    hotel_net_total: 491.59,
+    has_hotel_lines: true,
+  },
+}
+
+describe('OfferPage — operator/hotel split (mode="pay")', () => {
+  it('breaks down only the operator share, not the whole booking', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // Subtotal + Tax now describe the 180.00 being charged...
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(168.22, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-tax-total')).toHaveTextContent(
+      formatCurrency(11.78, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+      formatCurrency(180.0, 'EUR'),
+    )
+    // ...and they add up: 168.22 + 11.78 === 180.00
+    expect(168.22 + 11.78).toBeCloseTo(180.0, 2)
+
+    // The booking-wide figures must NOT appear in the breakdown any more.
+    expect(screen.getByTestId('offer-net-total')).not.toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-tax-total')).not.toHaveTextContent(
+      formatCurrency(46.19, 'EUR'),
+    )
+  })
+
+  it('names the at-hotel amount explicitly instead of a vague total', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const hotel = screen.getByTestId('offer-hotel-due')
+    expect(hotel).toHaveTextContent(formatCurrency(526.0, 'EUR'))
+    expect(hotel).toHaveTextContent(/hotel on arrival/i)
+
+    // The old "Total booking value" hedge is replaced by the explicit line.
+    expect(
+      screen.queryByTestId('offer-total-booking-value-note'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('falls back to booking-wide totals when the split is absent (legacy rows)', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...OFFER,
+      totals: {
+        gross_total: 706.0,
+        tax_total: 46.19,
+        net_total: 659.81,
+        balance_due: 180.0,
+        currency: 'EUR',
+      },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // Pre-split behaviour preserved exactly — never a 0.00 breakdown.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.queryByTestId('offer-hotel-due')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(
+      formatCurrency(706.0, 'EUR'),
+    )
+  })
+
+  it('shows the operator share separately once a partial payment lands', async () => {
+    // 80.00 already paid against the 180.00 operator share.
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPLIT_OFFER,
+      totals: { ...SPLIT_OFFER.totals, balance_due: 100.0 },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+      formatCurrency(100.0, 'EUR'),
+    )
+    // Without this row the breakdown would silently fail to sum to the charge.
+    expect(
+      screen.getByTestId('offer-operator-gross-total'),
+    ).toHaveTextContent(formatCurrency(180.0, 'EUR'))
+    // The hotel money is still called out, and still not part of the charge.
+    expect(screen.getByTestId('offer-hotel-due')).toHaveTextContent(
+      formatCurrency(526.0, 'EUR'),
+    )
+  })
+
+  it('leaves the offer ("Accept & Pay") flow quoting the whole booking', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPLIT_OFFER)
+    render(<OfferPage token={TOKEN} />)
+
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    // mode="offer" deliberately quotes the grand total — the split only
+    // changes the pay link, which charges the operator share alone.
+    expect(screen.getByTestId('offer-net-total')).toHaveTextContent(
+      formatCurrency(659.81, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(
+      formatCurrency(706.0, 'EUR'),
+    )
+    expect(screen.queryByTestId('offer-hotel-due')).not.toBeInTheDocument()
   })
 })

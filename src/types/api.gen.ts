@@ -7313,8 +7313,25 @@ export interface components {
             currency: string;
             /** Gross Total */
             gross_total: number;
+            /**
+             * Has Hotel Lines
+             * @default false
+             */
+            has_hotel_lines: boolean;
+            /** Hotel Gross Total */
+            hotel_gross_total?: number | null;
+            /** Hotel Net Total */
+            hotel_net_total?: number | null;
+            /** Hotel Tax Total */
+            hotel_tax_total?: number | null;
             /** Net Total */
             net_total: number;
+            /** Operator Gross Total */
+            operator_gross_total?: number | null;
+            /** Operator Net Total */
+            operator_net_total?: number | null;
+            /** Operator Tax Total */
+            operator_tax_total?: number | null;
             /** Tax Total */
             tax_total: number;
         } & {
