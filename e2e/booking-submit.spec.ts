@@ -124,10 +124,33 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
 
   // ---- Review + confirm -----------------------------------------------------
   await expect(page.getByText('Review your booking', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm booking' }).click()
+  // landr-5oox.30: intercept the submit response so the confirmation-title
+  // assertion below can match whichever copy the approval engine actually
+  // produced, instead of hardcoding one outcome. Small bookings inside Bus 1
+  // auto-approve (landr-5oox.10/D2) and render "Booking confirmed"; every
+  // other approval_outcome (or an absent one, e.g. an older API deploy)
+  // renders "Booking received" (landr-5oox.6/OD-7). Registering
+  // waitForResponse() and the click together avoids a race where the POST
+  // resolves before the listener is attached.
+  const [submitResponse] = await Promise.all([
+    page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.url().includes('/api/public/bookings'),
+    ),
+    page.getByRole('button', { name: 'Confirm booking' }).click(),
+  ])
+  const submitBody = (await submitResponse.json().catch(() => null)) as {
+    approval_outcome?: string
+  } | null
+  const expectedTitle = submitBody?.approval_outcome === 'auto_approved' ? 'Booking confirmed' : 'Booking received'
 
   // ---- Confirmation ----------------------------------------------------------
-  await expect(page.getByText('Booking received', { exact: true })).toBeVisible({
+  // Matched by text (not the confirmation-title testid added in
+  // Confirmation.tsx alongside this fix) so this assertion passes against
+  // the currently-deployed bw-dev build too, not only after this PR's own
+  // change reaches the live site — Cloudflare Pages redeploys bw-dev from
+  // `dev` post-merge, so a testid this PR just added wouldn't exist yet on
+  // the very run that checks this PR.
+  await expect(page.getByText(expectedTitle, { exact: true })).toBeVisible({
     timeout: 20_000,
   })
   await expect(page.getByText(/Reference/)).toBeVisible()
