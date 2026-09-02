@@ -482,6 +482,10 @@ export interface paths {
          *     Push delivery is stubbed in v1. The response includes `broadcast_recipients`
          *     (who WOULD be notified) so the mobile UI can display a "help is on the way"
          *     count immediately. Real push delivery lands with landr-71a2.
+         *
+         *     Rate-limited to `RATE_LIMIT_PER_HOUR` (currently 3) raises per sender per
+         *     rolling hour — a 429 past that, not a 4xx caller-input error, so retry
+         *     logic should back off rather than treat it as a malformed request.
          */
         post: operations["raise_sos"];
         delete?: never;
@@ -537,7 +541,10 @@ export interface paths {
          * Ingest a relayed STAGING ticket (+ comments) into the PROD inbox (service-to-service).
          * @description Idempotently upsert a relayed staging ticket into landr (prod).
          *
-         *     Auth: X-Feedback-Relay-Token (service-to-service, fail-closed).
+         *     Auth: X-Feedback-Relay-Token (service-to-service, fail-closed — 401 on a
+         *     missing, unset, or mismatched token; PROD rejects every call if it has
+         *     no feedback_relay_secret configured, rather than accepting one
+         *     unauthenticated).
          *
          *     Behaviour (idempotent, keyed on source_ref):
          *       * if a relayed row with this source_ref exists → UPDATE it ("updated").
@@ -2520,7 +2527,45 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Availability */
+        /**
+         * Delete Availability
+         * @description Delete one availability row, refusing (409) if the day is really booked.
+         *
+         *     landr-5oox.9 — the guard has TWO signals, and needs both:
+         *
+         *     * ``booking_products.product_availability_id`` (landr-0zsz, the original
+         *       match). Precise, but populated by nobody today
+         *       (20260810170000:414-417 — "Absent for every caller"), so on its own it
+         *       has never fired for the day products this endpoint is mostly used on.
+         *     * per-day seat load through ``booking_products.selected_days``
+         *       (``load_per_day`` → ``product_day_seat_load``), which is how a
+         *       days_range / single_date booking actually records the days it occupies.
+         *       This is the one that makes the guard real.
+         *
+         *     Either signal blocks the delete. The 409 keeps ``live_booking_count`` (a
+         *     DISTINCT booking count from the pointer signal, unchanged) and adds
+         *     ``booked_participants`` (guiding seats consumed on the day) so the client
+         *     can say *why*.
+         *
+         *     Caveat, recorded rather than papered over: the seat-load signal counts
+         *     GUIDING participants (landr-5oox.4's seat definition), so a live booking
+         *     on the day carrying zero guiding participants reads as load 0. That shape
+         *     should not exist — a booking with no guiding participant consumes no seat
+         *     anywhere in the system — and using the same definition here as the batch
+         *     pre-check and the widget is worth more than a third, divergent notion of
+         *     "booked". See the landr-5oox.9 handoff follow-ups.
+         *
+         *     landr-5oox.29: ``load_per_day`` is a DAY-grain signal — it sums every
+         *     live booking whose ``selected_days`` contains the date, ACROSS every row
+         *     on that date. That is only meaningful for whole-day shapes
+         *     (``_is_whole_day_row`` / ``BATCH_DAY_SHAPES``, the same gate the batch
+         *     save endpoint uses). For a ``time_slot`` row it used to block deleting
+         *     an empty 09:00 slot because the day's 14:00 slot was booked — an
+         *     un-overridable false-positive 409 on a legitimate operator action, and
+         *     before landr-5oox.9 the delete succeeded. A slot row instead relies
+         *     entirely on the pointer signal (``live_count``, already the correct
+         *     per-slot match) for both the block decision AND ``booked_participants``.
+         */
         delete: operations["delete_availability"];
         options?: never;
         head?: never;
@@ -4474,6 +4519,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/availability/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Availability Batch
+         * @description Apply the day editor's whole diff in ONE transaction (landr-5oox.9).
+         *
+         *     Order of operations, and why:
+         *
+         *     1. `resolve_operator_product` — the membership dep only proves the caller
+         *        belongs to the PATH operator, not that the product does (landr-zenj.5).
+         *     2. `raise_if_not_schedulable(..., allowed_shapes=BATCH_DAY_SHAPES)` — this
+         *        endpoint reasons in whole days; time_slot products keep the sheet/popover
+         *        path and fixed_window capacity lives in `product_fixed_date_windows`.
+         *     3. No past dates for NEW rows, in the OPERATOR's timezone. Rows that already
+         *        exist are exempt — removing or closing last season has to stay possible.
+         *     4. The conflict pre-check, so the operator gets a per-day 409 body naming
+         *        exactly which days clash. Nothing is written when it fires.
+         *     5. The RPC, which re-asserts the same guard inside the writing transaction
+         *        (a booking can land between step 4 and here) and rolls the whole diff
+         *        back on a clash — surfaced by `batch_conflict_as_409` as the identical
+         *        409 body.
+         */
+        put: operations["save_availability_batch"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/availability/bulk": {
         parameters: {
             query?: never;
@@ -4637,6 +4718,176 @@ export interface paths {
         head?: never;
         /** Patch Provider */
         patch: operations["patch_provider"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Resource Pool
+         * @description Set the pool-level fallback policy (every day with no covering period).
+         *
+         *     Bounded by the same 0…active-unit-count rule as a period's
+         *     ``released_units``, and reported with the same typed 422 body, so the
+         *     dashboard's stepper only ever has to understand one error shape. 0 is a
+         *     legitimate setting, not an "off" — it means every unit needs an OK first
+         *     (OD-1).
+         *
+         *     Ensures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL
+         *     predicate the periods RPC uses. This is the *other* way a pool can start
+         *     using the policy machinery — an operator who only ever lowers the default
+         *     and never writes a period must not end up with a policy that binds nothing.
+         */
+        patch: operations["patch_resource_pool"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Approval Calendar
+         * @description One row per day in ``[from, to]`` (≤366 days).
+         *
+         *     Every policy/load number is the evaluator's own, computed with
+         *     ``capacity._approval_policy_for`` + ``_existing_load_per_day`` +
+         *     ``_open_capacity`` — the same three calls ``evaluate_capacity`` makes for a
+         *     booking, for a date range instead of for one product.
+         *
+         *     Per-day fields:
+         *
+         *     ``mode`` / ``released_units_policy``
+         *         The resolved policy: a covering period, else the pool default
+         *         (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``
+         *         is ``n`` AFTER the clamp to the active unit count.
+         *     ``released_units`` / ``released_cap``
+         *         ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity —
+         *         what actually auto-approves, policy floor OR earned by approved load.
+         *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
+         *         Seats: all units combined; seats held by live bookings; the part of
+         *         that the operator has already said yes to; and the difference — seats
+         *         held by requests still at the gate.
+         *     ``pending_count`` / ``staff_count``
+         *         Head-counts (see :func:`_booking_counts_per_day`).
+         *     ``bookable``
+         *         Whether any product on this pool is on sale that day. Policy never
+         *         moves this (OD-1) — the UI draws the two bands independently so
+         *         "bookable + ask me for each unit" is visibly different from "not
+         *         bookable".
+         *     ``units``
+         *         Per unit, in release order: ``{id, name, capacity, load, state,
+         *         released_by}``. ``load`` fills units in ``sort_order``, which is how the
+         *         release ladder reads them. ``state`` is ``full`` when the unit has no
+         *         seats left, else ``released`` (inside the released prefix) or
+         *         ``needs_ok``. ``released_by`` is ``policy`` for units the period/default
+         *         released outright, ``approval`` for the ones approved load earned, and
+         *         ``null`` for a unit that is not released — so a ``full`` unit with
+         *         ``released_by = null`` reads correctly as "full of requests that are
+         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
+         *         day NO unit is ever ``released`` regardless of load — every unit is
+         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``
+         *         (``released_units``/``released_cap`` above still carry the numeric
+         *         parity value, they just describe no unit's on-screen state that day).
+         *     ``kind``
+         *         Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same
+         *         vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone
+         *         decides it); else ``shortage`` when ``total_load > total_cap``; else
+         *         ``opens`` when ``total_load > released_cap`` (load already sits past
+         *         what's released — the next unit is waiting to open); else ``null``. D5
+         *         draws the day pill from this rather than re-deriving it from the unit
+         *         list.
+         *     ``period_id``
+         *         The covering period row, or ``null`` where the pool default applies.
+         *
+         *     ``periods`` carries the full period rows overlapping the span so the
+         *     Periods tab and the Calendar tab can be rendered from one request, and
+         *     ``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,
+         *     ``default_released_units`` seeds the default control).
+         */
+        get: operations["get_approval_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply Approval Periods
+         * @description Set one policy across one or more date ranges, atomically.
+         *
+         *     The whole write is ``apply_resource_pool_approval_periods`` (migration
+         *     20260903010000, actor param added by 20260903040000): one transaction
+         *     that trims/splits neighbouring periods, merges identical adjacent ones,
+         *     soft-deletes what it replaces (stamping ``deleted_by_user_id =
+         *     membership.user_id``) and ensures the pool's ``capacity_threshold`` rule
+         *     (OD-2). A bad range anywhere in the body means NOTHING is written —
+         *     validation runs before the first write and the transaction rolls back
+         *     regardless.
+         *
+         *     ``?dry_run=1`` returns exactly the rows the real call would produce
+         *     (``id`` populated for the rows that would survive untouched, ``null`` for
+         *     the ones that would be created) and writes nothing at all — no period, no
+         *     rule, no audit row. That is what the edit sheet's preview line is built
+         *     from.
+         */
+        put: operations["apply_approval_periods"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Approval Period
+         * @description Soft-delete one period (Pattern A + ``active = false``).
+         *
+         *     The days it covered fall back to the pool's ``default_released_units`` on
+         *     the very next read — there is no gap state and nothing to backfill. Both
+         *     flags are set for the same reason the units editor sets both: the
+         *     non-overlap guard and the evaluator each filter on one of them, and a row
+         *     that is "deleted" must be out of both sets.
+         *
+         *     Deliberately NOT a hard delete: the audit trail for "who took the peak
+         *     season policy off, and when" is the whole point of Pattern A.
+         */
+        delete: operations["delete_approval_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/saved-views": {
@@ -5422,6 +5673,50 @@ export interface components {
             used: number;
         };
         /**
+         * ApprovalPeriodRange
+         * @description One inclusive date range. ``end_date >= start_date`` is enforced by the
+         *     RPC (typed 422) rather than here, so a multi-range body reports every bad
+         *     range in one machine-readable payload instead of one Pydantic error.
+         */
+        ApprovalPeriodRange: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
+         * ApprovalPeriodsIn
+         * @description ``PUT .../approval-periods`` — one policy, applied to N ranges.
+         *
+         *     ``released_units`` is a stepper value 0…N, not a flag (OD-1): 0 means "ask
+         *     me for each unit, including the first" and is a legitimate saved state, so
+         *     it is validated `ge=0`, never `gt=0`. The mode/units consistency rule and
+         *     the 0…active-unit-count bound both live in the RPC — one definition, and
+         *     the same typed body whichever way the request arrives.
+         */
+        ApprovalPeriodsIn: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "ask_every_time" | "ask_per_unit" | "units_released";
+            /** Note */
+            note?: string | null;
+            /** Ranges */
+            ranges: components["schemas"]["ApprovalPeriodRange"][];
+            /**
+             * Released Units
+             * @default 0
+             */
+            released_units: number;
+        };
+        /**
          * ApprovalReplyRequest
          * @description `POST .../{token}/response` body.
          *
@@ -5609,6 +5904,47 @@ export interface components {
             provider_id: string;
             /** Provider Role Id */
             provider_role_id?: string | null;
+        };
+        /**
+         * AvailabilityBatchIn
+         * @description The day editor's whole diff, applied atomically (plan §3c).
+         *
+         *     - ``upsert`` — new bookable days, seat-count changes, and Reopen (a closed
+         *       day upserted back to ``status='open'``).
+         *     - ``close``  — booked days the operator removed. The row survives with its
+         *       ``capacity`` untouched and ``status='closed'`` (OD-5), so the existing
+         *       bookings keep their seats and the day stays visible + reopenable.
+         *     - ``delete`` — unbooked days the operator removed. Row gone.
+         *
+         *     A date may appear in at most ONE list: two upserts for the same date would
+         *     trip Postgres 21000 ("ON CONFLICT DO UPDATE command cannot affect row a
+         *     second time" — the same trap `AvailabilityBulkIn._check_slot_times_unique`
+         *     documents), and close+delete for one date is simply ambiguous.
+         */
+        AvailabilityBatchIn: {
+            /** Close */
+            close?: string[];
+            /** Delete */
+            delete?: string[];
+            /** Upsert */
+            upsert?: components["schemas"]["AvailabilityBatchUpsert"][];
+        };
+        /**
+         * AvailabilityBatchUpsert
+         * @description One day the editor wants bookable at a given seat count.
+         *
+         *     No start_time/end_time: the batch is defined for whole-day shapes only
+         *     (`BATCH_DAY_SHAPES`), which carry `start_time IS NULL` — that is also what
+         *     makes `(product_id, date, start_time)` a stable upsert key here.
+         */
+        AvailabilityBatchUpsert: {
+            /** Capacity */
+            capacity: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
         };
         /** AvailabilityBulkIn */
         AvailabilityBulkIn: {
@@ -8558,6 +8894,18 @@ export interface components {
             resolved_by: string;
         };
         /**
+         * ResourcePoolPatch
+         * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy.
+         *
+         *     0 is allowed and meaningful (OD-1: "Ask me for each bus (including Bus 1)",
+         *     e.g. a quiet November). The upper bound is the pool's active unit count,
+         *     checked in the handler.
+         */
+        ResourcePoolPatch: {
+            /** Default Released Units */
+            default_released_units: number;
+        };
+        /**
          * RetrievePatchIn
          * @description PATCH body — operator sets the retrieve workflow state/note.
          *
@@ -9054,7 +9402,11 @@ export interface components {
          *     Mirrors public_submit_booking's jsonb response (booking_id,
          *     semantic_state, stage_code, approval_outcome, next_steps) plus the
          *     fields this router injects afterwards (confirmation_email_status,
-         *     ical_url, calendar_event). Mirrors the widget's
+         *     ical_url, calendar_event, payment_link_sent). ``next_steps`` is the
+         *     ONE exception to "mirrors the RPC verbatim": booking_submit.finalize()
+         *     always OVERRIDES the RPC's hard-coded string with outcome-based,
+         *     OD-7-compliant copy (landr-5oox.7) — see
+         *     ``next_steps_for_approval_outcome``. Mirrors the widget's
          *     ``SubmitBookingResponse`` TypeScript interface (src/api/types.ts)
          *     field-for-field — including its optional ``token`` field, which is
          *     never actually populated by the current RPC (see landr-y3oj.1
@@ -9073,6 +9425,8 @@ export interface components {
             ical_url?: string | null;
             /** Next Steps */
             next_steps?: string | null;
+            /** Payment Link Sent */
+            payment_link_sent?: boolean | null;
             /** Semantic State */
             semantic_state: string;
             /** Stage Code */
@@ -17515,6 +17869,44 @@ export interface operations {
             };
         };
     };
+    save_availability_batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvailabilityBatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bulk_create_availability: {
         parameters: {
             query?: never;
@@ -17961,6 +18353,156 @@ export interface operations {
                 "application/json": components["schemas"]["ProviderPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_resource_pool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePoolPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_approval_calendar: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_approval_periods: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalPeriodsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_approval_period: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
