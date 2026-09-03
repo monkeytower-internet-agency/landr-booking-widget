@@ -2519,6 +2519,39 @@
             ],
             "title": "Checkin Id"
           },
+          "checkin_latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Latitude"
+          },
+          "checkin_longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Longitude"
+          },
+          "checkin_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Note"
+          },
           "checkin_status": {
             "anyOf": [
               {
