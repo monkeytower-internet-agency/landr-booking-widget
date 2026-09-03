@@ -4786,9 +4786,10 @@ export interface paths {
          * @description One row per day in ``[from, to]`` (≤366 days).
          *
          *     Every policy/load number is the evaluator's own, computed with
-         *     ``capacity._approval_policy_for`` + ``_existing_load_per_day`` +
-         *     ``_open_capacity`` — the same three calls ``evaluate_capacity`` makes for a
-         *     booking, for a date range instead of for one product.
+         *     ``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +
+         *     ``_units_in_service_per_day`` + ``_open_capacity`` — the same calls
+         *     ``evaluate_capacity`` makes for a booking, for a date range instead of for
+         *     one product.
          *
          *     Per-day fields:
          *
@@ -4810,12 +4811,45 @@ export interface paths {
          *         moves this (OD-1) — the UI draws the two bands independently so
          *         "bookable + ask me for each unit" is visibly different from "not
          *         bookable".
+         *     ``units_in_service`` / ``units_in_service_ids``
+         *         How many of the pool's active units actually run on this day, and which
+         *         (landr-e80s.1) — resolved from ``resource_pool_unit_service_periods``'s
+         *         two kinds: in service = (no ``in_service`` rows OR covered by one) AND
+         *         covered by no ``out_of_service`` row. A unit with no service periods is
+         *         in service every day, so on a pool that never adopts schedules this is
+         *         always the full active roster and ``total_cap`` is unchanged.
+         *         ``total_cap``/``released_cap``/the release ladder are computed over
+         *         THESE units only. The units that are NOT running are never dropped from
+         *         the payload — they appear in ``units`` below with
+         *         ``service_state: "out_of_service"``.
+         *     ``over_capacity_bookings``
+         *         Non-empty only when the day's load exceeds the capacity that is in
+         *         service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``
+         *         for each booking that no longer fits, oldest-booked first
+         *         (:func:`_over_capacity_bookings`). Taking a unit out of service on a
+         *         day that already carries bookings must be visible, not silent — this is
+         *         the list the operator has to act on.
          *     ``units``
-         *         Per unit, in release order: ``{id, name, capacity, load, state,
-         *         released_by}``. ``load`` fills units in ``sort_order``, which is how the
-         *         release ladder reads them. ``state`` is ``full`` when the unit has no
-         *         seats left, else ``released`` (inside the released prefix) or
-         *         ``needs_ok``. ``released_by`` is ``policy`` for units the period/default
+         *         EVERY active unit of the pool, in release order — never only the ones
+         *         running — as ``{id, name, capacity, load, state, released_by,
+         *         service_state, out_of_service_reason}``.
+         *
+         *         ``service_state`` is the SCHEDULE answer: ``in_service`` or
+         *         ``out_of_service``, with ``out_of_service_reason`` carrying the
+         *         covering ``out_of_service`` row's reason when there is one (``null``
+         *         when the unit is simply outside its season — nobody wrote a reason,
+         *         because nothing broke). That is what draws "Unit 2 out of service
+         *         12-19 Dec (gearbox)".
+         *
+         *         ``state`` is the LADDER answer, and only in-service units have one:
+         *         ``load`` fills them in ``sort_order``, which is how the release ladder
+         *         reads them, and ``state`` is ``full`` when the unit has no seats left,
+         *         else ``released`` (inside the released prefix) or ``needs_ok``. A unit
+         *         that is not running that day carries ``load: 0``,
+         *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
+         *         place in the roster but takes no load and no release state.
+         *
+         *         ``released_by`` is ``policy`` for units the period/default
          *         released outright, ``approval`` for the ones approved load earned, and
          *         ``null`` for a unit that is not released — so a ``full`` unit with
          *         ``released_by = null`` reads correctly as "full of requests that are
@@ -4908,6 +4942,94 @@ export interface paths {
          *     season policy off, and when" is the whole point of Pattern A.
          */
         delete: operations["delete_approval_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/service-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Unit Service Period
+         * @description Soft-delete one service period (Pattern A + ``active = false``).
+         *
+         *     Removing a unit's LAST period puts it back to "in service every day" — the
+         *     zero-rows default — and removing an ``out_of_service`` row always widens
+         *     too, so neither needs a consequence preview. Removing one ``in_service``
+         *     row of several narrows the schedule; the calendar shows the resulting
+         *     ``over_capacity_bookings`` on the next read.
+         *
+         *     Deliberately NOT a hard delete: "who took the November season off, and
+         *     when" is exactly what the audit trail is for.
+         */
+        delete: operations["delete_unit_service_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/service-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unit Service Periods
+         * @description One unit's complete service schedule.
+         *
+         *     Both kinds, in one list, ordered by kind then start_date — the editor
+         *     renders seasons and maintenance windows from the same response.
+         *
+         *     ``periods: []`` is not "unknown" — it is the unit's real state, and it
+         *     means the unit is in service every day. ``always_in_service`` says so
+         *     explicitly rather than making every caller re-derive the emptiness rule.
+         */
+        get: operations["list_unit_service_periods"];
+        /**
+         * Apply Unit Service Periods
+         * @description Replace one unit's whole service schedule, atomically.
+         *
+         *     The write is ``apply_resource_pool_unit_service_periods`` (migration
+         *     20260904020100): one transaction that merges the requested ranges per
+         *     (kind, reason), leaves verbatim-unchanged rows untouched (same id, same
+         *     ``updated_at``, no audit row), soft-deletes what the new set replaces —
+         *     stamping ``deleted_by_user_id = membership.user_id`` — and inserts the
+         *     rest. A bad range anywhere in the body means NOTHING is written.
+         *
+         *     ``periods`` carries BOTH kinds in one payload: ``in_service`` ranges are
+         *     the unit's season, ``out_of_service`` ranges are maintenance windows that
+         *     win over any season covering the same days. Ranges of DIFFERENT kinds may
+         *     overlap — that is how a repair punches a hole in a season — while two
+         *     ranges of the same kind that cover a day with different reasons are a 422.
+         *
+         *     An empty ``periods`` list clears the schedule and returns the unit to "in
+         *     service every day". That is a real edit, not a no-op.
+         *
+         *     ``?dry_run=1`` writes nothing and returns, alongside the rows the real call
+         *     would produce, a ``consequences`` block naming every day in the window that
+         *     would go over capacity and the bookings sitting on it. The window defaults
+         *     to the OPERATOR's today … + a year and is overridable with ``from``/``to``
+         *     (at most ``MAX_CALENDAR_DAYS``) — see :func:`_consequence_window` for why it has to
+         *     be bounded at all.
+         *
+         *     Writes go through FastAPI rather than PostgREST because this is not a plain
+         *     row update (bd memory ``write-routing-convention``): it is an atomic
+         *     replace-set whose intermediate states the non-overlap constraint forbids,
+         *     and it changes what the capacity evaluator sees.
+         */
+        put: operations["apply_unit_service_periods"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -9707,6 +9829,57 @@ export interface components {
              * @enum {string}
              */
             status: "sent" | "failed";
+        };
+        /**
+         * UnitServicePeriodRange
+         * @description One inclusive date range on a unit's schedule.
+         *
+         *     ``kind`` says which direction it points: ``in_service`` (default) is part
+         *     of the unit's season, ``out_of_service`` is a maintenance window that wins
+         *     over any season covering the same days. ``reason`` is the operator's own
+         *     free text for the row ("summer season", "gearbox") and is what the
+         *     dashboard renders after the dates.
+         *
+         *     ``end_date >= start_date`` is enforced by the RPC (typed 422) rather than
+         *     here, so a multi-range body reports every bad range in one machine-readable
+         *     payload instead of one Pydantic error — same call as
+         *     :class:`ApprovalPeriodRange`.
+         */
+        UnitServicePeriodRange: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Kind
+             * @default in_service
+             * @enum {string}
+             */
+            kind: "in_service" | "out_of_service";
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
+         * UnitServicePeriodsIn
+         * @description ``PUT .../units/{unit_id}/service-periods`` — the unit's WHOLE schedule.
+         *
+         *     This is a replace-set, not a patch: ``periods`` is the unit's complete
+         *     schedule — seasons AND maintenance windows, both kinds in one payload,
+         *     because the editor saves them together and either alone is an incomplete
+         *     picture of the unit. An EMPTY list is a legitimate value that clears the
+         *     schedule and returns the unit to "in service every day". ``min_length`` is
+         *     therefore deliberately absent (contrast :class:`ApprovalPeriodsIn`, where
+         *     an empty range list has no meaning).
+         */
+        UnitServicePeriodsIn: {
+            /** Periods */
+            periods?: components["schemas"]["UnitServicePeriodRange"][];
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
@@ -18651,6 +18824,119 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_unit_service_period: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_unit_service_periods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_unit_service_periods: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitServicePeriodsIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
