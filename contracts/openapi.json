@@ -2466,252 +2466,6 @@
         "title": "CustomerSignoffIn",
         "type": "object"
       },
-      "DayManifestOut": {
-        "properties": {
-          "date": {
-            "title": "Date",
-            "type": "string"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/DayManifestRow"
-            },
-            "title": "Rows",
-            "type": "array"
-          }
-        },
-        "required": [
-          "date",
-          "rows"
-        ],
-        "title": "DayManifestOut",
-        "type": "object"
-      },
-      "DayManifestRow": {
-        "properties": {
-          "booking_id": {
-            "title": "Booking Id",
-            "type": "string"
-          },
-          "booking_ref": {
-            "title": "Booking Ref",
-            "type": "string"
-          },
-          "booking_stage_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Booking Stage Code"
-          },
-          "checkin_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkin Id"
-          },
-          "checkin_latitude": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkin Latitude"
-          },
-          "checkin_longitude": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkin Longitude"
-          },
-          "checkin_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkin Note"
-          },
-          "checkin_status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checkin Status"
-          },
-          "contact_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Id"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "participant_id": {
-            "title": "Participant Id",
-            "type": "string"
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Phone"
-          },
-          "pickup_location_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pickup Location Id"
-          },
-          "pickup_location_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pickup Location Name"
-          },
-          "pickup_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pickup Note"
-          },
-          "pickup_time": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pickup Time"
-          },
-          "product_id": {
-            "title": "Product Id",
-            "type": "string"
-          },
-          "product_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Name"
-          },
-          "products": {
-            "items": {
-              "$ref": "#/components/schemas/ManifestProductRef"
-            },
-            "title": "Products",
-            "type": "array"
-          },
-          "providers": {
-            "items": {
-              "$ref": "#/components/schemas/ManifestProvider"
-            },
-            "title": "Providers",
-            "type": "array"
-          },
-          "retrieve_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retrieve Note"
-          },
-          "retrieve_state": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retrieve State"
-          },
-          "service_role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Role"
-          }
-        },
-        "required": [
-          "booking_id",
-          "booking_ref",
-          "product_id",
-          "products",
-          "participant_id",
-          "name",
-          "providers"
-        ],
-        "title": "DayManifestRow",
-        "type": "object"
-      },
       "DevToStagingIn": {
         "properties": {
           "notes": {
@@ -5168,65 +4922,6 @@
           }
         },
         "title": "LocationRoleTypePatch",
-        "type": "object"
-      },
-      "ManifestProductRef": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "title": "ManifestProductRef",
-        "type": "object"
-      },
-      "ManifestProvider": {
-        "properties": {
-          "display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          },
-          "provider_id": {
-            "title": "Provider Id",
-            "type": "string"
-          },
-          "role_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role Code"
-          }
-        },
-        "required": [
-          "provider_id"
-        ],
-        "title": "ManifestProvider",
         "type": "object"
       },
       "MarkPaidIn": {
@@ -9905,64 +9600,12 @@
         "type": "object"
       },
       "ResourcePoolPatch": {
-        "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy\nplus (landr-e80s.2) the operator's own terms for this pool's units/slots.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.\n\n``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``\nare optional partial-update fields (``None`` = leave unchanged) \u2014 every\nexisting caller only ever sent ``default_released_units``, so those four\nstay required-less to keep that call shape working unmodified. Length is\nthe same 1..40 the DB CHECK enforces; validating here gives a typed 422\nbefore the DB ever sees the write.",
+        "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.",
         "properties": {
           "default_released_units": {
             "minimum": 0.0,
             "title": "Default Released Units",
             "type": "integer"
-          },
-          "slot_label": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Label"
-          },
-          "slot_label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Label Plural"
-          },
-          "unit_label": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit Label"
-          },
-          "unit_label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit Label Plural"
           }
         },
         "required": [
@@ -10052,12 +9695,7 @@
             "type": "object"
           },
           "entity_type": {
-            "enum": [
-              "booking",
-              "ticket",
-              "contact",
-              "product"
-            ],
+            "const": "booking",
             "title": "Entity Type",
             "type": "string"
           },
@@ -10228,19 +9866,6 @@
             ],
             "title": "Label Localized"
           },
-          "label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Plural"
-          },
           "receives_main_service": {
             "default": true,
             "title": "Receives Main Service",
@@ -10330,19 +9955,6 @@
               }
             ],
             "title": "Label Localized"
-          },
-          "label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Plural"
           },
           "receives_main_service": {
             "anyOf": [
@@ -11755,61 +11367,6 @@
           "detail"
         ],
         "title": "TestEmailResult",
-        "type": "object"
-      },
-      "UnitServicePeriodRange": {
-        "description": "One inclusive date range on a unit's schedule.\n\n``kind`` says which direction it points: ``in_service`` (default) is part\nof the unit's season, ``out_of_service`` is a maintenance window that wins\nover any season covering the same days. ``reason`` is the operator's own\nfree text for the row (\"summer season\", \"gearbox\") and is what the\ndashboard renders after the dates.\n\n``end_date >= start_date`` is enforced by the RPC (typed 422) rather than\nhere, so a multi-range body reports every bad range in one machine-readable\npayload instead of one Pydantic error \u2014 same call as\n:class:`ApprovalPeriodRange`.",
-        "properties": {
-          "end_date": {
-            "format": "date",
-            "title": "End Date",
-            "type": "string"
-          },
-          "kind": {
-            "default": "in_service",
-            "enum": [
-              "in_service",
-              "out_of_service"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "start_date": {
-            "format": "date",
-            "title": "Start Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "start_date",
-          "end_date"
-        ],
-        "title": "UnitServicePeriodRange",
-        "type": "object"
-      },
-      "UnitServicePeriodsIn": {
-        "description": "``PUT .../units/{unit_id}/service-periods`` \u2014 the unit's WHOLE schedule.\n\nThis is a replace-set, not a patch: ``periods`` is the unit's complete\nschedule \u2014 seasons AND maintenance windows, both kinds in one payload,\nbecause the editor saves them together and either alone is an incomplete\npicture of the unit. An EMPTY list is a legitimate value that clears the\nschedule and returns the unit to \"in service every day\". ``min_length`` is\ntherefore deliberately absent (contrast :class:`ApprovalPeriodsIn`, where\nan empty range list has no meaning).",
-        "properties": {
-          "periods": {
-            "items": {
-              "$ref": "#/components/schemas/UnitServicePeriodRange"
-            },
-            "title": "Periods",
-            "type": "array"
-          }
-        },
-        "title": "UnitServicePeriodsIn",
         "type": "object"
       },
       "UploadPhotoRequest": {
@@ -22432,63 +21989,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/day-manifest": {
-      "get": {
-        "operationId": "staff_day_manifest",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "date",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "title": "Date",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DayManifestOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Day Manifest",
-        "tags": [
-          "staff-briefings"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/email-templates": {
       "get": {
         "operationId": "list_templates",
@@ -27118,7 +26618,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
       "patch": {
-        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.",
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.",
         "operationId": "patch_resource_pool",
         "parameters": [
           {
@@ -27187,7 +26687,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-calendar": {
       "get": {
-        "description": "One row per day in ``[from, to]`` (\u2264366 days).\n\nEvery policy/load number is the evaluator's own, computed with\n``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +\n``_units_in_service_per_day`` + ``_open_capacity`` \u2014 the same calls\n``evaluate_capacity`` makes for a booking, for a date range instead of for\none product.\n\nPer-day fields:\n\n``mode`` / ``released_units_policy``\n    The resolved policy: a covering period, else the pool default\n    (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``\n    is ``n`` AFTER the clamp to the active unit count.\n``released_units`` / ``released_cap``\n    ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity \u2014\n    what actually auto-approves, policy floor OR earned by approved load.\n``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``\n    Seats: all units combined; seats held by live bookings; the part of\n    that the operator has already said yes to; and the difference \u2014 seats\n    held by requests still at the gate.\n``pending_count`` / ``staff_count``\n    Head-counts (see :func:`_booking_counts_per_day`).\n``bookable``\n    Whether any product on this pool is on sale that day. Policy never\n    moves this (OD-1) \u2014 the UI draws the two bands independently so\n    \"bookable + ask me for each unit\" is visibly different from \"not\n    bookable\".\n``units_in_service`` / ``units_in_service_ids``\n    How many of the pool's active units actually run on this day, and which\n    (landr-e80s.1) \u2014 resolved from ``resource_pool_unit_service_periods``'s\n    two kinds: in service = (no ``in_service`` rows OR covered by one) AND\n    covered by no ``out_of_service`` row. A unit with no service periods is\n    in service every day, so on a pool that never adopts schedules this is\n    always the full active roster and ``total_cap`` is unchanged.\n    ``total_cap``/``released_cap``/the release ladder are computed over\n    THESE units only. The units that are NOT running are never dropped from\n    the payload \u2014 they appear in ``units`` below with\n    ``service_state: \"out_of_service\"``.\n``over_capacity_bookings``\n    Non-empty only when the day's load exceeds the capacity that is in\n    service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``\n    for each booking that no longer fits, oldest-booked first\n    (:func:`_over_capacity_bookings`). Taking a unit out of service on a\n    day that already carries bookings must be visible, not silent \u2014 this is\n    the list the operator has to act on.\n``units``\n    EVERY active unit of the pool, in release order \u2014 never only the ones\n    running \u2014 as ``{id, name, capacity, load, state, released_by,\n    service_state, out_of_service_reason}``.\n\n    ``service_state`` is the SCHEDULE answer: ``in_service`` or\n    ``out_of_service``, with ``out_of_service_reason`` carrying the\n    covering ``out_of_service`` row's reason when there is one (``null``\n    when the unit is simply outside its season \u2014 nobody wrote a reason,\n    because nothing broke). That is what draws \"Unit 2 out of service\n    12-19 Dec (gearbox)\".\n\n    ``state`` is the LADDER answer, and only in-service units have one:\n    ``load`` fills them in ``sort_order``, which is how the release ladder\n    reads them, and ``state`` is ``full`` when the unit has no seats left,\n    else ``released`` (inside the released prefix) or ``needs_ok``. A unit\n    that is not running that day carries ``load: 0``,\n    ``released_by: null`` and ``state: \"out_of_service\"`` \u2014 it holds its\n    place in the roster but takes no load and no release state.\n\n    ``released_by`` is ``policy`` for units the period/default\n    released outright, ``approval`` for the ones approved load earned, and\n    ``null`` for a unit that is not released \u2014 so a ``full`` unit with\n    ``released_by = null`` reads correctly as \"full of requests that are\n    still waiting for you\", not \"auto-approving\". On an ``ask_every_time``\n    day NO unit is ever ``released`` regardless of load \u2014 every unit is\n    ``needs_ok`` or ``full``, ``released_by`` always ``null``\n    (``released_units``/``released_cap`` above still carry the numeric\n    parity value, they just describe no unit's on-screen state that day).\n``kind``\n    Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same\n    vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone\n    decides it); else ``shortage`` when ``total_load > total_cap``; else\n    ``opens`` when ``total_load > released_cap`` (load already sits past\n    what's released \u2014 the next unit is waiting to open); else ``null``. D5\n    draws the day pill from this rather than re-deriving it from the unit\n    list.\n``period_id``\n    The covering period row, or ``null`` where the pool default applies.\n\n``periods`` carries the full period rows overlapping the span so the\nPeriods tab and the Calendar tab can be rendered from one request, and\n``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,\n``default_released_units`` seeds the default control).",
+        "description": "One row per day in ``[from, to]`` (\u2264366 days).\n\nEvery policy/load number is the evaluator's own, computed with\n``capacity._approval_policy_for`` + ``_existing_load_per_day`` +\n``_open_capacity`` \u2014 the same three calls ``evaluate_capacity`` makes for a\nbooking, for a date range instead of for one product.\n\nPer-day fields:\n\n``mode`` / ``released_units_policy``\n    The resolved policy: a covering period, else the pool default\n    (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``\n    is ``n`` AFTER the clamp to the active unit count.\n``released_units`` / ``released_cap``\n    ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity \u2014\n    what actually auto-approves, policy floor OR earned by approved load.\n``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``\n    Seats: all units combined; seats held by live bookings; the part of\n    that the operator has already said yes to; and the difference \u2014 seats\n    held by requests still at the gate.\n``pending_count`` / ``staff_count``\n    Head-counts (see :func:`_booking_counts_per_day`).\n``bookable``\n    Whether any product on this pool is on sale that day. Policy never\n    moves this (OD-1) \u2014 the UI draws the two bands independently so\n    \"bookable + ask me for each unit\" is visibly different from \"not\n    bookable\".\n``units``\n    Per unit, in release order: ``{id, name, capacity, load, state,\n    released_by}``. ``load`` fills units in ``sort_order``, which is how the\n    release ladder reads them. ``state`` is ``full`` when the unit has no\n    seats left, else ``released`` (inside the released prefix) or\n    ``needs_ok``. ``released_by`` is ``policy`` for units the period/default\n    released outright, ``approval`` for the ones approved load earned, and\n    ``null`` for a unit that is not released \u2014 so a ``full`` unit with\n    ``released_by = null`` reads correctly as \"full of requests that are\n    still waiting for you\", not \"auto-approving\". On an ``ask_every_time``\n    day NO unit is ever ``released`` regardless of load \u2014 every unit is\n    ``needs_ok`` or ``full``, ``released_by`` always ``null``\n    (``released_units``/``released_cap`` above still carry the numeric\n    parity value, they just describe no unit's on-screen state that day).\n``kind``\n    Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same\n    vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone\n    decides it); else ``shortage`` when ``total_load > total_cap``; else\n    ``opens`` when ``total_load > released_cap`` (load already sits past\n    what's released \u2014 the next unit is waiting to open); else ``null``. D5\n    draws the day pill from this rather than re-deriving it from the unit\n    list.\n``period_id``\n    The covering period row, or ``null`` where the pool default applies.\n\n``periods`` carries the full period rows overlapping the span so the\nPeriods tab and the Calendar tab can be rendered from one request, and\n``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,\n``default_released_units`` seeds the default control).",
         "operationId": "get_approval_calendar",
         "parameters": [
           {
@@ -27406,262 +26906,6 @@
           }
         ],
         "summary": "Delete Approval Period",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/service-periods/{period_id}": {
-      "delete": {
-        "description": "Soft-delete one service period (Pattern A + ``active = false``).\n\nRemoving a unit's LAST period puts it back to \"in service every day\" \u2014 the\nzero-rows default \u2014 and removing an ``out_of_service`` row always widens\ntoo, so neither needs a consequence preview. Removing one ``in_service``\nrow of several narrows the schedule; the calendar shows the resulting\n``over_capacity_bookings`` on the next read.\n\nDeliberately NOT a hard delete: \"who took the November season off, and\nwhen\" is exactly what the audit trail is for.",
-        "operationId": "delete_unit_service_period",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "period_id",
-            "required": true,
-            "schema": {
-              "title": "Period Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Unit Service Period",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Unit Service Period",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/service-periods": {
-      "get": {
-        "description": "One unit's complete service schedule.\n\nBoth kinds, in one list, ordered by kind then start_date \u2014 the editor\nrenders seasons and maintenance windows from the same response.\n\n``periods: []`` is not \"unknown\" \u2014 it is the unit's real state, and it\nmeans the unit is in service every day. ``always_in_service`` says so\nexplicitly rather than making every caller re-derive the emptiness rule.",
-        "operationId": "list_unit_service_periods",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "unit_id",
-            "required": true,
-            "schema": {
-              "title": "Unit Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Unit Service Periods",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Unit Service Periods",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      },
-      "put": {
-        "description": "Replace one unit's whole service schedule, atomically.\n\nThe write is ``apply_resource_pool_unit_service_periods`` (migration\n20260904020100): one transaction that merges the requested ranges per\n(kind, reason), leaves verbatim-unchanged rows untouched (same id, same\n``updated_at``, no audit row), soft-deletes what the new set replaces \u2014\nstamping ``deleted_by_user_id = membership.user_id`` \u2014 and inserts the\nrest. A bad range anywhere in the body means NOTHING is written.\n\n``periods`` carries BOTH kinds in one payload: ``in_service`` ranges are\nthe unit's season, ``out_of_service`` ranges are maintenance windows that\nwin over any season covering the same days. Ranges of DIFFERENT kinds may\noverlap \u2014 that is how a repair punches a hole in a season \u2014 while two\nranges of the same kind that cover a day with different reasons are a 422.\n\nAn empty ``periods`` list clears the schedule and returns the unit to \"in\nservice every day\". That is a real edit, not a no-op.\n\n``?dry_run=1`` writes nothing and returns, alongside the rows the real call\nwould produce, a ``consequences`` block naming every day in the window that\nwould go over capacity and the bookings sitting on it. The window defaults\nto the OPERATOR's today \u2026 + a year and is overridable with ``from``/``to``\n(at most ``MAX_CALENDAR_DAYS``) \u2014 see :func:`_consequence_window` for why it has to\nbe bounded at all.\n\nWrites go through FastAPI rather than PostgREST because this is not a plain\nrow update (bd memory ``write-routing-convention``): it is an atomic\nreplace-set whose intermediate states the non-overlap constraint forbids,\nand it changes what the capacity evaluator sees.",
-        "operationId": "apply_unit_service_periods",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "unit_id",
-            "required": true,
-            "schema": {
-              "title": "Unit Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "dry_run",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Dry Run",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "To"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UnitServicePeriodsIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Apply Unit Service Periods",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Apply Unit Service Periods",
         "tags": [
           "staff-approval-periods"
         ]
