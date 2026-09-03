@@ -9872,12 +9872,64 @@
         "type": "object"
       },
       "ResourcePoolPatch": {
-        "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.",
+        "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy\nplus (landr-e80s.2) the operator's own terms for this pool's units/slots.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.\n\n``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``\nare optional partial-update fields (``None`` = leave unchanged) \u2014 every\nexisting caller only ever sent ``default_released_units``, so those four\nstay required-less to keep that call shape working unmodified. Length is\nthe same 1..40 the DB CHECK enforces; validating here gives a typed 422\nbefore the DB ever sees the write.",
         "properties": {
           "default_released_units": {
             "minimum": 0.0,
             "title": "Default Released Units",
             "type": "integer"
+          },
+          "slot_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label"
+          },
+          "slot_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label Plural"
+          },
+          "unit_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label"
+          },
+          "unit_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label Plural"
           }
         },
         "required": [
@@ -10143,6 +10195,19 @@
             ],
             "title": "Label Localized"
           },
+          "label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Plural"
+          },
           "receives_main_service": {
             "default": true,
             "title": "Receives Main Service",
@@ -10232,6 +10297,19 @@
               }
             ],
             "title": "Label Localized"
+          },
+          "label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Plural"
           },
           "receives_main_service": {
             "anyOf": [
@@ -26952,7 +27030,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
       "patch": {
-        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.",
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.",
         "operationId": "patch_resource_pool",
         "parameters": [
           {
