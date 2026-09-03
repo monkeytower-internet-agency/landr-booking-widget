@@ -9695,7 +9695,12 @@
             "type": "object"
           },
           "entity_type": {
-            "const": "booking",
+            "enum": [
+              "booking",
+              "ticket",
+              "contact",
+              "product"
+            ],
             "title": "Entity Type",
             "type": "string"
           },

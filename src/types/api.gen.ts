@@ -8945,9 +8945,9 @@ export interface components {
             };
             /**
              * Entity Type
-             * @constant
+             * @enum {string}
              */
-            entity_type: "booking";
+            entity_type: "booking" | "ticket" | "contact" | "product";
             /** Name */
             name: string;
             /**
