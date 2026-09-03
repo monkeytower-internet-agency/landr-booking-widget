@@ -9266,7 +9266,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval";
             /** Name */
             name: string;
             /**

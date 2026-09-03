@@ -10070,7 +10070,8 @@
               "booking",
               "ticket",
               "contact",
-              "product"
+              "product",
+              "approval"
             ],
             "title": "Entity Type",
             "type": "string"
