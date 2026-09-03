@@ -3692,6 +3692,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/day-manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Day Manifest */
+        get: operations["staff_day_manifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/email-templates": {
         parameters: {
             query?: never;
@@ -6593,6 +6610,56 @@ export interface components {
             /** Signer Label */
             signer_label?: string | null;
         };
+        /** DayManifestOut */
+        DayManifestOut: {
+            /** Date */
+            date: string;
+            /** Rows */
+            rows: components["schemas"]["DayManifestRow"][];
+        };
+        /** DayManifestRow */
+        DayManifestRow: {
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** Booking Stage Code */
+            booking_stage_code?: string | null;
+            /** Checkin Id */
+            checkin_id?: string | null;
+            /** Checkin Status */
+            checkin_status?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Name */
+            name: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Phone */
+            phone?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Pickup Location Name */
+            pickup_location_name?: string | null;
+            /** Pickup Note */
+            pickup_note?: string | null;
+            /** Pickup Time */
+            pickup_time?: string | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Products */
+            products: components["schemas"]["ManifestProductRef"][];
+            /** Providers */
+            providers: components["schemas"]["ManifestProvider"][];
+            /** Retrieve Note */
+            retrieve_note?: string | null;
+            /** Retrieve State */
+            retrieve_state?: string | null;
+            /** Service Role */
+            service_role?: string | null;
+        };
         /** DevToStagingIn */
         DevToStagingIn: {
             /** Notes */
@@ -7380,6 +7447,22 @@ export interface components {
             label?: string | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /** ManifestProductRef */
+        ManifestProductRef: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+        };
+        /** ManifestProvider */
+        ManifestProvider: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Provider Id */
+            provider_id: string;
+            /** Role Code */
+            role_code?: string | null;
         };
         /** MarkPaidIn */
         MarkPaidIn: {
@@ -15779,6 +15862,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_day_manifest: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayManifestOut"];
                 };
             };
             /** @description Validation Error */
