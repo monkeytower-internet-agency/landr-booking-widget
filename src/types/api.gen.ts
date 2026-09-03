@@ -5265,6 +5265,44 @@ export interface paths {
         patch: operations["patch_service_role"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/setup-checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Setup Checklist
+         * @description Return every setup-checklist item for the operator, done or not.
+         *
+         *     Response shape::
+         *
+         *         {
+         *             "items": [
+         *                 {
+         *                     "id": "company",
+         *                     "done": false,
+         *                     "title": "Company details",
+         *                     "message": "Missing: legal name, country.",
+         *                     "target_route": "/account/company"
+         *                 }
+         *             ]
+         *         }
+         *
+         *     Unlike config-health, this always returns every registered item (never
+         *     an empty list on a healthy operator) — the checklist needs to show
+         *     completed steps too.
+         */
+        get: operations["get_setup_checklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
         parameters: {
             query?: never;
@@ -19437,6 +19475,41 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_setup_checklist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: unknown;
+                        }[];
                     };
                 };
             };

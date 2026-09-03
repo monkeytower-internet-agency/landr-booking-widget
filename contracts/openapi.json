@@ -28486,6 +28486,62 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/setup-checklist": {
+      "get": {
+        "description": "Return every setup-checklist item for the operator, done or not.\n\nResponse shape::\n\n    {\n        \"items\": [\n            {\n                \"id\": \"company\",\n                \"done\": false,\n                \"title\": \"Company details\",\n                \"message\": \"Missing: legal name, country.\",\n                \"target_route\": \"/account/company\"\n            }\n        ]\n    }\n\nUnlike config-health, this always returns every registered item (never\nan empty list on a healthy operator) \u2014 the checklist needs to show\ncompleted steps too.",
+        "operationId": "get_setup_checklist",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Get Setup Checklist",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Setup Checklist",
+        "tags": [
+          "staff-setup-checklist"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
       "post": {
         "description": "Cancel on Stripe, then flip the holder to 'cancelled' (terminal).\n\nIdempotent: the RPC's terminal-status guard is `status = 'cancelled' AND\nintent <> 'cancel'` \u2014 'cancel' itself is exempt, so re-cancelling an\nalready-cancelled holder re-applies the same UPDATE and still comes back\nhandled=true. A double-click is a safe no-op, not an error.",
