@@ -6633,6 +6633,12 @@ export interface components {
             booking_stage_code?: string | null;
             /** Checkin Id */
             checkin_id?: string | null;
+            /** Checkin Latitude */
+            checkin_latitude?: number | null;
+            /** Checkin Longitude */
+            checkin_longitude?: number | null;
+            /** Checkin Note */
+            checkin_note?: string | null;
             /** Checkin Status */
             checkin_status?: string | null;
             /** Contact Id */
