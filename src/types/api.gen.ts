@@ -4267,6 +4267,41 @@ export interface paths {
         patch: operations["patch_location"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Membership */
+        post: operations["create_membership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Membership */
+        delete: operations["delete_membership"];
+        options?: never;
+        head?: never;
+        /** Update Membership */
+        patch: operations["update_membership"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -6671,6 +6706,20 @@ export interface components {
             room_product_id?: string | null;
             /** Room Unit Index */
             room_unit_index?: number | null;
+        };
+        /** CreateMembershipBody */
+        CreateMembershipBody: {
+            /** Permissions */
+            permissions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
+            /** User Id */
+            user_id: string;
         };
         /**
          * CredentialUpsertIn
@@ -9966,6 +10015,15 @@ export interface components {
         UnitServicePeriodsIn: {
             /** Periods */
             periods?: components["schemas"]["UnitServicePeriodRange"][];
+        };
+        /** UpdateMembershipBody */
+        UpdateMembershipBody: {
+            /** Permissions */
+            permissions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Role */
+            role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
@@ -17308,6 +17366,115 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LocationPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMembershipBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMembershipBody"];
             };
         };
         responses: {

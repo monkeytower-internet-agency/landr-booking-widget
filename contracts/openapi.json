@@ -2058,6 +2058,44 @@
         "title": "CompanionIn",
         "type": "object"
       },
+      "CreateMembershipBody": {
+        "properties": {
+          "permissions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "admin",
+              "staff",
+              "field",
+              "finance",
+              "readonly"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "title": "CreateMembershipBody",
+        "type": "object"
+      },
       "CredentialUpsertIn": {
         "description": "PUT body for one (provider, mode) bundle.\n\nAll fields optional so the dashboard can rotate a single secret without\nre-sending the others. Sparse-merge, three-way disposition per field\n(landr-sh8u \u2014 mirrors BankDetailsIn's contract below, with one\ndeliberate divergence noted at the bottom):\n\n  * field OMITTED              -> left untouched.\n  * field explicitly ``null``  -> CLEAR (writes SQL NULL to the\n    corresponding column \u2014 see ``_apply_credential_field`` in the\n    handler). NEVER re-encrypts an empty string for this: secret_box\n    would happily produce a *valid* Fernet token for ``\"\"``, which would\n    flip ``has_secret_key``/``has_webhook_secret``/``has_holded_key``\n    true over an unusable value \u2014 the same footgun the bank-details PUT\n    documents at its own null-clear branch.\n  * field is ``\"\"`` / whitespace-only -> treated as NOT PROVIDED, i.e.\n    exactly like omitted: never written, never a clear, never an error\n    by itself. This was already the behaviour before landr-sh8u (a\n    stray space in a form field must never overwrite \u2014 and now, must\n    never accidentally CLEAR \u2014 a real stored secret); landr-sh8u's ask\n    was specifically to leave it unchanged and let ONLY an explicit\n    ``null`` become destructive.\n\nDIVERGENCE from BankDetailsIn: bank-details 422s a blank string outright\n(``blank_not_allowed``) rather than silently ignoring it, because that\nrouter's pre-existing contract had no \"ignore a blank\" precedent to\npreserve. This router does \u2014 every existing rotate-one-secret test\ndepends on a blank OTHER field being silently skipped rather than\nrejecting the whole request \u2014 so blank handling here stays exactly as it\nwas pre-landr-sh8u; only the ``null`` branch is new.\n\nThe provider is taken from the URL path, not the body \u2014 these fields are a\nsuperset and field-coherence is enforced against the path provider in\nthe handler.",
         "properties": {
@@ -11825,6 +11863,43 @@
           }
         },
         "title": "UnitServicePeriodsIn",
+        "type": "object"
+      },
+      "UpdateMembershipBody": {
+        "properties": {
+          "permissions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "staff",
+                  "field",
+                  "finance",
+                  "readonly"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "UpdateMembershipBody",
         "type": "object"
       },
       "UploadPhotoRequest": {
@@ -24537,6 +24612,191 @@
         "summary": "Patch Location",
         "tags": [
           "staff-locations"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships": {
+      "post": {
+        "operationId": "create_membership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMembershipBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Membership",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
+      "delete": {
+        "operationId": "delete_membership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Membership",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Membership",
+        "tags": [
+          "staff-memberships"
+        ]
+      },
+      "patch": {
+        "operationId": "update_membership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMembershipBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Membership",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Membership",
+        "tags": [
+          "staff-memberships"
         ]
       }
     },
