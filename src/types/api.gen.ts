@@ -6893,9 +6893,13 @@ export interface components {
         /** DayManifestOut */
         DayManifestOut: {
             /** Date */
-            date: string;
+            date?: string | null;
+            /** From */
+            from?: string | null;
             /** Rows */
             rows: components["schemas"]["DayManifestRow"][];
+            /** To */
+            to?: string | null;
         };
         /** DayManifestRow */
         DayManifestRow: {
@@ -6917,6 +6921,8 @@ export interface components {
             checkin_status?: string | null;
             /** Contact Id */
             contact_id?: string | null;
+            /** Day Date */
+            day_date: string;
             /** Name */
             name: string;
             /** Participant Id */
@@ -16342,8 +16348,10 @@ export interface operations {
     };
     staff_day_manifest: {
         parameters: {
-            query: {
-                date: string;
+            query?: {
+                date?: string | null;
+                from?: string | null;
+                to?: string | null;
             };
             header?: never;
             path: {

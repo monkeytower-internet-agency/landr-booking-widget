@@ -2521,8 +2521,26 @@
       "DayManifestOut": {
         "properties": {
           "date": {
-            "title": "Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
           },
           "rows": {
             "items": {
@@ -2530,10 +2548,20 @@
             },
             "title": "Rows",
             "type": "array"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
           }
         },
         "required": [
-          "date",
           "rows"
         ],
         "title": "DayManifestOut",
@@ -2625,6 +2653,10 @@
               }
             ],
             "title": "Contact Id"
+          },
+          "day_date": {
+            "title": "Day Date",
+            "type": "string"
           },
           "name": {
             "title": "Name",
@@ -2755,6 +2787,7 @@
         "required": [
           "booking_id",
           "booking_ref",
+          "day_date",
           "product_id",
           "products",
           "participant_id",
@@ -22761,11 +22794,52 @@
           {
             "in": "query",
             "name": "date",
-            "required": true,
+            "required": false,
             "schema": {
-              "format": "date",
-              "title": "Date",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
             }
           }
         ],
