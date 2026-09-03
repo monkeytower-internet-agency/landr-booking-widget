@@ -172,6 +172,20 @@
         "title": "ApiBudget",
         "type": "object"
       },
+      "ApplyPresetRequest": {
+        "properties": {
+          "preset_key": {
+            "minLength": 1,
+            "title": "Preset Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preset_key"
+        ],
+        "title": "ApplyPresetRequest",
+        "type": "object"
+      },
       "ApprovalPeriodRange": {
         "description": "One inclusive date range. ``end_date >= start_date`` is enforced by the\nRPC (typed 422) rather than here, so a multi-range body reports every bad\nrange in one machine-readable payload instead of one Pydantic error.",
         "properties": {
@@ -19060,6 +19074,65 @@
         "summary": "Agent Earnings Summary",
         "tags": [
           "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/apply-preset": {
+      "post": {
+        "operationId": "apply_preset_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyPresetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Preset Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Preset Endpoint",
+        "tags": [
+          "staff-operator-presets"
         ]
       }
     },
