@@ -3184,6 +3184,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Day Status */
+        put: operations["staff_put_participant_day_status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
         parameters: {
             query?: never;
@@ -6928,6 +6945,28 @@ export interface components {
             retrieve_state?: string | null;
             /** Service Role */
             service_role?: string | null;
+        };
+        /**
+         * DayStatusPutIn
+         * @description PUT body — full-replace semantics (part_of_day/note/pickup_* are set
+         *     to exactly what's supplied, defaulting to NULL when omitted, same as any
+         *     other idempotent PUT). A repeat PUT that wants to KEEP a previously-set
+         *     pickup location must resupply it — see the router module docstring for
+         *     why this endpoint doesn't try to preserve it implicitly.
+         */
+        DayStatusPutIn: {
+            /** Note */
+            note?: string | null;
+            /** Part Of Day */
+            part_of_day?: string | null;
+            /** Pickup Address */
+            pickup_address?: string | null;
+            /** Pickup Lat */
+            pickup_lat?: number | null;
+            /** Pickup Lng */
+            pickup_lng?: number | null;
+            /** Status Id */
+            status_id: string;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -15068,6 +15107,46 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_put_participant_day_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayStatusPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

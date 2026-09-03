@@ -2764,6 +2764,83 @@
         "title": "DayManifestRow",
         "type": "object"
       },
+      "DayStatusPutIn": {
+        "description": "PUT body \u2014 full-replace semantics (part_of_day/note/pickup_* are set\nto exactly what's supplied, defaulting to NULL when omitted, same as any\nother idempotent PUT). A repeat PUT that wants to KEEP a previously-set\npickup location must resupply it \u2014 see the router module docstring for\nwhy this endpoint doesn't try to preserve it implicitly.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "part_of_day": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Of Day"
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Address"
+          },
+          "pickup_lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lat"
+          },
+          "pickup_lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lng"
+          },
+          "status_id": {
+            "minLength": 1,
+            "title": "Status Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status_id"
+        ],
+        "title": "DayStatusPutIn",
+        "type": "object"
+      },
       "DevToStagingIn": {
         "properties": {
           "notes": {
@@ -20466,6 +20543,93 @@
         "summary": "Delete Booking Note",
         "tags": [
           "staff-booking-notes"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
+      "put": {
+        "operationId": "staff_put_participant_day_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayStatusPutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Put Participant Day Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Day Status",
+        "tags": [
+          "staff-participant-day-state"
         ]
       }
     },
