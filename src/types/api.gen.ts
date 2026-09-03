@@ -4764,6 +4764,12 @@ export interface paths {
          *     predicate the periods RPC uses. This is the *other* way a pool can start
          *     using the policy machinery — an operator who only ever lowers the default
          *     and never writes a period must not end up with a policy that binds nothing.
+         *
+         *     landr-e80s.2: also accepts the pool's own unit/slot terms
+         *     (``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).
+         *     Each is a partial-update field — omitted or ``null`` leaves the stored
+         *     value untouched — so existing callers that only ever send
+         *     ``default_released_units`` keep working unchanged.
          */
         patch: operations["patch_resource_pool"];
         trace?: never;
@@ -8978,15 +8984,31 @@ export interface components {
         };
         /**
          * ResourcePoolPatch
-         * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy.
+         * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy
+         *     plus (landr-e80s.2) the operator's own terms for this pool's units/slots.
          *
          *     0 is allowed and meaningful (OD-1: "Ask me for each bus (including Bus 1)",
          *     e.g. a quiet November). The upper bound is the pool's active unit count,
          *     checked in the handler.
+         *
+         *     ``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``
+         *     are optional partial-update fields (``None`` = leave unchanged) — every
+         *     existing caller only ever sent ``default_released_units``, so those four
+         *     stay required-less to keep that call shape working unmodified. Length is
+         *     the same 1..40 the DB CHECK enforces; validating here gives a typed 422
+         *     before the DB ever sees the write.
          */
         ResourcePoolPatch: {
             /** Default Released Units */
             default_released_units: number;
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
         };
         /**
          * RetrievePatchIn
@@ -9096,6 +9118,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Label Plural */
+            label_plural?: string | null;
             /**
              * Receives Main Service
              * @default true
@@ -9134,6 +9158,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Label Plural */
+            label_plural?: string | null;
             /** Receives Main Service */
             receives_main_service?: boolean | null;
             /** Requires Pickup Location */
