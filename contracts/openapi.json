@@ -2466,6 +2466,219 @@
         "title": "CustomerSignoffIn",
         "type": "object"
       },
+      "DayManifestOut": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DayManifestRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "rows"
+        ],
+        "title": "DayManifestOut",
+        "type": "object"
+      },
+      "DayManifestRow": {
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_ref": {
+            "title": "Booking Ref",
+            "type": "string"
+          },
+          "booking_stage_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Stage Code"
+          },
+          "checkin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Id"
+          },
+          "checkin_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkin Status"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "pickup_location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Id"
+          },
+          "pickup_location_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Name"
+          },
+          "pickup_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Note"
+          },
+          "pickup_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Time"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestProductRef"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestProvider"
+            },
+            "title": "Providers",
+            "type": "array"
+          },
+          "retrieve_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieve Note"
+          },
+          "retrieve_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieve State"
+          },
+          "service_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Role"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_ref",
+          "product_id",
+          "products",
+          "participant_id",
+          "name",
+          "providers"
+        ],
+        "title": "DayManifestRow",
+        "type": "object"
+      },
       "DevToStagingIn": {
         "properties": {
           "notes": {
@@ -4922,6 +5135,65 @@
           }
         },
         "title": "LocationRoleTypePatch",
+        "type": "object"
+      },
+      "ManifestProductRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ManifestProductRef",
+        "type": "object"
+      },
+      "ManifestProvider": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "role_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Code"
+          }
+        },
+        "required": [
+          "provider_id"
+        ],
+        "title": "ManifestProvider",
         "type": "object"
       },
       "MarkPaidIn": {
@@ -21991,6 +22263,63 @@
         "summary": "Set Contact Tags",
         "tags": [
           "staff-tags"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/day-manifest": {
+      "get": {
+        "operationId": "staff_day_manifest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayManifestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Day Manifest",
+        "tags": [
+          "staff-briefings"
         ]
       }
     },
