@@ -8136,6 +8136,8 @@ export interface components {
             city?: string | null;
             /** Country */
             country?: string | null;
+            /** Date Format */
+            date_format?: ("system" | "dmy_slash" | "mdy_slash" | "ymd_dash" | "dmy_dot" | "d_mmm_y" | "mmm_d_y") | null;
             /** Default Locale */
             default_locale?: string | null;
             /** Default Tax Rate */
