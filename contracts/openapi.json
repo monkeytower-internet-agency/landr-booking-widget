@@ -2724,6 +2724,17 @@
             ],
             "title": "Note"
           },
+          "part_of_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Of Day"
+          },
           "participant_id": {
             "title": "Participant Id",
             "type": "string"

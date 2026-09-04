@@ -7038,6 +7038,8 @@ export interface components {
             name: string;
             /** Note */
             note?: string | null;
+            /** Part Of Day */
+            part_of_day?: string | null;
             /** Participant Id */
             participant_id: string;
             /** Phone */
