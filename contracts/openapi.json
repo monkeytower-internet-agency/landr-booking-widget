@@ -2971,6 +2971,7 @@
                 "type": "null"
               }
             ],
+            "description": "Tz-aware ISO-8601 only (must carry a UTC offset, e.g. \"2026-09-05T15:00:00+00:00\" \u2014 a naive value is rejected 422 expected_back_at_must_be_tz_aware). Accepted only when the resolved status is semantically 'released'.",
             "title": "Expected Back At"
           },
           "note": {
@@ -3052,7 +3053,7 @@
         "type": "object"
       },
       "DayUnitPatchIn": {
-        "description": "PATCH day-unit body \u2014 one field, and NULL is meaningful.\n\n`assigned_unit_id: null` UNASSIGNS the participant from whatever unit\nthey were on; it never means \"leave unchanged\". There is nothing else in\nthis body precisely so this endpoint can never touch the status fields\nthe PUT owns.",
+        "description": "PATCH day-unit body \u2014 one field, and NULL is meaningful.\n\n`assigned_unit_id: null` UNASSIGNS the participant from whatever unit\nthey were on; it never means \"leave unchanged\". There is nothing else in\nthis body precisely so this endpoint can never touch the status fields\nthe PUT owns.\n\nlandr-bsng5.67: the key is REQUIRED (no default) \u2014 an empty body `{}` or\na typo'd key is a 422 from pydantic's own \"field required\" validation,\nnever a silent unassign. `null` is still a valid VALUE for a required\nkey (`str | None`), so `{\"assigned_unit_id\": null}` passes body parsing\nand reaches the handler as an explicit clear.",
         "properties": {
           "assigned_unit_id": {
             "anyOf": [
@@ -3067,6 +3068,9 @@
             "title": "Assigned Unit Id"
           }
         },
+        "required": [
+          "assigned_unit_id"
+        ],
         "title": "DayUnitPatchIn",
         "type": "object"
       },
@@ -21087,7 +21091,7 @@
     },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-unit/{day_date}": {
       "patch": {
-        "description": "Set (or clear) the SOFT per-day unit assignment for one participant-day.\n\nPATCH rather than PUT because it genuinely patches: it writes ONE column\nand leaves every status field alone. That is the whole point \u2014 see the\nmodule docstring for why the unit cannot ride along on the status PUT.\n\n`assigned_unit_id: null` unassigns. The row is created if it does not\nexist yet, with a NULL status (semantic 'expected'), so a driver can\narrange people onto units before anyone has marked a single status.\n\nReturns the same full state row the PUT does, so a client can drop the\nresponse straight into whatever it holds for that participant-day\nregardless of which endpoint it just called.",
+        "description": "Set (or clear) the SOFT per-day unit assignment for one participant-day.\n\nPATCH rather than PUT because it genuinely patches: it writes ONE column\nand leaves every status field alone. That is the whole point \u2014 see the\nmodule docstring for why the unit cannot ride along on the status PUT.\n\n`assigned_unit_id: null` unassigns. The row is created if it does not\nexist yet, with a NULL status (semantic 'expected'), so a driver can\narrange people onto units before anyone has marked a single status.\n\nlandr-bsng5.67: the target unit must be one the day manifest would\nactually list \u2014 this operator's, not soft-deleted, active, and a\ntransport (not e.g. staff-capacity) unit whose pool is itself live.\nA unit failing tenant scope is 422 `unit_not_in_operator`; a unit that\nexists in-tenant but fails one of the other checks is 422\n`unit_not_assignable`.\n\nReturns the same full state row the PUT does, so a client can drop the\nresponse straight into whatever it holds for that participant-day\nregardless of which endpoint it just called.",
         "operationId": "staff_patch_participant_day_unit",
         "parameters": [
           {
