@@ -2559,6 +2559,13 @@
               }
             ],
             "title": "To"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestUnit"
+            },
+            "title": "Units",
+            "type": "array"
           }
         },
         "required": [
@@ -2569,6 +2576,39 @@
       },
       "DayManifestRow": {
         "properties": {
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
+          "assigned_unit_pool_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Pool Id"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
@@ -2658,9 +2698,31 @@
             "title": "Day Date",
             "type": "string"
           },
+          "expected_back_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Back At"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "participant_id": {
             "title": "Participant Id",
@@ -2676,6 +2738,39 @@
               }
             ],
             "title": "Phone"
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Address"
+          },
+          "pickup_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lat"
+          },
+          "pickup_lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lng"
           },
           "pickup_location_id": {
             "anyOf": [
@@ -2772,6 +2867,17 @@
             ],
             "title": "Retrieve State"
           },
+          "semantic_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic State"
+          },
           "service_role": {
             "anyOf": [
               {
@@ -2782,6 +2888,61 @@
               }
             ],
             "title": "Service Role"
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Id"
+          },
+          "status_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code"
+          },
+          "status_colour": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Colour"
+          },
+          "status_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Id"
+          },
+          "status_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Label"
           }
         },
         "required": [
@@ -2798,8 +2959,20 @@
         "type": "object"
       },
       "DayStatusPutIn": {
-        "description": "PUT body \u2014 full-replace semantics (part_of_day/note/pickup_* are set\nto exactly what's supplied, defaulting to NULL when omitted, same as any\nother idempotent PUT). A repeat PUT that wants to KEEP a previously-set\npickup location must resupply it \u2014 see the router module docstring for\nwhy this endpoint doesn't try to preserve it implicitly.",
+        "description": "PUT body \u2014 full-replace semantics (part_of_day/note/pickup_*/\nexpected_back_at are set to exactly what's supplied, defaulting to NULL\nwhen omitted, same as any other idempotent PUT). A repeat PUT that wants\nto KEEP a previously-set pickup location must resupply it \u2014 see the\nrouter module docstring for why this endpoint doesn't try to preserve it\nimplicitly.\n\n`assigned_unit_id` is deliberately NOT a field here: the unit is written\nonly by the PATCH day-unit endpoint below, so a status tap can never\nrevert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).",
         "properties": {
+          "expected_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Back At"
+          },
           "note": {
             "anyOf": [
               {
@@ -2863,15 +3036,38 @@
             "title": "Pickup Lng"
           },
           "status_id": {
-            "minLength": 1,
-            "title": "Status Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Id"
           }
         },
-        "required": [
-          "status_id"
-        ],
         "title": "DayStatusPutIn",
+        "type": "object"
+      },
+      "DayUnitPatchIn": {
+        "description": "PATCH day-unit body \u2014 one field, and NULL is meaningful.\n\n`assigned_unit_id: null` UNASSIGNS the participant from whatever unit\nthey were on; it never means \"leave unchanged\". There is nothing else in\nthis body precisely so this endpoint can never touch the status fields\nthe PUT owns.",
+        "properties": {
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          }
+        },
+        "title": "DayUnitPatchIn",
         "type": "object"
       },
       "DevToStagingIn": {
@@ -5389,6 +5585,61 @@
           "provider_id"
         ],
         "title": "ManifestProvider",
+        "type": "object"
+      },
+      "ManifestUnit": {
+        "description": "One transport unit the operator could put participants on, on this day.\n\nThe /today board renders these as the columns participants are grouped\ninto and moved between (landr-kvxt.29). Nouns come from the pool, never\nfrom this code: `unit_label`/`unit_label_plural` are the operator's own\nwords for one/many of these things \u2014 \"Bus\"/\"Buses\" for Para42,\n\"Kayak\"/\"Kayaks\" for the kayak outfitter \u2014 so the client can write\n\"Move to another bus\" without the API ever knowing what a bus is\n(landr-genericity-northstar, `resource_pools.unit_label`).",
+        "properties": {
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "in_service": {
+            "title": "In Service",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_pool_id": {
+            "title": "Resource Pool Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit_label": {
+            "title": "Unit Label",
+            "type": "string"
+          },
+          "unit_label_plural": {
+            "title": "Unit Label Plural",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "resource_pool_id",
+          "unit_label",
+          "unit_label_plural",
+          "sort_order",
+          "in_service"
+        ],
+        "title": "ManifestUnit",
         "type": "object"
       },
       "MarkPaidIn": {
@@ -20829,6 +21080,94 @@
           }
         ],
         "summary": "Put Day Status",
+        "tags": [
+          "staff-participant-day-state"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-unit/{day_date}": {
+      "patch": {
+        "description": "Set (or clear) the SOFT per-day unit assignment for one participant-day.\n\nPATCH rather than PUT because it genuinely patches: it writes ONE column\nand leaves every status field alone. That is the whole point \u2014 see the\nmodule docstring for why the unit cannot ride along on the status PUT.\n\n`assigned_unit_id: null` unassigns. The row is created if it does not\nexist yet, with a NULL status (semantic 'expected'), so a driver can\narrange people onto units before anyone has marked a single status.\n\nReturns the same full state row the PUT does, so a client can drop the\nresponse straight into whatever it holds for that participant-day\nregardless of which endpoint it just called.",
+        "operationId": "staff_patch_participant_day_unit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayUnitPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Participant Day Unit",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Day Unit",
         "tags": [
           "staff-participant-day-state"
         ]

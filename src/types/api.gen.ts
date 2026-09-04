@@ -3201,6 +3201,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-unit/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Day Unit
+         * @description Set (or clear) the SOFT per-day unit assignment for one participant-day.
+         *
+         *     PATCH rather than PUT because it genuinely patches: it writes ONE column
+         *     and leaves every status field alone. That is the whole point — see the
+         *     module docstring for why the unit cannot ride along on the status PUT.
+         *
+         *     `assigned_unit_id: null` unassigns. The row is created if it does not
+         *     exist yet, with a NULL status (semantic 'expected'), so a driver can
+         *     arrange people onto units before anyone has marked a single status.
+         *
+         *     Returns the same full state row the PUT does, so a client can drop the
+         *     response straight into whatever it holds for that participant-day
+         *     regardless of which endpoint it just called.
+         */
+        patch: operations["staff_patch_participant_day_unit"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
         parameters: {
             query?: never;
@@ -6957,9 +6989,17 @@ export interface components {
             rows: components["schemas"]["DayManifestRow"][];
             /** To */
             to?: string | null;
+            /** Units */
+            units?: components["schemas"]["ManifestUnit"][];
         };
         /** DayManifestRow */
         DayManifestRow: {
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
+            /** Assigned Unit Pool Id */
+            assigned_unit_pool_id?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Booking Ref */
@@ -6980,12 +7020,22 @@ export interface components {
             contact_id?: string | null;
             /** Day Date */
             day_date: string;
+            /** Expected Back At */
+            expected_back_at?: string | null;
             /** Name */
             name: string;
+            /** Note */
+            note?: string | null;
             /** Participant Id */
             participant_id: string;
             /** Phone */
             phone?: string | null;
+            /** Pickup Address */
+            pickup_address?: string | null;
+            /** Pickup Lat */
+            pickup_lat?: number | null;
+            /** Pickup Lng */
+            pickup_lng?: number | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
             /** Pickup Location Name */
@@ -7006,18 +7056,37 @@ export interface components {
             retrieve_note?: string | null;
             /** Retrieve State */
             retrieve_state?: string | null;
+            /** Semantic State */
+            semantic_state?: string | null;
             /** Service Role */
             service_role?: string | null;
+            /** State Id */
+            state_id?: string | null;
+            /** Status Code */
+            status_code?: string | null;
+            /** Status Colour */
+            status_colour?: string | null;
+            /** Status Id */
+            status_id?: string | null;
+            /** Status Label */
+            status_label?: string | null;
         };
         /**
          * DayStatusPutIn
-         * @description PUT body — full-replace semantics (part_of_day/note/pickup_* are set
-         *     to exactly what's supplied, defaulting to NULL when omitted, same as any
-         *     other idempotent PUT). A repeat PUT that wants to KEEP a previously-set
-         *     pickup location must resupply it — see the router module docstring for
-         *     why this endpoint doesn't try to preserve it implicitly.
+         * @description PUT body — full-replace semantics (part_of_day/note/pickup_*\/
+         *     expected_back_at are set to exactly what's supplied, defaulting to NULL
+         *     when omitted, same as any other idempotent PUT). A repeat PUT that wants
+         *     to KEEP a previously-set pickup location must resupply it — see the
+         *     router module docstring for why this endpoint doesn't try to preserve it
+         *     implicitly.
+         *
+         *     `assigned_unit_id` is deliberately NOT a field here: the unit is written
+         *     only by the PATCH day-unit endpoint below, so a status tap can never
+         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).
          */
         DayStatusPutIn: {
+            /** Expected Back At */
+            expected_back_at?: string | null;
             /** Note */
             note?: string | null;
             /** Part Of Day */
@@ -7029,7 +7098,20 @@ export interface components {
             /** Pickup Lng */
             pickup_lng?: number | null;
             /** Status Id */
-            status_id: string;
+            status_id?: string | null;
+        };
+        /**
+         * DayUnitPatchIn
+         * @description PATCH day-unit body — one field, and NULL is meaningful.
+         *
+         *     `assigned_unit_id: null` UNASSIGNS the participant from whatever unit
+         *     they were on; it never means "leave unchanged". There is nothing else in
+         *     this body precisely so this endpoint can never touch the status fields
+         *     the PUT owns.
+         */
+        DayUnitPatchIn: {
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -7834,6 +7916,36 @@ export interface components {
             provider_id: string;
             /** Role Code */
             role_code?: string | null;
+        };
+        /**
+         * ManifestUnit
+         * @description One transport unit the operator could put participants on, on this day.
+         *
+         *     The /today board renders these as the columns participants are grouped
+         *     into and moved between (landr-kvxt.29). Nouns come from the pool, never
+         *     from this code: `unit_label`/`unit_label_plural` are the operator's own
+         *     words for one/many of these things — "Bus"/"Buses" for Para42,
+         *     "Kayak"/"Kayaks" for the kayak outfitter — so the client can write
+         *     "Move to another bus" without the API ever knowing what a bus is
+         *     (landr-genericity-northstar, `resource_pools.unit_label`).
+         */
+        ManifestUnit: {
+            /** Capacity */
+            capacity?: number | null;
+            /** Id */
+            id: string;
+            /** In Service */
+            in_service: boolean;
+            /** Name */
+            name: string;
+            /** Resource Pool Id */
+            resource_pool_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit Label */
+            unit_label: string;
+            /** Unit Label Plural */
+            unit_label_plural: string;
         };
         /** MarkPaidIn */
         MarkPaidIn: {
@@ -15265,6 +15377,46 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DayStatusPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_participant_day_unit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayUnitPatchIn"];
             };
         };
         responses: {
