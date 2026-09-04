@@ -6262,15 +6262,7 @@
           "date_format": {
             "anyOf": [
               {
-                "enum": [
-                  "system",
-                  "dmy_slash",
-                  "mdy_slash",
-                  "ymd_dash",
-                  "dmy_dot",
-                  "d_mmm_y",
-                  "mmm_d_y"
-                ],
+                "pattern": "^(system|[djmnMFYyDl0-9 ,./:-]{1,32})$",
                 "type": "string"
               },
               {
@@ -6278,6 +6270,18 @@
               }
             ],
             "title": "Date Format"
+          },
+          "date_format_short": {
+            "anyOf": [
+              {
+                "pattern": "^(system|[djmnMFYyDl0-9 ,./:-]{1,32})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Format Short"
           },
           "default_locale": {
             "anyOf": [
