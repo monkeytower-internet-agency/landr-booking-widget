@@ -2830,6 +2830,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/apply-preset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Preset Endpoint */
+        post: operations["apply_preset_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bank-details": {
         parameters: {
             query?: never;
@@ -3162,6 +3179,23 @@ export interface paths {
          *     operator path param.
          */
         delete: operations["delete_booking_note"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Day Status */
+        put: operations["staff_put_participant_day_status"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3686,6 +3720,23 @@ export interface paths {
          * @description Full-replace the tag set on one contact. Returns {tag_ids: [...]}.
          */
         post: operations["set_contact_tags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/day-manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Day Manifest */
+        get: operations["staff_day_manifest"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4233,6 +4284,41 @@ export interface paths {
         patch: operations["patch_location"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Membership */
+        post: operations["create_membership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/memberships/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Membership */
+        delete: operations["delete_membership"];
+        options?: never;
+        head?: never;
+        /** Update Membership */
+        patch: operations["update_membership"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -4267,6 +4353,63 @@ export interface paths {
         head?: never;
         /** Patch Offer */
         patch: operations["patch_offer"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/participant-day-statuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Participant Day Statuses
+         * @description List the operator's participant-day statuses ordered by sort_order.
+         *
+         *     Includes inactive statuses (so the manager can re-activate them); only
+         *     soft-deleted rows are hidden.
+         */
+        get: operations["list_participant_day_statuses"];
+        put?: never;
+        /**
+         * Create Participant Day Status
+         * @description Create a new participant-day status. `code` must be unique per
+         *     operator → 409.
+         */
+        post: operations["create_participant_day_status"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/participant-day-statuses/{status_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Participant Day Status
+         * @description Soft-delete a participant-day status (stamp deleted_at).
+         *
+         *     No last-active guard — see module docstring.
+         */
+        delete: operations["delete_participant_day_status"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Participant Day Status
+         * @description Rename / reorder / (de)activate a participant-day status.
+         *
+         *     No last-active guard — see module docstring. `semantic_state` cannot be
+         *     changed here at all (not present on `ParticipantDayStatusPatch`).
+         */
+        patch: operations["patch_participant_day_status"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
@@ -4747,6 +4890,12 @@ export interface paths {
          *     predicate the periods RPC uses. This is the *other* way a pool can start
          *     using the policy machinery — an operator who only ever lowers the default
          *     and never writes a period must not end up with a policy that binds nothing.
+         *
+         *     landr-e80s.2: also accepts the pool's own unit/slot terms
+         *     (``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).
+         *     Each is a partial-update field — omitted or ``null`` leaves the stored
+         *     value untouched — so existing callers that only ever send
+         *     ``default_released_units`` keep working unchanged.
          */
         patch: operations["patch_resource_pool"];
         trace?: never;
@@ -4763,9 +4912,10 @@ export interface paths {
          * @description One row per day in ``[from, to]`` (≤366 days).
          *
          *     Every policy/load number is the evaluator's own, computed with
-         *     ``capacity._approval_policy_for`` + ``_existing_load_per_day`` +
-         *     ``_open_capacity`` — the same three calls ``evaluate_capacity`` makes for a
-         *     booking, for a date range instead of for one product.
+         *     ``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +
+         *     ``_units_in_service_per_day`` + ``_open_capacity`` — the same calls
+         *     ``evaluate_capacity`` makes for a booking, for a date range instead of for
+         *     one product.
          *
          *     Per-day fields:
          *
@@ -4787,12 +4937,45 @@ export interface paths {
          *         moves this (OD-1) — the UI draws the two bands independently so
          *         "bookable + ask me for each unit" is visibly different from "not
          *         bookable".
+         *     ``units_in_service`` / ``units_in_service_ids``
+         *         How many of the pool's active units actually run on this day, and which
+         *         (landr-e80s.1) — resolved from ``resource_pool_unit_service_periods``'s
+         *         two kinds: in service = (no ``in_service`` rows OR covered by one) AND
+         *         covered by no ``out_of_service`` row. A unit with no service periods is
+         *         in service every day, so on a pool that never adopts schedules this is
+         *         always the full active roster and ``total_cap`` is unchanged.
+         *         ``total_cap``/``released_cap``/the release ladder are computed over
+         *         THESE units only. The units that are NOT running are never dropped from
+         *         the payload — they appear in ``units`` below with
+         *         ``service_state: "out_of_service"``.
+         *     ``over_capacity_bookings``
+         *         Non-empty only when the day's load exceeds the capacity that is in
+         *         service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``
+         *         for each booking that no longer fits, oldest-booked first
+         *         (:func:`_over_capacity_bookings`). Taking a unit out of service on a
+         *         day that already carries bookings must be visible, not silent — this is
+         *         the list the operator has to act on.
          *     ``units``
-         *         Per unit, in release order: ``{id, name, capacity, load, state,
-         *         released_by}``. ``load`` fills units in ``sort_order``, which is how the
-         *         release ladder reads them. ``state`` is ``full`` when the unit has no
-         *         seats left, else ``released`` (inside the released prefix) or
-         *         ``needs_ok``. ``released_by`` is ``policy`` for units the period/default
+         *         EVERY active unit of the pool, in release order — never only the ones
+         *         running — as ``{id, name, capacity, load, state, released_by,
+         *         service_state, out_of_service_reason}``.
+         *
+         *         ``service_state`` is the SCHEDULE answer: ``in_service`` or
+         *         ``out_of_service``, with ``out_of_service_reason`` carrying the
+         *         covering ``out_of_service`` row's reason when there is one (``null``
+         *         when the unit is simply outside its season — nobody wrote a reason,
+         *         because nothing broke). That is what draws "Unit 2 out of service
+         *         12-19 Dec (gearbox)".
+         *
+         *         ``state`` is the LADDER answer, and only in-service units have one:
+         *         ``load`` fills them in ``sort_order``, which is how the release ladder
+         *         reads them, and ``state`` is ``full`` when the unit has no seats left,
+         *         else ``released`` (inside the released prefix) or ``needs_ok``. A unit
+         *         that is not running that day carries ``load: 0``,
+         *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
+         *         place in the roster but takes no load and no release state.
+         *
+         *         ``released_by`` is ``policy`` for units the period/default
          *         released outright, ``approval`` for the ones approved load earned, and
          *         ``null`` for a unit that is not released — so a ``full`` unit with
          *         ``released_by = null`` reads correctly as "full of requests that are
@@ -4885,6 +5068,120 @@ export interface paths {
          *     season policy off, and when" is the whole point of Pattern A.
          */
         delete: operations["delete_approval_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/service-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Unit Service Period
+         * @description Soft-delete one service period (Pattern A + ``active = false``).
+         *
+         *     Removing a unit's LAST period puts it back to "in service every day" — the
+         *     zero-rows default — and removing an ``out_of_service`` row always widens
+         *     too, so neither needs a consequence preview. Removing one ``in_service``
+         *     row of several narrows the schedule; the calendar shows the resulting
+         *     ``over_capacity_bookings`` on the next read.
+         *
+         *     Pool-scoped: any period belonging to the pool, on any of its units. See
+         *     :func:`delete_unit_scoped_service_period` for the unit-scoped alias.
+         */
+        delete: operations["delete_unit_service_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/service-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unit Service Periods
+         * @description One unit's complete service schedule.
+         *
+         *     Both kinds, in one list, ordered by kind then start_date — the editor
+         *     renders seasons and maintenance windows from the same response.
+         *
+         *     ``periods: []`` is not "unknown" — it is the unit's real state, and it
+         *     means the unit is in service every day. ``always_in_service`` says so
+         *     explicitly rather than making every caller re-derive the emptiness rule.
+         */
+        get: operations["list_unit_service_periods"];
+        /**
+         * Apply Unit Service Periods
+         * @description Replace one unit's whole service schedule, atomically.
+         *
+         *     The write is ``apply_resource_pool_unit_service_periods`` (migration
+         *     20260904020100): one transaction that merges the requested ranges per
+         *     (kind, reason), leaves verbatim-unchanged rows untouched (same id, same
+         *     ``updated_at``, no audit row), soft-deletes what the new set replaces —
+         *     stamping ``deleted_by_user_id = membership.user_id`` — and inserts the
+         *     rest. A bad range anywhere in the body means NOTHING is written.
+         *
+         *     ``periods`` carries BOTH kinds in one payload: ``in_service`` ranges are
+         *     the unit's season, ``out_of_service`` ranges are maintenance windows that
+         *     win over any season covering the same days. Ranges of DIFFERENT kinds may
+         *     overlap — that is how a repair punches a hole in a season — while two
+         *     ranges of the same kind that cover a day with different reasons are a 422.
+         *
+         *     An empty ``periods`` list clears the schedule and returns the unit to "in
+         *     service every day". That is a real edit, not a no-op.
+         *
+         *     ``?dry_run=1`` writes nothing and returns, alongside the rows the real call
+         *     would produce, a ``consequences`` block naming every day in the window that
+         *     would go over capacity and the bookings sitting on it. The window defaults
+         *     to the OPERATOR's today … + a year and is overridable with ``from``/``to``
+         *     (at most ``MAX_CALENDAR_DAYS``) — see :func:`_consequence_window` for why it has to
+         *     be bounded at all.
+         *
+         *     Writes go through FastAPI rather than PostgREST because this is not a plain
+         *     row update (bd memory ``write-routing-convention``): it is an atomic
+         *     replace-set whose intermediate states the non-overlap constraint forbids,
+         *     and it changes what the capacity evaluator sees.
+         */
+        put: operations["apply_unit_service_periods"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/service-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Unit Scoped Service Period
+         * @description Unit-scoped alias of :func:`delete_unit_service_period`.
+         *
+         *     Same soft-delete, additionally scoped to ``unit_id`` — the per-unit
+         *     schedule editor reaches this path (it already has the unit id in the URL
+         *     for GET/PUT) so it never needs to fall back to the pool-wide id space. A
+         *     period id that belongs to a different unit is a 404, not a cross-unit
+         *     delete.
+         */
+        delete: operations["delete_unit_scoped_service_period"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5092,6 +5389,44 @@ export interface paths {
          *     — the booking widget needs at least one active role.
          */
         patch: operations["patch_service_role"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/setup-checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Setup Checklist
+         * @description Return every setup-checklist item for the operator, done or not.
+         *
+         *     Response shape::
+         *
+         *         {
+         *             "items": [
+         *                 {
+         *                     "id": "company",
+         *                     "done": false,
+         *                     "title": "Company details",
+         *                     "message": "Missing: legal name, country.",
+         *                     "target_route": "/account/company"
+         *                 }
+         *             ]
+         *         }
+         *
+         *     Unlike config-health, this always returns every registered item (never
+         *     an empty list on a healthy operator) — the checklist needs to show
+         *     completed steps too.
+         */
+        get: operations["get_setup_checklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/subscription-holders/{holder_id}/cancel": {
@@ -5671,6 +6006,11 @@ export interface components {
             period: string;
             /** Used */
             used: number;
+        };
+        /** ApplyPresetRequest */
+        ApplyPresetRequest: {
+            /** Preset Key */
+            preset_key: string;
         };
         /**
          * ApprovalPeriodRange
@@ -6441,6 +6781,20 @@ export interface components {
             /** Room Unit Index */
             room_unit_index?: number | null;
         };
+        /** CreateMembershipBody */
+        CreateMembershipBody: {
+            /** Permissions */
+            permissions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
+            /** User Id */
+            user_id: string;
+        };
         /**
          * CredentialUpsertIn
          * @description PUT body for one (provider, mode) bundle.
@@ -6592,6 +6946,90 @@ export interface components {
             signer_email: string;
             /** Signer Label */
             signer_label?: string | null;
+        };
+        /** DayManifestOut */
+        DayManifestOut: {
+            /** Date */
+            date?: string | null;
+            /** From */
+            from?: string | null;
+            /** Rows */
+            rows: components["schemas"]["DayManifestRow"][];
+            /** To */
+            to?: string | null;
+        };
+        /** DayManifestRow */
+        DayManifestRow: {
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** Booking Stage Code */
+            booking_stage_code?: string | null;
+            /** Checkin Id */
+            checkin_id?: string | null;
+            /** Checkin Latitude */
+            checkin_latitude?: number | null;
+            /** Checkin Longitude */
+            checkin_longitude?: number | null;
+            /** Checkin Note */
+            checkin_note?: string | null;
+            /** Checkin Status */
+            checkin_status?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Day Date */
+            day_date: string;
+            /** Name */
+            name: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Phone */
+            phone?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Pickup Location Name */
+            pickup_location_name?: string | null;
+            /** Pickup Note */
+            pickup_note?: string | null;
+            /** Pickup Time */
+            pickup_time?: string | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Products */
+            products: components["schemas"]["ManifestProductRef"][];
+            /** Providers */
+            providers: components["schemas"]["ManifestProvider"][];
+            /** Retrieve Note */
+            retrieve_note?: string | null;
+            /** Retrieve State */
+            retrieve_state?: string | null;
+            /** Service Role */
+            service_role?: string | null;
+        };
+        /**
+         * DayStatusPutIn
+         * @description PUT body — full-replace semantics (part_of_day/note/pickup_* are set
+         *     to exactly what's supplied, defaulting to NULL when omitted, same as any
+         *     other idempotent PUT). A repeat PUT that wants to KEEP a previously-set
+         *     pickup location must resupply it — see the router module docstring for
+         *     why this endpoint doesn't try to preserve it implicitly.
+         */
+        DayStatusPutIn: {
+            /** Note */
+            note?: string | null;
+            /** Part Of Day */
+            part_of_day?: string | null;
+            /** Pickup Address */
+            pickup_address?: string | null;
+            /** Pickup Lat */
+            pickup_lat?: number | null;
+            /** Pickup Lng */
+            pickup_lng?: number | null;
+            /** Status Id */
+            status_id: string;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -7381,6 +7819,22 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** ManifestProductRef */
+        ManifestProductRef: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+        };
+        /** ManifestProvider */
+        ManifestProvider: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Provider Id */
+            provider_id: string;
+            /** Role Code */
+            role_code?: string | null;
+        };
         /** MarkPaidIn */
         MarkPaidIn: {
             /** Amount */
@@ -7964,6 +8418,68 @@ export interface components {
             widget_variant?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * ParticipantDayStatusIn
+         * @description Create payload for a new participant-day status.
+         *
+         *     `semantic_state` is required here — and ONLY here, see
+         *     `ParticipantDayStatusPatch` below and the module docstring.
+         */
+        ParticipantDayStatusIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Code */
+            code: string;
+            /** Colour */
+            colour?: string | null;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Semantic State
+             * @enum {string}
+             */
+            semantic_state: "expected" | "present" | "absent" | "released" | "needs_pickup" | "completed";
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * ParticipantDayStatusPatch
+         * @description Partial update — every field optional. `code` and `semantic_state`
+         *     are intentionally excluded:
+         *
+         *     - `code`: `booking_participant_day_state.status_id` already points at
+         *       this row by id, but the widget/RPC callers resolve statuses by code
+         *       in places — renaming under them the same way `service_roles.code`
+         *       can't change is the safer, consistent rule. Rename via `label`.
+         *     - `semantic_state`: REQUIRED IMMUTABLE — see module docstring. Do not
+         *       add this field "for completeness"; every existing
+         *       `booking_participant_day_state` row denormalises this value at write
+         *       time and is never re-synced on a catalogue-only edit.
+         */
+        ParticipantDayStatusPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Colour */
+            colour?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /** ParticipantIn */
         ParticipantIn: {
@@ -8895,15 +9411,31 @@ export interface components {
         };
         /**
          * ResourcePoolPatch
-         * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy.
+         * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy
+         *     plus (landr-e80s.2) the operator's own terms for this pool's units/slots.
          *
          *     0 is allowed and meaningful (OD-1: "Ask me for each bus (including Bus 1)",
          *     e.g. a quiet November). The upper bound is the pool's active unit count,
          *     checked in the handler.
+         *
+         *     ``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``
+         *     are optional partial-update fields (``None`` = leave unchanged) — every
+         *     existing caller only ever sent ``default_released_units``, so those four
+         *     stay required-less to keep that call shape working unmodified. Length is
+         *     the same 1..40 the DB CHECK enforces; validating here gives a typed 422
+         *     before the DB ever sees the write.
          */
         ResourcePoolPatch: {
             /** Default Released Units */
             default_released_units: number;
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
         };
         /**
          * RetrievePatchIn
@@ -8945,9 +9477,9 @@ export interface components {
             };
             /**
              * Entity Type
-             * @constant
+             * @enum {string}
              */
-            entity_type: "booking";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider";
             /** Name */
             name: string;
             /**
@@ -9013,6 +9545,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Label Plural */
+            label_plural?: string | null;
             /**
              * Receives Main Service
              * @default true
@@ -9051,6 +9585,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Label Plural */
+            label_plural?: string | null;
             /** Receives Main Service */
             receives_main_service?: boolean | null;
             /** Requires Pickup Location */
@@ -9592,6 +10128,66 @@ export interface components {
              * @enum {string}
              */
             status: "sent" | "failed";
+        };
+        /**
+         * UnitServicePeriodRange
+         * @description One inclusive date range on a unit's schedule.
+         *
+         *     ``kind`` says which direction it points: ``in_service`` (default) is part
+         *     of the unit's season, ``out_of_service`` is a maintenance window that wins
+         *     over any season covering the same days. ``reason`` is the operator's own
+         *     free text for the row ("summer season", "gearbox") and is what the
+         *     dashboard renders after the dates.
+         *
+         *     ``end_date >= start_date`` is enforced by the RPC (typed 422) rather than
+         *     here, so a multi-range body reports every bad range in one machine-readable
+         *     payload instead of one Pydantic error — same call as
+         *     :class:`ApprovalPeriodRange`.
+         */
+        UnitServicePeriodRange: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Kind
+             * @default in_service
+             * @enum {string}
+             */
+            kind: "in_service" | "out_of_service";
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
+         * UnitServicePeriodsIn
+         * @description ``PUT .../units/{unit_id}/service-periods`` — the unit's WHOLE schedule.
+         *
+         *     This is a replace-set, not a patch: ``periods`` is the unit's complete
+         *     schedule — seasons AND maintenance windows, both kinds in one payload,
+         *     because the editor saves them together and either alone is an incomplete
+         *     picture of the unit. An EMPTY list is a legitimate value that clears the
+         *     schedule and returns the unit to "in service every day". ``min_length`` is
+         *     therefore deliberately absent (contrast :class:`ApprovalPeriodsIn`, where
+         *     an empty range list has no meaning).
+         */
+        UnitServicePeriodsIn: {
+            /** Periods */
+            periods?: components["schemas"]["UnitServicePeriodRange"][];
+        };
+        /** UpdateMembershipBody */
+        UpdateMembershipBody: {
+            /** Permissions */
+            permissions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Role */
+            role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
@@ -13885,6 +14481,43 @@ export interface operations {
             };
         };
     };
+    apply_preset_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyPresetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_bank_details: {
         parameters: {
             query?: never;
@@ -14599,6 +15232,46 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_put_participant_day_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayStatusPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -15792,6 +16465,41 @@ export interface operations {
             };
         };
     };
+    staff_day_manifest: {
+        parameters: {
+            query?: {
+                date?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates: {
         parameters: {
             query?: never;
@@ -16889,6 +17597,115 @@ export interface operations {
             };
         };
     };
+    create_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMembershipBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_membership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMembershipBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_offers: {
         parameters: {
             query?: never;
@@ -17006,6 +17823,150 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OfferPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_participant_day_statuses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_participant_day_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipantDayStatusIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_participant_day_status: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                status_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_participant_day_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                status_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipantDayStatusPatch"];
             };
         };
         responses: {
@@ -18526,6 +19487,155 @@ export interface operations {
             };
         };
     };
+    delete_unit_service_period: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_unit_service_periods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_unit_service_periods: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitServicePeriodsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_unit_scoped_service_period: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_saved_views: {
         parameters: {
             query?: never;
@@ -18941,6 +20051,41 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_setup_checklist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: unknown;
+                        }[];
                     };
                 };
             };
