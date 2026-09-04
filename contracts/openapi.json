@@ -10382,7 +10382,8 @@
               "approval",
               "resource",
               "participant_day",
-              "provider"
+              "provider",
+              "dashboard"
             ],
             "title": "Entity Type",
             "type": "string"
