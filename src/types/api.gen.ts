@@ -9360,7 +9360,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "participant_day";
             /** Name */
             name: string;
             /**
