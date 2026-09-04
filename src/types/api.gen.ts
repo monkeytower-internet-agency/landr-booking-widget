@@ -3231,6 +3231,13 @@ export interface paths {
          *     exist yet, with a NULL status (semantic 'expected'), so a driver can
          *     arrange people onto units before anyone has marked a single status.
          *
+         *     landr-bsng5.67: the target unit must be one the day manifest would
+         *     actually list — this operator's, not soft-deleted, active, and a
+         *     transport (not e.g. staff-capacity) unit whose pool is itself live.
+         *     A unit failing tenant scope is 422 `unit_not_in_operator`; a unit that
+         *     exists in-tenant but fails one of the other checks is 422
+         *     `unit_not_assignable`.
+         *
          *     Returns the same full state row the PUT does, so a client can drop the
          *     response straight into whatever it holds for that participant-day
          *     regardless of which endpoint it just called.
@@ -7090,7 +7097,10 @@ export interface components {
          *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).
          */
         DayStatusPutIn: {
-            /** Expected Back At */
+            /**
+             * Expected Back At
+             * @description Tz-aware ISO-8601 only (must carry a UTC offset, e.g. "2026-09-05T15:00:00+00:00" — a naive value is rejected 422 expected_back_at_must_be_tz_aware). Accepted only when the resolved status is semantically 'released'.
+             */
             expected_back_at?: string | null;
             /** Note */
             note?: string | null;
@@ -7113,10 +7123,16 @@ export interface components {
          *     they were on; it never means "leave unchanged". There is nothing else in
          *     this body precisely so this endpoint can never touch the status fields
          *     the PUT owns.
+         *
+         *     landr-bsng5.67: the key is REQUIRED (no default) — an empty body `{}` or
+         *     a typo'd key is a 422 from pydantic's own "field required" validation,
+         *     never a silent unassign. `null` is still a valid VALUE for a required
+         *     key (`str | None`), so `{"assigned_unit_id": null}` passes body parsing
+         *     and reaches the handler as an explicit clear.
          */
         DayUnitPatchIn: {
             /** Assigned Unit Id */
-            assigned_unit_id?: string | null;
+            assigned_unit_id: string | null;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
