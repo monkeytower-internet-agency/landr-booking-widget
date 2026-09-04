@@ -19,7 +19,16 @@ permissions:
 jobs:
   widget-booking-smoke:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # 2026-09-04: `continue-on-error: true` REMOVED. It sat on the only job in
+    # this workflow, so the whole run concluded `success` even when the job
+    # failed — this job failed 4 runs straight (33823233122 onward, after being
+    # green through 33819434465 at 2026-09-03T23:52Z) with CI reporting green.
+    # It was redundant for its stated purpose: this is a separate top-level
+    # workflow, so a failure here cannot gate deploy.yml regardless. It also
+    # cannot block a merge — `dev` on this repo is unprotected (the branch
+    # protection API returns 404), so there are no required status checks.
+    # The signal stays a regression *signal*, as the header says; it is simply
+    # visible again instead of being swallowed.
     steps:
       - uses: actions/checkout@v4
 
