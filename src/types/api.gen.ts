@@ -1969,8 +1969,13 @@ export interface paths {
          * @description The group's current check-in statuses (the customer's own view).
          *
          *     Returns the latest check-in per participant for this booking, with the
-         *     participant's first name and any operator-set retrieve_state so a flyer can
-         *     see "everyone's down, Tom's pickup is on its way". No price fields.
+         *     participant's first name plus the pickup PROGRESS derived from their
+         *     booking_participant_day_state row (see module docstring's PICKUP
+         *     PROGRESS section) — `day_status_semantic_state`, `expected_back_at`, and
+         *     the resolved `pickup_progress` customer copy. `retrieve_state` /
+         *     `retrieve_note` are still returned (deprecated — nothing writes them any
+         *     more since landr-bsng5.60) so an existing consumer of those two keys
+         *     doesn't break. No price fields.
          */
         get: operations["public_list_checkins"];
         put?: never;
