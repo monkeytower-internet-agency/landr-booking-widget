@@ -6259,6 +6259,26 @@
             ],
             "title": "Country"
           },
+          "date_format": {
+            "anyOf": [
+              {
+                "enum": [
+                  "system",
+                  "dmy_slash",
+                  "mdy_slash",
+                  "ymd_dash",
+                  "dmy_dot",
+                  "d_mmm_y",
+                  "mmm_d_y"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Format"
+          },
           "default_locale": {
             "anyOf": [
               {
