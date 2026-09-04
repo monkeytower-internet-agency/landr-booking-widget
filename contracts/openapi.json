@@ -17902,7 +17902,7 @@
     },
     "/api/public/briefings/{token}/checkins": {
       "get": {
-        "description": "The group's current check-in statuses (the customer's own view).\n\nReturns the latest check-in per participant for this booking, with the\nparticipant's first name and any operator-set retrieve_state so a flyer can\nsee \"everyone's down, Tom's pickup is on its way\". No price fields.",
+        "description": "The group's current check-in statuses (the customer's own view).\n\nReturns the latest check-in per participant for this booking, with the\nparticipant's first name plus the pickup PROGRESS derived from their\nbooking_participant_day_state row (see module docstring's PICKUP\nPROGRESS section) \u2014 `day_status_semantic_state`, `expected_back_at`, and\nthe resolved `pickup_progress` customer copy. `retrieve_state` /\n`retrieve_note` are still returned (deprecated \u2014 nothing writes them any\nmore since landr-bsng5.60) so an existing consumer of those two keys\ndoesn't break. No price fields.",
         "operationId": "public_list_checkins",
         "parameters": [
           {
