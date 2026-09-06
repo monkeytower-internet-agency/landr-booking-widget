@@ -4956,8 +4956,8 @@ export interface paths {
          * @description One row per day in ``[from, to]`` (≤366 days).
          *
          *     Every policy/load number is the evaluator's own, computed with
-         *     ``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +
-         *     ``_units_in_service_per_day`` + ``_open_capacity`` — the same calls
+         *     ``capacity.resolve_release_per_day`` + ``_load_breakdown_per_day`` +
+         *     ``_unit_service_per_day`` + ``_released_capacity`` — the same calls
          *     ``evaluate_capacity`` makes for a booking, for a date range instead of for
          *     one product.
          *
@@ -4967,9 +4967,12 @@ export interface paths {
          *         The resolved policy: a covering period, else the pool default
          *         (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``
          *         is ``n`` AFTER the clamp to the active unit count.
-         *     ``released_units`` / ``released_cap``
-         *         ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity —
-         *         what actually auto-approves, policy floor OR earned by approved load.
+         *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
+         *         The released SET and its summed capacity — what actually
+         *         auto-approves. landr-c6cpm.2: resolved along
+         *         DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,
+         *         and NOT necessarily a prefix of the ladder — ``released_unit_ids`` is
+         *         the authoritative answer, the two numbers are derived from it.
          *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
          *         Seats: all units combined; seats held by live bookings; the part of
          *         that the operator has already said yes to; and the difference — seats
@@ -5019,23 +5022,57 @@ export interface paths {
          *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
          *         place in the roster but takes no load and no release state.
          *
-         *         ``released_by`` is ``policy`` for units the period/default
-         *         released outright, ``approval`` for the ones approved load earned, and
-         *         ``null`` for a unit that is not released — so a ``full`` unit with
-         *         ``released_by = null`` reads correctly as "full of requests that are
-         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
-         *         day NO unit is ever ``released`` regardless of load — every unit is
-         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``
-         *         (``released_units``/``released_cap`` above still carry the numeric
-         *         parity value, they just describe no unit's on-screen state that day).
+         *         ``released_by`` is ``policy`` for units the period/pool default
+         *         released outright, ``day_override`` for a unit an operator (or the
+         *         auto-lock's counterpart, .3's approve dialog) opened for this one
+         *         date, and ``null`` for a unit that is not released — so a ``full``
+         *         unit with ``released_by = null`` reads correctly as "full of requests
+         *         that are still waiting for you", not "auto-approving". On an
+         *         ``ask_every_time`` day NO unit is ever released — every unit is
+         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``.
+         *
+         *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
+         *         releases the unit it sits on, so no unit is ever released "by an
+         *         approval" again. The value is gone rather than kept-and-unused, so a
+         *         consumer branching on it fails loudly instead of silently rendering a
+         *         state the API can no longer produce.
+         *
+         *         ``release_state`` (landr-c6cpm.2) is the COLOUR axis, kept separate
+         *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
+         *         other's meaning: ``open`` (the rules release it — emerald),
+         *         ``ask`` (the rules do not; nobody shut it — violet),
+         *         ``closed`` (a ``resource_pool_unit_day_releases`` row with
+         *         ``released = false`` shut it for this date — slate), or
+         *         ``out_of_service``. ``occupancy_state`` is the FILL axis in the three
+         *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
+         *         unit carrying approved passengers is a legal, meaningful glyph —
+         *         "closed" gates NEW bookings only and is orthogonal to occupancy.
+         *
+         *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
+         *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
+         *         "not released": every unit past the release ladder is closed to new
+         *         bookings, but only some were shut on purpose — by an operator, or by
+         *         the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).
+         *
+         *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
+         *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
+         *         sentence: the sentence an operator reads ("a 6-person request exceeds
+         *         the 3 remaining seats") contains a noun that belongs to one operator's
+         *         pool and not the next one's, and slot vocabulary is per-operator
+         *         (``resource_pools.slot_label``). The dashboard composes the copy;
+         *         this endpoint ships the facts. ``hold_reason`` remains free text a
+         *         HUMAN typed, and is the fallback when there is no structured detail.
+         *         See :func:`_hold_fields`.
          *     ``kind``
          *         Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same
          *         vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone
          *         decides it); else ``shortage`` when ``total_load > total_cap``; else
-         *         ``opens`` when ``total_load > released_cap`` (load already sits past
-         *         what's released — the next unit is waiting to open); else ``null``. D5
+         *         ``opens`` when the load already on the books LANDS ON a unit that is
+         *         not released (the next unit is waiting to open); else ``null``. D5
          *         draws the day pill from this rather than re-deriving it from the unit
-         *         list.
+         *         list. landr-c6cpm.2 made that middle test positional rather than
+         *         ``total_load > released_cap`` — see the inline comment for why a sum
+         *         cannot answer it once the released set can have holes.
          *     ``period_id``
          *         The covering period row, or ``null`` where the pool default applies.
          *
@@ -9362,6 +9399,11 @@ export interface components {
         QuickCreateOut: {
             /** Booking Id */
             booking_id: string;
+            /**
+             * Capacity Warnings
+             * @default []
+             */
+            capacity_warnings: string[];
             /** Contact Id */
             contact_id: string;
         };
