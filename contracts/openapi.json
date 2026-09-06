@@ -12592,15 +12592,8 @@
         "type": "object"
       },
       "TrelloSyncIn": {
-        "description": "Context only the browser knows \u2014 never trust reporter identity from here.\n\npage_url:      absolute URL of the page the report was filed from.\nrelated_link:  the optional link field from the report form, if filled in.\nattachment_count: number of files staged with the report. We do not\n    re-upload attachments into Trello (see module docstring on Trello\n    being an additive mirror, not a full replacement) \u2014 the count plus a\n    link back to the dashboard ticket is enough for staff to know to go\n    look, and new tickets filed straight in Trello won't have this\n    problem at all (attachments dropped directly onto the card).",
+        "description": "Context only the browser knows \u2014 never trust reporter identity from here.\n\npage_url:      absolute URL of the page the report was filed from.\nrelated_link:  the optional link field from the report form, if filled in.\n\nAttachments are NOT passed here \u2014 the endpoint reads ticket_attachments\ndirectly (the dashboard uploads them to Storage before calling this\nendpoint), so there is nothing for the client to pass and no way for it\nto lie about what got attached.",
         "properties": {
-          "attachment_count": {
-            "default": 0,
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Attachment Count",
-            "type": "integer"
-          },
           "page_url": {
             "maxLength": 2000,
             "title": "Page Url",
@@ -12627,6 +12620,11 @@
       },
       "TrelloSyncOut": {
         "properties": {
+          "attachments_synced": {
+            "default": 0,
+            "title": "Attachments Synced",
+            "type": "integer"
+          },
           "synced": {
             "title": "Synced",
             "type": "boolean"
