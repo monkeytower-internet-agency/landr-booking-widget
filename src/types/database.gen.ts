@@ -1743,6 +1743,7 @@ export type Database = {
             | null
           set_by: string | null
           status_id: string | null
+          unit_assignment_source: string | null
           updated_at: string
         }
         Insert: {
@@ -1770,6 +1771,7 @@ export type Database = {
             | null
           set_by?: string | null
           status_id?: string | null
+          unit_assignment_source?: string | null
           updated_at?: string
         }
         Update: {
@@ -1797,6 +1799,7 @@ export type Database = {
             | null
           set_by?: string | null
           status_id?: string | null
+          unit_assignment_source?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -8022,6 +8025,62 @@ export type Database = {
           },
         ]
       }
+      resource_pool_approval_period_units: {
+        Row: {
+          created_at: string
+          id: string
+          operator_id: string
+          period_id: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          operator_id: string
+          period_id: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          operator_id?: string
+          period_id?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_pool_approval_period_units_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_pool_approval_period_units_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_approval_period_units_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pool_approval_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_approval_period_units_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pool_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_pool_approval_periods: {
         Row: {
           active: boolean
@@ -8034,7 +8093,7 @@ export type Database = {
           mode: Database["public"]["Enums"]["resource_pool_approval_mode"]
           note: string | null
           operator_id: string
-          released_units: number
+          releases_all_units: boolean
           resource_pool_id: string
           start_date: string
           updated_at: string
@@ -8050,7 +8109,7 @@ export type Database = {
           mode: Database["public"]["Enums"]["resource_pool_approval_mode"]
           note?: string | null
           operator_id: string
-          released_units?: number
+          releases_all_units?: boolean
           resource_pool_id: string
           start_date: string
           updated_at?: string
@@ -8066,7 +8125,7 @@ export type Database = {
           mode?: Database["public"]["Enums"]["resource_pool_approval_mode"]
           note?: string | null
           operator_id?: string
-          released_units?: number
+          releases_all_units?: boolean
           resource_pool_id?: string
           start_date?: string
           updated_at?: string
@@ -8105,6 +8164,94 @@ export type Database = {
             columns: ["resource_pool_id"]
             isOneToOne: false
             referencedRelation: "resource_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_pool_unit_day_releases: {
+        Row: {
+          created_at: string
+          created_by_user_id: string | null
+          date: string
+          hold_detail: Json | null
+          hold_source: string | null
+          id: string
+          operator_id: string
+          reason: string | null
+          released: boolean
+          resource_pool_id: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id?: string | null
+          date: string
+          hold_detail?: Json | null
+          hold_source?: string | null
+          id?: string
+          operator_id: string
+          reason?: string | null
+          released: boolean
+          resource_pool_id: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string | null
+          date?: string
+          hold_detail?: Json | null
+          hold_source?: string | null
+          id?: string
+          operator_id?: string
+          reason?: string | null
+          released?: boolean
+          resource_pool_id?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "assignable_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_inbox_operator_summary"
+            referencedColumns: ["operator_id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_resource_pool_id_fkey"
+            columns: ["resource_pool_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_pool_unit_day_releases_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "resource_pool_units"
             referencedColumns: ["id"]
           },
         ]
@@ -10600,6 +10747,7 @@ export type Database = {
           status_colour: string | null
           status_id: string | null
           status_label: string | null
+          unit_assignment_source: string | null
         }
         Relationships: [
           {
@@ -11219,7 +11367,8 @@ export type Database = {
           p_note: string
           p_operator_id: string
           p_ranges: Json
-          p_released_units: number
+          p_released_unit_ids: string[]
+          p_releases_all_units: boolean
           p_resource_pool_id: string
         }
         Returns: {
@@ -11229,7 +11378,8 @@ export type Database = {
           mode: Database["public"]["Enums"]["resource_pool_approval_mode"]
           note: string
           operator_id: string
-          released_units: number
+          released_unit_ids: string[]
+          releases_all_units: boolean
           resource_pool_id: string
           start_date: string
         }[]
@@ -11780,6 +11930,14 @@ export type Database = {
         }[]
       }
       resolve_user_by_email: { Args: { p_email: string }; Returns: string }
+      resource_pool_day_load: {
+        Args: { p_days: string[]; p_resource_pool_id: string }
+        Returns: {
+          day: string
+          gate_load: number
+          total_load: number
+        }[]
+      }
       resource_pool_kind_defaults: {
         Args: { p_kind: Database["public"]["Enums"]["resource_kind"] }
         Returns: {
@@ -12449,6 +12607,7 @@ export type Database = {
       }
       staff_seed_participant_day_units: {
         Args: {
+          p_candidates: Json
           p_day_date: string
           p_operator_id: string
           p_set_by?: string
@@ -12500,6 +12659,7 @@ export type Database = {
           p_decision: string
           p_reason?: string
           p_staff_user_id?: string
+          p_unit_release?: Json
         }
         Returns: Json
       }
