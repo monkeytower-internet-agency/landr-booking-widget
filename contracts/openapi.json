@@ -11141,6 +11141,13 @@
             "title": "Applied",
             "type": "boolean"
           },
+          "capacity_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capacity Warnings",
+            "type": "array"
+          },
           "current_stage_code": {
             "title": "Current Stage Code",
             "type": "string"
@@ -11719,6 +11726,16 @@
               }
             ],
             "title": "Reject Reason Code"
+          },
+          "unit_release": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffUnitReleaseIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -11913,6 +11930,64 @@
           "products"
         ],
         "title": "StaffSubmitBookingIn",
+        "type": "object"
+      },
+      "StaffUnitReleaseIn": {
+        "description": "The operator's answer to the approve-time release question.\n\nlandr-c6cpm.3. Sent ONLY when the approval would land on a unit that is\nnot released \u2014 which is a small minority of approvals, so the whole object\nis absent from a normal approve body rather than present-and-empty.\n\n``pool_id`` / ``date`` / ``unit_id`` are echoed back by the dashboard from\nthe gate it was shown, so the API never has to re-derive WHICH gate the\noperator answered and can refuse a stale answer (they sat on the dialog\nwhile a sibling approval moved the calendar) instead of applying it to a\ndifferent unit.",
+        "properties": {
+          "additional_units": {
+            "anyOf": [
+              {
+                "maximum": 200.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Units"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "intent": {
+            "enum": [
+              "open_this",
+              "open_this_plus",
+              "open_none"
+            ],
+            "title": "Intent",
+            "type": "string"
+          },
+          "pool_id": {
+            "title": "Pool Id",
+            "type": "string"
+          },
+          "reopen_held_unit": {
+            "default": false,
+            "title": "Reopen Held Unit",
+            "type": "boolean"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          }
+        },
+        "required": [
+          "intent",
+          "pool_id",
+          "date"
+        ],
+        "title": "StaffUnitReleaseIn",
         "type": "object"
       },
       "StagingActivityIn": {
