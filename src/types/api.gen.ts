@@ -10562,19 +10562,13 @@ export interface components {
          *
          *     page_url:      absolute URL of the page the report was filed from.
          *     related_link:  the optional link field from the report form, if filled in.
-         *     attachment_count: number of files staged with the report. We do not
-         *         re-upload attachments into Trello (see module docstring on Trello
-         *         being an additive mirror, not a full replacement) — the count plus a
-         *         link back to the dashboard ticket is enough for staff to know to go
-         *         look, and new tickets filed straight in Trello won't have this
-         *         problem at all (attachments dropped directly onto the card).
+         *
+         *     Attachments are NOT passed here — the endpoint reads ticket_attachments
+         *     directly (the dashboard uploads them to Storage before calling this
+         *     endpoint), so there is nothing for the client to pass and no way for it
+         *     to lie about what got attached.
          */
         TrelloSyncIn: {
-            /**
-             * Attachment Count
-             * @default 0
-             */
-            attachment_count: number;
             /** Page Url */
             page_url: string;
             /** Related Link */
@@ -10582,6 +10576,11 @@ export interface components {
         };
         /** TrelloSyncOut */
         TrelloSyncOut: {
+            /**
+             * Attachments Synced
+             * @default 0
+             */
+            attachments_synced: number;
             /** Synced */
             synced: boolean;
             /** Trello Card Url */
