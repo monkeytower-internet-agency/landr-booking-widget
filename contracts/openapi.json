@@ -12591,6 +12591,64 @@
         "title": "TestEmailResult",
         "type": "object"
       },
+      "TrelloSyncIn": {
+        "description": "Context only the browser knows \u2014 never trust reporter identity from here.\n\npage_url:      absolute URL of the page the report was filed from.\nrelated_link:  the optional link field from the report form, if filled in.\nattachment_count: number of files staged with the report. We do not\n    re-upload attachments into Trello (see module docstring on Trello\n    being an additive mirror, not a full replacement) \u2014 the count plus a\n    link back to the dashboard ticket is enough for staff to know to go\n    look, and new tickets filed straight in Trello won't have this\n    problem at all (attachments dropped directly onto the card).",
+        "properties": {
+          "attachment_count": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Attachment Count",
+            "type": "integer"
+          },
+          "page_url": {
+            "maxLength": 2000,
+            "title": "Page Url",
+            "type": "string"
+          },
+          "related_link": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Link"
+          }
+        },
+        "required": [
+          "page_url"
+        ],
+        "title": "TrelloSyncIn",
+        "type": "object"
+      },
+      "TrelloSyncOut": {
+        "properties": {
+          "synced": {
+            "title": "Synced",
+            "type": "boolean"
+          },
+          "trello_card_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trello Card Url"
+          }
+        },
+        "required": [
+          "synced"
+        ],
+        "title": "TrelloSyncOut",
+        "type": "object"
+      },
       "UnitServicePeriodRange": {
         "description": "One inclusive date range on a unit's schedule.\n\n``kind`` says which direction it points: ``in_service`` (default) is part\nof the unit's season, ``out_of_service`` is a maintenance window that wins\nover any season covering the same days. ``reason`` is the operator's own\nfree text for the row (\"summer season\", \"gearbox\") and is what the\ndashboard renders after the dates.\n\n``end_date >= start_date`` is enforced by the RPC (typed 422) rather than\nhere, so a multi-range body reports every bad range in one machine-readable\npayload instead of one Pydantic error \u2014 same call as\n:class:`ApprovalPeriodRange`.",
         "properties": {
@@ -31342,6 +31400,64 @@
         "summary": "Dispatch @mention notifications for a comment \u2014 overrides quiet/silenced per-ticket settings for the mentioned users.",
         "tags": [
           "ticket-mentions"
+        ]
+      }
+    },
+    "/api/tickets/{ticket_id}/trello-sync": {
+      "post": {
+        "description": "Create (or no-op) a Trello card for `ticket_id`.\n\nAlways returns 200 \u2014 a Trello-side failure is logged and reported back\nas `{\"synced\": false}`, never an HTTP error, so it can never fail the\nticket-creation flow it's attached to.",
+        "operationId": "trello_sync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "title": "Ticket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrelloSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrelloSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mirror a ticket as a card on the Trello \"Ticket System\" board (best-effort).",
+        "tags": [
+          "ticket-trello-sync"
         ]
       }
     },
