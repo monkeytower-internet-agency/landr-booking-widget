@@ -5980,6 +5980,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tickets/{ticket_id}/trello-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mirror a ticket as a card on the Trello "Ticket System" board (best-effort).
+         * @description Create (or no-op) a Trello card for `ticket_id`.
+         *
+         *     Always returns 200 — a Trello-side failure is logged and reported back
+         *     as `{"synced": false}`, never an HTTP error, so it can never fail the
+         *     ticket-creation flow it's attached to.
+         */
+        post: operations["trello_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/holded": {
         parameters: {
             query?: never;
@@ -10531,6 +10555,37 @@ export interface components {
              * @enum {string}
              */
             status: "sent" | "failed";
+        };
+        /**
+         * TrelloSyncIn
+         * @description Context only the browser knows — never trust reporter identity from here.
+         *
+         *     page_url:      absolute URL of the page the report was filed from.
+         *     related_link:  the optional link field from the report form, if filled in.
+         *     attachment_count: number of files staged with the report. We do not
+         *         re-upload attachments into Trello (see module docstring on Trello
+         *         being an additive mirror, not a full replacement) — the count plus a
+         *         link back to the dashboard ticket is enough for staff to know to go
+         *         look, and new tickets filed straight in Trello won't have this
+         *         problem at all (attachments dropped directly onto the card).
+         */
+        TrelloSyncIn: {
+            /**
+             * Attachment Count
+             * @default 0
+             */
+            attachment_count: number;
+            /** Page Url */
+            page_url: string;
+            /** Related Link */
+            related_link?: string | null;
+        };
+        /** TrelloSyncOut */
+        TrelloSyncOut: {
+            /** Synced */
+            synced: boolean;
+            /** Trello Card Url */
+            trello_card_url?: string | null;
         };
         /**
          * UnitServicePeriodRange
@@ -21237,6 +21292,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotifyMentionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trello_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrelloSyncIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrelloSyncOut"];
                 };
             };
             /** @description Validation Error */
