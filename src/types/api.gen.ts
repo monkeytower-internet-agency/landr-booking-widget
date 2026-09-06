@@ -5066,13 +5066,25 @@ export interface paths {
          * @description Set one policy across one or more date ranges, atomically.
          *
          *     The whole write is ``apply_resource_pool_approval_periods`` (migration
-         *     20260903010000, actor param added by 20260903040000): one transaction
-         *     that trims/splits neighbouring periods, merges identical adjacent ones,
-         *     soft-deletes what it replaces (stamping ``deleted_by_user_id =
-         *     membership.user_id``) and ensures the pool's ``capacity_threshold`` rule
-         *     (OD-2). A bad range anywhere in the body means NOTHING is written —
-         *     validation runs before the first write and the transaction rolls back
-         *     regardless.
+         *     20260903010000, actor param 20260903040000, per-unit release set
+         *     20260905222010): one transaction that trims/splits neighbouring periods,
+         *     merges identical adjacent ones, soft-deletes what it replaces (stamping
+         *     ``deleted_by_user_id = membership.user_id``) and ensures the pool's
+         *     ``capacity_threshold`` rule (OD-2). A bad range anywhere in the body means
+         *     NOTHING is written — validation runs before the first write and the
+         *     transaction rolls back regardless.
+         *
+         *     ONE TRANSACTION IS NOT AN OPTIMISATION HERE (landr-c6cpm.9). A period's
+         *     header and its ``resource_pool_approval_period_units`` rows are checked
+         *     against each other by a DEFERRABLE INITIALLY DEFERRED trigger, so they must
+         *     COMMIT together; two PostgREST calls each commit on their own and the first
+         *     one is rejected. That is why the release set is an argument to the RPC and
+         *     not a second endpoint.
+         *
+         *     Each returned period carries ``released_unit_ids`` — the units it releases,
+         *     by id. ``released_units`` is still present but is a LEGACY derived count
+         *     (see the column comment in 20260905222010) and cannot express a
+         *     non-contiguous set; read the ids.
          *
          *     ``?dry_run=1`` returns exactly the rows the real call would produce
          *     (``id`` populated for the rows that would survive untouched, ``null`` for
@@ -6078,11 +6090,32 @@ export interface components {
          * ApprovalPeriodsIn
          * @description ``PUT .../approval-periods`` — one policy, applied to N ranges.
          *
-         *     ``released_units`` is a stepper value 0…N, not a flag (OD-1): 0 means "ask
-         *     me for each unit, including the first" and is a legitimate saved state, so
-         *     it is validated `ge=0`, never `gt=0`. The mode/units consistency rule and
-         *     the 0…active-unit-count bound both live in the RPC — one definition, and
-         *     the same typed body whichever way the request arrives.
+         *     THE RELEASE SET, three ways (landr-c6cpm.9). Release is per unit now, not a
+         *     count: units are not interchangeable (individually-named kayaks; a second
+         *     bus rented for December only), so "unit 1 and unit 3 open, unit 2 held"
+         *     must be expressible. Precedence, highest first:
+         *
+         *     ``releases_all_units``
+         *         The whole fleet, evaluated LIVE — a unit added to the pool later is
+         *         released for this period without re-editing it (the December-rented-bus
+         *         case). Wins over anything named in ``released_unit_ids``; the flag is
+         *         what the child rows degrade to, not a conflicting statement.
+         *     ``released_unit_ids``
+         *         The explicit set. This is what the periods editor (landr-c6cpm.5)
+         *         sends. Every id must be an ACTIVE unit of THIS pool — anything else is
+         *         a typed 422, which also closes a tenancy hole the count never had.
+         *     ``released_units``
+         *         LEGACY stepper count, kept so the CURRENTLY SHIPPED dashboard keeps
+         *         working until landr-c6cpm.5 lands. Consulted only when neither of the
+         *         above is given, and translated here into the first N active units by
+         *         ``sort_order`` — which is exactly what the count has always meant. 0 is
+         *         a real saved state ("ask me for each unit, including the first",
+         *         OD-1), so it is validated ``ge=0``, never ``gt=0``. Remove this field
+         *         with the last client that sends it.
+         *
+         *     The mode/set consistency rule lives in the RPC — one definition, and the
+         *     same typed body whichever way the request arrives. The count->set expansion
+         *     cannot: the RPC no longer knows what a count is.
          */
         ApprovalPeriodsIn: {
             /**
@@ -6094,11 +6127,15 @@ export interface components {
             note?: string | null;
             /** Ranges */
             ranges: components["schemas"]["ApprovalPeriodRange"][];
+            /** Released Unit Ids */
+            released_unit_ids?: string[] | null;
+            /** Released Units */
+            released_units?: number | null;
             /**
-             * Released Units
-             * @default 0
+             * Releases All Units
+             * @default false
              */
-            released_units: number;
+            releases_all_units: boolean;
         };
         /**
          * ApprovalReplyRequest
