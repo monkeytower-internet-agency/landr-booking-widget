@@ -1969,8 +1969,13 @@ export interface paths {
          * @description The group's current check-in statuses (the customer's own view).
          *
          *     Returns the latest check-in per participant for this booking, with the
-         *     participant's first name and any operator-set retrieve_state so a flyer can
-         *     see "everyone's down, Tom's pickup is on its way". No price fields.
+         *     participant's first name plus the pickup PROGRESS derived from their
+         *     booking_participant_day_state row (see module docstring's PICKUP
+         *     PROGRESS section) — `day_status_semantic_state`, `expected_back_at`, and
+         *     the resolved `pickup_progress` customer copy. `retrieve_state` /
+         *     `retrieve_note` are still returned (deprecated — nothing writes them any
+         *     more since landr-bsng5.60) so an existing consumer of those two keys
+         *     doesn't break. No price fields.
          */
         get: operations["public_list_checkins"];
         put?: never;
@@ -3201,6 +3206,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-unit/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Day Unit
+         * @description Set (or clear) the SOFT per-day unit assignment for one participant-day.
+         *
+         *     PATCH rather than PUT because it genuinely patches: it writes ONE column
+         *     and leaves every status field alone. That is the whole point — see the
+         *     module docstring for why the unit cannot ride along on the status PUT.
+         *
+         *     `assigned_unit_id: null` unassigns. The row is created if it does not
+         *     exist yet, with a NULL status (semantic 'expected'), so a driver can
+         *     arrange people onto units before anyone has marked a single status.
+         *
+         *     landr-bsng5.67: the target unit must be one the day manifest would
+         *     actually list — this operator's, not soft-deleted, active, and a
+         *     transport (not e.g. staff-capacity) unit whose pool is itself live.
+         *     A unit failing tenant scope is 422 `unit_not_in_operator`; a unit that
+         *     exists in-tenant but fails one of the other checks is 422
+         *     `unit_not_assignable`.
+         *
+         *     Returns the same full state row the PUT does, so a client can drop the
+         *     response straight into whatever it holds for that participant-day
+         *     regardless of which endpoint it just called.
+         */
+        patch: operations["staff_patch_participant_day_unit"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
         parameters: {
             query?: never;
@@ -3914,6 +3958,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Holded Invoice
+         * @description Retry ONE Holded invoice transfer — landr-g71ua.1.
+         *
+         *     ``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can
+         *     never be picked up by any later pass. This route is the only way back:
+         *     it makes the row eligible again and then runs one real pass, reporting
+         *     both the pass counters and the row's own resulting state.
+         *
+         *     Two accepted entry states, deliberately handled differently:
+         *
+         *       * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,
+         *         ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter
+         *         resets because a human explicitly asked for another go — otherwise a
+         *         row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail
+         *         straight back to ``failed`` on its first transient error.
+         *       * ``pending`` -> do NOT rewrite the row. It is already eligible; all a
+         *         retry can add is skipping the remaining backoff, so only
+         *         ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would
+         *         throw away a live retry budget the worker is legitimately using.
+         *
+         *     Every other state 409s with its own message (see ``_RETRY_CONFLICTS``);
+         *     an unknown/other-operator/non-invoice row 404s.
+         *
+         *     The requeue UPDATE is conditional on ``status='failed'`` — the same
+         *     compare-and-set discipline ``_claim_row`` uses. A concurrent worker or a
+         *     second retry press that got there first therefore cannot be clobbered:
+         *     zero affected rows means we lost, so we re-read and re-run the gate
+         *     instead of proceeding on a stale view of the row.
+         */
+        post: operations["retry_holded_invoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/holded/sync": {
         parameters: {
             query?: never;
@@ -3932,6 +4022,10 @@ export interface paths {
          *     backoff has elapsed). When the operator has no decrypted Holded key we
          *     short-circuit to a ``holded_not_connected`` 200 body — the rows stay
          *     pending and the dashboard renders a connect affordance.
+         *
+         *     NOTE this pass can only ever touch ``pending`` rows. A row already at
+         *     ``status='failed'`` needs [C], the per-row retry — pointing a "Retry"
+         *     affordance at THIS route is what landr-g71ua was filed about.
          */
         post: operations["run_operator_holded_sync"];
         delete?: never;
@@ -4912,8 +5006,8 @@ export interface paths {
          * @description One row per day in ``[from, to]`` (≤366 days).
          *
          *     Every policy/load number is the evaluator's own, computed with
-         *     ``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +
-         *     ``_units_in_service_per_day`` + ``_open_capacity`` — the same calls
+         *     ``capacity.resolve_release_per_day`` + ``_load_breakdown_per_day`` +
+         *     ``_unit_service_per_day`` + ``_released_capacity`` — the same calls
          *     ``evaluate_capacity`` makes for a booking, for a date range instead of for
          *     one product.
          *
@@ -4923,9 +5017,12 @@ export interface paths {
          *         The resolved policy: a covering period, else the pool default
          *         (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``
          *         is ``n`` AFTER the clamp to the active unit count.
-         *     ``released_units`` / ``released_cap``
-         *         ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity —
-         *         what actually auto-approves, policy floor OR earned by approved load.
+         *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
+         *         The released SET and its summed capacity — what actually
+         *         auto-approves. landr-c6cpm.2: resolved along
+         *         DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,
+         *         and NOT necessarily a prefix of the ladder — ``released_unit_ids`` is
+         *         the authoritative answer, the two numbers are derived from it.
          *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
          *         Seats: all units combined; seats held by live bookings; the part of
          *         that the operator has already said yes to; and the difference — seats
@@ -4975,23 +5072,57 @@ export interface paths {
          *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
          *         place in the roster but takes no load and no release state.
          *
-         *         ``released_by`` is ``policy`` for units the period/default
-         *         released outright, ``approval`` for the ones approved load earned, and
-         *         ``null`` for a unit that is not released — so a ``full`` unit with
-         *         ``released_by = null`` reads correctly as "full of requests that are
-         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
-         *         day NO unit is ever ``released`` regardless of load — every unit is
-         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``
-         *         (``released_units``/``released_cap`` above still carry the numeric
-         *         parity value, they just describe no unit's on-screen state that day).
+         *         ``released_by`` is ``policy`` for units the period/pool default
+         *         released outright, ``day_override`` for a unit an operator (or the
+         *         auto-lock's counterpart, .3's approve dialog) opened for this one
+         *         date, and ``null`` for a unit that is not released — so a ``full``
+         *         unit with ``released_by = null`` reads correctly as "full of requests
+         *         that are still waiting for you", not "auto-approving". On an
+         *         ``ask_every_time`` day NO unit is ever released — every unit is
+         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``.
+         *
+         *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
+         *         releases the unit it sits on, so no unit is ever released "by an
+         *         approval" again. The value is gone rather than kept-and-unused, so a
+         *         consumer branching on it fails loudly instead of silently rendering a
+         *         state the API can no longer produce.
+         *
+         *         ``release_state`` (landr-c6cpm.2) is the COLOUR axis, kept separate
+         *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
+         *         other's meaning: ``open`` (the rules release it — emerald),
+         *         ``ask`` (the rules do not; nobody shut it — violet),
+         *         ``closed`` (a ``resource_pool_unit_day_releases`` row with
+         *         ``released = false`` shut it for this date — slate), or
+         *         ``out_of_service``. ``occupancy_state`` is the FILL axis in the three
+         *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
+         *         unit carrying approved passengers is a legal, meaningful glyph —
+         *         "closed" gates NEW bookings only and is orthogonal to occupancy.
+         *
+         *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
+         *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
+         *         "not released": every unit past the release ladder is closed to new
+         *         bookings, but only some were shut on purpose — by an operator, or by
+         *         the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).
+         *
+         *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
+         *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
+         *         sentence: the sentence an operator reads ("a 6-person request exceeds
+         *         the 3 remaining seats") contains a noun that belongs to one operator's
+         *         pool and not the next one's, and slot vocabulary is per-operator
+         *         (``resource_pools.slot_label``). The dashboard composes the copy;
+         *         this endpoint ships the facts. ``hold_reason`` remains free text a
+         *         HUMAN typed, and is the fallback when there is no structured detail.
+         *         See :func:`_hold_fields`.
          *     ``kind``
          *         Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same
          *         vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone
          *         decides it); else ``shortage`` when ``total_load > total_cap``; else
-         *         ``opens`` when ``total_load > released_cap`` (load already sits past
-         *         what's released — the next unit is waiting to open); else ``null``. D5
+         *         ``opens`` when the load already on the books LANDS ON a unit that is
+         *         not released (the next unit is waiting to open); else ``null``. D5
          *         draws the day pill from this rather than re-deriving it from the unit
-         *         list.
+         *         list. landr-c6cpm.2 made that middle test positional rather than
+         *         ``total_load > released_cap`` — see the inline comment for why a sum
+         *         cannot answer it once the released set can have holes.
          *     ``period_id``
          *         The covering period row, or ``null`` where the pool default applies.
          *
@@ -5022,13 +5153,26 @@ export interface paths {
          * @description Set one policy across one or more date ranges, atomically.
          *
          *     The whole write is ``apply_resource_pool_approval_periods`` (migration
-         *     20260903010000, actor param added by 20260903040000): one transaction
-         *     that trims/splits neighbouring periods, merges identical adjacent ones,
-         *     soft-deletes what it replaces (stamping ``deleted_by_user_id =
-         *     membership.user_id``) and ensures the pool's ``capacity_threshold`` rule
-         *     (OD-2). A bad range anywhere in the body means NOTHING is written —
-         *     validation runs before the first write and the transaction rolls back
-         *     regardless.
+         *     20260903010000, actor param 20260903040000, per-unit release set
+         *     20260905222010): one transaction that trims/splits neighbouring periods,
+         *     merges identical adjacent ones, soft-deletes what it replaces (stamping
+         *     ``deleted_by_user_id = membership.user_id``) and ensures the pool's
+         *     ``capacity_threshold`` rule (OD-2). A bad range anywhere in the body means
+         *     NOTHING is written — validation runs before the first write and the
+         *     transaction rolls back regardless.
+         *
+         *     ONE TRANSACTION IS NOT AN OPTIMISATION HERE (landr-c6cpm.9). A period's
+         *     header and its ``resource_pool_approval_period_units`` rows are checked
+         *     against each other by a DEFERRABLE INITIALLY DEFERRED trigger, so they must
+         *     COMMIT together; two PostgREST calls each commit on their own and the first
+         *     one is rejected. That is why the release set is an argument to the RPC and
+         *     not a second endpoint.
+         *
+         *     Each returned period carries ``released_unit_ids`` — the units it releases,
+         *     by id. The legacy derived-count mirror ``released_units`` was dropped from
+         *     the table and this response by landr-c6cpm.13 (its last reader,
+         *     capacity.py, moved to the child rows in landr-c6cpm.2); a non-contiguous
+         *     set was never expressible as a count, so read the ids.
          *
          *     ``?dry_run=1`` returns exactly the rows the real call would produce
          *     (``id`` populated for the rows that would survive untouched, ``null`` for
@@ -6034,11 +6178,32 @@ export interface components {
          * ApprovalPeriodsIn
          * @description ``PUT .../approval-periods`` — one policy, applied to N ranges.
          *
-         *     ``released_units`` is a stepper value 0…N, not a flag (OD-1): 0 means "ask
-         *     me for each unit, including the first" and is a legitimate saved state, so
-         *     it is validated `ge=0`, never `gt=0`. The mode/units consistency rule and
-         *     the 0…active-unit-count bound both live in the RPC — one definition, and
-         *     the same typed body whichever way the request arrives.
+         *     THE RELEASE SET, three ways (landr-c6cpm.9). Release is per unit now, not a
+         *     count: units are not interchangeable (individually-named kayaks; a second
+         *     bus rented for December only), so "unit 1 and unit 3 open, unit 2 held"
+         *     must be expressible. Precedence, highest first:
+         *
+         *     ``releases_all_units``
+         *         The whole fleet, evaluated LIVE — a unit added to the pool later is
+         *         released for this period without re-editing it (the December-rented-bus
+         *         case). Wins over anything named in ``released_unit_ids``; the flag is
+         *         what the child rows degrade to, not a conflicting statement.
+         *     ``released_unit_ids``
+         *         The explicit set. This is what the periods editor (landr-c6cpm.5)
+         *         sends. Every id must be an ACTIVE unit of THIS pool — anything else is
+         *         a typed 422, which also closes a tenancy hole the count never had.
+         *     ``released_units``
+         *         LEGACY stepper count, kept so the CURRENTLY SHIPPED dashboard keeps
+         *         working until landr-c6cpm.5 lands. Consulted only when neither of the
+         *         above is given, and translated here into the first N active units by
+         *         ``sort_order`` — which is exactly what the count has always meant. 0 is
+         *         a real saved state ("ask me for each unit, including the first",
+         *         OD-1), so it is validated ``ge=0``, never ``gt=0``. Remove this field
+         *         with the last client that sends it.
+         *
+         *     The mode/set consistency rule lives in the RPC — one definition, and the
+         *     same typed body whichever way the request arrives. The count->set expansion
+         *     cannot: the RPC no longer knows what a count is.
          */
         ApprovalPeriodsIn: {
             /**
@@ -6050,11 +6215,15 @@ export interface components {
             note?: string | null;
             /** Ranges */
             ranges: components["schemas"]["ApprovalPeriodRange"][];
+            /** Released Unit Ids */
+            released_unit_ids?: string[] | null;
+            /** Released Units */
+            released_units?: number | null;
             /**
-             * Released Units
-             * @default 0
+             * Releases All Units
+             * @default false
              */
-            released_units: number;
+            releases_all_units: boolean;
         };
         /**
          * ApprovalReplyRequest
@@ -6957,9 +7126,17 @@ export interface components {
             rows: components["schemas"]["DayManifestRow"][];
             /** To */
             to?: string | null;
+            /** Units */
+            units?: components["schemas"]["ManifestUnit"][];
         };
         /** DayManifestRow */
         DayManifestRow: {
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
+            /** Assigned Unit Pool Id */
+            assigned_unit_pool_id?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Booking Ref */
@@ -6980,12 +7157,24 @@ export interface components {
             contact_id?: string | null;
             /** Day Date */
             day_date: string;
+            /** Expected Back At */
+            expected_back_at?: string | null;
             /** Name */
             name: string;
+            /** Note */
+            note?: string | null;
+            /** Part Of Day */
+            part_of_day?: string | null;
             /** Participant Id */
             participant_id: string;
             /** Phone */
             phone?: string | null;
+            /** Pickup Address */
+            pickup_address?: string | null;
+            /** Pickup Lat */
+            pickup_lat?: number | null;
+            /** Pickup Lng */
+            pickup_lng?: number | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
             /** Pickup Location Name */
@@ -7006,18 +7195,40 @@ export interface components {
             retrieve_note?: string | null;
             /** Retrieve State */
             retrieve_state?: string | null;
+            /** Semantic State */
+            semantic_state?: string | null;
             /** Service Role */
             service_role?: string | null;
+            /** State Id */
+            state_id?: string | null;
+            /** Status Code */
+            status_code?: string | null;
+            /** Status Colour */
+            status_colour?: string | null;
+            /** Status Id */
+            status_id?: string | null;
+            /** Status Label */
+            status_label?: string | null;
         };
         /**
          * DayStatusPutIn
-         * @description PUT body — full-replace semantics (part_of_day/note/pickup_* are set
-         *     to exactly what's supplied, defaulting to NULL when omitted, same as any
-         *     other idempotent PUT). A repeat PUT that wants to KEEP a previously-set
-         *     pickup location must resupply it — see the router module docstring for
-         *     why this endpoint doesn't try to preserve it implicitly.
+         * @description PUT body — full-replace semantics (part_of_day/note/pickup_*\/
+         *     expected_back_at are set to exactly what's supplied, defaulting to NULL
+         *     when omitted, same as any other idempotent PUT). A repeat PUT that wants
+         *     to KEEP a previously-set pickup location must resupply it — see the
+         *     router module docstring for why this endpoint doesn't try to preserve it
+         *     implicitly.
+         *
+         *     `assigned_unit_id` is deliberately NOT a field here: the unit is written
+         *     only by the PATCH day-unit endpoint below, so a status tap can never
+         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).
          */
         DayStatusPutIn: {
+            /**
+             * Expected Back At
+             * @description Tz-aware ISO-8601 only (must carry a UTC offset, e.g. "2026-09-05T15:00:00+00:00" — a naive value is rejected 422 expected_back_at_must_be_tz_aware). Accepted only when the resolved status is semantically 'released'.
+             */
+            expected_back_at?: string | null;
             /** Note */
             note?: string | null;
             /** Part Of Day */
@@ -7029,7 +7240,26 @@ export interface components {
             /** Pickup Lng */
             pickup_lng?: number | null;
             /** Status Id */
-            status_id: string;
+            status_id?: string | null;
+        };
+        /**
+         * DayUnitPatchIn
+         * @description PATCH day-unit body — one field, and NULL is meaningful.
+         *
+         *     `assigned_unit_id: null` UNASSIGNS the participant from whatever unit
+         *     they were on; it never means "leave unchanged". There is nothing else in
+         *     this body precisely so this endpoint can never touch the status fields
+         *     the PUT owns.
+         *
+         *     landr-bsng5.67: the key is REQUIRED (no default) — an empty body `{}` or
+         *     a typo'd key is a 422 from pydantic's own "field required" validation,
+         *     never a silent unassign. `null` is still a valid VALUE for a required
+         *     key (`str | None`), so `{"assigned_unit_id": null}` passes body parsing
+         *     and reaches the handler as an explicit clear.
+         */
+        DayUnitPatchIn: {
+            /** Assigned Unit Id */
+            assigned_unit_id: string | null;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -7835,6 +8065,36 @@ export interface components {
             /** Role Code */
             role_code?: string | null;
         };
+        /**
+         * ManifestUnit
+         * @description One transport unit the operator could put participants on, on this day.
+         *
+         *     The /today board renders these as the columns participants are grouped
+         *     into and moved between (landr-kvxt.29). Nouns come from the pool, never
+         *     from this code: `unit_label`/`unit_label_plural` are the operator's own
+         *     words for one/many of these things — "Bus"/"Buses" for Para42,
+         *     "Kayak"/"Kayaks" for the kayak outfitter — so the client can write
+         *     "Move to another bus" without the API ever knowing what a bus is
+         *     (landr-genericity-northstar, `resource_pools.unit_label`).
+         */
+        ManifestUnit: {
+            /** Capacity */
+            capacity?: number | null;
+            /** Id */
+            id: string;
+            /** In Service */
+            in_service: boolean;
+            /** Name */
+            name: string;
+            /** Resource Pool Id */
+            resource_pool_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit Label */
+            unit_label: string;
+            /** Unit Label Plural */
+            unit_label_plural: string;
+        };
         /** MarkPaidIn */
         MarkPaidIn: {
             /** Amount */
@@ -8136,6 +8396,10 @@ export interface components {
             city?: string | null;
             /** Country */
             country?: string | null;
+            /** Date Format */
+            date_format?: string | null;
+            /** Date Format Short */
+            date_format_short?: string | null;
             /** Default Locale */
             default_locale?: string | null;
             /** Default Tax Rate */
@@ -9186,6 +9450,11 @@ export interface components {
         QuickCreateOut: {
             /** Booking Id */
             booking_id: string;
+            /**
+             * Capacity Warnings
+             * @default []
+             */
+            capacity_warnings: string[];
             /** Contact Id */
             contact_id: string;
         };
@@ -9451,6 +9720,74 @@ export interface components {
             /** Retrieve State */
             retrieve_state?: string | null;
         };
+        /**
+         * RetryResponse
+         * @description Result of POST .../holded/invoices/{sync_log_id}/retry — landr-g71ua.1.
+         *
+         *     Carries the whole-pass counters (identical semantics to
+         *     :class:`SyncResponse`, because a retry runs one real operator-scoped
+         *     pass) PLUS the ``row_*`` fields describing what happened to THE ROW THE
+         *     USER CLICKED. Both halves are needed and neither substitutes for the
+         *     other: the pass drains every eligible pending row for the operator, so
+         *     ``failed=1`` does not tell the user whether the failure was theirs, and
+         *     ``attempted=3`` does not tell them whether their row was among the
+         *     three. The dashboard renders its toast off ``row_status``.
+         *
+         *     ``requeued`` distinguishes the two entry states this route accepts: a
+         *     ``failed`` row was reset to ``pending`` (true), while an already-
+         *     ``pending`` row only had its backoff cleared (false). It is NOT a
+         *     success signal — a requeued row can still fail again on the same pass,
+         *     which is exactly what ``row_status='failed'`` plus a fresh
+         *     ``row_failure_reason`` then reports.
+         */
+        RetryResponse: {
+            /**
+             * Attempted
+             * @default 0
+             */
+            attempted: number;
+            /**
+             * Blocked
+             * @default 0
+             */
+            blocked: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Holded Not Connected
+             * @default false
+             */
+            holded_not_connected: boolean;
+            /**
+             * Remaining Pending
+             * @default 0
+             */
+            remaining_pending: number;
+            /**
+             * Requeued
+             * @default false
+             */
+            requeued: boolean;
+            /**
+             * Retried
+             * @default 0
+             */
+            retried: number;
+            /** Row External Reference */
+            row_external_reference?: string | null;
+            /** Row Failure Reason */
+            row_failure_reason?: string | null;
+            /** Row Status */
+            row_status?: string | null;
+            /**
+             * Succeeded
+             * @default 0
+             */
+            succeeded: number;
+        };
         /** RevenueOverview */
         RevenueOverview: {
             /** Currency */
@@ -9479,7 +9816,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "dashboard";
             /** Name */
             name: string;
             /**
@@ -9615,6 +9952,8 @@ export interface components {
         SetStageResult: {
             /** Applied */
             applied: boolean;
+            /** Capacity Warnings */
+            capacity_warnings?: string[];
             /** Current Stage Code */
             current_stage_code: string;
             /** Ok */
@@ -9841,6 +10180,7 @@ export interface components {
             notes?: string | null;
             /** Reject Reason Code */
             reject_reason_code?: string | null;
+            unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
         };
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
@@ -9895,6 +10235,40 @@ export interface components {
             products: components["schemas"]["ProductLineIn"][];
             /** Staff Session */
             staff_session: string;
+        };
+        /**
+         * StaffUnitReleaseIn
+         * @description The operator's answer to the approve-time release question.
+         *
+         *     landr-c6cpm.3. Sent ONLY when the approval would land on a unit that is
+         *     not released — which is a small minority of approvals, so the whole object
+         *     is absent from a normal approve body rather than present-and-empty.
+         *
+         *     ``pool_id`` / ``date`` / ``unit_id`` are echoed back by the dashboard from
+         *     the gate it was shown, so the API never has to re-derive WHICH gate the
+         *     operator answered and can refuse a stale answer (they sat on the dialog
+         *     while a sibling approval moved the calendar) instead of applying it to a
+         *     different unit.
+         */
+        StaffUnitReleaseIn: {
+            /** Additional Units */
+            additional_units?: number | null;
+            /** Date */
+            date: string;
+            /**
+             * Intent
+             * @enum {string}
+             */
+            intent: "open_this" | "open_this_plus" | "open_none";
+            /** Pool Id */
+            pool_id: string;
+            /**
+             * Reopen Held Unit
+             * @default false
+             */
+            reopen_held_unit: boolean;
+            /** Unit Id */
+            unit_id?: string | null;
         };
         /**
          * StagingActivityIn
@@ -10099,6 +10473,35 @@ export interface components {
             name?: string | null;
         };
         /**
+         * TaxRateCheck
+         * @description Is the operator's configured sales-tax rate actually usable against
+         *     the Holded account this credential belongs to? — landr-g71ua.1.
+         *
+         *     A mismatch here used to be undiscoverable until a background sync worker
+         *     hard-failed an invoice days later with an opaque
+         *     ``holded_tax_key_unresolved``. The full catalogue is already fetched by
+         *     ``preflight()``'s ``accounting:taxes.read`` probe, so answering it at
+         *     configuration time — while the operator is standing in front of the
+         *     Integrations screen — costs nothing extra.
+         *
+         *     ``matched=False`` is a WARNING, not an error: the key works, the
+         *     invoices just cannot be taxed. Holded's v2 API is GET-only for taxes
+         *     (there is no create-tax endpoint), so the resolution is always human —
+         *     create the rate in Holded's web UI, or set ``holded_sales_tax_key``.
+         */
+        TaxRateCheck: {
+            /** Available Pcts */
+            available_pcts?: string[];
+            /** Matched */
+            matched: boolean;
+            /** Matched Key */
+            matched_key?: string | null;
+            /** Operator Rate Pct */
+            operator_rate_pct: string;
+            /** Override Key */
+            override_key?: string | null;
+        };
+        /**
          * TestEmailRequest
          * @description Body of POST /api/operator/email-sender/test.
          */
@@ -10263,6 +10666,14 @@ export interface components {
          *     everything else — treat any ``detail`` that isn't one of the four known
          *     codes as already-safe prose and render it as-is. A scope name itself
          *     never goes in ``detail``, only in ``missing_scopes``.
+         *
+         *     ``tax_rate_check`` (landr-g71ua.1) is an ADDITIVE CONFIGURATION
+         *     WARNING and never influences ``ok``: the credential itself genuinely
+         *     works, and flipping ``ok`` to false would make both frontends render a
+         *     perfectly valid key as broken. ``None`` means NOT CHECKABLE (Stripe, a
+         *     taxes probe that did not return a usable catalogue, or an operator with
+         *     no ``default_tax_rate``) — the UI must then render NOTHING, never a
+         *     speculative "incompatible".
          */
         VerifyResult: {
             /** Checks */
@@ -10277,6 +10688,7 @@ export interface components {
             ok: boolean;
             /** Required Scopes */
             required_scopes?: string[];
+            tax_rate_check?: components["schemas"]["TaxRateCheck"] | null;
         };
         /** VersionOut */
         VersionOut: {
@@ -15286,6 +15698,46 @@ export interface operations {
             };
         };
     };
+    staff_patch_participant_day_unit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayUnitPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refund_payment: {
         parameters: {
             query?: never;
@@ -16775,6 +17227,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvoicesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_holded_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                sync_log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryResponse"];
                 };
             };
             /** @description Validation Error */

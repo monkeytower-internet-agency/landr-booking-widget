@@ -208,7 +208,7 @@
         "type": "object"
       },
       "ApprovalPeriodsIn": {
-        "description": "``PUT .../approval-periods`` \u2014 one policy, applied to N ranges.\n\n``released_units`` is a stepper value 0\u2026N, not a flag (OD-1): 0 means \"ask\nme for each unit, including the first\" and is a legitimate saved state, so\nit is validated `ge=0`, never `gt=0`. The mode/units consistency rule and\nthe 0\u2026active-unit-count bound both live in the RPC \u2014 one definition, and\nthe same typed body whichever way the request arrives.",
+        "description": "``PUT .../approval-periods`` \u2014 one policy, applied to N ranges.\n\nTHE RELEASE SET, three ways (landr-c6cpm.9). Release is per unit now, not a\ncount: units are not interchangeable (individually-named kayaks; a second\nbus rented for December only), so \"unit 1 and unit 3 open, unit 2 held\"\nmust be expressible. Precedence, highest first:\n\n``releases_all_units``\n    The whole fleet, evaluated LIVE \u2014 a unit added to the pool later is\n    released for this period without re-editing it (the December-rented-bus\n    case). Wins over anything named in ``released_unit_ids``; the flag is\n    what the child rows degrade to, not a conflicting statement.\n``released_unit_ids``\n    The explicit set. This is what the periods editor (landr-c6cpm.5)\n    sends. Every id must be an ACTIVE unit of THIS pool \u2014 anything else is\n    a typed 422, which also closes a tenancy hole the count never had.\n``released_units``\n    LEGACY stepper count, kept so the CURRENTLY SHIPPED dashboard keeps\n    working until landr-c6cpm.5 lands. Consulted only when neither of the\n    above is given, and translated here into the first N active units by\n    ``sort_order`` \u2014 which is exactly what the count has always meant. 0 is\n    a real saved state (\"ask me for each unit, including the first\",\n    OD-1), so it is validated ``ge=0``, never ``gt=0``. Remove this field\n    with the last client that sends it.\n\nThe mode/set consistency rule lives in the RPC \u2014 one definition, and the\nsame typed body whichever way the request arrives. The count->set expansion\ncannot: the RPC no longer knows what a count is.",
         "properties": {
           "mode": {
             "enum": [
@@ -238,11 +238,37 @@
             "title": "Ranges",
             "type": "array"
           },
+          "released_unit_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Unit Ids"
+          },
           "released_units": {
-            "default": 0,
-            "minimum": 0.0,
-            "title": "Released Units",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Units"
+          },
+          "releases_all_units": {
+            "default": false,
+            "title": "Releases All Units",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2559,6 +2585,13 @@
               }
             ],
             "title": "To"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestUnit"
+            },
+            "title": "Units",
+            "type": "array"
           }
         },
         "required": [
@@ -2569,6 +2602,39 @@
       },
       "DayManifestRow": {
         "properties": {
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
+          "assigned_unit_pool_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Pool Id"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
@@ -2658,9 +2724,42 @@
             "title": "Day Date",
             "type": "string"
           },
+          "expected_back_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Back At"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "part_of_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Of Day"
           },
           "participant_id": {
             "title": "Participant Id",
@@ -2676,6 +2775,39 @@
               }
             ],
             "title": "Phone"
+          },
+          "pickup_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Address"
+          },
+          "pickup_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lat"
+          },
+          "pickup_lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Lng"
           },
           "pickup_location_id": {
             "anyOf": [
@@ -2772,6 +2904,17 @@
             ],
             "title": "Retrieve State"
           },
+          "semantic_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic State"
+          },
           "service_role": {
             "anyOf": [
               {
@@ -2782,6 +2925,61 @@
               }
             ],
             "title": "Service Role"
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Id"
+          },
+          "status_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code"
+          },
+          "status_colour": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Colour"
+          },
+          "status_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Id"
+          },
+          "status_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Label"
           }
         },
         "required": [
@@ -2798,8 +2996,21 @@
         "type": "object"
       },
       "DayStatusPutIn": {
-        "description": "PUT body \u2014 full-replace semantics (part_of_day/note/pickup_* are set\nto exactly what's supplied, defaulting to NULL when omitted, same as any\nother idempotent PUT). A repeat PUT that wants to KEEP a previously-set\npickup location must resupply it \u2014 see the router module docstring for\nwhy this endpoint doesn't try to preserve it implicitly.",
+        "description": "PUT body \u2014 full-replace semantics (part_of_day/note/pickup_*/\nexpected_back_at are set to exactly what's supplied, defaulting to NULL\nwhen omitted, same as any other idempotent PUT). A repeat PUT that wants\nto KEEP a previously-set pickup location must resupply it \u2014 see the\nrouter module docstring for why this endpoint doesn't try to preserve it\nimplicitly.\n\n`assigned_unit_id` is deliberately NOT a field here: the unit is written\nonly by the PATCH day-unit endpoint below, so a status tap can never\nrevert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).",
         "properties": {
+          "expected_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tz-aware ISO-8601 only (must carry a UTC offset, e.g. \"2026-09-05T15:00:00+00:00\" \u2014 a naive value is rejected 422 expected_back_at_must_be_tz_aware). Accepted only when the resolved status is semantically 'released'.",
+            "title": "Expected Back At"
+          },
           "note": {
             "anyOf": [
               {
@@ -2863,15 +3074,41 @@
             "title": "Pickup Lng"
           },
           "status_id": {
-            "minLength": 1,
-            "title": "Status Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Id"
+          }
+        },
+        "title": "DayStatusPutIn",
+        "type": "object"
+      },
+      "DayUnitPatchIn": {
+        "description": "PATCH day-unit body \u2014 one field, and NULL is meaningful.\n\n`assigned_unit_id: null` UNASSIGNS the participant from whatever unit\nthey were on; it never means \"leave unchanged\". There is nothing else in\nthis body precisely so this endpoint can never touch the status fields\nthe PUT owns.\n\nlandr-bsng5.67: the key is REQUIRED (no default) \u2014 an empty body `{}` or\na typo'd key is a 422 from pydantic's own \"field required\" validation,\nnever a silent unassign. `null` is still a valid VALUE for a required\nkey (`str | None`), so `{\"assigned_unit_id\": null}` passes body parsing\nand reaches the handler as an explicit clear.",
+        "properties": {
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
           }
         },
         "required": [
-          "status_id"
+          "assigned_unit_id"
         ],
-        "title": "DayStatusPutIn",
+        "title": "DayUnitPatchIn",
         "type": "object"
       },
       "DevToStagingIn": {
@@ -5391,6 +5628,61 @@
         "title": "ManifestProvider",
         "type": "object"
       },
+      "ManifestUnit": {
+        "description": "One transport unit the operator could put participants on, on this day.\n\nThe /today board renders these as the columns participants are grouped\ninto and moved between (landr-kvxt.29). Nouns come from the pool, never\nfrom this code: `unit_label`/`unit_label_plural` are the operator's own\nwords for one/many of these things \u2014 \"Bus\"/\"Buses\" for Para42,\n\"Kayak\"/\"Kayaks\" for the kayak outfitter \u2014 so the client can write\n\"Move to another bus\" without the API ever knowing what a bus is\n(landr-genericity-northstar, `resource_pools.unit_label`).",
+        "properties": {
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "in_service": {
+            "title": "In Service",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_pool_id": {
+            "title": "Resource Pool Id",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit_label": {
+            "title": "Unit Label",
+            "type": "string"
+          },
+          "unit_label_plural": {
+            "title": "Unit Label Plural",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "resource_pool_id",
+          "unit_label",
+          "unit_label_plural",
+          "sort_order",
+          "in_service"
+        ],
+        "title": "ManifestUnit",
+        "type": "object"
+      },
       "MarkPaidIn": {
         "properties": {
           "amount": {
@@ -6258,6 +6550,30 @@
               }
             ],
             "title": "Country"
+          },
+          "date_format": {
+            "anyOf": [
+              {
+                "pattern": "^(system|[djmnMFYyDl0-9 ,./:-]{1,32})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Format"
+          },
+          "date_format_short": {
+            "anyOf": [
+              {
+                "pattern": "^(system|[djmnMFYyDl0-9 ,./:-]{1,32})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Format Short"
           },
           "default_locale": {
             "anyOf": [
@@ -9606,6 +9922,14 @@
             "title": "Booking Id",
             "type": "string"
           },
+          "capacity_warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Capacity Warnings",
+            "type": "array"
+          },
           "contact_id": {
             "title": "Contact Id",
             "type": "string"
@@ -10304,6 +10628,86 @@
         "title": "RetrievePatchIn",
         "type": "object"
       },
+      "RetryResponse": {
+        "description": "Result of POST .../holded/invoices/{sync_log_id}/retry \u2014 landr-g71ua.1.\n\nCarries the whole-pass counters (identical semantics to\n:class:`SyncResponse`, because a retry runs one real operator-scoped\npass) PLUS the ``row_*`` fields describing what happened to THE ROW THE\nUSER CLICKED. Both halves are needed and neither substitutes for the\nother: the pass drains every eligible pending row for the operator, so\n``failed=1`` does not tell the user whether the failure was theirs, and\n``attempted=3`` does not tell them whether their row was among the\nthree. The dashboard renders its toast off ``row_status``.\n\n``requeued`` distinguishes the two entry states this route accepts: a\n``failed`` row was reset to ``pending`` (true), while an already-\n``pending`` row only had its backoff cleared (false). It is NOT a\nsuccess signal \u2014 a requeued row can still fail again on the same pass,\nwhich is exactly what ``row_status='failed'`` plus a fresh\n``row_failure_reason`` then reports.",
+        "properties": {
+          "attempted": {
+            "default": 0,
+            "title": "Attempted",
+            "type": "integer"
+          },
+          "blocked": {
+            "default": 0,
+            "title": "Blocked",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "holded_not_connected": {
+            "default": false,
+            "title": "Holded Not Connected",
+            "type": "boolean"
+          },
+          "remaining_pending": {
+            "default": 0,
+            "title": "Remaining Pending",
+            "type": "integer"
+          },
+          "requeued": {
+            "default": false,
+            "title": "Requeued",
+            "type": "boolean"
+          },
+          "retried": {
+            "default": 0,
+            "title": "Retried",
+            "type": "integer"
+          },
+          "row_external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row External Reference"
+          },
+          "row_failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Failure Reason"
+          },
+          "row_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Status"
+          },
+          "succeeded": {
+            "default": 0,
+            "title": "Succeeded",
+            "type": "integer"
+          }
+        },
+        "title": "RetryResponse",
+        "type": "object"
+      },
       "RevenueOverview": {
         "properties": {
           "currency": {
@@ -10362,7 +10766,8 @@
               "approval",
               "resource",
               "participant_day",
-              "provider"
+              "provider",
+              "dashboard"
             ],
             "title": "Entity Type",
             "type": "string"
@@ -10735,6 +11140,13 @@
           "applied": {
             "title": "Applied",
             "type": "boolean"
+          },
+          "capacity_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capacity Warnings",
+            "type": "array"
           },
           "current_stage_code": {
             "title": "Current Stage Code",
@@ -11314,6 +11726,16 @@
               }
             ],
             "title": "Reject Reason Code"
+          },
+          "unit_release": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffUnitReleaseIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -11508,6 +11930,64 @@
           "products"
         ],
         "title": "StaffSubmitBookingIn",
+        "type": "object"
+      },
+      "StaffUnitReleaseIn": {
+        "description": "The operator's answer to the approve-time release question.\n\nlandr-c6cpm.3. Sent ONLY when the approval would land on a unit that is\nnot released \u2014 which is a small minority of approvals, so the whole object\nis absent from a normal approve body rather than present-and-empty.\n\n``pool_id`` / ``date`` / ``unit_id`` are echoed back by the dashboard from\nthe gate it was shown, so the API never has to re-derive WHICH gate the\noperator answered and can refuse a stale answer (they sat on the dialog\nwhile a sibling approval moved the calendar) instead of applying it to a\ndifferent unit.",
+        "properties": {
+          "additional_units": {
+            "anyOf": [
+              {
+                "maximum": 200.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Units"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "intent": {
+            "enum": [
+              "open_this",
+              "open_this_plus",
+              "open_none"
+            ],
+            "title": "Intent",
+            "type": "string"
+          },
+          "pool_id": {
+            "title": "Pool Id",
+            "type": "string"
+          },
+          "reopen_held_unit": {
+            "default": false,
+            "title": "Reopen Held Unit",
+            "type": "boolean"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          }
+        },
+        "required": [
+          "intent",
+          "pool_id",
+          "date"
+        ],
+        "title": "StaffUnitReleaseIn",
         "type": "object"
       },
       "StagingActivityIn": {
@@ -12002,6 +12482,54 @@
         "title": "TagPatch",
         "type": "object"
       },
+      "TaxRateCheck": {
+        "description": "Is the operator's configured sales-tax rate actually usable against\nthe Holded account this credential belongs to? \u2014 landr-g71ua.1.\n\nA mismatch here used to be undiscoverable until a background sync worker\nhard-failed an invoice days later with an opaque\n``holded_tax_key_unresolved``. The full catalogue is already fetched by\n``preflight()``'s ``accounting:taxes.read`` probe, so answering it at\nconfiguration time \u2014 while the operator is standing in front of the\nIntegrations screen \u2014 costs nothing extra.\n\n``matched=False`` is a WARNING, not an error: the key works, the\ninvoices just cannot be taxed. Holded's v2 API is GET-only for taxes\n(there is no create-tax endpoint), so the resolution is always human \u2014\ncreate the rate in Holded's web UI, or set ``holded_sales_tax_key``.",
+        "properties": {
+          "available_pcts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Pcts",
+            "type": "array"
+          },
+          "matched": {
+            "title": "Matched",
+            "type": "boolean"
+          },
+          "matched_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Key"
+          },
+          "operator_rate_pct": {
+            "title": "Operator Rate Pct",
+            "type": "string"
+          },
+          "override_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Key"
+          }
+        },
+        "required": [
+          "operator_rate_pct",
+          "matched"
+        ],
+        "title": "TaxRateCheck",
+        "type": "object"
+      },
       "TestEmailRequest": {
         "description": "Body of POST /api/operator/email-sender/test.",
         "properties": {
@@ -12255,7 +12783,7 @@
         "type": "object"
       },
       "VerifyResult": {
-        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.",
+        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.\n\n``tax_rate_check`` (landr-g71ua.1) is an ADDITIVE CONFIGURATION\nWARNING and never influences ``ok``: the credential itself genuinely\nworks, and flipping ``ok`` to false would make both frontends render a\nperfectly valid key as broken. ``None`` means NOT CHECKABLE (Stripe, a\ntaxes probe that did not return a usable catalogue, or an operator with\nno ``default_tax_rate``) \u2014 the UI must then render NOTHING, never a\nspeculative \"incompatible\".",
         "properties": {
           "checks": {
             "additionalProperties": {
@@ -12292,6 +12820,16 @@
             },
             "title": "Required Scopes",
             "type": "array"
+          },
+          "tax_rate_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxRateCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -17626,7 +18164,7 @@
     },
     "/api/public/briefings/{token}/checkins": {
       "get": {
-        "description": "The group's current check-in statuses (the customer's own view).\n\nReturns the latest check-in per participant for this booking, with the\nparticipant's first name and any operator-set retrieve_state so a flyer can\nsee \"everyone's down, Tom's pickup is on its way\". No price fields.",
+        "description": "The group's current check-in statuses (the customer's own view).\n\nReturns the latest check-in per participant for this booking, with the\nparticipant's first name plus the pickup PROGRESS derived from their\nbooking_participant_day_state row (see module docstring's PICKUP\nPROGRESS section) \u2014 `day_status_semantic_state`, `expected_back_at`, and\nthe resolved `pickup_progress` customer copy. `retrieve_state` /\n`retrieve_note` are still returned (deprecated \u2014 nothing writes them any\nmore since landr-bsng5.60) so an existing consumer of those two keys\ndoesn't break. No price fields.",
         "operationId": "public_list_checkins",
         "parameters": [
           {
@@ -20809,6 +21347,94 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-unit/{day_date}": {
+      "patch": {
+        "description": "Set (or clear) the SOFT per-day unit assignment for one participant-day.\n\nPATCH rather than PUT because it genuinely patches: it writes ONE column\nand leaves every status field alone. That is the whole point \u2014 see the\nmodule docstring for why the unit cannot ride along on the status PUT.\n\n`assigned_unit_id: null` unassigns. The row is created if it does not\nexist yet, with a NULL status (semantic 'expected'), so a driver can\narrange people onto units before anyone has marked a single status.\n\nlandr-bsng5.67: the target unit must be one the day manifest would\nactually list \u2014 this operator's, not soft-deleted, active, and a\ntransport (not e.g. staff-capacity) unit whose pool is itself live.\nA unit failing tenant scope is 422 `unit_not_in_operator`; a unit that\nexists in-tenant but fails one of the other checks is 422\n`unit_not_assignable`.\n\nReturns the same full state row the PUT does, so a client can drop the\nresponse straight into whatever it holds for that participant-day\nregardless of which endpoint it just called.",
+        "operationId": "staff_patch_participant_day_unit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayUnitPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Participant Day Unit",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Day Unit",
+        "tags": [
+          "staff-participant-day-state"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
       "post": {
         "operationId": "refund_payment",
@@ -23563,9 +24189,66 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
+      "post": {
+        "description": "Retry ONE Holded invoice transfer \u2014 landr-g71ua.1.\n\n``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can\nnever be picked up by any later pass. This route is the only way back:\nit makes the row eligible again and then runs one real pass, reporting\nboth the pass counters and the row's own resulting state.\n\nTwo accepted entry states, deliberately handled differently:\n\n  * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,\n    ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter\n    resets because a human explicitly asked for another go \u2014 otherwise a\n    row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail\n    straight back to ``failed`` on its first transient error.\n  * ``pending`` -> do NOT rewrite the row. It is already eligible; all a\n    retry can add is skipping the remaining backoff, so only\n    ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would\n    throw away a live retry budget the worker is legitimately using.\n\nEvery other state 409s with its own message (see ``_RETRY_CONFLICTS``);\nan unknown/other-operator/non-invoice row 404s.\n\nThe requeue UPDATE is conditional on ``status='failed'`` \u2014 the same\ncompare-and-set discipline ``_claim_row`` uses. A concurrent worker or a\nsecond retry press that got there first therefore cannot be clobbered:\nzero affected rows means we lost, so we re-read and re-run the gate\ninstead of proceeding on a stale view of the row.",
+        "operationId": "retry_holded_invoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sync_log_id",
+            "required": true,
+            "schema": {
+              "title": "Sync Log Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retry Holded Invoice",
+        "tags": [
+          "staff-holded-invoicing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/holded/sync": {
       "post": {
-        "description": "Run one operator-scoped Holded sync pass synchronously and return counts.\n\nReuses ``run_holded_sync`` with ``operator_id`` scoping (the worker's\nSELECT already narrows to that operator and to pending Holded rows whose\nbackoff has elapsed). When the operator has no decrypted Holded key we\nshort-circuit to a ``holded_not_connected`` 200 body \u2014 the rows stay\npending and the dashboard renders a connect affordance.",
+        "description": "Run one operator-scoped Holded sync pass synchronously and return counts.\n\nReuses ``run_holded_sync`` with ``operator_id`` scoping (the worker's\nSELECT already narrows to that operator and to pending Holded rows whose\nbackoff has elapsed). When the operator has no decrypted Holded key we\nshort-circuit to a ``holded_not_connected`` 200 body \u2014 the rows stay\npending and the dashboard renders a connect affordance.\n\nNOTE this pass can only ever touch ``pending`` rows. A row already at\n``status='failed'`` needs [C], the per-row retry \u2014 pointing a \"Retry\"\naffordance at THIS route is what landr-g71ua was filed about.",
         "operationId": "run_operator_holded_sync",
         "parameters": [
           {
@@ -28157,7 +28840,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-calendar": {
       "get": {
-        "description": "One row per day in ``[from, to]`` (\u2264366 days).\n\nEvery policy/load number is the evaluator's own, computed with\n``capacity._approval_policy_for`` + ``_load_breakdown_per_day`` +\n``_units_in_service_per_day`` + ``_open_capacity`` \u2014 the same calls\n``evaluate_capacity`` makes for a booking, for a date range instead of for\none product.\n\nPer-day fields:\n\n``mode`` / ``released_units_policy``\n    The resolved policy: a covering period, else the pool default\n    (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``\n    is ``n`` AFTER the clamp to the active unit count.\n``released_units`` / ``released_cap``\n    ``min(len(caps), max(n, cover(gate_load)))`` and its summed capacity \u2014\n    what actually auto-approves, policy floor OR earned by approved load.\n``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``\n    Seats: all units combined; seats held by live bookings; the part of\n    that the operator has already said yes to; and the difference \u2014 seats\n    held by requests still at the gate.\n``pending_count`` / ``staff_count``\n    Head-counts (see :func:`_booking_counts_per_day`).\n``bookable``\n    Whether any product on this pool is on sale that day. Policy never\n    moves this (OD-1) \u2014 the UI draws the two bands independently so\n    \"bookable + ask me for each unit\" is visibly different from \"not\n    bookable\".\n``units_in_service`` / ``units_in_service_ids``\n    How many of the pool's active units actually run on this day, and which\n    (landr-e80s.1) \u2014 resolved from ``resource_pool_unit_service_periods``'s\n    two kinds: in service = (no ``in_service`` rows OR covered by one) AND\n    covered by no ``out_of_service`` row. A unit with no service periods is\n    in service every day, so on a pool that never adopts schedules this is\n    always the full active roster and ``total_cap`` is unchanged.\n    ``total_cap``/``released_cap``/the release ladder are computed over\n    THESE units only. The units that are NOT running are never dropped from\n    the payload \u2014 they appear in ``units`` below with\n    ``service_state: \"out_of_service\"``.\n``over_capacity_bookings``\n    Non-empty only when the day's load exceeds the capacity that is in\n    service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``\n    for each booking that no longer fits, oldest-booked first\n    (:func:`_over_capacity_bookings`). Taking a unit out of service on a\n    day that already carries bookings must be visible, not silent \u2014 this is\n    the list the operator has to act on.\n``units``\n    EVERY active unit of the pool, in release order \u2014 never only the ones\n    running \u2014 as ``{id, name, capacity, load, state, released_by,\n    service_state, out_of_service_reason}``.\n\n    ``service_state`` is the SCHEDULE answer: ``in_service`` or\n    ``out_of_service``, with ``out_of_service_reason`` carrying the\n    covering ``out_of_service`` row's reason when there is one (``null``\n    when the unit is simply outside its season \u2014 nobody wrote a reason,\n    because nothing broke). That is what draws \"Unit 2 out of service\n    12-19 Dec (gearbox)\".\n\n    ``state`` is the LADDER answer, and only in-service units have one:\n    ``load`` fills them in ``sort_order``, which is how the release ladder\n    reads them, and ``state`` is ``full`` when the unit has no seats left,\n    else ``released`` (inside the released prefix) or ``needs_ok``. A unit\n    that is not running that day carries ``load: 0``,\n    ``released_by: null`` and ``state: \"out_of_service\"`` \u2014 it holds its\n    place in the roster but takes no load and no release state.\n\n    ``released_by`` is ``policy`` for units the period/default\n    released outright, ``approval`` for the ones approved load earned, and\n    ``null`` for a unit that is not released \u2014 so a ``full`` unit with\n    ``released_by = null`` reads correctly as \"full of requests that are\n    still waiting for you\", not \"auto-approving\". On an ``ask_every_time``\n    day NO unit is ever ``released`` regardless of load \u2014 every unit is\n    ``needs_ok`` or ``full``, ``released_by`` always ``null``\n    (``released_units``/``released_cap`` above still carry the numeric\n    parity value, they just describe no unit's on-screen state that day).\n``kind``\n    Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same\n    vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone\n    decides it); else ``shortage`` when ``total_load > total_cap``; else\n    ``opens`` when ``total_load > released_cap`` (load already sits past\n    what's released \u2014 the next unit is waiting to open); else ``null``. D5\n    draws the day pill from this rather than re-deriving it from the unit\n    list.\n``period_id``\n    The covering period row, or ``null`` where the pool default applies.\n\n``periods`` carries the full period rows overlapping the span so the\nPeriods tab and the Calendar tab can be rendered from one request, and\n``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,\n``default_released_units`` seeds the default control).",
+        "description": "One row per day in ``[from, to]`` (\u2264366 days).\n\nEvery policy/load number is the evaluator's own, computed with\n``capacity.resolve_release_per_day`` + ``_load_breakdown_per_day`` +\n``_unit_service_per_day`` + ``_released_capacity`` \u2014 the same calls\n``evaluate_capacity`` makes for a booking, for a date range instead of for\none product.\n\nPer-day fields:\n\n``mode`` / ``released_units_policy``\n    The resolved policy: a covering period, else the pool default\n    (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``\n    is ``n`` AFTER the clamp to the active unit count.\n``released_units`` / ``released_cap`` / ``released_unit_ids``\n    The released SET and its summed capacity \u2014 what actually\n    auto-approves. landr-c6cpm.2: resolved along\n    DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,\n    and NOT necessarily a prefix of the ladder \u2014 ``released_unit_ids`` is\n    the authoritative answer, the two numbers are derived from it.\n``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``\n    Seats: all units combined; seats held by live bookings; the part of\n    that the operator has already said yes to; and the difference \u2014 seats\n    held by requests still at the gate.\n``pending_count`` / ``staff_count``\n    Head-counts (see :func:`_booking_counts_per_day`).\n``bookable``\n    Whether any product on this pool is on sale that day. Policy never\n    moves this (OD-1) \u2014 the UI draws the two bands independently so\n    \"bookable + ask me for each unit\" is visibly different from \"not\n    bookable\".\n``units_in_service`` / ``units_in_service_ids``\n    How many of the pool's active units actually run on this day, and which\n    (landr-e80s.1) \u2014 resolved from ``resource_pool_unit_service_periods``'s\n    two kinds: in service = (no ``in_service`` rows OR covered by one) AND\n    covered by no ``out_of_service`` row. A unit with no service periods is\n    in service every day, so on a pool that never adopts schedules this is\n    always the full active roster and ``total_cap`` is unchanged.\n    ``total_cap``/``released_cap``/the release ladder are computed over\n    THESE units only. The units that are NOT running are never dropped from\n    the payload \u2014 they appear in ``units`` below with\n    ``service_state: \"out_of_service\"``.\n``over_capacity_bookings``\n    Non-empty only when the day's load exceeds the capacity that is in\n    service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``\n    for each booking that no longer fits, oldest-booked first\n    (:func:`_over_capacity_bookings`). Taking a unit out of service on a\n    day that already carries bookings must be visible, not silent \u2014 this is\n    the list the operator has to act on.\n``units``\n    EVERY active unit of the pool, in release order \u2014 never only the ones\n    running \u2014 as ``{id, name, capacity, load, state, released_by,\n    service_state, out_of_service_reason}``.\n\n    ``service_state`` is the SCHEDULE answer: ``in_service`` or\n    ``out_of_service``, with ``out_of_service_reason`` carrying the\n    covering ``out_of_service`` row's reason when there is one (``null``\n    when the unit is simply outside its season \u2014 nobody wrote a reason,\n    because nothing broke). That is what draws \"Unit 2 out of service\n    12-19 Dec (gearbox)\".\n\n    ``state`` is the LADDER answer, and only in-service units have one:\n    ``load`` fills them in ``sort_order``, which is how the release ladder\n    reads them, and ``state`` is ``full`` when the unit has no seats left,\n    else ``released`` (inside the released prefix) or ``needs_ok``. A unit\n    that is not running that day carries ``load: 0``,\n    ``released_by: null`` and ``state: \"out_of_service\"`` \u2014 it holds its\n    place in the roster but takes no load and no release state.\n\n    ``released_by`` is ``policy`` for units the period/pool default\n    released outright, ``day_override`` for a unit an operator (or the\n    auto-lock's counterpart, .3's approve dialog) opened for this one\n    date, and ``null`` for a unit that is not released \u2014 so a ``full``\n    unit with ``released_by = null`` reads correctly as \"full of requests\n    that are still waiting for you\", not \"auto-approving\". On an\n    ``ask_every_time`` day NO unit is ever released \u2014 every unit is\n    ``needs_ok`` or ``full``, ``released_by`` always ``null``.\n\n    landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer\n    releases the unit it sits on, so no unit is ever released \"by an\n    approval\" again. The value is gone rather than kept-and-unused, so a\n    consumer branching on it fails loudly instead of silently rendering a\n    state the API can no longer produce.\n\n    ``release_state`` (landr-c6cpm.2) is the COLOUR axis, kept separate\n    from ``state`` (the ladder/occupancy axis) so neither has to carry the\n    other's meaning: ``open`` (the rules release it \u2014 emerald),\n    ``ask`` (the rules do not; nobody shut it \u2014 violet),\n    ``closed`` (a ``resource_pool_unit_day_releases`` row with\n    ``released = false`` shut it for this date \u2014 slate), or\n    ``out_of_service``. ``occupancy_state`` is the FILL axis in the three\n    buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed\n    unit carrying approved passengers is a legal, meaningful glyph \u2014\n    \"closed\" gates NEW bookings only and is orthogonal to occupancy.\n\n    ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``\n    (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as\n    \"not released\": every unit past the release ladder is closed to new\n    bookings, but only some were shut on purpose \u2014 by an operator, or by\n    the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).\n\n    ``hold_detail`` is the auto-lock's reason as NUMBERS,\n    ``{requested_slots, remaining_slots}``, and deliberately NOT a\n    sentence: the sentence an operator reads (\"a 6-person request exceeds\n    the 3 remaining seats\") contains a noun that belongs to one operator's\n    pool and not the next one's, and slot vocabulary is per-operator\n    (``resource_pools.slot_label``). The dashboard composes the copy;\n    this endpoint ships the facts. ``hold_reason`` remains free text a\n    HUMAN typed, and is the fallback when there is no structured detail.\n    See :func:`_hold_fields`.\n``kind``\n    Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same\n    vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone\n    decides it); else ``shortage`` when ``total_load > total_cap``; else\n    ``opens`` when the load already on the books LANDS ON a unit that is\n    not released (the next unit is waiting to open); else ``null``. D5\n    draws the day pill from this rather than re-deriving it from the unit\n    list. landr-c6cpm.2 made that middle test positional rather than\n    ``total_load > released_cap`` \u2014 see the inline comment for why a sum\n    cannot answer it once the released set can have holes.\n``period_id``\n    The covering period row, or ``null`` where the pool default applies.\n\n``periods`` carries the full period rows overlapping the span so the\nPeriods tab and the Calendar tab can be rendered from one request, and\n``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,\n``default_released_units`` seeds the default control).",
         "operationId": "get_approval_calendar",
         "parameters": [
           {
@@ -28236,7 +28919,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/approval-periods": {
       "put": {
-        "description": "Set one policy across one or more date ranges, atomically.\n\nThe whole write is ``apply_resource_pool_approval_periods`` (migration\n20260903010000, actor param added by 20260903040000): one transaction\nthat trims/splits neighbouring periods, merges identical adjacent ones,\nsoft-deletes what it replaces (stamping ``deleted_by_user_id =\nmembership.user_id``) and ensures the pool's ``capacity_threshold`` rule\n(OD-2). A bad range anywhere in the body means NOTHING is written \u2014\nvalidation runs before the first write and the transaction rolls back\nregardless.\n\n``?dry_run=1`` returns exactly the rows the real call would produce\n(``id`` populated for the rows that would survive untouched, ``null`` for\nthe ones that would be created) and writes nothing at all \u2014 no period, no\nrule, no audit row. That is what the edit sheet's preview line is built\nfrom.",
+        "description": "Set one policy across one or more date ranges, atomically.\n\nThe whole write is ``apply_resource_pool_approval_periods`` (migration\n20260903010000, actor param 20260903040000, per-unit release set\n20260905222010): one transaction that trims/splits neighbouring periods,\nmerges identical adjacent ones, soft-deletes what it replaces (stamping\n``deleted_by_user_id = membership.user_id``) and ensures the pool's\n``capacity_threshold`` rule (OD-2). A bad range anywhere in the body means\nNOTHING is written \u2014 validation runs before the first write and the\ntransaction rolls back regardless.\n\nONE TRANSACTION IS NOT AN OPTIMISATION HERE (landr-c6cpm.9). A period's\nheader and its ``resource_pool_approval_period_units`` rows are checked\nagainst each other by a DEFERRABLE INITIALLY DEFERRED trigger, so they must\nCOMMIT together; two PostgREST calls each commit on their own and the first\none is rejected. That is why the release set is an argument to the RPC and\nnot a second endpoint.\n\nEach returned period carries ``released_unit_ids`` \u2014 the units it releases,\nby id. The legacy derived-count mirror ``released_units`` was dropped from\nthe table and this response by landr-c6cpm.13 (its last reader,\ncapacity.py, moved to the child rows in landr-c6cpm.2); a non-contiguous\nset was never expressible as a count, so read the ids.\n\n``?dry_run=1`` returns exactly the rows the real call would produce\n(``id`` populated for the rows that would survive untouched, ``null`` for\nthe ones that would be created) and writes nothing at all \u2014 no period, no\nrule, no audit row. That is what the edit sheet's preview line is built\nfrom.",
         "operationId": "apply_approval_periods",
         "parameters": [
           {
