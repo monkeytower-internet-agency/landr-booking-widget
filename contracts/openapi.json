@@ -10628,6 +10628,86 @@
         "title": "RetrievePatchIn",
         "type": "object"
       },
+      "RetryResponse": {
+        "description": "Result of POST .../holded/invoices/{sync_log_id}/retry \u2014 landr-g71ua.1.\n\nCarries the whole-pass counters (identical semantics to\n:class:`SyncResponse`, because a retry runs one real operator-scoped\npass) PLUS the ``row_*`` fields describing what happened to THE ROW THE\nUSER CLICKED. Both halves are needed and neither substitutes for the\nother: the pass drains every eligible pending row for the operator, so\n``failed=1`` does not tell the user whether the failure was theirs, and\n``attempted=3`` does not tell them whether their row was among the\nthree. The dashboard renders its toast off ``row_status``.\n\n``requeued`` distinguishes the two entry states this route accepts: a\n``failed`` row was reset to ``pending`` (true), while an already-\n``pending`` row only had its backoff cleared (false). It is NOT a\nsuccess signal \u2014 a requeued row can still fail again on the same pass,\nwhich is exactly what ``row_status='failed'`` plus a fresh\n``row_failure_reason`` then reports.",
+        "properties": {
+          "attempted": {
+            "default": 0,
+            "title": "Attempted",
+            "type": "integer"
+          },
+          "blocked": {
+            "default": 0,
+            "title": "Blocked",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "holded_not_connected": {
+            "default": false,
+            "title": "Holded Not Connected",
+            "type": "boolean"
+          },
+          "remaining_pending": {
+            "default": 0,
+            "title": "Remaining Pending",
+            "type": "integer"
+          },
+          "requeued": {
+            "default": false,
+            "title": "Requeued",
+            "type": "boolean"
+          },
+          "retried": {
+            "default": 0,
+            "title": "Retried",
+            "type": "integer"
+          },
+          "row_external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row External Reference"
+          },
+          "row_failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Failure Reason"
+          },
+          "row_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Status"
+          },
+          "succeeded": {
+            "default": 0,
+            "title": "Succeeded",
+            "type": "integer"
+          }
+        },
+        "title": "RetryResponse",
+        "type": "object"
+      },
       "RevenueOverview": {
         "properties": {
           "currency": {
@@ -12327,6 +12407,54 @@
         "title": "TagPatch",
         "type": "object"
       },
+      "TaxRateCheck": {
+        "description": "Is the operator's configured sales-tax rate actually usable against\nthe Holded account this credential belongs to? \u2014 landr-g71ua.1.\n\nA mismatch here used to be undiscoverable until a background sync worker\nhard-failed an invoice days later with an opaque\n``holded_tax_key_unresolved``. The full catalogue is already fetched by\n``preflight()``'s ``accounting:taxes.read`` probe, so answering it at\nconfiguration time \u2014 while the operator is standing in front of the\nIntegrations screen \u2014 costs nothing extra.\n\n``matched=False`` is a WARNING, not an error: the key works, the\ninvoices just cannot be taxed. Holded's v2 API is GET-only for taxes\n(there is no create-tax endpoint), so the resolution is always human \u2014\ncreate the rate in Holded's web UI, or set ``holded_sales_tax_key``.",
+        "properties": {
+          "available_pcts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Pcts",
+            "type": "array"
+          },
+          "matched": {
+            "title": "Matched",
+            "type": "boolean"
+          },
+          "matched_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Key"
+          },
+          "operator_rate_pct": {
+            "title": "Operator Rate Pct",
+            "type": "string"
+          },
+          "override_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Key"
+          }
+        },
+        "required": [
+          "operator_rate_pct",
+          "matched"
+        ],
+        "title": "TaxRateCheck",
+        "type": "object"
+      },
       "TestEmailRequest": {
         "description": "Body of POST /api/operator/email-sender/test.",
         "properties": {
@@ -12580,7 +12708,7 @@
         "type": "object"
       },
       "VerifyResult": {
-        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.",
+        "description": "Result of POST .../integrations/{provider}/{mode}/verify. Never\npersisted server-side \u2014 the dashboard holds this in local component state\nonly, so a page refresh reverts to the \"Configured\" (stored) badge.\n\n``checks``/``missing_scopes``/``required_scopes`` are populated only for\nprovider='holded' (landr-g1ao.4's scope preflight \u2014 see\n:meth:`HoldedClient.preflight`); Stripe verification stays a plain\nliveness check and leaves all three at their empty defaults.\n\nFor Holded, ``checks``/``missing_scopes`` cover ONLY the three READ\nscopes :meth:`HoldedClient.preflight` can cheaply probe without writing\ndata \u2014 ``contacts:contacts.read``, ``sales:invoices.read``,\n``accounting:taxes.read``. The two WRITE scopes\n(``contacts:contacts.write``, ``sales:invoices.write``) and\n``sales:invoicing-settings.read`` are ADVERTISED, NOT VERIFIED: Holded\nhas no scope-catalogue endpoint, and a write scope can only be proven\nby an actual write \u2014 which this always-safe \"Test connection\" check\nnever performs. ``required_scopes`` carries the full six-scope set\n(mirrors ``app.integrations.holded.HOLDED_REQUIRED_SCOPES`` verbatim)\nso neither frontend has to hard-code that list; diff it against\n``checks``'s keys to know which three of the six this call actually\nverified, and render the other three as advertised-not-verified.\n\n``detail`` is a SHORT CODE \u2014 one of ``'rejected_key'``,\n``'missing_scope'``, ``'rate_limited'``, or ``'likely_v1_key'`` (see\n``_verify_holded``) \u2014 for the paths this handler fully controls, OR A\nPLAIN-ENGLISH PROSE SENTENCE for the remaining error paths that only\nhave a safe, generic message to give: an unexpected Holded error, an\nunreachable Holded, a stored-credential decrypt failure, \"no\ncredentials configured\", and a probe that got a 200 whose body wasn't\nJSON (Holded is documented to serve its SPA HTML shell with a 200 on\nendpoints it isn't actually answering \u2014 a 200 alone is not proof a\nscope exists). A frontend MUST NOT build a fixed lookup keyed only on\nthe four short codes above and fall through to blank/raw output on\neverything else \u2014 treat any ``detail`` that isn't one of the four known\ncodes as already-safe prose and render it as-is. A scope name itself\nnever goes in ``detail``, only in ``missing_scopes``.\n\n``tax_rate_check`` (landr-g71ua.1) is an ADDITIVE CONFIGURATION\nWARNING and never influences ``ok``: the credential itself genuinely\nworks, and flipping ``ok`` to false would make both frontends render a\nperfectly valid key as broken. ``None`` means NOT CHECKABLE (Stripe, a\ntaxes probe that did not return a usable catalogue, or an operator with\nno ``default_tax_rate``) \u2014 the UI must then render NOTHING, never a\nspeculative \"incompatible\".",
         "properties": {
           "checks": {
             "additionalProperties": {
@@ -12617,6 +12745,16 @@
             },
             "title": "Required Scopes",
             "type": "array"
+          },
+          "tax_rate_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxRateCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -23976,9 +24114,66 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
+      "post": {
+        "description": "Retry ONE Holded invoice transfer \u2014 landr-g71ua.1.\n\n``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can\nnever be picked up by any later pass. This route is the only way back:\nit makes the row eligible again and then runs one real pass, reporting\nboth the pass counters and the row's own resulting state.\n\nTwo accepted entry states, deliberately handled differently:\n\n  * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,\n    ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter\n    resets because a human explicitly asked for another go \u2014 otherwise a\n    row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail\n    straight back to ``failed`` on its first transient error.\n  * ``pending`` -> do NOT rewrite the row. It is already eligible; all a\n    retry can add is skipping the remaining backoff, so only\n    ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would\n    throw away a live retry budget the worker is legitimately using.\n\nEvery other state 409s with its own message (see ``_RETRY_CONFLICTS``);\nan unknown/other-operator/non-invoice row 404s.\n\nThe requeue UPDATE is conditional on ``status='failed'`` \u2014 the same\ncompare-and-set discipline ``_claim_row`` uses. A concurrent worker or a\nsecond retry press that got there first therefore cannot be clobbered:\nzero affected rows means we lost, so we re-read and re-run the gate\ninstead of proceeding on a stale view of the row.",
+        "operationId": "retry_holded_invoice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sync_log_id",
+            "required": true,
+            "schema": {
+              "title": "Sync Log Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Retry Holded Invoice",
+        "tags": [
+          "staff-holded-invoicing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/holded/sync": {
       "post": {
-        "description": "Run one operator-scoped Holded sync pass synchronously and return counts.\n\nReuses ``run_holded_sync`` with ``operator_id`` scoping (the worker's\nSELECT already narrows to that operator and to pending Holded rows whose\nbackoff has elapsed). When the operator has no decrypted Holded key we\nshort-circuit to a ``holded_not_connected`` 200 body \u2014 the rows stay\npending and the dashboard renders a connect affordance.",
+        "description": "Run one operator-scoped Holded sync pass synchronously and return counts.\n\nReuses ``run_holded_sync`` with ``operator_id`` scoping (the worker's\nSELECT already narrows to that operator and to pending Holded rows whose\nbackoff has elapsed). When the operator has no decrypted Holded key we\nshort-circuit to a ``holded_not_connected`` 200 body \u2014 the rows stay\npending and the dashboard renders a connect affordance.\n\nNOTE this pass can only ever touch ``pending`` rows. A row already at\n``status='failed'`` needs [C], the per-row retry \u2014 pointing a \"Retry\"\naffordance at THIS route is what landr-g71ua was filed about.",
         "operationId": "run_operator_holded_sync",
         "parameters": [
           {

@@ -3958,6 +3958,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Holded Invoice
+         * @description Retry ONE Holded invoice transfer — landr-g71ua.1.
+         *
+         *     ``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can
+         *     never be picked up by any later pass. This route is the only way back:
+         *     it makes the row eligible again and then runs one real pass, reporting
+         *     both the pass counters and the row's own resulting state.
+         *
+         *     Two accepted entry states, deliberately handled differently:
+         *
+         *       * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,
+         *         ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter
+         *         resets because a human explicitly asked for another go — otherwise a
+         *         row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail
+         *         straight back to ``failed`` on its first transient error.
+         *       * ``pending`` -> do NOT rewrite the row. It is already eligible; all a
+         *         retry can add is skipping the remaining backoff, so only
+         *         ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would
+         *         throw away a live retry budget the worker is legitimately using.
+         *
+         *     Every other state 409s with its own message (see ``_RETRY_CONFLICTS``);
+         *     an unknown/other-operator/non-invoice row 404s.
+         *
+         *     The requeue UPDATE is conditional on ``status='failed'`` — the same
+         *     compare-and-set discipline ``_claim_row`` uses. A concurrent worker or a
+         *     second retry press that got there first therefore cannot be clobbered:
+         *     zero affected rows means we lost, so we re-read and re-run the gate
+         *     instead of proceeding on a stale view of the row.
+         */
+        post: operations["retry_holded_invoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/holded/sync": {
         parameters: {
             query?: never;
@@ -3976,6 +4022,10 @@ export interface paths {
          *     backoff has elapsed). When the operator has no decrypted Holded key we
          *     short-circuit to a ``holded_not_connected`` 200 body — the rows stay
          *     pending and the dashboard renders a connect affordance.
+         *
+         *     NOTE this pass can only ever touch ``pending`` rows. A row already at
+         *     ``status='failed'`` needs [C], the per-row retry — pointing a "Retry"
+         *     affordance at THIS route is what landr-g71ua was filed about.
          */
         post: operations["run_operator_holded_sync"];
         delete?: never;
@@ -9669,6 +9719,74 @@ export interface components {
             /** Retrieve State */
             retrieve_state?: string | null;
         };
+        /**
+         * RetryResponse
+         * @description Result of POST .../holded/invoices/{sync_log_id}/retry — landr-g71ua.1.
+         *
+         *     Carries the whole-pass counters (identical semantics to
+         *     :class:`SyncResponse`, because a retry runs one real operator-scoped
+         *     pass) PLUS the ``row_*`` fields describing what happened to THE ROW THE
+         *     USER CLICKED. Both halves are needed and neither substitutes for the
+         *     other: the pass drains every eligible pending row for the operator, so
+         *     ``failed=1`` does not tell the user whether the failure was theirs, and
+         *     ``attempted=3`` does not tell them whether their row was among the
+         *     three. The dashboard renders its toast off ``row_status``.
+         *
+         *     ``requeued`` distinguishes the two entry states this route accepts: a
+         *     ``failed`` row was reset to ``pending`` (true), while an already-
+         *     ``pending`` row only had its backoff cleared (false). It is NOT a
+         *     success signal — a requeued row can still fail again on the same pass,
+         *     which is exactly what ``row_status='failed'`` plus a fresh
+         *     ``row_failure_reason`` then reports.
+         */
+        RetryResponse: {
+            /**
+             * Attempted
+             * @default 0
+             */
+            attempted: number;
+            /**
+             * Blocked
+             * @default 0
+             */
+            blocked: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Holded Not Connected
+             * @default false
+             */
+            holded_not_connected: boolean;
+            /**
+             * Remaining Pending
+             * @default 0
+             */
+            remaining_pending: number;
+            /**
+             * Requeued
+             * @default false
+             */
+            requeued: boolean;
+            /**
+             * Retried
+             * @default 0
+             */
+            retried: number;
+            /** Row External Reference */
+            row_external_reference?: string | null;
+            /** Row Failure Reason */
+            row_failure_reason?: string | null;
+            /** Row Status */
+            row_status?: string | null;
+            /**
+             * Succeeded
+             * @default 0
+             */
+            succeeded: number;
+        };
         /** RevenueOverview */
         RevenueOverview: {
             /** Currency */
@@ -10317,6 +10435,35 @@ export interface components {
             name?: string | null;
         };
         /**
+         * TaxRateCheck
+         * @description Is the operator's configured sales-tax rate actually usable against
+         *     the Holded account this credential belongs to? — landr-g71ua.1.
+         *
+         *     A mismatch here used to be undiscoverable until a background sync worker
+         *     hard-failed an invoice days later with an opaque
+         *     ``holded_tax_key_unresolved``. The full catalogue is already fetched by
+         *     ``preflight()``'s ``accounting:taxes.read`` probe, so answering it at
+         *     configuration time — while the operator is standing in front of the
+         *     Integrations screen — costs nothing extra.
+         *
+         *     ``matched=False`` is a WARNING, not an error: the key works, the
+         *     invoices just cannot be taxed. Holded's v2 API is GET-only for taxes
+         *     (there is no create-tax endpoint), so the resolution is always human —
+         *     create the rate in Holded's web UI, or set ``holded_sales_tax_key``.
+         */
+        TaxRateCheck: {
+            /** Available Pcts */
+            available_pcts?: string[];
+            /** Matched */
+            matched: boolean;
+            /** Matched Key */
+            matched_key?: string | null;
+            /** Operator Rate Pct */
+            operator_rate_pct: string;
+            /** Override Key */
+            override_key?: string | null;
+        };
+        /**
          * TestEmailRequest
          * @description Body of POST /api/operator/email-sender/test.
          */
@@ -10481,6 +10628,14 @@ export interface components {
          *     everything else — treat any ``detail`` that isn't one of the four known
          *     codes as already-safe prose and render it as-is. A scope name itself
          *     never goes in ``detail``, only in ``missing_scopes``.
+         *
+         *     ``tax_rate_check`` (landr-g71ua.1) is an ADDITIVE CONFIGURATION
+         *     WARNING and never influences ``ok``: the credential itself genuinely
+         *     works, and flipping ``ok`` to false would make both frontends render a
+         *     perfectly valid key as broken. ``None`` means NOT CHECKABLE (Stripe, a
+         *     taxes probe that did not return a usable catalogue, or an operator with
+         *     no ``default_tax_rate``) — the UI must then render NOTHING, never a
+         *     speculative "incompatible".
          */
         VerifyResult: {
             /** Checks */
@@ -10495,6 +10650,7 @@ export interface components {
             ok: boolean;
             /** Required Scopes */
             required_scopes?: string[];
+            tax_rate_check?: components["schemas"]["TaxRateCheck"] | null;
         };
         /** VersionOut */
         VersionOut: {
@@ -17033,6 +17189,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvoicesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_holded_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                sync_log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryResponse"];
                 };
             };
             /** @description Validation Error */
