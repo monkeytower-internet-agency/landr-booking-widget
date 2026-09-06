@@ -5664,6 +5664,14 @@
             ],
             "title": "Capacity"
           },
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -5700,7 +5708,9 @@
           "unit_label",
           "unit_label_plural",
           "sort_order",
-          "in_service"
+          "in_service",
+          "icon",
+          "color"
         ],
         "title": "ManifestUnit",
         "type": "object"
