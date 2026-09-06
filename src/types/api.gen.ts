@@ -9951,6 +9951,8 @@ export interface components {
         SetStageResult: {
             /** Applied */
             applied: boolean;
+            /** Capacity Warnings */
+            capacity_warnings?: string[];
             /** Current Stage Code */
             current_stage_code: string;
             /** Ok */
@@ -10177,6 +10179,7 @@ export interface components {
             notes?: string | null;
             /** Reject Reason Code */
             reject_reason_code?: string | null;
+            unit_release?: components["schemas"]["StaffUnitReleaseIn"] | null;
         };
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
@@ -10231,6 +10234,40 @@ export interface components {
             products: components["schemas"]["ProductLineIn"][];
             /** Staff Session */
             staff_session: string;
+        };
+        /**
+         * StaffUnitReleaseIn
+         * @description The operator's answer to the approve-time release question.
+         *
+         *     landr-c6cpm.3. Sent ONLY when the approval would land on a unit that is
+         *     not released — which is a small minority of approvals, so the whole object
+         *     is absent from a normal approve body rather than present-and-empty.
+         *
+         *     ``pool_id`` / ``date`` / ``unit_id`` are echoed back by the dashboard from
+         *     the gate it was shown, so the API never has to re-derive WHICH gate the
+         *     operator answered and can refuse a stale answer (they sat on the dialog
+         *     while a sibling approval moved the calendar) instead of applying it to a
+         *     different unit.
+         */
+        StaffUnitReleaseIn: {
+            /** Additional Units */
+            additional_units?: number | null;
+            /** Date */
+            date: string;
+            /**
+             * Intent
+             * @enum {string}
+             */
+            intent: "open_this" | "open_this_plus" | "open_none";
+            /** Pool Id */
+            pool_id: string;
+            /**
+             * Reopen Held Unit
+             * @default false
+             */
+            reopen_held_unit: boolean;
+            /** Unit Id */
+            unit_id?: string | null;
         };
         /**
          * StagingActivityIn
