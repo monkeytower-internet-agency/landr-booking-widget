@@ -5169,9 +5169,10 @@ export interface paths {
          *     not a second endpoint.
          *
          *     Each returned period carries ``released_unit_ids`` — the units it releases,
-         *     by id. ``released_units`` is still present but is a LEGACY derived count
-         *     (see the column comment in 20260905222010) and cannot express a
-         *     non-contiguous set; read the ids.
+         *     by id. The legacy derived-count mirror ``released_units`` was dropped from
+         *     the table and this response by landr-c6cpm.13 (its last reader,
+         *     capacity.py, moved to the child rows in landr-c6cpm.2); a non-contiguous
+         *     set was never expressible as a count, so read the ids.
          *
          *     ``?dry_run=1`` returns exactly the rows the real call would produce
          *     (``id`` populated for the rows that would survive untouched, ``null`` for
