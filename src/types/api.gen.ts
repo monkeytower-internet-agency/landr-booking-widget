@@ -7199,6 +7199,10 @@ export interface components {
             pickup_lat?: number | null;
             /** Pickup Lng */
             pickup_lng?: number | null;
+            /** Pickup Location Color */
+            pickup_location_color?: string | null;
+            /** Pickup Location Icon */
+            pickup_location_icon?: string | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
             /** Pickup Location Name */

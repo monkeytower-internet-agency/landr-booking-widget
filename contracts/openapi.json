@@ -2809,6 +2809,28 @@
             ],
             "title": "Pickup Lng"
           },
+          "pickup_location_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Color"
+          },
+          "pickup_location_icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location Icon"
+          },
           "pickup_location_id": {
             "anyOf": [
               {
