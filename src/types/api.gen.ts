@@ -8108,6 +8108,10 @@ export interface components {
         ManifestUnit: {
             /** Capacity */
             capacity?: number | null;
+            /** Color */
+            color: string;
+            /** Icon */
+            icon: string;
             /** Id */
             id: string;
             /** In Service */
