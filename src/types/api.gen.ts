@@ -7362,6 +7362,8 @@ export interface components {
             day_date: string;
             /** Expected Back At */
             expected_back_at?: string | null;
+            /** Language */
+            language?: string | null;
             /** Name */
             name: string;
             /** Note */
