@@ -4738,62 +4738,6 @@ export interface paths {
         patch: operations["patch_product"];
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/products/{product_id}/approval-override": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Product Approval Override
-         * @description Soft-delete the product's ``product_override`` approval rule — the
-         *     service-role half of ``approvalRules.ts``'s
-         *     ``saveProductAlwaysManualApproval(operatorId, productId, label, false)``
-         *     (approvalRules.ts:120-158), landr-uy4jy.1's audit finding #2.
-         *
-         *     THE BUG THIS FIXES. That function's ``desired=false`` branch does
-         *     ``update({active: false, deleted_at: now()}).eq('id', existing.id)``
-         *     straight over PostgREST — no ``.select()`` chained, which looks safe but
-         *     isn't: ``approval_rules``' SELECT policy is ``is_tenant_visible(operator_id)
-         *     AND deleted_at IS NULL`` (20260513084829), byte-identical in shape to
-         *     ``resource_pool_units``', and PostgREST issues ``RETURNING *`` on every
-         *     UPDATE internally regardless of ``Prefer`` (it needs the row count for
-         *     ``Content-Range``). The RETURNING row — just soft-deleted — fails that
-         *     SELECT policy, Postgres aborts the WHOLE UPDATE, and the toggle silently
-         *     writes nothing: turning a product's "Always ask me" switch OFF has been a
-         *     no-op since this table's RLS policy was written, unnoticed because the
-         *     symptom (switch appears to flip in the optimistic UI, then reverts or
-         *     just never took effect) doesn't look like a hard error. See
-         *     :func:`delete_resource_pool_unit` (``staff_resource_pool_approval_periods.py``)
-         *     for the full audit and the empirical proof
-         *     (``test_staff_resource_pool_units.py::TestRlsReproduction``) that this
-         *     happens under ``Prefer: return=minimal`` too, not only
-         *     ``return=representation``.
-         *
-         *     The INSERT and reactivate (``active: true``, no ``deleted_at`` change)
-         *     branches of the same dashboard function are NOT affected — neither one
-         *     ever makes the row's own SELECT policy go false — so they stay on direct
-         *     REST; this route only replaces the soft-delete branch.
-         *
-         *     Idempotent (unlike :func:`delete_resource_pool_unit`, deliberately NOT a
-         *     404 when there is nothing to delete): the dashboard function's own
-         *     contract for ``desired=false`` is "no live row → no-op", and this route
-         *     is a straight swap-in for that one branch, not a new contract the
-         *     dashboard has to branch around.
-         *
-         *     Response: ``{"status": "deleted", "rule": {...}}`` or
-         *     ``{"status": "noop"}`` when there is no live override to remove.
-         */
-        delete: operations["delete_product_approval_override"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/products/{product_id}/availability": {
         parameters: {
             query?: never;
@@ -5075,13 +5019,10 @@ export interface paths {
          *         is ``n`` AFTER the clamp to the active unit count.
          *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
          *         The released SET and its summed capacity — what actually
-         *         auto-approves. landr-c6cpm.2: never earned by approved load, and NOT
-         *         necessarily a prefix of the ladder — ``released_unit_ids`` is the
-         *         authoritative answer, the two numbers are derived from it. Resolved
-         *         along AUTO HOLD > PERIOD > POOL DEFAULT (landr-uy4jy.2): the covering
-         *         period's set, or the pool default, MINUS the units an auto-lock is
-         *         holding for that date. There is no operator layer above the period any
-         *         more — an operator's per-day answer IS a one-day period.
+         *         auto-approves. landr-c6cpm.2: resolved along
+         *         DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,
+         *         and NOT necessarily a prefix of the ladder — ``released_unit_ids`` is
+         *         the authoritative answer, the two numbers are derived from it.
          *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
          *         Seats: all units combined; seats held by live bookings; the part of
          *         that the operator has already said yes to; and the difference — seats
@@ -5131,18 +5072,14 @@ export interface paths {
          *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
          *         place in the roster but takes no load and no release state.
          *
-         *         ``released_by`` is ``policy`` for every released unit and ``null``
-         *         for a unit that is not released — so a ``full`` unit with
-         *         ``released_by = null`` reads correctly as "full of requests that are
-         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
-         *         day NO unit is ever released — every unit is ``needs_ok`` or ``full``,
-         *         ``released_by`` always ``null``.
-         *
-         *         The value ``day_override`` is no longer produced (landr-uy4jy.2):
-         *         opening a unit for one date is a one-day PERIOD now, so every release
-         *         comes from policy. The value is left in the vocabulary rather than
-         *         deleted because the dashboard still branches on it and a period-shaped
-         *         release is genuinely ``policy``; nothing renders differently.
+         *         ``released_by`` is ``policy`` for units the period/pool default
+         *         released outright, ``day_override`` for a unit an operator (or the
+         *         auto-lock's counterpart, .3's approve dialog) opened for this one
+         *         date, and ``null`` for a unit that is not released — so a ``full``
+         *         unit with ``released_by = null`` reads correctly as "full of requests
+         *         that are still waiting for you", not "auto-approving". On an
+         *         ``ask_every_time`` day NO unit is ever released — every unit is
+         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``.
          *
          *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
          *         releases the unit it sits on, so no unit is ever released "by an
@@ -5154,11 +5091,9 @@ export interface paths {
          *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
          *         other's meaning: ``open`` (the rules release it — emerald),
          *         ``ask`` (the rules do not; nobody shut it — violet),
-         *         ``closed`` (an AUTO-LOCK — a ``resource_pool_unit_day_releases`` row
-         *         with ``released = false`` and ``hold_source = 'auto'`` — shut it for
-         *         this date, slate), or ``out_of_service``. landr-uy4jy.2 narrowed
-         *         ``closed`` to the auto-lock: an operator holding a unit is now the
-         *         unit's ABSENCE from the day's period set, which is ``ask``. ``occupancy_state`` is the FILL axis in the three
+         *         ``closed`` (a ``resource_pool_unit_day_releases`` row with
+         *         ``released = false`` shut it for this date — slate), or
+         *         ``out_of_service``. ``occupancy_state`` is the FILL axis in the three
          *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
          *         unit carrying approved passengers is a legal, meaningful glyph —
          *         "closed" gates NEW bookings only and is orthogonal to occupancy.
@@ -5166,11 +5101,8 @@ export interface paths {
          *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
          *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
          *         "not released": every unit past the release ladder is closed to new
-         *         bookings, but only the auto-lock shuts one on purpose.
-         *         ``hold_source`` is therefore always ``auto`` now (landr-uy4jy.2) —
-         *         an operator's "Ask me" is a period, not a hold — and the field stays
-         *         because the vocabulary is the dashboard's and a second source could
-         *         return.
+         *         bookings, but only some were shut on purpose — by an operator, or by
+         *         the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).
          *
          *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
          *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
@@ -5191,39 +5123,8 @@ export interface paths {
          *         list. landr-c6cpm.2 made that middle test positional rather than
          *         ``total_load > released_cap`` — see the inline comment for why a sum
          *         cannot answer it once the released set can have holes.
-         *     ``participants_total`` / ``units_needed`` / ``units_needed_basis`` /
-         *     ``units_available`` / ``shortage`` (landr-w9yk8.4)
-         *         Supply vs demand in WHOLE UNITS — "do I have enough buses tomorrow",
-         *         the question the day header turns red on. ``participants_total`` is
-         *         the guiding head-count (a PEOPLE number, not the pool's load — a
-         *         1-guide-per-6-paddlers pool has 12 participants and a load of 2);
-         *         ``units_needed`` is the number of DISTINCT units the day board has
-         *         participants assigned to, or, when nobody has assigned anybody yet,
-         *         the units the day's load occupies walking the fleet ladder by each
-         *         unit's own capacity (``units_needed_basis`` says which);
-         *         ``units_available`` is in fleet AND in service, regardless of release,
-         *         because a bus that needs the operator's OK still drives; and
-         *         ``shortage`` is ``max(0, needed - available)``.
-         *
-         *         ``shortage`` is NOT the same red as ``kind == "shortage"``: this one
-         *         counts units and asks whether any vehicle is missing, that one counts
-         *         seats and asks whether the people fit. A day can be either without
-         *         being the other. See ``app/services/pool_day_supply.py``.
-         *
-         *     ``units[].day_state`` / ``units[].reason`` / ``units[].approval``
-         *         (landr-w9yk8.4) The epic's COLLAPSED per-unit model, additive next to
-         *         the three legacy axes: one status (``available`` / ``not_available``),
-         *         one approval axis (``auto`` / ``ask``), and a ``reason``
-         *         (``out_of_service`` / ``closed_period`` / ``not_released`` / null)
-         *         that is only ever the cause icon, never a third state. The key is
-         *         ``day_state`` and not ``state`` on purpose — ``state`` above is the
-         *         legacy ladder axis the shipped dashboard still reads, and it is
-         *         deleted by the dashboard tickets, not by this one.
-         *
          *     ``period_id``
          *         The covering period row, or ``null`` where the pool default applies.
-         *         Since landr-uy4jy.2 this is the WHOLE operator story for the day: a
-         *         day the operator answered by hand has a period covering exactly it.
          *
          *     ``periods`` carries the full period rows overlapping the span so the
          *     Periods tab and the Calendar tab can be rendered from one request, and
@@ -5278,15 +5179,6 @@ export interface paths {
          *     the ones that would be created) and writes nothing at all — no period, no
          *     rule, no audit row. That is what the edit sheet's preview line is built
          *     from.
-         *
-         *     ``replace_period_id`` (landr-zb9gk.1) is the id of the period this PUT is
-         *     EDITING, so a shrink is not the no-op it would otherwise be: the RPC
-         *     excludes that period from the neighbours it carves fragments out of, then
-         *     soft-deletes it outright before writing the new ranges, rather than
-         *     letting its untouched days survive as an identical-policy fragment that
-         *     would immediately merge back onto the request. A syntactically invalid id
-         *     is a 404 here (mirroring :func:`delete_approval_period`); an id that does
-         *     not resolve to an active period of this pool is a 404 from the RPC itself.
          */
         put: operations["apply_approval_periods"];
         post?: never;
@@ -5325,80 +5217,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/impact-preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Impact Preview
-         * @description The future days that would go SHORT if this unit went away.
-         *
-         *     Backs the epic's warn-and-confirm dialog (D7 / landr-w9yk8.11): turning a
-         *     unit's In-fleet switch off, or scheduling it out of service, opens a table
-         *     of the days that would then have fewer units than they need, and a
-         *     "Deactivate anyway" button. The epic is explicit that this NEVER blocks —
-         *     the bus may really be broken — so this endpoint informs and returns; it
-         *     has no opinion and no veto.
-         *
-         *     **Read-only.** Nothing is written, whatever the answer, and the unit is in
-         *     exactly the state it was before. That is why the change travels in the
-         *     body instead of the endpoint being a ``dry_run`` flag on the real write:
-         *     the operator asks this question BEFORE deciding, often without ever making
-         *     the change.
-         *
-         *     Body::
-         *
-         *         {"unit_id": "…", "change": "not_in_fleet"}
-         *         {"unit_id": "…", "change": {"out_of_service": {"start_date": "…",
-         *                                                        "end_date": "…"}}}
-         *
-         *     Returns ``days``: one row per FUTURE day whose ``shortage_after`` is
-         *     positive, each ``{date, participants_total, units_needed,
-         *     units_available_before, units_available_after, shortage_before,
-         *     shortage_after, newly}``. Days that are FINE after the change are absent;
-         *     days that are short are all present, INCLUDING ones that were already
-         *     short before it and are no worse for it, with ``newly: false``.
-         *
-         *     That inclusion is deliberate, not an oversight (landr-w9yk8.17 confirmed
-         *     the filter is ``shortage_after > 0`` and nothing more). The D7 dialog asks
-         *     "if I do this, what does my next year look like" — an operator about to
-         *     take a bus off the road needs the whole list of days they will be short,
-         *     not only the increment this one action adds. ``newly`` is what separates
-         *     the two, so the dialog can lead with "3 new, 1 already short" without the
-         *     API having to guess which framing it wants.
-         *
-         *     ``units_needed`` is computed against TODAY's fleet and does not move with
-         *     the change — demand is a property of the bookings, and a bus breaking does
-         *     not make fewer people show up. Computing it against the post-change fleet
-         *     is the tempting mistake that makes every preview come back empty: the
-         *     ladder would shrink in step with the supply and the shortage would cancel
-         *     itself out. See ``app/services/pool_day_supply.py``.
-         *
-         *     The window is the operator's today … +365 days, overridable with
-         *     ``from``/``to`` (at most ``MAX_CALENDAR_DAYS``) — bounded for the same
-         *     reason :func:`_consequence_window` documents, and starting at the
-         *     OPERATOR's today rather than the server's so an operator west of UTC does
-         *     not lose the day they are standing in.
-         *
-         *     Today is a FLOOR, not just a default (``clamp_to_today=True``): a ``from``
-         *     in the past is lifted to today rather than honoured, and a window that
-         *     ends before today returns no days at all. A unit leaving service cannot
-         *     un-take a booking that already happened, so a past day in this response
-         *     would be a row the operator can do nothing about. Before landr-w9yk8.17
-         *     that was a promise this docstring made and the query string could break.
-         */
-        post: operations["impact_preview"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/service-periods/{period_id}": {
         parameters: {
             query?: never;
@@ -5423,224 +5241,6 @@ export interface paths {
          *     :func:`delete_unit_scoped_service_period` for the unit-scoped alias.
          */
         delete: operations["delete_unit_service_period"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Resource Pool Unit
-         * @description Soft-delete one unit (Pattern A + ``active = false``) — the fix for
-         *     epic decision 5 (landr-uy4jy).
-         *
-         *     WHY THIS IS A ROUTE, NOT A DIRECT-REST WRITE (the module docstring's "WHY
-         *     A ROUTER AT ALL" #3). ``resourcePools.ts``'s ``softDeleteResourcePoolUnit``
-         *     (resourcePools.ts:432) does the obvious thing — ``update({active: false,
-         *     deleted_at: ...}).eq('id', unitId).select(UNIT_SELECT).single()`` — and it
-         *     42501s: "new row violates row-level security policy for table
-         *     resource_pool_units". ``resource_pool_units_tenant_select`` is
-         *     ``is_tenant_visible(operator_id) AND deleted_at IS NULL`` (migration
-         *     20260513085205), and PostgREST issues ``RETURNING *`` on every UPDATE
-         *     internally regardless of the ``Prefer`` header — it needs the affected-row
-         *     count for ``Content-Range`` whether or not the client asked for a body —
-         *     so Postgres checks the RETURNING row against that SELECT policy on EVERY
-         *     soft-delete of this table, and the row this statement just stamped
-         *     ``deleted_at`` onto no longer passes it. Because that check runs inside
-         *     the SAME statement, Postgres aborts the WHOLE UPDATE, not just the
-         *     response body: **the row is not soft-deleted either.** Verified directly
-         *     (``test_staff_resource_pool_units.py``, ``TestRlsReproduction``): a
-         *     ``Prefer: return=minimal`` call — no ``.select()``, no representation
-         *     requested — 42501s identically and leaves the row untouched. This
-         *     service-role route bypasses RLS entirely, so neither the write nor any
-         *     read-back is affected.
-         *
-         *     AUDIT (ticket step 3): the two sibling direct-REST soft-deletes in this
-         *     domain hit the EXACT SAME bug — ``products`` and ``approval_rules`` carry
-         *     the byte-identical ``is_tenant_visible(operator_id) AND deleted_at IS
-         *     NULL`` SELECT-policy shape (verified via ``pg_policy``), and PostgREST's
-         *     always-RETURNING behaviour above doesn't care whether the client chained
-         *     ``.select()``. Concretely:
-         *
-         *     * ``products.ts``'s ``softDeleteProduct`` (products.ts:436, called from
-         *       ``ProductsManager.tsx:508`` — the dashboard's real "delete product"
-         *       button) 42501s and silently deletes NOTHING today. A working
-         *       service-role route already exists for this
-         *       (``delete_product``, ``staff_products.py``) — nobody had wired the
-         *       dashboard to it, presumably because the direct-REST call looked fine
-         *       in isolation (no ``.select()``, so no reason to suspect RLS). This PR
-         *       does not touch the dashboard (out of this ticket's repo); filed as a
-         *       dashboard-side follow-up alongside landr-uy4jy.6.
-         *     * ``approvalRules.ts``'s override-clear branch (approvalRules.ts:158,
-         *       inside ``saveProductAlwaysManualApproval``, called from the product
-         *       form's "Always ask me" toggle) 42501s the same way when turning the
-         *       override OFF — also silently writes nothing. No service-role route
-         *       existed for this at all; this PR adds
-         *       :func:`delete_product_approval_override` in ``staff_products.py``.
-         *
-         *     Both are proven, not inferred: ``test_staff_resource_pool_units.py``
-         *     reproduces every one of the three tables' soft-deletes directly over
-         *     PostgREST with a real member JWT (never service role, which bypasses RLS
-         *     and would prove nothing) under BOTH ``Prefer`` values, and all three
-         *     42501 identically regardless of which header is sent.
-         *
-         *     Deliberately NOT a hard delete: the audit trail for "who took this unit
-         *     out of the fleet, and when" is the whole point of Pattern A, same as
-         *     :func:`delete_approval_period`.
-         *
-         *     Response: ``{"status": "deleted", "unit": {...full unit row...}}``.
-         *
-         *     No shortage refusal — a unit really can break, and the dashboard's
-         *     Remove flow shows the impact-preview table before the operator confirms
-         *     (landr-uy4jy.6). That preview is the EXISTING
-         *     ``POST .../impact-preview`` endpoint called with ``change: "not_in_fleet"``
-         *     — a unit that has been removed is a not-in-fleet unit for every purpose
-         *     the preview computes (it does not distinguish "off" from "gone"), so this
-         *     deliberately does NOT add a ``"removed"`` change kind: one preview code
-         *     path, not two computing the same thing.
-         */
-        delete: operations["delete_resource_pool_unit"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/day-state": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Put Unit Day State
-         * @description Set ONE unit's state on ONE day — the /calendar popover's whole write.
-         *
-         *     The epic (D4) moves per-day editing off the Settings › Calendar tab and
-         *     onto the calendar itself: click a bus icon on a day, pick Auto-approve /
-         *     Ask me / Not available. Date RANGES stay in the pool tab; this endpoint is
-         *     the single-day surface, and it deliberately cannot express a range.
-         *
-         *     Which table each answer lands in is not arbitrary — it is the epic's
-         *     three axes, kept apart:
-         *
-         *     ``auto`` / ``ask``
-         *         The APPROVAL axis. Since landr-uy4jy.2 this is a PERIOD SPLIT, not a
-         *         second layer on top of one: the day's resulting release set — the
-         *         covering period's set (or the pool default), plus or minus this unit —
-         *         is written as a one-day period through
-         *         ``apply_resource_pool_approval_periods``. The RPC carves the day out
-         *         of its neighbour, keeps the leftover fragments and merges identical
-         *         adjacent days back together, so answering the same way on three
-         *         consecutive days leaves ONE three-day period.
-         *
-         *         It used to write a ``resource_pool_unit_day_releases`` override that
-         *         OUTRANKED the period (DAY OVERRIDE > PERIOD > POOL DEFAULT).
-         *         landr-zb9gk decided to keep those two layers; ok tried it on the live
-         *         calendar and reversed it — "mentally, no one can grasp it". A day the
-         *         operator changed is now visible in the periods table, which is the
-         *         only place their intent lives.
-         *
-         *         On an ``ask_every_time`` day, ``auto`` on one unit therefore ends that
-         *         mode for that date: ``ask_every_time`` is POOL-WIDE and does not
-         *         decompose into a per-unit set, so "auto-approve this bus today" cannot
-         *         be expressed inside it. Before, the override was written and then
-         *         silently swallowed by the evaluator; now the answer takes effect.
-         *     ``not_available``
-         *         The SERVICE axis. Writes a one-day ``out_of_service`` row onto the
-         *         unit's schedule, through the same atomic replace-set RPC the schedule
-         *         editor uses. Availability is a fact about the world; folding it into
-         *         the release override would make "broken" and "not auto-approved" the
-         *         same bit, which is the exact confusion this epic exists to undo.
-         *
-         *     Setting ``auto`` or ``ask`` also makes the day AVAILABLE again: a one-day
-         *     outage covering the date is removed, and a longer one is split around it
-         *     (:func:`_schedule_without_day`). Undoing "Not available" from the same
-         *     popover that set it is the whole point — the operator does not know, and
-         *     must not need to know, that one of the two answers lives in a different
-         *     table.
-         *
-         *     A day the unit cannot run for the OTHER reason — it is scheduled and this
-         *     date is outside every season — is a 422 ``day_outside_service_season``
-         *     rather than a silent no-op or an invented season. A season is a range, and
-         *     ranges are the pool tab's job; guessing one here would quietly hand the
-         *     operator a schedule they never wrote.
-         *
-         *     The day's approval rule survives ``not_available``: it is not cleared,
-         *     because a unit that is out of service is simply not in play that day, and
-         *     the operator's approval preference should still be there when the unit
-         *     comes back. Resetting the day to the pool default is
-         *     :func:`delete_unit_day_state`.
-         *
-         *     ``auto`` also LIFTS an auto-lock on that (unit, date). The lock is a
-         *     transient hold taken while a request that spills past the unit is pending
-         *     (``capacity.py``, "Auto-lock"); an operator saying "this unit
-         *     auto-approves today" has decided the question the lock was holding open,
-         *     and leaving it would make the answer do nothing visible. ``ask`` leaves
-         *     any lock alone — it agrees with it.
-         *
-         *     RESPONSE SHAPE IS UNCHANGED apart from one added key. ``day_release`` is
-         *     still there and is now always ``null`` for ``auto``/``ask`` (no override
-         *     row is written any more); ``periods`` carries the resulting period rows
-         *     for the affected span, so the calendar can refresh the periods list from
-         *     the same response. Nothing was renamed: ``landr-dashboard``'s
-         *     ``putUnitDayState`` keeps working untouched.
-         */
-        put: operations["put_unit_day_state"];
-        post?: never;
-        /**
-         * Delete Unit Day State
-         * @description Reset the day to the pool default — the counterpart to ``auto``/``ask``.
-         *
-         *     Those two PIN a day; this un-pins it. Without it a single click would pin
-         *     a day for good, and an operator who opened one bus for one Tuesday in
-         *     March would find that Tuesday ignoring the season they set in April, with
-         *     no way back from the surface that made it.
-         *
-         *     Since landr-uy4jy.2 that is ``apply_resource_pool_approval_periods`` with
-         *     ``p_clear``: the date is carved out of whatever period covers it, the
-         *     leftover fragments are kept and merged as always, and NOTHING is written
-         *     back for the date itself, so it falls through to
-         *     ``resource_pools.default_released_units``. `p_clear` exists because the
-         *     obvious alternative does not work — re-PUTting the neighbour's own policy
-         *     over the day merges straight back into it and changes nothing, which is
-         *     the landr-zb9gk no-op.
-         *
-         *     IT RESETS THE WHOLE DAY, not just this unit. The rule for a date is one
-         *     period covering the pool, so "reset this day to the default" cannot mean
-         *     one unit — and the alternative (rewriting the day's set with only this
-         *     unit dropped back to its default value) is not a reset, it is another
-         *     edit. The path keeps ``{unit_id}`` because it is the popover's own
-         *     endpoint and the unit is what the operator clicked.
-         *
-         *     It also clears any AUTO-LOCK on this (unit, date). That row is the one
-         *     thing still living in ``resource_pool_unit_day_releases``, it is the only
-         *     way an operator can lift a lock from the calendar, and a "reset" that left
-         *     the day visibly locked would not be one. Hard delete, not a soft one: the
-         *     table has no soft-delete columns by design (landr-c6cpm.1), the audit
-         *     trigger keeps the history, and a "deleted" row would have to be excluded
-         *     by every reader of a table whose whole job is a one-row-per-key lookup.
-         *
-         *     Does NOT touch the service schedule: "this day is not pinned" and "this
-         *     unit is out of service that day" are different statements, and removing an
-         *     outage is :func:`put_unit_day_state` with ``auto``/``ask``, or the
-         *     schedule editor.
-         *
-         *     Idempotent — resetting a day that is already at the pool default and
-         *     carries no lock returns ``removed: false`` and 200, because the caller's
-         *     intent ("nothing pinned on this day") is satisfied either way.
-         */
-        delete: operations["delete_unit_day_state"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6628,22 +6228,6 @@ export interface components {
          *     The mode/set consistency rule lives in the RPC — one definition, and the
          *     same typed body whichever way the request arrives. The count->set expansion
          *     cannot: the RPC no longer knows what a count is.
-         *
-         *     ``replace_period_id`` (landr-zb9gk.1)
-         *         The period being EDITED, if any. Without this, a ``PUT`` that only
-         *         removes days is a mathematical no-op: the RPC carves the still-selected
-         *         days out of neighbours, keeps the leftover fragment with the SAME
-         *         policy, and range_agg-merges it straight back onto the incoming
-         *         ranges. When given, that period is excluded from the fragment/merge
-         *         computation and soft-deleted outright before the new ranges are
-         *         written — days it covered that are not re-requested fall through to
-         *         the pool default, same as deleting it would (epic landr-zb9gk's
-         *         decision). Typed ``str`` rather than ``UUID`` so a syntactically bad
-         *         id is a 404 ``approval_period_not_found`` raised by this router
-         *         (mirroring :func:`delete_approval_period`'s path-param handling)
-         *         instead of a bare Pydantic 422 — same reasoning as ``ranges`` above:
-         *         the RPC/router owns the typed error shape, not the framework's
-         *         default validation error.
          */
         ApprovalPeriodsIn: {
             /**
@@ -6664,8 +6248,6 @@ export interface components {
              * @default false
              */
             releases_all_units: boolean;
-            /** Replace Period Id */
-            replace_period_id?: string | null;
         };
         /**
          * ApprovalReplyRequest
@@ -7601,8 +7183,6 @@ export interface components {
             day_date: string;
             /** Expected Back At */
             expected_back_at?: string | null;
-            /** Language */
-            language?: string | null;
             /** Name */
             name: string;
             /** Note */
@@ -7619,10 +7199,6 @@ export interface components {
             pickup_lat?: number | null;
             /** Pickup Lng */
             pickup_lng?: number | null;
-            /** Pickup Location Color */
-            pickup_location_color?: string | null;
-            /** Pickup Location Icon */
-            pickup_location_icon?: string | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
             /** Pickup Location Name */
@@ -8246,52 +7822,6 @@ export interface components {
             /** Website */
             website?: string | null;
         };
-        /**
-         * ImpactPreviewIn
-         * @description ``POST .../impact-preview`` — "what would this change break?"
-         *
-         *     ``change`` is either the literal ``"not_in_fleet"`` (the unit leaves the
-         *     fleet entirely, every day) or an ``out_of_service`` window. Both are
-         *     HYPOTHETICAL: this endpoint writes nothing and the unit is untouched
-         *     whatever the answer.
-         *
-         *     The two shapes are one field rather than two endpoints because the
-         *     dashboard asks the same question from the same dialog — "show me the days
-         *     this hurts" — and the only difference is which days the unit disappears
-         *     on.
-         */
-        ImpactPreviewIn: {
-            /** Change */
-            change: "not_in_fleet" | components["schemas"]["ImpactPreviewOutOfService"];
-            /**
-             * Unit Id
-             * Format: uuid
-             */
-            unit_id: string;
-        };
-        /**
-         * ImpactPreviewOutOfService
-         * @description ``{"out_of_service": {"start_date": …, "end_date": …}}``.
-         */
-        ImpactPreviewOutOfService: {
-            out_of_service: components["schemas"]["ImpactPreviewRange"];
-        };
-        /**
-         * ImpactPreviewRange
-         * @description The window an ``out_of_service`` impact preview asks about.
-         */
-        ImpactPreviewRange: {
-            /**
-             * End Date
-             * Format: date
-             */
-            end_date: string;
-            /**
-             * Start Date
-             * Format: date
-             */
-            start_date: string;
-        };
         /** InitiatePaymentIn */
         InitiatePaymentIn: {
             /** Booking Token */
@@ -8488,8 +8018,6 @@ export interface components {
         };
         /** LocationIn */
         LocationIn: {
-            /** Color */
-            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8509,8 +8037,6 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
-            /** Color */
-            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8532,10 +8058,6 @@ export interface components {
         LocationRoleTypeIn: {
             /** Code */
             code: string;
-            /** Color */
-            color?: string | null;
-            /** Icon */
-            icon?: string | null;
             /** Label */
             label: string;
             /**
@@ -8546,10 +8068,6 @@ export interface components {
         };
         /** LocationRoleTypePatch */
         LocationRoleTypePatch: {
-            /** Color */
-            color?: string | null;
-            /** Icon */
-            icon?: string | null;
             /** Label */
             label?: string | null;
             /** Sort Order */
@@ -8586,10 +8104,6 @@ export interface components {
         ManifestUnit: {
             /** Capacity */
             capacity?: number | null;
-            /** Color */
-            color: string;
-            /** Icon */
-            icon: string;
             /** Id */
             id: string;
             /** In Service */
@@ -11048,13 +10562,19 @@ export interface components {
          *
          *     page_url:      absolute URL of the page the report was filed from.
          *     related_link:  the optional link field from the report form, if filled in.
-         *
-         *     Attachments are NOT passed here — the endpoint reads ticket_attachments
-         *     directly (the dashboard uploads them to Storage before calling this
-         *     endpoint), so there is nothing for the client to pass and no way for it
-         *     to lie about what got attached.
+         *     attachment_count: number of files staged with the report. We do not
+         *         re-upload attachments into Trello (see module docstring on Trello
+         *         being an additive mirror, not a full replacement) — the count plus a
+         *         link back to the dashboard ticket is enough for staff to know to go
+         *         look, and new tickets filed straight in Trello won't have this
+         *         problem at all (attachments dropped directly onto the card).
          */
         TrelloSyncIn: {
+            /**
+             * Attachment Count
+             * @default 0
+             */
+            attachment_count: number;
             /** Page Url */
             page_url: string;
             /** Related Link */
@@ -11062,58 +10582,10 @@ export interface components {
         };
         /** TrelloSyncOut */
         TrelloSyncOut: {
-            /**
-             * Attachments Synced
-             * @default 0
-             */
-            attachments_synced: number;
             /** Synced */
             synced: boolean;
             /** Trello Card Url */
             trello_card_url?: string | null;
-        };
-        /**
-         * UnitDayStateIn
-         * @description ``PUT .../units/{unit_id}/day-state`` — one day, one unit, one answer.
-         *
-         *     The three values are the /calendar popover's three options, in the epic's
-         *     LOCKED wording (``bd show landr-w9yk8``):
-         *
-         *     ``auto``
-         *         "Auto-approve" — bookings landing on this unit that day confirm
-         *         themselves. Since landr-uy4jy.2 this writes a ONE-DAY PERIOD carrying
-         *         the day's resulting release set with this unit added.
-         *     ``ask``
-         *         "Ask me" — the unit runs, but bookings on it wait for the operator.
-         *         Same one-day period, with this unit removed from the set.
-         *     ``not_available``
-         *         The unit does not run that day at all. Writes a ONE-DAY
-         *         ``out_of_service`` row onto the unit's service schedule.
-         *
-         *     ``reason`` is the operator's own free text and is stored on whichever row
-         *     the state produces — the one-day period's ``note`` for ``auto``/``ask``,
-         *     the ``out_of_service`` row's ``reason`` for ``not_available``. It is never
-         *     generated: a machine description of why belongs in ``hold_source`` / the
-         *     day's resolved ``reason``, not in a field a human is going to read back as
-         *     their own words.
-         *
-         *     With no ``reason`` the one-day period INHERITS the covering period's note,
-         *     which is what lets an unchanged answer merge straight back into its
-         *     neighbour instead of leaving a one-day scar in the periods list.
-         */
-        UnitDayStateIn: {
-            /**
-             * Date
-             * Format: date
-             */
-            date: string;
-            /** Reason */
-            reason?: string | null;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "auto" | "ask" | "not_available";
         };
         /**
          * UnitServicePeriodRange
@@ -19822,40 +19294,6 @@ export interface operations {
             };
         };
     };
-    delete_product_approval_override: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_availability: {
         parameters: {
             query: {
@@ -20588,47 +20026,6 @@ export interface operations {
             };
         };
     };
-    impact_preview: {
-        parameters: {
-            query?: {
-                from?: string | null;
-                to?: string | null;
-            };
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImpactPreviewIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     delete_unit_service_period: {
         parameters: {
             query?: never;
@@ -20637,117 +20034,6 @@ export interface operations {
                 operator_id: string;
                 pool_id: string;
                 period_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_resource_pool_unit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
-                unit_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_unit_day_state: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
-                unit_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UnitDayStateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_unit_day_state: {
-        parameters: {
-            query: {
-                date: string;
-            };
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
-                unit_id: string;
             };
             cookie?: never;
         };
