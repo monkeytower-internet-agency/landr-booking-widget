@@ -8022,6 +8022,8 @@ export interface components {
         };
         /** LocationIn */
         LocationIn: {
+            /** Color */
+            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8041,6 +8043,8 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
+            /** Color */
+            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8062,6 +8066,10 @@ export interface components {
         LocationRoleTypeIn: {
             /** Code */
             code: string;
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /** Label */
             label: string;
             /**
@@ -8072,6 +8080,10 @@ export interface components {
         };
         /** LocationRoleTypePatch */
         LocationRoleTypePatch: {
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /** Label */
             label?: string | null;
             /** Sort Order */
