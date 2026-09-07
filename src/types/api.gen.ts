@@ -5281,12 +5281,17 @@ export interface paths {
          *     Returns ``days``: one row per FUTURE day whose ``shortage_after`` is
          *     positive, each ``{date, participants_total, units_needed,
          *     units_available_before, units_available_after, shortage_before,
-         *     shortage_after, newly}``. Days that are fine, and days that are short
-         *     already and no worse for this change, are simply absent — the dialog is a
-         *     list of consequences, and a day that changes nothing is not one.
-         *     ``newly`` separates the two anyway for a caller that wants to say "3 new,
-         *     1 already": it is true only when the day is short AFTER and was not short
-         *     BEFORE.
+         *     shortage_after, newly}``. Days that are FINE after the change are absent;
+         *     days that are short are all present, INCLUDING ones that were already
+         *     short before it and are no worse for it, with ``newly: false``.
+         *
+         *     That inclusion is deliberate, not an oversight (landr-w9yk8.17 confirmed
+         *     the filter is ``shortage_after > 0`` and nothing more). The D7 dialog asks
+         *     "if I do this, what does my next year look like" — an operator about to
+         *     take a bus off the road needs the whole list of days they will be short,
+         *     not only the increment this one action adds. ``newly`` is what separates
+         *     the two, so the dialog can lead with "3 new, 1 already short" without the
+         *     API having to guess which framing it wants.
          *
          *     ``units_needed`` is computed against TODAY's fleet and does not move with
          *     the change — demand is a property of the bookings, and a bus breaking does
@@ -5299,8 +5304,14 @@ export interface paths {
          *     ``from``/``to`` (at most ``MAX_CALENDAR_DAYS``) — bounded for the same
          *     reason :func:`_consequence_window` documents, and starting at the
          *     OPERATOR's today rather than the server's so an operator west of UTC does
-         *     not lose the day they are standing in. A unit leaving service cannot
-         *     un-take a booking that already happened, so the past is never reported.
+         *     not lose the day they are standing in.
+         *
+         *     Today is a FLOOR, not just a default (``clamp_to_today=True``): a ``from``
+         *     in the past is lifted to today rather than honoured, and a window that
+         *     ends before today returns no days at all. A unit leaving service cannot
+         *     un-take a booking that already happened, so a past day in this response
+         *     would be a row the operator can do nothing about. Before landr-w9yk8.17
+         *     that was a promise this docstring made and the query string could break.
          */
         post: operations["impact_preview"];
         delete?: never;
