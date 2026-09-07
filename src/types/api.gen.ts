@@ -5075,10 +5075,13 @@ export interface paths {
          *         is ``n`` AFTER the clamp to the active unit count.
          *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
          *         The released SET and its summed capacity — what actually
-         *         auto-approves. landr-c6cpm.2: resolved along
-         *         DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,
-         *         and NOT necessarily a prefix of the ladder — ``released_unit_ids`` is
-         *         the authoritative answer, the two numbers are derived from it.
+         *         auto-approves. landr-c6cpm.2: never earned by approved load, and NOT
+         *         necessarily a prefix of the ladder — ``released_unit_ids`` is the
+         *         authoritative answer, the two numbers are derived from it. Resolved
+         *         along AUTO HOLD > PERIOD > POOL DEFAULT (landr-uy4jy.2): the covering
+         *         period's set, or the pool default, MINUS the units an auto-lock is
+         *         holding for that date. There is no operator layer above the period any
+         *         more — an operator's per-day answer IS a one-day period.
          *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
          *         Seats: all units combined; seats held by live bookings; the part of
          *         that the operator has already said yes to; and the difference — seats
@@ -5128,14 +5131,18 @@ export interface paths {
          *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
          *         place in the roster but takes no load and no release state.
          *
-         *         ``released_by`` is ``policy`` for units the period/pool default
-         *         released outright, ``day_override`` for a unit an operator (or the
-         *         auto-lock's counterpart, .3's approve dialog) opened for this one
-         *         date, and ``null`` for a unit that is not released — so a ``full``
-         *         unit with ``released_by = null`` reads correctly as "full of requests
-         *         that are still waiting for you", not "auto-approving". On an
-         *         ``ask_every_time`` day NO unit is ever released — every unit is
-         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``.
+         *         ``released_by`` is ``policy`` for every released unit and ``null``
+         *         for a unit that is not released — so a ``full`` unit with
+         *         ``released_by = null`` reads correctly as "full of requests that are
+         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
+         *         day NO unit is ever released — every unit is ``needs_ok`` or ``full``,
+         *         ``released_by`` always ``null``.
+         *
+         *         The value ``day_override`` is no longer produced (landr-uy4jy.2):
+         *         opening a unit for one date is a one-day PERIOD now, so every release
+         *         comes from policy. The value is left in the vocabulary rather than
+         *         deleted because the dashboard still branches on it and a period-shaped
+         *         release is genuinely ``policy``; nothing renders differently.
          *
          *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
          *         releases the unit it sits on, so no unit is ever released "by an
@@ -5147,9 +5154,11 @@ export interface paths {
          *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
          *         other's meaning: ``open`` (the rules release it — emerald),
          *         ``ask`` (the rules do not; nobody shut it — violet),
-         *         ``closed`` (a ``resource_pool_unit_day_releases`` row with
-         *         ``released = false`` shut it for this date — slate), or
-         *         ``out_of_service``. ``occupancy_state`` is the FILL axis in the three
+         *         ``closed`` (an AUTO-LOCK — a ``resource_pool_unit_day_releases`` row
+         *         with ``released = false`` and ``hold_source = 'auto'`` — shut it for
+         *         this date, slate), or ``out_of_service``. landr-uy4jy.2 narrowed
+         *         ``closed`` to the auto-lock: an operator holding a unit is now the
+         *         unit's ABSENCE from the day's period set, which is ``ask``. ``occupancy_state`` is the FILL axis in the three
          *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
          *         unit carrying approved passengers is a legal, meaningful glyph —
          *         "closed" gates NEW bookings only and is orthogonal to occupancy.
@@ -5157,8 +5166,11 @@ export interface paths {
          *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
          *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
          *         "not released": every unit past the release ladder is closed to new
-         *         bookings, but only some were shut on purpose — by an operator, or by
-         *         the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).
+         *         bookings, but only the auto-lock shuts one on purpose.
+         *         ``hold_source`` is therefore always ``auto`` now (landr-uy4jy.2) —
+         *         an operator's "Ask me" is a period, not a hold — and the field stays
+         *         because the vocabulary is the dashboard's and a second source could
+         *         return.
          *
          *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
          *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
@@ -5210,6 +5222,8 @@ export interface paths {
          *
          *     ``period_id``
          *         The covering period row, or ``null`` where the pool default applies.
+         *         Since landr-uy4jy.2 this is the WHOLE operator story for the day: a
+         *         day the operator answered by hand has a period covering exactly it.
          *
          *     ``periods`` carries the full period rows overlapping the span so the
          *     Periods tab and the Calendar tab can be rendered from one request, and
@@ -5521,12 +5535,27 @@ export interface paths {
          *     three axes, kept apart:
          *
          *     ``auto`` / ``ask``
-         *         The APPROVAL axis. Writes a ``resource_pool_unit_day_releases``
-         *         override for (unit, date), which wins over the period and the pool
-         *         default (DAY OVERRIDE > PERIOD > POOL DEFAULT). ``ask`` is a
-         *         deliberate hold, so it is stamped ``hold_source = 'operator'`` — that
-         *         is what separates "somebody shut this" from "the rules never opened
-         *         it", and only the former is sticky across an approval.
+         *         The APPROVAL axis. Since landr-uy4jy.2 this is a PERIOD SPLIT, not a
+         *         second layer on top of one: the day's resulting release set — the
+         *         covering period's set (or the pool default), plus or minus this unit —
+         *         is written as a one-day period through
+         *         ``apply_resource_pool_approval_periods``. The RPC carves the day out
+         *         of its neighbour, keeps the leftover fragments and merges identical
+         *         adjacent days back together, so answering the same way on three
+         *         consecutive days leaves ONE three-day period.
+         *
+         *         It used to write a ``resource_pool_unit_day_releases`` override that
+         *         OUTRANKED the period (DAY OVERRIDE > PERIOD > POOL DEFAULT).
+         *         landr-zb9gk decided to keep those two layers; ok tried it on the live
+         *         calendar and reversed it — "mentally, no one can grasp it". A day the
+         *         operator changed is now visible in the periods table, which is the
+         *         only place their intent lives.
+         *
+         *         On an ``ask_every_time`` day, ``auto`` on one unit therefore ends that
+         *         mode for that date: ``ask_every_time`` is POOL-WIDE and does not
+         *         decompose into a per-unit set, so "auto-approve this bus today" cannot
+         *         be expressed inside it. Before, the override was written and then
+         *         silently swallowed by the evaluator; now the answer takes effect.
          *     ``not_available``
          *         The SERVICE axis. Writes a one-day ``out_of_service`` row onto the
          *         unit's schedule, through the same atomic replace-set RPC the schedule
@@ -5547,39 +5576,69 @@ export interface paths {
          *     ranges are the pool tab's job; guessing one here would quietly hand the
          *     operator a schedule they never wrote.
          *
-         *     The release override survives ``not_available``: it is not cleared, because
-         *     a unit that is out of service is simply not in play that day, and the
-         *     operator's approval preference should still be there when the unit comes
-         *     back. Clearing the override entirely (falling back to the period/pool
-         *     rules) is :func:`delete_unit_day_state`.
+         *     The day's approval rule survives ``not_available``: it is not cleared,
+         *     because a unit that is out of service is simply not in play that day, and
+         *     the operator's approval preference should still be there when the unit
+         *     comes back. Resetting the day to the pool default is
+         *     :func:`delete_unit_day_state`.
+         *
+         *     ``auto`` also LIFTS an auto-lock on that (unit, date). The lock is a
+         *     transient hold taken while a request that spills past the unit is pending
+         *     (``capacity.py``, "Auto-lock"); an operator saying "this unit
+         *     auto-approves today" has decided the question the lock was holding open,
+         *     and leaving it would make the answer do nothing visible. ``ask`` leaves
+         *     any lock alone — it agrees with it.
+         *
+         *     RESPONSE SHAPE IS UNCHANGED apart from one added key. ``day_release`` is
+         *     still there and is now always ``null`` for ``auto``/``ask`` (no override
+         *     row is written any more); ``periods`` carries the resulting period rows
+         *     for the affected span, so the calendar can refresh the periods list from
+         *     the same response. Nothing was renamed: ``landr-dashboard``'s
+         *     ``putUnitDayState`` keeps working untouched.
          */
         put: operations["put_unit_day_state"];
         post?: never;
         /**
          * Delete Unit Day State
-         * @description Drop the day's approval override, back to the period / pool rules.
+         * @description Reset the day to the pool default — the counterpart to ``auto``/``ask``.
          *
-         *     The counterpart to :func:`put_unit_day_state`'s ``auto`` / ``ask``: those
-         *     two PIN a day, this un-pins it. Without it a single click would pin a unit
-         *     for good — the override outranks every later period edit, so an operator
-         *     who opened one bus for one Tuesday in March would find that Tuesday
-         *     ignoring the season they set in April, with no way back from the surface
-         *     that made it.
+         *     Those two PIN a day; this un-pins it. Without it a single click would pin
+         *     a day for good, and an operator who opened one bus for one Tuesday in
+         *     March would find that Tuesday ignoring the season they set in April, with
+         *     no way back from the surface that made it.
          *
-         *     Hard delete, not a soft one: ``resource_pool_unit_day_releases`` has no
-         *     soft-delete columns by design (landr-c6cpm.1) — a (unit, date) override
-         *     either exists or does not, the audit trigger keeps the history, and a
-         *     "deleted" row would have to be excluded by every reader of a table whose
-         *     whole job is a one-row-per-key lookup.
+         *     Since landr-uy4jy.2 that is ``apply_resource_pool_approval_periods`` with
+         *     ``p_clear``: the date is carved out of whatever period covers it, the
+         *     leftover fragments are kept and merged as always, and NOTHING is written
+         *     back for the date itself, so it falls through to
+         *     ``resource_pools.default_released_units``. `p_clear` exists because the
+         *     obvious alternative does not work — re-PUTting the neighbour's own policy
+         *     over the day merges straight back into it and changes nothing, which is
+         *     the landr-zb9gk no-op.
          *
-         *     Does NOT touch the service schedule: "this day is not pinned to
-         *     auto-approve" and "this unit is out of service that day" are different
-         *     statements, and removing an outage is
-         *     :func:`put_unit_day_state` with ``auto``/``ask``, or the schedule editor.
+         *     IT RESETS THE WHOLE DAY, not just this unit. The rule for a date is one
+         *     period covering the pool, so "reset this day to the default" cannot mean
+         *     one unit — and the alternative (rewriting the day's set with only this
+         *     unit dropped back to its default value) is not a reset, it is another
+         *     edit. The path keeps ``{unit_id}`` because it is the popover's own
+         *     endpoint and the unit is what the operator clicked.
          *
-         *     Idempotent — deleting an override that is not there returns
-         *     ``removed: false`` and 200, because the caller's intent ("no override on
-         *     this day") is satisfied either way.
+         *     It also clears any AUTO-LOCK on this (unit, date). That row is the one
+         *     thing still living in ``resource_pool_unit_day_releases``, it is the only
+         *     way an operator can lift a lock from the calendar, and a "reset" that left
+         *     the day visibly locked would not be one. Hard delete, not a soft one: the
+         *     table has no soft-delete columns by design (landr-c6cpm.1), the audit
+         *     trigger keeps the history, and a "deleted" row would have to be excluded
+         *     by every reader of a table whose whole job is a one-row-per-key lookup.
+         *
+         *     Does NOT touch the service schedule: "this day is not pinned" and "this
+         *     unit is out of service that day" are different statements, and removing an
+         *     outage is :func:`put_unit_day_state` with ``auto``/``ask``, or the
+         *     schedule editor.
+         *
+         *     Idempotent — resetting a day that is already at the pool default and
+         *     carries no lock returns ``removed: false`` and 200, because the caller's
+         *     intent ("nothing pinned on this day") is satisfied either way.
          */
         delete: operations["delete_unit_day_state"];
         options?: never;
@@ -11022,18 +11081,25 @@ export interface components {
          *
          *     ``auto``
          *         "Auto-approve" — bookings landing on this unit that day confirm
-         *         themselves. Writes a ``released = true`` day override.
+         *         themselves. Since landr-uy4jy.2 this writes a ONE-DAY PERIOD carrying
+         *         the day's resulting release set with this unit added.
          *     ``ask``
          *         "Ask me" — the unit runs, but bookings on it wait for the operator.
-         *         Writes a ``released = false`` day override.
+         *         Same one-day period, with this unit removed from the set.
          *     ``not_available``
          *         The unit does not run that day at all. Writes a ONE-DAY
          *         ``out_of_service`` row onto the unit's service schedule.
          *
          *     ``reason`` is the operator's own free text and is stored on whichever row
-         *     the state produces. It is never generated: a machine description of why
-         *     belongs in ``hold_source`` / the day's resolved ``reason``, not in a field
-         *     a human is going to read back as their own words.
+         *     the state produces — the one-day period's ``note`` for ``auto``/``ask``,
+         *     the ``out_of_service`` row's ``reason`` for ``not_available``. It is never
+         *     generated: a machine description of why belongs in ``hold_source`` / the
+         *     day's resolved ``reason``, not in a field a human is going to read back as
+         *     their own words.
+         *
+         *     With no ``reason`` the one-day period INHERITS the covering period's note,
+         *     which is what lets an unchanged answer merge straight back into its
+         *     neighbour instead of leaving a one-day scar in the periods list.
          */
         UnitDayStateIn: {
             /**
