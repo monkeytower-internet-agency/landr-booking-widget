@@ -4738,6 +4738,62 @@ export interface paths {
         patch: operations["patch_product"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/approval-override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Product Approval Override
+         * @description Soft-delete the product's ``product_override`` approval rule — the
+         *     service-role half of ``approvalRules.ts``'s
+         *     ``saveProductAlwaysManualApproval(operatorId, productId, label, false)``
+         *     (approvalRules.ts:120-158), landr-uy4jy.1's audit finding #2.
+         *
+         *     THE BUG THIS FIXES. That function's ``desired=false`` branch does
+         *     ``update({active: false, deleted_at: now()}).eq('id', existing.id)``
+         *     straight over PostgREST — no ``.select()`` chained, which looks safe but
+         *     isn't: ``approval_rules``' SELECT policy is ``is_tenant_visible(operator_id)
+         *     AND deleted_at IS NULL`` (20260513084829), byte-identical in shape to
+         *     ``resource_pool_units``', and PostgREST issues ``RETURNING *`` on every
+         *     UPDATE internally regardless of ``Prefer`` (it needs the row count for
+         *     ``Content-Range``). The RETURNING row — just soft-deleted — fails that
+         *     SELECT policy, Postgres aborts the WHOLE UPDATE, and the toggle silently
+         *     writes nothing: turning a product's "Always ask me" switch OFF has been a
+         *     no-op since this table's RLS policy was written, unnoticed because the
+         *     symptom (switch appears to flip in the optimistic UI, then reverts or
+         *     just never took effect) doesn't look like a hard error. See
+         *     :func:`delete_resource_pool_unit` (``staff_resource_pool_approval_periods.py``)
+         *     for the full audit and the empirical proof
+         *     (``test_staff_resource_pool_units.py::TestRlsReproduction``) that this
+         *     happens under ``Prefer: return=minimal`` too, not only
+         *     ``return=representation``.
+         *
+         *     The INSERT and reactivate (``active: true``, no ``deleted_at`` change)
+         *     branches of the same dashboard function are NOT affected — neither one
+         *     ever makes the row's own SELECT policy go false — so they stay on direct
+         *     REST; this route only replaces the soft-delete branch.
+         *
+         *     Idempotent (unlike :func:`delete_resource_pool_unit`, deliberately NOT a
+         *     404 when there is nothing to delete): the dashboard function's own
+         *     contract for ``desired=false`` is "no live row → no-op", and this route
+         *     is a straight swap-in for that one branch, not a new contract the
+         *     dashboard has to branch around.
+         *
+         *     Response: ``{"status": "deleted", "rule": {...}}`` or
+         *     ``{"status": "noop"}`` when there is no live override to remove.
+         */
+        delete: operations["delete_product_approval_override"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/availability": {
         parameters: {
             query?: never;
@@ -5353,6 +5409,92 @@ export interface paths {
          *     :func:`delete_unit_scoped_service_period` for the unit-scoped alias.
          */
         delete: operations["delete_unit_service_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Resource Pool Unit
+         * @description Soft-delete one unit (Pattern A + ``active = false``) — the fix for
+         *     epic decision 5 (landr-uy4jy).
+         *
+         *     WHY THIS IS A ROUTE, NOT A DIRECT-REST WRITE (the module docstring's "WHY
+         *     A ROUTER AT ALL" #3). ``resourcePools.ts``'s ``softDeleteResourcePoolUnit``
+         *     (resourcePools.ts:432) does the obvious thing — ``update({active: false,
+         *     deleted_at: ...}).eq('id', unitId).select(UNIT_SELECT).single()`` — and it
+         *     42501s: "new row violates row-level security policy for table
+         *     resource_pool_units". ``resource_pool_units_tenant_select`` is
+         *     ``is_tenant_visible(operator_id) AND deleted_at IS NULL`` (migration
+         *     20260513085205), and PostgREST issues ``RETURNING *`` on every UPDATE
+         *     internally regardless of the ``Prefer`` header — it needs the affected-row
+         *     count for ``Content-Range`` whether or not the client asked for a body —
+         *     so Postgres checks the RETURNING row against that SELECT policy on EVERY
+         *     soft-delete of this table, and the row this statement just stamped
+         *     ``deleted_at`` onto no longer passes it. Because that check runs inside
+         *     the SAME statement, Postgres aborts the WHOLE UPDATE, not just the
+         *     response body: **the row is not soft-deleted either.** Verified directly
+         *     (``test_staff_resource_pool_units.py``, ``TestRlsReproduction``): a
+         *     ``Prefer: return=minimal`` call — no ``.select()``, no representation
+         *     requested — 42501s identically and leaves the row untouched. This
+         *     service-role route bypasses RLS entirely, so neither the write nor any
+         *     read-back is affected.
+         *
+         *     AUDIT (ticket step 3): the two sibling direct-REST soft-deletes in this
+         *     domain hit the EXACT SAME bug — ``products`` and ``approval_rules`` carry
+         *     the byte-identical ``is_tenant_visible(operator_id) AND deleted_at IS
+         *     NULL`` SELECT-policy shape (verified via ``pg_policy``), and PostgREST's
+         *     always-RETURNING behaviour above doesn't care whether the client chained
+         *     ``.select()``. Concretely:
+         *
+         *     * ``products.ts``'s ``softDeleteProduct`` (products.ts:436, called from
+         *       ``ProductsManager.tsx:508`` — the dashboard's real "delete product"
+         *       button) 42501s and silently deletes NOTHING today. A working
+         *       service-role route already exists for this
+         *       (``delete_product``, ``staff_products.py``) — nobody had wired the
+         *       dashboard to it, presumably because the direct-REST call looked fine
+         *       in isolation (no ``.select()``, so no reason to suspect RLS). This PR
+         *       does not touch the dashboard (out of this ticket's repo); filed as a
+         *       dashboard-side follow-up alongside landr-uy4jy.6.
+         *     * ``approvalRules.ts``'s override-clear branch (approvalRules.ts:158,
+         *       inside ``saveProductAlwaysManualApproval``, called from the product
+         *       form's "Always ask me" toggle) 42501s the same way when turning the
+         *       override OFF — also silently writes nothing. No service-role route
+         *       existed for this at all; this PR adds
+         *       :func:`delete_product_approval_override` in ``staff_products.py``.
+         *
+         *     Both are proven, not inferred: ``test_staff_resource_pool_units.py``
+         *     reproduces every one of the three tables' soft-deletes directly over
+         *     PostgREST with a real member JWT (never service role, which bypasses RLS
+         *     and would prove nothing) under BOTH ``Prefer`` values, and all three
+         *     42501 identically regardless of which header is sent.
+         *
+         *     Deliberately NOT a hard delete: the audit trail for "who took this unit
+         *     out of the fleet, and when" is the whole point of Pattern A, same as
+         *     :func:`delete_approval_period`.
+         *
+         *     Response: ``{"status": "deleted", "unit": {...full unit row...}}``.
+         *
+         *     No shortage refusal — a unit really can break, and the dashboard's
+         *     Remove flow shows the impact-preview table before the operator confirms
+         *     (landr-uy4jy.6). That preview is the EXISTING
+         *     ``POST .../impact-preview`` endpoint called with ``change: "not_in_fleet"``
+         *     — a unit that has been removed is a not-in-fleet unit for every purpose
+         *     the preview computes (it does not distinguish "off" from "gone"), so this
+         *     deliberately does NOT add a ``"removed"`` change kind: one preview code
+         *     path, not two computing the same thing.
+         */
+        delete: operations["delete_resource_pool_unit"];
         options?: never;
         head?: never;
         patch?: never;
@@ -19614,6 +19756,40 @@ export interface operations {
             };
         };
     };
+    delete_product_approval_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_availability: {
         parameters: {
             query: {
@@ -20395,6 +20571,41 @@ export interface operations {
                 operator_id: string;
                 pool_id: string;
                 period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_pool_unit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
             };
             cookie?: never;
         };
