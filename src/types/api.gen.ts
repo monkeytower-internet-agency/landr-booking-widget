@@ -5208,6 +5208,15 @@ export interface paths {
          *     the ones that would be created) and writes nothing at all — no period, no
          *     rule, no audit row. That is what the edit sheet's preview line is built
          *     from.
+         *
+         *     ``replace_period_id`` (landr-zb9gk.1) is the id of the period this PUT is
+         *     EDITING, so a shrink is not the no-op it would otherwise be: the RPC
+         *     excludes that period from the neighbours it carves fragments out of, then
+         *     soft-deletes it outright before writing the new ranges, rather than
+         *     letting its untouched days survive as an identical-policy fragment that
+         *     would immediately merge back onto the request. A syntactically invalid id
+         *     is a 404 here (mirroring :func:`delete_approval_period`); an id that does
+         *     not resolve to an active period of this pool is a 404 from the RPC itself.
          */
         put: operations["apply_approval_periods"];
         post?: never;
@@ -6418,6 +6427,22 @@ export interface components {
          *     The mode/set consistency rule lives in the RPC — one definition, and the
          *     same typed body whichever way the request arrives. The count->set expansion
          *     cannot: the RPC no longer knows what a count is.
+         *
+         *     ``replace_period_id`` (landr-zb9gk.1)
+         *         The period being EDITED, if any. Without this, a ``PUT`` that only
+         *         removes days is a mathematical no-op: the RPC carves the still-selected
+         *         days out of neighbours, keeps the leftover fragment with the SAME
+         *         policy, and range_agg-merges it straight back onto the incoming
+         *         ranges. When given, that period is excluded from the fragment/merge
+         *         computation and soft-deleted outright before the new ranges are
+         *         written — days it covered that are not re-requested fall through to
+         *         the pool default, same as deleting it would (epic landr-zb9gk's
+         *         decision). Typed ``str`` rather than ``UUID`` so a syntactically bad
+         *         id is a 404 ``approval_period_not_found`` raised by this router
+         *         (mirroring :func:`delete_approval_period`'s path-param handling)
+         *         instead of a bare Pydantic 422 — same reasoning as ``ranges`` above:
+         *         the RPC/router owns the typed error shape, not the framework's
+         *         default validation error.
          */
         ApprovalPeriodsIn: {
             /**
@@ -6438,6 +6463,8 @@ export interface components {
              * @default false
              */
             releases_all_units: boolean;
+            /** Replace Period Id */
+            replace_period_id?: string | null;
         };
         /**
          * ApprovalReplyRequest
