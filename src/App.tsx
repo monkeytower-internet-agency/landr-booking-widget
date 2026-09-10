@@ -36,6 +36,7 @@ import type {
 import {
   buildPartyRoster,
   toIdentityKeyed,
+  toIndexKeyed,
   toIndexKeyedOrUndefined,
 } from '@/components/booking/partyIdentity'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
@@ -1941,6 +1942,42 @@ function BookingFlowApp() {
             // CustomFormStepProps.flow's doc for the forward-dead-end bug
             // this closes.
             flow={resolvedFlowForProduct(step.product.product_id)}
+            // landr-r6e5x.4 / epic decision D3: the whole party (participants
+            // first, companions after — the same unified index space the room
+            // board uses) plus the operator's offered guide languages, which
+            // together turn the form's `language` field into the
+            // per-participant assignment board. Labels are disambiguated the
+            // same way AccommodationStep does it, so "Ada L." reads
+            // identically on both boards.
+            {...(() => {
+              const pCount = step.participants.length
+              const party = [
+                ...step.participants.map((p) => ({
+                  first: p.first_name,
+                  last: p.last_name ?? '',
+                })),
+                ...step.companions.map((c) => ({
+                  first: c.first_name,
+                  last: c.last_name ?? '',
+                })),
+              ]
+              const labels = disambiguatePartyLabels(party)
+              const roster = buildPartyRoster(step.participants, step.companions)
+              return {
+                participantNames: labels,
+                guestFlags: labels.map((_unused, i) => i >= pCount),
+                offeredLanguages: operatorSettings.offered_languages ?? null,
+                // THE INBOUND SEAM (landr-uwvl): the draft keys by person, the
+                // board works in party indices. Resolve against the CURRENT
+                // roster so a member removed in DetailsStep drops out (and
+                // shows as unassigned) instead of inheriting a neighbour's
+                // language.
+                initialParticipantLanguages: toIndexKeyed(
+                  bookingDraft.participantLanguages,
+                  roster,
+                ),
+              }
+            })()}
             onBack={() =>
               // landr-71kz.10: Back walks the custom-form chain (the prior
               // custom form, else the hotel-aware non-custom walk) — threading
@@ -1973,7 +2010,7 @@ function BookingFlowApp() {
                 ),
               )
             }
-            onConfirm={(entry, rawAnswers) => {
+            onConfirm={(entry, rawAnswers, participantLanguages) => {
               // Accumulate the form response for the submit payload.
               mergeFormResponse(entry)
               // Persist the raw answers in the draft so a breadcrumb jump
@@ -1982,7 +2019,22 @@ function BookingFlowApp() {
                 ...bookingDraft.customFormAnswers,
                 [step.formKey]: rawAnswers,
               }
-              mergeDraft({ customFormAnswers: nextAnswers })
+              // landr-r6e5x.4: THE OUTBOUND SEAM — the board reports party
+              // indices, the draft stores stable ids. Only patch the slot when
+              // the board actually ran (the key is omitted otherwise, since a
+              // present-but-undefined key would clobber a good slice —
+              // landr-0l5q).
+              mergeDraft({
+                customFormAnswers: nextAnswers,
+                ...(participantLanguages
+                  ? {
+                      participantLanguages: toIdentityKeyed(
+                        participantLanguages,
+                        buildPartyRoster(step.participants, step.companions),
+                      ),
+                    }
+                  : {}),
+              })
               // landr-71kz.10: advance the custom-form chain — the NEXT custom
               // form in the plan, or the review screen when the chain is done.
               setStep(
@@ -2058,6 +2110,15 @@ function BookingFlowApp() {
                   roster,
                 ),
                 breakfastMap: toIndexKeyedOrUndefined(step.breakfastMap, roster),
+                // landr-r6e5x.4: the per-member guide language lives in the
+                // DRAFT (the custom-form step writes it) rather than on the
+                // step, so it rides the same roster conversion as the three
+                // maps above and reaches the submit body as each
+                // participant's / companion's `language`.
+                participantLanguages: toIndexKeyed(
+                  bookingDraft.participantLanguages,
+                  roster,
+                ),
               }
             })()}
             // landr-gb2f.5: thread the per-room add-on map so BookingForm

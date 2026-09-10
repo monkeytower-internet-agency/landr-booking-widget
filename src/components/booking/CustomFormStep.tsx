@@ -44,6 +44,18 @@ import type {
 } from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
+import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
+import {
+  applyLanguageAssignment,
+  distinctAssignedLanguages,
+  isLanguageAssignmentComplete,
+  memberLabel,
+  normaliseOfferedLanguages,
+  openLanguageColumns,
+  pruneLanguageAssignment,
+  unassignedMemberIndices,
+  type ParticipantLanguageMap,
+} from './participantLanguages'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -84,9 +96,38 @@ export interface CustomFormStepProps {
    * fetch didn't have; only a genuinely absent prop triggers the fallback.
    */
   flow?: ProductFlowResponse | null
+  /**
+   * landr-r6e5x.4: display names for the WHOLE PARTY in the unified party-
+   * member index space — guiding participants first (0..P-1), then companions
+   * (P..P+C-1). Supplying it turns the form's `language` field into the
+   * PER-PARTICIPANT ASSIGNMENT BOARD (epic decision D3) instead of the
+   * booking-level ranked multi-select. Absent / empty (standalone callers and
+   * the existing component tests) keeps the ranked picker exactly as it was.
+   */
+  participantNames?: string[]
+  /** Parallel flags marking non-guiding companions, same index space. */
+  guestFlags?: boolean[]
+  /**
+   * landr-r6e5x.4: the operator's offered guide languages from the public
+   * operator config (`operators.offered_languages`). When absent or unusable
+   * the board falls back to the form field's own options, then to the
+   * platform default set — it must never render an empty, unusable board.
+   */
+  offeredLanguages?: string[] | null
+  /** Restored party-index → language map for back-nav re-entry. */
+  initialParticipantLanguages?: ParticipantLanguageMap
   onBack: () => void
-  /** Called with the pruned answers + form metadata when the customer submits. */
-  onConfirm: (entry: FormResponseEntry, rawAnswers: Record<string, unknown>) => void
+  /**
+   * Called with the pruned answers + form metadata when the customer submits.
+   * `participantLanguages` is present only when the assignment board was
+   * shown; it is the party-index → ISO 639-1 map the submit body turns into
+   * each participant's / companion's `language` field.
+   */
+  onConfirm: (
+    entry: FormResponseEntry,
+    rawAnswers: Record<string, unknown>,
+    participantLanguages?: ParticipantLanguageMap,
+  ) => void
 }
 
 /**
@@ -243,15 +284,51 @@ function normaliseInitial(
 
 // ─── FieldRenderer ────────────────────────────────────────────────────────────
 
+/**
+ * landr-r6e5x.4: everything the per-participant language board needs, handed
+ * down to the ONE field it replaces. Non-null only when the parent supplied a
+ * party roster; every other field renders exactly as before.
+ */
+interface LanguageBoardContext {
+  /** The field key this board stands in for. */
+  fieldKey: string
+  offeredLanguages: string[]
+  openLanguages: string[]
+  participantNames: string[]
+  guestFlags: boolean[]
+  assignment: ParticipantLanguageMap
+  onAssign: (memberIndex: number, code: string | null) => void
+  onOpenLanguage: (code: string) => void
+  onCloseLanguage: (code: string) => void
+  /** Party members still without a language — drives the inline gate message. */
+  unassignedLabels: string[]
+  /**
+   * False until the customer has placed at least one person. The gate message
+   * is shown either way (it is the reason Continue is disabled), but it reads
+   * as guidance before they have started and as an error once they are
+   * mid-task — a red validation error on arrival, before anyone has touched
+   * anything, is noise rather than feedback.
+   */
+  started: boolean
+}
+
 interface FieldRendererProps {
   field: FlowFieldDef
   answers: AnswerMap
   error: string | null
   locale: string
   onChange: (key: string, value: string | string[]) => void
+  languageBoard?: LanguageBoardContext | null
 }
 
-function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendererProps) {
+function FieldRenderer({
+  field,
+  answers,
+  error,
+  locale,
+  onChange,
+  languageBoard = null,
+}: FieldRendererProps) {
   const { tokens } = useVariant()
   const label = pickLocalized(field.label, field.label_localized, locale) || field.key
   const helpText = pickLocalized(field.help_text, field.help_text_localized, locale)
@@ -384,6 +461,49 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
       // free-text input rather than render an empty, unusable picker
       // ("malformed config degrades, never throws").
       case 'language': {
+        // landr-r6e5x.4 / epic decision D3: with a party roster in hand this
+        // field becomes the PER-PARTICIPANT assignment board — every member
+        // goes into exactly one language column and the booking cannot be
+        // submitted until the tray is empty. Without a roster (standalone
+        // renders) it stays the booking-level ranked multi-select.
+        if (languageBoard && languageBoard.fieldKey === field.key) {
+          return (
+            <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
+              <ParticipantLanguageBoard
+                offeredLanguages={languageBoard.offeredLanguages}
+                openLanguages={languageBoard.openLanguages}
+                participantNames={languageBoard.participantNames}
+                guestFlags={languageBoard.guestFlags}
+                assignment={languageBoard.assignment}
+                onAssign={languageBoard.onAssign}
+                onOpenLanguage={languageBoard.onOpenLanguage}
+                onCloseLanguage={languageBoard.onCloseLanguage}
+              />
+              {languageBoard.unassignedLabels.length > 0 ? (
+                <p
+                  className={cn(
+                    'text-xs',
+                    languageBoard.started
+                      ? 'text-destructive'
+                      : 'text-muted-foreground',
+                  )}
+                  data-testid="cf-language-board-incomplete"
+                >
+                  Assign every participant to a language
+                  {` — still waiting on ${languageBoard.unassignedLabels.join(', ')}.`}
+                </p>
+              ) : null}
+              {/* The free-text "other languages you speak" field sits below
+                  this one in the operator's form. Say plainly that it is
+                  informational, so nobody types a language there expecting it
+                  to place someone. */}
+              <p className="text-xs text-muted-foreground">
+                Any other languages you list below are for the guide's
+                information only — they don't assign anyone.
+              </p>
+            </div>
+          )
+        }
         if (field.options && field.options.length > 0) {
           const ordered = (answers[field.key] as string[] | undefined) ?? []
           return (
@@ -507,6 +627,10 @@ export function CustomFormStep({
   productName,
   initialAnswers,
   flow,
+  participantNames,
+  guestFlags,
+  offeredLanguages,
+  initialParticipantLanguages,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -573,6 +697,72 @@ export function CustomFormStep({
   )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  // ─── landr-r6e5x.4: per-participant language assignment ────────────────────
+  //
+  // The board takes over the form's FIRST `language` field that carries
+  // options, and only when the parent handed down a party roster. Everything
+  // below is derived from props + one piece of state each for the assignment
+  // and for which columns are on screen, so there is no setState-in-effect
+  // (an ESLint error in this repo) anywhere in the path.
+  const partyNames = useMemo(() => participantNames ?? [], [participantNames])
+  const partyGuestFlags = useMemo(() => guestFlags ?? [], [guestFlags])
+  const partyCount = partyNames.length
+
+  const boardField = useMemo(() => {
+    if (partyCount === 0 || !formDef) return null
+    return (
+      formDef.fields.find(
+        (f) => f.field_type === 'language' && (f.options?.length ?? 0) > 0,
+      ) ?? null
+    )
+  }, [formDef, partyCount])
+
+  // Offered set: the operator column wins; the form field's own options are
+  // the legacy mirror and the fallback; the platform default backstops both
+  // so the board is never empty and unusable (the widget has no error
+  // boundary — a dead-end step is the failure mode to avoid).
+  const boardLanguages = useMemo(() => {
+    if (!boardField) return []
+    const fromOptions = (boardField.options ?? []).map((o) => o.value)
+    const hasOperatorList =
+      Array.isArray(offeredLanguages) && offeredLanguages.length > 0
+    return normaliseOfferedLanguages(
+      hasOperatorList ? offeredLanguages : fromOptions,
+      fromOptions.length > 0 ? fromOptions : undefined,
+    )
+  }, [boardField, offeredLanguages])
+
+  const [rawLanguageAssignment, setRawLanguageAssignment] =
+    useState<ParticipantLanguageMap>(() => ({ ...initialParticipantLanguages }))
+  const [openedLanguages, setOpenedLanguages] = useState<string[]>([])
+
+  // Prune at DERIVE time rather than in an effect: the offered list can arrive
+  // after mount (the operator-settings fetch resolves late) and the roster can
+  // shrink upstream, and either must drop a stale entry without a render loop.
+  const languageAssignment = useMemo(
+    () => pruneLanguageAssignment(rawLanguageAssignment, boardLanguages, partyCount),
+    [rawLanguageAssignment, boardLanguages, partyCount],
+  )
+  const openLanguages = useMemo(
+    () =>
+      openLanguageColumns(
+        openedLanguages,
+        languageAssignment,
+        boardLanguages,
+        partyCount,
+      ),
+    [openedLanguages, languageAssignment, boardLanguages, partyCount],
+  )
+  const unassignedLabels = useMemo(
+    () =>
+      unassignedMemberIndices(partyCount, languageAssignment).map((i) =>
+        memberLabel(partyNames, i),
+      ),
+    [partyCount, languageAssignment, partyNames],
+  )
+  const languageBoardComplete =
+    !boardField || isLanguageAssignmentComplete(partyCount, languageAssignment)
+
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
     // Clear the field's error on change so the customer gets live feedback.
@@ -584,28 +774,103 @@ export function CustomFormStep({
     })
   }, [])
 
+  const handleLanguageAssign = useCallback(
+    (memberIndex: number, code: string | null) => {
+      setRawLanguageAssignment((prev) =>
+        applyLanguageAssignment(prev, memberIndex, code),
+      )
+      // Assigning through the dropdown (or dropping the last person back out
+      // of a column) must not make the column vanish underneath the customer:
+      // pin it open until they explicitly remove it.
+      if (code !== null) {
+        setOpenedLanguages((prev) => (prev.includes(code) ? prev : [...prev, code]))
+      }
+      // Assigning somebody can only ever RESOLVE the board field's error, so
+      // clear it for live feedback (same contract as handleChange).
+      const key = boardField?.key
+      if (!key) return
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    },
+    [boardField],
+  )
+
+  const handleOpenLanguage = useCallback((code: string) => {
+    setOpenedLanguages((prev) => (prev.includes(code) ? prev : [...prev, code]))
+  }, [])
+
+  const handleCloseLanguage = useCallback((code: string) => {
+    setOpenedLanguages((prev) => prev.filter((c) => c !== code))
+  }, [])
+
+  // landr-r6e5x.4: the board's answer is DERIVED from the assignment, never
+  // typed, so validation / visibility / pruning all read this overlay rather
+  // than the raw `answers` state. Keeping one source of truth means a late
+  // prune (offered list changed, member left) can never leave the mirrored
+  // answer disagreeing with what is on screen.
+  const effectiveAnswers: AnswerMap = useMemo(() => {
+    if (!boardField) return answers
+    return {
+      ...answers,
+      [boardField.key]: distinctAssignedLanguages(languageAssignment, partyCount),
+    }
+  }, [answers, boardField, languageAssignment, partyCount])
+
+  // The board's columns come from the OPERATOR's offered list, which can have
+  // drifted from the form field's declared options (the operator edited the
+  // setting in dashboard Settings — landr-r6e5x.3 — while the form library
+  // still carries the old option list). Re-point the field's options at the
+  // offered set for validation and pruning too, so a legitimately-assigned
+  // language is never rejected as "an invalid option" by a stale form def.
+  const effectiveFields = useMemo(() => {
+    if (!formDef) return []
+    if (!boardField) return formDef.fields
+    return formDef.fields.map((field) =>
+      field.key === boardField.key
+        ? {
+            ...field,
+            options: boardLanguages.map((code) => ({
+              value: code,
+              label: code,
+              label_localized: null,
+            })),
+          }
+        : field,
+    )
+  }, [formDef, boardField, boardLanguages])
+
   const handleSubmit = () => {
     if (!formDef) return
 
     // Validate all visible fields.
     const errors: Record<string, string> = {}
-    for (const field of formDef.fields) {
-      const err = validateField(field, answers, locale)
+    for (const field of effectiveFields) {
+      const err = validateField(field, effectiveAnswers, locale)
       if (err) errors[field.key] = err
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
+    // Hard gate (epic decision D3): nobody may be left in the tray.
+    if (!languageBoardComplete) return
 
     // Prune hidden fields then build the FormResponseEntry.
-    const pruned = pruneHiddenAnswers(formDef.fields, answers)
+    const pruned = pruneHiddenAnswers(effectiveFields, effectiveAnswers)
     const entry: FormResponseEntry = {
       form_key: formDef.key,
       answers: pruned,
     }
 
     // Pass raw answers (includes hidden field state) for draft persistence.
-    const rawForDraft: Record<string, unknown> = { ...answers }
-    onConfirm(entry, rawForDraft)
+    const rawForDraft: Record<string, unknown> = { ...effectiveAnswers }
+    onConfirm(
+      entry,
+      rawForDraft,
+      boardField ? languageAssignment : undefined,
+    )
   }
 
   // landr — the Continue button stays disabled until every VISIBLE field passes
@@ -615,12 +880,13 @@ export function CustomFormStep({
   // updates live as the customer fills the form.
   const isFormComplete = useMemo(() => {
     if (!formDef) return false
-    return formDef.fields.every(
+    if (!languageBoardComplete) return false
+    return effectiveFields.every(
       (field) =>
-        !isFieldVisible(field, answers) ||
-        validateField(field, answers, locale) === null,
+        !isFieldVisible(field, effectiveAnswers) ||
+        validateField(field, effectiveAnswers, locale) === null,
     )
-  }, [formDef, answers, locale])
+  }, [formDef, effectiveFields, effectiveAnswers, locale, languageBoardComplete])
 
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
@@ -648,16 +914,34 @@ export function CustomFormStep({
             {fetchError}
           </p>
         ) : formDef ? (
-          formDef.fields.map((field) => {
-            if (!isFieldVisible(field, answers)) return null
+          effectiveFields.map((field) => {
+            if (!isFieldVisible(field, effectiveAnswers)) return null
             return (
               <FieldRenderer
                 key={field.key}
                 field={field}
-                answers={answers}
+                answers={effectiveAnswers}
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
                 onChange={handleChange}
+                languageBoard={
+                  boardField && boardField.key === field.key
+                    ? {
+                        fieldKey: boardField.key,
+                        offeredLanguages: boardLanguages,
+                        openLanguages,
+                        participantNames: partyNames,
+                        guestFlags: partyGuestFlags,
+                        assignment: languageAssignment,
+                        onAssign: handleLanguageAssign,
+                        onOpenLanguage: handleOpenLanguage,
+                        onCloseLanguage: handleCloseLanguage,
+                        unassignedLabels,
+                        started:
+                          Object.keys(languageAssignment).length > 0,
+                      }
+                    : null
+                }
               />
             )
           })

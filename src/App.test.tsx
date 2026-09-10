@@ -3208,4 +3208,206 @@ describe('App', () => {
       ).not.toBeInTheDocument()
     })
   })
+  // ── landr-r6e5x.4: per-participant guide language, end to end ──────────────
+  //
+  // The board lives inside the custom-form step but its output has to survive
+  // TWO seams that nothing else in the widget exercises together: party-index →
+  // stable-id on the way into the draft, and stable-id → party-index on the way
+  // back out into the submit body. The component tests cover the board itself;
+  // this one exists for the plumbing between them.
+  describe('per-participant guide language (landr-r6e5x.4)', () => {
+    function languageFlow() {
+      return {
+        modules: [
+          {
+            kind: 'custom_form',
+            position: 0,
+            form: {
+              key: 'customer_declarations',
+              version: 1,
+              name: 'Before you fly',
+              name_localized: null,
+              fields: [
+                {
+                  key: 'languages',
+                  field_type: 'language',
+                  label: 'Guide language',
+                  label_localized: null,
+                  help_text: null,
+                  help_text_localized: null,
+                  required: true,
+                  position: 0,
+                  // Deliberately STALE relative to the operator column below —
+                  // the operator's offered list is what the board must use.
+                  options: [
+                    { value: 'en', label: 'English', label_localized: null },
+                    { value: 'de', label: 'Deutsch', label_localized: null },
+                  ],
+                  validation: null,
+                  visibility_rule: null,
+                },
+              ],
+            },
+          },
+        ],
+      }
+    }
+
+    async function advanceToLanguageBoard() {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        offered_languages: ['en', 'de', 'es'],
+      })
+      mocks.getProductFlow.mockResolvedValue(languageFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-1',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+
+      await waitFor(() => screen.getByText('Tandem Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Tandem Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByTestId('add-participant'))
+      setField('participant_2_first_name', 'Grace')
+      setField('participant_2_last_name', 'Hopper')
+      setField('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
+      )
+    }
+
+    const assignLanguage = (memberIndex: number, code: string) =>
+      fireEvent.change(screen.getByTestId(`lang-assign-select-${memberIndex}`), {
+        target: { value: code },
+      })
+
+    it('carries the board assignment into the submit body as each participant language', async () => {
+      await advanceToLanguageBoard()
+
+      // The board offers the OPERATOR's list, including a language the form
+      // def has never heard of.
+      expect(screen.getByTestId('lang-add-es')).toBeInTheDocument()
+      // Nobody assigned yet → the step cannot be completed.
+      expect(screen.getByTestId('cf-submit')).toBeDisabled()
+
+      assignLanguage(0, 'es')
+      assignLanguage(1, 'de')
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // The review names each person's language before anything is submitted.
+      expect(
+        screen.getByTestId('review-participant-language-0').textContent,
+      ).toContain('Spanish')
+      expect(
+        screen.getByTestId('review-participant-language-1').textContent,
+      ).toContain('German')
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+        customer_languages?: string[]
+      }
+      expect(body.participants[0]).toMatchObject({
+        first_name: 'Ada',
+        language: 'es',
+      })
+      expect(body.participants[1]).toMatchObject({
+        first_name: 'Grace',
+        language: 'de',
+      })
+      // Booking-level list derived from the same map, booker first.
+      expect(body.customer_languages).toEqual(['es', 'de'])
+    })
+
+    it('keeps each person their own language when a participant is removed after assigning', async () => {
+      // The landr-uwvl failure mode, in language form: renumbering the party
+      // must not hand Grace someone else's language.
+      await advanceToLanguageBoard()
+      assignLanguage(0, 'es')
+      assignLanguage(1, 'de')
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      fireEvent.click(screen.getByTestId('cf-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+
+      // Back to details, remove Ada's co-flyer, forward again.
+      fireEvent.click(screen.getByTestId('breadcrumb-details'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('remove-participant-2'))
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
+      )
+      // Ada keeps Spanish. Grace's German left with Grace, so the German
+      // column is gone entirely — Ada did not inherit it by sliding indices.
+      expect(
+        (screen.getByTestId('lang-assign-select-0') as HTMLSelectElement).value,
+      ).toBe('es')
+      expect(screen.getByTestId('lang-column-es').textContent).toContain('Ada')
+      expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
+      // A one-person party with everyone assigned can go straight on.
+      expect(screen.queryByTestId('lang-assign-select-1')).not.toBeInTheDocument()
+      expect(screen.getByTestId('cf-submit')).toBeEnabled()
+    })
+  })
 })

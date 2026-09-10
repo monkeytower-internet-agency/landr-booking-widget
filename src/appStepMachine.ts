@@ -14,6 +14,7 @@ import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type {
   PartyAssignmentMap,
   PartyBreakfastMap,
+  PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
 import type { AddonSelection } from '@/components/booking/addonsState'
@@ -91,6 +92,19 @@ export interface BookingDraft {
   // like every other draft slice. Empty/undefined until the customer answers a
   // custom form.
   customFormAnswers?: Record<string, Record<string, unknown>>
+  /**
+   * landr-r6e5x.4 / epic decision D3: which offered guide language each party
+   * member was assigned to, keyed by stable PartyMemberId (participants and
+   * companions alike). Written by the custom-form step's assignment board and
+   * read back on the review step, where BookingForm turns it into each
+   * participant's / companion's `language` on the submit body.
+   *
+   * Identity-keyed for the same reason the room/age/breakfast maps are: a
+   * roster edit in DetailsStep renumbers positions, and a positional key would
+   * hand one person another person's language (landr-uwvl). App.tsx converts
+   * at the seam with toIdentityKeyed / toIndexKeyedOrUndefined.
+   */
+  participantLanguages?: PartyLanguageMap
 }
 
 /**

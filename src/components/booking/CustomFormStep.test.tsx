@@ -1040,3 +1040,318 @@ describe('CustomFormStep — whole checkbox chip is clickable', () => {
     expect(entry.answers.agree).toEqual(['yes'])
   })
 })
+
+// ─── landr-r6e5x.4: per-participant language assignment board ────────────────
+//
+// Epic decision D3 replaces the booking-level ranked multi-select with a
+// room-assignment-style board: every party member (companions included) goes
+// into exactly one offered-language column, and the step cannot be completed
+// until the Unassigned tray is empty.
+//
+// Drag-and-drop itself is @dnd-kit's, and jsdom has no layout for a pointer
+// drag to resolve against — so these exercise the two NON-drag modalities the
+// component ships precisely so the interaction never depends on drag working:
+// tap-to-place and the per-member <select>. Both write the same map the drag
+// handler does.
+
+function langBoardFlow(required = true) {
+  return {
+    modules: [
+      {
+        kind: 'custom_form' as const,
+        position: 0,
+        form: {
+          key: 'lang_form',
+          version: 1,
+          name: 'Language',
+          name_localized: null,
+          fields: [
+            {
+              key: 'languages',
+              field_type: 'language' as const,
+              label: 'Guide language',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required,
+              position: 0,
+              options: [
+                { value: 'en', label: 'English', label_localized: null },
+                { value: 'de', label: 'Deutsch', label_localized: null },
+                { value: 'es', label: 'Español', label_localized: null },
+              ],
+              validation: null,
+              visibility_rule: null,
+            },
+            {
+              key: 'other_languages',
+              field_type: 'text' as const,
+              label: 'Other languages you speak',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required: false,
+              position: 1,
+              options: null,
+              validation: null,
+              visibility_rule: null,
+            },
+          ],
+        },
+      },
+    ],
+  }
+}
+
+interface BoardRenderOptions {
+  participantNames?: string[]
+  guestFlags?: boolean[]
+  offeredLanguages?: string[] | null
+  initialParticipantLanguages?: Record<number, string>
+  required?: boolean
+}
+
+function renderBoardStep(
+  onConfirm = vi.fn(),
+  {
+    participantNames = ['Ada', 'Grace', 'Kay'],
+    guestFlags = [false, false, true],
+    offeredLanguages = ['en', 'de', 'es'],
+    initialParticipantLanguages,
+    required = true,
+  }: BoardRenderOptions = {},
+) {
+  mocks.getProductFlow.mockResolvedValue(langBoardFlow(required))
+  render(
+    <CustomFormStep
+      operatorToken="tok"
+      productId="p1"
+      formKey="lang_form"
+      productName="Tandem"
+      participantNames={participantNames}
+      guestFlags={guestFlags}
+      offeredLanguages={offeredLanguages}
+      initialParticipantLanguages={initialParticipantLanguages}
+      onBack={vi.fn()}
+      onConfirm={onConfirm}
+    />,
+  )
+  return onConfirm
+}
+
+/** Assign via the always-available per-member <select> fallback. */
+function assignViaSelect(memberIndex: number, code: string) {
+  fireEvent.change(screen.getByTestId(`lang-assign-select-${memberIndex}`), {
+    target: { value: code },
+  })
+}
+
+describe('CustomFormStep — per-participant language board (landr-r6e5x.4)', () => {
+  it('renders the board (not the ranked picker) with everyone unassigned and no columns open', async () => {
+    renderBoardStep()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('participant-language-board')).toBeTruthy()
+    })
+    // The ranked multi-select this replaces is gone.
+    expect(screen.queryByTestId('cf-lang-row-en')).toBeNull()
+
+    // Everyone starts in the tray — one chip per party member, companions included.
+    expect(screen.getByTestId('lang-chip-0')).toBeTruthy()
+    expect(screen.getByTestId('lang-chip-1')).toBeTruthy()
+    expect(screen.getByTestId('lang-chip-2')).toBeTruthy()
+    expect(screen.getByTestId('lang-chip-2').dataset.guest).toBe('true')
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain(
+      'Unassigned (3)',
+    )
+
+    // No column is open yet (decision D3) — only the "Add language" chips.
+    expect(screen.queryByTestId('lang-column-en')).toBeNull()
+    expect(screen.getByTestId('lang-add-en')).toBeTruthy()
+    expect(screen.getByTestId('lang-add-de')).toBeTruthy()
+    expect(screen.getByTestId('lang-add-es')).toBeTruthy()
+  })
+
+  it('opens a column from the Add-language row and closes it again while empty', async () => {
+    renderBoardStep()
+    await waitFor(() => expect(screen.getByTestId('lang-add-de')).toBeTruthy())
+
+    fireEvent.click(screen.getByTestId('lang-add-de'))
+    expect(screen.getByTestId('lang-column-de')).toBeTruthy()
+    // Opening it takes it out of the "add" row.
+    expect(screen.queryByTestId('lang-add-de')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('lang-remove-de'))
+    expect(screen.queryByTestId('lang-column-de')).toBeNull()
+    expect(screen.getByTestId('lang-add-de')).toBeTruthy()
+  })
+
+  it('moves a member from the tray into a column, and re-assigning moves them between columns', async () => {
+    renderBoardStep()
+    await waitFor(() => expect(screen.getByTestId('lang-chip-0')).toBeTruthy())
+
+    assignViaSelect(0, 'de')
+    // The column opens itself around an assigned member — a restored or
+    // dropdown-driven assignment is never hidden behind a closed column.
+    expect(screen.getByTestId('lang-column-de').textContent).toContain('Ada')
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain(
+      'Unassigned (2)',
+    )
+
+    // Re-assign: Ada leaves German and lands in Spanish, in one move. The
+    // German column stays put (now empty and removable) rather than vanishing
+    // under the customer's cursor.
+    assignViaSelect(0, 'es')
+    expect(screen.getByTestId('lang-column-de').textContent).not.toContain('Ada')
+    expect(screen.getByTestId('lang-remove-de')).toBeTruthy()
+    expect(screen.getByTestId('lang-column-es').textContent).toContain('Ada')
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain(
+      'Unassigned (2)',
+    )
+  })
+
+  it('tap-to-place assigns without any drag, and tapping a placed chip returns them to the tray', async () => {
+    renderBoardStep()
+    await waitFor(() => expect(screen.getByTestId('lang-add-en')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('lang-add-en'))
+
+    // Pick up Grace, then tap the English column.
+    fireEvent.click(screen.getByTestId('lang-chip-1'))
+    fireEvent.click(screen.getByTestId('lang-place-here-en'))
+    expect(screen.getByTestId('lang-column-en').textContent).toContain('Grace')
+
+    // Tapping a placed chip is the "get me out of here" gesture.
+    fireEvent.click(screen.getByTestId('lang-chip-1'))
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain(
+      'Grace',
+    )
+  })
+
+  it('blocks Continue until every member — companions included — has a language', async () => {
+    const onConfirm = renderBoardStep()
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeTruthy())
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+
+    assignViaSelect(0, 'en')
+    assignViaSelect(1, 'en')
+    // Two of three: still blocked, and the gate names who is missing.
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+    expect(screen.getByTestId('cf-language-board-incomplete').textContent).toContain(
+      'Assign every participant to a language',
+    )
+    expect(screen.getByTestId('cf-language-board-incomplete').textContent).toContain(
+      'Kay',
+    )
+
+    // The companion counts too — assigning them clears the gate.
+    assignViaSelect(2, 'de')
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    expect(screen.queryByTestId('cf-language-board-incomplete')).toBeNull()
+    expect(screen.getByTestId('lang-everyone-assigned')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+  })
+
+  it('reports the party-index → language map and mirrors the distinct set, booker first, into the form answer', async () => {
+    const onConfirm = renderBoardStep()
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeTruthy())
+
+    // Booker (index 0) speaks Spanish; the other two German — so the mirrored
+    // list must lead with 'es' (the backend reads entry 0 as the preferred
+    // language for the confirmation email's locale).
+    assignViaSelect(0, 'es')
+    assignViaSelect(1, 'de')
+    assignViaSelect(2, 'de')
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('cf-submit'))
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [entry, , assignment] = onConfirm.mock.calls[0] as [
+      { answers: Record<string, unknown> },
+      Record<string, unknown>,
+      Record<number, string>,
+    ]
+    expect(assignment).toEqual({ 0: 'es', 1: 'de', 2: 'de' })
+    expect(entry.answers.languages).toEqual(['es', 'de'])
+  })
+
+  it('restores a draft assignment on back-nav re-entry, columns and all', async () => {
+    renderBoardStep(vi.fn(), {
+      initialParticipantLanguages: { 0: 'en', 1: 'en', 2: 'es' },
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('participant-language-board')).toBeTruthy(),
+    )
+    expect(screen.getByTestId('lang-column-en').textContent).toContain('Ada')
+    expect(screen.getByTestId('lang-column-en').textContent).toContain('Grace')
+    expect(screen.getByTestId('lang-column-es').textContent).toContain('Kay')
+    expect(screen.getByTestId('cf-submit')).toBeEnabled()
+  })
+
+  it('drops a restored assignment to a language the operator has since withdrawn', async () => {
+    // The operator edited Settings (landr-r6e5x.3) while the customer had the
+    // tab open: Kay's Spanish is gone, so Kay is unassigned and the step blocks.
+    renderBoardStep(vi.fn(), {
+      offeredLanguages: ['en', 'de'],
+      initialParticipantLanguages: { 0: 'en', 1: 'en', 2: 'es' },
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('participant-language-board')).toBeTruthy(),
+    )
+    expect(screen.queryByTestId('lang-column-es')).toBeNull()
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain('Kay')
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+  })
+
+  it('uses the operator offered list over the form field options, and the options when the operator list is absent', async () => {
+    // Operator column wins: 'fr' appears even though the form def predates it,
+    // and the form's stale 'es' option does not.
+    const { unmount } = render(<div />)
+    unmount()
+    renderBoardStep(vi.fn(), { offeredLanguages: ['en', 'fr'] })
+    await waitFor(() => expect(screen.getByTestId('lang-add-fr')).toBeTruthy())
+    expect(screen.queryByTestId('lang-add-es')).toBeNull()
+    // A language only the operator column knows about is still submittable —
+    // a stale form option list must not reject it as "an invalid option".
+    assignViaSelect(0, 'fr')
+    expect(screen.getByTestId('lang-column-fr').textContent).toContain('Ada')
+  })
+
+  it('falls back to the form field options when the operator config carries no offered list', async () => {
+    renderBoardStep(vi.fn(), { offeredLanguages: null })
+    await waitFor(() => expect(screen.getByTestId('lang-add-en')).toBeTruthy())
+    expect(screen.getByTestId('lang-add-de')).toBeTruthy()
+    expect(screen.getByTestId('lang-add-es')).toBeTruthy()
+  })
+
+  it('keeps the ranked multi-select when no party roster is supplied', async () => {
+    // Standalone/legacy callers (and any operator flow reached before the
+    // roster exists) must not hit an empty, unusable board.
+    mocks.getProductFlow.mockResolvedValue(langBoardFlow())
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="lang_form"
+        productName="Tandem"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy())
+    expect(screen.queryByTestId('participant-language-board')).toBeNull()
+  })
+
+  it('says the free-text field does not assign anyone', async () => {
+    renderBoardStep()
+    await waitFor(() =>
+      expect(screen.getByTestId('participant-language-board')).toBeTruthy(),
+    )
+    expect(screen.getByTestId('cf-field-languages').textContent).toContain(
+      "they don't assign anyone",
+    )
+    // …and the free-text field itself is untouched, still below the board.
+    expect(screen.getByTestId('cf-field-other_languages')).toBeTruthy()
+  })
+})
