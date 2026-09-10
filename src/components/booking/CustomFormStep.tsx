@@ -760,8 +760,13 @@ export function CustomFormStep({
       ),
     [partyCount, languageAssignment, partyNames],
   )
+  // Gate on the board ONLY while its field is actually on screen. A form can
+  // hide the language field behind a visibility rule; gating a hidden field
+  // would disable Continue with no control anywhere to satisfy it — a forward
+  // dead-end, the exact failure mode landr-db45 closed elsewhere in this file.
+  const boardIsVisible = boardField ? isFieldVisible(boardField, answers) : false
   const languageBoardComplete =
-    !boardField || isLanguageAssignmentComplete(partyCount, languageAssignment)
+    !boardIsVisible || isLanguageAssignmentComplete(partyCount, languageAssignment)
 
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
@@ -869,7 +874,7 @@ export function CustomFormStep({
     onConfirm(
       entry,
       rawForDraft,
-      boardField ? languageAssignment : undefined,
+      boardIsVisible ? languageAssignment : undefined,
     )
   }
 

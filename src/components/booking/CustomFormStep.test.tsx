@@ -1343,6 +1343,60 @@ describe('CustomFormStep — per-participant language board (landr-r6e5x.4)', ()
     expect(screen.queryByTestId('participant-language-board')).toBeNull()
   })
 
+  it('does not gate on a language field a visibility rule has HIDDEN', async () => {
+    // A hidden field has no board to satisfy, so gating on it would disable
+    // Continue with no control anywhere on screen to unblock it.
+    const base = langBoardFlow()
+    const [languageField, ...restFields] = base.modules[0]!.form.fields
+    const flow: ProductFlowResponse = {
+      modules: [
+        {
+          ...base.modules[0]!,
+          form: {
+            ...base.modules[0]!.form,
+            fields: [
+              {
+                ...languageField!,
+                required: false,
+                visibility_rule: {
+                  field_key: 'other_languages',
+                  op: 'eq',
+                  value: 'show',
+                },
+              },
+              ...restFields,
+            ],
+          },
+        },
+      ],
+    }
+    mocks.getProductFlow.mockResolvedValue(flow)
+    const onConfirm = vi.fn()
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="lang_form"
+        productName="Tandem"
+        participantNames={['Ada', 'Grace']}
+        offeredLanguages={['en', 'de']}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('cf-field-other_languages')).toBeTruthy(),
+    )
+    expect(screen.queryByTestId('participant-language-board')).toBeNull()
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    // Nothing was assigned, so no map reaches the submit body either.
+    expect(onConfirm.mock.calls[0][2]).toBeUndefined()
+  })
+
   it('says the free-text field does not assign anyone', async () => {
     renderBoardStep()
     await waitFor(() =>
