@@ -17,6 +17,16 @@ permissions:
   contents: read
 
 jobs:
+  # landr-r6e5x.1 (2026-09-11): NOT gated behind ALLOW_GITHUB_RUNNERS, unlike
+  # every other repo's ubuntu-latest fallback tier — this is deliberate, not
+  # an oversight. There is no self-hosted runner registered for
+  # landr-booking-widget at all (verified via `gh api
+  # repos/.../landr-booking-widget/actions/runners` — empty), so
+  # ubuntu-latest is this workflow's ONLY lane, not a fallback in a cascade.
+  # Gating it behind a variable that's unset by default would silently kill
+  # this signal entirely rather than opt out of a redundant one. See the
+  # landr-r6e5x.1 handoff for the option to provision a self-hosted widget
+  # runner if that's ever wanted; until then, leave this as-is.
   widget-booking-smoke:
     runs-on: ubuntu-latest
     # 2026-09-04: `continue-on-error: true` REMOVED. It sat on the only job in
