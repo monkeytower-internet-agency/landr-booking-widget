@@ -1040,3 +1040,173 @@ describe('CustomFormStep — whole checkbox chip is clickable', () => {
     expect(entry.answers.agree).toEqual(['yes'])
   })
 })
+
+// ─── landr-r6e5x.4: the form's `language` field mirrors the LanguageStep ──────
+//
+// Guide languages are assigned PER PERSON on their own step, which runs before
+// this form. A form that also declares a `language` field must not ask the same
+// question a second time — it reports what was assigned, and its answer is
+// derived from the same map, so the two can never disagree.
+
+function langMirrorFlow(required = true, options = ['en', 'de', 'es']) {
+  return {
+    modules: [
+      {
+        kind: 'custom_form' as const,
+        position: 0,
+        form: {
+          key: 'lang_form',
+          version: 1,
+          name: 'Language',
+          name_localized: null,
+          fields: [
+            {
+              key: 'languages',
+              field_type: 'language' as const,
+              label: 'Guide language',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required,
+              position: 0,
+              options: options.map((value) => ({
+                value,
+                label: value.toUpperCase(),
+                label_localized: null,
+              })),
+              validation: null,
+              visibility_rule: null,
+            },
+            {
+              key: 'other_languages',
+              field_type: 'text' as const,
+              label: 'Other languages you speak',
+              label_localized: null,
+              help_text: null,
+              help_text_localized: null,
+              required: false,
+              position: 1,
+              options: null,
+              validation: null,
+              visibility_rule: null,
+            },
+          ],
+        },
+      },
+    ],
+  }
+}
+
+function renderMirrorStep(
+  onConfirm = vi.fn(),
+  {
+    participantLanguages = { 0: 'es', 1: 'de', 2: 'de' },
+    partyCount = 3,
+    required = true,
+    options,
+  }: {
+    participantLanguages?: Record<number, string>
+    partyCount?: number
+    required?: boolean
+    options?: string[]
+  } = {},
+) {
+  mocks.getProductFlow.mockResolvedValue(langMirrorFlow(required, options))
+  render(
+    <CustomFormStep
+      operatorToken="tok"
+      productId="p1"
+      formKey="lang_form"
+      productName="Tandem"
+      participantLanguages={participantLanguages}
+      partyCount={partyCount}
+      onBack={vi.fn()}
+      onConfirm={onConfirm}
+    />,
+  )
+  return onConfirm
+}
+
+describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5x.4)', () => {
+  it('shows the assigned languages read-only instead of a second control', async () => {
+    renderMirrorStep()
+
+    await waitFor(() => expect(screen.getByTestId('cf-language-mirror')).toBeTruthy())
+    // The ranked multi-select is NOT rendered — one source of truth.
+    expect(screen.queryByTestId('cf-lang-row-en')).toBeNull()
+    expect(screen.queryByTestId('participant-language-board')).toBeNull()
+    // Booker first, then the rest: es before de.
+    expect(screen.getByTestId('cf-language-mirror-es')).toBeTruthy()
+    expect(screen.getByTestId('cf-language-mirror-de')).toBeTruthy()
+    expect(screen.getByTestId('cf-field-languages').textContent).toContain(
+      'go back a step to change',
+    )
+    // The free-text field beside it is untouched.
+    expect(screen.getByTestId('cf-field-other_languages')).toBeTruthy()
+  })
+
+  it('satisfies a REQUIRED language field from the assignment alone, with no input', async () => {
+    const onConfirm = renderMirrorStep()
+
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.languages).toEqual(['es', 'de'])
+  })
+
+  it('constrains the mirrored answer to the FIELD\'s options (interim)', async () => {
+    // The operator offers a language the form library has never heard of. The
+    // API validates a `language` answer against the field's declared options,
+    // so mirroring 'fr' here would be rejected as an invalid option. Until the
+    // API validates these answers against offered_languages instead, the
+    // mirrored answer is the intersection.
+    const onConfirm = renderMirrorStep(vi.fn(), {
+      participantLanguages: { 0: 'fr', 1: 'de' },
+      partyCount: 2,
+      options: ['en', 'de'],
+    })
+
+    await waitFor(() => expect(screen.getByTestId('cf-language-mirror')).toBeTruthy())
+    // The summary still shows the truth of what people speak…
+    expect(screen.getByTestId('cf-language-mirror-fr')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    // …while the wire answer carries only what this form can accept.
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.languages).toEqual(['de'])
+  })
+
+  it('falls back to the field\'s own picker when the intersection is empty and the field is required', async () => {
+    // A misconfiguration: the operator offers nothing this form lists. A
+    // suppressed control plus an empty mirror would be an unanswerable required
+    // field — a dead end. The picker comes back instead.
+    renderMirrorStep(vi.fn(), {
+      participantLanguages: { 0: 'fr', 1: 'fr' },
+      partyCount: 2,
+      options: ['en', 'de'],
+    })
+
+    await waitFor(() => expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy())
+    expect(screen.queryByTestId('cf-language-mirror')).toBeNull()
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+  })
+
+  it('keeps the ranked picker when no assignment was made at all', async () => {
+    // Standalone callers, and any operator with no offered languages, keep the
+    // pre-r6e5x behaviour exactly.
+    mocks.getProductFlow.mockResolvedValue(langMirrorFlow())
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="lang_form"
+        productName="Tandem"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy())
+    expect(screen.queryByTestId('cf-language-mirror')).toBeNull()
+  })
+})

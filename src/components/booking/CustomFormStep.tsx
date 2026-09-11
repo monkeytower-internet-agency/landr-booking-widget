@@ -44,6 +44,12 @@ import type {
 } from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
+import {
+  distinctAssignedLanguages,
+  languageFlag,
+  languageName,
+  type ParticipantLanguageMap,
+} from './participantLanguages'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -84,8 +90,26 @@ export interface CustomFormStepProps {
    * fetch didn't have; only a genuinely absent prop triggers the fallback.
    */
   flow?: ProductFlowResponse | null
+  /**
+   * landr-r6e5x.4: the guide-language assignment the LanguageStep captured
+   * upstream (party index → ISO 639-1). When the operator's form also declares
+   * a `language` field, that field renders as a read-only summary of this map
+   * and its answer is mirrored from it — the board is the single source, so the
+   * customer is never asked the same question twice.
+   *
+   * Absent / empty (standalone callers, and any operator with no offered
+   * languages at all) leaves the field's own control exactly as it was.
+   */
+  participantLanguages?: ParticipantLanguageMap
+  /** Party size the assignment is keyed against (participants + companions). */
+  partyCount?: number
   onBack: () => void
-  /** Called with the pruned answers + form metadata when the customer submits. */
+  /**
+   * Called with the pruned answers + form metadata when the customer submits.
+   * `participantLanguages` is present only when the assignment board was
+   * shown; it is the party-index → ISO 639-1 map the submit body turns into
+   * each participant's / companion's `language` field.
+   */
   onConfirm: (entry: FormResponseEntry, rawAnswers: Record<string, unknown>) => void
 }
 
@@ -243,15 +267,38 @@ function normaliseInitial(
 
 // ─── FieldRenderer ────────────────────────────────────────────────────────────
 
+/**
+ * landr-r6e5x.4: what the form's `language` field shows once the assignment
+ * has already been made on the LanguageStep. The field becomes a read-only
+ * SUMMARY — the board upstream is the single source of truth, and a second
+ * editable control here would let the two disagree with no rule for which wins.
+ */
+interface LanguageMirrorContext {
+  /** The field key the summary stands in for. */
+  fieldKey: string
+  /** The languages actually assigned, booker first. */
+  assigned: string[]
+  /** What will be mirrored into the answer — see mirroredLanguageAnswer. */
+  mirrored: string[]
+}
+
 interface FieldRendererProps {
   field: FlowFieldDef
   answers: AnswerMap
   error: string | null
   locale: string
   onChange: (key: string, value: string | string[]) => void
+  languageMirror?: LanguageMirrorContext | null
 }
 
-function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendererProps) {
+function FieldRenderer({
+  field,
+  answers,
+  error,
+  locale,
+  onChange,
+  languageMirror = null,
+}: FieldRendererProps) {
   const { tokens } = useVariant()
   const label = pickLocalized(field.label, field.label_localized, locale) || field.key
   const helpText = pickLocalized(field.help_text, field.help_text_localized, locale)
@@ -384,6 +431,45 @@ function FieldRenderer({ field, answers, error, locale, onChange }: FieldRendere
       // free-text input rather than render an empty, unusable picker
       // ("malformed config degrades, never throws").
       case 'language': {
+        // landr-r6e5x.4 / epic decision D3: languages are assigned PER PERSON
+        // on the LanguageStep, which runs before this form. When the operator's
+        // form also declares a language field, it reports what was assigned
+        // instead of asking again — one source of truth, no way for the two
+        // controls to disagree.
+        if (languageMirror && languageMirror.fieldKey === field.key) {
+          return (
+            <div
+              className="flex flex-col gap-2"
+              data-testid={`cf-field-${field.key}`}
+            >
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-well p-3 shadow-well"
+                data-testid="cf-language-mirror"
+              >
+                {languageMirror.assigned.length === 0 ? (
+                  <span className="text-xs italic text-muted-foreground">
+                    No language assigned yet.
+                  </span>
+                ) : (
+                  languageMirror.assigned.map((code) => (
+                    <span
+                      key={code}
+                      data-testid={`cf-language-mirror-${code}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-sm font-medium"
+                    >
+                      <span aria-hidden>{languageFlag(code)}</span>
+                      {languageName(code)}
+                    </span>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Taken from the guide-language step — go back a step to change
+                who speaks what.
+              </p>
+            </div>
+          )
+        }
         if (field.options && field.options.length > 0) {
           const ordered = (answers[field.key] as string[] | undefined) ?? []
           return (
@@ -507,6 +593,8 @@ export function CustomFormStep({
   productName,
   initialAnswers,
   flow,
+  participantLanguages,
+  partyCount = 0,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -573,6 +661,49 @@ export function CustomFormStep({
   )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  // ─── landr-r6e5x.4: mirror of the upstream language assignment ─────────────
+  //
+  // The LanguageStep runs BEFORE this form and owns the assignment. If the
+  // operator's form also declares a `language` field, we neither re-ask nor
+  // let it drift: the field renders as a summary and its answer is derived
+  // here. Everything is computed from props + the assignment — no state, so
+  // no setState-in-effect (an ESLint error in this repo) anywhere in the path.
+  const assignedLanguages = useMemo(
+    () => distinctAssignedLanguages(participantLanguages ?? {}, partyCount),
+    [participantLanguages, partyCount],
+  )
+
+  const mirrorField = useMemo(() => {
+    if (assignedLanguages.length === 0 || !formDef) return null
+    return (
+      formDef.fields.find(
+        (f) => f.field_type === 'language' && (f.options?.length ?? 0) > 0,
+      ) ?? null
+    )
+  }, [formDef, assignedLanguages])
+
+  // INTERIM CONSTRAINT. The API validates a `language` answer against the
+  // FIELD's declared options (validate_form_responses), not against the
+  // operator's offered_languages, so mirroring a language the operator offers
+  // but the form library has never heard of would be rejected as an invalid
+  // option. Until the API validates these answers against offered_languages
+  // (asked of the api sibling), mirror only the intersection.
+  const mirroredLanguages = useMemo(() => {
+    if (!mirrorField) return []
+    const allowed = new Set((mirrorField.options ?? []).map((o) => o.value))
+    return assignedLanguages.filter((code) => allowed.has(code))
+  }, [mirrorField, assignedLanguages])
+
+  // The pathological case: the operator offers only languages this form's
+  // option list does not contain, so the intersection is empty. Suppressing
+  // the control AND mirroring nothing would leave a required field with no way
+  // to answer it — a dead end. Fall back to the field's own picker there; it
+  // is a misconfiguration, not the normal path, and a visible second control
+  // beats an unsubmittable booking.
+  const mirrorActive =
+    mirrorField !== null &&
+    (mirroredLanguages.length > 0 || mirrorField.required !== true)
+
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
     // Clear the field's error on change so the customer gets live feedback.
@@ -584,27 +715,35 @@ export function CustomFormStep({
     })
   }, [])
 
+  // The mirrored answer replaces whatever is (or isn't) in `answers` for that
+  // one field, for validation, visibility and pruning alike — one source of
+  // truth, so a late change upstream can never leave the two disagreeing.
+  const effectiveAnswers: AnswerMap = useMemo(() => {
+    if (!mirrorActive || !mirrorField) return answers
+    return { ...answers, [mirrorField.key]: mirroredLanguages }
+  }, [answers, mirrorActive, mirrorField, mirroredLanguages])
+
   const handleSubmit = () => {
     if (!formDef) return
 
     // Validate all visible fields.
     const errors: Record<string, string> = {}
     for (const field of formDef.fields) {
-      const err = validateField(field, answers, locale)
+      const err = validateField(field, effectiveAnswers, locale)
       if (err) errors[field.key] = err
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
     // Prune hidden fields then build the FormResponseEntry.
-    const pruned = pruneHiddenAnswers(formDef.fields, answers)
+    const pruned = pruneHiddenAnswers(formDef.fields, effectiveAnswers)
     const entry: FormResponseEntry = {
       form_key: formDef.key,
       answers: pruned,
     }
 
     // Pass raw answers (includes hidden field state) for draft persistence.
-    const rawForDraft: Record<string, unknown> = { ...answers }
+    const rawForDraft: Record<string, unknown> = { ...effectiveAnswers }
     onConfirm(entry, rawForDraft)
   }
 
@@ -617,10 +756,10 @@ export function CustomFormStep({
     if (!formDef) return false
     return formDef.fields.every(
       (field) =>
-        !isFieldVisible(field, answers) ||
-        validateField(field, answers, locale) === null,
+        !isFieldVisible(field, effectiveAnswers) ||
+        validateField(field, effectiveAnswers, locale) === null,
     )
-  }, [formDef, answers, locale])
+  }, [formDef, effectiveAnswers, locale])
 
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
@@ -649,15 +788,24 @@ export function CustomFormStep({
           </p>
         ) : formDef ? (
           formDef.fields.map((field) => {
-            if (!isFieldVisible(field, answers)) return null
+            if (!isFieldVisible(field, effectiveAnswers)) return null
             return (
               <FieldRenderer
                 key={field.key}
                 field={field}
-                answers={answers}
+                answers={effectiveAnswers}
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
                 onChange={handleChange}
+                languageMirror={
+                  mirrorActive && mirrorField && mirrorField.key === field.key
+                    ? {
+                        fieldKey: mirrorField.key,
+                        assigned: assignedLanguages,
+                        mirrored: mirroredLanguages,
+                      }
+                    : null
+                }
               />
             )
           })

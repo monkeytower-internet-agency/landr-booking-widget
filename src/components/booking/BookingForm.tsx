@@ -26,6 +26,11 @@ import type {
   ParticipantDetails,
 } from './detailsTypes'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
+import {
+  distinctAssignedLanguages,
+  languageFlag,
+  languageName,
+} from './participantLanguages'
 
 export type BookingSelection =
   | {
@@ -133,6 +138,25 @@ interface Props {
    * Null / omitted when the free-text was not filled.
    */
   customerOtherLanguages?: string | null
+  /**
+   * landr-r6e5x.4 / epic decision D3: WHOLE-PARTY guide-language assignment
+   * (memberIndex → ISO 639-1 code), captured by the custom-form step's
+   * assignment board. Unified index space, identical to roomAssignment:
+   * indices 0..P-1 are guiding participants, P..P+C-1 are companions.
+   * Each member's code ships as `language` on their participants[] /
+   * companions[] entry, which the API persists to
+   * `booking_participants.language` so the calendar can show a per-person
+   * flag without inheriting the booking-level list.
+   *
+   * WIRE CONTRACT (PINNED — landr-r6e5x.2 on the API builds the same shape):
+   * `language` is REQUIRED on every member and the API enforces it on EVERY
+   * public submit — `assert_participant_languages` runs unconditionally, with
+   * no dependence on the operator's configured flow. A missing one is a typed
+   * 422 (`participant_language_missing`), never a silent default. The
+   * LanguageStep therefore runs for every product; an empty map here means the
+   * funnel was driven past that step, and the submit will be rejected.
+   */
+  participantLanguages?: Record<number, string>
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
    * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
@@ -271,7 +295,132 @@ const SANITIZED_REJECTION_MESSAGE =
  * instead of an opaque "Failed to fetch". Falls back to the raw
  * stringified detail when the shape is unexpected.
  */
-const formatHttpError = (err: HttpError): string => {
+/**
+ * landr-r6e5x.4: the typed per-participant-language 422s from the submit
+ * contract (landr-r6e5x.2). Wire shape, straight from the API's own tests:
+ *
+ *   {error: "participant_language_missing", missing: [{role, index}], message}
+ *   {error: "participant_language_invalid",
+ *    invalid: [{role, index, language}], offered: [...], message}
+ *
+ * `role` is "participant" or "companion" and `index` is 1-BASED WITHIN THAT
+ * ROLE'S OWN LIST — not the widget's unified party index. Every offender is
+ * aggregated into one response rather than failing on the first, so the widget
+ * names all of them.
+ */
+const LANGUAGE_ERROR_CODES = [
+  'participant_language_missing',
+  'participant_language_invalid',
+] as const
+
+type LanguageErrorCode = (typeof LANGUAGE_ERROR_CODES)[number]
+
+interface LanguageErrorEntry {
+  /** Unified party index (participants 0..P-1, companions P..P+C-1), or null. */
+  partyIndex: number | null
+  /** The rejected language, for the "invalid" case. */
+  language: string | null
+}
+
+interface LanguageError {
+  code: LanguageErrorCode
+  entries: LanguageErrorEntry[]
+  /** The operator's full offered set, when the API sent it. */
+  offered: string[]
+}
+
+/**
+ * role + 1-based per-role index → the widget's unified party index.
+ * Participants occupy 0..P-1 and companions follow at P..P+C-1, which is the
+ * same index space the language board and every party map already use.
+ */
+function toPartyIndex(
+  role: unknown,
+  index: unknown,
+  participantCount: number,
+): number | null {
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 1) return null
+  if (role === 'participant') return index - 1
+  if (role === 'companion') return participantCount + index - 1
+  return null
+}
+
+function readLanguageError(
+  detail: unknown,
+  participantCount: number,
+): LanguageError | null {
+  if (detail === null || typeof detail !== 'object' || Array.isArray(detail)) {
+    return null
+  }
+  const obj = detail as Record<string, unknown>
+  const code = LANGUAGE_ERROR_CODES.find((c) => obj.error === c)
+  if (!code) return null
+
+  const rawEntries =
+    code === 'participant_language_missing' ? obj.missing : obj.invalid
+  const entries: LanguageErrorEntry[] = []
+  if (Array.isArray(rawEntries)) {
+    for (const raw of rawEntries) {
+      if (!raw || typeof raw !== 'object') continue
+      const row = raw as Record<string, unknown>
+      entries.push({
+        partyIndex: toPartyIndex(row.role, row.index, participantCount),
+        language: typeof row.language === 'string' ? row.language : null,
+      })
+    }
+  }
+  const offered = Array.isArray(obj.offered)
+    ? obj.offered.filter((v): v is string => typeof v === 'string')
+    : []
+  return { code, entries, offered }
+}
+
+/**
+ * The customer-facing sentence for a language 422 — the same wording the
+ * language step's own gate uses, so a server rejection and a client-side block
+ * never read as two different problems. Names EVERY offender the API listed
+ * (it aggregates them), and quotes the operator's offered set when the API
+ * sent it, so "pick another" is actionable rather than a guessing game.
+ */
+function languageErrorMessage(
+  err: LanguageError,
+  memberLabels: string[],
+): string {
+  const named = err.entries
+    .map((entry) =>
+      entry.partyIndex !== null && entry.partyIndex >= 0
+        ? (memberLabels[entry.partyIndex] ?? null)
+        : null,
+    )
+    .filter((label): label is string => label !== null)
+  const who = named.length > 0 ? named.join(', ') : null
+
+  if (err.code === 'participant_language_invalid') {
+    const offeredText =
+      err.offered.length > 0
+        ? ` Please go back and pick one of: ${err.offered.map(languageName).join(', ')}.`
+        : ' Please go back and pick another.'
+    return who
+      ? `${who} ${named.length > 1 ? 'were' : 'was'} assigned a language this operator does not offer.${offeredText}`
+      : `Someone was assigned a language this operator does not offer.${offeredText}`
+  }
+  return who
+    ? `Assign every participant to a language — ${who} still ${named.length > 1 ? 'need' : 'needs'} one.`
+    : 'Assign every participant to a language.'
+}
+
+const formatHttpError = (
+  err: HttpError,
+  memberLabels: string[] = [],
+  participantCount: number = 0,
+): string => {
+  // landr-r6e5x.4: the typed per-participant-language rejections come first —
+  // they are actionable ("go back and assign X") in a way the generic 422
+  // dump below is not.
+  if (err.status === 422) {
+    const languageError = readLanguageError(err.detail, participantCount)
+    if (languageError) return languageErrorMessage(languageError, memberLabels)
+  }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
   // [...]} — reachable if an estimate the customer is looking at goes
@@ -372,6 +521,7 @@ export function BookingForm({
   customerDeclarations,
   customerLanguages,
   customerOtherLanguages,
+  participantLanguages = {},
   isSharedDouble = false,
   roomAssignment,
   occupantAgeMap = {},
@@ -408,6 +558,23 @@ export function BookingForm({
       : (selection.forcedDays?.length ?? 0) > 0
   const forcedDays =
     selection.kind === 'days' ? (selection.forcedDays ?? []) : []
+
+  // landr-r6e5x.4: whole-party display labels in the unified index space
+  // (participants first, companions after) — the same order the API's typed
+  // language 422 indexes into, so a rejection can name the actual person.
+  // Disambiguated like every other party label in this file so two people
+  // sharing a first name stay distinguishable.
+  // landr-r6e5x.4: the distinct languages the party was assigned to, booker
+  // first. Empty for a flow with no language step.
+  const assignedLanguages = distinctAssignedLanguages(
+    participantLanguages,
+    participants.length + companions.length,
+  )
+
+  const partyMemberLabels = disambiguatePartyLabels([
+    ...participants.map((p) => ({ first: p.first_name, last: p.last_name })),
+    ...companions.map((c) => ({ first: c.first_name, last: c.last_name })),
+  ]).map((label, i) => (label && label.trim() ? label : `Guest ${i + 1}`))
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -681,6 +848,15 @@ export function BookingForm({
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
+            // landr-r6e5x.4 wire field (PINNED contract — landr-r6e5x.2): the
+            // participant's assigned guide language, captured by the
+            // LanguageStep, which runs for every product. Omitted only when
+            // the map is empty, which the API rejects — deliberately, so a
+            // funnel bug surfaces as a typed 422 rather than a booking with
+            // silently missing language data.
+            ...(participantLanguages[idx]
+              ? { language: participantLanguages[idx] }
+              : {}),
           }
         }),
         // landr-87n9.3: non-guiding companions as the top-level companions[]
@@ -724,6 +900,12 @@ export function BookingForm({
                   ...(c.companion_kind === 'separate_guiding'
                     ? { companion_kind: 'separate_guiding' as const }
                     : {}),
+                  // landr-r6e5x.4 wire field (PINNED contract): companions are
+                  // assigned a guide language exactly like participants — the
+                  // board makes no distinction and neither does the API.
+                  ...(participantLanguages[memberIdx]
+                    ? { language: participantLanguages[memberIdx] }
+                    : {}),
                 }
               }),
             }
@@ -741,6 +923,16 @@ export function BookingForm({
         // non-declarations operators get a clean payload.
         ...(customerDeclarations != null && customerLanguages != null
           ? { customer_languages: customerLanguages }
+          : {}),
+        // landr-r6e5x.4: the booking-level language list is now DERIVED from
+        // the per-participant assignment (booker first — the backend reads
+        // entry 0 as the preferred locale for the confirmation email). The API
+        // derives the same list from participants[].language, so this is
+        // belt-and-braces for existing readers of bookings.customer_languages
+        // rather than the source of truth. Sent only when the language board
+        // actually ran, so a flow without a language step is unaffected.
+        ...(assignedLanguages.length > 0
+          ? { customer_languages: assignedLanguages }
           : {}),
         ...(customerDeclarations != null && customerOtherLanguages != null
           ? { customer_other_languages: customerOtherLanguages }
@@ -830,7 +1022,9 @@ export function BookingForm({
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
-        setServerError(formatHttpError(err))
+        setServerError(
+          formatHttpError(err, partyMemberLabels, participants.length),
+        )
       } else {
         setServerError(err instanceof Error ? err.message : String(err))
       }
@@ -921,6 +1115,21 @@ export function BookingForm({
                     </span>
                   ) : null}
                 </span>
+                {/* landr-r6e5x.4: the guide language this person was assigned
+                    on the language board. Shown here so a mis-assignment is
+                    catchable on the review screen rather than only after the
+                    booking exists. */}
+                {participantLanguages[idx] ? (
+                  <span
+                    className="shrink-0 text-xs text-muted-foreground"
+                    data-testid={`review-participant-language-${idx}`}
+                  >
+                    <span aria-hidden className="mr-1">
+                      {languageFlag(participantLanguages[idx])}
+                    </span>
+                    {languageName(participantLanguages[idx])}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -974,6 +1183,24 @@ export function BookingForm({
                       </span>
                     ) : null}
                   </span>
+                  {/* landr-r6e5x.4: companions carry a guide language too —
+                      the board and the API treat them identically. Their party
+                      index continues after the participants. */}
+                  {participantLanguages[participants.length + idx] ? (
+                    <span
+                      className="shrink-0 text-xs text-muted-foreground"
+                      data-testid={`review-companion-language-${idx}`}
+                    >
+                      <span aria-hidden className="mr-1">
+                        {languageFlag(
+                          participantLanguages[participants.length + idx]!,
+                        )}
+                      </span>
+                      {languageName(
+                        participantLanguages[participants.length + idx]!,
+                      )}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ol>
