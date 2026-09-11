@@ -1155,12 +1155,11 @@ describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5
     expect(entry.answers.languages).toEqual(['es', 'de'])
   })
 
-  it('constrains the mirrored answer to the FIELD\'s options (interim)', async () => {
+  it('mirrors a language absent from the field\'s static options and submits it as-is', async () => {
     // The operator offers a language the form library has never heard of. The
-    // API validates a `language` answer against the field's declared options,
-    // so mirroring 'fr' here would be rejected as an invalid option. Until the
-    // API validates these answers against offered_languages instead, the
-    // mirrored answer is the intersection.
+    // API now validates a `language` answer against the operator's live
+    // offered_languages, not the field's static option list (api PR #688), so
+    // the mirror carries the assignment through unfiltered — no intersection.
     const onConfirm = renderMirrorStep(vi.fn(), {
       participantLanguages: { 0: 'fr', 1: 'de' },
       partyCount: 2,
@@ -1168,28 +1167,11 @@ describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5
     })
 
     await waitFor(() => expect(screen.getByTestId('cf-language-mirror')).toBeTruthy())
-    // The summary still shows the truth of what people speak…
     expect(screen.getByTestId('cf-language-mirror-fr')).toBeTruthy()
     fireEvent.click(screen.getByTestId('cf-submit'))
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
-    // …while the wire answer carries only what this form can accept.
     const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
-    expect(entry.answers.languages).toEqual(['de'])
-  })
-
-  it('falls back to the field\'s own picker when the intersection is empty and the field is required', async () => {
-    // A misconfiguration: the operator offers nothing this form lists. A
-    // suppressed control plus an empty mirror would be an unanswerable required
-    // field — a dead end. The picker comes back instead.
-    renderMirrorStep(vi.fn(), {
-      participantLanguages: { 0: 'fr', 1: 'fr' },
-      partyCount: 2,
-      options: ['en', 'de'],
-    })
-
-    await waitFor(() => expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy())
-    expect(screen.queryByTestId('cf-language-mirror')).toBeNull()
-    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+    expect(entry.answers.languages).toEqual(['fr', 'de'])
   })
 
   it('keeps the ranked picker when no assignment was made at all', async () => {
