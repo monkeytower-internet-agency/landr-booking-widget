@@ -682,27 +682,12 @@ export function CustomFormStep({
     )
   }, [formDef, assignedLanguages])
 
-  // INTERIM CONSTRAINT. The API validates a `language` answer against the
-  // FIELD's declared options (validate_form_responses), not against the
-  // operator's offered_languages, so mirroring a language the operator offers
-  // but the form library has never heard of would be rejected as an invalid
-  // option. Until the API validates these answers against offered_languages
-  // (asked of the api sibling), mirror only the intersection.
-  const mirroredLanguages = useMemo(() => {
-    if (!mirrorField) return []
-    const allowed = new Set((mirrorField.options ?? []).map((o) => o.value))
-    return assignedLanguages.filter((code) => allowed.has(code))
-  }, [mirrorField, assignedLanguages])
-
-  // The pathological case: the operator offers only languages this form's
-  // option list does not contain, so the intersection is empty. Suppressing
-  // the control AND mirroring nothing would leave a required field with no way
-  // to answer it — a dead end. Fall back to the field's own picker there; it
-  // is a misconfiguration, not the normal path, and a visible second control
-  // beats an unsubmittable booking.
-  const mirrorActive =
-    mirrorField !== null &&
-    (mirroredLanguages.length > 0 || mirrorField.required !== true)
+  // The board's assignments mirror into the form answer as-is: the API
+  // validates a `language` answer against the operator's live
+  // offered_languages, not the field's static option list (api PR #688), so
+  // every assigned code is valid by construction — both it and the field's
+  // options ultimately come from offered_languages. No narrowing needed.
+  const mirrorActive = mirrorField !== null
 
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
@@ -720,8 +705,8 @@ export function CustomFormStep({
   // truth, so a late change upstream can never leave the two disagreeing.
   const effectiveAnswers: AnswerMap = useMemo(() => {
     if (!mirrorActive || !mirrorField) return answers
-    return { ...answers, [mirrorField.key]: mirroredLanguages }
-  }, [answers, mirrorActive, mirrorField, mirroredLanguages])
+    return { ...answers, [mirrorField.key]: assignedLanguages }
+  }, [answers, mirrorActive, mirrorField, assignedLanguages])
 
   const handleSubmit = () => {
     if (!formDef) return
@@ -802,7 +787,7 @@ export function CustomFormStep({
                     ? {
                         fieldKey: mirrorField.key,
                         assigned: assignedLanguages,
-                        mirrored: mirroredLanguages,
+                        mirrored: assignedLanguages,
                       }
                     : null
                 }
