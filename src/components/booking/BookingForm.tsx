@@ -149,10 +149,12 @@ interface Props {
    * flag without inheriting the booking-level list.
    *
    * WIRE CONTRACT (PINNED — landr-r6e5x.2 on the API builds the same shape):
-   * `language` is REQUIRED on every member; a missing one is a typed 422
-   * (`participant_language_missing`) rather than a silent default. Empty /
-   * omitted here only for operators whose flow has no language field at all,
-   * where the API's requirement does not apply either.
+   * `language` is REQUIRED on every member and the API enforces it on EVERY
+   * public submit — `assert_participant_languages` runs unconditionally, with
+   * no dependence on the operator's configured flow. A missing one is a typed
+   * 422 (`participant_language_missing`), never a silent default. The
+   * LanguageStep therefore runs for every product; an empty map here means the
+   * funnel was driven past that step, and the submit will be rejected.
    */
   participantLanguages?: Record<number, string>
   /**
@@ -295,14 +297,16 @@ const SANITIZED_REJECTION_MESSAGE =
  */
 /**
  * landr-r6e5x.4: the typed per-participant-language 422s from the submit
- * contract (landr-r6e5x.2). `index` is the party index in the unified space
- * the widget already uses — participants first, companions after — so it maps
- * straight onto the party labels the review screen has in hand.
+ * contract (landr-r6e5x.2). Wire shape, straight from the API's own tests:
  *
- * Shape-tolerant on purpose: the API can surface a typed rejection either as a
- * bare `detail` object or wrapped in Pydantic's array of {loc, msg, type}
- * entries depending on which layer raised it, and a customer must get the same
- * actionable sentence either way rather than a raw dump.
+ *   {error: "participant_language_missing", missing: [{role, index}], message}
+ *   {error: "participant_language_invalid",
+ *    invalid: [{role, index, language}], offered: [...], message}
+ *
+ * `role` is "participant" or "companion" and `index` is 1-BASED WITHIN THAT
+ * ROLE'S OWN LIST — not the widget's unified party index. Every offender is
+ * aggregated into one response rather than failing on the first, so the widget
+ * names all of them.
  */
 const LANGUAGE_ERROR_CODES = [
   'participant_language_missing',
@@ -311,78 +315,110 @@ const LANGUAGE_ERROR_CODES = [
 
 type LanguageErrorCode = (typeof LANGUAGE_ERROR_CODES)[number]
 
-interface LanguageError {
-  code: LanguageErrorCode
-  index: number | null
+interface LanguageErrorEntry {
+  /** Unified party index (participants 0..P-1, companions P..P+C-1), or null. */
+  partyIndex: number | null
+  /** The rejected language, for the "invalid" case. */
+  language: string | null
 }
 
-function readLanguageError(detail: unknown): LanguageError | null {
-  if (detail === null || detail === undefined) return null
-  if (Array.isArray(detail)) {
-    for (const entry of detail) {
-      const found = readLanguageError(entry)
-      if (found) return found
-    }
-    return null
-  }
-  if (typeof detail === 'string') {
-    const hit = LANGUAGE_ERROR_CODES.find((c) => detail.includes(c))
-    return hit ? { code: hit, index: null } : null
-  }
-  if (typeof detail !== 'object') return null
-  const obj = detail as Record<string, unknown>
-  // `error` is the typed-rejection field; `msg`/`type` cover the Pydantic
-  // envelope, where the code arrives inside the message text.
-  const candidates = [obj.error, obj.type, obj.msg, obj.detail]
-  for (const candidate of candidates) {
-    if (typeof candidate !== 'string') continue
-    const hit = LANGUAGE_ERROR_CODES.find((c) => candidate.includes(c))
-    if (!hit) continue
-    const rawIndex = obj.index
-    const index =
-      typeof rawIndex === 'number' && Number.isInteger(rawIndex) ? rawIndex : null
-    return { code: hit, index }
-  }
-  // The nested `detail` of a wrapped rejection.
-  if (obj.detail !== undefined && obj.detail !== detail) {
-    return readLanguageError(obj.detail)
-  }
-  return null
+interface LanguageError {
+  code: LanguageErrorCode
+  entries: LanguageErrorEntry[]
+  /** The operator's full offered set, when the API sent it. */
+  offered: string[]
 }
 
 /**
- * The customer-facing sentence for a language 422 — the SAME wording the
- * board's own inline gate uses ("Assign every participant to a language"), so
- * a server rejection and a client-side block never read as two different
- * problems. The party label is appended when the API told us who.
+ * role + 1-based per-role index → the widget's unified party index.
+ * Participants occupy 0..P-1 and companions follow at P..P+C-1, which is the
+ * same index space the language board and every party map already use.
+ */
+function toPartyIndex(
+  role: unknown,
+  index: unknown,
+  participantCount: number,
+): number | null {
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 1) return null
+  if (role === 'participant') return index - 1
+  if (role === 'companion') return participantCount + index - 1
+  return null
+}
+
+function readLanguageError(
+  detail: unknown,
+  participantCount: number,
+): LanguageError | null {
+  if (detail === null || typeof detail !== 'object' || Array.isArray(detail)) {
+    return null
+  }
+  const obj = detail as Record<string, unknown>
+  const code = LANGUAGE_ERROR_CODES.find((c) => obj.error === c)
+  if (!code) return null
+
+  const rawEntries =
+    code === 'participant_language_missing' ? obj.missing : obj.invalid
+  const entries: LanguageErrorEntry[] = []
+  if (Array.isArray(rawEntries)) {
+    for (const raw of rawEntries) {
+      if (!raw || typeof raw !== 'object') continue
+      const row = raw as Record<string, unknown>
+      entries.push({
+        partyIndex: toPartyIndex(row.role, row.index, participantCount),
+        language: typeof row.language === 'string' ? row.language : null,
+      })
+    }
+  }
+  const offered = Array.isArray(obj.offered)
+    ? obj.offered.filter((v): v is string => typeof v === 'string')
+    : []
+  return { code, entries, offered }
+}
+
+/**
+ * The customer-facing sentence for a language 422 — the same wording the
+ * language step's own gate uses, so a server rejection and a client-side block
+ * never read as two different problems. Names EVERY offender the API listed
+ * (it aggregates them), and quotes the operator's offered set when the API
+ * sent it, so "pick another" is actionable rather than a guessing game.
  */
 function languageErrorMessage(
   err: LanguageError,
   memberLabels: string[],
 ): string {
-  const who =
-    err.index !== null && err.index >= 0 && memberLabels[err.index]
-      ? memberLabels[err.index]
-      : null
+  const named = err.entries
+    .map((entry) =>
+      entry.partyIndex !== null && entry.partyIndex >= 0
+        ? (memberLabels[entry.partyIndex] ?? null)
+        : null,
+    )
+    .filter((label): label is string => label !== null)
+  const who = named.length > 0 ? named.join(', ') : null
+
   if (err.code === 'participant_language_invalid') {
+    const offeredText =
+      err.offered.length > 0
+        ? ` Please go back and pick one of: ${err.offered.map(languageName).join(', ')}.`
+        : ' Please go back and pick another.'
     return who
-      ? `${who} is assigned to a language this operator no longer offers. Please go back and pick another for them.`
-      : 'Someone is assigned to a language this operator no longer offers. Please go back and pick another.'
+      ? `${who} ${named.length > 1 ? 'were' : 'was'} assigned a language this operator does not offer.${offeredText}`
+      : `Someone was assigned a language this operator does not offer.${offeredText}`
   }
   return who
-    ? `Assign every participant to a language — ${who} still needs one.`
+    ? `Assign every participant to a language — ${who} still ${named.length > 1 ? 'need' : 'needs'} one.`
     : 'Assign every participant to a language.'
 }
 
 const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
+  participantCount: number = 0,
 ): string => {
   // landr-r6e5x.4: the typed per-participant-language rejections come first —
   // they are actionable ("go back and assign X") in a way the generic 422
   // dump below is not.
   if (err.status === 422) {
-    const languageError = readLanguageError(err.detail)
+    const languageError = readLanguageError(err.detail, participantCount)
     if (languageError) return languageErrorMessage(languageError, memberLabels)
   }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
@@ -812,10 +848,12 @@ export function BookingForm({
             // landr-a4fy wire field (PINNED contract):
             // omit when false to keep the payload compact.
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
-            // landr-r6e5x.4 wire field (PINNED contract — landr-r6e5x.2):
-            // the participant's assigned guide language. Omitted (not null)
-            // when the flow has no language step at all, which is the only
-            // case the API also treats as "not required".
+            // landr-r6e5x.4 wire field (PINNED contract — landr-r6e5x.2): the
+            // participant's assigned guide language, captured by the
+            // LanguageStep, which runs for every product. Omitted only when
+            // the map is empty, which the API rejects — deliberately, so a
+            // funnel bug surfaces as a typed 422 rather than a booking with
+            // silently missing language data.
             ...(participantLanguages[idx]
               ? { language: participantLanguages[idx] }
               : {}),
@@ -984,7 +1022,9 @@ export function BookingForm({
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
-        setServerError(formatHttpError(err, partyMemberLabels))
+        setServerError(
+          formatHttpError(err, partyMemberLabels, participants.length),
+        )
       } else {
         setServerError(err instanceof Error ? err.message : String(err))
       }

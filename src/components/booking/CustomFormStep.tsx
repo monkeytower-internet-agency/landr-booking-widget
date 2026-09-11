@@ -44,16 +44,10 @@ import type {
 } from '@/api/flowTypes'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
-import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
 import {
-  applyLanguageAssignment,
   distinctAssignedLanguages,
-  isLanguageAssignmentComplete,
-  memberLabel,
-  normaliseOfferedLanguages,
-  openLanguageColumns,
-  pruneLanguageAssignment,
-  unassignedMemberIndices,
+  languageFlag,
+  languageName,
   type ParticipantLanguageMap,
 } from './participantLanguages'
 
@@ -97,25 +91,18 @@ export interface CustomFormStepProps {
    */
   flow?: ProductFlowResponse | null
   /**
-   * landr-r6e5x.4: display names for the WHOLE PARTY in the unified party-
-   * member index space — guiding participants first (0..P-1), then companions
-   * (P..P+C-1). Supplying it turns the form's `language` field into the
-   * PER-PARTICIPANT ASSIGNMENT BOARD (epic decision D3) instead of the
-   * booking-level ranked multi-select. Absent / empty (standalone callers and
-   * the existing component tests) keeps the ranked picker exactly as it was.
+   * landr-r6e5x.4: the guide-language assignment the LanguageStep captured
+   * upstream (party index → ISO 639-1). When the operator's form also declares
+   * a `language` field, that field renders as a read-only summary of this map
+   * and its answer is mirrored from it — the board is the single source, so the
+   * customer is never asked the same question twice.
+   *
+   * Absent / empty (standalone callers, and any operator with no offered
+   * languages at all) leaves the field's own control exactly as it was.
    */
-  participantNames?: string[]
-  /** Parallel flags marking non-guiding companions, same index space. */
-  guestFlags?: boolean[]
-  /**
-   * landr-r6e5x.4: the operator's offered guide languages from the public
-   * operator config (`operators.offered_languages`). When absent or unusable
-   * the board falls back to the form field's own options, then to the
-   * platform default set — it must never render an empty, unusable board.
-   */
-  offeredLanguages?: string[] | null
-  /** Restored party-index → language map for back-nav re-entry. */
-  initialParticipantLanguages?: ParticipantLanguageMap
+  participantLanguages?: ParticipantLanguageMap
+  /** Party size the assignment is keyed against (participants + companions). */
+  partyCount?: number
   onBack: () => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
@@ -123,11 +110,7 @@ export interface CustomFormStepProps {
    * shown; it is the party-index → ISO 639-1 map the submit body turns into
    * each participant's / companion's `language` field.
    */
-  onConfirm: (
-    entry: FormResponseEntry,
-    rawAnswers: Record<string, unknown>,
-    participantLanguages?: ParticipantLanguageMap,
-  ) => void
+  onConfirm: (entry: FormResponseEntry, rawAnswers: Record<string, unknown>) => void
 }
 
 /**
@@ -285,31 +268,18 @@ function normaliseInitial(
 // ─── FieldRenderer ────────────────────────────────────────────────────────────
 
 /**
- * landr-r6e5x.4: everything the per-participant language board needs, handed
- * down to the ONE field it replaces. Non-null only when the parent supplied a
- * party roster; every other field renders exactly as before.
+ * landr-r6e5x.4: what the form's `language` field shows once the assignment
+ * has already been made on the LanguageStep. The field becomes a read-only
+ * SUMMARY — the board upstream is the single source of truth, and a second
+ * editable control here would let the two disagree with no rule for which wins.
  */
-interface LanguageBoardContext {
-  /** The field key this board stands in for. */
+interface LanguageMirrorContext {
+  /** The field key the summary stands in for. */
   fieldKey: string
-  offeredLanguages: string[]
-  openLanguages: string[]
-  participantNames: string[]
-  guestFlags: boolean[]
-  assignment: ParticipantLanguageMap
-  onAssign: (memberIndex: number, code: string | null) => void
-  onOpenLanguage: (code: string) => void
-  onCloseLanguage: (code: string) => void
-  /** Party members still without a language — drives the inline gate message. */
-  unassignedLabels: string[]
-  /**
-   * False until the customer has placed at least one person. The gate message
-   * is shown either way (it is the reason Continue is disabled), but it reads
-   * as guidance before they have started and as an error once they are
-   * mid-task — a red validation error on arrival, before anyone has touched
-   * anything, is noise rather than feedback.
-   */
-  started: boolean
+  /** The languages actually assigned, booker first. */
+  assigned: string[]
+  /** What will be mirrored into the answer — see mirroredLanguageAnswer. */
+  mirrored: string[]
 }
 
 interface FieldRendererProps {
@@ -318,7 +288,7 @@ interface FieldRendererProps {
   error: string | null
   locale: string
   onChange: (key: string, value: string | string[]) => void
-  languageBoard?: LanguageBoardContext | null
+  languageMirror?: LanguageMirrorContext | null
 }
 
 function FieldRenderer({
@@ -327,7 +297,7 @@ function FieldRenderer({
   error,
   locale,
   onChange,
-  languageBoard = null,
+  languageMirror = null,
 }: FieldRendererProps) {
   const { tokens } = useVariant()
   const label = pickLocalized(field.label, field.label_localized, locale) || field.key
@@ -461,45 +431,41 @@ function FieldRenderer({
       // free-text input rather than render an empty, unusable picker
       // ("malformed config degrades, never throws").
       case 'language': {
-        // landr-r6e5x.4 / epic decision D3: with a party roster in hand this
-        // field becomes the PER-PARTICIPANT assignment board — every member
-        // goes into exactly one language column and the booking cannot be
-        // submitted until the tray is empty. Without a roster (standalone
-        // renders) it stays the booking-level ranked multi-select.
-        if (languageBoard && languageBoard.fieldKey === field.key) {
+        // landr-r6e5x.4 / epic decision D3: languages are assigned PER PERSON
+        // on the LanguageStep, which runs before this form. When the operator's
+        // form also declares a language field, it reports what was assigned
+        // instead of asking again — one source of truth, no way for the two
+        // controls to disagree.
+        if (languageMirror && languageMirror.fieldKey === field.key) {
           return (
-            <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
-              <ParticipantLanguageBoard
-                offeredLanguages={languageBoard.offeredLanguages}
-                openLanguages={languageBoard.openLanguages}
-                participantNames={languageBoard.participantNames}
-                guestFlags={languageBoard.guestFlags}
-                assignment={languageBoard.assignment}
-                onAssign={languageBoard.onAssign}
-                onOpenLanguage={languageBoard.onOpenLanguage}
-                onCloseLanguage={languageBoard.onCloseLanguage}
-              />
-              {languageBoard.unassignedLabels.length > 0 ? (
-                <p
-                  className={cn(
-                    'text-xs',
-                    languageBoard.started
-                      ? 'text-destructive'
-                      : 'text-muted-foreground',
-                  )}
-                  data-testid="cf-language-board-incomplete"
-                >
-                  Assign every participant to a language
-                  {` — still waiting on ${languageBoard.unassignedLabels.join(', ')}.`}
-                </p>
-              ) : null}
-              {/* The free-text "other languages you speak" field sits below
-                  this one in the operator's form. Say plainly that it is
-                  informational, so nobody types a language there expecting it
-                  to place someone. */}
+            <div
+              className="flex flex-col gap-2"
+              data-testid={`cf-field-${field.key}`}
+            >
+              <div
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-well p-3 shadow-well"
+                data-testid="cf-language-mirror"
+              >
+                {languageMirror.assigned.length === 0 ? (
+                  <span className="text-xs italic text-muted-foreground">
+                    No language assigned yet.
+                  </span>
+                ) : (
+                  languageMirror.assigned.map((code) => (
+                    <span
+                      key={code}
+                      data-testid={`cf-language-mirror-${code}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-sm font-medium"
+                    >
+                      <span aria-hidden>{languageFlag(code)}</span>
+                      {languageName(code)}
+                    </span>
+                  ))
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Any other languages you list below are for the guide's
-                information only — they don't assign anyone.
+                Taken from the guide-language step — go back a step to change
+                who speaks what.
               </p>
             </div>
           )
@@ -627,10 +593,8 @@ export function CustomFormStep({
   productName,
   initialAnswers,
   flow,
-  participantNames,
-  guestFlags,
-  offeredLanguages,
-  initialParticipantLanguages,
+  participantLanguages,
+  partyCount = 0,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -697,76 +661,48 @@ export function CustomFormStep({
   )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // ─── landr-r6e5x.4: per-participant language assignment ────────────────────
+  // ─── landr-r6e5x.4: mirror of the upstream language assignment ─────────────
   //
-  // The board takes over the form's FIRST `language` field that carries
-  // options, and only when the parent handed down a party roster. Everything
-  // below is derived from props + one piece of state each for the assignment
-  // and for which columns are on screen, so there is no setState-in-effect
-  // (an ESLint error in this repo) anywhere in the path.
-  const partyNames = useMemo(() => participantNames ?? [], [participantNames])
-  const partyGuestFlags = useMemo(() => guestFlags ?? [], [guestFlags])
-  const partyCount = partyNames.length
+  // The LanguageStep runs BEFORE this form and owns the assignment. If the
+  // operator's form also declares a `language` field, we neither re-ask nor
+  // let it drift: the field renders as a summary and its answer is derived
+  // here. Everything is computed from props + the assignment — no state, so
+  // no setState-in-effect (an ESLint error in this repo) anywhere in the path.
+  const assignedLanguages = useMemo(
+    () => distinctAssignedLanguages(participantLanguages ?? {}, partyCount),
+    [participantLanguages, partyCount],
+  )
 
-  const boardField = useMemo(() => {
-    if (partyCount === 0 || !formDef) return null
+  const mirrorField = useMemo(() => {
+    if (assignedLanguages.length === 0 || !formDef) return null
     return (
       formDef.fields.find(
         (f) => f.field_type === 'language' && (f.options?.length ?? 0) > 0,
       ) ?? null
     )
-  }, [formDef, partyCount])
+  }, [formDef, assignedLanguages])
 
-  // Offered set: the operator column wins; the form field's own options are
-  // the legacy mirror and the fallback; the platform default backstops both
-  // so the board is never empty and unusable (the widget has no error
-  // boundary — a dead-end step is the failure mode to avoid).
-  const boardLanguages = useMemo(() => {
-    if (!boardField) return []
-    const fromOptions = (boardField.options ?? []).map((o) => o.value)
-    const hasOperatorList =
-      Array.isArray(offeredLanguages) && offeredLanguages.length > 0
-    return normaliseOfferedLanguages(
-      hasOperatorList ? offeredLanguages : fromOptions,
-      fromOptions.length > 0 ? fromOptions : undefined,
-    )
-  }, [boardField, offeredLanguages])
+  // INTERIM CONSTRAINT. The API validates a `language` answer against the
+  // FIELD's declared options (validate_form_responses), not against the
+  // operator's offered_languages, so mirroring a language the operator offers
+  // but the form library has never heard of would be rejected as an invalid
+  // option. Until the API validates these answers against offered_languages
+  // (asked of the api sibling), mirror only the intersection.
+  const mirroredLanguages = useMemo(() => {
+    if (!mirrorField) return []
+    const allowed = new Set((mirrorField.options ?? []).map((o) => o.value))
+    return assignedLanguages.filter((code) => allowed.has(code))
+  }, [mirrorField, assignedLanguages])
 
-  const [rawLanguageAssignment, setRawLanguageAssignment] =
-    useState<ParticipantLanguageMap>(() => ({ ...initialParticipantLanguages }))
-  const [openedLanguages, setOpenedLanguages] = useState<string[]>([])
-
-  // Prune at DERIVE time rather than in an effect: the offered list can arrive
-  // after mount (the operator-settings fetch resolves late) and the roster can
-  // shrink upstream, and either must drop a stale entry without a render loop.
-  const languageAssignment = useMemo(
-    () => pruneLanguageAssignment(rawLanguageAssignment, boardLanguages, partyCount),
-    [rawLanguageAssignment, boardLanguages, partyCount],
-  )
-  const openLanguages = useMemo(
-    () =>
-      openLanguageColumns(
-        openedLanguages,
-        languageAssignment,
-        boardLanguages,
-        partyCount,
-      ),
-    [openedLanguages, languageAssignment, boardLanguages, partyCount],
-  )
-  const unassignedLabels = useMemo(
-    () =>
-      unassignedMemberIndices(partyCount, languageAssignment).map((i) =>
-        memberLabel(partyNames, i),
-      ),
-    [partyCount, languageAssignment, partyNames],
-  )
-  // Gate on the board ONLY while its field is actually on screen. A form can
-  // hide the language field behind a visibility rule; gating a hidden field
-  // would disable Continue with no control anywhere to satisfy it — a forward
-  // dead-end, the exact failure mode landr-db45 closed elsewhere in this file.
-  const boardIsVisible = boardField ? isFieldVisible(boardField, answers) : false
-  const languageBoardComplete =
-    !boardIsVisible || isLanguageAssignmentComplete(partyCount, languageAssignment)
+  // The pathological case: the operator offers only languages this form's
+  // option list does not contain, so the intersection is empty. Suppressing
+  // the control AND mirroring nothing would leave a required field with no way
+  // to answer it — a dead end. Fall back to the field's own picker there; it
+  // is a misconfiguration, not the normal path, and a visible second control
+  // beats an unsubmittable booking.
+  const mirrorActive =
+    mirrorField !== null &&
+    (mirroredLanguages.length > 0 || mirrorField.required !== true)
 
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
@@ -779,91 +715,28 @@ export function CustomFormStep({
     })
   }, [])
 
-  const handleLanguageAssign = useCallback(
-    (memberIndex: number, code: string | null) => {
-      setRawLanguageAssignment((prev) =>
-        applyLanguageAssignment(prev, memberIndex, code),
-      )
-      // Assigning through the dropdown (or dropping the last person back out
-      // of a column) must not make the column vanish underneath the customer:
-      // pin it open until they explicitly remove it.
-      if (code !== null) {
-        setOpenedLanguages((prev) => (prev.includes(code) ? prev : [...prev, code]))
-      }
-      // Assigning somebody can only ever RESOLVE the board field's error, so
-      // clear it for live feedback (same contract as handleChange).
-      const key = boardField?.key
-      if (!key) return
-      setFieldErrors((prev) => {
-        if (!prev[key]) return prev
-        const next = { ...prev }
-        delete next[key]
-        return next
-      })
-    },
-    [boardField],
-  )
-
-  const handleOpenLanguage = useCallback((code: string) => {
-    setOpenedLanguages((prev) => (prev.includes(code) ? prev : [...prev, code]))
-  }, [])
-
-  const handleCloseLanguage = useCallback((code: string) => {
-    setOpenedLanguages((prev) => prev.filter((c) => c !== code))
-  }, [])
-
-  // landr-r6e5x.4: the board's answer is DERIVED from the assignment, never
-  // typed, so validation / visibility / pruning all read this overlay rather
-  // than the raw `answers` state. Keeping one source of truth means a late
-  // prune (offered list changed, member left) can never leave the mirrored
-  // answer disagreeing with what is on screen.
+  // The mirrored answer replaces whatever is (or isn't) in `answers` for that
+  // one field, for validation, visibility and pruning alike — one source of
+  // truth, so a late change upstream can never leave the two disagreeing.
   const effectiveAnswers: AnswerMap = useMemo(() => {
-    if (!boardField) return answers
-    return {
-      ...answers,
-      [boardField.key]: distinctAssignedLanguages(languageAssignment, partyCount),
-    }
-  }, [answers, boardField, languageAssignment, partyCount])
-
-  // The board's columns come from the OPERATOR's offered list, which can have
-  // drifted from the form field's declared options (the operator edited the
-  // setting in dashboard Settings — landr-r6e5x.3 — while the form library
-  // still carries the old option list). Re-point the field's options at the
-  // offered set for validation and pruning too, so a legitimately-assigned
-  // language is never rejected as "an invalid option" by a stale form def.
-  const effectiveFields = useMemo(() => {
-    if (!formDef) return []
-    if (!boardField) return formDef.fields
-    return formDef.fields.map((field) =>
-      field.key === boardField.key
-        ? {
-            ...field,
-            options: boardLanguages.map((code) => ({
-              value: code,
-              label: code,
-              label_localized: null,
-            })),
-          }
-        : field,
-    )
-  }, [formDef, boardField, boardLanguages])
+    if (!mirrorActive || !mirrorField) return answers
+    return { ...answers, [mirrorField.key]: mirroredLanguages }
+  }, [answers, mirrorActive, mirrorField, mirroredLanguages])
 
   const handleSubmit = () => {
     if (!formDef) return
 
     // Validate all visible fields.
     const errors: Record<string, string> = {}
-    for (const field of effectiveFields) {
+    for (const field of formDef.fields) {
       const err = validateField(field, effectiveAnswers, locale)
       if (err) errors[field.key] = err
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
-    // Hard gate (epic decision D3): nobody may be left in the tray.
-    if (!languageBoardComplete) return
 
     // Prune hidden fields then build the FormResponseEntry.
-    const pruned = pruneHiddenAnswers(effectiveFields, effectiveAnswers)
+    const pruned = pruneHiddenAnswers(formDef.fields, effectiveAnswers)
     const entry: FormResponseEntry = {
       form_key: formDef.key,
       answers: pruned,
@@ -871,11 +744,7 @@ export function CustomFormStep({
 
     // Pass raw answers (includes hidden field state) for draft persistence.
     const rawForDraft: Record<string, unknown> = { ...effectiveAnswers }
-    onConfirm(
-      entry,
-      rawForDraft,
-      boardIsVisible ? languageAssignment : undefined,
-    )
+    onConfirm(entry, rawForDraft)
   }
 
   // landr — the Continue button stays disabled until every VISIBLE field passes
@@ -885,13 +754,12 @@ export function CustomFormStep({
   // updates live as the customer fills the form.
   const isFormComplete = useMemo(() => {
     if (!formDef) return false
-    if (!languageBoardComplete) return false
-    return effectiveFields.every(
+    return formDef.fields.every(
       (field) =>
         !isFieldVisible(field, effectiveAnswers) ||
         validateField(field, effectiveAnswers, locale) === null,
     )
-  }, [formDef, effectiveFields, effectiveAnswers, locale, languageBoardComplete])
+  }, [formDef, effectiveAnswers, locale])
 
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
@@ -919,7 +787,7 @@ export function CustomFormStep({
             {fetchError}
           </p>
         ) : formDef ? (
-          effectiveFields.map((field) => {
+          formDef.fields.map((field) => {
             if (!isFieldVisible(field, effectiveAnswers)) return null
             return (
               <FieldRenderer
@@ -929,21 +797,12 @@ export function CustomFormStep({
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
                 onChange={handleChange}
-                languageBoard={
-                  boardField && boardField.key === field.key
+                languageMirror={
+                  mirrorActive && mirrorField && mirrorField.key === field.key
                     ? {
-                        fieldKey: boardField.key,
-                        offeredLanguages: boardLanguages,
-                        openLanguages,
-                        participantNames: partyNames,
-                        guestFlags: partyGuestFlags,
-                        assignment: languageAssignment,
-                        onAssign: handleLanguageAssign,
-                        onOpenLanguage: handleOpenLanguage,
-                        onCloseLanguage: handleCloseLanguage,
-                        unassignedLabels,
-                        started:
-                          Object.keys(languageAssignment).length > 0,
+                        fieldKey: mirrorField.key,
+                        assigned: assignedLanguages,
+                        mirrored: mirroredLanguages,
                       }
                     : null
                 }

@@ -141,6 +141,41 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
 // widget_token (which randomises per db-reset in the real dev env).
 const MOCK_TOKEN = 'mock-token-abc'
 
+/**
+ * landr-r6e5x.4: the per-participant guide-language step now sits between the
+ * middles and the custom-form chain for EVERY product — the API validates
+ * `participants[].language` on every public submit, so it cannot be optional.
+ * Walk through it with the one-tap "everyone speaks English" shortcut so the
+ * tests below keep asserting what they were written to assert.
+ *
+ * A no-op when the assignment was already restored from the draft (a Back →
+ * Forward round-trip), where Continue is enabled on arrival.
+ */
+async function passLanguageStep() {
+  await screen.findByTestId('participant-language-board')
+  const submit = screen.getByTestId('language-step-submit') as HTMLButtonElement
+  if (!submit.disabled) {
+    fireEvent.click(submit)
+    return
+  }
+  fireEvent.click(screen.getByTestId('lang-add-en'))
+  fireEvent.click(screen.getByTestId('lang-everyone-en'))
+  await waitFor(() =>
+    expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+  )
+  fireEvent.click(screen.getByTestId('language-step-submit'))
+}
+
+/**
+ * landr-r6e5x.4: the language step sits between the middles and the
+ * custom-form chain, so a Back that used to land upstream now lands there
+ * first. One more Back continues to wherever the caller expects to be.
+ */
+async function backPastLanguageStep() {
+  await screen.findByTestId('participant-language-board')
+  fireEvent.click(screen.getByTestId('step-back-button'))
+}
+
 describe('App', () => {
   beforeEach(() => {
     // landr-2mgl: start every test with a clean sessionStorage so a funnel
@@ -832,6 +867,7 @@ describe('App', () => {
 
       // landr-71kz.10: no remote flow configured (default mock) → no custom-form
       // step → straight to the review screen.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -916,6 +952,7 @@ describe('App', () => {
       // Continue → CustomFormStep (landr-71kz.10: the configured custom form is
       // the pre-review intermediate step). Fill the required fields + continue.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -937,8 +974,9 @@ describe('App', () => {
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Back on the custom form → DetailsStep.
+      // Back on the custom form → the language step → DetailsStep.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastLanguageStep()
 
       // We should be back on DetailsStep with every field restored.
       await waitFor(() =>
@@ -1044,6 +1082,7 @@ describe('App', () => {
       fireEvent.change(codeInput, { target: { value: '123456' } })
 
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -1052,6 +1091,7 @@ describe('App', () => {
       // wiped by the remount) and the OTP request is NOT fired again for an
       // unchanged email.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
       )
@@ -1061,6 +1101,7 @@ describe('App', () => {
 
       // Forward again without retyping anything, then Confirm.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -1176,6 +1217,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
 
       // landr-71kz.10: the configured custom form is the pre-review step.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -1197,8 +1239,10 @@ describe('App', () => {
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Click Back from the custom form — back to PickupLocationPicker.
+      // Click Back from the custom form — via the language step, back to
+      // PickupLocationPicker.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastLanguageStep()
 
       // The picker re-mounts with Beach Parking still selected.
       await waitFor(() =>
@@ -1400,13 +1444,15 @@ describe('App', () => {
 
       // The hotel is the pickup → pick-pickup is SKIPPED → custom form next.
       // We must NOT see the pickup picker.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
 
-      // Back from the custom form → accommodation page (Double Room visible),
-      // NOT the pickup picker.
+      // Back from the custom form → the language step → accommodation page
+      // (Double Room visible), NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
+      await backPastLanguageStep()
       // Explicit timeout: this hop re-mounts AccommodationStep and re-runs its
       // hotel/room fetches behind a step transition, and it is the one
       // assertion in this file that has been observed to time out on the 1s
@@ -1586,6 +1632,7 @@ describe('App', () => {
       // Continue so the arrangement is COMMITTED into the booking draft (it
       // only lives in AccommodationStep state until then).
       fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -2362,6 +2409,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Review (fill-form) — no declarations for test-operator.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -2399,6 +2447,7 @@ describe('App', () => {
 
       // Continue forward to review and submit.
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -2505,6 +2554,7 @@ describe('App', () => {
 
       // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
       // The declaration checkbox + language field are both visible.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -2600,6 +2650,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Straight to review — no custom-form step is produced.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -2665,6 +2716,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The widget still works — straight to review, no custom-form, no crash.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
       )
@@ -2769,6 +2821,7 @@ describe('App', () => {
       // custom form. The gate must clear and route into it (not review).
       flowReady = true
       releaseFirstFlow!()
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -2858,6 +2911,7 @@ describe('App', () => {
 
       // The custom-form step renders from App's already-resolved flow — no
       // fetch error, even though any FURTHER getProductFlow call would fail.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -2961,6 +3015,7 @@ describe('App', () => {
       await fillDateThenBookerDetails()
 
       // First pass: the custom form renders (the flow was fetched fresh).
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -2995,6 +3050,7 @@ describe('App', () => {
       // so the widget silently degraded to the legacy plan and skipped
       // straight to the review screen — even though the product has a
       // required custom form.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -3048,6 +3104,7 @@ describe('App', () => {
 
       // Fill + confirm Product A's custom form — writes
       // bookingDraft.customFormAnswers.customer_declarations.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -3079,6 +3136,7 @@ describe('App', () => {
 
       // landr-iyyf fix-forward: Product B's custom-form step (same form_key
       // as A's) must NOT be pre-filled with Product A's stale answers.
+      await passLanguageStep()
       await waitFor(() =>
         expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
       )
@@ -3345,11 +3403,22 @@ describe('App', () => {
       // def has never heard of.
       expect(screen.getByTestId('lang-add-es')).toBeInTheDocument()
       // Nobody assigned yet → the step cannot be completed.
-      expect(screen.getByTestId('cf-submit')).toBeDisabled()
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
 
       assignLanguage(0, 'es')
       assignLanguage(1, 'de')
-      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      // The operator's form ALSO declares a language field; it must report the
+      // assignment rather than ask a second time.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('cf-language-mirror-es')).toBeInTheDocument()
+      expect(screen.getByTestId('cf-language-mirror-de')).toBeInTheDocument()
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       await waitFor(() =>
@@ -3381,13 +3450,113 @@ describe('App', () => {
       expect(body.customer_languages).toEqual(['es', 'de'])
     })
 
+    it('runs the language step for a product with NO custom form at all', async () => {
+      // THE REGRESSION THIS STEP EXISTS FOR. The API validates
+      // participants[].language on every public submit, so a widget that only
+      // collected languages inside a custom form dead-ended on a 422 for every
+      // product without one — which is most of them (at review time kayak-demo
+      // had none of 3, para42 6 of 13). No remote flow here at all.
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        offered_languages: ['en', 'de'],
+      })
+      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Bare Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-2',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Bare Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Bare Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // The language step still appears, with no custom form anywhere.
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('participant-language-board'),
+        ).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('lang-add-de'))
+      fireEvent.click(screen.getByTestId('lang-everyone-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      // Straight to review — no custom-form step in this plan.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('cf-submit')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants[0]).toMatchObject({ language: 'de' })
+    })
+
     it('keeps each person their own language when a participant is removed after assigning', async () => {
       // The landr-uwvl failure mode, in language form: renumbering the party
       // must not hand Grace someone else's language.
       await advanceToLanguageBoard()
       assignLanguage(0, 'es')
       assignLanguage(1, 'de')
-      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
+      )
       fireEvent.click(screen.getByTestId('cf-submit'))
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
@@ -3413,7 +3582,7 @@ describe('App', () => {
       expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
       // A one-person party with everyone assigned can go straight on.
       expect(screen.queryByTestId('lang-assign-select-1')).not.toBeInTheDocument()
-      expect(screen.getByTestId('cf-submit')).toBeEnabled()
+      expect(screen.getByTestId('language-step-submit')).toBeEnabled()
     })
   })
 })

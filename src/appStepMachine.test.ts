@@ -14,8 +14,11 @@ import {
   draftFromStep,
   mergeCapturedDraft,
   sidebarInputsForStep,
+  enterReviewOrCustomForm,
   stepAfterAccommodation,
+  stepAfterLanguages,
   stepBefore,
+  stepBeforeLanguages,
   stepBeforeReview,
   type BookingDraft,
   type Step,
@@ -878,5 +881,133 @@ describe('booking-draft preservation (landr-nmed)', () => {
       expect(next.participants).toBeUndefined()
       expect(next.companions).toBeUndefined()
     })
+  })
+})
+
+
+// ─── landr-r6e5x.4: the per-participant guide-language step ──────────────────
+//
+// It is its own step, not a custom-form field, because the API validates
+// `participants[].language` on EVERY public submit. Collecting it inside a
+// custom form dead-ended every product without one — most of them.
+
+describe('language step routing (landr-r6e5x.4)', () => {
+  const preReviewArgs = (overrides: Record<string, unknown> = {}) => ({
+    product: makeProduct({ needs_pickup: false, hotel_offering: 'none' }),
+    selection: SLOT_SELECTION,
+    booker: ADA,
+    participants: makeParticipants(2),
+    companions: makeCompanions(1),
+    pickupLocationId: null as string | null,
+    accommodationRooms: [],
+    addons: [],
+    ...overrides,
+  })
+
+  const declarationsFlow = {
+    modules: [
+      { kind: 'custom_form', position: 0, form: { key: 'customer_declarations' } },
+    ],
+  }
+
+  it('is the FIRST pre-review step, ahead of the custom-form chain', () => {
+    const next = enterReviewOrCustomForm(
+      preReviewArgs(),
+      declarationsFlow,
+      undefined,
+      true,
+    )
+    expect(next.name).toBe('assign-languages')
+  })
+
+  it('runs for a product with NO custom form at all — the regression it exists for', () => {
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, true)
+    expect(next.name).toBe('assign-languages')
+  })
+
+  it('is skipped entirely when the operator offers no language', () => {
+    // Not reachable today (the column is NOT NULL with a four-language
+    // default) but the gate is honoured rather than assumed.
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, false)
+    expect(next.name).toBe('fill-form')
+  })
+
+  it('hands off to the custom-form chain, then to review', () => {
+    const afterLang = stepAfterLanguages(preReviewArgs(), declarationsFlow)
+    expect(afterLang.name).toBe('custom-form')
+    if (afterLang.name !== 'custom-form') throw new Error('narrowing')
+    expect(afterLang.formKey).toBe('customer_declarations')
+
+    const noForms = stepAfterLanguages(preReviewArgs(), null)
+    expect(noForms.name).toBe('fill-form')
+  })
+
+  it('carries the whole provenance bag through, so back-nav restores upstream state', () => {
+    const next = enterReviewOrCustomForm(
+      preReviewArgs({
+        hotelLocationId: 'loc-hotel',
+        accommodationRooms: [{ productId: 'room-1', quantity: 2 }],
+        hadServiceAddons: true,
+      }),
+      null,
+      undefined,
+      true,
+    )
+    if (next.name !== 'assign-languages') throw new Error('narrowing')
+    expect(next.hotelLocationId).toBe('loc-hotel')
+    expect(next.accommodationRooms).toEqual([{ productId: 'room-1', quantity: 2 }])
+    expect(next.hadServiceAddons).toBe(true)
+    expect(next.companions).toHaveLength(1)
+  })
+
+  it('Back from review lands on the language step when there is no custom form', () => {
+    const prev = stepBeforeReview(preReviewArgs({ languageStep: true }))
+    expect(prev.name).toBe('assign-languages')
+  })
+
+  it('Back from the custom-form chain HEAD lands on the language step', () => {
+    const prev = stepBeforeReview(
+      preReviewArgs({ languageStep: true, remoteFlow: declarationsFlow }),
+      'customer_declarations',
+    )
+    expect(prev.name).toBe('assign-languages')
+  })
+
+  it('Back from review still lands on the LAST custom form, not the language step', () => {
+    const prev = stepBeforeReview(
+      preReviewArgs({ languageStep: true, remoteFlow: declarationsFlow }),
+    )
+    expect(prev.name).toBe('custom-form')
+  })
+
+  it('Back OUT of the language step walks the non-custom middles', () => {
+    // The chain sits after it, so the language step never walks back into it.
+    const prev = stepBeforeLanguages(
+      preReviewArgs({
+        product: makeProduct({ needs_pickup: true, hotel_offering: 'none' }),
+        remoteFlow: declarationsFlow,
+        languageStep: true,
+      }),
+    )
+    expect(prev.name).toBe('pick-pickup')
+  })
+
+  it('appears in the breadcrumb between the middles and the review crumb', () => {
+    const step = enterReviewOrCustomForm(
+      preReviewArgs(),
+      null,
+      undefined,
+      true,
+    )
+    const trail = buildBreadcrumb(step, { languageStep: true }).map((c) => c.label)
+    expect(trail).toContain('Language')
+    expect(trail.indexOf('Language')).toBeGreaterThan(trail.indexOf('Participants'))
+  })
+
+  it('shares the committed price context with review, so the sidebar does not blank', () => {
+    const step = enterReviewOrCustomForm(preReviewArgs(), null, undefined, true)
+    const inputs = sidebarInputsForStep(step)
+    expect(inputs).not.toBeNull()
+    expect(inputs!.participantCount).toBe(2)
   })
 })

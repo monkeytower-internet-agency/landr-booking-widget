@@ -157,24 +157,6 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
     expect(body.customer_languages).toEqual(['es', 'de'])
   })
 
-  it('omits the field entirely for a flow that never collected languages', async () => {
-    // Not `language: null` — omitted, so the payload is byte-identical to the
-    // pre-r6e5x shape for operators whose flow has no language step (which is
-    // also the case where the API does not require it).
-    renderForm({ participantLanguages: {} })
-    await confirm()
-
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
-    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
-    const body = JSON.parse(String(init.body)) as {
-      participants: Array<Record<string, unknown>>
-      companions: Array<Record<string, unknown>>
-    }
-    expect(body.participants[0]).not.toHaveProperty('language')
-    expect(body.companions[0]).not.toHaveProperty('language')
-    expect(body).not.toHaveProperty('customer_languages')
-  })
-
   it('shows each person their assigned language on the review screen', () => {
     renderForm()
     expect(screen.getByTestId('review-participant-language-0').textContent).toContain(
@@ -188,14 +170,25 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
     )
   })
 
-  it('maps a participant_language_missing 422 to the board wording, naming the person', async () => {
+  // The 422 fixtures below copy the exact shapes the API asserts in
+  // `app/tests/test_participant_language_required.py` — `role` plus a 1-BASED
+  // index WITHIN THAT ROLE'S OWN LIST, every offender aggregated into one
+  // response. Getting this wrong is invisible in a widget-only suite: a
+  // mis-parsed detail still renders *a* message, just the wrong one.
+  const languageDetail = (detail: unknown) =>
+    new Response(JSON.stringify({ detail }), {
+      status: 422,
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  it('names the missing participant from role + 1-based index', async () => {
     fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          detail: { error: 'participant_language_missing', index: 1 },
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } },
-      ),
+      languageDetail({
+        error: 'participant_language_missing',
+        missing: [{ role: 'participant', index: 2 }],
+        message:
+          'Every participant must be assigned a spoken language. Please select a language for each listed participant.',
+      }),
     )
     renderForm()
     await confirm()
@@ -205,25 +198,25 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
         screen.getByText(/Assign every participant to a language/i),
       ).toBeInTheDocument(),
     )
-    // The label is the DISAMBIGUATED party label the rest of the form uses —
-    // a bare first name while it is unique in the party.
+    // index 2 of the PARTICIPANTS list is party index 1 — Grace, not Ada.
     expect(screen.getByTestId('review-error').textContent).toContain(
       'Grace still needs one',
     )
+    expect(screen.getByTestId('review-error').textContent).not.toContain('Ada')
   })
 
-  it('names a COMPANION by their party index on the same rejection', async () => {
+  it('maps a COMPANION index past the end of the participants list', async () => {
     fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          detail: { error: 'participant_language_missing', index: 2 },
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } },
-      ),
+      languageDetail({
+        error: 'participant_language_missing',
+        missing: [{ role: 'companion', index: 1 }],
+        message: 'Every participant must be assigned a spoken language.',
+      }),
     )
     renderForm()
     await confirm()
 
+    // companion 1 → party index participants.length + 0 = 2 → Kay.
     await waitFor(() =>
       expect(screen.getByTestId('review-error').textContent).toContain(
         'Kay still needs one',
@@ -231,60 +224,54 @@ describe('BookingForm — per-participant language (landr-r6e5x.4)', () => {
     )
   })
 
-  it('maps participant_language_invalid to a "pick another" message', async () => {
+  it('names EVERY offender the API aggregated, not just the first', async () => {
     fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          detail: {
-            error: 'participant_language_invalid',
-            index: 0,
-            allowed: ['en', 'de'],
-          },
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } },
-      ),
+      languageDetail({
+        error: 'participant_language_missing',
+        missing: [
+          { role: 'participant', index: 1 },
+          { role: 'companion', index: 1 },
+        ],
+        message: 'Every participant must be assigned a spoken language.',
+      }),
     )
     renderForm()
     await confirm()
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/no longer offers/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByTestId('review-error').textContent).toContain('Ada'),
     )
-    expect(screen.getByTestId('review-error').textContent).toContain('Ada')
-    // The raw code never reaches the customer.
-    expect(screen.getByTestId('review-error').textContent).not.toContain(
-      'participant_language_invalid',
-    )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).toContain('Kay')
+    // Plural agreement, so the sentence reads as written rather than as a
+    // template with a list dropped into it.
+    expect(text).toContain('need one')
   })
 
-  it('reads the same rejection out of a Pydantic-shaped detail array', async () => {
-    // Defence in depth: which layer raises decides whether the typed detail
-    // arrives bare or wrapped, and the customer must get one sentence either way.
+  it('quotes the operator offered set on an invalid language', async () => {
     fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          detail: [
-            {
-              loc: ['body', 'participants', 1, 'language'],
-              msg: 'participant_language_missing',
-              type: 'value_error',
-              index: 1,
-            },
-          ],
-        }),
-        { status: 422, headers: { 'Content-Type': 'application/json' } },
-      ),
+      languageDetail({
+        error: 'participant_language_invalid',
+        invalid: [{ role: 'participant', index: 1, language: 'zh' }],
+        offered: ['de', 'en'],
+        message:
+          'One or more participants were assigned a language this operator does not offer.',
+      }),
     )
     renderForm()
     await confirm()
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/Assign every participant to a language/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/does not offer/i)).toBeInTheDocument(),
     )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).toContain('Ada')
+    // "pick one of: German, English" — actionable, not a guessing game.
+    expect(text).toContain('German')
+    expect(text).toContain('English')
+    // Neither the raw code nor the raw language reaches the customer.
+    expect(text).not.toContain('participant_language_invalid')
+    expect(text).not.toContain('zh')
   })
 
   it('leaves an UNRELATED 422 on the generic path', async () => {

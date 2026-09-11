@@ -33,12 +33,14 @@ import {
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
+  closestCenter,
   pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type Announcements,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -53,6 +55,22 @@ import {
 } from './participantLanguages'
 
 const UNASSIGNED_DROP_ID = '__lang_unassigned__'
+
+/**
+ * `pointerWithin` alone is wrong here even though the room board uses it:
+ * a KEYBOARD drag has no pointer, so the detector returns no collisions and
+ * Space-arrow-Space silently drops the chip back where it started — the whole
+ * keyboard path, which KeyboardSensor exists to provide, never lands.
+ *
+ * The dnd-kit composition pattern: try the pointer detector first (it is the
+ * one that correctly resolves a chip released inside a column rather than a
+ * rect-overlapping neighbour), and fall back to `closestCenter` when it yields
+ * nothing — which is exactly the keyboard case.
+ */
+const pointerThenClosestCenter: CollisionDetection = (args) => {
+  const byPointer = pointerWithin(args)
+  return byPointer.length > 0 ? byPointer : closestCenter(args)
+}
 
 interface Props {
   /** ISO 639-1 codes the operator offers, in the operator's own order. */
@@ -70,6 +88,8 @@ interface Props {
   assignment: ParticipantLanguageMap
   /** (Re)assign a member, or `null` to send them back to the tray. */
   onAssign: (memberIndex: number, code: string | null) => void
+  /** Put the WHOLE party into one language in a single gesture. */
+  onAssignEveryone: (code: string) => void
   /** Open a column for `code` (from the "Add language" chip row). */
   onOpenLanguage: (code: string) => void
   /** Remove an EMPTY column. */
@@ -168,8 +188,10 @@ function LanguageColumn({
   participantNames,
   guestFlags,
   selectedChip,
+  unassignedCount,
   onTapTarget,
   onAssign,
+  onAssignEveryone,
   onCloseLanguage,
 }: {
   code: string
@@ -177,8 +199,11 @@ function LanguageColumn({
   participantNames: string[]
   guestFlags: boolean[]
   selectedChip: number | null
+  /** How many members are still in the tray — gates the "everyone" shortcut. */
+  unassignedCount: number
   onTapTarget: () => void
   onAssign: (memberIndex: number, code: string | null) => void
+  onAssignEveryone: (code: string) => void
   onCloseLanguage: (code: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `lang-${code}`, data: { code } })
@@ -254,6 +279,20 @@ function LanguageColumn({
           Place here
         </button>
       ) : null}
+      {/* One-tap "the whole party speaks this". The common shape is a group
+          that shares one language — six people dragged one at a time is six
+          gestures for an answer they gave in one breath. Hidden once the tray
+          is empty, where it would be a no-op. */}
+      {unassignedCount > 0 && selectedChip === null ? (
+        <button
+          type="button"
+          onClick={() => onAssignEveryone(code)}
+          data-testid={`lang-everyone-${code}`}
+          className="self-start rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+        >
+          Everyone speaks {languageName(code)}
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -263,7 +302,7 @@ function UnassignedTray({
   unassigned,
   participantNames,
   guestFlags,
-  openLanguages,
+  offeredLanguages,
   selectedChip,
   selectId,
   onSelectChip,
@@ -273,7 +312,7 @@ function UnassignedTray({
   unassigned: number[]
   participantNames: string[]
   guestFlags: boolean[]
-  openLanguages: string[]
+  offeredLanguages: string[]
   selectedChip: number | null
   selectId: string
   onSelectChip: (idx: number) => void
@@ -314,8 +353,10 @@ function UnassignedTray({
                 onTap={() => onSelectChip(idx)}
               />
               {/* Inline dropdown — the most direct keyboard / screen-reader
-                  path. Lists every OPEN column; opening a new one is the
-                  "Add language" chip row above. */}
+                  path. Lists every OFFERED language, not just the open
+                  columns: on arrival no column is open, so listing only those
+                  left this control empty and useless exactly when it is most
+                  needed. Picking one opens its column as a side effect. */}
               <select
                 aria-label={`Assign ${memberLabel(participantNames, idx)} to a language`}
                 data-testid={`lang-tray-select-${idx}`}
@@ -329,7 +370,7 @@ function UnassignedTray({
                 className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
               >
                 <option value="">→ language…</option>
-                {openLanguages.map((code) => (
+                {offeredLanguages.map((code) => (
                   <option key={code} value={code}>
                     {languageName(code)}
                   </option>
@@ -360,6 +401,7 @@ export function ParticipantLanguageBoard({
   guestFlags = [],
   assignment,
   onAssign,
+  onAssignEveryone,
   onOpenLanguage,
   onCloseLanguage,
 }: Props) {
@@ -449,10 +491,10 @@ export function ParticipantLanguageBoard({
   return (
     <DndContext
       sensors={sensors}
-      // pointerWithin ranks the droppable the POINTER is inside, so a chip
-      // released inside a column resolves to that column rather than to a
-      // rect-overlapping neighbour.
-      collisionDetection={pointerWithin}
+      // See pointerThenClosestCenter: pointer-first so a chip released inside a
+      // column resolves to that column, closestCenter fallback so a KEYBOARD
+      // drag (which has no pointer, hence no pointerWithin collisions) lands.
+      collisionDetection={pointerThenClosestCenter}
       accessibility={{ announcements }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -468,7 +510,7 @@ export function ParticipantLanguageBoard({
           unassigned={unassigned}
           participantNames={participantNames}
           guestFlags={guestFlags}
-          openLanguages={openLanguages}
+          offeredLanguages={offeredLanguages}
           selectedChip={selectedChip}
           selectId={selectId}
           onSelectChip={(idx) =>
@@ -488,8 +530,10 @@ export function ParticipantLanguageBoard({
                 participantNames={participantNames}
                 guestFlags={guestFlags}
                 selectedChip={selectedChip}
+                unassignedCount={unassigned.length}
                 onTapTarget={() => placeSelected(code)}
                 onAssign={onAssign}
+                onAssignEveryone={onAssignEveryone}
                 onCloseLanguage={onCloseLanguage}
               />
             ))}

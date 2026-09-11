@@ -39,6 +39,8 @@ import {
   toIndexKeyed,
   toIndexKeyedOrUndefined,
 } from '@/components/booking/partyIdentity'
+import { LanguageStep } from '@/components/booking/LanguageStep'
+import { normaliseOfferedLanguages } from '@/components/booking/participantLanguages'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -74,6 +76,8 @@ import {
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepAfterCustomForm,
+  stepAfterLanguages,
+  stepBeforeLanguages,
   stepBeforeReview,
 } from './appStepMachine'
 import type { RemoteFlow } from './flowPlan'
@@ -565,6 +569,22 @@ function BookingFlowApp() {
   // to submit before the list arrives (extremely unlikely; the fetch
   // races multiple full-page paints' worth of UX).
   const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
+
+  // landr-r6e5x.4 / epic decision D3: the operator's offered guide languages,
+  // coerced once per settings change (the coercion logs when it has to fall
+  // back, so deriving it on every render would spam the console).
+  //
+  // The step runs whenever the list is non-empty, which in practice is always:
+  // `operators.offered_languages` is NOT NULL with a four-language default, and
+  // the coercion falls back to that same default when the API predates the
+  // column. That is deliberate rather than incidental — the API validates
+  // `participants[].language` on EVERY public submit, so a product that skipped
+  // this step would dead-end on a 422 with nothing the customer could do.
+  const offeredLanguages = useMemo(
+    () => normaliseOfferedLanguages(operatorSettings.offered_languages),
+    [operatorSettings.offered_languages],
+  )
+  const languageStepEnabled = offeredLanguages.length > 0
 
   useEffect(() => {
     if (!token) return
@@ -1066,6 +1086,8 @@ function BookingFlowApp() {
             // landr-nmed: re-seed any custom-form answers from the draft so a
             // forward pass after a breadcrumb jump restores the customer's input.
             bookingDraft.customFormAnswers,
+            // landr-r6e5x.4: the language step is the first pre-review step.
+            languageStepEnabled,
           ),
         )
       })
@@ -1137,8 +1159,9 @@ function BookingFlowApp() {
       remoteFlow: activeFlow,
       customFormAnswers: bookingDraft.customFormAnswers,
       productLabel,
+      languageStep: languageStepEnabled,
     })
-  }, [step, activeFlow, bookingDraft.customFormAnswers])
+  }, [step, activeFlow, bookingDraft.customFormAnswers, languageStepEnabled])
   const breadcrumbNav = useMemo(
     () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
     [breadcrumbItems, navigateTo],
@@ -1921,9 +1944,116 @@ function BookingFlowApp() {
                     flow,
                     // landr-nmed: restore prior custom-form answers on the forward pass.
                     bookingDraft.customFormAnswers,
+                    // landr-r6e5x.4: the language step is the first pre-review step.
+                    languageStepEnabled,
                   ),
                 )
               })
+            }}
+          />
+        ) : null}
+
+        {/* landr-r6e5x.4 / epic decision D3: per-participant guide language.
+            Its own step, before the custom-form chain, for every product —
+            the API validates participants[].language on every public submit,
+            so collecting it only inside a custom form dead-ended every product
+            without one. */}
+        {step.name === 'assign-languages' ? (
+          <LanguageStep
+            productName={step.product.name}
+            offeredLanguages={offeredLanguages}
+            {...(() => {
+              const pCount = step.participants.length
+              const party = [
+                ...step.participants.map((p) => ({
+                  first: p.first_name,
+                  last: p.last_name ?? '',
+                })),
+                ...step.companions.map((c) => ({
+                  first: c.first_name,
+                  last: c.last_name ?? '',
+                })),
+              ]
+              const labels = disambiguatePartyLabels(party)
+              const roster = buildPartyRoster(step.participants, step.companions)
+              return {
+                // Labels are disambiguated exactly as AccommodationStep does it,
+                // so "Ada L." reads identically on both boards.
+                participantNames: labels,
+                // Party order is participants first, companions after, so
+                // everyone past the participant count is a companion.
+                guestFlags: labels.map((_label, i) => i >= pCount),
+                // THE INBOUND SEAM (landr-uwvl): the draft keys by person, the
+                // board works in party indices. Resolving against the CURRENT
+                // roster means a member removed in DetailsStep drops out and
+                // shows as unassigned rather than inheriting a neighbour's
+                // language.
+                initialAssignment: toIndexKeyed(
+                  bookingDraft.participantLanguages,
+                  roster,
+                ),
+              }
+            })()}
+            onBack={() =>
+              setStep(
+                stepBeforeLanguages({
+                  product: step.product,
+                  selection: step.selection,
+                  booker: step.booker,
+                  participants: step.participants,
+                  companions: step.companions,
+                  pickupLocationId: step.pickupLocationId,
+                  accommodationRooms: step.accommodationRooms,
+                  addons: step.addons,
+                  hotelLocationId: step.hotelLocationId,
+                  hadServiceAddons: step.hadServiceAddons,
+                  includeHotel: step.includeHotel,
+                  isSharedDouble: step.isSharedDouble,
+                  accommodationMode: step.accommodationMode,
+                  roomAssignment: step.roomAssignment,
+                  occupantAgeMap: step.occupantAgeMap,
+                  perRoomAddons: step.perRoomAddons,
+                  roomProductNames: step.roomProductNames,
+                  breakfastMap: step.breakfastMap,
+                }),
+              )
+            }
+            onConfirm={(assignment) => {
+              // THE OUTBOUND SEAM: the board reports party indices, the draft
+              // stores stable ids so a later roster edit cannot hand one person
+              // another person's language (landr-uwvl).
+              mergeDraft({
+                participantLanguages: toIdentityKeyed(
+                  assignment,
+                  buildPartyRoster(step.participants, step.companions),
+                ),
+              })
+              setStep(
+                stepAfterLanguages(
+                  {
+                    product: step.product,
+                    selection: step.selection,
+                    booker: step.booker,
+                    participants: step.participants,
+                    companions: step.companions,
+                    pickupLocationId: step.pickupLocationId,
+                    accommodationRooms: step.accommodationRooms,
+                    addons: step.addons,
+                    hotelLocationId: step.hotelLocationId,
+                    hadServiceAddons: step.hadServiceAddons,
+                    includeHotel: step.includeHotel,
+                    isSharedDouble: step.isSharedDouble,
+                    accommodationMode: step.accommodationMode,
+                    roomAssignment: step.roomAssignment,
+                    occupantAgeMap: step.occupantAgeMap,
+                    perRoomAddons: step.perRoomAddons,
+                    roomProductNames: step.roomProductNames,
+                    breakfastMap: step.breakfastMap,
+                  },
+                  flowForProduct(step.product.product_id),
+                  bookingDraft.customFormAnswers,
+                ),
+              )
             }}
           />
         ) : null}
@@ -1942,40 +2072,17 @@ function BookingFlowApp() {
             // CustomFormStepProps.flow's doc for the forward-dead-end bug
             // this closes.
             flow={resolvedFlowForProduct(step.product.product_id)}
-            // landr-r6e5x.4 / epic decision D3: the whole party (participants
-            // first, companions after — the same unified index space the room
-            // board uses) plus the operator's offered guide languages, which
-            // together turn the form's `language` field into the
-            // per-participant assignment board. Labels are disambiguated the
-            // same way AccommodationStep does it, so "Ada L." reads
-            // identically on both boards.
+            // landr-r6e5x.4: the assignment the LanguageStep captured upstream.
+            // When this form also declares a `language` field it reports this
+            // instead of asking again — the board is the single source.
             {...(() => {
-              const pCount = step.participants.length
-              const party = [
-                ...step.participants.map((p) => ({
-                  first: p.first_name,
-                  last: p.last_name ?? '',
-                })),
-                ...step.companions.map((c) => ({
-                  first: c.first_name,
-                  last: c.last_name ?? '',
-                })),
-              ]
-              const labels = disambiguatePartyLabels(party)
               const roster = buildPartyRoster(step.participants, step.companions)
               return {
-                participantNames: labels,
-                guestFlags: labels.map((_unused, i) => i >= pCount),
-                offeredLanguages: operatorSettings.offered_languages ?? null,
-                // THE INBOUND SEAM (landr-uwvl): the draft keys by person, the
-                // board works in party indices. Resolve against the CURRENT
-                // roster so a member removed in DetailsStep drops out (and
-                // shows as unassigned) instead of inheriting a neighbour's
-                // language.
-                initialParticipantLanguages: toIndexKeyed(
+                participantLanguages: toIndexKeyed(
                   bookingDraft.participantLanguages,
                   roster,
                 ),
+                partyCount: step.participants.length + step.companions.length,
               }
             })()}
             onBack={() =>
@@ -2005,12 +2112,13 @@ function BookingFlowApp() {
                     breakfastMap: step.breakfastMap,
                     remoteFlow: flowForProduct(step.product.product_id),
                     customFormAnswers: bookingDraft.customFormAnswers,
+                    languageStep: languageStepEnabled,
                   },
                   step.formKey,
                 ),
               )
             }
-            onConfirm={(entry, rawAnswers, participantLanguages) => {
+            onConfirm={(entry, rawAnswers) => {
               // Accumulate the form response for the submit payload.
               mergeFormResponse(entry)
               // Persist the raw answers in the draft so a breadcrumb jump
@@ -2019,22 +2127,7 @@ function BookingFlowApp() {
                 ...bookingDraft.customFormAnswers,
                 [step.formKey]: rawAnswers,
               }
-              // landr-r6e5x.4: THE OUTBOUND SEAM — the board reports party
-              // indices, the draft stores stable ids. Only patch the slot when
-              // the board actually ran (the key is omitted otherwise, since a
-              // present-but-undefined key would clobber a good slice —
-              // landr-0l5q).
-              mergeDraft({
-                customFormAnswers: nextAnswers,
-                ...(participantLanguages
-                  ? {
-                      participantLanguages: toIdentityKeyed(
-                        participantLanguages,
-                        buildPartyRoster(step.participants, step.companions),
-                      ),
-                    }
-                  : {}),
-              })
+              mergeDraft({ customFormAnswers: nextAnswers })
               // landr-71kz.10: advance the custom-form chain — the NEXT custom
               // form in the plan, or the review screen when the chain is done.
               setStep(
@@ -2166,6 +2259,7 @@ function BookingFlowApp() {
                   breakfastMap: step.breakfastMap,
                   remoteFlow: flowForProduct(step.product.product_id),
                   customFormAnswers: bookingDraft.customFormAnswers,
+                  languageStep: languageStepEnabled,
                 }),
               )
             }}
