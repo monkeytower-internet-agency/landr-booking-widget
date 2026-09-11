@@ -1407,8 +1407,14 @@ describe('App', () => {
       // Back from the custom form → accommodation page (Double Room visible),
       // NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
-      await waitFor(() =>
-        expect(screen.getByText('Double Room')).toBeInTheDocument(),
+      // Explicit timeout: this hop re-mounts AccommodationStep and re-runs its
+      // hotel/room fetches behind a step transition, and it is the one
+      // assertion in this file that has been observed to time out on the 1s
+      // default under a cold, loaded run (landr-r6e5x.4). Nothing about the
+      // behaviour is slow — the default is just too tight for this step.
+      await waitFor(
+        () => expect(screen.getByText('Double Room')).toBeInTheDocument(),
+        { timeout: 5000 },
       )
       // Sanity: we did not land on a pickup picker.
       expect(screen.queryByText(/pickup/i)).not.toBeInTheDocument()
