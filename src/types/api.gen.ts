@@ -5013,63 +5013,6 @@ export interface paths {
         patch: operations["patch_provider"];
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/resource-pools": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Resource Pool
-         * @description Create a pool, then ensure its ``capacity_threshold`` rule — atomically.
-         *
-         *     THE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).
-         *     ``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT
-         *     and then PATCHes the just-inserted pool's OWN ``default_released_units``
-         *     back at itself, purely to reach this router's rule-ensure side effect
-         *     (the module header explains why that side effect can't be a direct-REST
-         *     write). ``default_released_units`` carries a column DEFAULT of 1 (OD-1
-         *     back-compat — "the first unit always auto-approves"), and a brand-new
-         *     pool has 0 units, so that PATCH 422s
-         *     ``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had
-         *     already committed, so the operator saw "failed" while a pool with NO
-         *     capacity rule silently existed. (:func:`patch_resource_pool` no longer
-         *     422s on a no-op re-save of the stored default, which closes half of the
-         *     bug — but a POST that does the whole thing as one write is the real
-         *     fix: the dashboard should never have needed a fake PATCH to reach a
-         *     create-time side effect.)
-         *
-         *     ALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-
-         *     inserted pool row is deleted before the error propagates. The pool has
-         *     no children yet at this point (no units, no requirements, no periods),
-         *     so a hard delete is safe — a pool that exists only because half of its
-         *     setup silently didn't happen is worse than no pool at all.
-         *
-         *     Term fields (``unit_label`` et al.) omitted from the body are filled
-         *     from ``resource_pool_kind_defaults(resource_kind)`` — the SAME lookup
-         *     the dashboard's own client-side prefill and the epic's one-time backfill
-         *     both use — so a caller that skips them never falls through to the
-         *     column's flat generic_seat DEFAULT for a non-generic_seat pool.
-         *     ``icon``/``color`` are NOT defaulted this way: they stay NULL when
-         *     omitted (the kind-derived/neutral fallback is a READ-time computation,
-         *     see :mod:`app.services.resource_pool_presentation`).
-         *
-         *     Duplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked
-         *     up front (a clean error is worth a query) AND caught again on the
-         *     insert itself — ``resource_pools_operator_code_unique`` is partial on
-         *     ``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must
-         *     succeed, and a pre-check alone would race a concurrent identical create.
-         */
-        post: operations["create_resource_pool"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
         parameters: {
             query?: never;
@@ -5080,37 +5023,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * Delete Resource Pool
-         * @description Soft-delete a pool (Pattern A + ``active = false``) — epic decision 1.
-         *
-         *     The re-check + all four writes happen inside ONE Postgres function call,
-         *     ``delete_resource_pool()`` (migration 20260911130000): it locks the pool
-         *     row, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME
-         *     predicate the preview above uses — one definition, so preview and delete
-         *     can never disagree), and — only if clear — auto-unlinks
-         *     ``product_resource_requirements`` (epic decision 2; ``ON DELETE
-         *     RESTRICT`` never actually fires here since this is a soft-delete UPDATE,
-         *     not a hard DELETE — the unlink is the decided behaviour, not a
-         *     constraint workaround), soft-deletes the pool's units, retires its
-         *     ``capacity_threshold`` approval_rules row(s), and soft-deletes the pool
-         *     itself — all in one transaction, so a booking made after the dialog
-         *     opened still blocks the write and nothing can observe only SOME of the
-         *     four writes having landed (review gate finding, api#689: four separate
-         *     service-role REST calls could not guarantee that).
-         *
-         *     Past period / unit-day-release rows are left untouched (history).
-         *
-         *     404 ``resource_pool_not_found`` for unknown / foreign / already-deleted
-         *     pool ids (via :func:`_resolve_operator_pool`, and again from the RPC's
-         *     own re-check for a pool deleted in the gap between the two — never 403,
-         *     same no-cross-tenant-existence-oracle rule every resolver in this file
-         *     follows). 409 ``resource_pool_has_upcoming_bookings`` carries the same
-         *     ``blocking_bookings`` shape the preview does — recomputed (rare: only
-         *     reached on a genuine race, since the resolve above already checked) so
-         *     the response is never bare of the list the dashboard renders.
-         */
-        delete: operations["delete_resource_pool"];
+        delete?: never;
         options?: never;
         head?: never;
         /**
@@ -5133,17 +5046,6 @@ export interface paths {
          *     Each is a partial-update field — omitted or ``null`` leaves the stored
          *     value untouched — so existing callers that only ever send
          *     ``default_released_units`` keep working unchanged.
-         *
-         *     landr-k5fgy.1: the range check is only enforced on a CHANGED value. A
-         *     no-op re-save of the currently STORED default must succeed even when it
-         *     now exceeds the active unit count — e.g. a freshly-created 0-unit pool
-         *     whose ``default_released_units`` sits at the column default of 1
-         *     (``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose
-         *     units were all since removed. Rejecting that would make the pool
-         *     permanently un-PATCHable (every future term-only edit re-sends the
-         *     stored default) until the operator adds enough units to satisfy a value
-         *     they never asked to change. Only a value that actually DIFFERS from what
-         *     is stored has to prove it fits.
          */
         patch: operations["patch_resource_pool"];
         trace?: never;
@@ -5418,33 +5320,6 @@ export interface paths {
          *     season policy off, and when" is the whole point of Pattern A.
          */
         delete: operations["delete_approval_period"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Resource Pool Delete Preview
-         * @description Read-only: what deleting this pool would do — for the confirm dialog.
-         *
-         *     ``blocking_bookings`` is exactly what would make the ``DELETE`` below
-         *     409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``
-         *     is what would be silently auto-unlinked on a successful delete (epic
-         *     decision 2) — the dialog names each one so the operator isn't surprised
-         *     later. ``can_delete`` is ``blocking_bookings == []``, computed here so the
-         *     dashboard doesn't have to know the rule.
-         */
-        get: operations["resource_pool_delete_preview"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7504,8 +7379,6 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
-            /** Language */
-            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -9061,8 +8934,6 @@ export interface components {
             logo_url?: string | null;
             /** Name */
             name?: string | null;
-            /** Offered Languages */
-            offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
             /** Phone */
@@ -9272,8 +9143,6 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
-            /** Offered Languages */
-            offered_languages?: string[];
             /** Primary Color */
             primary_color?: string | null;
             /** Slug */
@@ -9397,8 +9266,6 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
-            /** Language */
-            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -10320,58 +10187,6 @@ export interface components {
             resolved_at: string;
             /** Resolved By */
             resolved_by: string;
-        };
-        /**
-         * ResourcePoolCreateIn
-         * @description ``POST .../resource-pools`` (landr-k5fgy.1) — the fields
-         *     ``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool
-         *     insert and its ``capacity_threshold`` rule ensure (OD-2, same predicate
-         *     :func:`patch_resource_pool` uses) either both happen or neither does —
-         *     see :func:`create_resource_pool`'s docstring for why this couldn't just
-         *     be a direct-REST insert.
-         *
-         *     Every term field (``unit_label`` et al.) is optional here — any omitted
-         *     one is filled server-side from ``resource_pool_kind_defaults(resource_kind)``
-         *     before the insert, so a caller that skips them entirely still gets
-         *     kind-correct words (the column's own DEFAULT is the flat generic_seat
-         *     tuple, wrong for every other kind — see migration 20260904030000's
-         *     header). ``icon``/``color`` are NOT defaulted this way: both stay
-         *     nullable forever (NULL = "use the kind default" / "no swatch yet",
-         *     resolved by the READER — :mod:`app.services.resource_pool_presentation`
-         *     — never baked into the row at write time).
-         */
-        ResourcePoolCreateIn: {
-            /** Code */
-            code: string;
-            /** Color */
-            color?: string | null;
-            /** Icon */
-            icon?: string | null;
-            /**
-             * Is Consumed Per Day
-             * @default true
-             */
-            is_consumed_per_day: boolean;
-            /** Label */
-            label: string;
-            /**
-             * Resource Kind
-             * @enum {string}
-             */
-            resource_kind: "transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat";
-            /** Slot Label */
-            slot_label?: string | null;
-            /** Slot Label Plural */
-            slot_label_plural?: string | null;
-            /**
-             * Sort Order
-             * @default 100
-             */
-            sort_order: number;
-            /** Unit Label */
-            unit_label?: string | null;
-            /** Unit Label Plural */
-            unit_label_plural?: string | null;
         };
         /**
          * ResourcePoolPatch
@@ -20623,77 +20438,6 @@ export interface operations {
             };
         };
     };
-    create_resource_pool: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResourcePoolCreateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_resource_pool: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     patch_resource_pool: {
         parameters: {
             query?: never;
@@ -20817,40 +20561,6 @@ export interface operations {
                 operator_id: string;
                 pool_id: string;
                 period_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resource_pool_delete_preview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                pool_id: string;
             };
             cookie?: never;
         };
