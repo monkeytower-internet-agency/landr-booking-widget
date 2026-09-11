@@ -113,13 +113,35 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.locator('input[type="radio"]').first().check()
   await page.getByRole('button', { name: 'Continue' }).click()
 
+  // ---- Guide language (landr-r6e5x.4) --------------------------------------
+  // Every party member is assigned one of the operator's offered languages on
+  // its own step, before the custom form. The API requires
+  // participants[].language on every public submit, so this step is not
+  // optional — but the check is conditional because this spec runs against the
+  // DEPLOYED bw-dev build, which Cloudflare Pages redeploys from `dev` only
+  // after the PR introducing the step merges. On that PR's own run the step
+  // does not exist yet; on every run after it does.
+  const languageBoard = page.getByTestId('participant-language-board')
+  const hasLanguageStep = await languageBoard
+    .isVisible({ timeout: 15_000 })
+    .catch(() => false)
+  if (hasLanguageStep) {
+    await page.getByTestId('lang-add-en').click()
+    await page.getByTestId('lang-everyone-en').click()
+    await page.getByTestId('language-step-submit').click()
+  }
+
   // ---- Custom-form declarations (para42's operator-configured module) ------
   await expect(page.getByTestId('cf-submit')).toBeVisible()
   await page.getByTestId('cf-checkbox-license_valid-yes').click()
   await page.getByTestId('cf-checkbox-insurance_valid-yes').click()
   await page.getByTestId('cf-checkbox-autonomous_pilot-yes').click()
   await page.getByTestId('cf-checkbox-emergency_contact-yes').click()
-  await page.getByTestId('cf-lang-check-en').click()
+  // Once the language step exists, this form's language field REPORTS that
+  // assignment rather than asking again, so there is no checkbox to tick.
+  if (!hasLanguageStep) {
+    await page.getByTestId('cf-lang-check-en').click()
+  }
   await page.getByTestId('cf-submit').click()
 
   // ---- Review + confirm -----------------------------------------------------
