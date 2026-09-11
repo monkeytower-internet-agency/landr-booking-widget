@@ -10763,6 +10763,125 @@
         "title": "ResolveDecisionOut",
         "type": "object"
       },
+      "ResourcePoolCreateIn": {
+        "description": "``POST .../resource-pools`` (landr-k5fgy.1) \u2014 the fields\n``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool\ninsert and its ``capacity_threshold`` rule ensure (OD-2, same predicate\n:func:`patch_resource_pool` uses) either both happen or neither does \u2014\nsee :func:`create_resource_pool`'s docstring for why this couldn't just\nbe a direct-REST insert.\n\nEvery term field (``unit_label`` et al.) is optional here \u2014 any omitted\none is filled server-side from ``resource_pool_kind_defaults(resource_kind)``\nbefore the insert, so a caller that skips them entirely still gets\nkind-correct words (the column's own DEFAULT is the flat generic_seat\ntuple, wrong for every other kind \u2014 see migration 20260904030000's\nheader). ``icon``/``color`` are NOT defaulted this way: both stay\nnullable forever (NULL = \"use the kind default\" / \"no swatch yet\",\nresolved by the READER \u2014 :mod:`app.services.resource_pool_presentation`\n\u2014 never baked into the row at write time).",
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "is_consumed_per_day": {
+            "default": true,
+            "title": "Is Consumed Per Day",
+            "type": "boolean"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "resource_kind": {
+            "enum": [
+              "transport_seat",
+              "staff_capacity",
+              "equipment_unit",
+              "physical_space",
+              "generic_seat"
+            ],
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "slot_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label"
+          },
+          "slot_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label Plural"
+          },
+          "sort_order": {
+            "default": 100,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label"
+          },
+          "unit_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label Plural"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "resource_kind"
+        ],
+        "title": "ResourcePoolCreateIn",
+        "type": "object"
+      },
       "ResourcePoolPatch": {
         "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy\nplus (landr-e80s.2) the operator's own terms for this pool's units/slots.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.\n\n``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``\nare optional partial-update fields (``None`` = leave unchanged) \u2014 every\nexisting caller only ever sent ``default_released_units``, so those four\nstay required-less to keep that call shape working unmodified. Length is\nthe same 1..40 the DB CHECK enforces; validating here gives a typed 422\nbefore the DB ever sees the write.",
         "properties": {
@@ -29153,9 +29272,126 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/resource-pools": {
+      "post": {
+        "description": "Create a pool, then ensure its ``capacity_threshold`` rule \u2014 atomically.\n\nTHE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).\n``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT\nand then PATCHes the just-inserted pool's OWN ``default_released_units``\nback at itself, purely to reach this router's rule-ensure side effect\n(the module header explains why that side effect can't be a direct-REST\nwrite). ``default_released_units`` carries a column DEFAULT of 1 (OD-1\nback-compat \u2014 \"the first unit always auto-approves\"), and a brand-new\npool has 0 units, so that PATCH 422s\n``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had\nalready committed, so the operator saw \"failed\" while a pool with NO\ncapacity rule silently existed. (:func:`patch_resource_pool` no longer\n422s on a no-op re-save of the stored default, which closes half of the\nbug \u2014 but a POST that does the whole thing as one write is the real\nfix: the dashboard should never have needed a fake PATCH to reach a\ncreate-time side effect.)\n\nALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-\ninserted pool row is deleted before the error propagates. The pool has\nno children yet at this point (no units, no requirements, no periods),\nso a hard delete is safe \u2014 a pool that exists only because half of its\nsetup silently didn't happen is worse than no pool at all.\n\nTerm fields (``unit_label`` et al.) omitted from the body are filled\nfrom ``resource_pool_kind_defaults(resource_kind)`` \u2014 the SAME lookup\nthe dashboard's own client-side prefill and the epic's one-time backfill\nboth use \u2014 so a caller that skips them never falls through to the\ncolumn's flat generic_seat DEFAULT for a non-generic_seat pool.\n``icon``/``color`` are NOT defaulted this way: they stay NULL when\nomitted (the kind-derived/neutral fallback is a READ-time computation,\nsee :mod:`app.services.resource_pool_presentation`).\n\nDuplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked\nup front (a clean error is worth a query) AND caught again on the\ninsert itself \u2014 ``resource_pools_operator_code_unique`` is partial on\n``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must\nsucceed, and a pre-check alone would race a concurrent identical create.",
+        "operationId": "create_resource_pool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePoolCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Resource Pool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Resource Pool",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
+      "delete": {
+        "description": "Soft-delete a pool (Pattern A + ``active = false``) \u2014 epic decision 1.\n\nThe re-check + all four writes happen inside ONE Postgres function call,\n``delete_resource_pool()`` (migration 20260911130000): it locks the pool\nrow, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME\npredicate the preview above uses \u2014 one definition, so preview and delete\ncan never disagree), and \u2014 only if clear \u2014 auto-unlinks\n``product_resource_requirements`` (epic decision 2; ``ON DELETE\nRESTRICT`` never actually fires here since this is a soft-delete UPDATE,\nnot a hard DELETE \u2014 the unlink is the decided behaviour, not a\nconstraint workaround), soft-deletes the pool's units, retires its\n``capacity_threshold`` approval_rules row(s), and soft-deletes the pool\nitself \u2014 all in one transaction, so a booking made after the dialog\nopened still blocks the write and nothing can observe only SOME of the\nfour writes having landed (review gate finding, api#689: four separate\nservice-role REST calls could not guarantee that).\n\nPast period / unit-day-release rows are left untouched (history).\n\n404 ``resource_pool_not_found`` for unknown / foreign / already-deleted\npool ids (via :func:`_resolve_operator_pool`, and again from the RPC's\nown re-check for a pool deleted in the gap between the two \u2014 never 403,\nsame no-cross-tenant-existence-oracle rule every resolver in this file\nfollows). 409 ``resource_pool_has_upcoming_bookings`` carries the same\n``blocking_bookings`` shape the preview does \u2014 recomputed (rare: only\nreached on a genuine race, since the resolve above already checked) so\nthe response is never bare of the list the dashboard renders.",
+        "operationId": "delete_resource_pool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Resource Pool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Resource Pool",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      },
       "patch": {
-        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.",
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.\n\nlandr-k5fgy.1: the range check is only enforced on a CHANGED value. A\nno-op re-save of the currently STORED default must succeed even when it\nnow exceeds the active unit count \u2014 e.g. a freshly-created 0-unit pool\nwhose ``default_released_units`` sits at the column default of 1\n(``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose\nunits were all since removed. Rejecting that would make the pool\npermanently un-PATCHable (every future term-only edit re-sends the\nstored default) until the operator adds enough units to satisfy a value\nthey never asked to change. Only a value that actually DIFFERS from what\nis stored has to prove it fits.",
         "operationId": "patch_resource_pool",
         "parameters": [
           {
@@ -29443,6 +29679,65 @@
           }
         ],
         "summary": "Delete Approval Period",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
+      "get": {
+        "description": "Read-only: what deleting this pool would do \u2014 for the confirm dialog.\n\n``blocking_bookings`` is exactly what would make the ``DELETE`` below\n409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``\nis what would be silently auto-unlinked on a successful delete (epic\ndecision 2) \u2014 the dialog names each one so the operator isn't surprised\nlater. ``can_delete`` is ``blocking_bookings == []``, computed here so the\ndashboard doesn't have to know the rule.",
+        "operationId": "resource_pool_delete_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resource Pool Delete Preview",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resource Pool Delete Preview",
         "tags": [
           "staff-approval-periods"
         ]
