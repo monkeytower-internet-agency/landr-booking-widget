@@ -11,6 +11,16 @@ permissions:
   deployments: write
 
 jobs:
+  # landr-r6e5x.1 (2026-09-11): NOT gated behind ALLOW_GITHUB_RUNNERS, unlike
+  # every other repo's ubuntu-latest fallback tier — deliberate, not an
+  # oversight. No self-hosted runner is registered for
+  # landr-booking-widget at all (verified via `gh api
+  # repos/.../landr-booking-widget/actions/runners` — empty), so
+  # ubuntu-latest is this workflow's ONLY lane, not a fallback in a cascade.
+  # This is also the repo's dev/staging/prod DEPLOY job — gating it behind a
+  # variable unset by default would stop every widget deploy outright with
+  # no fallback path. See the landr-r6e5x.1 handoff for the option to
+  # provision a self-hosted widget runner if that's ever wanted.
   build-and-deploy:
     runs-on: ubuntu-latest
     environment:

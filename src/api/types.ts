@@ -312,6 +312,19 @@ export interface WidgetTheme {
 export interface OperatorSettings {
   slug: string
   /**
+   * landr-r6e5x.2 / epic decision D2: the ISO 639-1 guide languages this
+   * operator offers, from `operators.offered_languages`. Every party member
+   * on a booking must be assigned to exactly one of them (landr-r6e5x.4);
+   * the free-text "additional spoken languages" field is NOT part of this
+   * list and never assigns anyone.
+   *
+   * Optional for rolling deploy — a widget deployed ahead of the API (or
+   * pointed at an older tier) sees it absent and falls back to the platform
+   * default set, which is also the column's DEFAULT. See
+   * normaliseOfferedLanguages in components/booking/participantLanguages.ts.
+   */
+  offered_languages?: string[] | null
+  /**
    * When false (default): widget hides numeric remaining-seat counts on
    * availability cells. When true: widget shows "{N} seats" as an
    * urgency lever. Para42 (Martin) stays on false.
@@ -602,6 +615,22 @@ export interface Participant {
    * same shape): absent/false → no breakfast; true → has breakfast.
    */
   has_breakfast?: boolean | null
+  /**
+   * landr-r6e5x.4 / epic decision D3: the offered guide language this person
+   * was assigned to in the widget's language board (ISO 639-1, one of the
+   * operator's `offered_languages`). REQUIRED by the submit contract whenever
+   * the operator's flow collects languages — the API answers a missing or
+   * un-offered value with a typed 422 (`participant_language_missing` /
+   * `participant_language_invalid`, both carrying the party index).
+   *
+   * Persisted to `booking_participants.language` so the calendar shows the
+   * right flag per person instead of inheriting the booking-level list.
+   *
+   * WIRE CONTRACT (PINNED — landr-r6e5x.2 on the API builds the same shape).
+   * Optional in the TYPE only so staff-side paths that create participants
+   * server-side (where it stays NULL) keep compiling.
+   */
+  language?: string | null
 }
 
 /**
@@ -665,6 +694,15 @@ export interface Companion {
    * Absent/null treated as 'guest' by the API.
    */
   companion_kind?: 'guest' | 'separate_guiding' | null
+  /**
+   * landr-r6e5x.4 / epic decision D3: the companion's assigned guide language
+   * (ISO 639-1). Mirrors the Participant field exactly — the assignment board
+   * makes no distinction between a guiding participant and a companion, and
+   * neither does the API's validation.
+   *
+   * WIRE CONTRACT (PINNED — landr-r6e5x.2 builds the same shape).
+   */
+  language?: string | null
 }
 
 /**

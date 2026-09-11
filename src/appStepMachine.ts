@@ -14,6 +14,7 @@ import type { RoomSelection } from '@/components/booking/accommodationCalc'
 import type {
   PartyAssignmentMap,
   PartyBreakfastMap,
+  PartyLanguageMap,
   PartyOccupantAgeMap,
 } from '@/components/booking/partyIdentity'
 import type { AddonSelection } from '@/components/booking/addonsState'
@@ -91,6 +92,19 @@ export interface BookingDraft {
   // like every other draft slice. Empty/undefined until the customer answers a
   // custom form.
   customFormAnswers?: Record<string, Record<string, unknown>>
+  /**
+   * landr-r6e5x.4 / epic decision D3: which offered guide language each party
+   * member was assigned to, keyed by stable PartyMemberId (participants and
+   * companions alike). Written by the custom-form step's assignment board and
+   * read back on the review step, where BookingForm turns it into each
+   * participant's / companion's `language` on the submit body.
+   *
+   * Identity-keyed for the same reason the room/age/breakfast maps are: a
+   * roster edit in DetailsStep renumbers positions, and a positional key would
+   * hand one person another person's language (landr-uwvl). App.tsx converts
+   * at the seam with toIdentityKeyed / toIndexKeyedOrUndefined.
+   */
+  participantLanguages?: PartyLanguageMap
 }
 
 /**
@@ -298,6 +312,48 @@ export type Step =
   // intermediate steps with their previously confirmed state.
   // landr-sbhz.4: isSharedDouble threads through so the back button
   // from fill-form restores the shared-double tick on re-entry.
+  /**
+   * landr-r6e5x.4 / epic decision D3: the per-participant guide-language
+   * assignment board, as its OWN step between the middles and the custom-form
+   * chain.
+   *
+   * It is NOT a custom-form field. The API validates `participants[].language`
+   * on EVERY public submit (`assert_participant_languages`, landr-r6e5x.2) —
+   * unconditionally, with no dependence on the operator's flow — so a widget
+   * that only collected languages inside a custom form would dead-end with a
+   * 422 on every product that has no such form. Operators genuinely have those:
+   * at review time kayak-demo had none of 3 products with a custom form, and
+   * para42 6 of 13. The step therefore runs whenever the operator offers any
+   * language, which is always: `operators.offered_languages` is NOT NULL with a
+   * four-language default.
+   *
+   * It sits BEFORE the custom-form chain so a flow that also declares a
+   * `language` field can mirror the board's answer rather than ask twice.
+   *
+   * Carries the identical provenance bag as `fill-form`, so the forward and
+   * backward walks thread state through it unchanged.
+   */
+  | {
+      name: 'assign-languages'
+      product: Product
+      selection: BookingSelection
+      booker: BookerDetails
+      participants: ParticipantDetails[]
+      companions: CompanionDetails[]
+      pickupLocationId: string | null
+      accommodationRooms: RoomSelection[]
+      addons: AddonSelection[]
+      hotelLocationId?: string | null
+      hadServiceAddons?: boolean
+      includeHotel?: boolean
+      isSharedDouble?: boolean
+      accommodationMode?: AccommodationMode
+      roomAssignment?: PartyAssignmentMap
+      occupantAgeMap?: PartyOccupantAgeMap
+      perRoomAddons?: PerRoomAddons
+      roomProductNames?: Record<string, string>
+      breakfastMap?: PartyBreakfastMap
+    }
   | {
       name: 'fill-form'
       product: Product
@@ -669,6 +725,10 @@ export interface StepBeforeReviewArgs {
   // landr-71kz.10: prior custom-form answers keyed by form_key, so a back hop
   // into a custom-form step re-seeds the renderer from the draft.
   customFormAnswers?: Record<string, Record<string, unknown>>
+  // landr-r6e5x.4: does the per-participant language step run for this operator?
+  // True whenever they offer any guide language, which the API's NOT NULL
+  // four-language default makes universal. Absent → the pre-r6e5x walk.
+  languageStep?: boolean
 }
 
 /**
@@ -843,10 +903,23 @@ export function stepBeforeReview(
       return reconstructCustomFormStep(formKeys[fromIdx - 1]!, args)
     }
     // fromIdx === 0 (or an unknown formKey treated as the chain head) → fall
-    // through to the non-custom middle walk below.
+    // through to the language step / non-custom middle walk below.
   }
+  // landr-r6e5x.4: the language step sits between the middles and the
+  // custom-form chain, so it is what the chain head (or review, with no forms)
+  // walks back to.
+  if (args.languageStep) return assignLanguagesStep(args)
   // landr-71kz.3: backward plan walk for the review back-target (see
   // reviewBackModule for the hotel-absorbs-pickup asymmetry it preserves).
+  return reconstructStepForModule(reviewBackModule(args), args)
+}
+
+/**
+ * landr-r6e5x.4: Back out of the language step — the non-custom middle walk,
+ * identical to what review used to fall through to. The language step never
+ * walks back into the custom-form chain: the chain sits AFTER it.
+ */
+export function stepBeforeLanguages(args: StepBeforeReviewArgs): Step {
   return reconstructStepForModule(reviewBackModule(args), args)
 }
 
@@ -883,6 +956,51 @@ function fillFormStep(args: PreReviewArgs): Step {
 }
 
 /**
+ * landr-r6e5x.4: build the per-participant language step from the provenance
+ * bag. Same shape as `fillFormStep` — the two steps carry identical context and
+ * differ only in what they render.
+ */
+function assignLanguagesStep(args: PreReviewArgs): Step {
+  return {
+    name: 'assign-languages' as const,
+    product: args.product,
+    selection: args.selection,
+    booker: args.booker,
+    participants: args.participants,
+    companions: args.companions,
+    pickupLocationId: args.pickupLocationId,
+    accommodationRooms: args.accommodationRooms,
+    addons: args.addons,
+    hotelLocationId: args.hotelLocationId,
+    hadServiceAddons: args.hadServiceAddons,
+    includeHotel: args.includeHotel,
+    isSharedDouble: args.isSharedDouble,
+    accommodationMode: args.accommodationMode,
+    roomAssignment: args.roomAssignment,
+    occupantAgeMap: args.occupantAgeMap,
+    perRoomAddons: args.perRoomAddons,
+    roomProductNames: args.roomProductNames,
+    breakfastMap: args.breakfastMap,
+  }
+}
+
+/**
+ * The custom-form chain head, or the review terminus when the operator
+ * configured no forms. Shared by the two forward entries into the pre-review
+ * tail — the one that runs before the language step (when it is disabled) and
+ * the one that runs after it.
+ */
+function customFormChainOrReview(
+  args: PreReviewArgs,
+  remoteFlow?: RemoteFlow | null,
+  customFormAnswers?: Record<string, Record<string, unknown>>,
+): Step {
+  const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
+  if (formKeys.length === 0) return fillFormStep(args)
+  return reconstructCustomFormStep(formKeys[0]!, { ...args, customFormAnswers })
+}
+
+/**
  * landr-71kz.10: the FORWARD entry into the pre-review tail. When the operator
  * configured custom forms (delivered via the remote flow), routes to the FIRST
  * custom form in the plan; otherwise straight to the review screen (fill-form),
@@ -897,14 +1015,27 @@ export function enterReviewOrCustomForm(
   args: PreReviewArgs,
   remoteFlow?: RemoteFlow | null,
   customFormAnswers?: Record<string, Record<string, unknown>>,
+  // landr-r6e5x.4: when the operator offers any guide language (always, in
+  // practice — the column is NOT NULL with a four-language default) the
+  // assignment board is the FIRST pre-review step, ahead of the custom-form
+  // chain, so a form that also declares a `language` field can mirror the
+  // board's answer instead of asking the same question twice.
+  languageStep: boolean = false,
 ): Step {
-  const formKeys = customFormKeysBeforeReview(args.product, remoteFlow)
-  if (formKeys.length === 0) return fillFormStep(args)
-  const firstKey = formKeys[0]!
-  return reconstructCustomFormStep(firstKey, {
-    ...args,
-    customFormAnswers,
-  })
+  if (languageStep) return assignLanguagesStep(args)
+  return customFormChainOrReview(args, remoteFlow, customFormAnswers)
+}
+
+/**
+ * landr-r6e5x.4: forward out of the language step — into the custom-form chain
+ * when the operator configured one, else straight to review.
+ */
+export function stepAfterLanguages(
+  args: PreReviewArgs,
+  remoteFlow?: RemoteFlow | null,
+  customFormAnswers?: Record<string, Record<string, unknown>>,
+): Step {
+  return customFormChainOrReview(args, remoteFlow, customFormAnswers)
 }
 
 /**
@@ -1003,8 +1134,10 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
         addons: step.addons ?? [],
       }
     // landr-71kz.3/.10: pickup / custom-form / review share the price context
-    // (rooms + add-ons already committed upstream).
+    // (rooms + add-ons already committed upstream). landr-r6e5x.4: so does the
+    // language step — it sits in the same committed tail.
     case 'pick-pickup':
+    case 'assign-languages':
     case 'custom-form':
     case 'fill-form':
       return {
@@ -1046,6 +1179,11 @@ export interface BreadcrumbOptions {
   customFormAnswers?: Record<string, Record<string, unknown>>
   /** Display label for the product crumb (localized product name). */
   productLabel?: string
+  /**
+   * landr-r6e5x.4: does the per-participant language step run? Drives its crumb
+   * and the review crumb's back-target. Absent → the pre-r6e5x trail.
+   */
+  languageStep?: boolean
 }
 
 const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
@@ -1061,6 +1199,8 @@ const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
   // renderer surfaces the operator's localized form name in the step itself;
   // the crumb shows a neutral default.
   'custom-form': 'Details',
+  // landr-r6e5x.4: the per-participant guide-language step.
+  'assign-languages': 'Language',
   'fill-form': 'Review',
 }
 
@@ -1071,6 +1211,7 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
   'pick-accommodation',
   'pick-service-addons',
   'pick-pickup',
+  'assign-languages',
   'custom-form',
   'fill-form',
 ])
@@ -1282,9 +1423,33 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
           breakfastMap: step.breakfastMap,
           remoteFlow: opts.remoteFlow,
           customFormAnswers: opts.customFormAnswers,
+          languageStep: opts.languageStep,
         },
         step.formKey,
       )
+    // landr-r6e5x.4: the language step's crumb walks back over the non-custom
+    // middles — the chain sits after it, never before.
+    case 'assign-languages':
+      return stepBeforeLanguages({
+        product: step.product,
+        selection: step.selection,
+        booker: step.booker,
+        participants: step.participants,
+        companions: step.companions,
+        pickupLocationId: step.pickupLocationId,
+        accommodationRooms: step.accommodationRooms,
+        addons: step.addons,
+        hotelLocationId: step.hotelLocationId,
+        hadServiceAddons: step.hadServiceAddons,
+        includeHotel: step.includeHotel,
+        isSharedDouble: step.isSharedDouble,
+        accommodationMode: step.accommodationMode,
+        roomAssignment: step.roomAssignment,
+        occupantAgeMap: step.occupantAgeMap,
+        perRoomAddons: step.perRoomAddons,
+        roomProductNames: step.roomProductNames,
+        breakfastMap: step.breakfastMap,
+      })
     case 'fill-form':
       // landr-71kz.10: Back from review lands on the LAST custom form when the
       // operator configured any (stepBeforeReview walks the chain head-first);
@@ -1310,6 +1475,7 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         roomProductNames: step.roomProductNames,
         remoteFlow: opts.remoteFlow,
         customFormAnswers: opts.customFormAnswers,
+        languageStep: opts.languageStep,
       })
     default:
       return null

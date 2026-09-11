@@ -234,3 +234,13 @@ export type PartyOccupantAgeMap = Record<PartyMemberId, OccupantAgeEntry>
 
 /** Per-occupant breakfast flag keyed by PartyMemberId (draft/step form). */
 export type PartyBreakfastMap = Record<PartyMemberId, boolean>
+
+/**
+ * landr-r6e5x.4: per-member guide-language assignment keyed by PartyMemberId
+ * (draft form). Same seam rule as the three maps above — the board and the
+ * submit adapter work in the party-INDEX space, the draft keys by person, and
+ * App.tsx converts with toIndexKeyedOrUndefined / toIdentityKeyed. A member
+ * removed in DetailsStep drops out and simply shows up unassigned again,
+ * which the submit gate then makes the customer fix.
+ */
+export type PartyLanguageMap = Record<PartyMemberId, string>
