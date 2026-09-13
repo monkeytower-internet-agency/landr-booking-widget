@@ -11,11 +11,15 @@
  *   - hotel_offering !== 'none' → "Hotel optional" (optional) or
  *     "Hotel included" (mandatory — the room is part of the package).
  *   - needs_pickup → "Pickup available".
- *   - product_kind !== 'service' → a humanised kind label ("Gift card",
- *     "Digital good", …). Service products carry no kind chip — their
- *     shape is conveyed by the other facts.
+ *   - product_kind !== 'service' → the operator's own category name
+ *     (landr-821d6.7 — localized via `locale`), falling back to a
+ *     humanised kind label ("Gift card", "Digital good", …) when the
+ *     product carries no category_name yet (rolling deploy). Service
+ *     products carry no kind chip — their shape is conveyed by the
+ *     other facts.
  */
 import type { Product } from '@/api/types'
+import { pickLocalized } from '@/lib/locale'
 
 /** Icon keys ProductFacts.tsx maps to lucide-react icons. */
 export type FactIcon = 'duration' | 'hotel' | 'pickup' | 'kind'
@@ -44,7 +48,7 @@ function humaniseKind(kind: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-export function deriveProductFacts(product: Product): ProductFact[] {
+export function deriveProductFacts(product: Product, locale: string): ProductFact[] {
   const facts: ProductFact[] = []
 
   if (product.duration_minutes != null && product.duration_minutes > 0) {
@@ -67,7 +71,13 @@ export function deriveProductFacts(product: Product): ProductFact[] {
   }
 
   if (product.product_kind !== 'service') {
-    facts.push({ icon: 'kind', label: humaniseKind(product.product_kind) })
+    const categoryLabel = product.category_name
+      ? pickLocalized(product.category_name, product.category_name_localized, locale)
+      : ''
+    facts.push({
+      icon: 'kind',
+      label: categoryLabel || humaniseKind(product.product_kind),
+    })
   }
 
   return facts

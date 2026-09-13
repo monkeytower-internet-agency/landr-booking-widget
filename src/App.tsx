@@ -90,7 +90,7 @@ import {
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
-import { browserLocale, pickLocalized } from '@/lib/locale'
+import { browserLocale, configureCustomerLocale, pickLocalized } from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -595,6 +595,11 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-821d6.7: whitelist browserLocale() against this operator's
+          // customer_languages (falling back to default_locale) — applies
+          // globally to every browserLocale() call from here on, no prop
+          // threading needed.
+          configureCustomerLocale(settings.customer_languages, settings.default_locale)
           // landr-jb1k.2: lazy-load the operator's configured font once, if
           // non-system. The import() is no-op for 'system' and for null.
           void loadTileFont(settings.widget_tile_font as TileFontKey | null | undefined)

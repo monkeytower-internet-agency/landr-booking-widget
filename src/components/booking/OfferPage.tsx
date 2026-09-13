@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { formatCurrency } from './accommodationCalc'
 
 /**
@@ -478,6 +479,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
             ? 'Your booking is confirmed. Pay the outstanding balance below to secure it.'
             : 'Review the details below and click Accept & Pay to confirm your booking.'}
         </CardDescription>
+        {offer.stage ? (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            data-testid="offer-stage-label"
+          >
+            Status: {resolveCustomerStageLabel(offer.stage, browserLocale())}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
 

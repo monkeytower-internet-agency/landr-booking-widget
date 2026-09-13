@@ -109,7 +109,7 @@ export function ProductDetailStep({
             <ReactMarkdown>{description}</ReactMarkdown>
           </div>
         ) : null}
-        <ProductFacts product={product} />
+        <ProductFacts product={product} locale={locale} />
         <FullyBookedNotice
           name={name}
           description={pickLocalized(
@@ -138,7 +138,7 @@ export function ProductDetailStep({
         </h2>
       ) : null}
 
-      <ProductFacts product={product} />
+      <ProductFacts product={product} locale={locale} />
 
       {description ? (
         <div className={PROSE_CLASSES} data-testid="product-detail-description">
