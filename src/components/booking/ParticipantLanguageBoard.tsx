@@ -1,11 +1,14 @@
 /**
  * landr-r6e5x.4 — ParticipantLanguageBoard
  *
- * Epic decision D3: assign EVERY party member (guiding participants and
- * non-guiding companions alike) to exactly one of the operator's offered
- * guide languages, using the same interaction the AccommodationStep uses to
- * put people in hotel rooms — so a customer who has already done the room
- * board recognises this one immediately.
+ * Epic decision D3 (narrowed by landr-9sjw5 — see LanguageStep.tsx): assign
+ * every party member handed to this board to exactly one of the operator's
+ * offered guide languages, using the same interaction the AccommodationStep
+ * uses to put people in hotel rooms — so a customer who has already done the
+ * room board recognises this one immediately. The component itself stays
+ * generic over WHO it's given (the `guestFlags` prop still badges any
+ * non-guiding member) — it's LanguageStep's real caller (App.tsx) that now
+ * only ever hands it participants, never companions.
  *
  * Three input modalities, all editing the same ParticipantLanguageMap, and
  * deliberately the SAME three RoomAssignment offers:
