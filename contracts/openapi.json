@@ -2022,6 +2022,17 @@
             "title": "Has Breakfast",
             "type": "boolean"
           },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
           "last_name": {
             "anyOf": [
               {
@@ -6921,6 +6932,20 @@
             ],
             "title": "Name"
           },
+          "offered_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offered Languages"
+          },
           "onboarded_at": {
             "anyOf": [
               {
@@ -7353,6 +7378,42 @@
         "additionalProperties": true,
         "description": "Public catalogue product row.\n\nMirrors the public_get_operator_products RPC projection, with the image\nPATHS already composed into URLs by the router. `model_config = \"allow\"`\nkeeps the model forward-compatible: RPC columns the widget doesn't yet\nconsume (and new ones future migrations add) pass through untouched\nrather than forcing a response-model bump on every RPC change.",
         "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
+          "category_name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name Localized"
+          },
           "images": {
             "items": {
               "$ref": "#/components/schemas/ProductImage"
@@ -7645,6 +7706,13 @@
             "default": false,
             "title": "Offer Account Link",
             "type": "boolean"
+          },
+          "offered_languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Offered Languages",
+            "type": "array"
           },
           "primary_color": {
             "anyOf": [
@@ -7988,6 +8056,17 @@
             "default": false,
             "title": "Has Breakfast",
             "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
           },
           "last_name": {
             "anyOf": [
@@ -8657,6 +8736,302 @@
         "title": "ProductAddon",
         "type": "object"
       },
+      "ProductCategoryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "is_contiguous": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Contiguous"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "template_key": {
+            "enum": [
+              "overnight_stay",
+              "activity_date",
+              "multi_day_course",
+              "fixed_session",
+              "space_by_hour",
+              "physical_item",
+              "digital_item",
+              "membership"
+            ],
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_key"
+        ],
+        "title": "ProductCategoryIn",
+        "type": "object"
+      },
+      "ProductCategoryOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_contiguous": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Contiguous"
+          },
+          "is_system": {
+            "title": "Is System",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "product_count": {
+            "default": 0,
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "template_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Key"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "name",
+          "product_kind",
+          "is_system",
+          "sort_order",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProductCategoryOut",
+        "type": "object"
+      },
+      "ProductCategoryPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "ProductCategoryPatch",
+        "type": "object"
+      },
+      "ProductCategoryTemplateOut": {
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Name Localized",
+            "type": "object"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "supports_is_contiguous": {
+            "title": "Supports Is Contiguous",
+            "type": "boolean"
+          },
+          "template_key": {
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_key",
+          "product_kind",
+          "name",
+          "name_localized",
+          "sort_order",
+          "supports_is_contiguous",
+          "allowed"
+        ],
+        "title": "ProductCategoryTemplateOut",
+        "type": "object"
+      },
       "ProductFlowResponse": {
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
@@ -8932,6 +9307,17 @@
             ],
             "title": "Capacity Per Unit"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -9091,16 +9477,23 @@
             "title": "Product Group Id"
           },
           "product_kind": {
-            "enum": [
-              "service",
-              "subscription",
-              "hotel_room",
-              "digital_good",
-              "physical_good",
-              "gift_card"
+            "anyOf": [
+              {
+                "enum": [
+                  "service",
+                  "subscription",
+                  "hotel_room",
+                  "digital_good",
+                  "physical_good",
+                  "gift_card"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Product Kind",
-            "type": "string"
+            "title": "Product Kind"
           },
           "revenue_flows_through_operator": {
             "default": true,
@@ -9164,8 +9557,7 @@
         },
         "required": [
           "slug",
-          "name",
-          "product_kind"
+          "name"
         ],
         "title": "ProductIn",
         "type": "object"
@@ -9260,6 +9652,17 @@
               }
             ],
             "title": "Capacity Per Unit"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
           },
           "default_pricing_scheme_id": {
             "anyOf": [
@@ -10718,6 +11121,125 @@
           "resolved_at"
         ],
         "title": "ResolveDecisionOut",
+        "type": "object"
+      },
+      "ResourcePoolCreateIn": {
+        "description": "``POST .../resource-pools`` (landr-k5fgy.1) \u2014 the fields\n``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool\ninsert and its ``capacity_threshold`` rule ensure (OD-2, same predicate\n:func:`patch_resource_pool` uses) either both happen or neither does \u2014\nsee :func:`create_resource_pool`'s docstring for why this couldn't just\nbe a direct-REST insert.\n\nEvery term field (``unit_label`` et al.) is optional here \u2014 any omitted\none is filled server-side from ``resource_pool_kind_defaults(resource_kind)``\nbefore the insert, so a caller that skips them entirely still gets\nkind-correct words (the column's own DEFAULT is the flat generic_seat\ntuple, wrong for every other kind \u2014 see migration 20260904030000's\nheader). ``icon``/``color`` are NOT defaulted this way: both stay\nnullable forever (NULL = \"use the kind default\" / \"no swatch yet\",\nresolved by the READER \u2014 :mod:`app.services.resource_pool_presentation`\n\u2014 never baked into the row at write time).",
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "is_consumed_per_day": {
+            "default": true,
+            "title": "Is Consumed Per Day",
+            "type": "boolean"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "resource_kind": {
+            "enum": [
+              "transport_seat",
+              "staff_capacity",
+              "equipment_unit",
+              "physical_space",
+              "generic_seat"
+            ],
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "slot_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label"
+          },
+          "slot_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Label Plural"
+          },
+          "sort_order": {
+            "default": 100,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "unit_label": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label"
+          },
+          "unit_label_plural": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Label Plural"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "resource_kind"
+        ],
+        "title": "ResourcePoolCreateIn",
         "type": "object"
       },
       "ResourcePoolPatch": {
@@ -27361,6 +27883,305 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/product-categories": {
+      "get": {
+        "description": "Every non-deleted category (active and inactive), with product_count =\nthe number of live (non-deleted) products in it.",
+        "operationId": "list_product_categories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCategoryOut"
+                  },
+                  "title": "Response List Product Categories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Categories",
+        "tags": [
+          "staff-product-categories"
+        ]
+      },
+      "post": {
+        "operationId": "create_product_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Product Category",
+        "tags": [
+          "staff-product-categories"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/product-categories/templates": {
+      "get": {
+        "operationId": "list_product_category_templates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductCategoryTemplateOut"
+                  },
+                  "title": "Response List Product Category Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Category Templates",
+        "tags": [
+          "staff-product-categories"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/product-categories/{category_id}": {
+      "delete": {
+        "description": "Soft-delete. 409 ``product_category_in_use`` while any live product\nstill belongs to the category \u2014 move or delete those products first.",
+        "operationId": "delete_product_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Product Category",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Product Category",
+        "tags": [
+          "staff-product-categories"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_product_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "title": "Category Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCategoryPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCategoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Product Category",
+        "tags": [
+          "staff-product-categories"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/product-groups": {
       "get": {
         "operationId": "list_groups",
@@ -29110,9 +29931,126 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/resource-pools": {
+      "post": {
+        "description": "Create a pool, then ensure its ``capacity_threshold`` rule \u2014 atomically.\n\nTHE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).\n``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT\nand then PATCHes the just-inserted pool's OWN ``default_released_units``\nback at itself, purely to reach this router's rule-ensure side effect\n(the module header explains why that side effect can't be a direct-REST\nwrite). ``default_released_units`` carries a column DEFAULT of 1 (OD-1\nback-compat \u2014 \"the first unit always auto-approves\"), and a brand-new\npool has 0 units, so that PATCH 422s\n``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had\nalready committed, so the operator saw \"failed\" while a pool with NO\ncapacity rule silently existed. (:func:`patch_resource_pool` no longer\n422s on a no-op re-save of the stored default, which closes half of the\nbug \u2014 but a POST that does the whole thing as one write is the real\nfix: the dashboard should never have needed a fake PATCH to reach a\ncreate-time side effect.)\n\nALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-\ninserted pool row is deleted before the error propagates. The pool has\nno children yet at this point (no units, no requirements, no periods),\nso a hard delete is safe \u2014 a pool that exists only because half of its\nsetup silently didn't happen is worse than no pool at all.\n\nTerm fields (``unit_label`` et al.) omitted from the body are filled\nfrom ``resource_pool_kind_defaults(resource_kind)`` \u2014 the SAME lookup\nthe dashboard's own client-side prefill and the epic's one-time backfill\nboth use \u2014 so a caller that skips them never falls through to the\ncolumn's flat generic_seat DEFAULT for a non-generic_seat pool.\n``icon``/``color`` are NOT defaulted this way: they stay NULL when\nomitted (the kind-derived/neutral fallback is a READ-time computation,\nsee :mod:`app.services.resource_pool_presentation`).\n\nDuplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked\nup front (a clean error is worth a query) AND caught again on the\ninsert itself \u2014 ``resource_pools_operator_code_unique`` is partial on\n``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must\nsucceed, and a pre-check alone would race a concurrent identical create.",
+        "operationId": "create_resource_pool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePoolCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Resource Pool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Resource Pool",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
+      "delete": {
+        "description": "Soft-delete a pool (Pattern A + ``active = false``) \u2014 epic decision 1.\n\nThe re-check + all four writes happen inside ONE Postgres function call,\n``delete_resource_pool()`` (migration 20260911130000): it locks the pool\nrow, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME\npredicate the preview above uses \u2014 one definition, so preview and delete\ncan never disagree), and \u2014 only if clear \u2014 auto-unlinks\n``product_resource_requirements`` (epic decision 2; ``ON DELETE\nRESTRICT`` never actually fires here since this is a soft-delete UPDATE,\nnot a hard DELETE \u2014 the unlink is the decided behaviour, not a\nconstraint workaround), soft-deletes the pool's units, retires its\n``capacity_threshold`` approval_rules row(s), and soft-deletes the pool\nitself \u2014 all in one transaction, so a booking made after the dialog\nopened still blocks the write and nothing can observe only SOME of the\nfour writes having landed (review gate finding, api#689: four separate\nservice-role REST calls could not guarantee that).\n\nPast period / unit-day-release rows are left untouched (history).\n\n404 ``resource_pool_not_found`` for unknown / foreign / already-deleted\npool ids (via :func:`_resolve_operator_pool`, and again from the RPC's\nown re-check for a pool deleted in the gap between the two \u2014 never 403,\nsame no-cross-tenant-existence-oracle rule every resolver in this file\nfollows). 409 ``resource_pool_has_upcoming_bookings`` carries the same\n``blocking_bookings`` shape the preview does \u2014 recomputed (rare: only\nreached on a genuine race, since the resolve above already checked) so\nthe response is never bare of the list the dashboard renders.",
+        "operationId": "delete_resource_pool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Resource Pool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Resource Pool",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      },
       "patch": {
-        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.",
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.\n\nlandr-k5fgy.1: the range check is only enforced on a CHANGED value. A\nno-op re-save of the currently STORED default must succeed even when it\nnow exceeds the active unit count \u2014 e.g. a freshly-created 0-unit pool\nwhose ``default_released_units`` sits at the column default of 1\n(``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose\nunits were all since removed. Rejecting that would make the pool\npermanently un-PATCHable (every future term-only edit re-sends the\nstored default) until the operator adds enough units to satisfy a value\nthey never asked to change. Only a value that actually DIFFERS from what\nis stored has to prove it fits.",
         "operationId": "patch_resource_pool",
         "parameters": [
           {
@@ -29400,6 +30338,65 @@
           }
         ],
         "summary": "Delete Approval Period",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
+      "get": {
+        "description": "Read-only: what deleting this pool would do \u2014 for the confirm dialog.\n\n``blocking_bookings`` is exactly what would make the ``DELETE`` below\n409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``\nis what would be silently auto-unlinked on a successful delete (epic\ndecision 2) \u2014 the dialog names each one so the operator isn't surprised\nlater. ``can_delete`` is ``blocking_bookings == []``, computed here so the\ndashboard doesn't have to know the rule.",
+        "operationId": "resource_pool_delete_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resource Pool Delete Preview",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resource Pool Delete Preview",
         "tags": [
           "staff-approval-periods"
         ]
