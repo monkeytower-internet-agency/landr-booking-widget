@@ -2885,6 +2885,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Lifecycle Stages */
+        get: operations["list_lifecycle_stages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Lifecycle Stage */
+        patch: operations["patch_lifecycle_stage"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/booking-sessions": {
         parameters: {
             query?: never;
@@ -7746,6 +7780,28 @@ export interface components {
             /** Signer Label */
             signer_label?: string | null;
         };
+        /**
+         * CustomerStageLabel
+         * @description ``stage`` block: customer-facing lifecycle-stage text (landr-821d6.3).
+         *
+         *     Raw pass-through, same convention as ``name``/``name_localized`` on
+         *     ``OfferProductLine`` — the widget resolves locale client-side
+         *     (landr-821d6.7). ``label`` is the operator's ``customer_label`` when set,
+         *     else the staff ``label`` (atomic-pair fallback: ``label_localized``
+         *     follows whichever of the two was chosen, never a per-key merge).
+         */
+        CustomerStageLabel: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** DayManifestOut */
         DayManifestOut: {
             /** Date */
@@ -8673,6 +8729,61 @@ export interface components {
             slug: string;
             /** Sport Id */
             sport_id: string;
+        };
+        /** LifecycleStageOut */
+        LifecycleStageOut: {
+            /**
+             * Booking Count
+             * @default 0
+             */
+            booking_count: number;
+            /** Code */
+            code: string;
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden: boolean;
+            /** Hideable */
+            hideable: boolean;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Semantic State */
+            semantic_state: string;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /**
+         * LifecycleStagePatchIn
+         * @description Partial update. Only these five fields are ever patchable — code,
+         *     semantic_state, sort_order and operator_id are deliberately absent, and
+         *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
+         *     not a silent drop.
+         */
+        LifecycleStagePatchIn: {
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
         };
         /** LocationIn */
         LocationIn: {
@@ -10157,6 +10268,7 @@ export interface components {
             participants?: components["schemas"]["OfferParticipant"][];
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
             [key: string]: unknown;
@@ -11197,6 +11309,7 @@ export interface components {
             payment_link_sent?: boolean | null;
             /** Semantic State */
             semantic_state: string;
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
             /** Token */
@@ -15918,6 +16031,73 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_lifecycle_stages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_lifecycle_stage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleStagePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"];
                 };
             };
             /** @description Validation Error */

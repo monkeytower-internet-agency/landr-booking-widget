@@ -2566,6 +2566,40 @@
         "title": "CustomerSignoffIn",
         "type": "object"
       },
+      "CustomerStageLabel": {
+        "additionalProperties": true,
+        "description": "``stage`` block: customer-facing lifecycle-stage text (landr-821d6.3).\n\nRaw pass-through, same convention as ``name``/``name_localized`` on\n``OfferProductLine`` \u2014 the widget resolves locale client-side\n(landr-821d6.7). ``label`` is the operator's ``customer_label`` when set,\nelse the staff ``label`` (atomic-pair fallback: ``label_localized``\nfollows whichever of the two was chosen, never a per-key merge).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "CustomerStageLabel",
+        "type": "object"
+      },
       "DayManifestOut": {
         "properties": {
           "date": {
@@ -5473,6 +5507,162 @@
           "label_de"
         ],
         "title": "LicenseTypeOut",
+        "type": "object"
+      },
+      "LifecycleStageOut": {
+        "properties": {
+          "booking_count": {
+            "default": 0,
+            "title": "Booking Count",
+            "type": "integer"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "customer_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Label"
+          },
+          "customer_label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Label Localized"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "hideable": {
+            "title": "Hideable",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "semantic_state": {
+            "title": "Semantic State",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "semantic_state",
+          "sort_order",
+          "label",
+          "hidden",
+          "hideable"
+        ],
+        "title": "LifecycleStageOut",
+        "type": "object"
+      },
+      "LifecycleStagePatchIn": {
+        "additionalProperties": false,
+        "description": "Partial update. Only these five fields are ever patchable \u2014 code,\nsemantic_state, sort_order and operator_id are deliberately absent, and\nsending any of them (or any other key) is a 422 via ``extra=\"forbid\"``,\nnot a silent drop.",
+        "properties": {
+          "customer_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Label"
+          },
+          "customer_label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Label Localized"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          }
+        },
+        "title": "LifecycleStagePatchIn",
         "type": "object"
       },
       "LocationIn": {
@@ -10194,6 +10384,16 @@
             "title": "Product Lines",
             "type": "array"
           },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerStageLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "totals": {
             "$ref": "#/components/schemas/OfferTotals"
           }
@@ -12875,6 +13075,16 @@
           "semantic_state": {
             "title": "Semantic State",
             "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerStageLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "stage_code": {
             "anyOf": [
@@ -20912,6 +21122,123 @@
         "summary": "Upsert Bank Details",
         "tags": [
           "staff-operator-integration-credentials"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
+      "get": {
+        "operationId": "list_lifecycle_stages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LifecycleStageOut"
+                  },
+                  "title": "Response List Lifecycle Stages",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Lifecycle Stages",
+        "tags": [
+          "staff-lifecycle-stages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages/{stage_id}": {
+      "patch": {
+        "operationId": "patch_lifecycle_stage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "stage_id",
+            "required": true,
+            "schema": {
+              "title": "Stage Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LifecycleStagePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleStageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Lifecycle Stage",
+        "tags": [
+          "staff-lifecycle-stages"
         ]
       }
     },
