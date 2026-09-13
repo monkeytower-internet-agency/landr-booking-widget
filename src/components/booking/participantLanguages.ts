@@ -1,9 +1,11 @@
 /**
  * landr-r6e5x.4 — per-participant guide-language assignment (pure helpers).
  *
- * Epic decision D3: every party member (guiding participants AND non-guiding
- * companions) is assigned to EXACTLY ONE of the operator's offered guide
- * languages before the booking can be submitted. This replaces the old
+ * Epic decision D3 (narrowed by landr-9sjw5): every GUIDING PARTICIPANT is
+ * assigned to EXACTLY ONE of the operator's offered guide languages before
+ * the booking can be submitted. Non-guiding companions are no longer part of
+ * this assignment at all — App.tsx never hands them to LanguageStep, since a
+ * companion is never briefed by the guide. This replaces the old
  * booking-level multi-select, which could not tell the calendar which flag
  * belongs to which person.
  *

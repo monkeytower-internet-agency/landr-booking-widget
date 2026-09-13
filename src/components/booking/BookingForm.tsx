@@ -139,22 +139,27 @@ interface Props {
    */
   customerOtherLanguages?: string | null
   /**
-   * landr-r6e5x.4 / epic decision D3: WHOLE-PARTY guide-language assignment
-   * (memberIndex → ISO 639-1 code), captured by the custom-form step's
-   * assignment board. Unified index space, identical to roomAssignment:
-   * indices 0..P-1 are guiding participants, P..P+C-1 are companions.
-   * Each member's code ships as `language` on their participants[] /
-   * companions[] entry, which the API persists to
+   * landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
+   * guide-language assignment (memberIndex → ISO 639-1 code), captured by
+   * the LanguageStep's assignment board. Unified index space, identical to
+   * roomAssignment: indices 0..P-1 are guiding participants, P..P+C-1 are
+   * companions — but the board only ever populates participant indices now
+   * (landr-9sjw5: a companion's language never mattered to the operator).
+   * Each member WITH an entry ships it as `language` on their
+   * participants[] / companions[] entry, which the API persists to
    * `booking_participants.language` so the calendar can show a per-person
    * flag without inheriting the booking-level list.
    *
    * WIRE CONTRACT (PINNED — landr-r6e5x.2 on the API builds the same shape):
-   * `language` is REQUIRED on every member and the API enforces it on EVERY
-   * public submit — `assert_participant_languages` runs unconditionally, with
-   * no dependence on the operator's configured flow. A missing one is a typed
-   * 422 (`participant_language_missing`), never a silent default. The
-   * LanguageStep therefore runs for every product; an empty map here means the
-   * funnel was driven past that step, and the submit will be rejected.
+   * `language` is REQUIRED on every PARTICIPANT and the API enforces it on
+   * EVERY public submit — `assert_participant_languages` runs
+   * unconditionally, with no dependence on the operator's configured flow. A
+   * missing participant language is a typed 422
+   * (`participant_language_missing`), never a silent default. A companion's
+   * language is optional — the API validates it only if present. The
+   * LanguageStep therefore runs for every product; a map here with no
+   * participant entries means the funnel was driven past that step, and the
+   * submit will be rejected.
    */
   participantLanguages?: Record<number, string>
   /**
@@ -1183,9 +1188,13 @@ export function BookingForm({
                       </span>
                     ) : null}
                   </span>
-                  {/* landr-r6e5x.4: companions carry a guide language too —
-                      the board and the API treat them identically. Their party
-                      index continues after the participants. */}
+                  {/* landr-9sjw5: the LanguageStep board never assigns a
+                      companion a language anymore, so this normally has
+                      nothing to show — kept purely defensive (a stale draft
+                      from before this change, or a future staff-side edit)
+                      rather than removed, since `participantLanguages` stays
+                      a generic sparse map. Party index continues after the
+                      participants. */}
                   {participantLanguages[participants.length + idx] ? (
                     <span
                       className="shrink-0 text-xs text-muted-foreground"

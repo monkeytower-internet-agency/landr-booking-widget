@@ -1953,41 +1953,42 @@ function BookingFlowApp() {
           />
         ) : null}
 
-        {/* landr-r6e5x.4 / epic decision D3: per-participant guide language.
-            Its own step, before the custom-form chain, for every product —
-            the API validates participants[].language on every public submit,
-            so collecting it only inside a custom form dead-ended every product
-            without one. */}
+        {/* landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
+            per-PARTICIPANT guide language. Its own step, before the
+            custom-form chain, for every product — the API validates
+            participants[].language on every public submit, so collecting it
+            only inside a custom form dead-ended every product without one.
+            Non-guiding companions are deliberately left off this board: it
+            never mattered to the operator what a non-participant speaks, so
+            landr-9sjw5 stopped asking them (companions[].language stays
+            an optional field the API accepts but never requires). */}
         {step.name === 'assign-languages' ? (
           <LanguageStep
             productName={step.product.name}
             offeredLanguages={offeredLanguages}
             {...(() => {
-              const pCount = step.participants.length
-              const party = [
-                ...step.participants.map((p) => ({
-                  first: p.first_name,
-                  last: p.last_name ?? '',
-                })),
-                ...step.companions.map((c) => ({
-                  first: c.first_name,
-                  last: c.last_name ?? '',
-                })),
-              ]
+              const party = step.participants.map((p) => ({
+                first: p.first_name,
+                last: p.last_name ?? '',
+              }))
               const labels = disambiguatePartyLabels(party)
+              // Roster stays WHOLE-PARTY (participants + companions): the
+              // draft's participantLanguages map is identity-keyed against
+              // it, and reusing the same roster here keeps that index
+              // arithmetic correct even though the board itself only ever
+              // sees indices 0..participants.length-1.
               const roster = buildPartyRoster(step.participants, step.companions)
               return {
                 // Labels are disambiguated exactly as AccommodationStep does it,
                 // so "Ada L." reads identically on both boards.
                 participantNames: labels,
-                // Party order is participants first, companions after, so
-                // everyone past the participant count is a companion.
-                guestFlags: labels.map((_label, i) => i >= pCount),
                 // THE INBOUND SEAM (landr-uwvl): the draft keys by person, the
                 // board works in party indices. Resolving against the CURRENT
                 // roster means a member removed in DetailsStep drops out and
                 // shows as unassigned rather than inheriting a neighbour's
-                // language.
+                // language. Any companion entries a stale draft still carries
+                // are simply pruned by LanguageStep (partyCount = participants
+                // only) — see pruneLanguageAssignment.
                 initialAssignment: toIndexKeyed(
                   bookingDraft.participantLanguages,
                   roster,
