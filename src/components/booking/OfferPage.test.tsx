@@ -123,12 +123,13 @@ describe('OfferPage', () => {
   it('landr-821d6.7: shows the resolved customer stage label when the API supplies stage', async () => {
     mocks.getBookingByToken.mockResolvedValue({
       ...OFFER,
+      // landr-821d6.7 review round: the wire shape is pre-resolved
+      // server-side ({code, label, label_localized}) — see
+      // CustomerStageLabel in api/types.ts.
       stage: {
         code: 'awaiting_payment',
-        label: 'Awaiting payment',
+        label: 'Payment pending',
         label_localized: null,
-        customer_label: 'Payment pending',
-        customer_label_localized: null,
       },
     })
     render(<OfferPage token={TOKEN} />)

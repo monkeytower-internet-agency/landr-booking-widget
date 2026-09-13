@@ -427,36 +427,21 @@ describe('Confirmation', () => {
   // ------------------------------------------------------------------
 
   it('landr-821d6.7: shows the resolved customer stage label when the API supplies stage', () => {
+    // landr-821d6.7 review round: the wire shape is pre-resolved
+    // server-side ({code, label, label_localized}) — the customer_label-
+    // vs-staff-label choice is already baked into `label` before it
+    // reaches the widget. See CustomerStageLabel in api/types.ts.
     const response = baseResponse({
       stage: {
         code: 'awaiting_hotel_approval',
-        label: 'Awaiting hotel approval',
-        label_localized: null,
-        customer_label: 'Modifications open',
-        customer_label_localized: null,
+        label: 'Modifications open',
+        label_localized: { es: 'Modificaciones abiertas' },
       },
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.getByTestId('confirmation-stage-label')).toHaveTextContent(
       'Modifications open',
-    )
-  })
-
-  it('landr-821d6.7: falls back to the staff label when the operator has not set a customer_label', () => {
-    const response = baseResponse({
-      stage: {
-        code: 'awaiting_hotel_approval',
-        label: 'Awaiting hotel approval',
-        label_localized: null,
-        customer_label: null,
-        customer_label_localized: null,
-      },
-    })
-    render(<Confirmation response={response} onRestart={vi.fn()} />)
-
-    expect(screen.getByTestId('confirmation-stage-label')).toHaveTextContent(
-      'Awaiting hotel approval',
     )
   })
 

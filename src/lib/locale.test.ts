@@ -2,7 +2,8 @@
  * landr-821d6.7: unit tests for the locale-resolution helpers.
  * Covers pickLocalized's exact/base-language fallback chain,
  * configureCustomerLocale()'s whitelist applied by browserLocale(), and
- * resolveCustomerStageLabel's customer_label -> label fallback.
+ * resolveCustomerStageLabel's localization of the (server-pre-resolved)
+ * stage label.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CustomerStageLabel } from '@/api/types'
@@ -69,29 +70,37 @@ describe('browserLocale / configureCustomerLocale', () => {
     configureCustomerLocale([], 'de')
     expect(browserLocale()).toBe('it')
   })
+
+  it('landr-821d6.7 review round: falls back to customer_languages[0] when default_locale is absent (GET .../settings does not return it yet)', () => {
+    setBrowserLanguage('it')
+    configureCustomerLocale(['de', 'es'], null)
+    expect(browserLocale()).toBe('de')
+  })
+
+  it('default_locale still wins over customer_languages[0] when both are present', () => {
+    setBrowserLanguage('it')
+    configureCustomerLocale(['de', 'es'], 'es')
+    expect(browserLocale()).toBe('es')
+  })
 })
 
 describe('resolveCustomerStageLabel', () => {
+  // landr-821d6.7 review round: the customer_label-vs-staff-label choice
+  // is made SERVER-SIDE (public_get_booking_by_token / booking_submit.
+  // finalize) — the wire payload only ever carries the already-chosen
+  // {code, label, label_localized}, no separate customer_label field.
   const stage: CustomerStageLabel = {
     code: 'awaiting_payment',
-    label: 'Awaiting payment',
-    label_localized: { es: 'Pendiente de pago' },
-    customer_label: 'Payment pending',
-    customer_label_localized: { es: 'Pago pendiente' },
+    label: 'Payment pending',
+    label_localized: { es: 'Pago pendiente' },
   }
 
-  it('prefers the localized customer_label when set', () => {
+  it('localizes the server-resolved label', () => {
     expect(resolveCustomerStageLabel(stage, 'es')).toBe('Pago pendiente')
     expect(resolveCustomerStageLabel(stage, 'en')).toBe('Payment pending')
   })
 
-  it('falls back to the staff label when the operator has not set a customer_label', () => {
-    const noCustomerLabel: CustomerStageLabel = {
-      ...stage,
-      customer_label: null,
-      customer_label_localized: null,
-    }
-    expect(resolveCustomerStageLabel(noCustomerLabel, 'es')).toBe('Pendiente de pago')
-    expect(resolveCustomerStageLabel(noCustomerLabel, 'en')).toBe('Awaiting payment')
+  it('falls back to the base label when no translation matches the locale', () => {
+    expect(resolveCustomerStageLabel(stage, 'it')).toBe('Payment pending')
   })
 })

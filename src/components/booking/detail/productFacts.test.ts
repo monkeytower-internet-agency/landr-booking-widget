@@ -111,6 +111,29 @@ describe('deriveProductFacts', () => {
     })
   })
 
+  it('landr-821d6.7: shows the category chip for a SERVICE product too, when a category is set', () => {
+    const product = makeProduct({
+      product_kind: 'service',
+      category_name: 'Classroom',
+      category_name_localized: { es: 'Aula' },
+    })
+    expect(deriveProductFacts(product, 'en')).toContainEqual({
+      icon: 'kind',
+      label: 'Classroom',
+    })
+    expect(deriveProductFacts(product, 'es')).toContainEqual({
+      icon: 'kind',
+      label: 'Aula',
+    })
+  })
+
+  it('landr-821d6.7: a service product with no category still carries no kind chip (pre-epic behaviour)', () => {
+    const product = makeProduct({ product_kind: 'service' })
+    expect(
+      deriveProductFacts(product, 'en').some((f) => f.icon === 'kind'),
+    ).toBe(false)
+  })
+
   it('landr-821d6.7: falls back to the humanised kind when category_name is absent (rolling deploy)', () => {
     const product = makeProduct({ product_kind: 'digital_good' })
     expect(deriveProductFacts(product, 'en')).toContainEqual({

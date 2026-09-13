@@ -519,20 +519,23 @@ export interface OperatorSettings {
 /**
  * landr-821d6.3/.7: a booking's current lifecycle-stage text, as attached
  * to customer-facing payloads (PublicBookingOffer.stage,
- * SubmitBookingResponse.stage). Raw pass-through — same convention as
- * name/name_localized — the client resolves via pickLocalized, preferring
- * the operator's customer-facing wording over the internal staff label:
- *   customer_label (localized) → label (localized).
- * customer_label(_localized) is null when the operator hasn't set a custom
- * customer-facing wording for this stage — fall back to label/label_localized
- * (the staff label), which always exists.
+ * SubmitBookingResponse.stage).
+ *
+ * PRE-RESOLVED server-side (`public_get_booking_by_token` SQL /
+ * `booking_submit.finalize` in landr-api — confirmed against the actual
+ * merged migration, not just the original ticket text): `label` is
+ * ALREADY the operator's customer-facing wording when they set one for
+ * this stage, else the staff label — the API does the customer_label-vs-
+ * staff-label choice, never the client. `label_localized` follows whichever
+ * of the two pairs was chosen. There is NO separate `customer_label` field
+ * on the wire (unlike name/name_localized elsewhere in this file) — the
+ * client's only remaining job is localizing `label` via `pickLocalized`
+ * (see `resolveCustomerStageLabel` in lib/locale.ts).
  */
 export interface CustomerStageLabel {
   code: string
   label: string
   label_localized: Record<string, string> | null
-  customer_label: string | null
-  customer_label_localized: Record<string, string> | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */

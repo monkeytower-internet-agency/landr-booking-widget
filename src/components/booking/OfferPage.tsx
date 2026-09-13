@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
+import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { formatCurrency } from './accommodationCalc'
 
 /**
@@ -115,6 +115,17 @@ function _returnBase(): string {
 }
 
 export function OfferPage({ token, mode = 'offer' }: Props) {
+  // landr-821d6.7 review round: this is a standalone, unauthenticated,
+  // pre-BookingFlowApp page (App.tsx never fetches operator/product data
+  // for this route) reached via a one-time email link — it never runs
+  // configureCustomerLocale() the way BookingFlowApp's settings fetch
+  // does. Explicit (null, null) here documents that AND resets any
+  // whitelist a same-tab prior page might have configured (defensive —
+  // in practice every route here is a fresh page load).
+  // PublicBookingOffer carries no operator info at all (no
+  // customer_languages/default_locale field to whitelist against) — flagged
+  // in the ticket handoff as an API gap; browserLocale() stays raw here.
+  configureCustomerLocale(null, null)
   // Detect if Stripe redirected back to this page.
   const paidParam =
     typeof window !== 'undefined'

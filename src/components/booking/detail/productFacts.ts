@@ -11,12 +11,16 @@
  *   - hotel_offering !== 'none' → "Hotel optional" (optional) or
  *     "Hotel included" (mandatory — the room is part of the package).
  *   - needs_pickup → "Pickup available".
- *   - product_kind !== 'service' → the operator's own category name
- *     (landr-821d6.7 — localized via `locale`), falling back to a
- *     humanised kind label ("Gift card", "Digital good", …) when the
- *     product carries no category_name yet (rolling deploy). Service
- *     products carry no kind chip — their shape is conveyed by the
- *     other facts.
+ *   - category_name present → the operator's own category name
+ *     (landr-821d6.7 — localized via `locale`), for ANY product_kind
+ *     INCLUDING 'service' (e.g. a "Classroom" category on a
+ *     service/time_slot product) — the whole point of operator-named
+ *     categories is that they replace kind-based branching for display.
+ *   - else product_kind !== 'service' → a humanised kind label ("Gift
+ *     card", "Digital good", …) — the pre-821d6.7 fallback for a product
+ *     that carries no category yet (rolling deploy). Service products
+ *     with no category still carry no kind chip — their shape is
+ *     conveyed by the other facts.
  */
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
@@ -70,14 +74,13 @@ export function deriveProductFacts(product: Product, locale: string): ProductFac
     facts.push({ icon: 'pickup', label: 'Pickup available' })
   }
 
-  if (product.product_kind !== 'service') {
-    const categoryLabel = product.category_name
-      ? pickLocalized(product.category_name, product.category_name_localized, locale)
-      : ''
-    facts.push({
-      icon: 'kind',
-      label: categoryLabel || humaniseKind(product.product_kind),
-    })
+  const categoryLabel = product.category_name
+    ? pickLocalized(product.category_name, product.category_name_localized, locale)
+    : ''
+  if (categoryLabel) {
+    facts.push({ icon: 'kind', label: categoryLabel })
+  } else if (product.product_kind !== 'service') {
+    facts.push({ icon: 'kind', label: humaniseKind(product.product_kind) })
   }
 
   return facts
