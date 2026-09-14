@@ -626,6 +626,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/changelog/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Changelog History
+         * @description The control-plane-side implementation of operator_release.get_changelog_history.
+         *
+         *     Auth: X-Release-Relay-Token. Thin wrapper over
+         *     ``app.services.promotion.get_changelog_history`` — same function
+         *     operator_release.py calls directly when IT owns ``tier``'s rows. Returns
+         *     the FULL entry shape per run (category/description/sha/author/url/repo);
+         *     trimming for the untrusted end-user response is operator_release.py's
+         *     job (``_history_run_out``), same split as ``relay_changelog`` above.
+         */
+        get: operations["relay_changelog_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/customer-signoff": {
         parameters: {
             query?: never;
@@ -1548,6 +1575,44 @@ export interface paths {
          *     returns is trimmed here.
          */
         get: operations["get_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/release/changelog/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Changelog History
+         * @description Paginated per-run changelog history for ``tier``, newest-first.
+         *
+         *     landr-hhv3 — the "browse past promotions" follow-up to /changelog above
+         *     (which only ever shows the CURRENT changelog). One entry per completed
+         *     ``promotion_runs`` row of the matching kind (``dev_to_staging`` for
+         *     staging, ``staging_to_main`` for prod), grouped by run rather than
+         *     flattened, so the dashboard can render "version X, shipped on date Y"
+         *     sections. ``tier='dev'`` is intentionally excluded from the Literal —
+         *     dev has no persisted runs, only a live ahead-of-staging diff; there is
+         *     nothing to page through (see the ticket's SCOPE note and
+         *     ``promo.get_changelog_history``'s docstring).
+         *
+         *     Same relay rule as ``/version``/``/changelog`` above: reads locally only
+         *     on the deployment that OWNS the backing runs
+         *     (``_TIER_DATA_OWNER_ENV``), otherwise relays to that owner over
+         *     ``RELEASE_RELAY_SECRET``/``_require_plane_url_for_tier`` — see
+         *     ``operator_release_internal.relay_changelog_history`` for the receiving
+         *     end. Response entries are trimmed to category/description only, same
+         *     reasoning as ``ChangelogEntryOut``.
+         */
+        get: operations["get_changelog_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7709,6 +7774,35 @@ export interface components {
             /** Description */
             description: string;
         };
+        /** ChangelogHistoryOut */
+        ChangelogHistoryOut: {
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Runs */
+            runs: components["schemas"]["ChangelogHistoryRunOut"][];
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "staging" | "prod";
+        };
+        /**
+         * ChangelogHistoryRunOut
+         * @description One completed promotion run's entry in the history list.
+         *
+         *     Same category/description-only trimming as ``ChangelogEntryOut`` — see
+         *     its docstring for why (no sha/author/url exposed here either).
+         */
+        ChangelogHistoryRunOut: {
+            /** Completed At */
+            completed_at: string;
+            /** Entries */
+            entries: components["schemas"]["ChangelogEntryOut"][];
+            /** Version */
+            version: string;
+            /** Version Bump */
+            version_bump?: ("major" | "minor" | "patch" | "none") | null;
+        };
         /** ChangelogOut */
         ChangelogOut: {
             /** Entries */
@@ -10333,10 +10427,6 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
-            /** Fixed End Date */
-            fixed_end_date?: string | null;
-            /** Fixed Start Date */
-            fixed_start_date?: string | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Hotel Location Id */
@@ -10440,10 +10530,6 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
-            /** Fixed End Date */
-            fixed_end_date?: string | null;
-            /** Fixed Start Date */
-            fixed_start_date?: string | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Hotel Location Id */
@@ -13659,6 +13745,43 @@ export interface operations {
             };
         };
     };
+    relay_changelog_history: {
+        parameters: {
+            query: {
+                tier: "staging" | "prod";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     customer_signoff: {
         parameters: {
             query?: never;
@@ -14617,6 +14740,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangelogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_changelog_history: {
+        parameters: {
+            query: {
+                tier: "staging" | "prod";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangelogHistoryOut"];
                 };
             };
             /** @description Validation Error */

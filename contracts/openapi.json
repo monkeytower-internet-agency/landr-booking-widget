@@ -1841,6 +1841,86 @@
         "title": "ChangelogEntryOut",
         "type": "object"
       },
+      "ChangelogHistoryOut": {
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/ChangelogHistoryRunOut"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "tier": {
+            "enum": [
+              "staging",
+              "prod"
+            ],
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "runs"
+        ],
+        "title": "ChangelogHistoryOut",
+        "type": "object"
+      },
+      "ChangelogHistoryRunOut": {
+        "description": "One completed promotion run's entry in the history list.\n\nSame category/description-only trimming as ``ChangelogEntryOut`` \u2014 see\nits docstring for why (no sha/author/url exposed here either).",
+        "properties": {
+          "completed_at": {
+            "title": "Completed At",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ChangelogEntryOut"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "version_bump": {
+            "anyOf": [
+              {
+                "enum": [
+                  "major",
+                  "minor",
+                  "patch",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Bump"
+          }
+        },
+        "required": [
+          "version",
+          "completed_at",
+          "entries"
+        ],
+        "title": "ChangelogHistoryRunOut",
+        "type": "object"
+      },
       "ChangelogOut": {
         "properties": {
           "entries": {
@@ -9870,28 +9950,6 @@
             ],
             "title": "Duration Minutes"
           },
-          "fixed_end_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fixed End Date"
-          },
-          "fixed_start_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fixed Start Date"
-          },
           "guide_languages": {
             "anyOf": [
               {
@@ -10229,28 +10287,6 @@
               }
             ],
             "title": "Duration Minutes"
-          },
-          "fixed_end_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fixed End Date"
-          },
-          "fixed_start_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fixed Start Date"
           },
           "guide_languages": {
             "anyOf": [
@@ -17284,6 +17320,99 @@
         ]
       }
     },
+    "/api/internal/release/changelog/history": {
+      "get": {
+        "description": "The control-plane-side implementation of operator_release.get_changelog_history.\n\nAuth: X-Release-Relay-Token. Thin wrapper over\n``app.services.promotion.get_changelog_history`` \u2014 same function\noperator_release.py calls directly when IT owns ``tier``'s rows. Returns\nthe FULL entry shape per run (category/description/sha/author/url/repo);\ntrimming for the untrusted end-user response is operator_release.py's\njob (``_history_run_out``), same split as ``relay_changelog`` above.",
+        "operationId": "relay_changelog_history",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tier",
+            "required": true,
+            "schema": {
+              "enum": [
+                "staging",
+                "prod"
+              ],
+              "title": "Tier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Release-Relay-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Release-Relay-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Relay Changelog History",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relay Changelog History",
+        "tags": [
+          "release-internal"
+        ]
+      }
+    },
     "/api/internal/release/customer-signoff": {
       "post": {
         "description": "Create (or dedupe) a customer-originated staging\u2192main proposal.\n\nAuth: X-Release-Relay-Token (service-to-service). Behaviour:\n  * DEDUPE \u2014 if an open staging_to_main run (proposed, signoff_source=\n    'customer') already exists, refresh it and return already_pending.\n  * else create a proposed staging_to_main run (signoff_source='customer',\n    signoff_by_label=signer_label), pinning current staging SHAs, then\n    NOTIFY the landr staff approvers (same path as the staff propose flow).\n\nReturns {\"status\": \"requested\" | \"already_pending\", \"run_id\": ...}.",
@@ -18839,6 +18968,86 @@
           }
         ],
         "summary": "Get Changelog",
+        "tags": [
+          "operator-release"
+        ]
+      }
+    },
+    "/api/operator/release/changelog/history": {
+      "get": {
+        "description": "Paginated per-run changelog history for ``tier``, newest-first.\n\nlandr-hhv3 \u2014 the \"browse past promotions\" follow-up to /changelog above\n(which only ever shows the CURRENT changelog). One entry per completed\n``promotion_runs`` row of the matching kind (``dev_to_staging`` for\nstaging, ``staging_to_main`` for prod), grouped by run rather than\nflattened, so the dashboard can render \"version X, shipped on date Y\"\nsections. ``tier='dev'`` is intentionally excluded from the Literal \u2014\ndev has no persisted runs, only a live ahead-of-staging diff; there is\nnothing to page through (see the ticket's SCOPE note and\n``promo.get_changelog_history``'s docstring).\n\nSame relay rule as ``/version``/``/changelog`` above: reads locally only\non the deployment that OWNS the backing runs\n(``_TIER_DATA_OWNER_ENV``), otherwise relays to that owner over\n``RELEASE_RELAY_SECRET``/``_require_plane_url_for_tier`` \u2014 see\n``operator_release_internal.relay_changelog_history`` for the receiving\nend. Response entries are trimmed to category/description only, same\nreasoning as ``ChangelogEntryOut``.",
+        "operationId": "get_changelog_history",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tier",
+            "required": true,
+            "schema": {
+              "enum": [
+                "staging",
+                "prod"
+              ],
+              "title": "Tier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangelogHistoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Changelog History",
         "tags": [
           "operator-release"
         ]
