@@ -71,16 +71,37 @@ export function thumbAlt(product: Product, name: string): string {
 }
 
 /**
+ * landr-821d6.7: the operator's own category name, localized — or null
+ * when the product carries no category yet (rolling deploy). Shared by
+ * productMetaChip/productKindBadge below so both chips prefer the
+ * operator's own wording, service categories included (e.g. a "Classroom"
+ * category on a service/time_slot product), over the raw kind/time-shape
+ * text.
+ */
+function categoryLabel(product: Product, locale: string): string | null {
+  if (!product.category_name) return null
+  return pickLocalized(product.category_name, product.category_name_localized, locale)
+}
+
+/**
  * The primary "meta" chip text shown on a card, or null when there is
  * nothing meaningful to show.
  *
  * Rules (preserved from the pre-d8rg.6 ProductList exactly so the existing
- * landr-7jgo chip tests stay green):
- *   - duration_minutes present → "{n} min"
- *   - else service kind        → the date-model shape ("days range") ONLY when
- *                                showDateModel is true (dev/staging); otherwise
- *                                the generic "service" label (production)
- *   - else (shop kinds)        → the humanised product_kind ("digital good")
+ * landr-7jgo chip tests stay green, EXCEPT the operator-category override
+ * added by landr-821d6.7):
+ *   - duration_minutes present  → "{n} min" (category doesn't override
+ *                                 this — duration is independent scheduling
+ *                                 info, not a type label)
+ *   - else category_name present → the operator's own category name,
+ *                                 localized (service categories included —
+ *                                 this is what replaces the "service"/
+ *                                 date-model-shape branch below once the
+ *                                 product has a category)
+ *   - else service kind         → the date-model shape ("days range") ONLY when
+ *                                 showDateModel is true (dev/staging); otherwise
+ *                                 the generic "service" label (production)
+ *   - else (shop kinds)         → the humanised product_kind ("digital good")
  *
  * `showDateModel` is passed in (not read here) so this stays a pure function —
  * the caller wires showDateModelDetail() from @/lib/tier.
@@ -88,8 +109,11 @@ export function thumbAlt(product: Product, name: string): string {
 export function productMetaChip(
   product: Product,
   showDateModel: boolean,
+  locale: string,
 ): string | null {
   if (product.duration_minutes) return `${product.duration_minutes} min`
+  const category = categoryLabel(product, locale)
+  if (category) return category
   if (product.product_kind === 'service') {
     return showDateModel
       ? (product.service_time_shape ?? 'service').replace('_', ' ')
@@ -99,14 +123,21 @@ export function productMetaChip(
 }
 
 /**
- * A SECONDARY kind badge for non-service products that ALSO carry a duration
- * (so the duration chip is the meta chip and the kind would otherwise be
- * lost). Returns null for service products (the meta chip already conveys
- * "service") and for non-service products WITHOUT a duration (the meta chip
- * is already the kind, so a second identical badge would be redundant).
+ * A SECONDARY badge shown ONLY when duration_minutes already took the meta
+ * chip slot above (otherwise the meta chip itself already shows the
+ * category/kind and a second identical badge would be redundant).
+ *
+ * landr-821d6.7: when the product carries a category, this badge shows it
+ * — service categories INCLUDED (a service product with both a duration
+ * and a category, e.g. a 90-minute "Classroom" session, needs the badge to
+ * surface "Classroom" since the meta chip is busy with "90 min"). Falls
+ * back to the pre-821d6.7 rule (raw kind, non-service only) when no
+ * category is set yet.
  */
-export function productKindBadge(product: Product): string | null {
-  if (product.product_kind === 'service') return null
+export function productKindBadge(product: Product, locale: string): string | null {
   if (!product.duration_minutes) return null
+  const category = categoryLabel(product, locale)
+  if (category) return category
+  if (product.product_kind === 'service') return null
   return product.product_kind.replace('_', ' ')
 }

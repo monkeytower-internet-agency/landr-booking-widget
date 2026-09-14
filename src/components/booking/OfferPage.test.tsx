@@ -120,6 +120,40 @@ describe('OfferPage', () => {
     expect(screen.getByRole('button', { name: /accept & pay/i })).toBeEnabled()
   })
 
+  it('landr-821d6.7: shows the resolved customer stage label when the API supplies stage', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...OFFER,
+      // landr-821d6.7 review round: the wire shape is pre-resolved
+      // server-side ({code, label, label_localized}) — see
+      // CustomerStageLabel in api/types.ts.
+      stage: {
+        code: 'awaiting_payment',
+        label: 'Payment pending',
+        label_localized: null,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('offer-stage-label')).toHaveTextContent(
+      'Payment pending',
+    )
+  })
+
+  it('landr-821d6.7: renders no stage line when the API omits stage (rolling deploy)', async () => {
+    mocks.getBookingByToken.mockResolvedValue(OFFER)
+    render(<OfferPage token={TOKEN} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTestId('offer-stage-label')).not.toBeInTheDocument()
+  })
+
   it('shows the participant list', async () => {
     mocks.getBookingByToken.mockResolvedValue(OFFER)
     render(<OfferPage token={TOKEN} />)

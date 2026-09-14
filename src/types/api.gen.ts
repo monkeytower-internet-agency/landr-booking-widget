@@ -791,6 +791,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/contacts/email-collisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Email Collisions
+         * @description contacts.email normalisation collisions — duplicate contacts for one
+         *     human (padded vs. trimmed address) that the 20260830030000 backfill
+         *     could not safely merge on its own. Unresolved (``resolved_at IS NULL``)
+         *     by default; pass ``include_resolved=true`` for the full history.
+         */
+        get: operations["list_email_collisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/me/capabilities": {
         parameters: {
             query?: never;
@@ -2885,6 +2908,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Lifecycle Stages */
+        get: operations["list_lifecycle_stages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Lifecycle Stage */
+        patch: operations["patch_lifecycle_stage"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/booking-sessions": {
         parameters: {
             query?: never;
@@ -4613,6 +4670,67 @@ export interface paths {
         patch: operations["pricing_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/product-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Categories
+         * @description Every non-deleted category (active and inactive), with product_count =
+         *     the number of live (non-deleted) products in it.
+         */
+        get: operations["list_product_categories"];
+        put?: never;
+        /** Create Product Category */
+        post: operations["create_product_category"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/product-categories/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Category Templates */
+        get: operations["list_product_category_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/product-categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Product Category
+         * @description Soft-delete. 409 ``product_category_in_use`` while any live product
+         *     still belongs to the category — move or delete those products first.
+         */
+        delete: operations["delete_product_category"];
+        options?: never;
+        head?: never;
+        /** Patch Product Category */
+        patch: operations["patch_product_category"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/product-groups": {
         parameters: {
             query?: never;
@@ -5013,6 +5131,63 @@ export interface paths {
         patch: operations["patch_provider"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-pools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Resource Pool
+         * @description Create a pool, then ensure its ``capacity_threshold`` rule — atomically.
+         *
+         *     THE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).
+         *     ``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT
+         *     and then PATCHes the just-inserted pool's OWN ``default_released_units``
+         *     back at itself, purely to reach this router's rule-ensure side effect
+         *     (the module header explains why that side effect can't be a direct-REST
+         *     write). ``default_released_units`` carries a column DEFAULT of 1 (OD-1
+         *     back-compat — "the first unit always auto-approves"), and a brand-new
+         *     pool has 0 units, so that PATCH 422s
+         *     ``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had
+         *     already committed, so the operator saw "failed" while a pool with NO
+         *     capacity rule silently existed. (:func:`patch_resource_pool` no longer
+         *     422s on a no-op re-save of the stored default, which closes half of the
+         *     bug — but a POST that does the whole thing as one write is the real
+         *     fix: the dashboard should never have needed a fake PATCH to reach a
+         *     create-time side effect.)
+         *
+         *     ALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-
+         *     inserted pool row is deleted before the error propagates. The pool has
+         *     no children yet at this point (no units, no requirements, no periods),
+         *     so a hard delete is safe — a pool that exists only because half of its
+         *     setup silently didn't happen is worse than no pool at all.
+         *
+         *     Term fields (``unit_label`` et al.) omitted from the body are filled
+         *     from ``resource_pool_kind_defaults(resource_kind)`` — the SAME lookup
+         *     the dashboard's own client-side prefill and the epic's one-time backfill
+         *     both use — so a caller that skips them never falls through to the
+         *     column's flat generic_seat DEFAULT for a non-generic_seat pool.
+         *     ``icon``/``color`` are NOT defaulted this way: they stay NULL when
+         *     omitted (the kind-derived/neutral fallback is a READ-time computation,
+         *     see :mod:`app.services.resource_pool_presentation`).
+         *
+         *     Duplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked
+         *     up front (a clean error is worth a query) AND caught again on the
+         *     insert itself — ``resource_pools_operator_code_unique`` is partial on
+         *     ``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must
+         *     succeed, and a pre-check alone would race a concurrent identical create.
+         */
+        post: operations["create_resource_pool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
         parameters: {
             query?: never;
@@ -5023,7 +5198,37 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Resource Pool
+         * @description Soft-delete a pool (Pattern A + ``active = false``) — epic decision 1.
+         *
+         *     The re-check + all four writes happen inside ONE Postgres function call,
+         *     ``delete_resource_pool()`` (migration 20260911130000): it locks the pool
+         *     row, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME
+         *     predicate the preview above uses — one definition, so preview and delete
+         *     can never disagree), and — only if clear — auto-unlinks
+         *     ``product_resource_requirements`` (epic decision 2; ``ON DELETE
+         *     RESTRICT`` never actually fires here since this is a soft-delete UPDATE,
+         *     not a hard DELETE — the unlink is the decided behaviour, not a
+         *     constraint workaround), soft-deletes the pool's units, retires its
+         *     ``capacity_threshold`` approval_rules row(s), and soft-deletes the pool
+         *     itself — all in one transaction, so a booking made after the dialog
+         *     opened still blocks the write and nothing can observe only SOME of the
+         *     four writes having landed (review gate finding, api#689: four separate
+         *     service-role REST calls could not guarantee that).
+         *
+         *     Past period / unit-day-release rows are left untouched (history).
+         *
+         *     404 ``resource_pool_not_found`` for unknown / foreign / already-deleted
+         *     pool ids (via :func:`_resolve_operator_pool`, and again from the RPC's
+         *     own re-check for a pool deleted in the gap between the two — never 403,
+         *     same no-cross-tenant-existence-oracle rule every resolver in this file
+         *     follows). 409 ``resource_pool_has_upcoming_bookings`` carries the same
+         *     ``blocking_bookings`` shape the preview does — recomputed (rare: only
+         *     reached on a genuine race, since the resolve above already checked) so
+         *     the response is never bare of the list the dashboard renders.
+         */
+        delete: operations["delete_resource_pool"];
         options?: never;
         head?: never;
         /**
@@ -5046,6 +5251,17 @@ export interface paths {
          *     Each is a partial-update field — omitted or ``null`` leaves the stored
          *     value untouched — so existing callers that only ever send
          *     ``default_released_units`` keep working unchanged.
+         *
+         *     landr-k5fgy.1: the range check is only enforced on a CHANGED value. A
+         *     no-op re-save of the currently STORED default must succeed even when it
+         *     now exceeds the active unit count — e.g. a freshly-created 0-unit pool
+         *     whose ``default_released_units`` sits at the column default of 1
+         *     (``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose
+         *     units were all since removed. Rejecting that would make the pool
+         *     permanently un-PATCHable (every future term-only edit re-sends the
+         *     stored default) until the operator adds enough units to satisfy a value
+         *     they never asked to change. Only a value that actually DIFFERS from what
+         *     is stored has to prove it fits.
          */
         patch: operations["patch_resource_pool"];
         trace?: never;
@@ -5320,6 +5536,33 @@ export interface paths {
          *     season policy off, and when" is the whole point of Pattern A.
          */
         delete: operations["delete_approval_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resource Pool Delete Preview
+         * @description Read-only: what deleting this pool would do — for the confirm dialog.
+         *
+         *     ``blocking_bookings`` is exactly what would make the ``DELETE`` below
+         *     409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``
+         *     is what would be silently auto-unlinked on a successful delete (epic
+         *     decision 2) — the dialog names each one so the operator isn't surprised
+         *     later. ``can_delete`` is ``blocking_bookings == []``, computed here so the
+         *     dashboard doesn't have to know the rule.
+         */
+        get: operations["resource_pool_delete_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6046,6 +6289,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/subscription-perks/{perk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Perk
+         * @description Partial edit, including `active` — this IS the deactivate path (no
+         *     DELETE route exists; see module docstring). Empty patch -> 400.
+         *     Cross-operator / missing -> 404.
+         */
+        patch: operations["patch_perk"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
         parameters: {
             query?: never;
@@ -6066,6 +6331,39 @@ export interface paths {
          *     Empty patch -> 400. Cross-operator / missing -> 404.
          */
         patch: operations["patch_subscription_config"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/perks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Perks
+         * @description List ALL perks (active and inactive) for this subscription, operator-
+         *     scoped and ordered by created_at. The dashboard needs both — perks are
+         *     toggled via active, never deleted.
+         */
+        get: operations["list_perks"];
+        put?: never;
+        /**
+         * Create Perk
+         * @description Create a perk. 404 if `subscription_id` isn't this operator's — checked
+         *     up front so a bad id gives a clean 404 rather than surfacing the raw
+         *     composite-FK (subscription_perks_subscription_op_fkey) Postgres error.
+         *
+         *     `applies_to_product_id` is NOT pre-validated against the operator the
+         *     same way: its own composite FK (subscription_perks_product_op_fkey)
+         *     already makes a cross-tenant target unrepresentable, and this ticket's
+         *     scope is CRUD, not re-deriving what the DB constraint already guarantees.
+         */
+        post: operations["create_perk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/provision-price": {
@@ -7379,6 +7677,8 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
+            /** Language */
+            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -7557,6 +7857,28 @@ export interface components {
             signer_email: string;
             /** Signer Label */
             signer_label?: string | null;
+        };
+        /**
+         * CustomerStageLabel
+         * @description ``stage`` block: customer-facing lifecycle-stage text (landr-821d6.3).
+         *
+         *     Raw pass-through, same convention as ``name``/``name_localized`` on
+         *     ``OfferProductLine`` — the widget resolves locale client-side
+         *     (landr-821d6.7). ``label`` is the operator's ``customer_label`` when set,
+         *     else the staff ``label`` (atomic-pair fallback: ``label_localized``
+         *     follows whichever of the two was chosen, never a per-key merge).
+         */
+        CustomerStageLabel: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+        } & {
+            [key: string]: unknown;
         };
         /** DayManifestOut */
         DayManifestOut: {
@@ -7748,6 +8070,27 @@ export interface components {
              * @description cloudflare | autodns | manual.
              */
             provider: string;
+        };
+        /** EmailCollisionOut */
+        EmailCollisionOut: {
+            /** Contact Id */
+            contact_id: string;
+            /** Detected At */
+            detected_at: string;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Operator Slug */
+            operator_slug: string | null;
+            /** Resolution Note */
+            resolution_note: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
         };
         /** EmailSenderStatus */
         EmailSenderStatus: {
@@ -8486,6 +8829,63 @@ export interface components {
             /** Sport Id */
             sport_id: string;
         };
+        /** LifecycleStageOut */
+        LifecycleStageOut: {
+            /** Active */
+            active: boolean;
+            /**
+             * Booking Count
+             * @default 0
+             */
+            booking_count: number;
+            /** Code */
+            code: string;
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden: boolean;
+            /** Hideable */
+            hideable: boolean;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Semantic State */
+            semantic_state: string;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /**
+         * LifecycleStagePatchIn
+         * @description Partial update. Only these five fields are ever patchable — code,
+         *     semantic_state, sort_order and operator_id are deliberately absent, and
+         *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
+         *     not a silent drop.
+         */
+        LifecycleStagePatchIn: {
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+        };
         /** LocationIn */
         LocationIn: {
             /** Color */
@@ -8906,6 +9306,8 @@ export interface components {
             city?: string | null;
             /** Country */
             country?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[] | null;
             /** Date Format */
             date_format?: string | null;
             /** Date Format Short */
@@ -8934,6 +9336,8 @@ export interface components {
             logo_url?: string | null;
             /** Name */
             name?: string | null;
+            /** Offered Languages */
+            offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
             /** Phone */
@@ -9018,6 +9422,14 @@ export interface components {
          *     rather than forcing a response-model bump on every RPC change.
          */
         OperatorProduct: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Name Localized */
+            category_name_localized?: {
+                [key: string]: string;
+            } | null;
             /** Images */
             images?: components["schemas"]["ProductImage"][];
             /** Name */
@@ -9124,6 +9536,13 @@ export interface components {
         OperatorSettings: {
             /** Contact Email */
             contact_email?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[];
+            /**
+             * Default Locale
+             * @default en
+             */
+            default_locale: string;
             /**
              * Expose Seats To Customer
              * @default false
@@ -9143,6 +9562,8 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
+            /** Offered Languages */
+            offered_languages?: string[];
             /** Primary Color */
             primary_color?: string | null;
             /** Slug */
@@ -9266,6 +9687,8 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
+            /** Language */
+            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -9517,6 +9940,99 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ProductCategoryIn */
+        ProductCategoryIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Template Key
+             * @enum {string}
+             */
+            template_key: "overnight_stay" | "activity_date" | "multi_day_course" | "fixed_session" | "space_by_hour" | "physical_item" | "digital_item" | "membership";
+        };
+        /** ProductCategoryOut */
+        ProductCategoryOut: {
+            /** Active */
+            active: boolean;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Is System */
+            is_system: boolean;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /** Product Kind */
+            product_kind: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Template Key */
+            template_key?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ProductCategoryPatch */
+        ProductCategoryPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** ProductCategoryTemplateOut */
+        ProductCategoryTemplateOut: {
+            /** Allowed */
+            allowed: boolean;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized: {
+                [key: string]: string;
+            };
+            /** Product Kind */
+            product_kind: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Supports Is Contiguous */
+            supports_is_contiguous: boolean;
+            /** Template Key */
+            template_key: string;
+        };
         /**
          * ProductFlowResponse
          * @description Response of GET …/products/{id}/flow. Mirrors the widget's
@@ -9609,6 +10125,8 @@ export interface components {
             active: boolean;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -9665,11 +10183,8 @@ export interface components {
             needs_provider: boolean;
             /** Product Group Id */
             product_group_id?: string | null;
-            /**
-             * Product Kind
-             * @enum {string}
-             */
-            product_kind: "service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card";
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
             /**
              * Revenue Flows Through Operator
              * @default true
@@ -9715,6 +10230,8 @@ export interface components {
             active?: boolean | null;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -9861,6 +10378,7 @@ export interface components {
             participants?: components["schemas"]["OfferParticipant"][];
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
             [key: string]: unknown;
@@ -10189,6 +10707,58 @@ export interface components {
             resolved_by: string;
         };
         /**
+         * ResourcePoolCreateIn
+         * @description ``POST .../resource-pools`` (landr-k5fgy.1) — the fields
+         *     ``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool
+         *     insert and its ``capacity_threshold`` rule ensure (OD-2, same predicate
+         *     :func:`patch_resource_pool` uses) either both happen or neither does —
+         *     see :func:`create_resource_pool`'s docstring for why this couldn't just
+         *     be a direct-REST insert.
+         *
+         *     Every term field (``unit_label`` et al.) is optional here — any omitted
+         *     one is filled server-side from ``resource_pool_kind_defaults(resource_kind)``
+         *     before the insert, so a caller that skips them entirely still gets
+         *     kind-correct words (the column's own DEFAULT is the flat generic_seat
+         *     tuple, wrong for every other kind — see migration 20260904030000's
+         *     header). ``icon``/``color`` are NOT defaulted this way: both stay
+         *     nullable forever (NULL = "use the kind default" / "no swatch yet",
+         *     resolved by the READER — :mod:`app.services.resource_pool_presentation`
+         *     — never baked into the row at write time).
+         */
+        ResourcePoolCreateIn: {
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
+            /**
+             * Is Consumed Per Day
+             * @default true
+             */
+            is_consumed_per_day: boolean;
+            /** Label */
+            label: string;
+            /**
+             * Resource Kind
+             * @enum {string}
+             */
+            resource_kind: "transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat";
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /**
+             * Sort Order
+             * @default 100
+             */
+            sort_order: number;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
+        };
+        /**
          * ResourcePoolPatch
          * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy
          *     plus (landr-e80s.2) the operator's own terms for this pool's units/slots.
@@ -10326,7 +10896,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "dashboard";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard";
             /** Name */
             name: string;
             /**
@@ -10849,6 +11419,7 @@ export interface components {
             payment_link_sent?: boolean | null;
             /** Semantic State */
             semantic_state: string;
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
             /** Token */
@@ -10911,10 +11482,59 @@ export interface components {
             /** Trial Period Days */
             trial_period_days?: number | null;
         };
+        /**
+         * SubscriptionPerkIn
+         * @description Create payload — mirrors subscription_perks' own CHECK constraints
+         *     (kind, amount > 0, percent <= 100) so a bad value 422s here with a
+         *     field-level Pydantic error rather than an opaque Postgres one.
+         *
+         *     operator_id / subscription_id are NOT fields here — they come from the
+         *     path and are set server-side on insert, never trusted from the body.
+         */
+        SubscriptionPerkIn: {
+            /** Amount */
+            amount: number;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "percent" | "flat";
+            /** Label */
+            label?: string | null;
+        };
         /** SubscriptionPerkOtpRequest */
         SubscriptionPerkOtpRequest: {
             /** Email */
             email: string;
+        };
+        /**
+         * SubscriptionPerkPatch
+         * @description Partial edit — every field optional. Mirrors patch_subscription_config's
+         *     shape (staff_subscriptions.py).
+         *
+         *     The percent<=100 check below only catches the case where BOTH `kind` and
+         *     `amount` are present TOGETHER in this one patch — it has no view of the
+         *     row's existing values, so it cannot validate e.g. a patch that raises
+         *     `amount` past 100 while leaving an already-`kind='percent'` row's kind
+         *     unstated. That remaining case is still caught, just one layer down: the
+         *     DB's own `subscription_perks_percent_range_chk` CHECK constraint refuses
+         *     it, and the router converts that specific violation into the same clean
+         *     400 below (see _is_percent_range_violation) rather than reading the row
+         *     first to pre-validate — no extra round trip for the common case.
+         */
+        SubscriptionPerkPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Amount */
+            amount?: number | null;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Kind */
+            kind?: ("percent" | "flat") | null;
+            /** Label */
+            label?: string | null;
         };
         /** SyncResponse */
         SyncResponse: {
@@ -12974,6 +13594,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RemovePhotoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_email_collisions: {
+        parameters: {
+            query?: {
+                include_resolved?: boolean;
+                operator_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailCollisionOut"][];
                 };
             };
             /** @description Validation Error */
@@ -15570,6 +16223,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_lifecycle_stages: {
+        parameters: {
+            query?: {
+                /** @description Include deactivated stages (active=false — e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12). */
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_lifecycle_stage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleStagePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"];
                 };
             };
             /** @description Validation Error */
@@ -19461,6 +20184,175 @@ export interface operations {
             };
         };
     };
+    list_product_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCategoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_category_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryTemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_category: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCategoryPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_groups: {
         parameters: {
             query?: never;
@@ -20438,6 +21330,77 @@ export interface operations {
             };
         };
     };
+    create_resource_pool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePoolCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_pool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_resource_pool: {
         parameters: {
             query?: never;
@@ -20561,6 +21524,40 @@ export interface operations {
                 operator_id: string;
                 pool_id: string;
                 period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resource_pool_delete_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
             };
             cookie?: never;
         };
@@ -21455,6 +22452,44 @@ export interface operations {
             };
         };
     };
+    patch_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                perk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_subscription_config: {
         parameters: {
             query?: never;
@@ -21473,6 +22508,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_perks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

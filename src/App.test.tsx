@@ -3584,5 +3584,113 @@ describe('App', () => {
       expect(screen.queryByTestId('lang-assign-select-1')).not.toBeInTheDocument()
       expect(screen.getByTestId('language-step-submit')).toBeEnabled()
     })
+
+    // landr-9sjw5: narrows epic landr-r6e5x D3 — a non-guiding companion is
+    // never briefed by the guide, so the board no longer asks them at all.
+    it('never shows or requires a companion on the guide-language board', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        offered_languages: ['en', 'de'],
+      })
+      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Companion Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-3',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Companion Flight'))
+      fireEvent.click(screen.getByRole('button', { name: 'Companion Flight' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      // A non-guiding companion joins the trip but is never in the activity.
+      fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+      setField('companion_1_first_name', 'Kay')
+      setField('companion_1_last_name', 'Jones')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('participant-language-board'),
+        ).toBeInTheDocument(),
+      )
+      // Only the booker (the one participant) is on the board — Kay the
+      // companion never appears as a chip, unassigned or otherwise.
+      expect(screen.getByTestId('lang-chip-0')).toBeInTheDocument()
+      expect(screen.queryByTestId('lang-chip-1')).not.toBeInTheDocument()
+      expect(screen.queryByText('Kay')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('lang-add-de'))
+      fireEvent.click(screen.getByTestId('lang-everyone-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // The review shows nothing for Kay's language — there is none.
+      expect(
+        screen.queryByTestId('review-companion-language-0'),
+      ).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+        companions: Array<Record<string, unknown>>
+      }
+      expect(body.participants[0]).toMatchObject({
+        first_name: 'Ada',
+        language: 'de',
+      })
+      expect(body.companions[0]).toMatchObject({ first_name: 'Kay' })
+      expect(body.companions[0]!.language).toBeUndefined()
+    })
   })
 })

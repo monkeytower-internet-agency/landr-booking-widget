@@ -1,9 +1,12 @@
 /**
  * landr-r6e5x.4 — LanguageStep
  *
- * Epic decision D3, as its OWN funnel step: assign every party member
- * (participants and companions alike) to exactly one of the operator's offered
- * guide languages before the booking can be submitted.
+ * Epic decision D3, as its OWN funnel step: assign every PARTICIPANT to
+ * exactly one of the operator's offered guide languages before the booking
+ * can be submitted. Non-guiding companions are deliberately never passed to
+ * this step (landr-9sjw5, narrowing D3's original "participants and
+ * companions alike") — a companion is never briefed by the guide, so there
+ * is nothing this board needs to ask them.
  *
  * WHY A STEP AND NOT A FORM FIELD. The API validates `participants[].language`
  * on EVERY public submit — `assert_participant_languages` in

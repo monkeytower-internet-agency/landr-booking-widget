@@ -276,6 +276,18 @@ export interface Product {
    */
   next_window_start?: string | null
   next_window_end?: string | null
+  /**
+   * landr-821d6.1/.7: the operator-named product category this product
+   * belongs to (replaces the raw product_kind as the customer-facing
+   * "type" label — an operator can rename e.g. hotel_room to "Cabin").
+   * category_name is always non-null server-side (every product has a
+   * category, NOT NULL since .1's backfill); optional here only for
+   * rolling deploy — absent API responses fall back to the built-in
+   * humanised kind (see productFacts.ts).
+   */
+  category_id?: string
+  category_name?: string
+  category_name_localized?: Record<string, string> | null
 }
 
 /**
@@ -490,6 +502,40 @@ export interface OperatorSettings {
    * only by the emailed OTP (landr-5krc).
    */
   has_member_perks?: boolean
+  /**
+   * landr-821d6.2/.7: the languages this operator serves CUSTOMER-facing
+   * content in (distinct from `offered_languages`, which is guide/staff
+   * spoken languages). Drives browserLocale()'s whitelist via
+   * configureCustomerLocale() (lib/locale.ts) — a visitor whose browser
+   * locale isn't in this list sees `default_locale` instead. Optional /
+   * null for rolling deploy or an operator who hasn't set it yet — treated
+   * as "no whitelist" (today's unrestricted-browser-locale behaviour).
+   */
+  customer_languages?: string[] | null
+  /** landr-821d6.2/.7: fallback locale when the browser locale isn't in customer_languages. */
+  default_locale?: string | null
+}
+
+/**
+ * landr-821d6.3/.7: a booking's current lifecycle-stage text, as attached
+ * to customer-facing payloads (PublicBookingOffer.stage,
+ * SubmitBookingResponse.stage).
+ *
+ * PRE-RESOLVED server-side (`public_get_booking_by_token` SQL /
+ * `booking_submit.finalize` in landr-api — confirmed against the actual
+ * merged migration, not just the original ticket text): `label` is
+ * ALREADY the operator's customer-facing wording when they set one for
+ * this stage, else the staff label — the API does the customer_label-vs-
+ * staff-label choice, never the client. `label_localized` follows whichever
+ * of the two pairs was chosen. There is NO separate `customer_label` field
+ * on the wire (unlike name/name_localized elsewhere in this file) — the
+ * client's only remaining job is localizing `label` via `pickLocalized`
+ * (see `resolveCustomerStageLabel` in lib/locale.ts).
+ */
+export interface CustomerStageLabel {
+  code: string
+  label: string
+  label_localized: Record<string, string> | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
@@ -904,6 +950,12 @@ export interface SubmitBookingResponse {
   stage_code?: string
   /** Human-readable next-steps hint, e.g. 'Awaiting operator approval'. */
   next_steps?: string
+  /**
+   * landr-821d6.3/.7: the booking's current lifecycle stage, customer-facing
+   * wording (see CustomerStageLabel below stage_code's sibling `code` is
+   * the same value as stage_code). Optional for rolling deploy.
+   */
+  stage?: CustomerStageLabel
   /** Approval-engine outcome, e.g. 'auto_approved'. */
   approval_outcome?: string
   /**

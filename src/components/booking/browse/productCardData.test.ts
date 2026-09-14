@@ -68,8 +68,17 @@ describe('productPriceLabel', () => {
 })
 
 describe('productMetaChip', () => {
-  it('shows the duration when present', () => {
-    expect(productMetaChip(makeProduct({ duration_minutes: 25 }), false)).toBe('25 min')
+  it('shows the duration when present, even when a category is set', () => {
+    expect(
+      productMetaChip(
+        makeProduct({
+          duration_minutes: 25,
+          category_name: 'Classroom',
+        }),
+        false,
+        'en',
+      ),
+    ).toBe('25 min')
   })
 
   it('shows the generic service label in production (showDateModel=false)', () => {
@@ -77,6 +86,7 @@ describe('productMetaChip', () => {
       productMetaChip(
         makeProduct({ duration_minutes: null, service_time_shape: 'days_range' }),
         false,
+        'en',
       ),
     ).toBe('service')
   })
@@ -86,6 +96,7 @@ describe('productMetaChip', () => {
       productMetaChip(
         makeProduct({ duration_minutes: null, service_time_shape: 'days_range' }),
         true,
+        'en',
       ),
     ).toBe('days range')
   })
@@ -95,26 +106,87 @@ describe('productMetaChip', () => {
       productMetaChip(
         makeProduct({ product_kind: 'digital_good', duration_minutes: null }),
         false,
+        'en',
       ),
     ).toBe('digital good')
+  })
+
+  it('landr-821d6.7: prefers the localized operator category name, SERVICE kinds included, over the date-model shape / generic kind', () => {
+    expect(
+      productMetaChip(
+        makeProduct({
+          product_kind: 'service',
+          duration_minutes: null,
+          service_time_shape: 'time_slot',
+          category_name: 'Classroom',
+          category_name_localized: { es: 'Aula' },
+        }),
+        true,
+        'en',
+      ),
+    ).toBe('Classroom')
+    expect(
+      productMetaChip(
+        makeProduct({
+          product_kind: 'hotel_room',
+          duration_minutes: null,
+          category_name: 'Cabin',
+        }),
+        false,
+        'es',
+      ),
+    ).toBe('Cabin')
   })
 })
 
 describe('productKindBadge', () => {
-  it('is null for service products', () => {
-    expect(productKindBadge(makeProduct({ product_kind: 'service' }))).toBeNull()
+  it('is null for service products with no category', () => {
+    expect(productKindBadge(makeProduct({ product_kind: 'service' }), 'en')).toBeNull()
   })
 
   it('is null for non-service products without a duration (kind is already the meta chip)', () => {
     expect(
-      productKindBadge(makeProduct({ product_kind: 'gift_card', duration_minutes: null })),
+      productKindBadge(
+        makeProduct({ product_kind: 'gift_card', duration_minutes: null }),
+        'en',
+      ),
     ).toBeNull()
   })
 
   it('returns the humanised kind for a non-service product that also has a duration', () => {
     expect(
-      productKindBadge(makeProduct({ product_kind: 'physical_good', duration_minutes: 60 })),
+      productKindBadge(
+        makeProduct({ product_kind: 'physical_good', duration_minutes: 60 }),
+        'en',
+      ),
     ).toBe('physical good')
+  })
+
+  it('landr-821d6.7: shows the localized category for a SERVICE product that has both a duration and a category', () => {
+    expect(
+      productKindBadge(
+        makeProduct({
+          product_kind: 'service',
+          duration_minutes: 90,
+          category_name: 'Classroom',
+          category_name_localized: { es: 'Aula' },
+        }),
+        'es',
+      ),
+    ).toBe('Aula')
+  })
+
+  it('landr-821d6.7: is null for a category product with no duration (meta chip already shows the category)', () => {
+    expect(
+      productKindBadge(
+        makeProduct({
+          product_kind: 'hotel_room',
+          duration_minutes: null,
+          category_name: 'Cabin',
+        }),
+        'en',
+      ),
+    ).toBeNull()
   })
 })
 
