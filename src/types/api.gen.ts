@@ -2406,6 +2406,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/products/{product_id}/fixed-date-windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Fixed Date Windows
+         * @description Upcoming, non-deleted, active windows for a fixed_date_range product
+         *     (landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC
+         *     `public_get_product_fixed_date_windows`, added so the public widget
+         *     (bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong
+         *     directly — a Tailscale-private dev host, which Chrome's Private Network
+         *     Access check blocks from a public origin (landr-cxhpm). Mirrors the
+         *     existing get_product_addons wrapper above.
+         */
+        get: operations["get_product_fixed_date_windows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/signup": {
         parameters: {
             query?: never;
@@ -8271,6 +8297,34 @@ export interface components {
             un_priceable: boolean;
             /** Warnings */
             warnings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FixedDateWindow
+         * @description One row returned by the public_get_product_fixed_date_windows RPC.
+         *     Mirrors the widget's ``FixedDateWindow`` TypeScript interface
+         *     (src/api/types.ts) field-for-field.
+         */
+        FixedDateWindow: {
+            /** Available Seats */
+            available_seats: number;
+            /** Capacity */
+            capacity: number;
+            /** Capacity Reserved */
+            capacity_reserved: number;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
         } & {
             [key: string]: unknown;
         };
@@ -15508,6 +15562,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailabilitySlot"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_fixed_date_windows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedDateWindow"][];
                 };
             };
             /** @description Validation Error */

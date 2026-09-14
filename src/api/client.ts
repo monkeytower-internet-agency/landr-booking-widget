@@ -302,33 +302,20 @@ export async function getHotelRoomsForHotel(
 
 /**
  * Returns upcoming, non-deleted, active windows for a fixed_date_range product.
- * Backed by public_get_product_fixed_date_windows RPC (landr-m05.28).
- * Uses the Supabase REST RPC endpoint exposed by Kong.
+ * Backed by public_get_product_fixed_date_windows RPC (landr-m05.28), via the
+ * FastAPI public edge — GET /api/public/products/{id}/fixed-date-windows
+ * (landr-cxhpm). Previously called kong.dev.landr.de directly, which Chrome's
+ * Private Network Access check blocks from this widget's public origin to
+ * that Tailscale-private dev host; every other public widget call already
+ * goes through this same FastAPI edge (see http() below).
  */
 export async function getFixedDateWindows(
   productId: string,
 ): Promise<FixedDateWindow[]> {
   if (mocksEnabled()) return mockFixedDateWindows()
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
-  if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL is not configured')
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/rpc/public_get_product_fixed_date_windows`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({ p_product_id: productId }),
-    },
+  return http<FixedDateWindow[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/fixed-date-windows`,
   )
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`)
-  }
-  return (await res.json()) as FixedDateWindow[]
 }
 
 /**
