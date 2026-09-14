@@ -7424,20 +7424,6 @@
             ],
             "title": "Name"
           },
-          "offered_languages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Offered Languages"
-          },
           "onboarded_at": {
             "anyOf": [
               {
@@ -7918,6 +7904,20 @@
             ],
             "title": "Category Name Localized"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "images": {
             "items": {
               "$ref": "#/components/schemas/ProductImage"
@@ -8222,13 +8222,6 @@
             "default": false,
             "title": "Offer Account Link",
             "type": "boolean"
-          },
-          "offered_languages": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Offered Languages",
-            "type": "array"
           },
           "primary_color": {
             "anyOf": [
@@ -9904,6 +9897,20 @@
             ],
             "title": "Fixed Start Date"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "hotel_location_id": {
             "anyOf": [
               {
@@ -10249,6 +10256,20 @@
               }
             ],
             "title": "Fixed Start Date"
+          },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
           },
           "hotel_location_id": {
             "anyOf": [

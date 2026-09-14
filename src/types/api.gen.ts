@@ -9530,8 +9530,6 @@ export interface components {
             logo_url?: string | null;
             /** Name */
             name?: string | null;
-            /** Offered Languages */
-            offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
             /** Pending Booking Expiry Hours */
@@ -9626,6 +9624,8 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Images */
             images?: components["schemas"]["ProductImage"][];
             /** Name */
@@ -9758,8 +9758,6 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
-            /** Offered Languages */
-            offered_languages?: string[];
             /** Primary Color */
             primary_color?: string | null;
             /** Slug */
@@ -10337,6 +10335,8 @@ export interface components {
             fixed_end_date?: string | null;
             /** Fixed Start Date */
             fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */
@@ -10442,6 +10442,8 @@ export interface components {
             fixed_end_date?: string | null;
             /** Fixed Start Date */
             fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */

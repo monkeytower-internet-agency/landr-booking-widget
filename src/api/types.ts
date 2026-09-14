@@ -5,6 +5,7 @@
  */
 
 import type { Enums } from '@/types/database.gen'
+import type { components } from '@/types/api.gen'
 import type { FormResponseEntry } from '@/api/flowTypes'
 
 /**
@@ -313,8 +314,16 @@ export interface Product {
    * add-on service lines (is_addon_only / product_addons children) — safe
    * to key this purely off the single main service product a booking ever
    * carries (D4), never an add-on.
+   *
+   * UNLIKE every other field on `Product`, this one IS explicitly declared
+   * on the generated `components['schemas']['OperatorProduct']` (landr-api
+   * added it as a real Pydantic field, not the extra=allow passthrough
+   * every other Product field relies on — see that interface's own
+   * codegen-gap note above). Sourced from the generated type instead of
+   * hand-rolled, so a future shape change there is caught by tsc rather
+   * than silently drifting.
    */
-  guide_languages?: string[] | null
+  guide_languages?: components['schemas']['OperatorProduct']['guide_languages']
 }
 
 /**
@@ -350,24 +359,16 @@ export interface WidgetTheme {
  */
 export interface OperatorSettings {
   slug: string
-  /**
-   * DEAD (landr-p68d2, epic decision D5) — the setting moved to the
-   * PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2): a guide language
-   * is now offered per-product, not per-operator, so an operator running
-   * both a one-language trip and a four-language day no longer has to pick
-   * one setting for both. Confirmed via landr-p68d2.1's merged contract:
-   * `public_get_operator_settings` already STRIPS this field from the
-   * response — the underlying RPC/Pydantic model still carry the column
-   * until landr-p68d2.4 drops it DB-side, but nothing on the wire ever
-   * populates this key any more. Kept OPTIONAL here (rather than deleted)
-   * only because the generated schema still declares it (codegen lags the
-   * route's manual strip) — never read this field for anything; the
-   * widget's offeredLanguagesForProduct (App.tsx) does not fall back to it.
-   *
-   * (Formerly: landr-r6e5x.2 / epic decision D2 — the ISO 639-1 guide
-   * languages this operator offers, from `operators.offered_languages`.)
-   */
-  offered_languages?: string[] | null
+  // landr-p68d2 (epic decision D5): offered_languages REMOVED (was here,
+  // landr-r6e5x.2's operator-level guide-language setting). The setting
+  // moved to the PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2) — an
+  // operator running both a one-language trip and a four-language day no
+  // longer has one setting to pick for both. Confirmed via landr-p68d2.1's
+  // merged contract: `public_get_operator_settings` strips this key from
+  // the response AND the generated `OperatorSettings`/`OperatorPatch`
+  // schemas no longer declare it either (unlike guide_languages below,
+  // there is no generated-schema justification left to keep a hand-written
+  // stub around). Deleted outright rather than kept optional-and-unread.
   /**
    * When false (default): widget hides numeric remaining-seat counts on
    * availability cells. When true: widget shows "{N} seats" as an
