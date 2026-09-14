@@ -847,6 +847,17 @@ export interface paths {
         /**
          * List Runs
          * @description Run history, newest-first.
+         *
+         *     landr-1bbm8 — each run is hydrated with its ``repos`` (promotion_run_repos
+         *     rows: repo, head_sha, merge_status, ahead_by, error). Before this, the
+         *     dashboard's history/pending-proposal cards called `RunRepoList` with
+         *     `run.repos` always undefined (only the single-run `GET /{run_id}`
+         *     endpoint returned them), so a merge conflict recorded in the DB — e.g.
+         *     `merge_status='conflict'`, `error='merge conflict merging ... into
+         *     staging on landr-dashboard'` — was invisible in the UI even though the
+         *     migration-stage log showed no error at all. One batched `.in_()` query
+         *     over every listed run id, grouped in Python, instead of N+1 per-run
+         *     fetches.
          */
         get: operations["list_runs"];
         put?: never;
@@ -2763,6 +2774,33 @@ export interface paths {
          *     strand ``bookings.gross_total`` at the old headcount.
          */
         patch: operations["patch_booking_product"];
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Line Day Change
+         * @description What ``PATCH .../products/{booking_product_id}`` would do to the rest
+         *     of the booking if ``selected_days`` moved to ``body.selected_days`` —
+         *     without writing anything.
+         *
+         *     200 with ``stay_changed=false`` and null windows when the edited line
+         *     cannot drive anything (not a bookable activity/room line, a room-tied
+         *     add-on, or nothing left to derive a stay from) — same "nothing derives"
+         *     case :func:`plan_line_day_change` documents by returning ``None``.
+         */
+        post: operations["preview_line_day_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
@@ -7955,6 +7993,58 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        /** DayChangeLineDelta */
+        DayChangeLineDelta: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** New Gross */
+            new_gross: string;
+            /** New Selected Days */
+            new_selected_days: string[];
+            /** Old Gross */
+            old_gross: string;
+            /** Old Selected Days */
+            old_selected_days: string[];
+            /** Product Id */
+            product_id: string;
+        };
+        /** DayChangePreviewRequest */
+        DayChangePreviewRequest: {
+            /** Selected Days */
+            selected_days: string[];
+        };
+        /** DayChangePreviewResponse */
+        DayChangePreviewResponse: {
+            /** Line Changes */
+            line_changes?: components["schemas"]["DayChangeLineDelta"][];
+            /** Stay Changed */
+            stay_changed: boolean;
+            /** Totals After */
+            totals_after: {
+                [key: string]: string;
+            };
+            /** Totals Before */
+            totals_before: {
+                [key: string]: string;
+            };
+            window_after?: components["schemas"]["DayChangeWindow"] | null;
+            window_before?: components["schemas"]["DayChangeWindow"] | null;
+        };
+        /** DayChangeWindow */
+        DayChangeWindow: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Nights */
+            nights: number;
         };
         /** DayManifestOut */
         DayManifestOut: {
@@ -16106,6 +16196,42 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_line_day_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayChangePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayChangePreviewResponse"];
                 };
             };
             /** @description Validation Error */
