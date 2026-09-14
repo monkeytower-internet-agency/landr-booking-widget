@@ -7248,6 +7248,18 @@
             ],
             "title": "Onboarded At"
           },
+          "pending_booking_expiry_hours": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Booking Expiry Hours"
+          },
           "phone": {
             "anyOf": [
               {

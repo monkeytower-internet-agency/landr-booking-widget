@@ -9340,6 +9340,8 @@ export interface components {
             offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Pending Booking Expiry Hours */
+            pending_booking_expiry_hours?: number | null;
             /** Phone */
             phone?: string | null;
             /** Postal Code */
