@@ -6289,6 +6289,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/subscription-perks/{perk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Perk
+         * @description Partial edit, including `active` — this IS the deactivate path (no
+         *     DELETE route exists; see module docstring). Empty patch -> 400.
+         *     Cross-operator / missing -> 404.
+         */
+        patch: operations["patch_perk"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
         parameters: {
             query?: never;
@@ -6309,6 +6331,39 @@ export interface paths {
          *     Empty patch -> 400. Cross-operator / missing -> 404.
          */
         patch: operations["patch_subscription_config"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/perks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Perks
+         * @description List ALL perks (active and inactive) for this subscription, operator-
+         *     scoped and ordered by created_at. The dashboard needs both — perks are
+         *     toggled via active, never deleted.
+         */
+        get: operations["list_perks"];
+        put?: never;
+        /**
+         * Create Perk
+         * @description Create a perk. 404 if `subscription_id` isn't this operator's — checked
+         *     up front so a bad id gives a clean 404 rather than surfacing the raw
+         *     composite-FK (subscription_perks_subscription_op_fkey) Postgres error.
+         *
+         *     `applies_to_product_id` is NOT pre-validated against the operator the
+         *     same way: its own composite FK (subscription_perks_product_op_fkey)
+         *     already makes a cross-tenant target unrepresentable, and this ticket's
+         *     scope is CRUD, not re-deriving what the DB constraint already guarantees.
+         */
+        post: operations["create_perk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/provision-price": {
@@ -11427,10 +11482,59 @@ export interface components {
             /** Trial Period Days */
             trial_period_days?: number | null;
         };
+        /**
+         * SubscriptionPerkIn
+         * @description Create payload — mirrors subscription_perks' own CHECK constraints
+         *     (kind, amount > 0, percent <= 100) so a bad value 422s here with a
+         *     field-level Pydantic error rather than an opaque Postgres one.
+         *
+         *     operator_id / subscription_id are NOT fields here — they come from the
+         *     path and are set server-side on insert, never trusted from the body.
+         */
+        SubscriptionPerkIn: {
+            /** Amount */
+            amount: number;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "percent" | "flat";
+            /** Label */
+            label?: string | null;
+        };
         /** SubscriptionPerkOtpRequest */
         SubscriptionPerkOtpRequest: {
             /** Email */
             email: string;
+        };
+        /**
+         * SubscriptionPerkPatch
+         * @description Partial edit — every field optional. Mirrors patch_subscription_config's
+         *     shape (staff_subscriptions.py).
+         *
+         *     The percent<=100 check below only catches the case where BOTH `kind` and
+         *     `amount` are present TOGETHER in this one patch — it has no view of the
+         *     row's existing values, so it cannot validate e.g. a patch that raises
+         *     `amount` past 100 while leaving an already-`kind='percent'` row's kind
+         *     unstated. That remaining case is still caught, just one layer down: the
+         *     DB's own `subscription_perks_percent_range_chk` CHECK constraint refuses
+         *     it, and the router converts that specific violation into the same clean
+         *     400 below (see _is_percent_range_violation) rather than reading the row
+         *     first to pre-validate — no extra round trip for the common case.
+         */
+        SubscriptionPerkPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Amount */
+            amount?: number | null;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Kind */
+            kind?: ("percent" | "flat") | null;
+            /** Label */
+            label?: string | null;
         };
         /** SyncResponse */
         SyncResponse: {
@@ -22348,6 +22452,44 @@ export interface operations {
             };
         };
     };
+    patch_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                perk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_subscription_config: {
         parameters: {
             query?: never;
@@ -22366,6 +22508,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_perks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
