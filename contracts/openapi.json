@@ -13394,6 +13394,52 @@
         "title": "SubscriptionConfigPatch",
         "type": "object"
       },
+      "SubscriptionPerkIn": {
+        "description": "Create payload \u2014 mirrors subscription_perks' own CHECK constraints\n(kind, amount > 0, percent <= 100) so a bad value 422s here with a\nfield-level Pydantic error rather than an opaque Postgres one.\n\noperator_id / subscription_id are NOT fields here \u2014 they come from the\npath and are set server-side on insert, never trusted from the body.",
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "applies_to_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies To Product Id"
+          },
+          "kind": {
+            "enum": [
+              "percent",
+              "flat"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "kind",
+          "amount"
+        ],
+        "title": "SubscriptionPerkIn",
+        "type": "object"
+      },
       "SubscriptionPerkOtpRequest": {
         "properties": {
           "email": {
@@ -13405,6 +13451,73 @@
           "email"
         ],
         "title": "SubscriptionPerkOtpRequest",
+        "type": "object"
+      },
+      "SubscriptionPerkPatch": {
+        "description": "Partial edit \u2014 every field optional. Mirrors patch_subscription_config's\nshape (staff_subscriptions.py).\n\nThe percent<=100 check below only catches the case where BOTH `kind` and\n`amount` are present TOGETHER in this one patch \u2014 it has no view of the\nrow's existing values, so it cannot validate e.g. a patch that raises\n`amount` past 100 while leaving an already-`kind='percent'` row's kind\nunstated. That remaining case is still caught, just one layer down: the\nDB's own `subscription_perks_percent_range_chk` CHECK constraint refuses\nit, and the router converts that specific violation into the same clean\n400 below (see _is_percent_range_violation) rather than reading the row\nfirst to pre-validate \u2014 no extra round trip for the common case.",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "applies_to_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies To Product Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "percent",
+                  "flat"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "title": "SubscriptionPerkPatch",
         "type": "object"
       },
       "SyncResponse": {
@@ -32567,6 +32680,75 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/subscription-perks/{perk_id}": {
+      "patch": {
+        "description": "Partial edit, including `active` \u2014 this IS the deactivate path (no\nDELETE route exists; see module docstring). Empty patch -> 400.\nCross-operator / missing -> 404.",
+        "operationId": "patch_perk",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "perk_id",
+            "required": true,
+            "schema": {
+              "title": "Perk Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPerkPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Perk",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Perk",
+        "tags": [
+          "staff-subscription-perks"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
       "patch": {
         "description": "Edit price/currency/billing_interval/trial_period_days/active.\n\nEmpty patch -> 400. Cross-operator / missing -> 404.",
@@ -32633,6 +32815,135 @@
         "summary": "Patch Subscription Config",
         "tags": [
           "staff-subscriptions"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/perks": {
+      "get": {
+        "description": "List ALL perks (active and inactive) for this subscription, operator-\nscoped and ordered by created_at. The dashboard needs both \u2014 perks are\ntoggled via active, never deleted.",
+        "operationId": "list_perks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subscription_id",
+            "required": true,
+            "schema": {
+              "title": "Subscription Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Perks",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Perks",
+        "tags": [
+          "staff-subscription-perks"
+        ]
+      },
+      "post": {
+        "description": "Create a perk. 404 if `subscription_id` isn't this operator's \u2014 checked\nup front so a bad id gives a clean 404 rather than surfacing the raw\ncomposite-FK (subscription_perks_subscription_op_fkey) Postgres error.\n\n`applies_to_product_id` is NOT pre-validated against the operator the\nsame way: its own composite FK (subscription_perks_product_op_fkey)\nalready makes a cross-tenant target unrepresentable, and this ticket's\nscope is CRUD, not re-deriving what the DB constraint already guarantees.",
+        "operationId": "create_perk",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subscription_id",
+            "required": true,
+            "schema": {
+              "title": "Subscription Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPerkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Perk",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Perk",
+        "tags": [
+          "staff-subscription-perks"
         ]
       }
     },
