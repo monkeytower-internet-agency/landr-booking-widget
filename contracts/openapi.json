@@ -2615,6 +2615,151 @@
         "title": "CustomerStageLabel",
         "type": "object"
       },
+      "DayChangeLineDelta": {
+        "properties": {
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "new_gross": {
+            "title": "New Gross",
+            "type": "string"
+          },
+          "new_selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "New Selected Days",
+            "type": "array"
+          },
+          "old_gross": {
+            "title": "Old Gross",
+            "type": "string"
+          },
+          "old_selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Old Selected Days",
+            "type": "array"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "product_id",
+          "old_selected_days",
+          "new_selected_days",
+          "old_gross",
+          "new_gross"
+        ],
+        "title": "DayChangeLineDelta",
+        "type": "object"
+      },
+      "DayChangePreviewRequest": {
+        "properties": {
+          "selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Selected Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "selected_days"
+        ],
+        "title": "DayChangePreviewRequest",
+        "type": "object"
+      },
+      "DayChangePreviewResponse": {
+        "properties": {
+          "line_changes": {
+            "items": {
+              "$ref": "#/components/schemas/DayChangeLineDelta"
+            },
+            "title": "Line Changes",
+            "type": "array"
+          },
+          "stay_changed": {
+            "title": "Stay Changed",
+            "type": "boolean"
+          },
+          "totals_after": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals After",
+            "type": "object"
+          },
+          "totals_before": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals Before",
+            "type": "object"
+          },
+          "window_after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayChangeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "window_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayChangeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "stay_changed",
+          "totals_before",
+          "totals_after"
+        ],
+        "title": "DayChangePreviewResponse",
+        "type": "object"
+      },
+      "DayChangeWindow": {
+        "properties": {
+          "check_in": {
+            "format": "date",
+            "title": "Check In",
+            "type": "string"
+          },
+          "check_out": {
+            "format": "date",
+            "title": "Check Out",
+            "type": "string"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check_in",
+          "check_out",
+          "nights"
+        ],
+        "title": "DayChangeWindow",
+        "type": "object"
+      },
       "DayManifestOut": {
         "properties": {
           "date": {
@@ -17558,7 +17703,7 @@
     },
     "/api/landr-staff/promotions": {
       "get": {
-        "description": "Run history, newest-first.",
+        "description": "Run history, newest-first.\n\nlandr-1bbm8 \u2014 each run is hydrated with its ``repos`` (promotion_run_repos\nrows: repo, head_sha, merge_status, ahead_by, error). Before this, the\ndashboard's history/pending-proposal cards called `RunRepoList` with\n`run.repos` always undefined (only the single-run `GET /{run_id}`\nendpoint returned them), so a merge conflict recorded in the DB \u2014 e.g.\n`merge_status='conflict'`, `error='merge conflict merging ... into\nstaging on landr-dashboard'` \u2014 was invisible in the UI even though the\nmigration-stage log showed no error at all. One batched `.in_()` query\nover every listed run id, grouped in Python, instead of N+1 per-run\nfetches.",
         "operationId": "list_runs",
         "responses": {
           "200": {
@@ -21085,6 +21230,73 @@
         "summary": "Patch Booking Product",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
+      "post": {
+        "description": "What ``PATCH .../products/{booking_product_id}`` would do to the rest\nof the booking if ``selected_days`` moved to ``body.selected_days`` \u2014\nwithout writing anything.\n\n200 with ``stay_changed=false`` and null windows when the edited line\ncannot drive anything (not a bookable activity/room line, a room-tied\nadd-on, or nothing left to derive a stay from) \u2014 same \"nothing derives\"\ncase :func:`plan_line_day_change` documents by returning ``None``.",
+        "operationId": "preview_line_day_change",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayChangePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayChangePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Line Day Change",
+        "tags": [
+          "staff-bookings-day-change-preview"
         ]
       }
     },
