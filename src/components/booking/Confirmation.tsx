@@ -11,6 +11,7 @@ import {
   buildGoogleCalendarUrl,
   buildOutlookUrl,
 } from '@/lib/calendarLinks'
+import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 
 interface Props {
@@ -100,6 +101,21 @@ export function Confirmation({ response, onRestart }: Props) {
         <CardDescription>
           Reference <span className="font-mono">{response.booking_id}</span>
         </CardDescription>
+        {/*
+          landr-821d6.7: the operator's own customer-facing wording for the
+          booking's current stage (falls back to the staff label when the
+          operator hasn't set one). Customer-facing only — staff.active
+          already shows the raw semantic_state below, which is enough
+          context for the operator. Optional: absent on an older API.
+        */}
+        {!staff.active && response.stage ? (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            data-testid="confirmation-stage-label"
+          >
+            Status: {resolveCustomerStageLabel(response.stage, browserLocale())}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {emailStatusKind === 'failed' ? (

@@ -5,6 +5,7 @@
  */
 
 import type { Enums } from '@/types/database.gen'
+import type { components } from '@/types/api.gen'
 import type { FormResponseEntry } from '@/api/flowTypes'
 
 /**
@@ -276,6 +277,53 @@ export interface Product {
    */
   next_window_start?: string | null
   next_window_end?: string | null
+  /**
+   * landr-821d6.1/.7: the operator-named product category this product
+   * belongs to (replaces the raw product_kind as the customer-facing
+   * "type" label — an operator can rename e.g. hotel_room to "Cabin").
+   * category_name is always non-null server-side (every product has a
+   * category, NOT NULL since .1's backfill); optional here only for
+   * rolling deploy — absent API responses fall back to the built-in
+   * humanised kind (see productFacts.ts).
+   */
+  category_id?: string
+  category_name?: string
+  category_name_localized?: Record<string, string> | null
+  /**
+   * landr-p68d2 (epic decision D1, API field landed in landr-p68d2.1): the
+   * ISO 639-1 guide languages OFFERED FOR THIS PRODUCT — replaces the old
+   * operator-level `OperatorSettings.offered_languages` as the source the
+   * language-assignment board (and the mirrored `language` custom-form
+   * field) draws from. Every party member on a booking of this product must
+   * be assigned to one of these (landr-r6e5x.4's board, narrowed here to be
+   * per-product instead of per-operator).
+   *
+   * Non-null with >=1 lower-case 2-letter codes for product_kind='service';
+   * null for every other kind (hotel rooms, add-ons, subscriptions never
+   * collect a guide language). Optional here only for the rolling-deploy
+   * window — a widget build ahead of the API, or pointed at a tier that
+   * predates landr-p68d2.1, sees the field absent and falls back straight
+   * to the platform default (see App.tsx's offeredLanguagesForProduct and
+   * normaliseOfferedLanguages in participantLanguages.ts). NOT a
+   * three-tier fallback through `OperatorSettings.offered_languages` —
+   * landr-p68d2.1 confirmed `public_get_operator_settings` already strips
+   * that field from the response (D5), so it is never present to fall
+   * back to on a current API; see that field's own doc.
+   *
+   * landr-p68d2.1 also confirmed the submit-side language rule ignores
+   * add-on service lines (is_addon_only / product_addons children) — safe
+   * to key this purely off the single main service product a booking ever
+   * carries (D4), never an add-on.
+   *
+   * UNLIKE every other field on `Product`, this one IS explicitly declared
+   * on the generated `components['schemas']['OperatorProduct']` (landr-api
+   * added it as a real Pydantic field, not the extra=allow passthrough
+   * every other Product field relies on — see that interface's own
+   * codegen-gap note above). Sourced from the generated type instead of
+   * hand-rolled, so a future shape change there is caught by tsc rather
+   * than silently drifting.
+   */
+  guide_languages?: components['schemas']['OperatorProduct']['guide_languages']
 }
 
 /**
@@ -311,6 +359,16 @@ export interface WidgetTheme {
  */
 export interface OperatorSettings {
   slug: string
+  // landr-p68d2 (epic decision D5): offered_languages REMOVED (was here,
+  // landr-r6e5x.2's operator-level guide-language setting). The setting
+  // moved to the PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2) — an
+  // operator running both a one-language trip and a four-language day no
+  // longer has one setting to pick for both. Confirmed via landr-p68d2.1's
+  // merged contract: `public_get_operator_settings` strips this key from
+  // the response AND the generated `OperatorSettings`/`OperatorPatch`
+  // schemas no longer declare it either (unlike guide_languages below,
+  // there is no generated-schema justification left to keep a hand-written
+  // stub around). Deleted outright rather than kept optional-and-unread.
   /**
    * When false (default): widget hides numeric remaining-seat counts on
    * availability cells. When true: widget shows "{N} seats" as an
@@ -477,6 +535,40 @@ export interface OperatorSettings {
    * only by the emailed OTP (landr-5krc).
    */
   has_member_perks?: boolean
+  /**
+   * landr-821d6.2/.7: the languages this operator serves CUSTOMER-facing
+   * content in (distinct from `offered_languages`, which is guide/staff
+   * spoken languages). Drives browserLocale()'s whitelist via
+   * configureCustomerLocale() (lib/locale.ts) — a visitor whose browser
+   * locale isn't in this list sees `default_locale` instead. Optional /
+   * null for rolling deploy or an operator who hasn't set it yet — treated
+   * as "no whitelist" (today's unrestricted-browser-locale behaviour).
+   */
+  customer_languages?: string[] | null
+  /** landr-821d6.2/.7: fallback locale when the browser locale isn't in customer_languages. */
+  default_locale?: string | null
+}
+
+/**
+ * landr-821d6.3/.7: a booking's current lifecycle-stage text, as attached
+ * to customer-facing payloads (PublicBookingOffer.stage,
+ * SubmitBookingResponse.stage).
+ *
+ * PRE-RESOLVED server-side (`public_get_booking_by_token` SQL /
+ * `booking_submit.finalize` in landr-api — confirmed against the actual
+ * merged migration, not just the original ticket text): `label` is
+ * ALREADY the operator's customer-facing wording when they set one for
+ * this stage, else the staff label — the API does the customer_label-vs-
+ * staff-label choice, never the client. `label_localized` follows whichever
+ * of the two pairs was chosen. There is NO separate `customer_label` field
+ * on the wire (unlike name/name_localized elsewhere in this file) — the
+ * client's only remaining job is localizing `label` via `pickLocalized`
+ * (see `resolveCustomerStageLabel` in lib/locale.ts).
+ */
+export interface CustomerStageLabel {
+  code: string
+  label: string
+  label_localized: Record<string, string> | null
 }
 
 /** Public location shape returned by GET /api/public/operators/{slug}/locations (landr-e10.8). */
@@ -602,6 +694,22 @@ export interface Participant {
    * same shape): absent/false → no breakfast; true → has breakfast.
    */
   has_breakfast?: boolean | null
+  /**
+   * landr-r6e5x.4 / epic decision D3: the offered guide language this person
+   * was assigned to in the widget's language board (ISO 639-1, one of the
+   * operator's `offered_languages`). REQUIRED by the submit contract whenever
+   * the operator's flow collects languages — the API answers a missing or
+   * un-offered value with a typed 422 (`participant_language_missing` /
+   * `participant_language_invalid`, both carrying the party index).
+   *
+   * Persisted to `booking_participants.language` so the calendar shows the
+   * right flag per person instead of inheriting the booking-level list.
+   *
+   * WIRE CONTRACT (PINNED — landr-r6e5x.2 on the API builds the same shape).
+   * Optional in the TYPE only so staff-side paths that create participants
+   * server-side (where it stays NULL) keep compiling.
+   */
+  language?: string | null
 }
 
 /**
@@ -665,6 +773,15 @@ export interface Companion {
    * Absent/null treated as 'guest' by the API.
    */
   companion_kind?: 'guest' | 'separate_guiding' | null
+  /**
+   * landr-r6e5x.4 / epic decision D3: the companion's assigned guide language
+   * (ISO 639-1). Mirrors the Participant field exactly — the assignment board
+   * makes no distinction between a guiding participant and a companion, and
+   * neither does the API's validation.
+   *
+   * WIRE CONTRACT (PINNED — landr-r6e5x.2 builds the same shape).
+   */
+  language?: string | null
 }
 
 /**
@@ -866,6 +983,12 @@ export interface SubmitBookingResponse {
   stage_code?: string
   /** Human-readable next-steps hint, e.g. 'Awaiting operator approval'. */
   next_steps?: string
+  /**
+   * landr-821d6.3/.7: the booking's current lifecycle stage, customer-facing
+   * wording (see CustomerStageLabel below stage_code's sibling `code` is
+   * the same value as stage_code). Optional for rolling deploy.
+   */
+  stage?: CustomerStageLabel
   /** Approval-engine outcome, e.g. 'auto_approved'. */
   approval_outcome?: string
   /**

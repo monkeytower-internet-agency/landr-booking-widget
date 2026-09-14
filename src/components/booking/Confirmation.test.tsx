@@ -421,4 +421,34 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/approval policy/i)).not.toBeInTheDocument()
   })
+
+  // ------------------------------------------------------------------
+  // landr-821d6.7: customer-facing lifecycle stage label
+  // ------------------------------------------------------------------
+
+  it('landr-821d6.7: shows the resolved customer stage label when the API supplies stage', () => {
+    // landr-821d6.7 review round: the wire shape is pre-resolved
+    // server-side ({code, label, label_localized}) — the customer_label-
+    // vs-staff-label choice is already baked into `label` before it
+    // reaches the widget. See CustomerStageLabel in api/types.ts.
+    const response = baseResponse({
+      stage: {
+        code: 'awaiting_hotel_approval',
+        label: 'Modifications open',
+        label_localized: { es: 'Modificaciones abiertas' },
+      },
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-stage-label')).toHaveTextContent(
+      'Modifications open',
+    )
+  })
+
+  it('landr-821d6.7: renders no stage line when the API omits stage (rolling deploy)', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-stage-label')).not.toBeInTheDocument()
+  })
 })

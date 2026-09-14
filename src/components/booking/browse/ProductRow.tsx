@@ -46,8 +46,8 @@ export function ProductRow({ product, locale, showDateModel, onSelect }: Props) 
   const { tokens } = useVariant()
   const name = productName(product, locale)
   const description = productShortDescription(product, locale)
-  const meta = productMetaChip(product, showDateModel)
-  const kind = productKindBadge(product)
+  const meta = productMetaChip(product, showDateModel, locale)
+  const kind = productKindBadge(product, locale)
   const price = productPriceLabel(product)
   const isDraft = product.is_publicly_listed === false
 

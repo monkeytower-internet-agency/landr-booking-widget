@@ -626,6 +626,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/changelog/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Relay Changelog History
+         * @description The control-plane-side implementation of operator_release.get_changelog_history.
+         *
+         *     Auth: X-Release-Relay-Token. Thin wrapper over
+         *     ``app.services.promotion.get_changelog_history`` — same function
+         *     operator_release.py calls directly when IT owns ``tier``'s rows. Returns
+         *     the FULL entry shape per run (category/description/sha/author/url/repo);
+         *     trimming for the untrusted end-user response is operator_release.py's
+         *     job (``_history_run_out``), same split as ``relay_changelog`` above.
+         */
+        get: operations["relay_changelog_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/customer-signoff": {
         parameters: {
             query?: never;
@@ -791,6 +818,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/contacts/email-collisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Email Collisions
+         * @description contacts.email normalisation collisions — duplicate contacts for one
+         *     human (padded vs. trimmed address) that the 20260830030000 backfill
+         *     could not safely merge on its own. Unresolved (``resolved_at IS NULL``)
+         *     by default; pass ``include_resolved=true`` for the full history.
+         */
+        get: operations["list_email_collisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/me/capabilities": {
         parameters: {
             query?: never;
@@ -824,6 +874,17 @@ export interface paths {
         /**
          * List Runs
          * @description Run history, newest-first.
+         *
+         *     landr-1bbm8 — each run is hydrated with its ``repos`` (promotion_run_repos
+         *     rows: repo, head_sha, merge_status, ahead_by, error). Before this, the
+         *     dashboard's history/pending-proposal cards called `RunRepoList` with
+         *     `run.repos` always undefined (only the single-run `GET /{run_id}`
+         *     endpoint returned them), so a merge conflict recorded in the DB — e.g.
+         *     `merge_status='conflict'`, `error='merge conflict merging ... into
+         *     staging on landr-dashboard'` — was invisible in the UI even though the
+         *     migration-stage log showed no error at all. One batched `.in_()` query
+         *     over every listed run id, grouped in Python, instead of N+1 per-run
+         *     fetches.
          */
         get: operations["list_runs"];
         put?: never;
@@ -1514,6 +1575,44 @@ export interface paths {
          *     returns is trimmed here.
          */
         get: operations["get_changelog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operator/release/changelog/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Changelog History
+         * @description Paginated per-run changelog history for ``tier``, newest-first.
+         *
+         *     landr-hhv3 — the "browse past promotions" follow-up to /changelog above
+         *     (which only ever shows the CURRENT changelog). One entry per completed
+         *     ``promotion_runs`` row of the matching kind (``dev_to_staging`` for
+         *     staging, ``staging_to_main`` for prod), grouped by run rather than
+         *     flattened, so the dashboard can render "version X, shipped on date Y"
+         *     sections. ``tier='dev'`` is intentionally excluded from the Literal —
+         *     dev has no persisted runs, only a live ahead-of-staging diff; there is
+         *     nothing to page through (see the ticket's SCOPE note and
+         *     ``promo.get_changelog_history``'s docstring).
+         *
+         *     Same relay rule as ``/version``/``/changelog`` above: reads locally only
+         *     on the deployment that OWNS the backing runs
+         *     (``_TIER_DATA_OWNER_ENV``), otherwise relays to that owner over
+         *     ``RELEASE_RELAY_SECRET``/``_require_plane_url_for_tier`` — see
+         *     ``operator_release_internal.relay_changelog_history`` for the receiving
+         *     end. Response entries are trimmed to category/description only, same
+         *     reasoning as ``ChangelogEntryOut``.
+         */
+        get: operations["get_changelog_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2383,6 +2482,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/products/{product_id}/fixed-date-windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Fixed Date Windows
+         * @description Upcoming, non-deleted, active windows for a fixed_date_range product
+         *     (landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC
+         *     `public_get_product_fixed_date_windows`, added so the public widget
+         *     (bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong
+         *     directly — a Tailscale-private dev host, which Chrome's Private Network
+         *     Access check blocks from a public origin (landr-cxhpm). Mirrors the
+         *     existing get_product_addons wrapper above.
+         */
+        get: operations["get_product_fixed_date_windows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/signup": {
         parameters: {
             query?: never;
@@ -2716,6 +2841,33 @@ export interface paths {
         patch: operations["patch_booking_product"];
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Line Day Change
+         * @description What ``PATCH .../products/{booking_product_id}`` would do to the rest
+         *     of the booking if ``selected_days`` moved to ``body.selected_days`` —
+         *     without writing anything.
+         *
+         *     200 with ``stay_changed=false`` and null windows when the edited line
+         *     cannot drive anything (not a bookable activity/room line, a room-tied
+         *     add-on, or nothing left to derive a stay from) — same "nothing derives"
+         *     case :func:`plan_line_day_change` documents by returning ``None``.
+         */
+        post: operations["preview_line_day_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
         parameters: {
             query?: never;
@@ -2883,6 +3035,40 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Lifecycle Stages */
+        get: operations["list_lifecycle_stages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/booking-lifecycle-stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Lifecycle Stage */
+        patch: operations["patch_lifecycle_stage"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/booking-sessions": {
@@ -4228,18 +4414,16 @@ export interface paths {
          * @description List this operator's Holded invoice numbering series for the (provider,
          *     mode)-scoped dashboard picker.
          *
-         *     Mirrors the verify endpoint immediately above: same auth dependency
-         *     (cross-operator access 403s via get_staff_operator_membership_by_op, bare/
-         *     invalid bearer 401s via its own get_current_user), same {mode} path-
-         *     scoping — resolved via HoldedClient.for_operator_resolved's ``mode``
-         *     override (landr-g1ao.3) so this reads the EXACT (operator_id, holded,
-         *     mode) row the path names, not whichever mode ``Settings.environment``
-         *     would derive — and the same 5/min rate limit. No stored credential for
-         *     that row -> ``holded_not_connected=True`` at 200 (never a 404/503),
-         *     matching every other Holded-status shape in this router /
-         *     staff_holded_invoicing.py. A live Holded error (revoked key, missing
-         *     scope, transient outage) is the one divergence from the verify
-         *     endpoint's "always 200" contract — this endpoint returns real picker
+         *     Auth: require_role("owner", "admin", "staff"). Same {mode} path-scoping
+         *     — resolved via HoldedClient.for_operator_resolved's ``mode`` override
+         *     (landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row
+         *     the path names, not whichever mode ``Settings.environment`` would derive
+         *     — and the same 5/min rate limit. No stored credential for that row ->
+         *     ``holded_not_connected=True`` at 200 (never a 404/503), matching every
+         *     other Holded-status shape in this router / staff_holded_invoicing.py. A
+         *     live Holded error (revoked key, missing scope, transient outage) is the
+         *     one divergence from the verify endpoint's "always 200" contract — this
+         *     endpoint returns real picker
          *     data, so a real failure surfaces as 502 rather than being masked.
          */
         get: operations["list_holded_numbering_series"];
@@ -4613,6 +4797,67 @@ export interface paths {
         patch: operations["pricing_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/product-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Categories
+         * @description Every non-deleted category (active and inactive), with product_count =
+         *     the number of live (non-deleted) products in it.
+         */
+        get: operations["list_product_categories"];
+        put?: never;
+        /** Create Product Category */
+        post: operations["create_product_category"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/product-categories/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Category Templates */
+        get: operations["list_product_category_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/product-categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Product Category
+         * @description Soft-delete. 409 ``product_category_in_use`` while any live product
+         *     still belongs to the category — move or delete those products first.
+         */
+        delete: operations["delete_product_category"];
+        options?: never;
+        head?: never;
+        /** Patch Product Category */
+        patch: operations["patch_product_category"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/product-groups": {
         parameters: {
             query?: never;
@@ -4736,6 +4981,62 @@ export interface paths {
         head?: never;
         /** Patch Product */
         patch: operations["patch_product"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/approval-override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Product Approval Override
+         * @description Soft-delete the product's ``product_override`` approval rule — the
+         *     service-role half of ``approvalRules.ts``'s
+         *     ``saveProductAlwaysManualApproval(operatorId, productId, label, false)``
+         *     (approvalRules.ts:120-158), landr-uy4jy.1's audit finding #2.
+         *
+         *     THE BUG THIS FIXES. That function's ``desired=false`` branch does
+         *     ``update({active: false, deleted_at: now()}).eq('id', existing.id)``
+         *     straight over PostgREST — no ``.select()`` chained, which looks safe but
+         *     isn't: ``approval_rules``' SELECT policy is ``is_tenant_visible(operator_id)
+         *     AND deleted_at IS NULL`` (20260513084829), byte-identical in shape to
+         *     ``resource_pool_units``', and PostgREST issues ``RETURNING *`` on every
+         *     UPDATE internally regardless of ``Prefer`` (it needs the row count for
+         *     ``Content-Range``). The RETURNING row — just soft-deleted — fails that
+         *     SELECT policy, Postgres aborts the WHOLE UPDATE, and the toggle silently
+         *     writes nothing: turning a product's "Always ask me" switch OFF has been a
+         *     no-op since this table's RLS policy was written, unnoticed because the
+         *     symptom (switch appears to flip in the optimistic UI, then reverts or
+         *     just never took effect) doesn't look like a hard error. See
+         *     :func:`delete_resource_pool_unit` (``staff_resource_pool_approval_periods.py``)
+         *     for the full audit and the empirical proof
+         *     (``test_staff_resource_pool_units.py::TestRlsReproduction``) that this
+         *     happens under ``Prefer: return=minimal`` too, not only
+         *     ``return=representation``.
+         *
+         *     The INSERT and reactivate (``active: true``, no ``deleted_at`` change)
+         *     branches of the same dashboard function are NOT affected — neither one
+         *     ever makes the row's own SELECT policy go false — so they stay on direct
+         *     REST; this route only replaces the soft-delete branch.
+         *
+         *     Idempotent (unlike :func:`delete_resource_pool_unit`, deliberately NOT a
+         *     404 when there is nothing to delete): the dashboard function's own
+         *     contract for ``desired=false`` is "no live row → no-op", and this route
+         *     is a straight swap-in for that one branch, not a new contract the
+         *     dashboard has to branch around.
+         *
+         *     Response: ``{"status": "deleted", "rule": {...}}`` or
+         *     ``{"status": "noop"}`` when there is no live override to remove.
+         */
+        delete: operations["delete_product_approval_override"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/products/{product_id}/availability": {
@@ -4957,6 +5258,63 @@ export interface paths {
         patch: operations["patch_provider"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-pools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Resource Pool
+         * @description Create a pool, then ensure its ``capacity_threshold`` rule — atomically.
+         *
+         *     THE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).
+         *     ``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT
+         *     and then PATCHes the just-inserted pool's OWN ``default_released_units``
+         *     back at itself, purely to reach this router's rule-ensure side effect
+         *     (the module header explains why that side effect can't be a direct-REST
+         *     write). ``default_released_units`` carries a column DEFAULT of 1 (OD-1
+         *     back-compat — "the first unit always auto-approves"), and a brand-new
+         *     pool has 0 units, so that PATCH 422s
+         *     ``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had
+         *     already committed, so the operator saw "failed" while a pool with NO
+         *     capacity rule silently existed. (:func:`patch_resource_pool` no longer
+         *     422s on a no-op re-save of the stored default, which closes half of the
+         *     bug — but a POST that does the whole thing as one write is the real
+         *     fix: the dashboard should never have needed a fake PATCH to reach a
+         *     create-time side effect.)
+         *
+         *     ALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-
+         *     inserted pool row is deleted before the error propagates. The pool has
+         *     no children yet at this point (no units, no requirements, no periods),
+         *     so a hard delete is safe — a pool that exists only because half of its
+         *     setup silently didn't happen is worse than no pool at all.
+         *
+         *     Term fields (``unit_label`` et al.) omitted from the body are filled
+         *     from ``resource_pool_kind_defaults(resource_kind)`` — the SAME lookup
+         *     the dashboard's own client-side prefill and the epic's one-time backfill
+         *     both use — so a caller that skips them never falls through to the
+         *     column's flat generic_seat DEFAULT for a non-generic_seat pool.
+         *     ``icon``/``color`` are NOT defaulted this way: they stay NULL when
+         *     omitted (the kind-derived/neutral fallback is a READ-time computation,
+         *     see :mod:`app.services.resource_pool_presentation`).
+         *
+         *     Duplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked
+         *     up front (a clean error is worth a query) AND caught again on the
+         *     insert itself — ``resource_pools_operator_code_unique`` is partial on
+         *     ``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must
+         *     succeed, and a pre-check alone would race a concurrent identical create.
+         */
+        post: operations["create_resource_pool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
         parameters: {
             query?: never;
@@ -4967,7 +5325,37 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Resource Pool
+         * @description Soft-delete a pool (Pattern A + ``active = false``) — epic decision 1.
+         *
+         *     The re-check + all four writes happen inside ONE Postgres function call,
+         *     ``delete_resource_pool()`` (migration 20260911130000): it locks the pool
+         *     row, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME
+         *     predicate the preview above uses — one definition, so preview and delete
+         *     can never disagree), and — only if clear — auto-unlinks
+         *     ``product_resource_requirements`` (epic decision 2; ``ON DELETE
+         *     RESTRICT`` never actually fires here since this is a soft-delete UPDATE,
+         *     not a hard DELETE — the unlink is the decided behaviour, not a
+         *     constraint workaround), soft-deletes the pool's units, retires its
+         *     ``capacity_threshold`` approval_rules row(s), and soft-deletes the pool
+         *     itself — all in one transaction, so a booking made after the dialog
+         *     opened still blocks the write and nothing can observe only SOME of the
+         *     four writes having landed (review gate finding, api#689: four separate
+         *     service-role REST calls could not guarantee that).
+         *
+         *     Past period / unit-day-release rows are left untouched (history).
+         *
+         *     404 ``resource_pool_not_found`` for unknown / foreign / already-deleted
+         *     pool ids (via :func:`_resolve_operator_pool`, and again from the RPC's
+         *     own re-check for a pool deleted in the gap between the two — never 403,
+         *     same no-cross-tenant-existence-oracle rule every resolver in this file
+         *     follows). 409 ``resource_pool_has_upcoming_bookings`` carries the same
+         *     ``blocking_bookings`` shape the preview does — recomputed (rare: only
+         *     reached on a genuine race, since the resolve above already checked) so
+         *     the response is never bare of the list the dashboard renders.
+         */
+        delete: operations["delete_resource_pool"];
         options?: never;
         head?: never;
         /**
@@ -4990,6 +5378,17 @@ export interface paths {
          *     Each is a partial-update field — omitted or ``null`` leaves the stored
          *     value untouched — so existing callers that only ever send
          *     ``default_released_units`` keep working unchanged.
+         *
+         *     landr-k5fgy.1: the range check is only enforced on a CHANGED value. A
+         *     no-op re-save of the currently STORED default must succeed even when it
+         *     now exceeds the active unit count — e.g. a freshly-created 0-unit pool
+         *     whose ``default_released_units`` sits at the column default of 1
+         *     (``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose
+         *     units were all since removed. Rejecting that would make the pool
+         *     permanently un-PATCHable (every future term-only edit re-sends the
+         *     stored default) until the operator adds enough units to satisfy a value
+         *     they never asked to change. Only a value that actually DIFFERS from what
+         *     is stored has to prove it fits.
          */
         patch: operations["patch_resource_pool"];
         trace?: never;
@@ -5019,10 +5418,13 @@ export interface paths {
          *         is ``n`` AFTER the clamp to the active unit count.
          *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
          *         The released SET and its summed capacity — what actually
-         *         auto-approves. landr-c6cpm.2: resolved along
-         *         DAY OVERRIDE > PERIOD > POOL DEFAULT, never earned by approved load,
-         *         and NOT necessarily a prefix of the ladder — ``released_unit_ids`` is
-         *         the authoritative answer, the two numbers are derived from it.
+         *         auto-approves. landr-c6cpm.2: never earned by approved load, and NOT
+         *         necessarily a prefix of the ladder — ``released_unit_ids`` is the
+         *         authoritative answer, the two numbers are derived from it. Resolved
+         *         along AUTO HOLD > PERIOD > POOL DEFAULT (landr-uy4jy.2): the covering
+         *         period's set, or the pool default, MINUS the units an auto-lock is
+         *         holding for that date. There is no operator layer above the period any
+         *         more — an operator's per-day answer IS a one-day period.
          *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
          *         Seats: all units combined; seats held by live bookings; the part of
          *         that the operator has already said yes to; and the difference — seats
@@ -5072,14 +5474,18 @@ export interface paths {
          *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
          *         place in the roster but takes no load and no release state.
          *
-         *         ``released_by`` is ``policy`` for units the period/pool default
-         *         released outright, ``day_override`` for a unit an operator (or the
-         *         auto-lock's counterpart, .3's approve dialog) opened for this one
-         *         date, and ``null`` for a unit that is not released — so a ``full``
-         *         unit with ``released_by = null`` reads correctly as "full of requests
-         *         that are still waiting for you", not "auto-approving". On an
-         *         ``ask_every_time`` day NO unit is ever released — every unit is
-         *         ``needs_ok`` or ``full``, ``released_by`` always ``null``.
+         *         ``released_by`` is ``policy`` for every released unit and ``null``
+         *         for a unit that is not released — so a ``full`` unit with
+         *         ``released_by = null`` reads correctly as "full of requests that are
+         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
+         *         day NO unit is ever released — every unit is ``needs_ok`` or ``full``,
+         *         ``released_by`` always ``null``.
+         *
+         *         The value ``day_override`` is no longer produced (landr-uy4jy.2):
+         *         opening a unit for one date is a one-day PERIOD now, so every release
+         *         comes from policy. The value is left in the vocabulary rather than
+         *         deleted because the dashboard still branches on it and a period-shaped
+         *         release is genuinely ``policy``; nothing renders differently.
          *
          *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
          *         releases the unit it sits on, so no unit is ever released "by an
@@ -5091,9 +5497,11 @@ export interface paths {
          *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
          *         other's meaning: ``open`` (the rules release it — emerald),
          *         ``ask`` (the rules do not; nobody shut it — violet),
-         *         ``closed`` (a ``resource_pool_unit_day_releases`` row with
-         *         ``released = false`` shut it for this date — slate), or
-         *         ``out_of_service``. ``occupancy_state`` is the FILL axis in the three
+         *         ``closed`` (an AUTO-LOCK — a ``resource_pool_unit_day_releases`` row
+         *         with ``released = false`` and ``hold_source = 'auto'`` — shut it for
+         *         this date, slate), or ``out_of_service``. landr-uy4jy.2 narrowed
+         *         ``closed`` to the auto-lock: an operator holding a unit is now the
+         *         unit's ABSENCE from the day's period set, which is ``ask``. ``occupancy_state`` is the FILL axis in the three
          *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
          *         unit carrying approved passengers is a legal, meaningful glyph —
          *         "closed" gates NEW bookings only and is orthogonal to occupancy.
@@ -5101,8 +5509,11 @@ export interface paths {
          *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
          *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
          *         "not released": every unit past the release ladder is closed to new
-         *         bookings, but only some were shut on purpose — by an operator, or by
-         *         the auto-lock. ``hold_source`` says which (``operator`` / ``auto``).
+         *         bookings, but only the auto-lock shuts one on purpose.
+         *         ``hold_source`` is therefore always ``auto`` now (landr-uy4jy.2) —
+         *         an operator's "Ask me" is a period, not a hold — and the field stays
+         *         because the vocabulary is the dashboard's and a second source could
+         *         return.
          *
          *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
          *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
@@ -5123,8 +5534,39 @@ export interface paths {
          *         list. landr-c6cpm.2 made that middle test positional rather than
          *         ``total_load > released_cap`` — see the inline comment for why a sum
          *         cannot answer it once the released set can have holes.
+         *     ``participants_total`` / ``units_needed`` / ``units_needed_basis`` /
+         *     ``units_available`` / ``shortage`` (landr-w9yk8.4)
+         *         Supply vs demand in WHOLE UNITS — "do I have enough buses tomorrow",
+         *         the question the day header turns red on. ``participants_total`` is
+         *         the guiding head-count (a PEOPLE number, not the pool's load — a
+         *         1-guide-per-6-paddlers pool has 12 participants and a load of 2);
+         *         ``units_needed`` is the number of DISTINCT units the day board has
+         *         participants assigned to, or, when nobody has assigned anybody yet,
+         *         the units the day's load occupies walking the fleet ladder by each
+         *         unit's own capacity (``units_needed_basis`` says which);
+         *         ``units_available`` is in fleet AND in service, regardless of release,
+         *         because a bus that needs the operator's OK still drives; and
+         *         ``shortage`` is ``max(0, needed - available)``.
+         *
+         *         ``shortage`` is NOT the same red as ``kind == "shortage"``: this one
+         *         counts units and asks whether any vehicle is missing, that one counts
+         *         seats and asks whether the people fit. A day can be either without
+         *         being the other. See ``app/services/pool_day_supply.py``.
+         *
+         *     ``units[].day_state`` / ``units[].reason`` / ``units[].approval``
+         *         (landr-w9yk8.4) The epic's COLLAPSED per-unit model, additive next to
+         *         the three legacy axes: one status (``available`` / ``not_available``),
+         *         one approval axis (``auto`` / ``ask``), and a ``reason``
+         *         (``out_of_service`` / ``closed_period`` / ``not_released`` / null)
+         *         that is only ever the cause icon, never a third state. The key is
+         *         ``day_state`` and not ``state`` on purpose — ``state`` above is the
+         *         legacy ladder axis the shipped dashboard still reads, and it is
+         *         deleted by the dashboard tickets, not by this one.
+         *
          *     ``period_id``
          *         The covering period row, or ``null`` where the pool default applies.
+         *         Since landr-uy4jy.2 this is the WHOLE operator story for the day: a
+         *         day the operator answered by hand has a period covering exactly it.
          *
          *     ``periods`` carries the full period rows overlapping the span so the
          *     Periods tab and the Calendar tab can be rendered from one request, and
@@ -5179,6 +5621,15 @@ export interface paths {
          *     the ones that would be created) and writes nothing at all — no period, no
          *     rule, no audit row. That is what the edit sheet's preview line is built
          *     from.
+         *
+         *     ``replace_period_id`` (landr-zb9gk.1) is the id of the period this PUT is
+         *     EDITING, so a shrink is not the no-op it would otherwise be: the RPC
+         *     excludes that period from the neighbours it carves fragments out of, then
+         *     soft-deletes it outright before writing the new ranges, rather than
+         *     letting its untouched days survive as an identical-policy fragment that
+         *     would immediately merge back onto the request. A syntactically invalid id
+         *     is a 404 here (mirroring :func:`delete_approval_period`); an id that does
+         *     not resolve to an active period of this pool is a 404 from the RPC itself.
          */
         put: operations["apply_approval_periods"];
         post?: never;
@@ -5217,6 +5668,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resource Pool Delete Preview
+         * @description Read-only: what deleting this pool would do — for the confirm dialog.
+         *
+         *     ``blocking_bookings`` is exactly what would make the ``DELETE`` below
+         *     409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``
+         *     is what would be silently auto-unlinked on a successful delete (epic
+         *     decision 2) — the dialog names each one so the operator isn't surprised
+         *     later. ``can_delete`` is ``blocking_bookings == []``, computed here so the
+         *     dashboard doesn't have to know the rule.
+         */
+        get: operations["resource_pool_delete_preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/impact-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Impact Preview
+         * @description The future days that would go SHORT if this unit went away.
+         *
+         *     Backs the epic's warn-and-confirm dialog (D7 / landr-w9yk8.11): turning a
+         *     unit's In-fleet switch off, or scheduling it out of service, opens a table
+         *     of the days that would then have fewer units than they need, and a
+         *     "Deactivate anyway" button. The epic is explicit that this NEVER blocks —
+         *     the bus may really be broken — so this endpoint informs and returns; it
+         *     has no opinion and no veto.
+         *
+         *     **Read-only.** Nothing is written, whatever the answer, and the unit is in
+         *     exactly the state it was before. That is why the change travels in the
+         *     body instead of the endpoint being a ``dry_run`` flag on the real write:
+         *     the operator asks this question BEFORE deciding, often without ever making
+         *     the change.
+         *
+         *     Body::
+         *
+         *         {"unit_id": "…", "change": "not_in_fleet"}
+         *         {"unit_id": "…", "change": {"out_of_service": {"start_date": "…",
+         *                                                        "end_date": "…"}}}
+         *
+         *     Returns ``days``: one row per FUTURE day whose ``shortage_after`` is
+         *     positive, each ``{date, participants_total, units_needed,
+         *     units_available_before, units_available_after, shortage_before,
+         *     shortage_after, newly}``. Days that are FINE after the change are absent;
+         *     days that are short are all present, INCLUDING ones that were already
+         *     short before it and are no worse for it, with ``newly: false``.
+         *
+         *     That inclusion is deliberate, not an oversight (landr-w9yk8.17 confirmed
+         *     the filter is ``shortage_after > 0`` and nothing more). The D7 dialog asks
+         *     "if I do this, what does my next year look like" — an operator about to
+         *     take a bus off the road needs the whole list of days they will be short,
+         *     not only the increment this one action adds. ``newly`` is what separates
+         *     the two, so the dialog can lead with "3 new, 1 already short" without the
+         *     API having to guess which framing it wants.
+         *
+         *     ``units_needed`` is computed against TODAY's fleet and does not move with
+         *     the change — demand is a property of the bookings, and a bus breaking does
+         *     not make fewer people show up. Computing it against the post-change fleet
+         *     is the tempting mistake that makes every preview come back empty: the
+         *     ladder would shrink in step with the supply and the shortage would cancel
+         *     itself out. See ``app/services/pool_day_supply.py``.
+         *
+         *     The window is the operator's today … +365 days, overridable with
+         *     ``from``/``to`` (at most ``MAX_CALENDAR_DAYS``) — bounded for the same
+         *     reason :func:`_consequence_window` documents, and starting at the
+         *     OPERATOR's today rather than the server's so an operator west of UTC does
+         *     not lose the day they are standing in.
+         *
+         *     Today is a FLOOR, not just a default (``clamp_to_today=True``): a ``from``
+         *     in the past is lifted to today rather than honoured, and a window that
+         *     ends before today returns no days at all. A unit leaving service cannot
+         *     un-take a booking that already happened, so a past day in this response
+         *     would be a row the operator can do nothing about. Before landr-w9yk8.17
+         *     that was a promise this docstring made and the query string could break.
+         */
+        post: operations["impact_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/service-periods/{period_id}": {
         parameters: {
             query?: never;
@@ -5241,6 +5793,274 @@ export interface paths {
          *     :func:`delete_unit_scoped_service_period` for the unit-scoped alias.
          */
         delete: operations["delete_unit_service_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply Pool Season Plan
+         * @description Apply the Season planner's draft rows to every touched unit, atomically.
+         *
+         *     landr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose
+         *     ``SeasonPlannerSection`` fans out N per-unit PUTs client-side via
+         *     ``Promise.allSettled`` — a real, shipped feature, but not atomic: a
+         *     mid-fan-out failure (a network blip, a genuine 409/422 on one unit) can
+         *     leave the pool partially on the new season. This endpoint replaces that
+         *     fan-out with ONE call.
+         *
+         *     The write is ``apply_resource_pool_season_plan`` (migration
+         *     20260914100000): one transaction that, for each row's date range, on
+         *     every unit it names, trims that unit's current schedule (both kinds) to
+         *     the OVERWRITE + trim semantics
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s
+         *     ``computeSeasonPlannerPlans``/``trimPeriod`` already implement
+         *     client-side, then delegates the per-unit write to the SAME
+         *     ``apply_resource_pool_unit_service_periods`` the single-unit PUT above
+         *     uses, called once per touched unit inside this one transaction. A bad
+         *     row anywhere in the body — or a unit id that turns out not to belong to
+         *     this pool — means NOTHING is written for ANY unit.
+         *
+         *     A unit the payload never names is never looked up and never appears in
+         *     the response; its schedule is untouched.
+         *
+         *     ``?dry_run=1`` writes nothing and returns, alongside the periods every
+         *     touched unit WOULD end up with, one ``consequences`` block covering every
+         *     touched unit's change AT ONCE (not one unit at a time — pool capacity is
+         *     a sum over the whole roster, so previewing units independently would mis-
+         *     count a day where two touched units both change). Window defaults and
+         *     overrides are identical to the single-unit PUT's — see
+         *     :func:`_consequence_window`.
+         */
+        put: operations["apply_pool_season_plan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Resource Pool Unit
+         * @description Soft-delete one unit (Pattern A + ``active = false``) — the fix for
+         *     epic decision 5 (landr-uy4jy).
+         *
+         *     WHY THIS IS A ROUTE, NOT A DIRECT-REST WRITE (the module docstring's "WHY
+         *     A ROUTER AT ALL" #3). ``resourcePools.ts``'s ``softDeleteResourcePoolUnit``
+         *     (resourcePools.ts:432) does the obvious thing — ``update({active: false,
+         *     deleted_at: ...}).eq('id', unitId).select(UNIT_SELECT).single()`` — and it
+         *     42501s: "new row violates row-level security policy for table
+         *     resource_pool_units". ``resource_pool_units_tenant_select`` is
+         *     ``is_tenant_visible(operator_id) AND deleted_at IS NULL`` (migration
+         *     20260513085205), and PostgREST issues ``RETURNING *`` on every UPDATE
+         *     internally regardless of the ``Prefer`` header — it needs the affected-row
+         *     count for ``Content-Range`` whether or not the client asked for a body —
+         *     so Postgres checks the RETURNING row against that SELECT policy on EVERY
+         *     soft-delete of this table, and the row this statement just stamped
+         *     ``deleted_at`` onto no longer passes it. Because that check runs inside
+         *     the SAME statement, Postgres aborts the WHOLE UPDATE, not just the
+         *     response body: **the row is not soft-deleted either.** Verified directly
+         *     (``test_staff_resource_pool_units.py``, ``TestRlsReproduction``): a
+         *     ``Prefer: return=minimal`` call — no ``.select()``, no representation
+         *     requested — 42501s identically and leaves the row untouched. This
+         *     service-role route bypasses RLS entirely, so neither the write nor any
+         *     read-back is affected.
+         *
+         *     AUDIT (ticket step 3): the two sibling direct-REST soft-deletes in this
+         *     domain hit the EXACT SAME bug — ``products`` and ``approval_rules`` carry
+         *     the byte-identical ``is_tenant_visible(operator_id) AND deleted_at IS
+         *     NULL`` SELECT-policy shape (verified via ``pg_policy``), and PostgREST's
+         *     always-RETURNING behaviour above doesn't care whether the client chained
+         *     ``.select()``. Concretely:
+         *
+         *     * ``products.ts``'s ``softDeleteProduct`` (products.ts:436, called from
+         *       ``ProductsManager.tsx:508`` — the dashboard's real "delete product"
+         *       button) 42501s and silently deletes NOTHING today. A working
+         *       service-role route already exists for this
+         *       (``delete_product``, ``staff_products.py``) — nobody had wired the
+         *       dashboard to it, presumably because the direct-REST call looked fine
+         *       in isolation (no ``.select()``, so no reason to suspect RLS). This PR
+         *       does not touch the dashboard (out of this ticket's repo); filed as a
+         *       dashboard-side follow-up alongside landr-uy4jy.6.
+         *     * ``approvalRules.ts``'s override-clear branch (approvalRules.ts:158,
+         *       inside ``saveProductAlwaysManualApproval``, called from the product
+         *       form's "Always ask me" toggle) 42501s the same way when turning the
+         *       override OFF — also silently writes nothing. No service-role route
+         *       existed for this at all; this PR adds
+         *       :func:`delete_product_approval_override` in ``staff_products.py``.
+         *
+         *     Both are proven, not inferred: ``test_staff_resource_pool_units.py``
+         *     reproduces every one of the three tables' soft-deletes directly over
+         *     PostgREST with a real member JWT (never service role, which bypasses RLS
+         *     and would prove nothing) under BOTH ``Prefer`` values, and all three
+         *     42501 identically regardless of which header is sent.
+         *
+         *     Deliberately NOT a hard delete: the audit trail for "who took this unit
+         *     out of the fleet, and when" is the whole point of Pattern A, same as
+         *     :func:`delete_approval_period`.
+         *
+         *     Response: ``{"status": "deleted", "unit": {...full unit row...}}``.
+         *
+         *     No shortage refusal — a unit really can break, and the dashboard's
+         *     Remove flow shows the impact-preview table before the operator confirms
+         *     (landr-uy4jy.6). That preview is the EXISTING
+         *     ``POST .../impact-preview`` endpoint called with ``change: "not_in_fleet"``
+         *     — a unit that has been removed is a not-in-fleet unit for every purpose
+         *     the preview computes (it does not distinguish "off" from "gone"), so this
+         *     deliberately does NOT add a ``"removed"`` change kind: one preview code
+         *     path, not two computing the same thing.
+         */
+        delete: operations["delete_resource_pool_unit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}/day-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Unit Day State
+         * @description Set ONE unit's state on ONE day — the /calendar popover's whole write.
+         *
+         *     The epic (D4) moves per-day editing off the Settings › Calendar tab and
+         *     onto the calendar itself: click a bus icon on a day, pick Auto-approve /
+         *     Ask me / Not available. Date RANGES stay in the pool tab; this endpoint is
+         *     the single-day surface, and it deliberately cannot express a range.
+         *
+         *     Which table each answer lands in is not arbitrary — it is the epic's
+         *     three axes, kept apart:
+         *
+         *     ``auto`` / ``ask``
+         *         The APPROVAL axis. Since landr-uy4jy.2 this is a PERIOD SPLIT, not a
+         *         second layer on top of one: the day's resulting release set — the
+         *         covering period's set (or the pool default), plus or minus this unit —
+         *         is written as a one-day period through
+         *         ``apply_resource_pool_approval_periods``. The RPC carves the day out
+         *         of its neighbour, keeps the leftover fragments and merges identical
+         *         adjacent days back together, so answering the same way on three
+         *         consecutive days leaves ONE three-day period.
+         *
+         *         It used to write a ``resource_pool_unit_day_releases`` override that
+         *         OUTRANKED the period (DAY OVERRIDE > PERIOD > POOL DEFAULT).
+         *         landr-zb9gk decided to keep those two layers; ok tried it on the live
+         *         calendar and reversed it — "mentally, no one can grasp it". A day the
+         *         operator changed is now visible in the periods table, which is the
+         *         only place their intent lives.
+         *
+         *         On an ``ask_every_time`` day, ``auto`` on one unit therefore ends that
+         *         mode for that date: ``ask_every_time`` is POOL-WIDE and does not
+         *         decompose into a per-unit set, so "auto-approve this bus today" cannot
+         *         be expressed inside it. Before, the override was written and then
+         *         silently swallowed by the evaluator; now the answer takes effect.
+         *     ``not_available``
+         *         The SERVICE axis. Writes a one-day ``out_of_service`` row onto the
+         *         unit's schedule, through the same atomic replace-set RPC the schedule
+         *         editor uses. Availability is a fact about the world; folding it into
+         *         the release override would make "broken" and "not auto-approved" the
+         *         same bit, which is the exact confusion this epic exists to undo.
+         *
+         *     Setting ``auto`` or ``ask`` also makes the day AVAILABLE again: a one-day
+         *     outage covering the date is removed, and a longer one is split around it
+         *     (:func:`_schedule_without_day`). Undoing "Not available" from the same
+         *     popover that set it is the whole point — the operator does not know, and
+         *     must not need to know, that one of the two answers lives in a different
+         *     table.
+         *
+         *     A day the unit cannot run for the OTHER reason — it is scheduled and this
+         *     date is outside every season — is a 422 ``day_outside_service_season``
+         *     rather than a silent no-op or an invented season. A season is a range, and
+         *     ranges are the pool tab's job; guessing one here would quietly hand the
+         *     operator a schedule they never wrote.
+         *
+         *     The day's approval rule survives ``not_available``: it is not cleared,
+         *     because a unit that is out of service is simply not in play that day, and
+         *     the operator's approval preference should still be there when the unit
+         *     comes back. Resetting the day to the pool default is
+         *     :func:`delete_unit_day_state`.
+         *
+         *     ``auto`` also LIFTS an auto-lock on that (unit, date). The lock is a
+         *     transient hold taken while a request that spills past the unit is pending
+         *     (``capacity.py``, "Auto-lock"); an operator saying "this unit
+         *     auto-approves today" has decided the question the lock was holding open,
+         *     and leaving it would make the answer do nothing visible. ``ask`` leaves
+         *     any lock alone — it agrees with it.
+         *
+         *     RESPONSE SHAPE IS UNCHANGED apart from one added key. ``day_release`` is
+         *     still there and is now always ``null`` for ``auto``/``ask`` (no override
+         *     row is written any more); ``periods`` carries the resulting period rows
+         *     for the affected span, so the calendar can refresh the periods list from
+         *     the same response. Nothing was renamed: ``landr-dashboard``'s
+         *     ``putUnitDayState`` keeps working untouched.
+         */
+        put: operations["put_unit_day_state"];
+        post?: never;
+        /**
+         * Delete Unit Day State
+         * @description Reset the day to the pool default — the counterpart to ``auto``/``ask``.
+         *
+         *     Those two PIN a day; this un-pins it. Without it a single click would pin
+         *     a day for good, and an operator who opened one bus for one Tuesday in
+         *     March would find that Tuesday ignoring the season they set in April, with
+         *     no way back from the surface that made it.
+         *
+         *     Since landr-uy4jy.2 that is ``apply_resource_pool_approval_periods`` with
+         *     ``p_clear``: the date is carved out of whatever period covers it, the
+         *     leftover fragments are kept and merged as always, and NOTHING is written
+         *     back for the date itself, so it falls through to
+         *     ``resource_pools.default_released_units``. `p_clear` exists because the
+         *     obvious alternative does not work — re-PUTting the neighbour's own policy
+         *     over the day merges straight back into it and changes nothing, which is
+         *     the landr-zb9gk no-op.
+         *
+         *     IT RESETS THE WHOLE DAY, not just this unit. The rule for a date is one
+         *     period covering the pool, so "reset this day to the default" cannot mean
+         *     one unit — and the alternative (rewriting the day's set with only this
+         *     unit dropped back to its default value) is not a reset, it is another
+         *     edit. The path keeps ``{unit_id}`` because it is the popover's own
+         *     endpoint and the unit is what the operator clicked.
+         *
+         *     It also clears any AUTO-LOCK on this (unit, date). That row is the one
+         *     thing still living in ``resource_pool_unit_day_releases``, it is the only
+         *     way an operator can lift a lock from the calendar, and a "reset" that left
+         *     the day visibly locked would not be one. Hard delete, not a soft one: the
+         *     table has no soft-delete columns by design (landr-c6cpm.1), the audit
+         *     trigger keeps the history, and a "deleted" row would have to be excluded
+         *     by every reader of a table whose whole job is a one-row-per-key lookup.
+         *
+         *     Does NOT touch the service schedule: "this day is not pinned" and "this
+         *     unit is out of service that day" are different statements, and removing an
+         *     outage is :func:`put_unit_day_state` with ``auto``/``ask``, or the
+         *     schedule editor.
+         *
+         *     Idempotent — resetting a day that is already at the pool default and
+         *     carries no lock returns ``removed: false`` and 200, because the caller's
+         *     intent ("nothing pinned on this day") is satisfied either way.
+         */
+        delete: operations["delete_unit_day_state"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5646,6 +6466,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/subscription-perks/{perk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Perk
+         * @description Partial edit, including `active` — this IS the deactivate path (no
+         *     DELETE route exists; see module docstring). Empty patch -> 400.
+         *     Cross-operator / missing -> 404.
+         */
+        patch: operations["patch_perk"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
         parameters: {
             query?: never;
@@ -5666,6 +6508,39 @@ export interface paths {
          *     Empty patch -> 400. Cross-operator / missing -> 404.
          */
         patch: operations["patch_subscription_config"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/perks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Perks
+         * @description List ALL perks (active and inactive) for this subscription, operator-
+         *     scoped and ordered by created_at. The dashboard needs both — perks are
+         *     toggled via active, never deleted.
+         */
+        get: operations["list_perks"];
+        put?: never;
+        /**
+         * Create Perk
+         * @description Create a perk. 404 if `subscription_id` isn't this operator's — checked
+         *     up front so a bad id gives a clean 404 rather than surfacing the raw
+         *     composite-FK (subscription_perks_subscription_op_fkey) Postgres error.
+         *
+         *     `applies_to_product_id` is NOT pre-validated against the operator the
+         *     same way: its own composite FK (subscription_perks_product_op_fkey)
+         *     already makes a cross-tenant target unrepresentable, and this ticket's
+         *     scope is CRUD, not re-deriving what the DB constraint already guarantees.
+         */
+        post: operations["create_perk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/provision-price": {
@@ -6228,6 +7103,22 @@ export interface components {
          *     The mode/set consistency rule lives in the RPC — one definition, and the
          *     same typed body whichever way the request arrives. The count->set expansion
          *     cannot: the RPC no longer knows what a count is.
+         *
+         *     ``replace_period_id`` (landr-zb9gk.1)
+         *         The period being EDITED, if any. Without this, a ``PUT`` that only
+         *         removes days is a mathematical no-op: the RPC carves the still-selected
+         *         days out of neighbours, keeps the leftover fragment with the SAME
+         *         policy, and range_agg-merges it straight back onto the incoming
+         *         ranges. When given, that period is excluded from the fragment/merge
+         *         computation and soft-deleted outright before the new ranges are
+         *         written — days it covered that are not re-requested fall through to
+         *         the pool default, same as deleting it would (epic landr-zb9gk's
+         *         decision). Typed ``str`` rather than ``UUID`` so a syntactically bad
+         *         id is a 404 ``approval_period_not_found`` raised by this router
+         *         (mirroring :func:`delete_approval_period`'s path-param handling)
+         *         instead of a bare Pydantic 422 — same reasoning as ``ranges`` above:
+         *         the RPC/router owns the typed error shape, not the framework's
+         *         default validation error.
          */
         ApprovalPeriodsIn: {
             /**
@@ -6248,6 +7139,8 @@ export interface components {
              * @default false
              */
             releases_all_units: boolean;
+            /** Replace Period Id */
+            replace_period_id?: string | null;
         };
         /**
          * ApprovalReplyRequest
@@ -6528,6 +7421,10 @@ export interface components {
          * @description One row returned by the public_get_product_availability RPC.
          *     Mirrors the widget's ``AvailabilitySlot`` TypeScript interface
          *     (src/api/types.ts) field-for-field.
+         *
+         *     landr-mizc: capacity_reserved dropped from product_availability
+         *     (always 0, dead since the Slice-8 maintenance trigger was removed) and
+         *     from this RPC's return columns — dropped here to match.
          */
         AvailabilitySlot: {
             /** Availability Id */
@@ -6536,8 +7433,6 @@ export interface components {
             available_seats: number;
             /** Capacity */
             capacity: number;
-            /** Capacity Reserved */
-            capacity_reserved: number;
             /**
              * Date
              * Format: date
@@ -6695,6 +7590,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Forced Days */
+            forced_days?: string[] | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */
@@ -6877,6 +7774,35 @@ export interface components {
             /** Description */
             description: string;
         };
+        /** ChangelogHistoryOut */
+        ChangelogHistoryOut: {
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Runs */
+            runs: components["schemas"]["ChangelogHistoryRunOut"][];
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "staging" | "prod";
+        };
+        /**
+         * ChangelogHistoryRunOut
+         * @description One completed promotion run's entry in the history list.
+         *
+         *     Same category/description-only trimming as ``ChangelogEntryOut`` — see
+         *     its docstring for why (no sha/author/url exposed here either).
+         */
+        ChangelogHistoryRunOut: {
+            /** Completed At */
+            completed_at: string;
+            /** Entries */
+            entries: components["schemas"]["ChangelogEntryOut"][];
+            /** Version */
+            version: string;
+            /** Version Bump */
+            version_bump?: ("major" | "minor" | "patch" | "none") | null;
+        };
         /** ChangelogOut */
         ChangelogOut: {
             /** Entries */
@@ -6961,6 +7887,8 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
+            /** Language */
+            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -7140,6 +8068,80 @@ export interface components {
             /** Signer Label */
             signer_label?: string | null;
         };
+        /**
+         * CustomerStageLabel
+         * @description ``stage`` block: customer-facing lifecycle-stage text (landr-821d6.3).
+         *
+         *     Raw pass-through, same convention as ``name``/``name_localized`` on
+         *     ``OfferProductLine`` — the widget resolves locale client-side
+         *     (landr-821d6.7). ``label`` is the operator's ``customer_label`` when set,
+         *     else the staff ``label`` (atomic-pair fallback: ``label_localized``
+         *     follows whichever of the two was chosen, never a per-key merge).
+         */
+        CustomerStageLabel: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** DayChangeLineDelta */
+        DayChangeLineDelta: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** New Gross */
+            new_gross: string;
+            /** New Selected Days */
+            new_selected_days: string[];
+            /** Old Gross */
+            old_gross: string;
+            /** Old Selected Days */
+            old_selected_days: string[];
+            /** Product Id */
+            product_id: string;
+        };
+        /** DayChangePreviewRequest */
+        DayChangePreviewRequest: {
+            /** Selected Days */
+            selected_days: string[];
+        };
+        /** DayChangePreviewResponse */
+        DayChangePreviewResponse: {
+            /** Line Changes */
+            line_changes?: components["schemas"]["DayChangeLineDelta"][];
+            /** Stay Changed */
+            stay_changed: boolean;
+            /** Totals After */
+            totals_after: {
+                [key: string]: string;
+            };
+            /** Totals Before */
+            totals_before: {
+                [key: string]: string;
+            };
+            window_after?: components["schemas"]["DayChangeWindow"] | null;
+            window_before?: components["schemas"]["DayChangeWindow"] | null;
+        };
+        /** DayChangeWindow */
+        DayChangeWindow: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Nights */
+            nights: number;
+        };
         /** DayManifestOut */
         DayManifestOut: {
             /** Date */
@@ -7183,6 +8185,8 @@ export interface components {
             day_date: string;
             /** Expected Back At */
             expected_back_at?: string | null;
+            /** Language */
+            language?: string | null;
             /** Name */
             name: string;
             /** Note */
@@ -7199,6 +8203,10 @@ export interface components {
             pickup_lat?: number | null;
             /** Pickup Lng */
             pickup_lng?: number | null;
+            /** Pickup Location Color */
+            pickup_location_color?: string | null;
+            /** Pickup Location Icon */
+            pickup_location_icon?: string | null;
             /** Pickup Location Id */
             pickup_location_id?: string | null;
             /** Pickup Location Name */
@@ -7324,6 +8332,27 @@ export interface components {
              * @description cloudflare | autodns | manual.
              */
             provider: string;
+        };
+        /** EmailCollisionOut */
+        EmailCollisionOut: {
+            /** Contact Id */
+            contact_id: string;
+            /** Detected At */
+            detected_at: string;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Operator Slug */
+            operator_slug: string | null;
+            /** Resolution Note */
+            resolution_note: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
         };
         /** EmailSenderStatus */
         EmailSenderStatus: {
@@ -7504,6 +8533,34 @@ export interface components {
             un_priceable: boolean;
             /** Warnings */
             warnings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FixedDateWindow
+         * @description One row returned by the public_get_product_fixed_date_windows RPC.
+         *     Mirrors the widget's ``FixedDateWindow`` TypeScript interface
+         *     (src/api/types.ts) field-for-field.
+         */
+        FixedDateWindow: {
+            /** Available Seats */
+            available_seats: number;
+            /** Capacity */
+            capacity: number;
+            /** Capacity Reserved */
+            capacity_reserved: number;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
         } & {
             [key: string]: unknown;
         };
@@ -7822,6 +8879,52 @@ export interface components {
             /** Website */
             website?: string | null;
         };
+        /**
+         * ImpactPreviewIn
+         * @description ``POST .../impact-preview`` — "what would this change break?"
+         *
+         *     ``change`` is either the literal ``"not_in_fleet"`` (the unit leaves the
+         *     fleet entirely, every day) or an ``out_of_service`` window. Both are
+         *     HYPOTHETICAL: this endpoint writes nothing and the unit is untouched
+         *     whatever the answer.
+         *
+         *     The two shapes are one field rather than two endpoints because the
+         *     dashboard asks the same question from the same dialog — "show me the days
+         *     this hurts" — and the only difference is which days the unit disappears
+         *     on.
+         */
+        ImpactPreviewIn: {
+            /** Change */
+            change: "not_in_fleet" | components["schemas"]["ImpactPreviewOutOfService"];
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+        };
+        /**
+         * ImpactPreviewOutOfService
+         * @description ``{"out_of_service": {"start_date": …, "end_date": …}}``.
+         */
+        ImpactPreviewOutOfService: {
+            out_of_service: components["schemas"]["ImpactPreviewRange"];
+        };
+        /**
+         * ImpactPreviewRange
+         * @description The window an ``out_of_service`` impact preview asks about.
+         */
+        ImpactPreviewRange: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
         /** InitiatePaymentIn */
         InitiatePaymentIn: {
             /** Booking Token */
@@ -8016,8 +9119,67 @@ export interface components {
             /** Sport Id */
             sport_id: string;
         };
+        /** LifecycleStageOut */
+        LifecycleStageOut: {
+            /** Active */
+            active: boolean;
+            /**
+             * Booking Count
+             * @default 0
+             */
+            booking_count: number;
+            /** Code */
+            code: string;
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden: boolean;
+            /** Hideable */
+            hideable: boolean;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Semantic State */
+            semantic_state: string;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /**
+         * LifecycleStagePatchIn
+         * @description Partial update. Only these five fields are ever patchable — code,
+         *     semantic_state, sort_order and operator_id are deliberately absent, and
+         *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
+         *     not a silent drop.
+         */
+        LifecycleStagePatchIn: {
+            /** Customer Label */
+            customer_label?: string | null;
+            /** Customer Label Localized */
+            customer_label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Hidden */
+            hidden?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+        };
         /** LocationIn */
         LocationIn: {
+            /** Color */
+            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8037,6 +9199,8 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
+            /** Color */
+            color?: string | null;
             /** Email */
             email?: string | null;
             /** Geo */
@@ -8058,6 +9222,10 @@ export interface components {
         LocationRoleTypeIn: {
             /** Code */
             code: string;
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /** Label */
             label: string;
             /**
@@ -8068,6 +9236,10 @@ export interface components {
         };
         /** LocationRoleTypePatch */
         LocationRoleTypePatch: {
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
             /** Label */
             label?: string | null;
             /** Sort Order */
@@ -8104,6 +9276,10 @@ export interface components {
         ManifestUnit: {
             /** Capacity */
             capacity?: number | null;
+            /** Color */
+            color: string;
+            /** Icon */
+            icon: string;
             /** Id */
             id: string;
             /** In Service */
@@ -8420,6 +9596,8 @@ export interface components {
             city?: string | null;
             /** Country */
             country?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[] | null;
             /** Date Format */
             date_format?: string | null;
             /** Date Format Short */
@@ -8450,6 +9628,8 @@ export interface components {
             name?: string | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Pending Booking Expiry Hours */
+            pending_booking_expiry_hours?: number | null;
             /** Phone */
             phone?: string | null;
             /** Postal Code */
@@ -8532,6 +9712,16 @@ export interface components {
          *     rather than forcing a response-model bump on every RPC change.
          */
         OperatorProduct: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Name Localized */
+            category_name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Images */
             images?: components["schemas"]["ProductImage"][];
             /** Name */
@@ -8638,6 +9828,13 @@ export interface components {
         OperatorSettings: {
             /** Contact Email */
             contact_email?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[];
+            /**
+             * Default Locale
+             * @default en
+             */
+            default_locale: string;
             /**
              * Expose Seats To Customer
              * @default false
@@ -8780,6 +9977,8 @@ export interface components {
              * @default false
              */
             has_breakfast: boolean;
+            /** Language */
+            language?: string | null;
             /** Last Name */
             last_name?: string | null;
             /** Occupant Age */
@@ -9031,6 +10230,99 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ProductCategoryIn */
+        ProductCategoryIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Template Key
+             * @enum {string}
+             */
+            template_key: "overnight_stay" | "activity_date" | "multi_day_course" | "fixed_session" | "space_by_hour" | "physical_item" | "digital_item" | "membership";
+        };
+        /** ProductCategoryOut */
+        ProductCategoryOut: {
+            /** Active */
+            active: boolean;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Contiguous */
+            is_contiguous?: boolean | null;
+            /** Is System */
+            is_system: boolean;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /**
+             * Product Count
+             * @default 0
+             */
+            product_count: number;
+            /** Product Kind */
+            product_kind: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Template Key */
+            template_key?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ProductCategoryPatch */
+        ProductCategoryPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** ProductCategoryTemplateOut */
+        ProductCategoryTemplateOut: {
+            /** Allowed */
+            allowed: boolean;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized: {
+                [key: string]: string;
+            };
+            /** Product Kind */
+            product_kind: string;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Supports Is Contiguous */
+            supports_is_contiguous: boolean;
+            /** Template Key */
+            template_key: string;
+        };
         /**
          * ProductFlowResponse
          * @description Response of GET …/products/{id}/flow. Mirrors the widget's
@@ -9123,6 +10415,8 @@ export interface components {
             active: boolean;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -9133,10 +10427,8 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
-            /** Fixed End Date */
-            fixed_end_date?: string | null;
-            /** Fixed Start Date */
-            fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */
@@ -9179,11 +10471,8 @@ export interface components {
             needs_provider: boolean;
             /** Product Group Id */
             product_group_id?: string | null;
-            /**
-             * Product Kind
-             * @enum {string}
-             */
-            product_kind: "service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card";
+            /** Product Kind */
+            product_kind?: ("service" | "subscription" | "hotel_room" | "digital_good" | "physical_good" | "gift_card") | null;
             /**
              * Revenue Flows Through Operator
              * @default true
@@ -9229,6 +10518,8 @@ export interface components {
             active?: boolean | null;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -9239,10 +10530,8 @@ export interface components {
             } | null;
             /** Duration Minutes */
             duration_minutes?: number | null;
-            /** Fixed End Date */
-            fixed_end_date?: string | null;
-            /** Fixed Start Date */
-            fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */
@@ -9375,6 +10664,7 @@ export interface components {
             participants?: components["schemas"]["OfferParticipant"][];
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
             [key: string]: unknown;
@@ -9703,6 +10993,58 @@ export interface components {
             resolved_by: string;
         };
         /**
+         * ResourcePoolCreateIn
+         * @description ``POST .../resource-pools`` (landr-k5fgy.1) — the fields
+         *     ``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool
+         *     insert and its ``capacity_threshold`` rule ensure (OD-2, same predicate
+         *     :func:`patch_resource_pool` uses) either both happen or neither does —
+         *     see :func:`create_resource_pool`'s docstring for why this couldn't just
+         *     be a direct-REST insert.
+         *
+         *     Every term field (``unit_label`` et al.) is optional here — any omitted
+         *     one is filled server-side from ``resource_pool_kind_defaults(resource_kind)``
+         *     before the insert, so a caller that skips them entirely still gets
+         *     kind-correct words (the column's own DEFAULT is the flat generic_seat
+         *     tuple, wrong for every other kind — see migration 20260904030000's
+         *     header). ``icon``/``color`` are NOT defaulted this way: both stay
+         *     nullable forever (NULL = "use the kind default" / "no swatch yet",
+         *     resolved by the READER — :mod:`app.services.resource_pool_presentation`
+         *     — never baked into the row at write time).
+         */
+        ResourcePoolCreateIn: {
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
+            /**
+             * Is Consumed Per Day
+             * @default true
+             */
+            is_consumed_per_day: boolean;
+            /** Label */
+            label: string;
+            /**
+             * Resource Kind
+             * @enum {string}
+             */
+            resource_kind: "transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat";
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /**
+             * Sort Order
+             * @default 100
+             */
+            sort_order: number;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
+        };
+        /**
          * ResourcePoolPatch
          * @description ``PATCH .../resource-pools/{pool_id}`` — the pool-level fallback policy
          *     plus (landr-e80s.2) the operator's own terms for this pool's units/slots.
@@ -9840,7 +11182,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "dashboard";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard" | "location";
             /** Name */
             name: string;
             /**
@@ -9871,6 +11213,55 @@ export interface components {
             sort_order?: number | null;
             /** Visibility */
             visibility?: ("personal" | "shared") | null;
+        };
+        /**
+         * SeasonPlanIn
+         * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
+         *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
+         *     to landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out
+         *     over N per-unit PUTs).
+         *
+         *     Each row OVERWRITES the days it covers on every unit it names: an
+         *     existing period (either kind) that only partially overlaps a row is
+         *     trimmed to its non-overlapping remainder, one entirely inside the row's
+         *     range is replaced outright, and the row's own range becomes a new
+         *     ``in_service`` period. Rows are applied in array order, so a LATER row
+         *     wins over an EARLIER one on the same unit where their ranges overlap —
+         *     same "last write wins" contract
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``
+         *     documents. See ``apply_resource_pool_season_plan``'s migration for the
+         *     full algorithm; it is a straight port of that module's
+         *     ``computeSeasonPlannerPlans``/``trimPeriod``.
+         */
+        SeasonPlanIn: {
+            /** Rows */
+            rows: components["schemas"]["SeasonPlanRow"][];
+        };
+        /**
+         * SeasonPlanRow
+         * @description One Season planner draft row: a date range applied, as ``in_service``,
+         *     to every unit in ``unit_ids`` — mirrors ``SeasonPlannerRow`` in
+         *     ``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is
+         *     local-only React list identity and is never sent here).
+         *
+         *     ``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by
+         *     the RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a
+         *     multi-row body reports every bad row in one machine-readable payload
+         *     instead of one Pydantic error — same call as :class:`UnitServicePeriodRange`.
+         */
+        SeasonPlanRow: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Unit Ids */
+            unit_ids: string[];
         };
         /** SendMessageRequest */
         SendMessageRequest: {
@@ -10363,6 +11754,7 @@ export interface components {
             payment_link_sent?: boolean | null;
             /** Semantic State */
             semantic_state: string;
+            stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
             /** Token */
@@ -10425,10 +11817,59 @@ export interface components {
             /** Trial Period Days */
             trial_period_days?: number | null;
         };
+        /**
+         * SubscriptionPerkIn
+         * @description Create payload — mirrors subscription_perks' own CHECK constraints
+         *     (kind, amount > 0, percent <= 100) so a bad value 422s here with a
+         *     field-level Pydantic error rather than an opaque Postgres one.
+         *
+         *     operator_id / subscription_id are NOT fields here — they come from the
+         *     path and are set server-side on insert, never trusted from the body.
+         */
+        SubscriptionPerkIn: {
+            /** Amount */
+            amount: number;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "percent" | "flat";
+            /** Label */
+            label?: string | null;
+        };
         /** SubscriptionPerkOtpRequest */
         SubscriptionPerkOtpRequest: {
             /** Email */
             email: string;
+        };
+        /**
+         * SubscriptionPerkPatch
+         * @description Partial edit — every field optional. Mirrors patch_subscription_config's
+         *     shape (staff_subscriptions.py).
+         *
+         *     The percent<=100 check below only catches the case where BOTH `kind` and
+         *     `amount` are present TOGETHER in this one patch — it has no view of the
+         *     row's existing values, so it cannot validate e.g. a patch that raises
+         *     `amount` past 100 while leaving an already-`kind='percent'` row's kind
+         *     unstated. That remaining case is still caught, just one layer down: the
+         *     DB's own `subscription_perks_percent_range_chk` CHECK constraint refuses
+         *     it, and the router converts that specific violation into the same clean
+         *     400 below (see _is_percent_range_violation) rather than reading the row
+         *     first to pre-validate — no extra round trip for the common case.
+         */
+        SubscriptionPerkPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Amount */
+            amount?: number | null;
+            /** Applies To Product Id */
+            applies_to_product_id?: string | null;
+            /** Kind */
+            kind?: ("percent" | "flat") | null;
+            /** Label */
+            label?: string | null;
         };
         /** SyncResponse */
         SyncResponse: {
@@ -10562,19 +12003,13 @@ export interface components {
          *
          *     page_url:      absolute URL of the page the report was filed from.
          *     related_link:  the optional link field from the report form, if filled in.
-         *     attachment_count: number of files staged with the report. We do not
-         *         re-upload attachments into Trello (see module docstring on Trello
-         *         being an additive mirror, not a full replacement) — the count plus a
-         *         link back to the dashboard ticket is enough for staff to know to go
-         *         look, and new tickets filed straight in Trello won't have this
-         *         problem at all (attachments dropped directly onto the card).
+         *
+         *     Attachments are NOT passed here — the endpoint reads ticket_attachments
+         *     directly (the dashboard uploads them to Storage before calling this
+         *     endpoint), so there is nothing for the client to pass and no way for it
+         *     to lie about what got attached.
          */
         TrelloSyncIn: {
-            /**
-             * Attachment Count
-             * @default 0
-             */
-            attachment_count: number;
             /** Page Url */
             page_url: string;
             /** Related Link */
@@ -10582,10 +12017,58 @@ export interface components {
         };
         /** TrelloSyncOut */
         TrelloSyncOut: {
+            /**
+             * Attachments Synced
+             * @default 0
+             */
+            attachments_synced: number;
             /** Synced */
             synced: boolean;
             /** Trello Card Url */
             trello_card_url?: string | null;
+        };
+        /**
+         * UnitDayStateIn
+         * @description ``PUT .../units/{unit_id}/day-state`` — one day, one unit, one answer.
+         *
+         *     The three values are the /calendar popover's three options, in the epic's
+         *     LOCKED wording (``bd show landr-w9yk8``):
+         *
+         *     ``auto``
+         *         "Auto-approve" — bookings landing on this unit that day confirm
+         *         themselves. Since landr-uy4jy.2 this writes a ONE-DAY PERIOD carrying
+         *         the day's resulting release set with this unit added.
+         *     ``ask``
+         *         "Ask me" — the unit runs, but bookings on it wait for the operator.
+         *         Same one-day period, with this unit removed from the set.
+         *     ``not_available``
+         *         The unit does not run that day at all. Writes a ONE-DAY
+         *         ``out_of_service`` row onto the unit's service schedule.
+         *
+         *     ``reason`` is the operator's own free text and is stored on whichever row
+         *     the state produces — the one-day period's ``note`` for ``auto``/``ask``,
+         *     the ``out_of_service`` row's ``reason`` for ``not_available``. It is never
+         *     generated: a machine description of why belongs in ``hold_source`` / the
+         *     day's resolved ``reason``, not in a field a human is going to read back as
+         *     their own words.
+         *
+         *     With no ``reason`` the one-day period INHERITS the covering period's note,
+         *     which is what lets an unchanged answer merge straight back into its
+         *     neighbour instead of leaving a one-day scar in the periods list.
+         */
+        UnitDayStateIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "auto" | "ask" | "not_available";
         };
         /**
          * UnitServicePeriodRange
@@ -12262,6 +13745,43 @@ export interface operations {
             };
         };
     };
+    relay_changelog_history: {
+        parameters: {
+            query: {
+                tier: "staging" | "prod";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "X-Release-Relay-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     customer_signoff: {
         parameters: {
             query?: never;
@@ -12446,6 +13966,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RemovePhotoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_email_collisions: {
+        parameters: {
+            query?: {
+                include_resolved?: boolean;
+                operator_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailCollisionOut"][];
                 };
             };
             /** @description Validation Error */
@@ -13187,6 +14740,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangelogOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_changelog_history: {
+        parameters: {
+            query: {
+                tier: "staging" | "prod";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangelogHistoryOut"];
                 };
             };
             /** @description Validation Error */
@@ -14338,6 +15924,37 @@ export interface operations {
             };
         };
     };
+    get_product_fixed_date_windows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedDateWindow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     signup: {
         parameters: {
             query?: never;
@@ -14752,6 +16369,42 @@ export interface operations {
             };
         };
     };
+    preview_line_day_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayChangePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayChangePreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reprice_booking_product_at_current_entitlement: {
         parameters: {
             query?: never;
@@ -15042,6 +16695,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_lifecycle_stages: {
+        parameters: {
+            query?: {
+                /** @description Include deactivated stages (active=false — e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12). */
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_lifecycle_stage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LifecycleStagePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleStageOut"];
                 };
             };
             /** @description Validation Error */
@@ -18933,6 +20656,175 @@ export interface operations {
             };
         };
     };
+    list_product_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCategoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_category_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryTemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_category: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCategoryPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_groups: {
         parameters: {
             query?: never;
@@ -19271,6 +21163,40 @@ export interface operations {
                 "application/json": components["schemas"]["ProductPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_approval_override: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -19876,6 +21802,77 @@ export interface operations {
             };
         };
     };
+    create_resource_pool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePoolCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_pool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_resource_pool: {
         parameters: {
             query?: never;
@@ -20026,6 +22023,81 @@ export interface operations {
             };
         };
     };
+    resource_pool_delete_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    impact_preview: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImpactPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_unit_service_period: {
         parameters: {
             query?: never;
@@ -20034,6 +22106,159 @@ export interface operations {
                 operator_id: string;
                 pool_id: string;
                 period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_pool_season_plan: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonPlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_pool_unit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_unit_day_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitDayStateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_unit_day_state: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+                unit_id: string;
             };
             cookie?: never;
         };
@@ -20741,6 +22966,44 @@ export interface operations {
             };
         };
     };
+    patch_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                perk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_subscription_config: {
         parameters: {
             query?: never;
@@ -20759,6 +23022,78 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_perks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_perk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionPerkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
