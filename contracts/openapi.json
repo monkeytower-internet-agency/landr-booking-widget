@@ -11861,7 +11861,8 @@
               "participant_day",
               "provider",
               "unit_day",
-              "dashboard"
+              "dashboard",
+              "location"
             ],
             "title": "Entity Type",
             "type": "string"
