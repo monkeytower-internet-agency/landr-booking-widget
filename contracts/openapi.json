@@ -3271,6 +3271,87 @@
         "title": "DomainEligibility",
         "type": "object"
       },
+      "EmailCollisionOut": {
+        "properties": {
+          "contact_id": {
+            "title": "Contact Id",
+            "type": "string"
+          },
+          "detected_at": {
+            "title": "Detected At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "operator_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Slug"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "operator_name",
+          "operator_slug",
+          "contact_id",
+          "email",
+          "detected_at",
+          "resolved_at",
+          "resolution_note"
+        ],
+        "title": "EmailCollisionOut",
+        "type": "object"
+      },
       "EmailSenderStatus": {
         "properties": {
           "configured": {
@@ -5511,6 +5592,10 @@
       },
       "LifecycleStageOut": {
         "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
           "booking_count": {
             "default": 0,
             "title": "Booking Count",
@@ -5591,6 +5676,7 @@
           "sort_order",
           "label",
           "hidden",
+          "active",
           "hideable"
         ],
         "title": "LifecycleStageOut",
@@ -6942,6 +7028,20 @@
             ],
             "title": "Country"
           },
+          "customer_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Languages"
+          },
           "date_format": {
             "anyOf": [
               {
@@ -7859,6 +7959,18 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "customer_languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Customer Languages",
+            "type": "array"
+          },
+          "default_locale": {
+            "default": "en",
+            "title": "Default Locale",
+            "type": "string"
           },
           "expose_seats_to_customer": {
             "default": false,
@@ -17101,6 +17213,87 @@
         ]
       }
     },
+    "/api/landr-staff/contacts/email-collisions": {
+      "get": {
+        "description": "contacts.email normalisation collisions \u2014 duplicate contacts for one\nhuman (padded vs. trimmed address) that the 20260830030000 backfill\ncould not safely merge on its own. Unresolved (``resolved_at IS NULL``)\nby default; pass ``include_resolved=true`` for the full history.",
+        "operationId": "list_email_collisions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_resolved",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Resolved",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EmailCollisionOut"
+                  },
+                  "title": "Response List Email Collisions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Email Collisions",
+        "tags": [
+          "landr-staff-contacts"
+        ]
+      }
+    },
     "/api/landr-staff/me/capabilities": {
       "get": {
         "description": "Return the caller's resolved staff capability block (staff-only).\n\n403 (landr_staff_required) if the caller maps to no public.users row or\nresolves to a non-staff account (no umbrella flag and no role facet).",
@@ -21136,6 +21329,18 @@
             "schema": {
               "title": "Operator Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Include deactivated stages (active=false \u2014 e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12).",
+            "in": "query",
+            "name": "include_inactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include deactivated stages (active=false \u2014 e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12).",
+              "title": "Include Inactive",
+              "type": "boolean"
             }
           }
         ],

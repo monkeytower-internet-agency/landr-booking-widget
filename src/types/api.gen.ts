@@ -791,6 +791,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/contacts/email-collisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Email Collisions
+         * @description contacts.email normalisation collisions — duplicate contacts for one
+         *     human (padded vs. trimmed address) that the 20260830030000 backfill
+         *     could not safely merge on its own. Unresolved (``resolved_at IS NULL``)
+         *     by default; pass ``include_resolved=true`` for the full history.
+         */
+        get: operations["list_email_collisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/me/capabilities": {
         parameters: {
             query?: never;
@@ -7993,6 +8016,27 @@ export interface components {
              */
             provider: string;
         };
+        /** EmailCollisionOut */
+        EmailCollisionOut: {
+            /** Contact Id */
+            contact_id: string;
+            /** Detected At */
+            detected_at: string;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Operator Id */
+            operator_id: string;
+            /** Operator Name */
+            operator_name: string | null;
+            /** Operator Slug */
+            operator_slug: string | null;
+            /** Resolution Note */
+            resolution_note: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+        };
         /** EmailSenderStatus */
         EmailSenderStatus: {
             /**
@@ -8732,6 +8776,8 @@ export interface components {
         };
         /** LifecycleStageOut */
         LifecycleStageOut: {
+            /** Active */
+            active: boolean;
             /**
              * Booking Count
              * @default 0
@@ -9205,6 +9251,8 @@ export interface components {
             city?: string | null;
             /** Country */
             country?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[] | null;
             /** Date Format */
             date_format?: string | null;
             /** Date Format Short */
@@ -9433,6 +9481,13 @@ export interface components {
         OperatorSettings: {
             /** Contact Email */
             contact_email?: string | null;
+            /** Customer Languages */
+            customer_languages?: string[];
+            /**
+             * Default Locale
+             * @default en
+             */
+            default_locale: string;
             /**
              * Expose Seats To Customer
              * @default false
@@ -13448,6 +13503,39 @@ export interface operations {
             };
         };
     };
+    list_email_collisions: {
+        parameters: {
+            query?: {
+                include_resolved?: boolean;
+                operator_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailCollisionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_my_capabilities: {
         parameters: {
             query?: never;
@@ -16046,7 +16134,10 @@ export interface operations {
     };
     list_lifecycle_stages: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Include deactivated stages (active=false — e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12). */
+                include_inactive?: boolean;
+            };
             header?: never;
             path: {
                 operator_id: string;
