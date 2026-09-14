@@ -3204,6 +3204,85 @@ describe('App', () => {
       expect(screen.queryByTestId('product-list')).not.toBeInTheDocument()
     })
 
+    // landr-31fq: a genuine sessionStorage reload-restore repopulates
+    // step.booker.email (persisted) but NEVER memberPerkOtp (App.tsx's bare
+    // in-memory useState — deliberately excluded from the persisted
+    // Step/BookingDraft, see its own doc). Before this fix, DetailsStep's
+    // dedup ref was seeded "already requested" purely from the restored
+    // email, permanently blocking any further OTP request for that email —
+    // even re-blurring the unchanged, restored address was a silent no-op,
+    // and there is no resend affordance anywhere in the UI. This differs
+    // from the existing "Back-restore" coverage (DetailsStep.test.tsx),
+    // which simulates a same-render Back-nav where App.tsx's memberPerkOtp
+    // state is still live — a real reload wipes it, which is the case that
+    // matters here.
+    it('re-arms the member-perk OTP request after a real reload-restore, not just same-render Back-nav (landr-31fq)', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        has_member_perks: true,
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', slug: 'tandem', name: 'Tandem' }),
+      ])
+      mocks.requestSubscriptionPerkOtp.mockResolvedValue({ ok: true })
+      // Simulate the sessionStorage blob a REAL reload leaves behind: the
+      // customer had already blurred their email (an OTP request fired on
+      // the forward pass) before reloading. step.booker survives the
+      // reload via the persisted Step union; memberPerkOtp never does —
+      // there is no field for it here because App.tsx never persists it.
+      window.sessionStorage.setItem(
+        BOOKING_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product: makeProduct({
+              product_id: 'p-1',
+              slug: 'tandem',
+              name: 'Tandem',
+              service_time_shape: 'days_range',
+            }),
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+            booker: {
+              first_name: 'Ada',
+              last_name: 'Lovelace',
+              email: 'ada@example.com',
+              phone: '+34600000000',
+            },
+          },
+          bookingDraft: {},
+        }),
+      )
+
+      render(<App />)
+      await waitFor(() => {
+        expect(
+          document.querySelector('input[name="booker_first_name"]'),
+        ).toBeInTheDocument()
+      })
+      // The code field reappears immediately (email was restored) even
+      // though no request has fired yet in THIS render tree.
+      expect(
+        screen.getByTestId('member-perk-otp-section'),
+      ).toBeInTheDocument()
+      expect(mocks.requestSubscriptionPerkOtp).not.toHaveBeenCalled()
+
+      // Re-blurring the SAME, unchanged, restored email must fire a fresh
+      // request — pre-fix this was a permanent no-op because the dedup ref
+      // was seeded as "already sent" purely from the restored email.
+      fireEvent.blur(
+        document.querySelector<HTMLInputElement>(
+          'input[name="booker_email"]',
+        )!,
+      )
+      await waitFor(() =>
+        expect(mocks.requestSubscriptionPerkOtp).toHaveBeenCalledWith(
+          MOCK_TOKEN,
+          'ada@example.com',
+        ),
+      )
+    })
+
     it('does NOT restore a persisted snapshot when a ?product= deep link is present', async () => {
       window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&product=tandem`)
       mocks.listProducts.mockResolvedValue([
