@@ -884,7 +884,7 @@
       },
       "AvailabilitySlot": {
         "additionalProperties": true,
-        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.\n\nlandr-mizc: capacity_reserved dropped from product_availability\n(always 0, dead since the Slice-8 maintenance trigger was removed) and\nfrom this RPC's return columns \u2014 dropped here to match.",
+        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.",
         "properties": {
           "availability_id": {
             "title": "Availability Id",
@@ -896,6 +896,10 @@
           },
           "capacity": {
             "title": "Capacity",
+            "type": "integer"
+          },
+          "capacity_reserved": {
+            "title": "Capacity Reserved",
             "type": "integer"
           },
           "date": {
@@ -934,6 +938,7 @@
           "availability_id",
           "date",
           "capacity",
+          "capacity_reserved",
           "available_seats",
           "status"
         ],
@@ -1270,21 +1275,6 @@
               }
             ],
             "title": "Date Range Start"
-          },
-          "forced_days": {
-            "anyOf": [
-              {
-                "items": {
-                  "format": "date",
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Forced Days"
           },
           "quantity": {
             "anyOf": [
@@ -1841,86 +1831,6 @@
         "title": "ChangelogEntryOut",
         "type": "object"
       },
-      "ChangelogHistoryOut": {
-        "properties": {
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor"
-          },
-          "runs": {
-            "items": {
-              "$ref": "#/components/schemas/ChangelogHistoryRunOut"
-            },
-            "title": "Runs",
-            "type": "array"
-          },
-          "tier": {
-            "enum": [
-              "staging",
-              "prod"
-            ],
-            "title": "Tier",
-            "type": "string"
-          }
-        },
-        "required": [
-          "tier",
-          "runs"
-        ],
-        "title": "ChangelogHistoryOut",
-        "type": "object"
-      },
-      "ChangelogHistoryRunOut": {
-        "description": "One completed promotion run's entry in the history list.\n\nSame category/description-only trimming as ``ChangelogEntryOut`` \u2014 see\nits docstring for why (no sha/author/url exposed here either).",
-        "properties": {
-          "completed_at": {
-            "title": "Completed At",
-            "type": "string"
-          },
-          "entries": {
-            "items": {
-              "$ref": "#/components/schemas/ChangelogEntryOut"
-            },
-            "title": "Entries",
-            "type": "array"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          },
-          "version_bump": {
-            "anyOf": [
-              {
-                "enum": [
-                  "major",
-                  "minor",
-                  "patch",
-                  "none"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version Bump"
-          }
-        },
-        "required": [
-          "version",
-          "completed_at",
-          "entries"
-        ],
-        "title": "ChangelogHistoryRunOut",
-        "type": "object"
-      },
       "ChangelogOut": {
         "properties": {
           "entries": {
@@ -2111,17 +2021,6 @@
             "default": false,
             "title": "Has Breakfast",
             "type": "boolean"
-          },
-          "language": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Language"
           },
           "last_name": {
             "anyOf": [
@@ -2654,185 +2553,6 @@
           "signer_email"
         ],
         "title": "CustomerSignoffIn",
-        "type": "object"
-      },
-      "CustomerStageLabel": {
-        "additionalProperties": true,
-        "description": "``stage`` block: customer-facing lifecycle-stage text (landr-821d6.3).\n\nRaw pass-through, same convention as ``name``/``name_localized`` on\n``OfferProductLine`` \u2014 the widget resolves locale client-side\n(landr-821d6.7). ``label`` is the operator's ``customer_label`` when set,\nelse the staff ``label`` (atomic-pair fallback: ``label_localized``\nfollows whichever of the two was chosen, never a per-key merge).",
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "label_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Localized"
-          }
-        },
-        "required": [
-          "code",
-          "label"
-        ],
-        "title": "CustomerStageLabel",
-        "type": "object"
-      },
-      "DayChangeLineDelta": {
-        "properties": {
-          "booking_product_id": {
-            "title": "Booking Product Id",
-            "type": "string"
-          },
-          "new_gross": {
-            "title": "New Gross",
-            "type": "string"
-          },
-          "new_selected_days": {
-            "items": {
-              "format": "date",
-              "type": "string"
-            },
-            "title": "New Selected Days",
-            "type": "array"
-          },
-          "old_gross": {
-            "title": "Old Gross",
-            "type": "string"
-          },
-          "old_selected_days": {
-            "items": {
-              "format": "date",
-              "type": "string"
-            },
-            "title": "Old Selected Days",
-            "type": "array"
-          },
-          "product_id": {
-            "title": "Product Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "booking_product_id",
-          "product_id",
-          "old_selected_days",
-          "new_selected_days",
-          "old_gross",
-          "new_gross"
-        ],
-        "title": "DayChangeLineDelta",
-        "type": "object"
-      },
-      "DayChangePreviewRequest": {
-        "properties": {
-          "selected_days": {
-            "items": {
-              "format": "date",
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Selected Days",
-            "type": "array"
-          }
-        },
-        "required": [
-          "selected_days"
-        ],
-        "title": "DayChangePreviewRequest",
-        "type": "object"
-      },
-      "DayChangePreviewResponse": {
-        "properties": {
-          "line_changes": {
-            "items": {
-              "$ref": "#/components/schemas/DayChangeLineDelta"
-            },
-            "title": "Line Changes",
-            "type": "array"
-          },
-          "stay_changed": {
-            "title": "Stay Changed",
-            "type": "boolean"
-          },
-          "totals_after": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Totals After",
-            "type": "object"
-          },
-          "totals_before": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Totals Before",
-            "type": "object"
-          },
-          "window_after": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DayChangeWindow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "window_before": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DayChangeWindow"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "stay_changed",
-          "totals_before",
-          "totals_after"
-        ],
-        "title": "DayChangePreviewResponse",
-        "type": "object"
-      },
-      "DayChangeWindow": {
-        "properties": {
-          "check_in": {
-            "format": "date",
-            "title": "Check In",
-            "type": "string"
-          },
-          "check_out": {
-            "format": "date",
-            "title": "Check Out",
-            "type": "string"
-          },
-          "nights": {
-            "title": "Nights",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "check_in",
-          "check_out",
-          "nights"
-        ],
-        "title": "DayChangeWindow",
         "type": "object"
       },
       "DayManifestOut": {
@@ -3506,87 +3226,6 @@
         "title": "DomainEligibility",
         "type": "object"
       },
-      "EmailCollisionOut": {
-        "properties": {
-          "contact_id": {
-            "title": "Contact Id",
-            "type": "string"
-          },
-          "detected_at": {
-            "title": "Detected At",
-            "type": "string"
-          },
-          "email": {
-            "title": "Email",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "operator_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Name"
-          },
-          "operator_slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Operator Slug"
-          },
-          "resolution_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resolution Note"
-          },
-          "resolved_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resolved At"
-          }
-        },
-        "required": [
-          "id",
-          "operator_id",
-          "operator_name",
-          "operator_slug",
-          "contact_id",
-          "email",
-          "detected_at",
-          "resolved_at",
-          "resolution_note"
-        ],
-        "title": "EmailCollisionOut",
-        "type": "object"
-      },
       "EmailSenderStatus": {
         "properties": {
           "configured": {
@@ -4003,48 +3642,6 @@
           "currency"
         ],
         "title": "EstimateResponse",
-        "type": "object"
-      },
-      "FixedDateWindow": {
-        "additionalProperties": true,
-        "description": "One row returned by the public_get_product_fixed_date_windows RPC.\nMirrors the widget's ``FixedDateWindow`` TypeScript interface\n(src/api/types.ts) field-for-field.",
-        "properties": {
-          "available_seats": {
-            "title": "Available Seats",
-            "type": "integer"
-          },
-          "capacity": {
-            "title": "Capacity",
-            "type": "integer"
-          },
-          "capacity_reserved": {
-            "title": "Capacity Reserved",
-            "type": "integer"
-          },
-          "end_date": {
-            "format": "date",
-            "title": "End Date",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "start_date": {
-            "format": "date",
-            "title": "Start Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "start_date",
-          "end_date",
-          "capacity",
-          "capacity_reserved",
-          "available_seats"
-        ],
-        "title": "FixedDateWindow",
         "type": "object"
       },
       "FlagResponse": {
@@ -5867,167 +5464,6 @@
         "title": "LicenseTypeOut",
         "type": "object"
       },
-      "LifecycleStageOut": {
-        "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "booking_count": {
-            "default": 0,
-            "title": "Booking Count",
-            "type": "integer"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "customer_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Label"
-          },
-          "customer_label_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Label Localized"
-          },
-          "hidden": {
-            "title": "Hidden",
-            "type": "boolean"
-          },
-          "hideable": {
-            "title": "Hideable",
-            "type": "boolean"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "label_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Localized"
-          },
-          "semantic_state": {
-            "title": "Semantic State",
-            "type": "string"
-          },
-          "sort_order": {
-            "title": "Sort Order",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "semantic_state",
-          "sort_order",
-          "label",
-          "hidden",
-          "active",
-          "hideable"
-        ],
-        "title": "LifecycleStageOut",
-        "type": "object"
-      },
-      "LifecycleStagePatchIn": {
-        "additionalProperties": false,
-        "description": "Partial update. Only these five fields are ever patchable \u2014 code,\nsemantic_state, sort_order and operator_id are deliberately absent, and\nsending any of them (or any other key) is a 422 via ``extra=\"forbid\"``,\nnot a silent drop.",
-        "properties": {
-          "customer_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Label"
-          },
-          "customer_label_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Label Localized"
-          },
-          "hidden": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hidden"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "label_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label Localized"
-          }
-        },
-        "title": "LifecycleStagePatchIn",
-        "type": "object"
-      },
       "LocationIn": {
         "properties": {
           "color": {
@@ -7305,20 +6741,6 @@
             ],
             "title": "Country"
           },
-          "customer_languages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Languages"
-          },
           "date_format": {
             "anyOf": [
               {
@@ -7510,18 +6932,6 @@
               }
             ],
             "title": "Onboarded At"
-          },
-          "pending_booking_expiry_hours": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pending Booking Expiry Hours"
           },
           "phone": {
             "anyOf": [
@@ -7943,56 +7353,6 @@
         "additionalProperties": true,
         "description": "Public catalogue product row.\n\nMirrors the public_get_operator_products RPC projection, with the image\nPATHS already composed into URLs by the router. `model_config = \"allow\"`\nkeeps the model forward-compatible: RPC columns the widget doesn't yet\nconsume (and new ones future migrations add) pass through untouched\nrather than forcing a response-model bump on every RPC change.",
         "properties": {
-          "category_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Id"
-          },
-          "category_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Name"
-          },
-          "category_name_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Name Localized"
-          },
-          "guide_languages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Guide Languages"
-          },
           "images": {
             "items": {
               "$ref": "#/components/schemas/ProductImage"
@@ -8248,18 +7608,6 @@
               }
             ],
             "title": "Contact Email"
-          },
-          "customer_languages": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Customer Languages",
-            "type": "array"
-          },
-          "default_locale": {
-            "default": "en",
-            "title": "Default Locale",
-            "type": "string"
           },
           "expose_seats_to_customer": {
             "default": false,
@@ -8640,17 +7988,6 @@
             "default": false,
             "title": "Has Breakfast",
             "type": "boolean"
-          },
-          "language": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Language"
           },
           "last_name": {
             "anyOf": [
@@ -9320,302 +8657,6 @@
         "title": "ProductAddon",
         "type": "object"
       },
-      "ProductCategoryIn": {
-        "additionalProperties": false,
-        "properties": {
-          "active": {
-            "default": true,
-            "title": "Active",
-            "type": "boolean"
-          },
-          "is_contiguous": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Contiguous"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 200,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "name_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name Localized"
-          },
-          "sort_order": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sort Order"
-          },
-          "template_key": {
-            "enum": [
-              "overnight_stay",
-              "activity_date",
-              "multi_day_course",
-              "fixed_session",
-              "space_by_hour",
-              "physical_item",
-              "digital_item",
-              "membership"
-            ],
-            "title": "Template Key",
-            "type": "string"
-          }
-        },
-        "required": [
-          "template_key"
-        ],
-        "title": "ProductCategoryIn",
-        "type": "object"
-      },
-      "ProductCategoryOut": {
-        "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "created_at": {
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "is_contiguous": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Contiguous"
-          },
-          "is_system": {
-            "title": "Is System",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "name_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name Localized"
-          },
-          "operator_id": {
-            "title": "Operator Id",
-            "type": "string"
-          },
-          "product_count": {
-            "default": 0,
-            "title": "Product Count",
-            "type": "integer"
-          },
-          "product_kind": {
-            "title": "Product Kind",
-            "type": "string"
-          },
-          "service_time_shape": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Time Shape"
-          },
-          "sort_order": {
-            "title": "Sort Order",
-            "type": "integer"
-          },
-          "template_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template Key"
-          },
-          "updated_at": {
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "operator_id",
-          "name",
-          "product_kind",
-          "is_system",
-          "sort_order",
-          "active",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ProductCategoryOut",
-        "type": "object"
-      },
-      "ProductCategoryPatch": {
-        "additionalProperties": false,
-        "properties": {
-          "active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 200,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "name_localized": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name Localized"
-          },
-          "sort_order": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sort Order"
-          }
-        },
-        "title": "ProductCategoryPatch",
-        "type": "object"
-      },
-      "ProductCategoryTemplateOut": {
-        "properties": {
-          "allowed": {
-            "title": "Allowed",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "name_localized": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Name Localized",
-            "type": "object"
-          },
-          "product_kind": {
-            "title": "Product Kind",
-            "type": "string"
-          },
-          "service_time_shape": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Time Shape"
-          },
-          "sort_order": {
-            "title": "Sort Order",
-            "type": "integer"
-          },
-          "supports_is_contiguous": {
-            "title": "Supports Is Contiguous",
-            "type": "boolean"
-          },
-          "template_key": {
-            "title": "Template Key",
-            "type": "string"
-          }
-        },
-        "required": [
-          "template_key",
-          "product_kind",
-          "name",
-          "name_localized",
-          "sort_order",
-          "supports_is_contiguous",
-          "allowed"
-        ],
-        "title": "ProductCategoryTemplateOut",
-        "type": "object"
-      },
       "ProductFlowResponse": {
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
@@ -9891,17 +8932,6 @@
             ],
             "title": "Capacity Per Unit"
           },
-          "category_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Id"
-          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -9950,19 +8980,27 @@
             ],
             "title": "Duration Minutes"
           },
-          "guide_languages": {
+          "fixed_end_date": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Guide Languages"
+            "title": "Fixed End Date"
+          },
+          "fixed_start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Start Date"
           },
           "hotel_location_id": {
             "anyOf": [
@@ -10053,23 +9091,16 @@
             "title": "Product Group Id"
           },
           "product_kind": {
-            "anyOf": [
-              {
-                "enum": [
-                  "service",
-                  "subscription",
-                  "hotel_room",
-                  "digital_good",
-                  "physical_good",
-                  "gift_card"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "enum": [
+              "service",
+              "subscription",
+              "hotel_room",
+              "digital_good",
+              "physical_good",
+              "gift_card"
             ],
-            "title": "Product Kind"
+            "title": "Product Kind",
+            "type": "string"
           },
           "revenue_flows_through_operator": {
             "default": true,
@@ -10133,7 +9164,8 @@
         },
         "required": [
           "slug",
-          "name"
+          "name",
+          "product_kind"
         ],
         "title": "ProductIn",
         "type": "object"
@@ -10229,17 +9261,6 @@
             ],
             "title": "Capacity Per Unit"
           },
-          "category_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category Id"
-          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -10288,19 +9309,27 @@
             ],
             "title": "Duration Minutes"
           },
-          "guide_languages": {
+          "fixed_end_date": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Guide Languages"
+            "title": "Fixed End Date"
+          },
+          "fixed_start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Start Date"
           },
           "hotel_location_id": {
             "anyOf": [
@@ -10761,16 +9790,6 @@
             },
             "title": "Product Lines",
             "type": "array"
-          },
-          "stage": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CustomerStageLabel"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "totals": {
             "$ref": "#/components/schemas/OfferTotals"
@@ -11701,125 +10720,6 @@
         "title": "ResolveDecisionOut",
         "type": "object"
       },
-      "ResourcePoolCreateIn": {
-        "description": "``POST .../resource-pools`` (landr-k5fgy.1) \u2014 the fields\n``resourcePools.ts``'s ``ResourcePoolCreate`` sends. Atomic: the pool\ninsert and its ``capacity_threshold`` rule ensure (OD-2, same predicate\n:func:`patch_resource_pool` uses) either both happen or neither does \u2014\nsee :func:`create_resource_pool`'s docstring for why this couldn't just\nbe a direct-REST insert.\n\nEvery term field (``unit_label`` et al.) is optional here \u2014 any omitted\none is filled server-side from ``resource_pool_kind_defaults(resource_kind)``\nbefore the insert, so a caller that skips them entirely still gets\nkind-correct words (the column's own DEFAULT is the flat generic_seat\ntuple, wrong for every other kind \u2014 see migration 20260904030000's\nheader). ``icon``/``color`` are NOT defaulted this way: both stay\nnullable forever (NULL = \"use the kind default\" / \"no swatch yet\",\nresolved by the READER \u2014 :mod:`app.services.resource_pool_presentation`\n\u2014 never baked into the row at write time).",
-        "properties": {
-          "code": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
-          },
-          "color": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color"
-          },
-          "icon": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Icon"
-          },
-          "is_consumed_per_day": {
-            "default": true,
-            "title": "Is Consumed Per Day",
-            "type": "boolean"
-          },
-          "label": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Label",
-            "type": "string"
-          },
-          "resource_kind": {
-            "enum": [
-              "transport_seat",
-              "staff_capacity",
-              "equipment_unit",
-              "physical_space",
-              "generic_seat"
-            ],
-            "title": "Resource Kind",
-            "type": "string"
-          },
-          "slot_label": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Label"
-          },
-          "slot_label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slot Label Plural"
-          },
-          "sort_order": {
-            "default": 100,
-            "title": "Sort Order",
-            "type": "integer"
-          },
-          "unit_label": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit Label"
-          },
-          "unit_label_plural": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit Label Plural"
-          }
-        },
-        "required": [
-          "code",
-          "label",
-          "resource_kind"
-        ],
-        "title": "ResourcePoolCreateIn",
-        "type": "object"
-      },
       "ResourcePoolPatch": {
         "description": "``PATCH .../resource-pools/{pool_id}`` \u2014 the pool-level fallback policy\nplus (landr-e80s.2) the operator's own terms for this pool's units/slots.\n\n0 is allowed and meaningful (OD-1: \"Ask me for each bus (including Bus 1)\",\ne.g. a quiet November). The upper bound is the pool's active unit count,\nchecked in the handler.\n\n``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``\nare optional partial-update fields (``None`` = leave unchanged) \u2014 every\nexisting caller only ever sent ``default_released_units``, so those four\nstay required-less to keep that call shape working unmodified. Length is\nthe same 1..40 the DB CHECK enforces; validating here gives a typed 422\nbefore the DB ever sees the write.",
         "properties": {
@@ -12057,9 +10957,7 @@
               "resource",
               "participant_day",
               "provider",
-              "unit_day",
-              "dashboard",
-              "location"
+              "dashboard"
             ],
             "title": "Entity Type",
             "type": "string"
@@ -12148,55 +11046,6 @@
           }
         },
         "title": "SavedViewPatch",
-        "type": "object"
-      },
-      "SeasonPlanIn": {
-        "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
-        "properties": {
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/SeasonPlanRow"
-            },
-            "minItems": 1,
-            "title": "Rows",
-            "type": "array"
-          }
-        },
-        "required": [
-          "rows"
-        ],
-        "title": "SeasonPlanIn",
-        "type": "object"
-      },
-      "SeasonPlanRow": {
-        "description": "One Season planner draft row: a date range applied, as ``in_service``,\nto every unit in ``unit_ids`` \u2014 mirrors ``SeasonPlannerRow`` in\n``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is\nlocal-only React list identity and is never sent here).\n\n``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by\nthe RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a\nmulti-row body reports every bad row in one machine-readable payload\ninstead of one Pydantic error \u2014 same call as :class:`UnitServicePeriodRange`.",
-        "properties": {
-          "end_date": {
-            "format": "date",
-            "title": "End Date",
-            "type": "string"
-          },
-          "start_date": {
-            "format": "date",
-            "title": "Start Date",
-            "type": "string"
-          },
-          "unit_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Unit Ids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "start_date",
-          "end_date",
-          "unit_ids"
-        ],
-        "title": "SeasonPlanRow",
         "type": "object"
       },
       "SendMessageRequest": {
@@ -13505,16 +12354,6 @@
             "title": "Semantic State",
             "type": "string"
           },
-          "stage": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CustomerStageLabel"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "stage_code": {
             "anyOf": [
               {
@@ -13711,52 +12550,6 @@
         "title": "SubscriptionConfigPatch",
         "type": "object"
       },
-      "SubscriptionPerkIn": {
-        "description": "Create payload \u2014 mirrors subscription_perks' own CHECK constraints\n(kind, amount > 0, percent <= 100) so a bad value 422s here with a\nfield-level Pydantic error rather than an opaque Postgres one.\n\noperator_id / subscription_id are NOT fields here \u2014 they come from the\npath and are set server-side on insert, never trusted from the body.",
-        "properties": {
-          "amount": {
-            "exclusiveMinimum": 0.0,
-            "title": "Amount",
-            "type": "number"
-          },
-          "applies_to_product_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Applies To Product Id"
-          },
-          "kind": {
-            "enum": [
-              "percent",
-              "flat"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          }
-        },
-        "required": [
-          "kind",
-          "amount"
-        ],
-        "title": "SubscriptionPerkIn",
-        "type": "object"
-      },
       "SubscriptionPerkOtpRequest": {
         "properties": {
           "email": {
@@ -13768,73 +12561,6 @@
           "email"
         ],
         "title": "SubscriptionPerkOtpRequest",
-        "type": "object"
-      },
-      "SubscriptionPerkPatch": {
-        "description": "Partial edit \u2014 every field optional. Mirrors patch_subscription_config's\nshape (staff_subscriptions.py).\n\nThe percent<=100 check below only catches the case where BOTH `kind` and\n`amount` are present TOGETHER in this one patch \u2014 it has no view of the\nrow's existing values, so it cannot validate e.g. a patch that raises\n`amount` past 100 while leaving an already-`kind='percent'` row's kind\nunstated. That remaining case is still caught, just one layer down: the\nDB's own `subscription_perks_percent_range_chk` CHECK constraint refuses\nit, and the router converts that specific violation into the same clean\n400 below (see _is_percent_range_violation) rather than reading the row\nfirst to pre-validate \u2014 no extra round trip for the common case.",
-        "properties": {
-          "active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active"
-          },
-          "amount": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amount"
-          },
-          "applies_to_product_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Applies To Product Id"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "enum": [
-                  "percent",
-                  "flat"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          }
-        },
-        "title": "SubscriptionPerkPatch",
         "type": "object"
       },
       "SyncResponse": {
@@ -17320,99 +16046,6 @@
         ]
       }
     },
-    "/api/internal/release/changelog/history": {
-      "get": {
-        "description": "The control-plane-side implementation of operator_release.get_changelog_history.\n\nAuth: X-Release-Relay-Token. Thin wrapper over\n``app.services.promotion.get_changelog_history`` \u2014 same function\noperator_release.py calls directly when IT owns ``tier``'s rows. Returns\nthe FULL entry shape per run (category/description/sha/author/url/repo);\ntrimming for the untrusted end-user response is operator_release.py's\njob (``_history_run_out``), same split as ``relay_changelog`` above.",
-        "operationId": "relay_changelog_history",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "tier",
-            "required": true,
-            "schema": {
-              "enum": [
-                "staging",
-                "prod"
-              ],
-              "title": "Tier",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Release-Relay-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Release-Relay-Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Relay Changelog History",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Relay Changelog History",
-        "tags": [
-          "release-internal"
-        ]
-      }
-    },
     "/api/internal/release/customer-signoff": {
       "post": {
         "description": "Create (or dedupe) a customer-originated staging\u2192main proposal.\n\nAuth: X-Release-Relay-Token (service-to-service). Behaviour:\n  * DEDUPE \u2014 if an open staging_to_main run (proposed, signoff_source=\n    'customer') already exists, refresh it and return already_pending.\n  * else create a proposed staging_to_main run (signoff_source='customer',\n    signoff_by_label=signer_label), pinning current staging SHAs, then\n    NOTIFY the landr staff approvers (same path as the staff propose flow).\n\nReturns {\"status\": \"requested\" | \"already_pending\", \"run_id\": ...}.",
@@ -17736,87 +16369,6 @@
         ]
       }
     },
-    "/api/landr-staff/contacts/email-collisions": {
-      "get": {
-        "description": "contacts.email normalisation collisions \u2014 duplicate contacts for one\nhuman (padded vs. trimmed address) that the 20260830030000 backfill\ncould not safely merge on its own. Unresolved (``resolved_at IS NULL``)\nby default; pass ``include_resolved=true`` for the full history.",
-        "operationId": "list_email_collisions",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "include_resolved",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Include Resolved",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "operator_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Operator Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 200,
-              "maximum": 1000,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EmailCollisionOut"
-                  },
-                  "title": "Response List Email Collisions",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Email Collisions",
-        "tags": [
-          "landr-staff-contacts"
-        ]
-      }
-    },
     "/api/landr-staff/me/capabilities": {
       "get": {
         "description": "Return the caller's resolved staff capability block (staff-only).\n\n403 (landr_staff_required) if the caller maps to no public.users row or\nresolves to a non-staff account (no umbrella flag and no role facet).",
@@ -17848,7 +16400,7 @@
     },
     "/api/landr-staff/promotions": {
       "get": {
-        "description": "Run history, newest-first.\n\nlandr-1bbm8 \u2014 each run is hydrated with its ``repos`` (promotion_run_repos\nrows: repo, head_sha, merge_status, ahead_by, error). Before this, the\ndashboard's history/pending-proposal cards called `RunRepoList` with\n`run.repos` always undefined (only the single-run `GET /{run_id}`\nendpoint returned them), so a merge conflict recorded in the DB \u2014 e.g.\n`merge_status='conflict'`, `error='merge conflict merging ... into\nstaging on landr-dashboard'` \u2014 was invisible in the UI even though the\nmigration-stage log showed no error at all. One batched `.in_()` query\nover every listed run id, grouped in Python, instead of N+1 per-run\nfetches.",
+        "description": "Run history, newest-first.",
         "operationId": "list_runs",
         "responses": {
           "200": {
@@ -18968,86 +17520,6 @@
           }
         ],
         "summary": "Get Changelog",
-        "tags": [
-          "operator-release"
-        ]
-      }
-    },
-    "/api/operator/release/changelog/history": {
-      "get": {
-        "description": "Paginated per-run changelog history for ``tier``, newest-first.\n\nlandr-hhv3 \u2014 the \"browse past promotions\" follow-up to /changelog above\n(which only ever shows the CURRENT changelog). One entry per completed\n``promotion_runs`` row of the matching kind (``dev_to_staging`` for\nstaging, ``staging_to_main`` for prod), grouped by run rather than\nflattened, so the dashboard can render \"version X, shipped on date Y\"\nsections. ``tier='dev'`` is intentionally excluded from the Literal \u2014\ndev has no persisted runs, only a live ahead-of-staging diff; there is\nnothing to page through (see the ticket's SCOPE note and\n``promo.get_changelog_history``'s docstring).\n\nSame relay rule as ``/version``/``/changelog`` above: reads locally only\non the deployment that OWNS the backing runs\n(``_TIER_DATA_OWNER_ENV``), otherwise relays to that owner over\n``RELEASE_RELAY_SECRET``/``_require_plane_url_for_tier`` \u2014 see\n``operator_release_internal.relay_changelog_history`` for the receiving\nend. Response entries are trimmed to category/description only, same\nreasoning as ``ChangelogEntryOut``.",
-        "operationId": "get_changelog_history",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "tier",
-            "required": true,
-            "schema": {
-              "enum": [
-                "staging",
-                "prod"
-              ],
-              "title": "Tier",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChangelogHistoryOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Changelog History",
         "tags": [
           "operator-release"
         ]
@@ -20790,53 +19262,6 @@
         ]
       }
     },
-    "/api/public/products/{product_id}/fixed-date-windows": {
-      "get": {
-        "description": "Upcoming, non-deleted, active windows for a fixed_date_range product\n(landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_fixed_date_windows`, added so the public widget\n(bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong\ndirectly \u2014 a Tailscale-private dev host, which Chrome's Private Network\nAccess check blocks from a public origin (landr-cxhpm). Mirrors the\nexisting get_product_addons wrapper above.",
-        "operationId": "get_product_fixed_date_windows",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "product_id",
-            "required": true,
-            "schema": {
-              "title": "Product Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FixedDateWindow"
-                  },
-                  "title": "Response Get Product Fixed Date Windows",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Product Fixed Date Windows",
-        "tags": [
-          "public-operators"
-        ]
-      }
-    },
     "/api/public/signup": {
       "post": {
         "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
@@ -21458,73 +19883,6 @@
         ]
       }
     },
-    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
-      "post": {
-        "description": "What ``PATCH .../products/{booking_product_id}`` would do to the rest\nof the booking if ``selected_days`` moved to ``body.selected_days`` \u2014\nwithout writing anything.\n\n200 with ``stay_changed=false`` and null windows when the edited line\ncannot drive anything (not a bookable activity/room line, a room-tied\nadd-on, or nothing left to derive a stay from) \u2014 same \"nothing derives\"\ncase :func:`plan_line_day_change` documents by returning ``None``.",
-        "operationId": "preview_line_day_change",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "booking_product_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Product Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DayChangePreviewRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DayChangePreviewResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Preview Line Day Change",
-        "tags": [
-          "staff-bookings-day-change-preview"
-        ]
-      }
-    },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
       "post": {
         "description": "Deliberately re-evaluate a line's price against the customer's CURRENT\nsubscription-perk entitlement (landr-n0zj).\n\n``PATCH .../products/{id}`` FREEZES whichever perk (if any) the line\nalready carried \u2014 id, kind, and discount value \u2014 across every other field\nedit, so an unrelated date shift can no longer silently re-bill a lapsed\nmember, silently credit one who just joined, or silently move\n``balance_due`` because the perk's config changed \u2014 see\n``extract_frozen_perk``. This endpoint is the escape hatch for the rare\ncase an operator genuinely wants that re-check: a deliberate,\nstaff-initiated, staff-visible action rather than an incidental side\neffect of editing something else. It takes no body \u2014 it re-prices the\nline's CURRENTLY stored ``selected_days``.",
@@ -22032,135 +20390,6 @@
         "summary": "Upsert Bank Details",
         "tags": [
           "staff-operator-integration-credentials"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/booking-lifecycle-stages": {
-      "get": {
-        "operationId": "list_lifecycle_stages",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Include deactivated stages (active=false \u2014 e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12).",
-            "in": "query",
-            "name": "include_inactive",
-            "required": false,
-            "schema": {
-              "default": false,
-              "description": "Include deactivated stages (active=false \u2014 e.g. a stage migration 20260823034200-style consolidation retired) in the response. Defaults to false: the Terminology tab's relabel UI must never let an operator rename a dead row that renders nowhere live (landr-821d6.12).",
-              "title": "Include Inactive",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LifecycleStageOut"
-                  },
-                  "title": "Response List Lifecycle Stages",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Lifecycle Stages",
-        "tags": [
-          "staff-lifecycle-stages"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/booking-lifecycle-stages/{stage_id}": {
-      "patch": {
-        "operationId": "patch_lifecycle_stage",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "stage_id",
-            "required": true,
-            "schema": {
-              "title": "Stage Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LifecycleStagePatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LifecycleStageOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Lifecycle Stage",
-        "tags": [
-          "staff-lifecycle-stages"
         ]
       }
     },
@@ -27035,7 +25264,7 @@
     },
     "/api/staff/operators/{operator_id}/integrations/holded/{mode}/numbering-series": {
       "get": {
-        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nAuth: require_role(\"owner\", \"admin\", \"staff\"). Same {mode} path-scoping\n\u2014 resolved via HoldedClient.for_operator_resolved's ``mode`` override\n(landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row\nthe path names, not whichever mode ``Settings.environment`` would derive\n\u2014 and the same 5/min rate limit. No stored credential for that row ->\n``holded_not_connected=True`` at 200 (never a 404/503), matching every\nother Holded-status shape in this router / staff_holded_invoicing.py. A\nlive Holded error (revoked key, missing scope, transient outage) is the\none divergence from the verify endpoint's \"always 200\" contract \u2014 this\nendpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
+        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nMirrors the verify endpoint immediately above: same auth dependency\n(cross-operator access 403s via get_staff_operator_membership_by_op, bare/\ninvalid bearer 401s via its own get_current_user), same {mode} path-\nscoping \u2014 resolved via HoldedClient.for_operator_resolved's ``mode``\noverride (landr-g1ao.3) so this reads the EXACT (operator_id, holded,\nmode) row the path names, not whichever mode ``Settings.environment``\nwould derive \u2014 and the same 5/min rate limit. No stored credential for\nthat row -> ``holded_not_connected=True`` at 200 (never a 404/503),\nmatching every other Holded-status shape in this router /\nstaff_holded_invoicing.py. A live Holded error (revoked key, missing\nscope, transient outage) is the one divergence from the verify\nendpoint's \"always 200\" contract \u2014 this endpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
         "operationId": "list_holded_numbering_series",
         "parameters": [
           {
@@ -29132,305 +27361,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/product-categories": {
-      "get": {
-        "description": "Every non-deleted category (active and inactive), with product_count =\nthe number of live (non-deleted) products in it.",
-        "operationId": "list_product_categories",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProductCategoryOut"
-                  },
-                  "title": "Response List Product Categories",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Product Categories",
-        "tags": [
-          "staff-product-categories"
-        ]
-      },
-      "post": {
-        "operationId": "create_product_category",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProductCategoryIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductCategoryOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Product Category",
-        "tags": [
-          "staff-product-categories"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/product-categories/templates": {
-      "get": {
-        "operationId": "list_product_category_templates",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProductCategoryTemplateOut"
-                  },
-                  "title": "Response List Product Category Templates",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Product Category Templates",
-        "tags": [
-          "staff-product-categories"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/product-categories/{category_id}": {
-      "delete": {
-        "description": "Soft-delete. 409 ``product_category_in_use`` while any live product\nstill belongs to the category \u2014 move or delete those products first.",
-        "operationId": "delete_product_category",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "category_id",
-            "required": true,
-            "schema": {
-              "title": "Category Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "reason",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Reason"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Delete Product Category",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Product Category",
-        "tags": [
-          "staff-product-categories"
-        ]
-      },
-      "patch": {
-        "operationId": "patch_product_category",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "category_id",
-            "required": true,
-            "schema": {
-              "title": "Category Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProductCategoryPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductCategoryOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Product Category",
-        "tags": [
-          "staff-product-categories"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/product-groups": {
       "get": {
         "operationId": "list_groups",
@@ -31180,126 +29110,9 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/resource-pools": {
-      "post": {
-        "description": "Create a pool, then ensure its ``capacity_threshold`` rule \u2014 atomically.\n\nTHE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).\n``resourcePools.ts``'s ``createResourcePool`` does a direct-REST INSERT\nand then PATCHes the just-inserted pool's OWN ``default_released_units``\nback at itself, purely to reach this router's rule-ensure side effect\n(the module header explains why that side effect can't be a direct-REST\nwrite). ``default_released_units`` carries a column DEFAULT of 1 (OD-1\nback-compat \u2014 \"the first unit always auto-approves\"), and a brand-new\npool has 0 units, so that PATCH 422s\n``approval_period_released_units_out_of_range`` (1 > 0). The INSERT had\nalready committed, so the operator saw \"failed\" while a pool with NO\ncapacity rule silently existed. (:func:`patch_resource_pool` no longer\n422s on a no-op re-save of the stored default, which closes half of the\nbug \u2014 but a POST that does the whole thing as one write is the real\nfix: the dashboard should never have needed a fake PATCH to reach a\ncreate-time side effect.)\n\nALL-OR-NOTHING: if the rule-ensure RPC fails for any reason, the just-\ninserted pool row is deleted before the error propagates. The pool has\nno children yet at this point (no units, no requirements, no periods),\nso a hard delete is safe \u2014 a pool that exists only because half of its\nsetup silently didn't happen is worse than no pool at all.\n\nTerm fields (``unit_label`` et al.) omitted from the body are filled\nfrom ``resource_pool_kind_defaults(resource_kind)`` \u2014 the SAME lookup\nthe dashboard's own client-side prefill and the epic's one-time backfill\nboth use \u2014 so a caller that skips them never falls through to the\ncolumn's flat generic_seat DEFAULT for a non-generic_seat pool.\n``icon``/``color`` are NOT defaulted this way: they stay NULL when\nomitted (the kind-derived/neutral fallback is a READ-time computation,\nsee :mod:`app.services.resource_pool_presentation`).\n\nDuplicate active ``code`` -> 409 ``resource_pool_code_taken``. Checked\nup front (a clean error is worth a query) AND caught again on the\ninsert itself \u2014 ``resource_pools_operator_code_unique`` is partial on\n``deleted_at IS NULL``, so re-creating a soft-deleted pool's code must\nsucceed, and a pre-check alone would race a concurrent identical create.",
-        "operationId": "create_resource_pool",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResourcePoolCreateIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Resource Pool",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Resource Pool",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
-      "delete": {
-        "description": "Soft-delete a pool (Pattern A + ``active = false``) \u2014 epic decision 1.\n\nThe re-check + all four writes happen inside ONE Postgres function call,\n``delete_resource_pool()`` (migration 20260911130000): it locks the pool\nrow, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME\npredicate the preview above uses \u2014 one definition, so preview and delete\ncan never disagree), and \u2014 only if clear \u2014 auto-unlinks\n``product_resource_requirements`` (epic decision 2; ``ON DELETE\nRESTRICT`` never actually fires here since this is a soft-delete UPDATE,\nnot a hard DELETE \u2014 the unlink is the decided behaviour, not a\nconstraint workaround), soft-deletes the pool's units, retires its\n``capacity_threshold`` approval_rules row(s), and soft-deletes the pool\nitself \u2014 all in one transaction, so a booking made after the dialog\nopened still blocks the write and nothing can observe only SOME of the\nfour writes having landed (review gate finding, api#689: four separate\nservice-role REST calls could not guarantee that).\n\nPast period / unit-day-release rows are left untouched (history).\n\n404 ``resource_pool_not_found`` for unknown / foreign / already-deleted\npool ids (via :func:`_resolve_operator_pool`, and again from the RPC's\nown re-check for a pool deleted in the gap between the two \u2014 never 403,\nsame no-cross-tenant-existence-oracle rule every resolver in this file\nfollows). 409 ``resource_pool_has_upcoming_bookings`` carries the same\n``blocking_bookings`` shape the preview does \u2014 recomputed (rare: only\nreached on a genuine race, since the resolve above already checked) so\nthe response is never bare of the list the dashboard renders.",
-        "operationId": "delete_resource_pool",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Resource Pool",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Resource Pool",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      },
       "patch": {
-        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.\n\nlandr-k5fgy.1: the range check is only enforced on a CHANGED value. A\nno-op re-save of the currently STORED default must succeed even when it\nnow exceeds the active unit count \u2014 e.g. a freshly-created 0-unit pool\nwhose ``default_released_units`` sits at the column default of 1\n(``createResourcePool``'s capacity-rule-ensure PATCH), or any pool whose\nunits were all since removed. Rejecting that would make the pool\npermanently un-PATCHable (every future term-only edit re-sends the\nstored default) until the operator adds enough units to satisfy a value\nthey never asked to change. Only a value that actually DIFFERS from what\nis stored has to prove it fits.",
+        "description": "Set the pool-level fallback policy (every day with no covering period).\n\nBounded by the same 0\u2026active-unit-count rule as a period's\n``released_units``, and reported with the same typed 422 body, so the\ndashboard's stepper only ever has to understand one error shape. 0 is a\nlegitimate setting, not an \"off\" \u2014 it means every unit needs an OK first\n(OD-1).\n\nEnsures the pool's ``capacity_threshold`` rule (OD-2) through the SAME SQL\npredicate the periods RPC uses. This is the *other* way a pool can start\nusing the policy machinery \u2014 an operator who only ever lowers the default\nand never writes a period must not end up with a policy that binds nothing.\n\nlandr-e80s.2: also accepts the pool's own unit/slot terms\n(``unit_label``/``unit_label_plural``/``slot_label``/``slot_label_plural``).\nEach is a partial-update field \u2014 omitted or ``null`` leaves the stored\nvalue untouched \u2014 so existing callers that only ever send\n``default_released_units`` keep working unchanged.",
         "operationId": "patch_resource_pool",
         "parameters": [
           {
@@ -31592,65 +29405,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/delete-preview": {
-      "get": {
-        "description": "Read-only: what deleting this pool would do \u2014 for the confirm dialog.\n\n``blocking_bookings`` is exactly what would make the ``DELETE`` below\n409 (:func:`_resource_pool_delete_blocking_bookings`); ``linked_products``\nis what would be silently auto-unlinked on a successful delete (epic\ndecision 2) \u2014 the dialog names each one so the operator isn't surprised\nlater. ``can_delete`` is ``blocking_bookings == []``, computed here so the\ndashboard doesn't have to know the rule.",
-        "operationId": "resource_pool_delete_preview",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Resource Pool Delete Preview",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Resource Pool Delete Preview",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/impact-preview": {
       "post": {
         "description": "The future days that would go SHORT if this unit went away.\n\nBacks the epic's warn-and-confirm dialog (D7 / landr-w9yk8.11): turning a\nunit's In-fleet switch off, or scheduling it out of service, opens a table\nof the days that would then have fewer units than they need, and a\n\"Deactivate anyway\" button. The epic is explicit that this NEVER blocks \u2014\nthe bus may really be broken \u2014 so this endpoint informs and returns; it\nhas no opinion and no veto.\n\n**Read-only.** Nothing is written, whatever the answer, and the unit is in\nexactly the state it was before. That is why the change travels in the\nbody instead of the endpoint being a ``dry_run`` flag on the real write:\nthe operator asks this question BEFORE deciding, often without ever making\nthe change.\n\nBody::\n\n    {\"unit_id\": \"\u2026\", \"change\": \"not_in_fleet\"}\n    {\"unit_id\": \"\u2026\", \"change\": {\"out_of_service\": {\"start_date\": \"\u2026\",\n                                                   \"end_date\": \"\u2026\"}}}\n\nReturns ``days``: one row per FUTURE day whose ``shortage_after`` is\npositive, each ``{date, participants_total, units_needed,\nunits_available_before, units_available_after, shortage_before,\nshortage_after, newly}``. Days that are FINE after the change are absent;\ndays that are short are all present, INCLUDING ones that were already\nshort before it and are no worse for it, with ``newly: false``.\n\nThat inclusion is deliberate, not an oversight (landr-w9yk8.17 confirmed\nthe filter is ``shortage_after > 0`` and nothing more). The D7 dialog asks\n\"if I do this, what does my next year look like\" \u2014 an operator about to\ntake a bus off the road needs the whole list of days they will be short,\nnot only the increment this one action adds. ``newly`` is what separates\nthe two, so the dialog can lead with \"3 new, 1 already short\" without the\nAPI having to guess which framing it wants.\n\n``units_needed`` is computed against TODAY's fleet and does not move with\nthe change \u2014 demand is a property of the bookings, and a bus breaking does\nnot make fewer people show up. Computing it against the post-change fleet\nis the tempting mistake that makes every preview come back empty: the\nladder would shrink in step with the supply and the shortage would cancel\nitself out. See ``app/services/pool_day_supply.py``.\n\nThe window is the operator's today \u2026 +365 days, overridable with\n``from``/``to`` (at most ``MAX_CALENDAR_DAYS``) \u2014 bounded for the same\nreason :func:`_consequence_window` documents, and starting at the\nOPERATOR's today rather than the server's so an operator west of UTC does\nnot lose the day they are standing in.\n\nToday is a FLOOR, not just a default (``clamp_to_today=True``): a ``from``\nin the past is lifted to today rather than honoured, and a window that\nends before today returns no days at all. A unit leaving service cannot\nun-take a booking that already happened, so a past day in this response\nwould be a row the operator can do nothing about. Before landr-w9yk8.17\nthat was a promise this docstring made and the query string could break.",
@@ -31817,119 +29571,6 @@
           }
         ],
         "summary": "Delete Unit Service Period",
-        "tags": [
-          "staff-approval-periods"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
-      "put": {
-        "description": "Apply the Season planner's draft rows to every touched unit, atomically.\n\nlandr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose\n``SeasonPlannerSection`` fans out N per-unit PUTs client-side via\n``Promise.allSettled`` \u2014 a real, shipped feature, but not atomic: a\nmid-fan-out failure (a network blip, a genuine 409/422 on one unit) can\nleave the pool partially on the new season. This endpoint replaces that\nfan-out with ONE call.\n\nThe write is ``apply_resource_pool_season_plan`` (migration\n20260914100000): one transaction that, for each row's date range, on\nevery unit it names, trims that unit's current schedule (both kinds) to\nthe OVERWRITE + trim semantics\n``landr-dashboard/src/lib/seasonPlanner.ts``'s\n``computeSeasonPlannerPlans``/``trimPeriod`` already implement\nclient-side, then delegates the per-unit write to the SAME\n``apply_resource_pool_unit_service_periods`` the single-unit PUT above\nuses, called once per touched unit inside this one transaction. A bad\nrow anywhere in the body \u2014 or a unit id that turns out not to belong to\nthis pool \u2014 means NOTHING is written for ANY unit.\n\nA unit the payload never names is never looked up and never appears in\nthe response; its schedule is untouched.\n\n``?dry_run=1`` writes nothing and returns, alongside the periods every\ntouched unit WOULD end up with, one ``consequences`` block covering every\ntouched unit's change AT ONCE (not one unit at a time \u2014 pool capacity is\na sum over the whole roster, so previewing units independently would mis-\ncount a day where two touched units both change). Window defaults and\noverrides are identical to the single-unit PUT's \u2014 see\n:func:`_consequence_window`.",
-        "operationId": "apply_pool_season_plan",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "pool_id",
-            "required": true,
-            "schema": {
-              "title": "Pool Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "dry_run",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Dry Run",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "From"
-            }
-          },
-          {
-            "in": "query",
-            "name": "to",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "To"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SeasonPlanIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Apply Pool Season Plan",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Apply Pool Season Plan",
         "tags": [
           "staff-approval-periods"
         ]
@@ -33397,75 +31038,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/subscription-perks/{perk_id}": {
-      "patch": {
-        "description": "Partial edit, including `active` \u2014 this IS the deactivate path (no\nDELETE route exists; see module docstring). Empty patch -> 400.\nCross-operator / missing -> 404.",
-        "operationId": "patch_perk",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "perk_id",
-            "required": true,
-            "schema": {
-              "title": "Perk Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionPerkPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Patch Perk",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Perk",
-        "tags": [
-          "staff-subscription-perks"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}": {
       "patch": {
         "description": "Edit price/currency/billing_interval/trial_period_days/active.\n\nEmpty patch -> 400. Cross-operator / missing -> 404.",
@@ -33532,135 +31104,6 @@
         "summary": "Patch Subscription Config",
         "tags": [
           "staff-subscriptions"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/subscriptions/{subscription_id}/perks": {
-      "get": {
-        "description": "List ALL perks (active and inactive) for this subscription, operator-\nscoped and ordered by created_at. The dashboard needs both \u2014 perks are\ntoggled via active, never deleted.",
-        "operationId": "list_perks",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "subscription_id",
-            "required": true,
-            "schema": {
-              "title": "Subscription Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response List Perks",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Perks",
-        "tags": [
-          "staff-subscription-perks"
-        ]
-      },
-      "post": {
-        "description": "Create a perk. 404 if `subscription_id` isn't this operator's \u2014 checked\nup front so a bad id gives a clean 404 rather than surfacing the raw\ncomposite-FK (subscription_perks_subscription_op_fkey) Postgres error.\n\n`applies_to_product_id` is NOT pre-validated against the operator the\nsame way: its own composite FK (subscription_perks_product_op_fkey)\nalready makes a cross-tenant target unrepresentable, and this ticket's\nscope is CRUD, not re-deriving what the DB constraint already guarantees.",
-        "operationId": "create_perk",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "subscription_id",
-            "required": true,
-            "schema": {
-              "title": "Subscription Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionPerkIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Create Perk",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Perk",
-        "tags": [
-          "staff-subscription-perks"
         ]
       }
     },
