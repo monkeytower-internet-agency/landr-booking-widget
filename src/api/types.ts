@@ -288,6 +288,27 @@ export interface Product {
   category_id?: string
   category_name?: string
   category_name_localized?: Record<string, string> | null
+  /**
+   * landr-p68d2 (epic decision D1, API field landed in landr-p68d2.1): the
+   * ISO 639-1 guide languages OFFERED FOR THIS PRODUCT — replaces the old
+   * operator-level `OperatorSettings.offered_languages` as the source the
+   * language-assignment board (and the mirrored `language` custom-form
+   * field) draws from. Every party member on a booking of this product must
+   * be assigned to one of these (landr-r6e5x.4's board, narrowed here to be
+   * per-product instead of per-operator).
+   *
+   * Non-null with >=1 lower-case 2-letter codes for product_kind='service';
+   * null for every other kind (hotel rooms, add-ons, subscriptions never
+   * collect a guide language). Optional here only for the rolling-deploy
+   * window — a widget build ahead of the API, or pointed at a tier that
+   * predates landr-p68d2.1, sees the field absent and falls back to
+   * `OperatorSettings.offered_languages`, then the platform default (see
+   * App.tsx's offeredLanguagesForProduct and
+   * normaliseOfferedLanguages in participantLanguages.ts). The operator
+   * fallback is itself transitional — landr-p68d2.4 drops it once the
+   * expand release (this field) is universally on `main`.
+   */
+  guide_languages?: string[] | null
 }
 
 /**
@@ -324,16 +345,21 @@ export interface WidgetTheme {
 export interface OperatorSettings {
   slug: string
   /**
-   * landr-r6e5x.2 / epic decision D2: the ISO 639-1 guide languages this
-   * operator offers, from `operators.offered_languages`. Every party member
-   * on a booking must be assigned to exactly one of them (landr-r6e5x.4);
-   * the free-text "additional spoken languages" field is NOT part of this
-   * list and never assigns anyone.
+   * DEPRECATED (landr-p68d2, epic decision D5) — the setting moved to the
+   * PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2): a guide language
+   * is now offered per-product, not per-operator, so an operator running
+   * both a one-language trip and a four-language day no longer has to pick
+   * one setting for both. The API stops sending this field once
+   * landr-p68d2.1 is deployed (removed from every surface per D5); kept
+   * OPTIONAL here (rather than deleted) purely so the widget's transitional
+   * `product.guide_languages ?? operatorSettings.offered_languages ??
+   * DEFAULT` fallback — needed because the API and widget ship on separate
+   * pipelines — still type-checks during the rollout window. Do not read
+   * this field for anything new; landr-p68d2.4 removes it once the operator
+   * fallback itself is retired.
    *
-   * Optional for rolling deploy — a widget deployed ahead of the API (or
-   * pointed at an older tier) sees it absent and falls back to the platform
-   * default set, which is also the column's DEFAULT. See
-   * normaliseOfferedLanguages in components/booking/participantLanguages.ts.
+   * (Formerly: landr-r6e5x.2 / epic decision D2 — the ISO 639-1 guide
+   * languages this operator offers, from `operators.offered_languages`.)
    */
   offered_languages?: string[] | null
   /**

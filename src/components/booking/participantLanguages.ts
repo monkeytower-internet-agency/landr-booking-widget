@@ -147,13 +147,21 @@ export function languageFlag(code: string): string {
 }
 
 /**
- * Coerce whatever the public operator config handed us into a usable offered
- * list: lower-cased two-letter codes, de-duplicated, order preserved.
+ * Coerce whatever the public product/operator config handed us into a usable
+ * offered list: lower-cased two-letter codes, de-duplicated, order preserved.
+ *
+ * landr-p68d2: callers now pass `product.guide_languages ??
+ * operatorSettings.offered_languages` as `raw` — the per-PRODUCT set is the
+ * real source (epic decision D1), with the deprecated per-operator setting
+ * as a transitional second choice for the deploy window where the widget
+ * ships ahead of the API. This function itself is agnostic to which of the
+ * two the caller resolved; it only cleans up whatever arrived.
  *
  * `fallback` is consulted (and the miss logged once per call) when the input
- * is absent or yields nothing usable — the operator column is brand new
- * (landr-r6e5x.2), so a widget deployed ahead of the API, or pointed at an
- * older tier, must still render a working step rather than an empty board.
+ * is absent or yields nothing usable — either source can be missing on an
+ * older API/widget pairing, so a widget deployed ahead of the API, or
+ * pointed at an older tier, must still render a working step rather than an
+ * empty board.
  */
 export function normaliseOfferedLanguages(
   raw: unknown,
@@ -173,7 +181,7 @@ export function normaliseOfferedLanguages(
   }
   if (cleaned.length > 0) return cleaned
   console.warn(
-    '[booking-widget] operator offered_languages missing or unusable; falling back to',
+    '[booking-widget] product/operator guide languages missing or unusable; falling back to',
     fallback,
   )
   return [...fallback]

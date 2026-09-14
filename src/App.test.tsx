@@ -3693,4 +3693,140 @@ describe('App', () => {
       expect(body.companions[0]!.language).toBeUndefined()
     })
   })
+
+  // ── landr-p68d2.2: per-PRODUCT guide languages ─────────────────────────────
+  //
+  // Epic decision D1 moves the offered set from the operator to the product:
+  // two products from the same operator can now offer different language
+  // sets (a one-language trip vs. a four-language guided day). These tests
+  // exercise offeredLanguagesForProduct's precedence end to end through the
+  // language board: product.guide_languages first, the deprecated operator
+  // setting as a transitional fallback for the deploy window, the platform
+  // default last.
+  describe('per-product guide languages (landr-p68d2.2)', () => {
+    async function advanceToLanguageBoardWithProduct(product: Product) {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText(product.name))
+      fireEvent.click(screen.getByRole('button', { name: product.name }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByTestId('add-participant'))
+      setField('participant_2_first_name', 'Grace')
+      setField('participant_2_last_name', 'Hopper')
+      setField('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('participant-language-board'),
+        ).toBeInTheDocument(),
+      )
+    }
+
+    it("prefers the selected product's guide_languages over the operator's (deprecated) setting", async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        // Deliberately a wider, different set — the product must win, per D1.
+        offered_languages: ['en', 'de', 'es'],
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Denmark Paragliding Trip',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          guide_languages: ['it'],
+        }),
+      )
+      // Exactly one column, already fully seeded — seedAssignment's one-tap
+      // shortcut for a single offered language — and the operator's wider
+      // (deprecated) set never surfaces.
+      expect(screen.getByTestId('lang-column-it')).toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-en')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-es')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-add-en')).not.toBeInTheDocument()
+      expect(screen.getByTestId('language-step-submit')).toBeEnabled()
+    })
+
+    it('shows all four columns for a four-language product', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Guided Paragliding Day',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          guide_languages: ['en', 'de', 'es', 'fr'],
+        }),
+      )
+      for (const code of ['en', 'de', 'es', 'fr']) {
+        expect(screen.getByTestId(`lang-add-${code}`)).toBeInTheDocument()
+      }
+      // Nobody assigned yet across 4 real choices — unlike the one-language
+      // case above, there is no free seed.
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+    })
+
+    it("falls back to the operator's offered_languages when the product predates guide_languages", async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        offered_languages: ['en', 'pt'],
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Legacy Flight',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          // No guide_languages at all — an API deploy that predates
+          // landr-p68d2.1; the widget must still fall back rather than
+          // render an empty, unsubmittable board.
+        }),
+      )
+      expect(screen.getByTestId('lang-add-en')).toBeInTheDocument()
+      expect(screen.getByTestId('lang-add-pt')).toBeInTheDocument()
+      expect(screen.queryByTestId('lang-add-de')).not.toBeInTheDocument()
+    })
+  })
 })
