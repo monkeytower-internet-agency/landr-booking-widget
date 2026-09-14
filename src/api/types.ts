@@ -301,12 +301,18 @@ export interface Product {
    * null for every other kind (hotel rooms, add-ons, subscriptions never
    * collect a guide language). Optional here only for the rolling-deploy
    * window — a widget build ahead of the API, or pointed at a tier that
-   * predates landr-p68d2.1, sees the field absent and falls back to
-   * `OperatorSettings.offered_languages`, then the platform default (see
-   * App.tsx's offeredLanguagesForProduct and
-   * normaliseOfferedLanguages in participantLanguages.ts). The operator
-   * fallback is itself transitional — landr-p68d2.4 drops it once the
-   * expand release (this field) is universally on `main`.
+   * predates landr-p68d2.1, sees the field absent and falls back straight
+   * to the platform default (see App.tsx's offeredLanguagesForProduct and
+   * normaliseOfferedLanguages in participantLanguages.ts). NOT a
+   * three-tier fallback through `OperatorSettings.offered_languages` —
+   * landr-p68d2.1 confirmed `public_get_operator_settings` already strips
+   * that field from the response (D5), so it is never present to fall
+   * back to on a current API; see that field's own doc.
+   *
+   * landr-p68d2.1 also confirmed the submit-side language rule ignores
+   * add-on service lines (is_addon_only / product_addons children) — safe
+   * to key this purely off the single main service product a booking ever
+   * carries (D4), never an add-on.
    */
   guide_languages?: string[] | null
 }
@@ -345,18 +351,18 @@ export interface WidgetTheme {
 export interface OperatorSettings {
   slug: string
   /**
-   * DEPRECATED (landr-p68d2, epic decision D5) — the setting moved to the
+   * DEAD (landr-p68d2, epic decision D5) — the setting moved to the
    * PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2): a guide language
    * is now offered per-product, not per-operator, so an operator running
    * both a one-language trip and a four-language day no longer has to pick
-   * one setting for both. The API stops sending this field once
-   * landr-p68d2.1 is deployed (removed from every surface per D5); kept
-   * OPTIONAL here (rather than deleted) purely so the widget's transitional
-   * `product.guide_languages ?? operatorSettings.offered_languages ??
-   * DEFAULT` fallback — needed because the API and widget ship on separate
-   * pipelines — still type-checks during the rollout window. Do not read
-   * this field for anything new; landr-p68d2.4 removes it once the operator
-   * fallback itself is retired.
+   * one setting for both. Confirmed via landr-p68d2.1's merged contract:
+   * `public_get_operator_settings` already STRIPS this field from the
+   * response — the underlying RPC/Pydantic model still carry the column
+   * until landr-p68d2.4 drops it DB-side, but nothing on the wire ever
+   * populates this key any more. Kept OPTIONAL here (rather than deleted)
+   * only because the generated schema still declares it (codegen lags the
+   * route's manual strip) — never read this field for anything; the
+   * widget's offeredLanguagesForProduct (App.tsx) does not fall back to it.
    *
    * (Formerly: landr-r6e5x.2 / epic decision D2 — the ISO 639-1 guide
    * languages this operator offers, from `operators.offered_languages`.)

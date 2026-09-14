@@ -572,25 +572,33 @@ function BookingFlowApp() {
   const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
 
   // landr-p68d2 (epic decision D1, narrowing landr-r6e5x.4 / D3): the guide
-  // languages offered for a given PRODUCT — `product.guide_languages` when
-  // the API has shipped it, else the deprecated operator-level setting, else
-  // the platform default. Product-scoped (not memoised on operatorSettings
-  // alone) because two products from the same operator can offer different
+  // languages offered for a given PRODUCT — `product.guide_languages`, else
+  // the platform default. Product-scoped (not derived from operatorSettings
+  // at all) because two products from the same operator can offer different
   // sets (a one-language Denmark trip vs. a four-language guided day).
+  //
+  // landr-p68d2.1 confirmed the operator-level setting is now a dead
+  // fallback, not just deprecated: `public_get_operator_settings` STRIPS
+  // `offered_languages` from the response (D5) even though the RPC/Pydantic
+  // model still carry the column until landr-p68d2.4 drops it — so
+  // `operatorSettings.offered_languages` is always absent on a current API
+  // and is deliberately NOT consulted here any more (it was a three-tier
+  // fallback through PR #256; narrowed to two-tier once .1 merged).
+  //
+  // landr-p68d2.1 also confirmed the submit-side language rule ignores
+  // add-on service lines (is_addon_only / product_addons children) — the
+  // widget books exactly one main service product per booking (D4), so
+  // keying this off `step.product` (never an add-on) already matches.
   //
   // The step runs whenever the resolved list is non-empty, which in practice
   // is always: normaliseOfferedLanguages falls back to the platform default
-  // when both the product and operator sources are absent/predate the
-  // rollout. That is deliberate rather than incidental — the API validates
-  // `participants[].language` on EVERY public submit, so a product that
-  // skipped this step would dead-end on a 422 with nothing the customer
-  // could do.
+  // when the product predates the rollout. That is deliberate rather than
+  // incidental — the API validates `participants[].language` on EVERY
+  // public submit, so a product that skipped this step would dead-end on a
+  // 422 with nothing the customer could do.
   const offeredLanguagesForProduct = useCallback(
-    (product: Product) =>
-      normaliseOfferedLanguages(
-        product.guide_languages ?? operatorSettings.offered_languages,
-      ),
-    [operatorSettings.offered_languages],
+    (product: Product) => normaliseOfferedLanguages(product.guide_languages),
+    [],
   )
 
   useEffect(() => {
