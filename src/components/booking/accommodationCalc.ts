@@ -484,10 +484,24 @@ export function applyAssignment(
   })
   if (prev) {
     // Evicted occupant takes the spot the mover just vacated (swap source).
+    // landr-0l5q: `prev.slot` is only ever set once a unit has already been
+    // rotated in before — a mover who arrived via autoAssignParticipants
+    // carries no explicit slot, so `prev.slot ?? 0` would always evict to
+    // slot 0 regardless of where the mover actually displayed, colliding
+    // with whoever already holds that spot. Compute the mover's real
+    // displayed position in its previous unit instead, using the same
+    // fallback-to-member-index ordering `occupantsOfUnit` applies everywhere
+    // else, so the evictee lands in the spot that was actually vacated.
+    const prevOrder = orderedOccupantsByKey(
+      assignment,
+      prev.roomProductId,
+      prev.unitIndex,
+    )
+    const moverSlot = prevOrder.indexOf(memberIndex)
     next[evicted] = {
       roomProductId: prev.roomProductId,
       unitIndex: prev.unitIndex,
-      slot: prev.slot ?? 0,
+      slot: moverSlot >= 0 ? moverSlot : 0,
     }
     renormalizeUnitSlots(next, prev.roomProductId, prev.unitIndex)
   } else {
