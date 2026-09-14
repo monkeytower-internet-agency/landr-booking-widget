@@ -3770,6 +3770,48 @@
         "title": "EstimateResponse",
         "type": "object"
       },
+      "FixedDateWindow": {
+        "additionalProperties": true,
+        "description": "One row returned by the public_get_product_fixed_date_windows RPC.\nMirrors the widget's ``FixedDateWindow`` TypeScript interface\n(src/api/types.ts) field-for-field.",
+        "properties": {
+          "available_seats": {
+            "title": "Available Seats",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "capacity_reserved": {
+            "title": "Capacity Reserved",
+            "type": "integer"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "start_date",
+          "end_date",
+          "capacity",
+          "capacity_reserved",
+          "available_seats"
+        ],
+        "title": "FixedDateWindow",
+        "type": "object"
+      },
       "FlagResponse": {
         "properties": {
           "id": {
@@ -20308,6 +20350,53 @@
           }
         },
         "summary": "Get Product Availability",
+        "tags": [
+          "public-operators"
+        ]
+      }
+    },
+    "/api/public/products/{product_id}/fixed-date-windows": {
+      "get": {
+        "description": "Upcoming, non-deleted, active windows for a fixed_date_range product\n(landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_fixed_date_windows`, added so the public widget\n(bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong\ndirectly \u2014 a Tailscale-private dev host, which Chrome's Private Network\nAccess check blocks from a public origin (landr-cxhpm). Mirrors the\nexisting get_product_addons wrapper above.",
+        "operationId": "get_product_fixed_date_windows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FixedDateWindow"
+                  },
+                  "title": "Response Get Product Fixed Date Windows",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Fixed Date Windows",
         "tags": [
           "public-operators"
         ]
