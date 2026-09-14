@@ -11791,6 +11791,7 @@
               "resource",
               "participant_day",
               "provider",
+              "unit_day",
               "dashboard"
             ],
             "title": "Entity Type",
