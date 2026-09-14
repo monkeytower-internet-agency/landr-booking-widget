@@ -279,8 +279,25 @@ export function DetailsStep({
   // remount doesn't re-request for an email that already got one on the way
   // forward — only an actual EDIT to the email (a genuine new blur target)
   // fires a fresh request.
+  //
+  // landr-31fq: ONLY seed the dedup ref (treat "already requested" as true)
+  // when initialMemberPerkOtp is ALSO populated. A same-render Back-restore
+  // and a real sessionStorage reload-restore produce an identical
+  // initialBooker.email, but memberPerkOtp (App.tsx's bare in-memory
+  // useState — deliberately NOT part of the persisted bookingDraft/Step
+  // union, see its own doc) survives the former and never the latter. So
+  // "email restored but no code restored" is the reload signal: the
+  // request state was NOT actually carried over, and without this reset
+  // the dedup ref would permanently block any further request for that
+  // email in this render tree — even a customer who reloaded mid-flow and
+  // waited out the server's 5-min TTL could never get a fresh code. Leaving
+  // the ref unseeded here does not touch otpRequested (the field still
+  // shows immediately on restore, unchanged) — it only lets the NEXT blur
+  // of that email actually fire instead of silently no-op'ing.
   const otpSentForEmailRef = useRef<string | null>(
-    initialBooker?.email?.trim() ? initialBooker.email.trim() : null,
+    initialBooker?.email?.trim() && initialMemberPerkOtp?.trim()
+      ? initialBooker.email.trim()
+      : null,
   )
 
   // If the service-roles fetch resolves AFTER DetailsStep first mounted,
