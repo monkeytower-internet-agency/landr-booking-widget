@@ -18,11 +18,11 @@ const ICONS: Record<FactIcon, LucideIcon> = {
   kind: Tag,
 }
 
-export function ProductFacts({ product }: { product: Product }) {
+export function ProductFacts({ product, locale }: { product: Product; locale: string }) {
   // landr-d8rg.8: fact chips track the variant chip radius (alpine squares
   // them) so the detail surface matches the browse cards' chip language.
   const { tokens } = useVariant()
-  const facts = deriveProductFacts(product)
+  const facts = deriveProductFacts(product, locale)
   if (facts.length === 0) return null
 
   return (

@@ -3,6 +3,7 @@ import type {
   ApprovalReplyResult,
   ApprovalRequestContext,
   AvailabilitySlot,
+  CustomerStageLabel,
   EstimateRequestBody,
   EstimateResponse,
   FixedDateWindow,
@@ -635,6 +636,12 @@ export interface PublicBookingOffer {
   customer: OfferCustomer
   product_lines: OfferProductLine[]
   participants: OfferParticipant[]
+  /**
+   * landr-821d6.3/.7: the booking's current lifecycle stage, customer-facing
+   * wording. Optional for rolling deploy — absent on an older API means no
+   * status line renders (today's behaviour).
+   */
+  stage?: CustomerStageLabel
 }
 
 /**
