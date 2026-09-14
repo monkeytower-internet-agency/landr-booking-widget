@@ -571,21 +571,35 @@ function BookingFlowApp() {
   // races multiple full-page paints' worth of UX).
   const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
 
-  // landr-r6e5x.4 / epic decision D3: the operator's offered guide languages,
-  // coerced once per settings change (the coercion logs when it has to fall
-  // back, so deriving it on every render would spam the console).
+  // landr-p68d2 (epic decision D1, narrowing landr-r6e5x.4 / D3): the guide
+  // languages offered for a given PRODUCT — `product.guide_languages`, else
+  // the platform default. Product-scoped (not derived from operatorSettings
+  // at all) because two products from the same operator can offer different
+  // sets (a one-language Denmark trip vs. a four-language guided day).
   //
-  // The step runs whenever the list is non-empty, which in practice is always:
-  // `operators.offered_languages` is NOT NULL with a four-language default, and
-  // the coercion falls back to that same default when the API predates the
-  // column. That is deliberate rather than incidental — the API validates
-  // `participants[].language` on EVERY public submit, so a product that skipped
-  // this step would dead-end on a 422 with nothing the customer could do.
-  const offeredLanguages = useMemo(
-    () => normaliseOfferedLanguages(operatorSettings.offered_languages),
-    [operatorSettings.offered_languages],
+  // landr-p68d2.1 confirmed the operator-level setting is now a dead
+  // fallback, not just deprecated: `public_get_operator_settings` STRIPS
+  // `offered_languages` from the response (D5) even though the RPC/Pydantic
+  // model still carry the column until landr-p68d2.4 drops it — so
+  // `operatorSettings.offered_languages` is always absent on a current API
+  // and is deliberately NOT consulted here any more (it was a three-tier
+  // fallback through PR #256; narrowed to two-tier once .1 merged).
+  //
+  // landr-p68d2.1 also confirmed the submit-side language rule ignores
+  // add-on service lines (is_addon_only / product_addons children) — the
+  // widget books exactly one main service product per booking (D4), so
+  // keying this off `step.product` (never an add-on) already matches.
+  //
+  // The step runs whenever the resolved list is non-empty, which in practice
+  // is always: normaliseOfferedLanguages falls back to the platform default
+  // when the product predates the rollout. That is deliberate rather than
+  // incidental — the API validates `participants[].language` on EVERY
+  // public submit, so a product that skipped this step would dead-end on a
+  // 422 with nothing the customer could do.
+  const offeredLanguagesForProduct = useCallback(
+    (product: Product) => normaliseOfferedLanguages(product.guide_languages),
+    [],
   )
-  const languageStepEnabled = offeredLanguages.length > 0
 
   useEffect(() => {
     if (!token) return
@@ -1092,8 +1106,9 @@ function BookingFlowApp() {
             // landr-nmed: re-seed any custom-form answers from the draft so a
             // forward pass after a breadcrumb jump restores the customer's input.
             bookingDraft.customFormAnswers,
-            // landr-r6e5x.4: the language step is the first pre-review step.
-            languageStepEnabled,
+            // landr-r6e5x.4 / landr-p68d2: the language step is the first
+            // pre-review step, gated on THIS product's offered languages.
+            offeredLanguagesForProduct(product).length > 0,
           ),
         )
       })
@@ -1165,9 +1180,15 @@ function BookingFlowApp() {
       remoteFlow: activeFlow,
       customFormAnswers: bookingDraft.customFormAnswers,
       productLabel,
-      languageStep: languageStepEnabled,
+      // landr-p68d2: per-product now, not per-operator — 'product' in step
+      // mirrors the productLabel guard above for the same reason (some
+      // funnel steps, e.g. pick-product, carry no product at all).
+      languageStep:
+        'product' in step
+          ? offeredLanguagesForProduct(step.product).length > 0
+          : false,
     })
-  }, [step, activeFlow, bookingDraft.customFormAnswers, languageStepEnabled])
+  }, [step, activeFlow, bookingDraft.customFormAnswers, offeredLanguagesForProduct])
   const breadcrumbNav = useMemo(
     () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
     [breadcrumbItems, navigateTo],
@@ -1950,8 +1971,10 @@ function BookingFlowApp() {
                     flow,
                     // landr-nmed: restore prior custom-form answers on the forward pass.
                     bookingDraft.customFormAnswers,
-                    // landr-r6e5x.4: the language step is the first pre-review step.
-                    languageStepEnabled,
+                    // landr-r6e5x.4 / landr-p68d2: the language step is the
+                    // first pre-review step, gated on THIS product's
+                    // offered languages.
+                    offeredLanguagesForProduct(step.product).length > 0,
                   ),
                 )
               })
@@ -1971,7 +1994,7 @@ function BookingFlowApp() {
         {step.name === 'assign-languages' ? (
           <LanguageStep
             productName={step.product.name}
-            offeredLanguages={offeredLanguages}
+            offeredLanguages={offeredLanguagesForProduct(step.product)}
             {...(() => {
               const party = step.participants.map((p) => ({
                 first: p.first_name,
@@ -2119,7 +2142,8 @@ function BookingFlowApp() {
                     breakfastMap: step.breakfastMap,
                     remoteFlow: flowForProduct(step.product.product_id),
                     customFormAnswers: bookingDraft.customFormAnswers,
-                    languageStep: languageStepEnabled,
+                    // landr-p68d2: per-product, not per-operator.
+                    languageStep: offeredLanguagesForProduct(step.product).length > 0,
                   },
                   step.formKey,
                 ),
@@ -2266,7 +2290,8 @@ function BookingFlowApp() {
                   breakfastMap: step.breakfastMap,
                   remoteFlow: flowForProduct(step.product.product_id),
                   customFormAnswers: bookingDraft.customFormAnswers,
-                  languageStep: languageStepEnabled,
+                  // landr-p68d2: per-product, not per-operator.
+                  languageStep: offeredLanguagesForProduct(step.product).length > 0,
                 }),
               )
             }}

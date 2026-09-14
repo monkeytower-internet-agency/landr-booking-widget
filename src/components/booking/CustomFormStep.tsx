@@ -683,10 +683,12 @@ export function CustomFormStep({
   }, [formDef, assignedLanguages])
 
   // The board's assignments mirror into the form answer as-is: the API
-  // validates a `language` answer against the operator's live
-  // offered_languages, not the field's static option list (api PR #688), so
-  // every assigned code is valid by construction — both it and the field's
-  // options ultimately come from offered_languages. No narrowing needed.
+  // validates a `language` answer against the SELECTED PRODUCT's live
+  // guide_languages (landr-p68d2, formerly the operator's offered_languages
+  // — api PR #688 predates that move but the validation shape is unchanged),
+  // not the field's static option list, so every assigned code is valid by
+  // construction — both it and the field's options ultimately come from the
+  // same product-scoped set. No narrowing needed.
   const mirrorActive = mirrorField !== null
 
   const handleChange = useCallback((key: string, value: string | string[]) => {

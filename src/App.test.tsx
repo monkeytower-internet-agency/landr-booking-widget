@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { HttpError } from '@/api/client'
+import { DEFAULT_OFFERED_LANGUAGES } from '@/components/booking/participantLanguages'
 import App from './App'
 import { BOOKING_PROGRESS_STORAGE_KEY } from './bookingPersistence'
 
@@ -3323,7 +3324,6 @@ describe('App', () => {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'para42',
         expose_seats_to_customer: false,
-        offered_languages: ['en', 'de', 'es'],
       })
       mocks.getProductFlow.mockResolvedValue(languageFlow())
       mocks.listProducts.mockResolvedValue([
@@ -3333,6 +3333,9 @@ describe('App', () => {
           name: 'Tandem Flight',
           needs_pickup: false,
           hotel_offering: 'none',
+          // landr-p68d2: the offered set now lives on the PRODUCT — this
+          // was the operator's offered_languages before landr-p68d2.1/.2.
+          guide_languages: ['en', 'de', 'es'],
         }),
       ])
       mocks.getAvailability.mockResolvedValue([
@@ -3461,7 +3464,6 @@ describe('App', () => {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'para42',
         expose_seats_to_customer: false,
-        offered_languages: ['en', 'de'],
       })
       mocks.getProductFlow.mockResolvedValue({ modules: null })
       mocks.listProducts.mockResolvedValue([
@@ -3471,6 +3473,8 @@ describe('App', () => {
           name: 'Bare Flight',
           needs_pickup: false,
           hotel_offering: 'none',
+          // landr-p68d2: the offered set now lives on the PRODUCT.
+          guide_languages: ['en', 'de'],
         }),
       ])
       mocks.getAvailability.mockResolvedValue([
@@ -3593,7 +3597,6 @@ describe('App', () => {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'para42',
         expose_seats_to_customer: false,
-        offered_languages: ['en', 'de'],
       })
       mocks.getProductFlow.mockResolvedValue({ modules: null })
       mocks.listProducts.mockResolvedValue([
@@ -3603,6 +3606,8 @@ describe('App', () => {
           name: 'Companion Flight',
           needs_pickup: false,
           hotel_offering: 'none',
+          // landr-p68d2: the offered set now lives on the PRODUCT.
+          guide_languages: ['en', 'de'],
         }),
       ])
       mocks.getAvailability.mockResolvedValue([
@@ -3691,6 +3696,149 @@ describe('App', () => {
       })
       expect(body.companions[0]).toMatchObject({ first_name: 'Kay' })
       expect(body.companions[0]!.language).toBeUndefined()
+    })
+  })
+
+  // ── landr-p68d2.2: per-PRODUCT guide languages ─────────────────────────────
+  //
+  // Epic decision D1 moves the offered set from the operator to the product:
+  // two products from the same operator can now offer different language
+  // sets (a one-language trip vs. a four-language guided day). These tests
+  // exercise offeredLanguagesForProduct's precedence end to end through the
+  // language board: product.guide_languages, else the platform default.
+  // landr-p68d2.1 confirmed public_get_operator_settings already strips
+  // offered_languages from the response (D5), so — unlike the three-tier
+  // fallback this PR shipped with before .1 merged — the operator setting
+  // is NOT consulted at all any more; see offeredLanguagesForProduct's doc
+  // in App.tsx and OperatorSettings.offered_languages's doc in types.ts.
+  describe('per-product guide languages (landr-p68d2.2)', () => {
+    async function advanceToLanguageBoardWithProduct(product: Product) {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText(product.name))
+      fireEvent.click(screen.getByRole('button', { name: product.name }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByTestId('add-participant'))
+      setField('participant_2_first_name', 'Grace')
+      setField('participant_2_last_name', 'Hopper')
+      setField('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('participant-language-board'),
+        ).toBeInTheDocument(),
+      )
+    }
+
+    it("uses the selected product's guide_languages, ignoring any (dead) operator setting", async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        // A real API never sends this any more (public_get_operator_settings
+        // strips it, D5) — set it anyway to prove the widget genuinely
+        // never reads it, not merely that a real response lacks it.
+        offered_languages: ['en', 'de', 'es'],
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Denmark Paragliding Trip',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          guide_languages: ['it'],
+        }),
+      )
+      // Exactly one column, already fully seeded — seedAssignment's one-tap
+      // shortcut for a single offered language — and the operator setting
+      // never surfaces.
+      expect(screen.getByTestId('lang-column-it')).toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-en')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-column-es')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('lang-add-en')).not.toBeInTheDocument()
+      expect(screen.getByTestId('language-step-submit')).toBeEnabled()
+    })
+
+    it('shows all four columns for a four-language product', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Guided Paragliding Day',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          guide_languages: ['en', 'de', 'es', 'fr'],
+        }),
+      )
+      for (const code of ['en', 'de', 'es', 'fr']) {
+        expect(screen.getByTestId(`lang-add-${code}`)).toBeInTheDocument()
+      }
+      // Nobody assigned yet across 4 real choices — unlike the one-language
+      // case above, there is no free seed.
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+    })
+
+    it('falls back to the platform default when the product predates guide_languages', async () => {
+      // landr-p68d2.1 confirmed the operator setting is never sent any more
+      // either (D5) — so a product missing guide_languages (an API deploy
+      // that predates .1) has NOTHING to fall back to except the platform
+      // default. The widget must still render a working, submittable board
+      // rather than an empty one.
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      await advanceToLanguageBoardWithProduct(
+        makeProduct({
+          name: 'Legacy Flight',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          hotel_offering: 'none',
+          // No guide_languages at all.
+        }),
+      )
+      for (const code of DEFAULT_OFFERED_LANGUAGES) {
+        expect(screen.getByTestId(`lang-add-${code}`)).toBeInTheDocument()
+      }
     })
   })
 })
