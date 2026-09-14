@@ -73,6 +73,7 @@ import {
   draftFromStep,
   enterReviewOrCustomForm,
   mergeCapturedDraft,
+  mergeDraftPatch,
   sidebarInputsForStep,
   stepAfterAccommodation,
   stepAfterCustomForm,
@@ -343,7 +344,7 @@ function BookingFlowApp() {
     () => restoredProgress?.bookingDraft ?? {},
   )
   const mergeDraft = useCallback((patch: BookingDraft) => {
-    setBookingDraft((prev) => ({ ...prev, ...patch }))
+    setBookingDraft((prev) => mergeDraftPatch(prev, patch))
   }, [])
   // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
   // by form_key. Each custom-form step merges its entry in on confirm.

@@ -13,6 +13,7 @@ import {
   detailsFromDraft,
   draftFromStep,
   mergeCapturedDraft,
+  mergeDraftPatch,
   sidebarInputsForStep,
   enterReviewOrCustomForm,
   stepAfterAccommodation,
@@ -859,6 +860,53 @@ describe('booking-draft preservation (landr-nmed)', () => {
       const merged = mergeCapturedDraft(prev, captured)
       expect(merged.booker).toEqual(ADA)
       expect(merged.pickupLocationId).toBe('new')
+    })
+  })
+
+  // landr-0l5q: mergeDraft's underlying spread does NOT skip `undefined`
+  // values, and `afterAccommodation`'s tail parameters (roomAssignment,
+  // occupantAgeMap, perRoomAddons, roomProductNames, breakfastMap) all
+  // default to `undefined`. A caller that omits one — the short-circuit call
+  // sites in afterDetails for a product with no hotel/add-ons — must not wipe
+  // an already-good slice of the persistent draft.
+  describe('mergeDraftPatch (landr-0l5q)', () => {
+    it('does not clobber a slice the patch omits (present-but-undefined key)', () => {
+      const prev: BookingDraft = {
+        booker: ADA,
+        roomAssignment: { '1': { roomProductId: 'double', unitIndex: 0 } },
+      }
+      // Simulates the afterAccommodation short-circuit: roomAssignment
+      // reaches the patch object as an explicit `undefined` because the
+      // caller passed only 9 of 16 positional args.
+      const patch: BookingDraft = {
+        booker: ADA,
+        participants: [],
+        companions: [],
+        accommodationRooms: [],
+        hotelLocationId: null,
+        addons: [],
+        hadServiceAddons: false,
+        roomAssignment: undefined,
+      }
+      const merged = mergeDraftPatch(prev, patch)
+      expect(merged.roomAssignment).toEqual({
+        '1': { roomProductId: 'double', unitIndex: 0 },
+      })
+    })
+
+    it('still applies every explicitly-provided (non-undefined) key as a plain overwrite', () => {
+      const prev: BookingDraft = { booker: ADA, addons: [] }
+      const patch: BookingDraft = { addons: [{ productId: 'p1', quantity: 2 }] }
+      const merged = mergeDraftPatch(prev, patch)
+      expect(merged.addons).toEqual([{ productId: 'p1', quantity: 2 }])
+      expect(merged.booker).toEqual(ADA)
+    })
+
+    it('treats an explicit `null` as a real value, not a skip (distinct from `undefined`)', () => {
+      const prev: BookingDraft = { hotelLocationId: 'hotel-1' }
+      const patch: BookingDraft = { hotelLocationId: null }
+      const merged = mergeDraftPatch(prev, patch)
+      expect(merged.hotelLocationId).toBeNull()
     })
   })
 

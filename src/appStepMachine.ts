@@ -1342,6 +1342,28 @@ export function mergeCapturedDraft(
 }
 
 /**
+ * landr-0l5q: merge a draft patch into `prev`, skipping any key whose value
+ * is explicitly `undefined`. A plain `{...prev, ...patch}` spread does NOT
+ * skip `undefined`-valued keys — `afterAccommodation`'s tail parameters all
+ * default to `undefined`, so a caller that omits one (e.g. the short-circuit
+ * call sites in `afterDetails` for a product with no hotel/add-ons) would
+ * otherwise silently wipe an already-good slice of `prev` with an explicit
+ * `undefined`. `null` is a meaningful value for some slices (hotelLocationId,
+ * pickupLocationId, customerDeclarations, …) and still passes through
+ * unaffected — only `undefined` is skipped.
+ */
+export function mergeDraftPatch(
+  prev: BookingDraft,
+  patch: BookingDraft,
+): BookingDraft {
+  const next = { ...prev } as Record<string, unknown>
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) next[key] = value
+  }
+  return next as BookingDraft
+}
+
+/**
  * landr-nmed: rebuild the `details` step from a BookingDraft + the (possibly
  * just-edited) product/selection. Threads the booker / participants /
  * companions forward so DetailsStep re-mounts pre-filled after a breadcrumb
