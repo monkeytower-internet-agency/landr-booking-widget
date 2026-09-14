@@ -11953,6 +11953,55 @@
         "title": "SavedViewPatch",
         "type": "object"
       },
+      "SeasonPlanIn": {
+        "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlanRow"
+            },
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "SeasonPlanIn",
+        "type": "object"
+      },
+      "SeasonPlanRow": {
+        "description": "One Season planner draft row: a date range applied, as ``in_service``,\nto every unit in ``unit_ids`` \u2014 mirrors ``SeasonPlannerRow`` in\n``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is\nlocal-only React list identity and is never sent here).\n\n``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by\nthe RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a\nmulti-row body reports every bad row in one machine-readable payload\ninstead of one Pydantic error \u2014 same call as :class:`UnitServicePeriodRange`.",
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "unit_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "unit_ids"
+        ],
+        "title": "SeasonPlanRow",
+        "type": "object"
+      },
       "SendMessageRequest": {
         "properties": {
           "body": {
@@ -31331,6 +31380,119 @@
           }
         ],
         "summary": "Delete Unit Service Period",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
+      "put": {
+        "description": "Apply the Season planner's draft rows to every touched unit, atomically.\n\nlandr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose\n``SeasonPlannerSection`` fans out N per-unit PUTs client-side via\n``Promise.allSettled`` \u2014 a real, shipped feature, but not atomic: a\nmid-fan-out failure (a network blip, a genuine 409/422 on one unit) can\nleave the pool partially on the new season. This endpoint replaces that\nfan-out with ONE call.\n\nThe write is ``apply_resource_pool_season_plan`` (migration\n20260914100000): one transaction that, for each row's date range, on\nevery unit it names, trims that unit's current schedule (both kinds) to\nthe OVERWRITE + trim semantics\n``landr-dashboard/src/lib/seasonPlanner.ts``'s\n``computeSeasonPlannerPlans``/``trimPeriod`` already implement\nclient-side, then delegates the per-unit write to the SAME\n``apply_resource_pool_unit_service_periods`` the single-unit PUT above\nuses, called once per touched unit inside this one transaction. A bad\nrow anywhere in the body \u2014 or a unit id that turns out not to belong to\nthis pool \u2014 means NOTHING is written for ANY unit.\n\nA unit the payload never names is never looked up and never appears in\nthe response; its schedule is untouched.\n\n``?dry_run=1`` writes nothing and returns, alongside the periods every\ntouched unit WOULD end up with, one ``consequences`` block covering every\ntouched unit's change AT ONCE (not one unit at a time \u2014 pool capacity is\na sum over the whole roster, so previewing units independently would mis-\ncount a day where two touched units both change). Window defaults and\noverrides are identical to the single-unit PUT's \u2014 see\n:func:`_consequence_window`.",
+        "operationId": "apply_pool_season_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Pool Season Plan",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Pool Season Plan",
         "tags": [
           "staff-approval-periods"
         ]

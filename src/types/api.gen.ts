@@ -5695,6 +5695,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply Pool Season Plan
+         * @description Apply the Season planner's draft rows to every touched unit, atomically.
+         *
+         *     landr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose
+         *     ``SeasonPlannerSection`` fans out N per-unit PUTs client-side via
+         *     ``Promise.allSettled`` — a real, shipped feature, but not atomic: a
+         *     mid-fan-out failure (a network blip, a genuine 409/422 on one unit) can
+         *     leave the pool partially on the new season. This endpoint replaces that
+         *     fan-out with ONE call.
+         *
+         *     The write is ``apply_resource_pool_season_plan`` (migration
+         *     20260914100000): one transaction that, for each row's date range, on
+         *     every unit it names, trims that unit's current schedule (both kinds) to
+         *     the OVERWRITE + trim semantics
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s
+         *     ``computeSeasonPlannerPlans``/``trimPeriod`` already implement
+         *     client-side, then delegates the per-unit write to the SAME
+         *     ``apply_resource_pool_unit_service_periods`` the single-unit PUT above
+         *     uses, called once per touched unit inside this one transaction. A bad
+         *     row anywhere in the body — or a unit id that turns out not to belong to
+         *     this pool — means NOTHING is written for ANY unit.
+         *
+         *     A unit the payload never names is never looked up and never appears in
+         *     the response; its schedule is untouched.
+         *
+         *     ``?dry_run=1`` writes nothing and returns, alongside the periods every
+         *     touched unit WOULD end up with, one ``consequences`` block covering every
+         *     touched unit's change AT ONCE (not one unit at a time — pool capacity is
+         *     a sum over the whole roster, so previewing units independently would mis-
+         *     count a day where two touched units both change). Window defaults and
+         *     overrides are identical to the single-unit PUT's — see
+         *     :func:`_consequence_window`.
+         */
+        put: operations["apply_pool_season_plan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}": {
         parameters: {
             query?: never;
@@ -10983,6 +11033,55 @@ export interface components {
             sort_order?: number | null;
             /** Visibility */
             visibility?: ("personal" | "shared") | null;
+        };
+        /**
+         * SeasonPlanIn
+         * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
+         *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
+         *     to landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out
+         *     over N per-unit PUTs).
+         *
+         *     Each row OVERWRITES the days it covers on every unit it names: an
+         *     existing period (either kind) that only partially overlaps a row is
+         *     trimmed to its non-overlapping remainder, one entirely inside the row's
+         *     range is replaced outright, and the row's own range becomes a new
+         *     ``in_service`` period. Rows are applied in array order, so a LATER row
+         *     wins over an EARLIER one on the same unit where their ranges overlap —
+         *     same "last write wins" contract
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``
+         *     documents. See ``apply_resource_pool_season_plan``'s migration for the
+         *     full algorithm; it is a straight port of that module's
+         *     ``computeSeasonPlannerPlans``/``trimPeriod``.
+         */
+        SeasonPlanIn: {
+            /** Rows */
+            rows: components["schemas"]["SeasonPlanRow"][];
+        };
+        /**
+         * SeasonPlanRow
+         * @description One Season planner draft row: a date range applied, as ``in_service``,
+         *     to every unit in ``unit_ids`` — mirrors ``SeasonPlannerRow`` in
+         *     ``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is
+         *     local-only React list identity and is never sent here).
+         *
+         *     ``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by
+         *     the RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a
+         *     multi-row body reports every bad row in one machine-readable payload
+         *     instead of one Pydantic error — same call as :class:`UnitServicePeriodRange`.
+         */
+        SeasonPlanRow: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Unit Ids */
+            unit_ids: string[];
         };
         /** SendMessageRequest */
         SendMessageRequest: {
@@ -21725,6 +21824,48 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_pool_season_plan: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonPlanIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
