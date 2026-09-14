@@ -884,7 +884,7 @@
       },
       "AvailabilitySlot": {
         "additionalProperties": true,
-        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.",
+        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.\n\nlandr-mizc: capacity_reserved dropped from product_availability\n(always 0, dead since the Slice-8 maintenance trigger was removed) and\nfrom this RPC's return columns \u2014 dropped here to match.",
         "properties": {
           "availability_id": {
             "title": "Availability Id",
@@ -896,10 +896,6 @@
           },
           "capacity": {
             "title": "Capacity",
-            "type": "integer"
-          },
-          "capacity_reserved": {
-            "title": "Capacity Reserved",
             "type": "integer"
           },
           "date": {
@@ -938,7 +934,6 @@
           "availability_id",
           "date",
           "capacity",
-          "capacity_reserved",
           "available_seats",
           "status"
         ],
@@ -7424,20 +7419,6 @@
             ],
             "title": "Name"
           },
-          "offered_languages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Offered Languages"
-          },
           "onboarded_at": {
             "anyOf": [
               {
@@ -7918,6 +7899,20 @@
             ],
             "title": "Category Name Localized"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "images": {
             "items": {
               "$ref": "#/components/schemas/ProductImage"
@@ -8222,13 +8217,6 @@
             "default": false,
             "title": "Offer Account Link",
             "type": "boolean"
-          },
-          "offered_languages": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Offered Languages",
-            "type": "array"
           },
           "primary_color": {
             "anyOf": [
@@ -9904,6 +9892,20 @@
             ],
             "title": "Fixed Start Date"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "hotel_location_id": {
             "anyOf": [
               {
@@ -10249,6 +10251,20 @@
               }
             ],
             "title": "Fixed Start Date"
+          },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
           },
           "hotel_location_id": {
             "anyOf": [
