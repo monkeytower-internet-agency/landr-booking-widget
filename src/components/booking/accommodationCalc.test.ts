@@ -901,6 +901,47 @@ describe('applyAssignment — cycling on a full unit (landr)', () => {
   })
 })
 
+describe('applyAssignment — evicted occupant takes the mover\'s vacated spot (landr-0l5q)', () => {
+  const family = makeRoom('family', 120, 'EUR', 3)
+  const double = makeRoom('double', 73, 'EUR', 2)
+  const units = expandRoomUnits(
+    [
+      { productId: 'family', quantity: 1 },
+      { productId: 'double', quantity: 1 },
+    ],
+    [family, double],
+  )
+  const familyUnit = units.find((u) => u.roomProductId === 'family')!
+  const doubleUnit = units.find((u) => u.roomProductId === 'double')!
+
+  it('places the evicted occupant at the mover\'s real position, not slot 0, when the mover has no explicit slot', () => {
+    // Family (capacity 3): member 1 at slot 0 (explicit, from an earlier
+    // rotation), member 4 at slot 1 (explicit), member 3 with NO slot field
+    // (filled in later by autoAssignParticipants, which never writes one —
+    // it displays last via the fallback-to-index ordering).
+    const start: RoomAssignmentMap = {
+      1: { roomProductId: 'family', unitIndex: 0, slot: 0 },
+      4: { roomProductId: 'family', unitIndex: 0, slot: 1 },
+      3: { roomProductId: 'family', unitIndex: 0 },
+      // Double (capacity 2, full): members 0 and 5.
+      0: { roomProductId: 'double', unitIndex: 0 },
+      5: { roomProductId: 'double', unitIndex: 0 },
+    }
+    expect(occupantsOfUnit(start, familyUnit)).toEqual([1, 4, 3])
+
+    // Move member 3 (no slot, real position = last / index 2) onto the full
+    // double → rotates: 3 takes the front, 5 (last double occupant) is
+    // evicted back to the family, into the spot member 3 vacated.
+    const next = applyAssignment(start, 3, doubleUnit)
+
+    expect(occupantsOfUnit(next, doubleUnit)).toEqual([3, 0])
+    // Member 1 and member 4 must stay exactly where they were — only the
+    // vacated (last) spot changes hands. The old `prev.slot ?? 0` bug
+    // evicted into slot 0, bumping member 1 out of the front spot instead.
+    expect(occupantsOfUnit(next, familyUnit)).toEqual([1, 4, 5])
+  })
+})
+
 describe('hasIncompleteChildAge (landr-doam.1)', () => {
   const assignment: RoomAssignmentMap = {
     0: { roomProductId: 'double', unitIndex: 0 },

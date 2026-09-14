@@ -1276,6 +1276,21 @@
             ],
             "title": "Date Range Start"
           },
+          "forced_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced Days"
+          },
           "quantity": {
             "anyOf": [
               {
@@ -3768,6 +3783,48 @@
           "currency"
         ],
         "title": "EstimateResponse",
+        "type": "object"
+      },
+      "FixedDateWindow": {
+        "additionalProperties": true,
+        "description": "One row returned by the public_get_product_fixed_date_windows RPC.\nMirrors the widget's ``FixedDateWindow`` TypeScript interface\n(src/api/types.ts) field-for-field.",
+        "properties": {
+          "available_seats": {
+            "title": "Available Seats",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "capacity_reserved": {
+            "title": "Capacity Reserved",
+            "type": "integer"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "start_date",
+          "end_date",
+          "capacity",
+          "capacity_reserved",
+          "available_seats"
+        ],
+        "title": "FixedDateWindow",
         "type": "object"
       },
       "FlagResponse": {
@@ -7247,6 +7304,18 @@
               }
             ],
             "title": "Onboarded At"
+          },
+          "pending_booking_expiry_hours": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Booking Expiry Hours"
           },
           "phone": {
             "anyOf": [
@@ -20301,6 +20370,53 @@
         ]
       }
     },
+    "/api/public/products/{product_id}/fixed-date-windows": {
+      "get": {
+        "description": "Upcoming, non-deleted, active windows for a fixed_date_range product\n(landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC\n`public_get_product_fixed_date_windows`, added so the public widget\n(bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong\ndirectly \u2014 a Tailscale-private dev host, which Chrome's Private Network\nAccess check blocks from a public origin (landr-cxhpm). Mirrors the\nexisting get_product_addons wrapper above.",
+        "operationId": "get_product_fixed_date_windows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FixedDateWindow"
+                  },
+                  "title": "Response Get Product Fixed Date Windows",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product Fixed Date Windows",
+        "tags": [
+          "public-operators"
+        ]
+      }
+    },
     "/api/public/signup": {
       "post": {
         "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
@@ -26432,7 +26548,7 @@
     },
     "/api/staff/operators/{operator_id}/integrations/holded/{mode}/numbering-series": {
       "get": {
-        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nMirrors the verify endpoint immediately above: same auth dependency\n(cross-operator access 403s via get_staff_operator_membership_by_op, bare/\ninvalid bearer 401s via its own get_current_user), same {mode} path-\nscoping \u2014 resolved via HoldedClient.for_operator_resolved's ``mode``\noverride (landr-g1ao.3) so this reads the EXACT (operator_id, holded,\nmode) row the path names, not whichever mode ``Settings.environment``\nwould derive \u2014 and the same 5/min rate limit. No stored credential for\nthat row -> ``holded_not_connected=True`` at 200 (never a 404/503),\nmatching every other Holded-status shape in this router /\nstaff_holded_invoicing.py. A live Holded error (revoked key, missing\nscope, transient outage) is the one divergence from the verify\nendpoint's \"always 200\" contract \u2014 this endpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
+        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nAuth: require_role(\"owner\", \"admin\", \"staff\"). Same {mode} path-scoping\n\u2014 resolved via HoldedClient.for_operator_resolved's ``mode`` override\n(landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row\nthe path names, not whichever mode ``Settings.environment`` would derive\n\u2014 and the same 5/min rate limit. No stored credential for that row ->\n``holded_not_connected=True`` at 200 (never a 404/503), matching every\nother Holded-status shape in this router / staff_holded_invoicing.py. A\nlive Holded error (revoked key, missing scope, transient outage) is the\none divergence from the verify endpoint's \"always 200\" contract \u2014 this\nendpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
         "operationId": "list_holded_numbering_series",
         "parameters": [
           {

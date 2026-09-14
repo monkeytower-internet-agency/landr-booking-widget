@@ -2406,6 +2406,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/products/{product_id}/fixed-date-windows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Fixed Date Windows
+         * @description Upcoming, non-deleted, active windows for a fixed_date_range product
+         *     (landr-m05.28). Thin FastAPI wrapper over the SECURITY DEFINER RPC
+         *     `public_get_product_fixed_date_windows`, added so the public widget
+         *     (bw-dev.landr.de, a public Cloudflare Pages origin) doesn't fetch Kong
+         *     directly — a Tailscale-private dev host, which Chrome's Private Network
+         *     Access check blocks from a public origin (landr-cxhpm). Mirrors the
+         *     existing get_product_addons wrapper above.
+         */
+        get: operations["get_product_fixed_date_windows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/signup": {
         parameters: {
             query?: never;
@@ -4285,18 +4311,16 @@ export interface paths {
          * @description List this operator's Holded invoice numbering series for the (provider,
          *     mode)-scoped dashboard picker.
          *
-         *     Mirrors the verify endpoint immediately above: same auth dependency
-         *     (cross-operator access 403s via get_staff_operator_membership_by_op, bare/
-         *     invalid bearer 401s via its own get_current_user), same {mode} path-
-         *     scoping — resolved via HoldedClient.for_operator_resolved's ``mode``
-         *     override (landr-g1ao.3) so this reads the EXACT (operator_id, holded,
-         *     mode) row the path names, not whichever mode ``Settings.environment``
-         *     would derive — and the same 5/min rate limit. No stored credential for
-         *     that row -> ``holded_not_connected=True`` at 200 (never a 404/503),
-         *     matching every other Holded-status shape in this router /
-         *     staff_holded_invoicing.py. A live Holded error (revoked key, missing
-         *     scope, transient outage) is the one divergence from the verify
-         *     endpoint's "always 200" contract — this endpoint returns real picker
+         *     Auth: require_role("owner", "admin", "staff"). Same {mode} path-scoping
+         *     — resolved via HoldedClient.for_operator_resolved's ``mode`` override
+         *     (landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row
+         *     the path names, not whichever mode ``Settings.environment`` would derive
+         *     — and the same 5/min rate limit. No stored credential for that row ->
+         *     ``holded_not_connected=True`` at 200 (never a 404/503), matching every
+         *     other Holded-status shape in this router / staff_holded_invoicing.py. A
+         *     live Holded error (revoked key, missing scope, transient outage) is the
+         *     one divergence from the verify endpoint's "always 200" contract — this
+         *     endpoint returns real picker
          *     data, so a real failure surfaces as 502 rather than being masked.
          */
         get: operations["list_holded_numbering_series"];
@@ -7411,6 +7435,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Forced Days */
+            forced_days?: string[] | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */
@@ -8271,6 +8297,34 @@ export interface components {
             un_priceable: boolean;
             /** Warnings */
             warnings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FixedDateWindow
+         * @description One row returned by the public_get_product_fixed_date_windows RPC.
+         *     Mirrors the widget's ``FixedDateWindow`` TypeScript interface
+         *     (src/api/types.ts) field-for-field.
+         */
+        FixedDateWindow: {
+            /** Available Seats */
+            available_seats: number;
+            /** Capacity */
+            capacity: number;
+            /** Capacity Reserved */
+            capacity_reserved: number;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Id */
+            id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
         } & {
             [key: string]: unknown;
         };
@@ -9340,6 +9394,8 @@ export interface components {
             offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Pending Booking Expiry Hours */
+            pending_booking_expiry_hours?: number | null;
             /** Phone */
             phone?: string | null;
             /** Postal Code */
@@ -15506,6 +15562,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AvailabilitySlot"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_fixed_date_windows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedDateWindow"][];
                 };
             };
             /** @description Validation Error */
