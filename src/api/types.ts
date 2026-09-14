@@ -5,6 +5,7 @@
  */
 
 import type { Enums } from '@/types/database.gen'
+import type { components } from '@/types/api.gen'
 import type { FormResponseEntry } from '@/api/flowTypes'
 
 /**
@@ -288,6 +289,41 @@ export interface Product {
   category_id?: string
   category_name?: string
   category_name_localized?: Record<string, string> | null
+  /**
+   * landr-p68d2 (epic decision D1, API field landed in landr-p68d2.1): the
+   * ISO 639-1 guide languages OFFERED FOR THIS PRODUCT — replaces the old
+   * operator-level `OperatorSettings.offered_languages` as the source the
+   * language-assignment board (and the mirrored `language` custom-form
+   * field) draws from. Every party member on a booking of this product must
+   * be assigned to one of these (landr-r6e5x.4's board, narrowed here to be
+   * per-product instead of per-operator).
+   *
+   * Non-null with >=1 lower-case 2-letter codes for product_kind='service';
+   * null for every other kind (hotel rooms, add-ons, subscriptions never
+   * collect a guide language). Optional here only for the rolling-deploy
+   * window — a widget build ahead of the API, or pointed at a tier that
+   * predates landr-p68d2.1, sees the field absent and falls back straight
+   * to the platform default (see App.tsx's offeredLanguagesForProduct and
+   * normaliseOfferedLanguages in participantLanguages.ts). NOT a
+   * three-tier fallback through `OperatorSettings.offered_languages` —
+   * landr-p68d2.1 confirmed `public_get_operator_settings` already strips
+   * that field from the response (D5), so it is never present to fall
+   * back to on a current API; see that field's own doc.
+   *
+   * landr-p68d2.1 also confirmed the submit-side language rule ignores
+   * add-on service lines (is_addon_only / product_addons children) — safe
+   * to key this purely off the single main service product a booking ever
+   * carries (D4), never an add-on.
+   *
+   * UNLIKE every other field on `Product`, this one IS explicitly declared
+   * on the generated `components['schemas']['OperatorProduct']` (landr-api
+   * added it as a real Pydantic field, not the extra=allow passthrough
+   * every other Product field relies on — see that interface's own
+   * codegen-gap note above). Sourced from the generated type instead of
+   * hand-rolled, so a future shape change there is caught by tsc rather
+   * than silently drifting.
+   */
+  guide_languages?: components['schemas']['OperatorProduct']['guide_languages']
 }
 
 /**
@@ -323,19 +359,16 @@ export interface WidgetTheme {
  */
 export interface OperatorSettings {
   slug: string
-  /**
-   * landr-r6e5x.2 / epic decision D2: the ISO 639-1 guide languages this
-   * operator offers, from `operators.offered_languages`. Every party member
-   * on a booking must be assigned to exactly one of them (landr-r6e5x.4);
-   * the free-text "additional spoken languages" field is NOT part of this
-   * list and never assigns anyone.
-   *
-   * Optional for rolling deploy — a widget deployed ahead of the API (or
-   * pointed at an older tier) sees it absent and falls back to the platform
-   * default set, which is also the column's DEFAULT. See
-   * normaliseOfferedLanguages in components/booking/participantLanguages.ts.
-   */
-  offered_languages?: string[] | null
+  // landr-p68d2 (epic decision D5): offered_languages REMOVED (was here,
+  // landr-r6e5x.2's operator-level guide-language setting). The setting
+  // moved to the PRODUCT (`Product.guide_languages`, landr-p68d2.1/.2) — an
+  // operator running both a one-language trip and a four-language day no
+  // longer has one setting to pick for both. Confirmed via landr-p68d2.1's
+  // merged contract: `public_get_operator_settings` strips this key from
+  // the response AND the generated `OperatorSettings`/`OperatorPatch`
+  // schemas no longer declare it either (unlike guide_languages below,
+  // there is no generated-schema justification left to keep a hand-written
+  // stub around). Deleted outright rather than kept optional-and-unread.
   /**
    * When false (default): widget hides numeric remaining-seat counts on
    * availability cells. When true: widget shows "{N} seats" as an

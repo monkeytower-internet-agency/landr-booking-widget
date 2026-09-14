@@ -847,6 +847,17 @@ export interface paths {
         /**
          * List Runs
          * @description Run history, newest-first.
+         *
+         *     landr-1bbm8 — each run is hydrated with its ``repos`` (promotion_run_repos
+         *     rows: repo, head_sha, merge_status, ahead_by, error). Before this, the
+         *     dashboard's history/pending-proposal cards called `RunRepoList` with
+         *     `run.repos` always undefined (only the single-run `GET /{run_id}`
+         *     endpoint returned them), so a merge conflict recorded in the DB — e.g.
+         *     `merge_status='conflict'`, `error='merge conflict merging ... into
+         *     staging on landr-dashboard'` — was invisible in the UI even though the
+         *     migration-stage log showed no error at all. One batched `.in_()` query
+         *     over every listed run id, grouped in Python, instead of N+1 per-run
+         *     fetches.
          */
         get: operations["list_runs"];
         put?: never;
@@ -2763,6 +2774,33 @@ export interface paths {
          *     strand ``bookings.gross_total`` at the old headcount.
          */
         patch: operations["patch_booking_product"];
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Line Day Change
+         * @description What ``PATCH .../products/{booking_product_id}`` would do to the rest
+         *     of the booking if ``selected_days`` moved to ``body.selected_days`` —
+         *     without writing anything.
+         *
+         *     200 with ``stay_changed=false`` and null windows when the edited line
+         *     cannot drive anything (not a bookable activity/room line, a room-tied
+         *     add-on, or nothing left to derive a stay from) — same "nothing derives"
+         *     case :func:`plan_line_day_change` documents by returning ``None``.
+         */
+        post: operations["preview_line_day_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
@@ -5695,6 +5733,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply Pool Season Plan
+         * @description Apply the Season planner's draft rows to every touched unit, atomically.
+         *
+         *     landr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose
+         *     ``SeasonPlannerSection`` fans out N per-unit PUTs client-side via
+         *     ``Promise.allSettled`` — a real, shipped feature, but not atomic: a
+         *     mid-fan-out failure (a network blip, a genuine 409/422 on one unit) can
+         *     leave the pool partially on the new season. This endpoint replaces that
+         *     fan-out with ONE call.
+         *
+         *     The write is ``apply_resource_pool_season_plan`` (migration
+         *     20260914100000): one transaction that, for each row's date range, on
+         *     every unit it names, trims that unit's current schedule (both kinds) to
+         *     the OVERWRITE + trim semantics
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s
+         *     ``computeSeasonPlannerPlans``/``trimPeriod`` already implement
+         *     client-side, then delegates the per-unit write to the SAME
+         *     ``apply_resource_pool_unit_service_periods`` the single-unit PUT above
+         *     uses, called once per touched unit inside this one transaction. A bad
+         *     row anywhere in the body — or a unit id that turns out not to belong to
+         *     this pool — means NOTHING is written for ANY unit.
+         *
+         *     A unit the payload never names is never looked up and never appears in
+         *     the response; its schedule is untouched.
+         *
+         *     ``?dry_run=1`` writes nothing and returns, alongside the periods every
+         *     touched unit WOULD end up with, one ``consequences`` block covering every
+         *     touched unit's change AT ONCE (not one unit at a time — pool capacity is
+         *     a sum over the whole roster, so previewing units independently would mis-
+         *     count a day where two touched units both change). Window defaults and
+         *     overrides are identical to the single-unit PUT's — see
+         *     :func:`_consequence_window`.
+         */
+        put: operations["apply_pool_season_plan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/{unit_id}": {
         parameters: {
             query?: never;
@@ -7268,6 +7356,10 @@ export interface components {
          * @description One row returned by the public_get_product_availability RPC.
          *     Mirrors the widget's ``AvailabilitySlot`` TypeScript interface
          *     (src/api/types.ts) field-for-field.
+         *
+         *     landr-mizc: capacity_reserved dropped from product_availability
+         *     (always 0, dead since the Slice-8 maintenance trigger was removed) and
+         *     from this RPC's return columns — dropped here to match.
          */
         AvailabilitySlot: {
             /** Availability Id */
@@ -7276,8 +7368,6 @@ export interface components {
             available_seats: number;
             /** Capacity */
             capacity: number;
-            /** Capacity Reserved */
-            capacity_reserved: number;
             /**
              * Date
              * Format: date
@@ -7905,6 +7995,58 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        /** DayChangeLineDelta */
+        DayChangeLineDelta: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** New Gross */
+            new_gross: string;
+            /** New Selected Days */
+            new_selected_days: string[];
+            /** Old Gross */
+            old_gross: string;
+            /** Old Selected Days */
+            old_selected_days: string[];
+            /** Product Id */
+            product_id: string;
+        };
+        /** DayChangePreviewRequest */
+        DayChangePreviewRequest: {
+            /** Selected Days */
+            selected_days: string[];
+        };
+        /** DayChangePreviewResponse */
+        DayChangePreviewResponse: {
+            /** Line Changes */
+            line_changes?: components["schemas"]["DayChangeLineDelta"][];
+            /** Stay Changed */
+            stay_changed: boolean;
+            /** Totals After */
+            totals_after: {
+                [key: string]: string;
+            };
+            /** Totals Before */
+            totals_before: {
+                [key: string]: string;
+            };
+            window_after?: components["schemas"]["DayChangeWindow"] | null;
+            window_before?: components["schemas"]["DayChangeWindow"] | null;
+        };
+        /** DayChangeWindow */
+        DayChangeWindow: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Nights */
+            nights: number;
         };
         /** DayManifestOut */
         DayManifestOut: {
@@ -9390,8 +9532,6 @@ export interface components {
             logo_url?: string | null;
             /** Name */
             name?: string | null;
-            /** Offered Languages */
-            offered_languages?: string[] | null;
             /** Onboarded At */
             onboarded_at?: string | null;
             /** Pending Booking Expiry Hours */
@@ -9486,6 +9626,8 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Images */
             images?: components["schemas"]["ProductImage"][];
             /** Name */
@@ -9618,8 +9760,6 @@ export interface components {
              * @default false
              */
             offer_account_link: boolean;
-            /** Offered Languages */
-            offered_languages?: string[];
             /** Primary Color */
             primary_color?: string | null;
             /** Slug */
@@ -10197,6 +10337,8 @@ export interface components {
             fixed_end_date?: string | null;
             /** Fixed Start Date */
             fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */
@@ -10302,6 +10444,8 @@ export interface components {
             fixed_end_date?: string | null;
             /** Fixed Start Date */
             fixed_start_date?: string | null;
+            /** Guide Languages */
+            guide_languages?: string[] | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /** Hotel Offering */
@@ -10952,7 +11096,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard";
+            entity_type: "booking" | "ticket" | "contact" | "product" | "approval" | "resource" | "participant_day" | "provider" | "unit_day" | "dashboard" | "location";
             /** Name */
             name: string;
             /**
@@ -10983,6 +11127,55 @@ export interface components {
             sort_order?: number | null;
             /** Visibility */
             visibility?: ("personal" | "shared") | null;
+        };
+        /**
+         * SeasonPlanIn
+         * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
+         *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
+         *     to landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out
+         *     over N per-unit PUTs).
+         *
+         *     Each row OVERWRITES the days it covers on every unit it names: an
+         *     existing period (either kind) that only partially overlaps a row is
+         *     trimmed to its non-overlapping remainder, one entirely inside the row's
+         *     range is replaced outright, and the row's own range becomes a new
+         *     ``in_service`` period. Rows are applied in array order, so a LATER row
+         *     wins over an EARLIER one on the same unit where their ranges overlap —
+         *     same "last write wins" contract
+         *     ``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``
+         *     documents. See ``apply_resource_pool_season_plan``'s migration for the
+         *     full algorithm; it is a straight port of that module's
+         *     ``computeSeasonPlannerPlans``/``trimPeriod``.
+         */
+        SeasonPlanIn: {
+            /** Rows */
+            rows: components["schemas"]["SeasonPlanRow"][];
+        };
+        /**
+         * SeasonPlanRow
+         * @description One Season planner draft row: a date range applied, as ``in_service``,
+         *     to every unit in ``unit_ids`` — mirrors ``SeasonPlannerRow`` in
+         *     ``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is
+         *     local-only React list identity and is never sent here).
+         *
+         *     ``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by
+         *     the RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a
+         *     multi-row body reports every bad row in one machine-readable payload
+         *     instead of one Pydantic error — same call as :class:`UnitServicePeriodRange`.
+         */
+        SeasonPlanRow: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Unit Ids */
+            unit_ids: string[];
         };
         /** SendMessageRequest */
         SendMessageRequest: {
@@ -16007,6 +16200,42 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_line_day_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayChangePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayChangePreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21725,6 +21954,48 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_pool_season_plan: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                pool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonPlanIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

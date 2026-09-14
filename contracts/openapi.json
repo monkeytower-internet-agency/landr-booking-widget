@@ -884,7 +884,7 @@
       },
       "AvailabilitySlot": {
         "additionalProperties": true,
-        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.",
+        "description": "One row returned by the public_get_product_availability RPC.\nMirrors the widget's ``AvailabilitySlot`` TypeScript interface\n(src/api/types.ts) field-for-field.\n\nlandr-mizc: capacity_reserved dropped from product_availability\n(always 0, dead since the Slice-8 maintenance trigger was removed) and\nfrom this RPC's return columns \u2014 dropped here to match.",
         "properties": {
           "availability_id": {
             "title": "Availability Id",
@@ -896,10 +896,6 @@
           },
           "capacity": {
             "title": "Capacity",
-            "type": "integer"
-          },
-          "capacity_reserved": {
-            "title": "Capacity Reserved",
             "type": "integer"
           },
           "date": {
@@ -938,7 +934,6 @@
           "availability_id",
           "date",
           "capacity",
-          "capacity_reserved",
           "available_seats",
           "status"
         ],
@@ -2613,6 +2608,151 @@
           "label"
         ],
         "title": "CustomerStageLabel",
+        "type": "object"
+      },
+      "DayChangeLineDelta": {
+        "properties": {
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "new_gross": {
+            "title": "New Gross",
+            "type": "string"
+          },
+          "new_selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "New Selected Days",
+            "type": "array"
+          },
+          "old_gross": {
+            "title": "Old Gross",
+            "type": "string"
+          },
+          "old_selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Old Selected Days",
+            "type": "array"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "product_id",
+          "old_selected_days",
+          "new_selected_days",
+          "old_gross",
+          "new_gross"
+        ],
+        "title": "DayChangeLineDelta",
+        "type": "object"
+      },
+      "DayChangePreviewRequest": {
+        "properties": {
+          "selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Selected Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "selected_days"
+        ],
+        "title": "DayChangePreviewRequest",
+        "type": "object"
+      },
+      "DayChangePreviewResponse": {
+        "properties": {
+          "line_changes": {
+            "items": {
+              "$ref": "#/components/schemas/DayChangeLineDelta"
+            },
+            "title": "Line Changes",
+            "type": "array"
+          },
+          "stay_changed": {
+            "title": "Stay Changed",
+            "type": "boolean"
+          },
+          "totals_after": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals After",
+            "type": "object"
+          },
+          "totals_before": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals Before",
+            "type": "object"
+          },
+          "window_after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayChangeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "window_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DayChangeWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "stay_changed",
+          "totals_before",
+          "totals_after"
+        ],
+        "title": "DayChangePreviewResponse",
+        "type": "object"
+      },
+      "DayChangeWindow": {
+        "properties": {
+          "check_in": {
+            "format": "date",
+            "title": "Check In",
+            "type": "string"
+          },
+          "check_out": {
+            "format": "date",
+            "title": "Check Out",
+            "type": "string"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check_in",
+          "check_out",
+          "nights"
+        ],
+        "title": "DayChangeWindow",
         "type": "object"
       },
       "DayManifestOut": {
@@ -7279,20 +7419,6 @@
             ],
             "title": "Name"
           },
-          "offered_languages": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Offered Languages"
-          },
           "onboarded_at": {
             "anyOf": [
               {
@@ -7773,6 +7899,20 @@
             ],
             "title": "Category Name Localized"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "images": {
             "items": {
               "$ref": "#/components/schemas/ProductImage"
@@ -8077,13 +8217,6 @@
             "default": false,
             "title": "Offer Account Link",
             "type": "boolean"
-          },
-          "offered_languages": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Offered Languages",
-            "type": "array"
           },
           "primary_color": {
             "anyOf": [
@@ -9759,6 +9892,20 @@
             ],
             "title": "Fixed Start Date"
           },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
+          },
           "hotel_location_id": {
             "anyOf": [
               {
@@ -10104,6 +10251,20 @@
               }
             ],
             "title": "Fixed Start Date"
+          },
+          "guide_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Languages"
           },
           "hotel_location_id": {
             "anyOf": [
@@ -11861,7 +12022,8 @@
               "participant_day",
               "provider",
               "unit_day",
-              "dashboard"
+              "dashboard",
+              "location"
             ],
             "title": "Entity Type",
             "type": "string"
@@ -11950,6 +12112,55 @@
           }
         },
         "title": "SavedViewPatch",
+        "type": "object"
+      },
+      "SeasonPlanIn": {
+        "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonPlanRow"
+            },
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "SeasonPlanIn",
+        "type": "object"
+      },
+      "SeasonPlanRow": {
+        "description": "One Season planner draft row: a date range applied, as ``in_service``,\nto every unit in ``unit_ids`` \u2014 mirrors ``SeasonPlannerRow`` in\n``landr-dashboard``'s ``seasonPlanner.ts`` (that type's ``key`` field is\nlocal-only React list identity and is never sent here).\n\n``end_date >= start_date`` and a non-empty ``unit_ids`` are enforced by\nthe RPC (typed 422, ``season_plan_invalid_rows``) rather than here, so a\nmulti-row body reports every bad row in one machine-readable payload\ninstead of one Pydantic error \u2014 same call as :class:`UnitServicePeriodRange`.",
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "unit_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "unit_ids"
+        ],
+        "title": "SeasonPlanRow",
         "type": "object"
       },
       "SendMessageRequest": {
@@ -17508,7 +17719,7 @@
     },
     "/api/landr-staff/promotions": {
       "get": {
-        "description": "Run history, newest-first.",
+        "description": "Run history, newest-first.\n\nlandr-1bbm8 \u2014 each run is hydrated with its ``repos`` (promotion_run_repos\nrows: repo, head_sha, merge_status, ahead_by, error). Before this, the\ndashboard's history/pending-proposal cards called `RunRepoList` with\n`run.repos` always undefined (only the single-run `GET /{run_id}`\nendpoint returned them), so a merge conflict recorded in the DB \u2014 e.g.\n`merge_status='conflict'`, `error='merge conflict merging ... into\nstaging on landr-dashboard'` \u2014 was invisible in the UI even though the\nmigration-stage log showed no error at all. One batched `.in_()` query\nover every listed run id, grouped in Python, instead of N+1 per-run\nfetches.",
         "operationId": "list_runs",
         "responses": {
           "200": {
@@ -21035,6 +21246,73 @@
         "summary": "Patch Booking Product",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/day-change-preview": {
+      "post": {
+        "description": "What ``PATCH .../products/{booking_product_id}`` would do to the rest\nof the booking if ``selected_days`` moved to ``body.selected_days`` \u2014\nwithout writing anything.\n\n200 with ``stay_changed=false`` and null windows when the edited line\ncannot drive anything (not a bookable activity/room line, a room-tied\nadd-on, or nothing left to derive a stay from) \u2014 same \"nothing derives\"\ncase :func:`plan_line_day_change` documents by returning ``None``.",
+        "operationId": "preview_line_day_change",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayChangePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayChangePreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Line Day Change",
+        "tags": [
+          "staff-bookings-day-change-preview"
         ]
       }
     },
@@ -31330,6 +31608,119 @@
           }
         ],
         "summary": "Delete Unit Service Period",
+        "tags": [
+          "staff-approval-periods"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-pools/{pool_id}/units/service-periods": {
+      "put": {
+        "description": "Apply the Season planner's draft rows to every touched unit, atomically.\n\nlandr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose\n``SeasonPlannerSection`` fans out N per-unit PUTs client-side via\n``Promise.allSettled`` \u2014 a real, shipped feature, but not atomic: a\nmid-fan-out failure (a network blip, a genuine 409/422 on one unit) can\nleave the pool partially on the new season. This endpoint replaces that\nfan-out with ONE call.\n\nThe write is ``apply_resource_pool_season_plan`` (migration\n20260914100000): one transaction that, for each row's date range, on\nevery unit it names, trims that unit's current schedule (both kinds) to\nthe OVERWRITE + trim semantics\n``landr-dashboard/src/lib/seasonPlanner.ts``'s\n``computeSeasonPlannerPlans``/``trimPeriod`` already implement\nclient-side, then delegates the per-unit write to the SAME\n``apply_resource_pool_unit_service_periods`` the single-unit PUT above\nuses, called once per touched unit inside this one transaction. A bad\nrow anywhere in the body \u2014 or a unit id that turns out not to belong to\nthis pool \u2014 means NOTHING is written for ANY unit.\n\nA unit the payload never names is never looked up and never appears in\nthe response; its schedule is untouched.\n\n``?dry_run=1`` writes nothing and returns, alongside the periods every\ntouched unit WOULD end up with, one ``consequences`` block covering every\ntouched unit's change AT ONCE (not one unit at a time \u2014 pool capacity is\na sum over the whole roster, so previewing units independently would mis-\ncount a day where two touched units both change). Window defaults and\noverrides are identical to the single-unit PUT's \u2014 see\n:func:`_consequence_window`.",
+        "operationId": "apply_pool_season_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "pool_id",
+            "required": true,
+            "schema": {
+              "title": "Pool Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonPlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Pool Season Plan",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Apply Pool Season Plan",
         "tags": [
           "staff-approval-periods"
         ]

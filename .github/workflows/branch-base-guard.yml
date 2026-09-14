@@ -1,0 +1,39 @@
+name: Branch base guard
+
+# landr-d112r: rejects a dev-bound PR whose branch was cut from staging/main
+# instead of dev. Root cause of both failed dev->staging promotions on
+# 2026-09-14: a landr-dashboard PR was branched off main/staging, dragging
+# the staging->main and dev->staging release-promotion merge commits into
+# dev. dev and staging ended up with TWO merge bases (criss-cross). A local
+# `git merge` (ort strategy) merges that cleanly, but GitHub's
+# `POST /repos/{org}/{repo}/merges` API picked a different merge base and
+# returned 409, breaking the promotion.
+#
+# See scripts/ci-branch-base-guard.sh for the actual check.
+#
+# Only runs on pull_request targeting dev — a PR into staging/main is
+# EXPECTED to carry those commits, so this check would be meaningless there.
+#
+# This repo has no self-hosted runners (unlike landr-api/landr-dashboard/
+# landr-mobile) — ubuntu-latest is its only lane, matching every other
+# workflow in this repo.
+on:
+  pull_request:
+    branches: [dev]
+
+jobs:
+  branch-base-guard:
+    name: Branch base guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch origin dev/staging/main
+        run: git fetch --quiet origin dev staging main || git fetch --quiet origin dev main
+
+      - name: Run branch base guard
+        run: bash scripts/ci-branch-base-guard.sh
