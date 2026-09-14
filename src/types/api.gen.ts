@@ -4311,18 +4311,16 @@ export interface paths {
          * @description List this operator's Holded invoice numbering series for the (provider,
          *     mode)-scoped dashboard picker.
          *
-         *     Mirrors the verify endpoint immediately above: same auth dependency
-         *     (cross-operator access 403s via get_staff_operator_membership_by_op, bare/
-         *     invalid bearer 401s via its own get_current_user), same {mode} path-
-         *     scoping — resolved via HoldedClient.for_operator_resolved's ``mode``
-         *     override (landr-g1ao.3) so this reads the EXACT (operator_id, holded,
-         *     mode) row the path names, not whichever mode ``Settings.environment``
-         *     would derive — and the same 5/min rate limit. No stored credential for
-         *     that row -> ``holded_not_connected=True`` at 200 (never a 404/503),
-         *     matching every other Holded-status shape in this router /
-         *     staff_holded_invoicing.py. A live Holded error (revoked key, missing
-         *     scope, transient outage) is the one divergence from the verify
-         *     endpoint's "always 200" contract — this endpoint returns real picker
+         *     Auth: require_role("owner", "admin", "staff"). Same {mode} path-scoping
+         *     — resolved via HoldedClient.for_operator_resolved's ``mode`` override
+         *     (landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row
+         *     the path names, not whichever mode ``Settings.environment`` would derive
+         *     — and the same 5/min rate limit. No stored credential for that row ->
+         *     ``holded_not_connected=True`` at 200 (never a 404/503), matching every
+         *     other Holded-status shape in this router / staff_holded_invoicing.py. A
+         *     live Holded error (revoked key, missing scope, transient outage) is the
+         *     one divergence from the verify endpoint's "always 200" contract — this
+         *     endpoint returns real picker
          *     data, so a real failure surfaces as 502 rather than being masked.
          */
         get: operations["list_holded_numbering_series"];
@@ -7437,6 +7435,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Forced Days */
+            forced_days?: string[] | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */

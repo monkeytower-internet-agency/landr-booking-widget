@@ -1276,6 +1276,21 @@
             ],
             "title": "Date Range Start"
           },
+          "forced_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced Days"
+          },
           "quantity": {
             "anyOf": [
               {
@@ -26533,7 +26548,7 @@
     },
     "/api/staff/operators/{operator_id}/integrations/holded/{mode}/numbering-series": {
       "get": {
-        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nMirrors the verify endpoint immediately above: same auth dependency\n(cross-operator access 403s via get_staff_operator_membership_by_op, bare/\ninvalid bearer 401s via its own get_current_user), same {mode} path-\nscoping \u2014 resolved via HoldedClient.for_operator_resolved's ``mode``\noverride (landr-g1ao.3) so this reads the EXACT (operator_id, holded,\nmode) row the path names, not whichever mode ``Settings.environment``\nwould derive \u2014 and the same 5/min rate limit. No stored credential for\nthat row -> ``holded_not_connected=True`` at 200 (never a 404/503),\nmatching every other Holded-status shape in this router /\nstaff_holded_invoicing.py. A live Holded error (revoked key, missing\nscope, transient outage) is the one divergence from the verify\nendpoint's \"always 200\" contract \u2014 this endpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
+        "description": "List this operator's Holded invoice numbering series for the (provider,\nmode)-scoped dashboard picker.\n\nAuth: require_role(\"owner\", \"admin\", \"staff\"). Same {mode} path-scoping\n\u2014 resolved via HoldedClient.for_operator_resolved's ``mode`` override\n(landr-g1ao.3) so this reads the EXACT (operator_id, holded, mode) row\nthe path names, not whichever mode ``Settings.environment`` would derive\n\u2014 and the same 5/min rate limit. No stored credential for that row ->\n``holded_not_connected=True`` at 200 (never a 404/503), matching every\nother Holded-status shape in this router / staff_holded_invoicing.py. A\nlive Holded error (revoked key, missing scope, transient outage) is the\none divergence from the verify endpoint's \"always 200\" contract \u2014 this\nendpoint returns real picker\ndata, so a real failure surfaces as 502 rather than being masked.",
         "operationId": "list_holded_numbering_series",
         "parameters": [
           {
