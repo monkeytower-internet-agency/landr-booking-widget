@@ -5547,11 +5547,44 @@ export interface paths {
          *         ``units_available`` is in fleet AND in service, regardless of release,
          *         because a bus that needs the operator's OK still drives; and
          *         ``shortage`` is ``max(0, needed - available)``.
+         *     ``participants_by_state`` / ``total_load_by_state`` / ``units[].load_by_state``
+         *         (landr-3c71t.1) The SAME totals as ``participants_total`` /
+         *         ``total_load`` / each unit's own ``load``, split into
+         *         ``{pending, confirmed, finalised}`` — the ``LIVE_SEMANTIC_STATES`` a
+         *         booking can be in while still holding a seat (cancelled/no_show are
+         *         already excluded upstream and never appear here). Purely additive:
+         *         the three totals are unchanged and remain the full sum across all
+         *         three states. Summing a ``units[].load_by_state`` dict reproduces
+         *         that unit's own ``load`` exactly; summing every unit's value for one
+         *         state does NOT necessarily reproduce ``total_load_by_state`` for
+         *         that state on a ``shortage`` day, for the same reason
+         *         ``sum(units[].load) <= total_load`` already can — load past the
+         *         in-service ladder's capacity is not attributed to any unit.
          *
          *         ``shortage`` is NOT the same red as ``kind == "shortage"``: this one
          *         counts units and asks whether any vehicle is missing, that one counts
          *         seats and asks whether the people fit. A day can be either without
          *         being the other. See ``app/services/pool_day_supply.py``.
+         *
+         *     ``participants_by_stage`` / ``total_load_by_stage`` / ``units[].load_by_stage``
+         *         (landr-3c71t.4) The SAME totals again, this time split by the
+         *         booking's ``current_stage_code`` instead of semantic state — a finer
+         *         partition, since several operator-enabled stages can share one
+         *         semantic state (e.g. two different "pending" stages). A booking with
+         *         no stage buckets under the literal sentinel key ``"__other__"``,
+         *         which must match ``landr-dashboard``'s ``OTHER_STAGE_CODE``
+         *         (``src/lib/booking-stages.ts``) exactly — the two repos share no
+         *         code, so the string literal itself is the contract.
+         *
+         *         Unlike the state split, this one is **unbounded cardinality**: one
+         *         key per operator-enabled stage, not a fixed 3-tuple. To keep the
+         *         payload from growing with the operator's whole stage catalogue on a
+         *         quiet day, a stage with zero count on a given day/unit simply has no
+         *         key — never a zero-valued entry. Otherwise identical semantics to
+         *         the state split: purely additive (the plain totals are unchanged),
+         *         and summing a ``units[].load_by_stage`` dict reproduces that unit's
+         *         own ``load`` exactly, with the same shortage-day caveat about
+         *         ``total_load_by_stage`` as ``total_load_by_state`` above.
          *
          *     ``units[].day_state`` / ``units[].reason`` / ``units[].approval``
          *         (landr-w9yk8.4) The epic's COLLAPSED per-unit model, additive next to
@@ -9130,6 +9163,8 @@ export interface components {
             booking_count: number;
             /** Code */
             code: string;
+            /** Color Token */
+            color_token?: string | null;
             /** Customer Label */
             customer_label?: string | null;
             /** Customer Label Localized */
@@ -9155,12 +9190,14 @@ export interface components {
         };
         /**
          * LifecycleStagePatchIn
-         * @description Partial update. Only these five fields are ever patchable — code,
+         * @description Partial update. Only these six fields are ever patchable — code,
          *     semantic_state, sort_order and operator_id are deliberately absent, and
          *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
          *     not a silent drop.
          */
         LifecycleStagePatchIn: {
+            /** Color Token */
+            color_token?: string | null;
             /** Customer Label */
             customer_label?: string | null;
             /** Customer Label Localized */
