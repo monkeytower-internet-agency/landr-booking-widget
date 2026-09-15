@@ -5547,6 +5547,19 @@ export interface paths {
          *         ``units_available`` is in fleet AND in service, regardless of release,
          *         because a bus that needs the operator's OK still drives; and
          *         ``shortage`` is ``max(0, needed - available)``.
+         *     ``participants_by_state`` / ``total_load_by_state`` / ``units[].load_by_state``
+         *         (landr-3c71t.1) The SAME totals as ``participants_total`` /
+         *         ``total_load`` / each unit's own ``load``, split into
+         *         ``{pending, confirmed, finalised}`` — the ``LIVE_SEMANTIC_STATES`` a
+         *         booking can be in while still holding a seat (cancelled/no_show are
+         *         already excluded upstream and never appear here). Purely additive:
+         *         the three totals are unchanged and remain the full sum across all
+         *         three states. Summing a ``units[].load_by_state`` dict reproduces
+         *         that unit's own ``load`` exactly; summing every unit's value for one
+         *         state does NOT necessarily reproduce ``total_load_by_state`` for
+         *         that state on a ``shortage`` day, for the same reason
+         *         ``sum(units[].load) <= total_load`` already can — load past the
+         *         in-service ladder's capacity is not attributed to any unit.
          *
          *         ``shortage`` is NOT the same red as ``kind == "shortage"``: this one
          *         counts units and asks whether any vehicle is missing, that one counts
