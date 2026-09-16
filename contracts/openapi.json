@@ -5952,6 +5952,11 @@
             "title": "Semantic State",
             "type": "string"
           },
+          "semantic_state_editable": {
+            "default": false,
+            "title": "Semantic State Editable",
+            "type": "boolean"
+          },
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
@@ -5972,7 +5977,7 @@
       },
       "LifecycleStagePatchIn": {
         "additionalProperties": false,
-        "description": "Partial update. Only these six fields are ever patchable \u2014 code,\nsemantic_state, sort_order and operator_id are deliberately absent, and\nsending any of them (or any other key) is a 422 via ``extra=\"forbid\"``,\nnot a silent drop.",
+        "description": "Partial update. Only these seven fields are ever patchable \u2014 code,\nsort_order and operator_id are deliberately absent, and sending any of\nthem (or any other key) is a 422 via ``extra=\"forbid\"``, not a silent\ndrop. ``semantic_state`` is owner/admin only and goes through the\nset_lifecycle_stage_semantic_state RPC, never a plain column update.",
         "properties": {
           "color_token": {
             "anyOf": [
@@ -6045,6 +6050,21 @@
               }
             ],
             "title": "Label Localized"
+          },
+          "semantic_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "confirmed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic State"
           }
         },
         "title": "LifecycleStagePatchIn",
