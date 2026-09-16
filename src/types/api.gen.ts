@@ -10736,6 +10736,8 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            /** Customer Comment */
+            customer_comment?: string | null;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;
@@ -11653,6 +11655,8 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            /** Customer Comment */
+            customer_comment?: string | null;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;

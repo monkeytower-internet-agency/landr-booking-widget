@@ -695,6 +695,96 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(body.member_perk_otp).toBe('654321')
   })
 
+  // landr-de6ej: the optional comment, read off App.tsx's persistent draft,
+  // must ride as `customer_comment` when present — and be OMITTED entirely
+  // (not even an empty string) when absent, mirroring memberPerkOtp's
+  // byte-identical-when-absent contract above.
+  it('forwards a non-empty customerComment as customer_comment on submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-de6ej-1',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        customerComment="Please make sure the room has a bathtub."
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.customer_comment).toBe('Please make sure the room has a bathtub.')
+  })
+
+  it('omits customer_comment entirely when none was entered (undefined, empty, or whitespace-only)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-de6ej-2',
+      semantic_state: 'pending',
+    })
+    for (const customerComment of [undefined, '', '   ']) {
+      submitMock.mockClear()
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          customerComment={customerComment}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      await act(async () => {
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /Confirm booking/i }).at(-1)!,
+        )
+      })
+      await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+      const body = submitMock.mock.calls[0]![0]
+      expect(body).not.toHaveProperty('customer_comment')
+    }
+  })
+
+  it('trims surrounding whitespace off a comment before submit', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({
+      booking_id: 'b-de6ej-3',
+      semantic_state: 'pending',
+    })
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        customerComment="  Allergic to nuts  "
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.customer_comment).toBe('Allergic to nuts')
+  })
+
   it('forwards per-participant phone on submit (landr-zaan)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({

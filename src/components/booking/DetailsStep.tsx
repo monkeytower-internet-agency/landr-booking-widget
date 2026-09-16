@@ -4,6 +4,7 @@ import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import {
   bookerToParticipant,
@@ -45,6 +47,10 @@ const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
 // guiding rule. 12 is a pragmatic upper bound that comfortably covers
 // "6 pilots + 6 partners" without an unbounded input.
 const MAX_COMPANIONS = 12
+// landr-de6ej: mirrors the API's `bookings_customer_comment_length_chk`
+// CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
+// by hand since the widget has no shared contract constant for this.
+const MAX_COMMENT_LENGTH = 2000
 
 interface Props {
   product: Product
@@ -108,6 +114,14 @@ interface Props {
    * silently contradict what's actually still armed for submit.
    */
   initialMemberPerkOtp?: string
+  /**
+   * landr-de6ej: prior value of the optional "Anything we should know?"
+   * comment, carried by App.tsx's persistent bookingDraft (unlike
+   * memberPerkOtp — this field DOES round-trip through sessionStorage, so
+   * a reload restores it too) so a Back-then-forward re-entry shows what
+   * the customer already typed instead of a blank field.
+   */
+  initialCustomerComment?: string | null
   onBack: () => void
   onConfirm: (
     booker: BookerDetails,
@@ -115,6 +129,9 @@ interface Props {
     // landr-87n9.3: non-guiding companions captured in the "Others joining"
     // section. Empty array when nobody extra joins.
     companions: CompanionDetails[],
+    // landr-de6ej: trimmed comment text, '' when the customer left it blank.
+    // App.tsx's afterDetails folds '' to null before it lands in the draft.
+    comment: string,
   ) => void
   /**
    * landr-gb2f.1: live participant count + names for the PriceSidebar.
@@ -207,6 +224,7 @@ export function DetailsStep({
   initialParticipants,
   initialCompanions,
   initialMemberPerkOtp,
+  initialCustomerComment,
   onBack,
   onConfirm,
   onLiveParticipantsChange,
@@ -258,6 +276,12 @@ export function DetailsStep({
   // copy still holds a previously-typed value.
   const [memberPerkOtp, setMemberPerkOtpState] = useState<string>(
     () => initialMemberPerkOtp ?? '',
+  )
+  // landr-de6ej: optional free-text comment, seeded from initialCustomerComment
+  // on Back-restore / reload — same seeding pattern as memberPerkOtp above,
+  // but this one round-trips through bookingDraft + sessionStorage.
+  const [comment, setComment] = useState<string>(
+    () => initialCustomerComment ?? '',
   )
   // The OTP-request endpoint is fired on email BLUR, not on every keystroke
   // (matches the backend contract + keeps us well under its per-token/per-
@@ -741,7 +765,7 @@ export function DetailsStep({
       focusFirstInvalid()
       return
     }
-    onConfirm(booker, participantsForValidation, companions)
+    onConfirm(booker, participantsForValidation, companions, comment.trim())
   }
 
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
@@ -1357,6 +1381,43 @@ export function DetailsStep({
             </Button>
           )}
         </fieldset>
+
+        {/* landr-de6ej: OPTIONAL free-text comment, last field before
+            Continue. Never required, never validated red — a customer
+            leaving it blank must feel exactly as unremarkable as one who
+            fills it in. The hint sets the "a human will read this" and
+            "may take a little longer" expectation UP FRONT, before the
+            customer types anything, because a non-empty comment forces the
+            booking to human review on the API side (see approval.py's
+            synthetic customer_comment rule). */}
+        <div
+          className="flex flex-col gap-1"
+          data-testid="customer-comment-section"
+        >
+          <Label htmlFor="customer-comment" className="text-xs">
+            Anything we should know? (optional)
+          </Label>
+          <Textarea
+            id="customer-comment"
+            name="customer_comment"
+            data-testid="customer-comment"
+            value={comment}
+            maxLength={MAX_COMMENT_LENGTH}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="e.g. a dietary need, an accessibility request, a special occasion…"
+          />
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {tr('customerCommentHint')}
+            </p>
+            <p
+              className="shrink-0 text-xs text-muted-foreground"
+              data-testid="customer-comment-counter"
+            >
+              {comment.length}/{MAX_COMMENT_LENGTH}
+            </p>
+          </div>
+        </div>
 
         <div className="flex justify-end pt-2">
           {/* landr-79re: Continue is ALWAYS tappable so mobile customers get

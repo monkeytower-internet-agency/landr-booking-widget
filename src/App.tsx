@@ -907,10 +907,19 @@ function BookingFlowApp() {
     participants: ParticipantDetails[],
     // landr-87n9.3: non-guiding companions collected by DetailsStep.
     companions: CompanionDetails[],
+    // landr-de6ej: trimmed comment text ('' when left blank).
+    comment: string,
   ) => {
     // landr-nmed: commit the just-entered details into the persistent draft so
     // they survive a later breadcrumb jump back to Dates / the product crumb.
-    mergeDraft({ booker, participants, companions })
+    // landr-de6ej: comment folds '' -> null (mergeDraftPatch only skips
+    // `undefined`, not ''), matching every other nullable draft slice.
+    mergeDraft({
+      booker,
+      participants,
+      companions,
+      customerComment: comment || null,
+    })
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -1660,6 +1669,10 @@ function BookingFlowApp() {
             // survives the remount on its own regardless of how step changed.
             initialMemberPerkOtp={memberPerkOtp}
             onMemberPerkOtpChange={setMemberPerkOtp}
+            // landr-de6ej: restore the comment on Back / reload — sourced
+            // from the persistent draft (it round-trips through
+            // sessionStorage), unlike memberPerkOtp above.
+            initialCustomerComment={bookingDraft.customerComment}
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -1669,13 +1682,14 @@ function BookingFlowApp() {
                 selection: step.selection,
               })
             }
-            onConfirm={(booker, participants, companions) =>
+            onConfirm={(booker, participants, companions, comment) =>
               afterDetails(
                 step.product,
                 step.selection,
                 booker,
                 participants,
                 companions,
+                comment,
               )
             }
             // landr-gb2f.1: live participant count + names for the sidebar.
@@ -2209,6 +2223,10 @@ function BookingFlowApp() {
             customerDeclarations={step.customerDeclarations}
             customerLanguages={step.customerLanguages}
             customerOtherLanguages={step.customerOtherLanguages}
+            // landr-de6ej: read straight off the persistent draft, like
+            // participantLanguages below — DetailsStep set it several steps
+            // back and no intermediate step needs to re-display or edit it.
+            customerComment={bookingDraft.customerComment}
             // landr-ffyg.2: thread the shared-double marker into the submit
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
