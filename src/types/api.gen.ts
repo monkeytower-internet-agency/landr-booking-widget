@@ -9185,15 +9185,21 @@ export interface components {
             } | null;
             /** Semantic State */
             semantic_state: string;
+            /**
+             * Semantic State Editable
+             * @default false
+             */
+            semantic_state_editable: boolean;
             /** Sort Order */
             sort_order: number;
         };
         /**
          * LifecycleStagePatchIn
-         * @description Partial update. Only these six fields are ever patchable — code,
-         *     semantic_state, sort_order and operator_id are deliberately absent, and
-         *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
-         *     not a silent drop.
+         * @description Partial update. Only these seven fields are ever patchable — code,
+         *     sort_order and operator_id are deliberately absent, and sending any of
+         *     them (or any other key) is a 422 via ``extra="forbid"``, not a silent
+         *     drop. ``semantic_state`` is owner/admin only and goes through the
+         *     set_lifecycle_stage_semantic_state RPC, never a plain column update.
          */
         LifecycleStagePatchIn: {
             /** Color Token */
@@ -9212,6 +9218,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Semantic State */
+            semantic_state?: ("pending" | "confirmed") | null;
         };
         /** LocationIn */
         LocationIn: {
