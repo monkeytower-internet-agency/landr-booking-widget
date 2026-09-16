@@ -9,7 +9,8 @@
  * - Mobile (below md): renders as a fixed-bottom bar showing only the
  *   grand total plus a "Tap to expand" affordance. Tapping toggles a
  *   slide-up panel revealing the same full breakdown the desktop rail
- *   shows. We hand-rolled the drawer (vs. the radix Dialog) because the
+ *   shows. The panel opens ABOVE the bar, so the toggle never moves
+ *   (landr-v94dz). We hand-rolled the drawer (vs. the radix Dialog) because the
  *   widget bundle already includes the Dialog primitive for the form
  *   modal flow and stacking + scroll-lock interactions get hairy when
  *   the sidebar is open across step transitions.
@@ -32,8 +33,9 @@
  *     discount tags
  */
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { ChevronUp, RefreshCw } from 'lucide-react'
 import type { Product } from '@/api/types'
+import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
@@ -511,19 +513,43 @@ export default function PriceSidebar(props: Props) {
           landr-3mo4: the bar was the user's top contrast complaint. It now
           sits on a raised surface with the strongest elevation (it floats
           ABOVE the step content), a brand top-edge accent, and a clear
-          two-tier total. The whole bar is a ≥44px tap target. */}
+          two-tier total. The whole bar is a ≥44px tap target.
+          landr-v94dz: the drawer panel renders BEFORE the toggle. The
+          container is bottom-anchored, so opening grows it upward from
+          above the bar and the toggle stays exactly where the customer
+          tapped it (it used to sit above the panel and jump up by the
+          panel's height). */}
       <div
         data-testid="price-sidebar-mobile"
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-t-primary/20 bg-surface-raised shadow-elev-3"
+        className={cn(
+          'md:hidden fixed inset-x-0 bottom-0 z-40 overflow-hidden bg-surface-raised shadow-elev-3',
+          mobileOpen
+            ? 'rounded-t-2xl border-t-2 border-t-primary'
+            : 'border-t border-t-primary/20',
+        )}
       >
+        {mobileOpen ? (
+          // landr-v94dz: brand-tinted opaque surface (bg-surface-tint) so the
+          // breakdown reads as its own layer, not more page. Slides up from
+          // behind the bar (the bar row below is relative + z-10 with its
+          // own background, so the entering panel passes underneath it).
+          <div
+            id="price-sidebar-mobile-panel"
+            data-testid="price-sidebar-mobile-panel"
+            className="max-h-[60vh] overflow-y-auto overscroll-contain border-b border-b-primary/15 bg-surface-tint px-4 py-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
+          >
+            <BookingOverviewBody {...visible} selectedDays={selectedDays} />
+          </div>
+        ) : null}
         <button
           type="button"
-          className="tap-44 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          data-testid="price-sidebar-mobile-toggle"
+          className="tap-44 relative z-10 flex w-full items-center justify-between gap-3 bg-surface-raised px-4 py-3 text-left transition-colors hover:bg-surface-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           onClick={() => setMobileOpen((open) => !open)}
           aria-expanded={mobileOpen}
           aria-controls="price-sidebar-mobile-panel"
         >
-          <span className="flex flex-col">
+          <span className="flex min-w-0 flex-col">
             <span className="text-xs font-medium text-muted-foreground">
               Booking total
             </span>
@@ -539,18 +565,44 @@ export default function PriceSidebar(props: Props) {
               </span>
             ) : null}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-foreground">
-            {mobileOpen ? 'Tap to collapse' : 'Tap to expand'}
+          {/* landr-v94dz: solid brand pill + chevron so the affordance is
+              unmistakable. Both labels share one grid cell and the inactive
+              one is only hidden (visibility, not display), so the pill keeps
+              the width of the longer label and never shifts on toggle. */}
+          <span
+            data-testid="price-sidebar-mobile-pill"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-elev-2"
+          >
+            <span className="grid">
+              <span
+                className={cn(
+                  'col-start-1 row-start-1',
+                  mobileOpen && 'invisible',
+                )}
+                aria-hidden={mobileOpen || undefined}
+              >
+                Tap to expand
+              </span>
+              <span
+                className={cn(
+                  'col-start-1 row-start-1',
+                  !mobileOpen && 'invisible',
+                )}
+                aria-hidden={!mobileOpen || undefined}
+              >
+                Tap to collapse
+              </span>
+            </span>
+            <ChevronUp
+              aria-hidden
+              data-testid="price-sidebar-mobile-chevron"
+              className={cn(
+                'size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none',
+                mobileOpen && 'rotate-180',
+              )}
+            />
           </span>
         </button>
-        {mobileOpen ? (
-          <div
-            id="price-sidebar-mobile-panel"
-            className="max-h-[60vh] overflow-y-auto border-t bg-surface-card px-4 py-4"
-          >
-            <BookingOverviewBody {...visible} selectedDays={selectedDays} />
-          </div>
-        ) : null}
       </div>
       {/* Spacer so the mobile fixed bar never covers the last bit of
           step content. landr-3mo4: bumped h-16→h-20 — the bar's collapsed
