@@ -461,6 +461,9 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
     )
+    // landr-wnhg7 / landr-genericity-northstar: the shared-double copy must
+    // stay sport-neutral — a kayak or dive operator uses this step too.
+    expect(document.body).not.toHaveTextContent(/pilot|paraglid/i)
     expect(screen.getByText(/Staying at/i)).toBeInTheDocument()
     // NO room steppers render in shared-double mode (even if the default
     // package mode eagerly fetched the room catalogue on mount).
