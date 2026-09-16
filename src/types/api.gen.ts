@@ -9976,7 +9976,7 @@ export interface components {
              * Semantic State
              * @enum {string}
              */
-            semantic_state: "expected" | "present" | "absent" | "released" | "needs_pickup" | "completed";
+            semantic_state: "expected" | "present" | "absent" | "released" | "needs_pickup" | "completed" | "on_activity";
             /**
              * Sort Order
              * @default 0

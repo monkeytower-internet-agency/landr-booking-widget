@@ -8574,7 +8574,8 @@
               "absent",
               "released",
               "needs_pickup",
-              "completed"
+              "completed",
+              "on_activity"
             ],
             "title": "Semantic State",
             "type": "string"
