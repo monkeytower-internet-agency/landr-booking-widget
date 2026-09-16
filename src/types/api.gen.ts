@@ -5566,26 +5566,6 @@ export interface paths {
          *         seats and asks whether the people fit. A day can be either without
          *         being the other. See ``app/services/pool_day_supply.py``.
          *
-         *     ``participants_by_stage`` / ``total_load_by_stage`` / ``units[].load_by_stage``
-         *         (landr-3c71t.4) The SAME totals again, this time split by the
-         *         booking's ``current_stage_code`` instead of semantic state — a finer
-         *         partition, since several operator-enabled stages can share one
-         *         semantic state (e.g. two different "pending" stages). A booking with
-         *         no stage buckets under the literal sentinel key ``"__other__"``,
-         *         which must match ``landr-dashboard``'s ``OTHER_STAGE_CODE``
-         *         (``src/lib/booking-stages.ts``) exactly — the two repos share no
-         *         code, so the string literal itself is the contract.
-         *
-         *         Unlike the state split, this one is **unbounded cardinality**: one
-         *         key per operator-enabled stage, not a fixed 3-tuple. To keep the
-         *         payload from growing with the operator's whole stage catalogue on a
-         *         quiet day, a stage with zero count on a given day/unit simply has no
-         *         key — never a zero-valued entry. Otherwise identical semantics to
-         *         the state split: purely additive (the plain totals are unchanged),
-         *         and summing a ``units[].load_by_stage`` dict reproduces that unit's
-         *         own ``load`` exactly, with the same shortage-day caveat about
-         *         ``total_load_by_stage`` as ``total_load_by_state`` above.
-         *
          *     ``units[].day_state`` / ``units[].reason`` / ``units[].approval``
          *         (landr-w9yk8.4) The epic's COLLAPSED per-unit model, additive next to
          *         the three legacy axes: one status (``available`` / ``not_available``),
@@ -9163,8 +9143,6 @@ export interface components {
             booking_count: number;
             /** Code */
             code: string;
-            /** Color Token */
-            color_token?: string | null;
             /** Customer Label */
             customer_label?: string | null;
             /** Customer Label Localized */
@@ -9185,25 +9163,17 @@ export interface components {
             } | null;
             /** Semantic State */
             semantic_state: string;
-            /**
-             * Semantic State Editable
-             * @default false
-             */
-            semantic_state_editable: boolean;
             /** Sort Order */
             sort_order: number;
         };
         /**
          * LifecycleStagePatchIn
-         * @description Partial update. Only these seven fields are ever patchable — code,
-         *     sort_order and operator_id are deliberately absent, and sending any of
-         *     them (or any other key) is a 422 via ``extra="forbid"``, not a silent
-         *     drop. ``semantic_state`` is owner/admin only and goes through the
-         *     set_lifecycle_stage_semantic_state RPC, never a plain column update.
+         * @description Partial update. Only these five fields are ever patchable — code,
+         *     semantic_state, sort_order and operator_id are deliberately absent, and
+         *     sending any of them (or any other key) is a 422 via ``extra="forbid"``,
+         *     not a silent drop.
          */
         LifecycleStagePatchIn: {
-            /** Color Token */
-            color_token?: string | null;
             /** Customer Label */
             customer_label?: string | null;
             /** Customer Label Localized */
@@ -9218,8 +9188,6 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
-            /** Semantic State */
-            semantic_state?: ("pending" | "confirmed") | null;
         };
         /** LocationIn */
         LocationIn: {
