@@ -25,6 +25,7 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from './detailsTypes'
+import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
   distinctAssignedLanguages,
@@ -147,8 +148,20 @@ interface Props {
    * submit body. A non-empty value forces the API's approval evaluator
    * into requires_general_approval — see approval.py's synthetic
    * customer_comment rule.
+   *
+   * landr-n6ii3: also editable right here on the review screen — the
+   * field below writes straight back through onCustomerCommentChange, so
+   * this prop always reflects the live value at submit time.
    */
   customerComment?: string | null
+  /**
+   * landr-n6ii3: fires on every keystroke in the review screen's editable
+   * copy of the comment field, writing straight through to App.tsx's
+   * bookingDraft.customerComment (the same slot `customerComment` above
+   * reads) — mirrors every other downstream step's onCustomerCommentChange.
+   * Optional (defaults to a no-op) so existing tests need no change.
+   */
+  onCustomerCommentChange?: (comment: string) => void
   /**
    * landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
    * guide-language assignment (memberIndex → ISO 639-1 code), captured by
@@ -543,6 +556,7 @@ export function BookingForm({
   customerLanguages,
   customerOtherLanguages,
   customerComment,
+  onCustomerCommentChange = () => {},
   participantLanguages = {},
   isSharedDouble = false,
   roomAssignment,
@@ -1405,6 +1419,13 @@ export function BookingForm({
             {serverError}
           </p>
         ) : null}
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Confirm booking. */}
+        <CustomerCommentField
+          value={customerComment ?? ''}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button

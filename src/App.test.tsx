@@ -1115,6 +1115,101 @@ describe('App', () => {
       const body = mocks.submitBooking.mock.calls[0]![0]
       expect(body.member_perk_otp).toBe('123456')
     })
+
+    // landr-n6ii3: the "Anything we should know?" comment is now editable on
+    // every step from details onward, not just where it was first collected.
+    // This walks details → assign-languages (a later step) → review, editing
+    // the comment on the LATER step and never touching it again, to prove
+    // the edit (a) shows up pre-filled from the draft and (b) is what
+    // actually reaches the submit body — the single-source-of-truth
+    // contract in BookingDraft.customerComment's doc.
+    it('persists a comment edit made on a step AFTER details through to the submit body', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Solo Lesson',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-n6ii3-1',
+        semantic_state: 'pending',
+      })
+
+      render(<App />)
+      await pickProduct('Solo Lesson')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+
+      // DetailsStep never gets a comment typed into it here — the whole
+      // point is that the field is untouched on this step and only filled
+      // in further down the funnel.
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // assign-languages: the field is pre-filled from the (empty) draft,
+      // and this is where the customer actually types their comment.
+      await screen.findByTestId('participant-language-board')
+      expect(screen.getByTestId('customer-comment')).toHaveValue('')
+      fireEvent.change(screen.getByTestId('customer-comment'), {
+        target: { value: 'Allergic to bee stings' },
+      })
+      await passLanguageStep()
+
+      // review (fill-form): the edit made on assign-languages survived
+      // without the customer ever re-typing it, and it's pre-filled here
+      // too (editable, not just echoed read-only).
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('customer-comment')).toHaveValue(
+        'Allergic to bee stings',
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() =>
+        expect(mocks.submitBooking).toHaveBeenCalledTimes(1),
+      )
+      const body = mocks.submitBooking.mock.calls[0]![0]
+      expect(body.customer_comment).toBe('Allergic to bee stings')
+    })
   })
 
   // landr-yf0n: same pattern as landr-b3g5 (DetailsStep) but for the

@@ -5,8 +5,8 @@ import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
 import { formatDayLabel } from '@/components/booking/dateLabel'
+import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import {
   bookerToParticipant,
@@ -51,8 +50,6 @@ const MAX_COMPANIONS = 12
 // landr-de6ej: mirrors the API's `bookings_customer_comment_length_chk`
 // CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
 // by hand since the widget has no shared contract constant for this.
-const MAX_COMMENT_LENGTH = 2000
-
 interface Props {
   product: Product
   selection: BookingSelection
@@ -1429,44 +1426,13 @@ export function DetailsStep({
           )}
         </fieldset>
 
-        {/* landr-de6ej: OPTIONAL free-text comment, last field before
-            Continue. Never required, never validated red — a customer
-            leaving it blank must feel exactly as unremarkable as one who
-            fills it in. The hint sets the "a human will read this" and
-            "may take a little longer" expectation UP FRONT, before the
-            customer types anything, because a non-empty comment forces the
-            booking to human review on the API side (see approval.py's
-            synthetic customer_comment rule). */}
-        <div
-          className="flex flex-col gap-1"
-          data-testid="customer-comment-section"
-        >
-          <Label htmlFor="customer-comment" className="text-xs">
-            Anything we should know? (optional)
-          </Label>
-          <Textarea
-            id="customer-comment"
-            name="customer_comment"
-            data-testid="customer-comment"
-            aria-describedby="customer-comment-hint customer-comment-counter"
-            value={comment}
-            maxLength={MAX_COMMENT_LENGTH}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="e.g. a dietary need, an accessibility request, a special occasion…"
-          />
-          <div className="flex items-start justify-between gap-2">
-            <p id="customer-comment-hint" className="text-xs text-muted-foreground">
-              {tr('customerCommentHint')}
-            </p>
-            <p
-              id="customer-comment-counter"
-              className="shrink-0 text-xs text-muted-foreground"
-              data-testid="customer-comment-counter"
-            >
-              {comment.length}/{MAX_COMMENT_LENGTH}
-            </p>
-          </div>
-        </div>
+        {/* landr-de6ej / landr-n6ii3: OPTIONAL free-text comment, last field
+            before Continue — see CustomerCommentField's doc for why it's
+            never required/validated red. This is the ONE step where the
+            value is still local (committed to the draft on Continue below,
+            same as booker/participants/companions); every step after this
+            one reads/writes bookingDraft.customerComment directly. */}
+        <CustomerCommentField value={comment} onChange={setComment} />
 
         <div className="flex justify-end pt-2">
           {/* landr-79re: Continue is ALWAYS tappable so mobile customers get

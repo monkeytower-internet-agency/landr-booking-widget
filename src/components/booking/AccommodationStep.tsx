@@ -41,6 +41,7 @@ import {
   type RoomUnit,
 } from './accommodationCalc'
 import { AddonsList } from './AddonsList'
+import { CustomerCommentField } from './CustomerCommentField'
 import { RoomAssignment } from './RoomAssignment'
 import {
   clampAddonQty,
@@ -154,6 +155,15 @@ interface Props {
    * (date selection). Mirrors the other booking steps' Back affordance.
    */
   onBack: () => void
+  /**
+   * landr-n6ii3: current value of the "Anything we should know?" comment,
+   * read straight off App.tsx's bookingDraft.customerComment — this step
+   * doesn't own the value, it just renders CustomerCommentField and
+   * reports every keystroke back via onCustomerCommentChange. Optional
+   * (defaults to '' / a no-op) so existing tests need no change.
+   */
+  customerComment?: string
+  onCustomerCommentChange?: (comment: string) => void
   /**
    * landr-87n9.2: live-lift the room + per-room add-on selection up to
    * App.tsx so the PriceSidebar's "At-hotel total · pay at check-in" pill
@@ -271,6 +281,8 @@ export function AccommodationStep({
   companionNames = [],
   onConfirm,
   onBack,
+  customerComment = '',
+  onCustomerCommentChange = () => {},
   onLiveAccommodationChange,
   initialHotelLocationId,
   initialRooms,
@@ -1490,6 +1502,13 @@ export function AccommodationStep({
             </p>
           </div>
         ) : null}
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Continue. */}
+        <CustomerCommentField
+          value={customerComment}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button type="button" disabled={!canContinue} onClick={handleContinue}>
