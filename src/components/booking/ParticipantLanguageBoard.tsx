@@ -49,6 +49,8 @@ import {
 } from '@dnd-kit/core'
 import { chipHue } from './accommodationCalc'
 import {
+  flagTapAnnouncement,
+  flagTapLabel,
   resolveChipDrop,
   resolveFlagTap,
   UNASSIGNED_DROP_ID,
@@ -408,8 +410,23 @@ function UnassignedTray({
  * and opens the column as a side effect (LanguageStep.handleAssign). Tapping
  * it (rather than dropping) goes through `resolveFlagTap` instead, which is
  * where the "first tap = whole party" shortcut lives.
+ *
+ * landr-ajlwl: the button is bimodal (a tap here can assign the whole party,
+ * place one picked-up chip, or just open a column) but its VISIBLE text was
+ * always just the language name, so a screen-reader user had no way to tell
+ * which. `ariaLabel` carries the mode-aware name instead — computed by the
+ * caller via `flagTapLabel`, from the same `resolveFlagTap` decision the
+ * click itself uses — while the flag + language name stay the visible text.
  */
-function FlagDropChip({ code, onTap }: { code: string; onTap: () => void }) {
+function FlagDropChip({
+  code,
+  ariaLabel,
+  onTap,
+}: {
+  code: string
+  ariaLabel: string
+  onTap: () => void
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: `lang-add-${code}`,
     data: { code, closed: true },
@@ -419,6 +436,7 @@ function FlagDropChip({ code, onTap }: { code: string; onTap: () => void }) {
       ref={setNodeRef}
       type="button"
       onClick={onTap}
+      aria-label={ariaLabel}
       data-testid={`lang-add-${code}`}
       className={[
         'inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-sm transition-colors',
@@ -449,6 +467,12 @@ export function ParticipantLanguageBoard({
   const [selectedChip, setSelectedChip] = useState<number | null>(null)
   // the member index currently being DRAGGED — drives the floating clone.
   const [activeChip, setActiveChip] = useState<number | null>(null)
+  // landr-ajlwl: text for the visually-hidden live region announcing what a
+  // flag TAP just did (a drag gets dnd-kit's own `announcements` above; a tap
+  // gets none of that for free). Starts empty so nothing is announced on
+  // mount, and is only ever set from the tap handler itself, never an
+  // effect, so it can't fire on a render the user didn't cause.
+  const [tapAnnouncement, setTapAnnouncement] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -463,6 +487,10 @@ export function ParticipantLanguageBoard({
   const closedLanguages = offeredLanguages.filter(
     (code) => !openLanguages.includes(code),
   )
+  // Name of the picked-up tap-to-place chip, if any — feeds both the flag
+  // labels below and the tap announcement (see `flagTapLabel`).
+  const pickedUpName =
+    selectedChip !== null ? memberLabel(participantNames, selectedChip) : null
 
   function handleDragStart(event: DragStartEvent) {
     const memberIndex = event.active.data.current?.memberIndex as number | undefined
@@ -499,6 +527,7 @@ export function ParticipantLanguageBoard({
    */
   function handleFlagTap(code: string) {
     const action = resolveFlagTap(code, selectedChip, openLanguages.length)
+    setTapAnnouncement(flagTapAnnouncement(action, pickedUpName))
     if (action.type === 'place') {
       onAssign(action.memberIndex, action.code)
       setSelectedChip(null)
@@ -562,6 +591,18 @@ export function ParticipantLanguageBoard({
           name onto another language — or tap a name and then tap a language.
         </p>
 
+        {/* landr-ajlwl: politely announces what a flag TAP just did. Always
+            mounted (not inside the closedLanguages block below) so it survives
+            tapping the very last closed flag, which removes that block. */}
+        <span
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+          data-testid="lang-tap-announcement"
+        >
+          {tapAnnouncement}
+        </span>
+
         <UnassignedTray
           unassigned={unassigned}
           participantNames={participantNames}
@@ -611,7 +652,15 @@ export function ParticipantLanguageBoard({
               {openLanguages.length === 0 ? 'Languages:' : 'Add language:'}
             </span>
             {closedLanguages.map((code) => (
-              <FlagDropChip key={code} code={code} onTap={() => handleFlagTap(code)} />
+              <FlagDropChip
+                key={code}
+                code={code}
+                ariaLabel={flagTapLabel(
+                  resolveFlagTap(code, selectedChip, openLanguages.length),
+                  pickedUpName,
+                )}
+                onTap={() => handleFlagTap(code)}
+              />
             ))}
           </div>
         ) : null}
