@@ -5297,6 +5297,181 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HostnameBranding": {
+        "properties": {
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          }
+        },
+        "title": "HostnameBranding",
+        "type": "object"
+      },
+      "HostnameIn": {
+        "properties": {
+          "hostname": {
+            "description": "The domain the operator owns, e.g. today.example.com.",
+            "maxLength": 253,
+            "minLength": 1,
+            "title": "Hostname",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hostname"
+        ],
+        "title": "HostnameIn",
+        "type": "object"
+      },
+      "HostnameResolution": {
+        "properties": {
+          "branding": {
+            "$ref": "#/components/schemas/HostnameBranding"
+          },
+          "operator_slug": {
+            "title": "Operator Slug",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_slug",
+          "purpose",
+          "branding"
+        ],
+        "title": "HostnameResolution",
+        "type": "object"
+      },
+      "HostnameStatus": {
+        "description": "GET/PUT response. ``configured`` is false when no row exists yet.",
+        "properties": {
+          "cname_target": {
+            "description": "The *.pages.dev host to CNAME to, for this tier.",
+            "title": "Cname Target",
+            "type": "string"
+          },
+          "configured": {
+            "description": "True iff an operator_hostnames row exists.",
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "dns_records": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Records the operator must publish, as [{type,name,value}].",
+            "title": "Dns Records"
+          },
+          "hostname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hostname"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "unverified | pending | verified | failed.",
+            "title": "Verification Status"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "configured",
+          "purpose",
+          "cname_target"
+        ],
+        "title": "HostnameStatus",
+        "type": "object"
+      },
       "HotelIn": {
         "properties": {
           "address": {
@@ -20645,6 +20820,53 @@
         ]
       }
     },
+    "/api/public/hostnames/resolve": {
+      "get": {
+        "description": "Resolve a bound operator hostname to its operator slug + branding.",
+        "operationId": "resolve_hostname",
+        "parameters": [
+          {
+            "description": "Hostname to resolve.",
+            "in": "query",
+            "name": "host",
+            "required": true,
+            "schema": {
+              "description": "Hostname to resolve.",
+              "maxLength": 253,
+              "minLength": 1,
+              "title": "Host",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostnameResolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Hostname",
+        "tags": [
+          "public-hostnames"
+        ]
+      }
+    },
     "/api/public/operators/{slug}/calendar.ics": {
       "get": {
         "operationId": "get_operator_calendar_ics",
@@ -26953,6 +27175,233 @@
         "summary": "Run Operator Holded Sync",
         "tags": [
           "staff-holded-invoicing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}": {
+      "delete": {
+        "description": "Release the hostname, detaching it from Cloudflare Pages when bound.\n\nDeleting an absent row is a 204, not a 404: the caller asked for a state\n(\"this operator has no custom hostname\") that is already true, and the\ndashboard's delete button should not error on a double-click.",
+        "operationId": "delete_hostname",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Hostname",
+        "tags": [
+          "staff-operator-hostnames"
+        ]
+      },
+      "get": {
+        "description": "Current hostname + verification status, or ``configured: false``.",
+        "operationId": "get_hostname",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostnameStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Hostname",
+        "tags": [
+          "staff-operator-hostnames"
+        ]
+      },
+      "put": {
+        "description": "Claim (or replace) this operator's hostname for ``purpose``.\n\nReplacing a hostname that was already bound to Cloudflare detaches the old\none first \u2014 leaving it attached would keep serving the operator's page on\nan address they have just told us they no longer want, and would hold a\ndomain slot on the shared Pages project forever.\n\nThe new row always starts at ``unverified`` with the CNAME instruction\nstored, whatever the previous state was. Verification is the worker's job.",
+        "operationId": "put_hostname",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostnameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostnameStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Hostname",
+        "tags": [
+          "staff-operator-hostnames"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}/verify": {
+      "post": {
+        "description": "Queue this row for the next worker pass (\"Check now\" in the dashboard).\n\nThis endpoint does NOT talk to DNS or Cloudflare itself. Verification is\nslow (a DNS lookup plus up to two Cloudflare calls) and must not run inside\na request the dashboard is waiting on; more importantly, keeping one code\npath to Cloudflare means the retry/backoff/error-recording rules live in\nexactly one place. All this does is clear ``last_checked_at`` and reset a\n``failed`` row to ``unverified`` so the worker picks it up immediately\ninstead of waiting out a backoff window.",
+        "operationId": "request_verify",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostnameStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Verify",
+        "tags": [
+          "staff-operator-hostnames"
         ]
       }
     },
