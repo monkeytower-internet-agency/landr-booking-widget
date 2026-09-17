@@ -17,9 +17,12 @@
  * dead-ended on a 422 the customer could do nothing about. Those products are
  * the common case, not a corner: at review time kayak-demo had none of its 3
  * products on a custom form, and para42 6 of 13. The step therefore runs for
- * every product, gated only on the operator offering any language at all —
- * which `operators.offered_languages` (NOT NULL, four-language default) makes
- * universal.
+ * every product whose `guide_languages` resolves to a NON-EMPTY list (the gate
+ * is per product since landr-p68d2; NULL or absent still falls back to the
+ * default set, so those products get the step too). It is SKIPPED for an
+ * "any language" product (`guide_languages = []`, landr-pv2r1 E3): the API
+ * then treats participant languages as optional (E2), so there is nothing to
+ * assign. Skipping it there is intended — do not "fix" it back.
  *
  * It sits BEFORE the custom-form chain so that a flow which also declares a
  * `language` field mirrors this answer rather than asking twice.

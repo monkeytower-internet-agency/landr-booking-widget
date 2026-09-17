@@ -70,10 +70,15 @@ describe('LanguageStep', () => {
     expect(options).toEqual(['', 'en', 'de', 'es'])
   })
 
-  it('opens a column, closes it again while empty, and keeps it once occupied', () => {
+  it('a later flag tap opens an empty column, closes it again while empty, and keeps it once occupied', () => {
+    // landr-jr30v: the FIRST flag tap ever now assigns the whole party (see
+    // the dedicated tests below), so this exercises "open an empty column"
+    // primed past that state with an unrelated first tap.
     renderStep()
+    fireEvent.click(screen.getByTestId('lang-add-en'))
     fireEvent.click(screen.getByTestId('lang-add-de'))
     expect(screen.getByTestId('lang-column-de')).toBeTruthy()
+    expect(screen.getByTestId('lang-column-de').textContent).toContain('Drop names here')
     expect(screen.queryByTestId('lang-add-de')).toBeNull()
 
     fireEvent.click(screen.getByTestId('lang-remove-de'))
@@ -84,6 +89,107 @@ describe('LanguageStep', () => {
     assignVia(0, 'de')
     expect(screen.getByTestId('lang-column-de').textContent).toContain('Ada')
     expect(screen.queryByTestId('lang-remove-de')).toBeNull()
+  })
+
+  it('the first flag tap ever, with nothing open, assigns the WHOLE party', async () => {
+    // landr-jr30v: the standard case is a group that shares one language —
+    // the approver's Trello comment asks for this to be a single tap.
+    const onConfirm = renderStep()
+    fireEvent.click(screen.getByTestId('lang-add-de'))
+
+    const column = screen.getByTestId('lang-column-de')
+    expect(column.textContent).toContain('Ada')
+    expect(column.textContent).toContain('Grace')
+    expect(column.textContent).toContain('Kay')
+    expect(screen.getByTestId('lang-everyone-assigned')).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+    )
+    fireEvent.click(screen.getByTestId('language-step-submit'))
+    expect(onConfirm).toHaveBeenCalledWith({ 0: 'de', 1: 'de', 2: 'de' })
+  })
+
+  it('a second (or third...) flag tap just opens an empty column, nobody moves', () => {
+    renderStep()
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first tap: whole party -> de
+    fireEvent.click(screen.getByTestId('lang-add-en')) // second tap: opens an empty column
+
+    const enColumn = screen.getByTestId('lang-column-en')
+    expect(enColumn.textContent).toContain('Drop names here')
+    expect(enColumn.textContent).not.toContain('Ada')
+    expect(enColumn.textContent).not.toContain('Grace')
+    expect(enColumn.textContent).not.toContain('Kay')
+    // Everyone is still where the first tap put them.
+    expect(screen.getByTestId('lang-column-de').textContent).toContain('Ada')
+    expect(screen.getByTestId('lang-column-de').textContent).toContain('Grace')
+    expect(screen.getByTestId('lang-column-de').textContent).toContain('Kay')
+  })
+
+  it('tap-to-place on a closed flag beats the whole-group shortcut — only the picked-up chip moves', () => {
+    renderStep()
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // pick up Grace from the tray
+    fireEvent.click(screen.getByTestId('lang-add-es')) // tap a closed flag with nothing open
+
+    const column = screen.getByTestId('lang-column-es')
+    expect(column.textContent).toContain('Grace')
+    expect(column.textContent).not.toContain('Ada')
+    expect(column.textContent).not.toContain('Kay')
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain('Ada')
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain('Kay')
+  })
+
+  // landr-ajlwl — a closed flag button is bimodal (see the tests above); its
+  // accessible name must say which mode is live, since its visible text
+  // ("🇩🇪 German") never changes across the three.
+  it('gives a closed flag button a mode-aware accessible name in each of the three tap modes', () => {
+    renderStep()
+    // Nothing open, nothing picked up -> a tap would assign the whole party.
+    expect(screen.getByTestId('lang-add-de')).toHaveAccessibleName(
+      'Everyone speaks German',
+    )
+
+    // A chip is picked up from the tray -> a tap would place ONLY it.
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // pick up Grace
+    expect(screen.getByTestId('lang-add-es')).toHaveAccessibleName(
+      'Place Grace in Spanish',
+    )
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // put Grace back down
+
+    // A column is already open -> a tap on another closed flag just opens it.
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first-ever tap: whole party -> de
+    expect(screen.getByTestId('lang-add-en')).toHaveAccessibleName('Add English')
+  })
+
+  it('announces the result of a flag tap in the visually-hidden status region, but not on first render', () => {
+    renderStep()
+    const status = screen.getByTestId('lang-tap-announcement')
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status.textContent).toBe('')
+
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first-ever tap -> whole party
+    expect(status.textContent).toBe('Everyone assigned to German.')
+
+    fireEvent.click(screen.getByTestId('lang-add-en')) // column already open -> just opens
+    expect(status.textContent).toBe('English added.')
+
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // Grace is in 'de' -> un-assign her
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // pick her back up from the tray
+    fireEvent.click(screen.getByTestId('lang-add-es')) // tap-to-place her in Spanish
+    expect(status.textContent).toBe('Grace assigned to Spanish.')
+  })
+
+  it('describes the new tap-to-fill / drag-to-split flow', () => {
+    renderStep()
+    expect(screen.getByTestId('participant-language-board').textContent).toContain(
+      'Tap a language',
+    )
+  })
+
+  it('labels the add-language row "Languages:" before anything is open, "Add language:" after', () => {
+    renderStep()
+    expect(screen.getByTestId('lang-add-row').textContent).toContain('Languages:')
+    fireEvent.click(screen.getByTestId('lang-add-de'))
+    expect(screen.getByTestId('lang-add-row').textContent).toContain('Add language:')
   })
 
   it('re-assigns between columns and leaves the vacated one in place', () => {
@@ -99,8 +205,16 @@ describe('LanguageStep', () => {
 
   it('tap-to-place assigns, and tapping a placed chip returns them to the tray', () => {
     renderStep()
-    fireEvent.click(screen.getByTestId('lang-add-en'))
-    fireEvent.click(screen.getByTestId('lang-chip-1'))
+    // landr-jr30v: the first flag tap ever assigns the whole party, so prime
+    // past that with a first tap, then send Grace back to the tray (tapping
+    // an already-placed chip un-assigns) before tap-to-placing her again.
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first tap: whole party -> de
+    fireEvent.click(screen.getByTestId('lang-add-en')) // second tap: opens an empty column
+
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // Grace is in 'de' -> un-assign
+    expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain('Grace')
+
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // now in the tray -> pick up
     fireEvent.click(screen.getByTestId('lang-place-here-en'))
     expect(screen.getByTestId('lang-column-en').textContent).toContain('Grace')
 
@@ -110,11 +224,14 @@ describe('LanguageStep', () => {
     )
   })
 
-  it('places the WHOLE party in one gesture via "Everyone speaks X"', async () => {
+  it('places the WHOLE party in one gesture via the explicit "Everyone speaks X" button', async () => {
     // The common shape is a group that shares one language. Six people dragged
-    // one at a time is six gestures for an answer given in one breath.
+    // one at a time is six gestures for an answer given in one breath. Opened
+    // via the dropdown (not a flag tap) so the new first-tap shortcut isn't
+    // what's under test here — see the dedicated first-tap tests above.
     const onConfirm = renderStep()
-    fireEvent.click(screen.getByTestId('lang-add-de'))
+    assignVia(0, 'en') // opens 'en' with just Ada
+    fireEvent.click(screen.getByTestId('lang-add-de')) // a column is already open -> opens an empty column
     fireEvent.click(screen.getByTestId('lang-everyone-de'))
 
     expect(screen.getByTestId('lang-everyone-assigned')).toBeTruthy()

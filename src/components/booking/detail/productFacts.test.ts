@@ -142,3 +142,32 @@ describe('deriveProductFacts', () => {
     })
   })
 })
+
+describe('deriveProductFacts — languages fact (landr-pv2r1)', () => {
+  it('appends the languages fact LAST, after the category fact, order preserved', () => {
+    const facts = deriveProductFacts(
+      makeProduct({
+        duration_minutes: 90,
+        category_name: 'Courses',
+        guide_languages: ['es', 'EN', 'de'],
+      }),
+      'en',
+    )
+    expect(facts.map((f) => f.icon)).toEqual(['duration', 'kind', 'languages'])
+    const last = facts[facts.length - 1]
+    expect(last.languages).toEqual(['es', 'en', 'de'])
+    expect(last.label).toBe('Spanish · English · German')
+  })
+
+  it.each([
+    ['[] (any language)', []],
+    ['null', null],
+    ['undefined', undefined],
+  ])('has no languages fact for %s', (_label, value) => {
+    const facts = deriveProductFacts(
+      makeProduct({ guide_languages: value as string[] | null | undefined }),
+      'en',
+    )
+    expect(facts.some((f) => f.icon === 'languages')).toBe(false)
+  })
+})

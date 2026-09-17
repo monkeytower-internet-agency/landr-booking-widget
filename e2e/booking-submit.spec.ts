@@ -127,8 +127,16 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
     .catch(() => false)
   if (hasLanguageStep) {
     await page.getByTestId('lang-add-en').click()
-    await page.getByTestId('lang-everyone-en').click()
-    await page.getByTestId('language-step-submit').click()
+    // landr-jr30v: the first flag tap now assigns the whole party by itself;
+    // the "Everyone speaks English" button only appears on builds deployed
+    // before that change. Click it only when it is there, then submit.
+    const submit = page.getByTestId('language-step-submit')
+    const everyone = page.getByTestId('lang-everyone-en')
+    await expect(async () => {
+      if (await everyone.isVisible()) await everyone.click()
+      await expect(submit).toBeEnabled({ timeout: 1_000 })
+    }).toPass({ timeout: 15_000 })
+    await submit.click()
   }
 
   // ---- Custom-form declarations (para42's operator-configured module) ------

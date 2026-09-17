@@ -12,6 +12,35 @@
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
 import { formatMoney } from '@/components/booking/priceSidebarHelpers'
+import {
+  joinLanguageNames,
+  languageFlag,
+  productDisplayLanguages,
+} from '@/components/booking/participantLanguages'
+
+/** landr-pv2r1: flags shown on the catalogue chip before collapsing to "+N". */
+export const LANGUAGE_CHIP_MAX_FLAGS = 5
+
+/**
+ * landr-pv2r1 (epic decision E4): the compact languages chip on the
+ * catalogue card / row — flag emojis only (phone-width rows cannot fit
+ * names), with the full English names in `label` for `title` +
+ * `aria-label`. `flags` is capped at LANGUAGE_CHIP_MAX_FLAGS; `codes` is the
+ * full list so the caller can render the "+N" overflow. null for an "any
+ * language" product (`[]`), NULL or absent guide_languages — the DEFAULT
+ * fallback set is never advertised.
+ */
+export function productLanguagesChip(
+  product: Product,
+): { flags: string[]; codes: string[]; label: string } | null {
+  const codes = productDisplayLanguages(product.guide_languages)
+  if (codes.length === 0) return null
+  return {
+    flags: codes.slice(0, LANGUAGE_CHIP_MAX_FLAGS).map(languageFlag),
+    codes,
+    label: `Offered in ${joinLanguageNames(codes)}`,
+  }
+}
 
 /** Localized product name, falling back to the base `name` field. */
 export function productName(product: Product, locale: string): string {

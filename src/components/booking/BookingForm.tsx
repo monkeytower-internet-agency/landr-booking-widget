@@ -139,6 +139,17 @@ interface Props {
    */
   customerOtherLanguages?: string | null
   /**
+   * landr-de6ej: optional free-text comment collected on DetailsStep's
+   * "Anything we should know?" field, read off the persistent draft (see
+   * App.tsx's bookingDraft.customerComment). Trimmed and sent as
+   * `customer_comment` when non-empty; omitted entirely otherwise so a
+   * booking with no comment stays byte-identical to the pre-landr-de6ej
+   * submit body. A non-empty value forces the API's approval evaluator
+   * into requires_general_approval — see approval.py's synthetic
+   * customer_comment rule.
+   */
+  customerComment?: string | null
+  /**
    * landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
    * guide-language assignment (memberIndex → ISO 639-1 code), captured by
    * the LanguageStep's assignment board. Unified index space, identical to
@@ -157,9 +168,14 @@ interface Props {
    * missing participant language is a typed 422
    * (`participant_language_missing`), never a silent default. A companion's
    * language is optional — the API validates it only if present. The
-   * LanguageStep therefore runs for every product; a map here with no
-   * participant entries means the funnel was driven past that step, and the
-   * submit will be rejected.
+   * LanguageStep therefore runs for every language-restricted product.
+   *
+   * landr-pv2r1 (E2/E3): an "any language" product (`guide_languages = []`)
+   * skips the LanguageStep and the API treats languages as optional for it;
+   * App.tsx then passes an EMPTY map here, so no participant/companion
+   * `language` and no derived `customer_languages` are sent. For a
+   * restricted product, a map with no participant entries means the funnel
+   * was driven past the step, and the submit will be rejected.
    */
   participantLanguages?: Record<number, string>
   /**
@@ -526,6 +542,7 @@ export function BookingForm({
   customerDeclarations,
   customerLanguages,
   customerOtherLanguages,
+  customerComment,
   participantLanguages = {},
   isSharedDouble = false,
   roomAssignment,
@@ -855,10 +872,11 @@ export function BookingForm({
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
             // landr-r6e5x.4 wire field (PINNED contract — landr-r6e5x.2): the
             // participant's assigned guide language, captured by the
-            // LanguageStep, which runs for every product. Omitted only when
-            // the map is empty, which the API rejects — deliberately, so a
-            // funnel bug surfaces as a typed 422 rather than a booking with
-            // silently missing language data.
+            // LanguageStep. Omitted when the map is empty: legitimate for an
+            // "any language" product (landr-pv2r1 — the step is skipped and
+            // the API accepts no language), otherwise rejected by the API —
+            // deliberately, so a funnel bug surfaces as a typed 422 rather
+            // than a booking with silently missing language data.
             ...(participantLanguages[idx]
               ? { language: participantLanguages[idx] }
               : {}),
@@ -962,6 +980,12 @@ export function BookingForm({
         // price, never a 4xx), so trimming here is purely payload hygiene.
         ...(memberPerkOtp && memberPerkOtp.trim() !== ''
           ? { member_perk_otp: memberPerkOtp.trim() }
+          : {}),
+        // landr-de6ej: only sent when the customer actually typed a
+        // comment — omitted (not even an empty string) so a booking with
+        // none entered is byte-identical to the pre-landr-de6ej submit body.
+        ...(customerComment && customerComment.trim() !== ''
+          ? { customer_comment: customerComment.trim() }
           : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and

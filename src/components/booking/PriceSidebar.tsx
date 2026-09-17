@@ -9,7 +9,8 @@
  * - Mobile (below md): renders as a fixed-bottom bar showing only the
  *   grand total plus a "Tap to expand" affordance. Tapping toggles a
  *   slide-up panel revealing the same full breakdown the desktop rail
- *   shows. We hand-rolled the drawer (vs. the radix Dialog) because the
+ *   shows. The panel opens ABOVE the bar (flex-col-reverse), so the
+ *   toggle never moves (landr-v94dz). We hand-rolled the drawer (vs. the radix Dialog) because the
  *   widget bundle already includes the Dialog primitive for the form
  *   modal flow and stacking + scroll-lock interactions get hairy when
  *   the sidebar is open across step transitions.
@@ -31,13 +32,15 @@
  *   - Happy path: full breakdown with operator/hotel split + applied
  *     discount tags
  */
-import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronUp, RefreshCw } from 'lucide-react'
 import type { Product } from '@/api/types'
+import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { DayChips } from './DayChips'
+import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
@@ -190,22 +193,27 @@ function BookingOverviewBody({
               </li>
             ))}
           </ul>
-          {/* landr-kat8: "Booking total" (was "Grand total") — what the
+          {/* landr-kat8: "Amount due" (was "Booking total") — what the
               customer pays now to the operator. The hotel line items are
               rendered as a separate pill below with their own subtotal
               + "paid at check-in" caveat so the customer can't mistake
               the hotel charge for part of the booking checkout total.
               landr-3mo4: the total sits in a recessed brand-tinted well so
-              the key number reads as the anchor of the panel. */}
-          <div
-            className="mt-3 flex items-baseline justify-between rounded-lg bg-primary/5 px-3 py-2 shadow-well"
-            data-testid="price-sidebar-booking-total"
-          >
-            <span className="text-base font-semibold">Booking total</span>
-            <span className="text-base font-semibold tabular-nums">
-              {formatMoney(data.operator_total, data.currency)}
-            </span>
-          </div>
+              the key number reads as the anchor of the panel.
+              landr-nva1a.4: PriceBreakdown inserts a Subtotal row + one
+              "− label" row per data.savings[] above the well when the API
+              returned savings; with no savings (or an older API deploy
+              missing the fields) it renders exactly the old single total
+              row, just re-labelled and falling back to operator_total. */}
+          <PriceBreakdown
+            subtotalBeforeSavings={data.subtotal_before_savings}
+            savings={data.savings}
+            amountDue={data.amount_due ?? data.operator_total}
+            currency={data.currency}
+            totalLabel="Amount due"
+            totalClassName="mt-3 rounded-lg bg-primary/5 px-3 py-2 shadow-well text-base"
+            testIdPrefix="price-sidebar"
+          />
         </section>
       ) : null}
       {hotel.length > 0 ? (
@@ -443,25 +451,56 @@ export default function PriceSidebar(props: Props) {
   // switch), so we leave the drawer state alone and trust the customer
   // to dismiss it.
   const [mobileOpen, setMobileOpen] = useState(false)
+  const mobileBarRef = useRef<HTMLDivElement>(null)
 
   // Lock body scroll while the mobile drawer is open so the underlying
   // step doesn't scroll behind the modal — same convention the Dialog
   // primitive uses for the booking-form modal.
+  // landr-v94dz: hiding the page scrollbar widens the viewport wherever
+  // scrollbars take up space (desktop browsers, e.g. the WordPress iframe
+  // embed below md), which slid the right-aligned pill sideways by the
+  // scrollbar width. Pad the body and the fixed bar by that width while
+  // locked so neither the page nor the toggle moves.
   useEffect(() => {
     if (!mobileOpen) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const { body, documentElement } = document
+    const bar = mobileBarRef.current
+    // 0 on phones / overlay scrollbars. clientWidth is 0 without layout
+    // (jsdom) — treat that as "no scrollbar".
+    const gap =
+      documentElement.clientWidth > 0
+        ? window.innerWidth - documentElement.clientWidth
+        : 0
+    const prev = {
+      overflow: body.style.overflow,
+      bodyPadding: body.style.paddingRight,
+      barPadding: bar?.style.paddingRight ?? '',
+    }
+    if (gap > 0) {
+      const bodyPadding =
+        parseFloat(window.getComputedStyle(body).paddingRight) || 0
+      body.style.paddingRight = `${bodyPadding + gap}px`
+      if (bar) bar.style.paddingRight = `${gap}px`
+    }
+    body.style.overflow = 'hidden'
     return () => {
-      document.body.style.overflow = prev
+      body.style.overflow = prev.overflow
+      body.style.paddingRight = prev.bodyPadding
+      if (bar) bar.style.paddingRight = prev.barPadding
     }
   }, [mobileOpen])
 
-  // landr-kat8: the collapsed mobile bar shows the BOOKING total (operator
-  // only — what the customer pays now at checkout). The hotel charge is
-  // surfaced as a separate "+ €X at hotel" sub-line so the customer sees
-  // it exists without conflating it into the checkout number.
+  // landr-kat8: the collapsed mobile bar shows the AMOUNT DUE (operator
+  // only, after savings — what the customer pays now at checkout). The
+  // hotel charge is surfaced as a separate "+ €X at hotel" sub-line so the
+  // customer sees it exists without conflating it into the checkout
+  // number. landr-nva1a.4: falls back to operator_total on an older API
+  // deploy that doesn't return amount_due yet.
   const bookingTotalLabel = visible.data
-    ? formatMoney(visible.data.operator_total, visible.data.currency)
+    ? formatMoney(
+        visible.data.amount_due ?? visible.data.operator_total,
+        visible.data.currency,
+      )
     : '—'
   const atHotelLabel =
     visible.data && Number(visible.data.hotel_total) > 0
@@ -511,21 +550,37 @@ export default function PriceSidebar(props: Props) {
           landr-3mo4: the bar was the user's top contrast complaint. It now
           sits on a raised surface with the strongest elevation (it floats
           ABOVE the step content), a brand top-edge accent, and a clear
-          two-tier total. The whole bar is a ≥44px tap target. */}
+          two-tier total. The whole bar is a ≥44px tap target.
+          landr-v94dz: the toggle stays exactly where the customer tapped it
+          (it used to sit above the panel and jump up by the panel's
+          height). The toggle is the FIRST child — control before revealed
+          content, so Tab / a screen reader's next-item lands in the
+          breakdown — and flex-col-reverse paints it at the bottom of the
+          bottom-anchored container, so opening grows the bar upward above
+          it. */}
       <div
+        ref={mobileBarRef}
         data-testid="price-sidebar-mobile"
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-t-primary/20 bg-surface-raised shadow-elev-3"
+        className={cn(
+          'md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col-reverse overflow-hidden shadow-elev-3',
+          // Open: the container itself takes the tint so the freshly grown
+          // area never flashes the bar colour while the panel fades in.
+          mobileOpen
+            ? 'rounded-t-2xl border-t-2 border-t-primary bg-surface-tint'
+            : 'border-t border-t-primary/20 bg-surface-raised',
+        )}
       >
         <button
           type="button"
-          className="tap-44 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          data-testid="price-sidebar-mobile-toggle"
+          className="tap-44 relative z-10 flex w-full items-center justify-between gap-3 bg-surface-raised px-4 py-3 text-left transition-colors hover:bg-surface-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           onClick={() => setMobileOpen((open) => !open)}
           aria-expanded={mobileOpen}
           aria-controls="price-sidebar-mobile-panel"
         >
-          <span className="flex flex-col">
+          <span className="flex min-w-0 flex-col">
             <span className="text-xs font-medium text-muted-foreground">
-              Booking total
+              Amount due
             </span>
             <span className="text-lg font-semibold tabular-nums text-foreground">
               {bookingTotalLabel}
@@ -539,14 +594,55 @@ export default function PriceSidebar(props: Props) {
               </span>
             ) : null}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-foreground">
-            {mobileOpen ? 'Tap to collapse' : 'Tap to expand'}
+          {/* landr-v94dz: solid brand pill + chevron so the affordance is
+              unmistakable. Both labels share one grid cell and the inactive
+              one is only hidden (visibility, not display), so the pill keeps
+              the width of the longer label and never shifts on toggle. */}
+          <span
+            data-testid="price-sidebar-mobile-pill"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-elev-2"
+          >
+            <span className="grid justify-items-center">
+              <span
+                className={cn(
+                  'col-start-1 row-start-1',
+                  mobileOpen && 'invisible',
+                )}
+                aria-hidden={mobileOpen || undefined}
+              >
+                Tap to expand
+              </span>
+              <span
+                className={cn(
+                  'col-start-1 row-start-1',
+                  !mobileOpen && 'invisible',
+                )}
+                aria-hidden={!mobileOpen || undefined}
+              >
+                Tap to collapse
+              </span>
+            </span>
+            <ChevronUp
+              aria-hidden
+              data-testid="price-sidebar-mobile-chevron"
+              className={cn(
+                'size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none',
+                mobileOpen && 'rotate-180',
+              )}
+            />
           </span>
         </button>
         {mobileOpen ? (
+          // landr-v94dz: brand-tinted opaque surface (bg-surface-tint) so the
+          // breakdown reads as its own layer, not more page. Slides up from
+          // behind the bar (the toggle is relative + z-10 with its own
+          // background, so the entering panel passes underneath it). Muted
+          // text is darkened here only — the default grey falls below AA on
+          // the tint.
           <div
             id="price-sidebar-mobile-panel"
-            className="max-h-[60vh] overflow-y-auto border-t bg-surface-card px-4 py-4"
+            data-testid="price-sidebar-mobile-panel"
+            className="[--muted-foreground:var(--surface-tint-muted-foreground)] max-h-[60vh] overflow-y-auto overscroll-contain border-b border-b-primary/15 bg-surface-tint px-4 py-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
           >
             <BookingOverviewBody {...visible} selectedDays={selectedDays} />
           </div>

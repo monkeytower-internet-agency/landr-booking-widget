@@ -1683,3 +1683,97 @@ describe('DetailsStep — member-perk field is gated on hasMemberPerks (landr-y1
     expect(spy).toHaveBeenCalledWith('para42', 'ada@example.com')
   })
 })
+
+// ---------------------------------------------------------------------------
+// landr-de6ej: optional "Anything we should know?" comment field
+// ---------------------------------------------------------------------------
+describe('DetailsStep customer comment (landr-de6ej)', () => {
+  it('renders the field with its hint and a 0/2000 counter, empty by default', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const textarea = screen.getByTestId('customer-comment')
+    expect(textarea).toHaveValue('')
+    expect(
+      screen.getByText(/a person will read your request/i),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('customer-comment-counter')).toHaveTextContent(
+      '0/2000',
+    )
+  })
+
+  it('pre-fills from initialCustomerComment (Back / reload restore)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        initialCustomerComment="Please call ahead"
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('customer-comment')).toHaveValue(
+      'Please call ahead',
+    )
+    expect(screen.getByTestId('customer-comment-counter')).toHaveTextContent(
+      '17/2000',
+    )
+  })
+
+  it('passes the trimmed comment as onConfirm\'s 4th argument', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.change(screen.getByTestId('customer-comment'), {
+      target: { value: '  Allergic to peanuts  ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, , , comment] = onConfirm.mock.calls[0]!
+    expect(comment).toBe('Allergic to peanuts')
+  })
+
+  it('sends an empty string when the customer never types a comment', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, , , comment] = onConfirm.mock.calls[0]!
+    expect(comment).toBe('')
+  })
+
+  it('caps input at 2000 chars via maxLength', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('customer-comment')).toHaveAttribute(
+      'maxLength',
+      '2000',
+    )
+  })
+})

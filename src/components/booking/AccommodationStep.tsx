@@ -62,7 +62,7 @@ import { StepBackButton } from './StepBackButton'
  *     fill-form). Never offered for 'mandatory' (a hotel stay is required).
  *   - 'package'       — book accommodation as a package: the existing
  *     hotel + room-selection flow.
- *   - 'shared-double' — "I am the second pilot in a shared double room".
+ *   - 'shared-double' — "I am sharing a double room booked by someone else".
  *     The pilot books NO room (the first pilot's double room covers both
  *     of them) and is collected from the hotel. We set hotelLocationId so
  *     the landr-4r80 routing makes the hotel the pickup and SKIPS the
@@ -115,7 +115,7 @@ interface Props {
    * only in guiding-only mode.
    *
    * landr-ffyg.2: isSharedDouble is true when the customer chose the
-   * "I am the second pilot in a shared double room" mode. On submit this
+   * "I am sharing a double room booked by someone else" mode. On submit this
    * becomes the top-level `is_shared_double` boolean (landr-ffyg.1) and
    * NO hotel_room product lines are sent — only the guiding service line.
    */
@@ -1116,8 +1116,8 @@ export function AccommodationStep({
       },
       {
         value: 'shared-double' as const,
-        label: 'I am the second pilot in a shared double room',
-        hint: 'No room booked — another pilot holds the double room. You are collected from the hotel.',
+        label: 'I am sharing a double room booked by someone else',
+        hint: 'No room booked — the other guest holds the double room. You are collected from the hotel.',
       },
     ]
 
@@ -1259,8 +1259,8 @@ export function AccommodationStep({
             className="rounded-lg border border-border bg-surface-well p-3 text-sm shadow-well"
             data-testid="shared-double-notice"
           >
-            You are the second pilot sharing a double room. No room is
-            booked through us — the other pilot holds the room — and you
+            You are sharing a double room with another guest. No room is
+            booked for you — the other guest holds the room — and you
             will be collected from the hotel.
           </p>
         ) : null}

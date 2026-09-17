@@ -11,7 +11,7 @@
  *  - a deep-link to a BOOKABLE product calls onSelect (existing behaviour)
  *  - the date-model chip is gated by showDateModelDetail()
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
@@ -432,5 +432,47 @@ describe('ProductList — sold-out across layouts (landr-d8rg.6)', () => {
     expect(
       screen.queryByRole('button', { name: 'Sold Out Product' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProductList — languages chip (landr-pv2r1)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
+
+  const products = () => [
+    makeProduct({ product_id: 'a', slug: 'two', name: 'Two', bookable: true, guide_languages: ['de', 'en'] }),
+    makeProduct({ product_id: 'b', slug: 'any', name: 'Any', bookable: true, guide_languages: [] }),
+    makeProduct({
+      product_id: 'c',
+      slug: 'many',
+      name: 'Many',
+      bookable: true,
+      guide_languages: ['en', 'de', 'es', 'fr', 'it', 'nl', 'pt'],
+    }),
+  ]
+
+  it.each(['grid', 'list'] as const)('renders the chip on %s cards, not on any-language ones', async (mode) => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
+    mocks.listProducts.mockResolvedValue(products())
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Two')).toBeInTheDocument())
+
+    const two = screen.getByTestId(mode === 'grid' ? 'product-card-two' : 'product-row-two')
+    const chip = within(two).getByTestId('product-languages-chip')
+    expect(chip).toHaveAttribute('title', 'Offered in German and English')
+    expect(chip).toHaveAttribute('aria-label', 'Offered in German and English')
+    expect(chip).toHaveTextContent('🇩🇪 🇬🇧')
+
+    const anyCard = screen.getByTestId(mode === 'grid' ? 'product-card-any' : 'product-row-any')
+    expect(within(anyCard).queryByTestId('product-languages-chip')).not.toBeInTheDocument()
+
+    const many = screen.getByTestId(mode === 'grid' ? 'product-card-many' : 'product-row-many')
+    expect(within(many).getByTestId('product-languages-chip')).toHaveTextContent('+2')
   })
 })
