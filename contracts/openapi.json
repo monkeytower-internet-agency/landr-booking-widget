@@ -10880,6 +10880,18 @@
             "title": "Companions",
             "type": "array"
           },
+          "customer_comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Comment"
+          },
           "customer_declarations": {
             "anyOf": [
               {
@@ -13146,6 +13158,18 @@
             },
             "title": "Companions",
             "type": "array"
+          },
+          "customer_comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Comment"
           },
           "customer_declarations": {
             "anyOf": [
