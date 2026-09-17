@@ -1401,16 +1401,18 @@ export function DetailsStep({
             id="customer-comment"
             name="customer_comment"
             data-testid="customer-comment"
+            aria-describedby="customer-comment-hint customer-comment-counter"
             value={comment}
             maxLength={MAX_COMMENT_LENGTH}
             onChange={(e) => setComment(e.target.value)}
             placeholder="e.g. a dietary need, an accessibility request, a special occasion…"
           />
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-muted-foreground">
+            <p id="customer-comment-hint" className="text-xs text-muted-foreground">
               {tr('customerCommentHint')}
             </p>
             <p
+              id="customer-comment-counter"
               className="shrink-0 text-xs text-muted-foreground"
               data-testid="customer-comment-counter"
             >
