@@ -807,9 +807,13 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     }
   }
 
-  it('opens the panel ABOVE the toggle so the toggle stays pinned to the bottom', async () => {
+  it('keeps the toggle first in the DOM and pins it to the bottom with flex-col-reverse', async () => {
     const { bar, toggle } = await renderLoaded()
-    expect(bar.lastElementChild).toBe(toggle)
+    // flex-col-reverse paints the first child (the toggle) at the bottom of
+    // the bottom-anchored bar, so a panel added after it grows the bar
+    // upward and the toggle never moves.
+    expect(bar).toHaveClass('flex', 'flex-col-reverse', 'fixed', 'bottom-0')
+    expect(bar.firstElementChild).toBe(toggle)
     expect(
       screen.queryByTestId('price-sidebar-mobile-panel'),
     ).not.toBeInTheDocument()
@@ -817,14 +821,12 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     fireEvent.click(toggle)
 
     const panel = screen.getByTestId('price-sidebar-mobile-panel')
-    // The toggle is the SAME node (not remounted) and still the bar's last
-    // child; the panel precedes it, so the bottom-anchored bar grows upward.
+    // The toggle is the SAME node (not remounted, keeps focus) and still
+    // first; the revealed breakdown follows it, so Tab / a screen reader's
+    // next item lands in the breakdown.
     expect(screen.getByTestId('price-sidebar-mobile-toggle')).toBe(toggle)
-    expect(bar.lastElementChild).toBe(toggle)
-    expect(bar.firstElementChild).toBe(panel)
-    expect(
-      panel.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    expect(bar.firstElementChild).toBe(toggle)
+    expect(toggle.nextElementSibling).toBe(panel)
     expect(toggle).toHaveAttribute('aria-controls', panel.id)
     // The breakdown really is inside the panel.
     expect(
@@ -880,9 +882,55 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     const panel = screen.getByTestId('price-sidebar-mobile-panel')
     expect(panel).toHaveClass('bg-surface-tint')
     expect(panel).not.toHaveClass('bg-surface-card')
-    expect(bar).toHaveClass('border-t-primary')
+    // Muted text is re-pointed at the AA-safe token inside the tint only.
+    expect(panel).toHaveClass(
+      '[--muted-foreground:var(--surface-tint-muted-foreground)]',
+    )
+    expect(bar).toHaveClass('border-t-primary', 'bg-surface-tint')
     expect(document.body.style.overflow).toBe('hidden')
     fireEvent.click(toggle)
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('pads the body and the bar by the scrollbar width while locked, so the pill does not slide', async () => {
+    const { bar, toggle } = await renderLoaded()
+    const html = document.documentElement
+    const innerWidth = window.innerWidth
+    Object.defineProperty(html, 'clientWidth', {
+      configurable: true,
+      get: () => 1009,
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1024,
+    })
+    try {
+      fireEvent.click(toggle)
+      expect(document.body.style.paddingRight).toBe('15px')
+      expect(bar.style.paddingRight).toBe('15px')
+      fireEvent.click(toggle)
+      expect(document.body.style.paddingRight).toBe('')
+      expect(bar.style.paddingRight).toBe('')
+    } finally {
+      // Drop the own-property shadow so Element.prototype's getter applies again.
+      delete (html as unknown as Record<string, unknown>).clientWidth
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        writable: true,
+        value: innerWidth,
+      })
+    }
+  })
+
+  it('adds no padding when the scrollbar takes no space (phones)', async () => {
+    const { bar, toggle } = await renderLoaded()
+    // jsdom has no layout: clientWidth is 0, which the lock treats as
+    // "no scrollbar" instead of padding by the whole innerWidth.
+    expect(document.documentElement.clientWidth).toBe(0)
+    fireEvent.click(toggle)
+    expect(document.body.style.paddingRight).toBe('')
+    expect(bar.style.paddingRight).toBe('')
+    expect(document.body.style.overflow).toBe('hidden')
   })
 })
