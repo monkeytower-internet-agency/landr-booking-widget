@@ -1065,7 +1065,7 @@ export interface EstimateLineItem {
  * landr-qj1g: for per_streak_tier and per_total_days_tier, detail may
  * carry base_tier: { threshold_min: number; amount_per_unit: number } —
  * the first (short-stay) bracket of the schedule. The widget uses this
- * to show "save €X/day vs standard rate" alongside the applied per-day
+ * to show "saves €X/day vs standard rate" alongside the applied per-day
  * rate. Absent when the applied tier IS the base tier (no savings).
  *
  * landr-y3oj.3 codegen note: NOT sourced from the generated
