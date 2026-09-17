@@ -40,6 +40,7 @@ import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { DayChips } from './DayChips'
+import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
@@ -192,22 +193,27 @@ function BookingOverviewBody({
               </li>
             ))}
           </ul>
-          {/* landr-kat8: "Booking total" (was "Grand total") — what the
+          {/* landr-kat8: "Amount due" (was "Booking total") — what the
               customer pays now to the operator. The hotel line items are
               rendered as a separate pill below with their own subtotal
               + "paid at check-in" caveat so the customer can't mistake
               the hotel charge for part of the booking checkout total.
               landr-3mo4: the total sits in a recessed brand-tinted well so
-              the key number reads as the anchor of the panel. */}
-          <div
-            className="mt-3 flex items-baseline justify-between rounded-lg bg-primary/5 px-3 py-2 shadow-well"
-            data-testid="price-sidebar-booking-total"
-          >
-            <span className="text-base font-semibold">Booking total</span>
-            <span className="text-base font-semibold tabular-nums">
-              {formatMoney(data.operator_total, data.currency)}
-            </span>
-          </div>
+              the key number reads as the anchor of the panel.
+              landr-nva1a.4: PriceBreakdown inserts a Subtotal row + one
+              "− label" row per data.savings[] above the well when the API
+              returned savings; with no savings (or an older API deploy
+              missing the fields) it renders exactly the old single total
+              row, just re-labelled and falling back to operator_total. */}
+          <PriceBreakdown
+            subtotalBeforeSavings={data.subtotal_before_savings}
+            savings={data.savings}
+            amountDue={data.amount_due ?? data.operator_total}
+            currency={data.currency}
+            totalLabel="Amount due"
+            totalClassName="mt-3 rounded-lg bg-primary/5 px-3 py-2 shadow-well text-base"
+            testIdPrefix="price-sidebar"
+          />
         </section>
       ) : null}
       {hotel.length > 0 ? (
@@ -484,12 +490,17 @@ export default function PriceSidebar(props: Props) {
     }
   }, [mobileOpen])
 
-  // landr-kat8: the collapsed mobile bar shows the BOOKING total (operator
-  // only — what the customer pays now at checkout). The hotel charge is
-  // surfaced as a separate "+ €X at hotel" sub-line so the customer sees
-  // it exists without conflating it into the checkout number.
+  // landr-kat8: the collapsed mobile bar shows the AMOUNT DUE (operator
+  // only, after savings — what the customer pays now at checkout). The
+  // hotel charge is surfaced as a separate "+ €X at hotel" sub-line so the
+  // customer sees it exists without conflating it into the checkout
+  // number. landr-nva1a.4: falls back to operator_total on an older API
+  // deploy that doesn't return amount_due yet.
   const bookingTotalLabel = visible.data
-    ? formatMoney(visible.data.operator_total, visible.data.currency)
+    ? formatMoney(
+        visible.data.amount_due ?? visible.data.operator_total,
+        visible.data.currency,
+      )
     : '—'
   const atHotelLabel =
     visible.data && Number(visible.data.hotel_total) > 0
@@ -569,7 +580,7 @@ export default function PriceSidebar(props: Props) {
         >
           <span className="flex min-w-0 flex-col">
             <span className="text-xs font-medium text-muted-foreground">
-              Booking total
+              Amount due
             </span>
             <span className="text-lg font-semibold tabular-nums text-foreground">
               {bookingTotalLabel}

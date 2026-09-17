@@ -72,6 +72,23 @@ export function browserLocale(): string {
   return operatorDefaultLocale ?? raw
 }
 
+/**
+ * landr-nva1a.4 review round: shape a browser locale down to the wire
+ * format the API's `EstimateRequest.locale` field actually accepts —
+ * `language[-region]`, `max_length=16` (app/routers/public_operators.py).
+ * `navigator.language` can carry extended BCP-47 tags (script subtags,
+ * `-u-...` extensions, etc.) that are longer than 16 chars or carry more
+ * than two subtags; sending one of those verbatim 422s the estimate
+ * request. Keeping only the first two `-`-separated parts covers every
+ * `language` / `language-REGION` case this widget actually needs (the
+ * API only branches on the language subtag — see `_pick` in
+ * booking_savings.py) and the trailing `.slice(0, 16)` is a hard
+ * backstop for anything that still slips through.
+ */
+export function apiLocale(locale: string): string {
+  return locale.split('-').slice(0, 2).join('-').slice(0, 16)
+}
+
 export function browserTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'

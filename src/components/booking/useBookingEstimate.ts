@@ -34,6 +34,7 @@ import type {
   EstimateRequestBody,
   EstimateResponse,
 } from '@/api/types'
+import { apiLocale, browserLocale } from '@/lib/locale'
 import { useDebouncedValue } from './useDebouncedValue'
 
 export interface UseBookingEstimateArgs {
@@ -86,11 +87,20 @@ export function useBookingEstimate(
   // Body composed from the live inputs. Memoised so reference stability
   // matches the actual inputs and useDebouncedValue's effect doesn't
   // re-arm on identity-only changes.
+  // landr-nva1a.4: locale drives the savings row labels server-side
+  // ("Multi-day savings" / "Mehrtagesrabatt" / ...) — read once per body
+  // build rather than threaded as a prop, same convention as every other
+  // browserLocale() call site in the widget. Shaped through apiLocale()
+  // (review round): the API's EstimateRequest.locale is max_length=16 and
+  // only branches on the language[-region] subtags, so an extended
+  // navigator.language value (script/extension subtags) gets trimmed down
+  // instead of 422ing the request.
   const body = useMemo<EstimateRequestBody>(
     () => ({
       selected_days: selectedDays,
       participants_count: participantCount,
       addon_lines: addonLines,
+      locale: apiLocale(browserLocale()),
     }),
     [selectedDays, participantCount, addonLines],
   )

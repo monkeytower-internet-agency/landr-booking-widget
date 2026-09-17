@@ -97,10 +97,10 @@ describe('PriceSidebar (landr-qez0)', () => {
     )
     await waitFor(() => {
       // landr-kat8: the grand-total testid is replaced by
-      // price-sidebar-booking-total (operator-only) + a separate hotel
+      // price-sidebar-amount-due (operator-only) + a separate hotel
       // pill. Both render on desktop and mobile.
       expect(
-        screen.getAllByTestId('price-sidebar-booking-total').length,
+        screen.getAllByTestId('price-sidebar-amount-due').length,
       ).toBeGreaterThan(0)
     })
     const desktop = screen.getByTestId('price-sidebar-desktop')
@@ -113,9 +113,9 @@ describe('PriceSidebar (landr-qez0)', () => {
     expect(desktop).toHaveTextContent('Breakfast')
     // Booking total = operator only (180), NOT the old grand_total (456).
     const bookingTotal = desktop.querySelector(
-      '[data-testid="price-sidebar-booking-total"]',
+      '[data-testid="price-sidebar-amount-due"]',
     )
-    expect(bookingTotal?.textContent).toMatch(/Booking total/)
+    expect(bookingTotal?.textContent).toMatch(/Amount due/)
     expect(bookingTotal?.textContent).toMatch(/180/)
     expect(bookingTotal?.textContent).not.toMatch(/456/)
     // Hotel pill carries its own subtotal (276) and the caveat copy.
@@ -361,12 +361,12 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     )
     await waitFor(() =>
       expect(
-        screen.getAllByTestId('price-sidebar-booking-total').length,
+        screen.getAllByTestId('price-sidebar-amount-due').length,
       ).toBeGreaterThan(0),
     )
     const desktop = screen.getByTestId('price-sidebar-desktop')
     const bookingTotal = desktop.querySelector(
-      '[data-testid="price-sidebar-booking-total"]',
+      '[data-testid="price-sidebar-amount-due"]',
     )
     // 180 = operator_total, NOT 456 (operator + hotel).
     expect(bookingTotal?.textContent).toMatch(/180/)
@@ -421,7 +421,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
       ).toBeGreaterThan(0),
     )
     const mobile = screen.getByTestId('price-sidebar-mobile')
-    expect(mobile.textContent).toMatch(/Booking total/)
+    expect(mobile.textContent).toMatch(/Amount due/)
     expect(mobile.textContent).toMatch(/180/) // operator only
     const athotel = mobile.querySelector(
       '[data-testid="price-sidebar-mobile-athotel"]',
@@ -450,7 +450,7 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     )
     await waitFor(() =>
       expect(
-        screen.getAllByTestId('price-sidebar-booking-total').length,
+        screen.getAllByTestId('price-sidebar-amount-due').length,
       ).toBeGreaterThan(0),
     )
     expect(
@@ -640,7 +640,7 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(spy).not.toHaveBeenCalled()
     expect(
-      screen.queryByTestId('price-sidebar-booking-total'),
+      screen.queryByTestId('price-sidebar-amount-due'),
     ).not.toBeInTheDocument()
   })
 
@@ -651,7 +651,7 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
     const { rerender } = renderSidebar(['2026-07-04'])
     await waitFor(() => {
       expect(
-        screen.getAllByTestId('price-sidebar-booking-total').length,
+        screen.getAllByTestId('price-sidebar-amount-due').length,
       ).toBeGreaterThan(0)
     })
     // Customer deselects the last day: the hook keeps its previous data
@@ -668,7 +668,7 @@ describe('PriceSidebar empty selection (landr-hpyn)', () => {
       />,
     )
     expect(
-      screen.queryByTestId('price-sidebar-booking-total'),
+      screen.queryByTestId('price-sidebar-amount-due'),
     ).not.toBeInTheDocument()
     expect(
       screen.getByTestId('price-sidebar-desktop'),
@@ -723,7 +723,7 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
     // None of the (non-zero, but not-a-real-quote) SAMPLE totals leak
     // through — the whole breakdown is replaced by the message.
     expect(
-      screen.queryByTestId('price-sidebar-booking-total'),
+      screen.queryByTestId('price-sidebar-amount-due'),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByTestId('price-sidebar-grand-total'),
@@ -769,11 +769,125 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
     )
     await waitFor(() => {
       expect(
-        screen.getAllByTestId('price-sidebar-booking-total').length,
+        screen.getAllByTestId('price-sidebar-amount-due').length,
       ).toBeGreaterThan(0)
     })
     expect(onUnPriceableChange).toHaveBeenCalledWith(false)
     expect(onUnPriceableChange).not.toHaveBeenCalledWith(true)
+  })
+})
+
+// landr-nva1a.4: Subtotal → savings rows → Amount due, sourced from the
+// estimate's optional savings/subtotal_before_savings/amount_due fields.
+// Absence (older API deploy) must fall back to exactly today's single
+// total row — covered by the SAMPLE-based tests above, which carry none
+// of these fields.
+describe('PriceSidebar savings breakdown (landr-nva1a.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const SAVINGS_SAMPLE: EstimateResponse = {
+    ...SAMPLE,
+    line_items: SAMPLE.line_items.filter((li) => li.paid_to === 'operator'),
+    hotel_total: '0.00',
+    grand_total: '156.00',
+    savings: [
+      { kind: 'multi_day', label: 'Multi-day savings', amount: '15.00' },
+      { kind: 'voucher', label: 'Voucher SUMMER10', amount: '9.00' },
+    ],
+    savings_total: '24.00',
+    subtotal_before_savings: '180.00',
+    amount_due: '156.00',
+    multi_day_savings: { days: 3, amount: '15.00', consecutive: true },
+  }
+
+  it('renders Subtotal + savings rows above Amount due in the desktop well', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAVINGS_SAMPLE)
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-amount-due').length,
+      ).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    const subtotal = desktop.querySelector(
+      '[data-testid="price-sidebar-subtotal"]',
+    )
+    expect(subtotal?.textContent).toMatch(/Subtotal/)
+    expect(subtotal?.textContent).toMatch(/180/)
+    const rows = desktop.querySelectorAll('[data-testid="price-sidebar-saving"]')
+    expect(rows.length).toBe(2)
+    expect(rows[0].textContent).toMatch(/Multi-day savings/)
+    expect(rows[0].textContent).toMatch(/−€15/)
+    expect(rows[1].textContent).toMatch(/Voucher SUMMER10/)
+    const amountDue = desktop.querySelector(
+      '[data-testid="price-sidebar-amount-due"]',
+    )
+    expect(amountDue?.textContent).toMatch(/Amount due/)
+    expect(amountDue?.textContent).toMatch(/156/)
+  })
+
+  it('mobile collapsed bar shows amount_due, not operator_total, when savings apply', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAVINGS_SAMPLE)
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-amount-due').length,
+      ).toBeGreaterThan(0)
+    })
+    const mobile = screen.getByTestId('price-sidebar-mobile')
+    expect(mobile.textContent).toMatch(/Amount due/)
+    expect(mobile.textContent).toMatch(/156/)
+    expect(mobile.textContent).not.toMatch(/180/)
+  })
+
+  it('falls back to operator_total with no Subtotal/savings rows when the API omits the new fields', async () => {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23', '2026-05-24', '2026-05-25']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('price-sidebar-amount-due').length,
+      ).toBeGreaterThan(0)
+    })
+    const desktop = screen.getByTestId('price-sidebar-desktop')
+    expect(
+      desktop.querySelector('[data-testid="price-sidebar-subtotal"]'),
+    ).toBeNull()
+    expect(
+      desktop.querySelector('[data-testid="price-sidebar-saving"]'),
+    ).toBeNull()
+    const amountDue = desktop.querySelector(
+      '[data-testid="price-sidebar-amount-due"]',
+    )
+    expect(amountDue?.textContent).toMatch(/180/)
   })
 })
 
@@ -830,7 +944,7 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     expect(toggle).toHaveAttribute('aria-controls', panel.id)
     // The breakdown really is inside the panel.
     expect(
-      panel.querySelector('[data-testid="price-sidebar-booking-total"]'),
+      panel.querySelector('[data-testid="price-sidebar-amount-due"]'),
     ).not.toBeNull()
   })
 

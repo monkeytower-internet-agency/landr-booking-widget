@@ -84,10 +84,14 @@ describe('useBookingEstimate (landr-qez0)', () => {
       expect(result.current.data).toEqual(SAMPLE_ESTIMATE)
     })
     expect(spy).toHaveBeenCalledTimes(1)
+    // landr-nva1a.4: body also carries `locale` (browserLocale()) so the
+    // API can localize savings row labels — asserted loosely here since
+    // the exact value is whatever jsdom's navigator.language resolves to.
     expect(spy).toHaveBeenCalledWith('para42', 'p-1', {
       selected_days: ['2026-05-23'],
       participants_count: 1,
       addon_lines: [],
+      locale: expect.any(String),
     })
   })
 

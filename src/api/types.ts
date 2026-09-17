@@ -1042,6 +1042,136 @@ export interface SubmitBookingResponse {
    * Absent on API responses that predate landr-2js5 — treat as 'pending'.
    */
   confirmation_email_status?: 'sent' | 'captured' | 'failed' | 'pending'
+  /**
+   * landr-nva1a.1/.4: what was booked — the same builder that feeds the
+   * confirmation email context, so the success screen and the email agree
+   * verbatim. Optional/absent on an older API deploy: Confirmation MUST
+   * render exactly today's content (graceful degrade) when this is missing.
+   */
+  summary?: BookingSummary | null
+}
+
+/** One product row of BookingSummary.products. */
+export interface BookingSummaryProduct {
+  product_id: string
+  label: string
+  qty: number
+  selected_days?: string[]
+}
+
+/**
+ * Activity days (hotel nights excluded). `label` is the localized human
+ * form with consecutive runs folded, e.g. "14–16 Sep 2026".
+ */
+export interface BookingSummaryDates {
+  days: string[]
+  start: string | null
+  end: string | null
+  label: string
+}
+
+/** One participant of BookingSummary.participants — names from THIS
+ * request's payload only, never stored contact rows; no email/phone. */
+export interface BookingSummaryParticipant {
+  name: string
+  is_guiding?: boolean
+}
+
+/** One pickup option of BookingSummary.pickup_locations. */
+export interface BookingSummaryPickup {
+  id: string
+  name: string
+}
+
+export interface BookingSummaryRoomAddon {
+  label: string
+  qty: number
+}
+
+export interface BookingSummaryRoom {
+  label: string
+  qty: number
+  addons?: BookingSummaryRoomAddon[]
+}
+
+export interface BookingSummaryStayWindow {
+  check_in: string
+  check_out: string
+  nights: number
+}
+
+export interface BookingSummaryHotel {
+  stay_window?: BookingSummaryStayWindow | null
+  rooms?: BookingSummaryRoom[]
+  total: string
+}
+
+/**
+ * landr-nva1a.2 (in flight alongside this ticket): per-product
+ * "after booking" content — optional rich text (already-sanitized HTML
+ * from the dashboard's tiptap editor) and/or a simple link. Both may be
+ * set, either may be null. `html` is sanitized again client-side via a
+ * scoped DOMPurify instance before rendering (defence in depth — the API
+ * already sanitizes on save).
+ *
+ * landr-nva1a.4 review round: matches the real API shape verbatim
+ * (`app/routers/public_bookings.py:BookingSummaryPostBooking`,
+ * `booking_emails._build_post_booking` on the sibling landr-nva1a.2
+ * branch) — there is NO `label` field on the item itself. The widget
+ * derives a heading (when one is shown at all) by looking the
+ * `product_id` up in `BookingSummary.products`.
+ */
+export interface PostBookingLink {
+  url: string
+  label: string
+}
+
+export interface PostBookingContent {
+  product_id: string
+  html: string | null
+  link: PostBookingLink | null
+}
+
+/**
+ * What was booked (landr-nva1a.1/.4) — built by the same server-side
+ * builder that feeds the booking confirmation email, so the success
+ * screen and the email agree verbatim. Money fields are bare decimal
+ * strings, matching every other estimate/summary figure.
+ */
+export interface BookingSummary {
+  booking_id: string
+  booking_reference: string
+  operator_name: string
+  product_label: string
+  products: BookingSummaryProduct[]
+  dates: BookingSummaryDates
+  participant_count: number
+  participants: BookingSummaryParticipant[]
+  pickup_location: string | null
+  pickup_locations: BookingSummaryPickup[]
+  hotel: BookingSummaryHotel | null
+  line_items: EstimateLineItem[]
+  operator_total: string
+  hotel_total: string
+  grand_total: string
+  currency: string
+  savings: SavingLine[]
+  savings_total: string
+  subtotal_before_savings: string
+  amount_due: string
+  multi_day_savings: MultiDaySavings | null
+  /**
+   * True when an operator price override replaced the engine price:
+   * `amount_due` is then the override and `savings` is empty — the
+   * success screen skips the savings congrats card in that case.
+   */
+  price_overridden?: boolean
+  /**
+   * landr-nva1a.2: per-product after-booking content. Absent until that
+   * sibling ticket's API PR merges — Confirmation must tolerate absence
+   * (render nothing for step 7 of the success screen).
+   */
+  post_booking?: PostBookingContent[]
 }
 
 /**
@@ -1112,6 +1242,37 @@ export interface EstimateRequestBody {
   selected_days: string[]
   participants_count: number
   addon_lines: EstimateAddonLine[]
+  /**
+   * landr-nva1a.4: locale for the savings row labels ("Multi-day savings" /
+   * "Mehrtagesrabatt" / ...), sent as browserLocale(). Optional — older
+   * widget builds omit it and the API falls back to 'en'.
+   */
+  locale?: string
+}
+
+/**
+ * One "− <label>  <amount>" row of a customer-facing price breakdown
+ * (landr-nva1a.1/.4). `kind` is 'multi_day' | 'voucher' | 'perk' |
+ * 'discount'; `amount` is a positive decimal string. `label` is already
+ * localized server-side. Shared by EstimateResponse.savings and
+ * BookingSummary.savings.
+ */
+export interface SavingLine {
+  kind: 'multi_day' | 'voucher' | 'perk' | 'discount'
+  label: string
+  amount: string
+}
+
+/**
+ * Congrats-card payload (landr-nva1a.1/.4): `days` is the longest
+ * consecutive run (streak pricing) or the total priced days (total-days
+ * pricing); `amount` is the summed multi-day saving; `consecutive` is
+ * true only when every contributing saving came from streak pricing.
+ */
+export interface MultiDaySavings {
+  days: number
+  amount: string
+  consecutive: boolean
 }
 
 /**
@@ -1157,6 +1318,21 @@ export interface EstimateResponse {
    * doomed submit. Always present, defaults false.
    */
   un_priceable: boolean
+  /**
+   * landr-nva1a.4: savings breakdown over OPERATOR-paid lines, computed
+   * server-side once (booking_savings.py) from applied_rules — the widget
+   * only renders. `amount_due` === `operator_total` when present (hotel
+   * lines are never discounted, so `hotel_total` stays a separate,
+   * un-discounted figure); `subtotal_before_savings` === `amount_due` +
+   * `savings_total`. All optional/absent on an older API deploy — every
+   * caller MUST tolerate absence and fall back to today's rendering
+   * (no Subtotal row, no savings rows, total labelled as before).
+   */
+  savings?: SavingLine[] | null
+  savings_total?: string | null
+  subtotal_before_savings?: string | null
+  amount_due?: string | null
+  multi_day_savings?: MultiDaySavings | null
 }
 
 // ─── Hotel room-request reply loop (landr-em0r / landr-em0r.9) ──────────────

@@ -571,18 +571,85 @@ export const mockSubmit = (): SubmitBookingResponse => ({
     'https://api.dev.landr.de/api/public/bookings/00000000-0000-0000-0000-0000000000bb/calendar.ics',
   // landr-acew: parsed calendar event data so the confirmation screen can
   // build Google Calendar and Outlook deep-link URLs without an extra
-  // API call. Mirrors the first VEVENT the ICS service would emit for
-  // a mock Tandem Classic booking on 2026-06-15.
+  // API call. Mirrors the first VEVENT the ICS service would emit for a
+  // mock Tandem Classic booking spanning 15–17 Jun 2026 — three
+  // consecutive days, matching the summary's streak-discount example
+  // below (landr-nva1a.4).
   calendar_event: {
     title: 'Tandem Classic — Para42',
     start_date: '2026-06-15',
-    end_date: '2026-06-15',
+    end_date: '2026-06-17',
     description: 'Booking for Jane Doe. Confirmed via Para42. Please arrive on time and bring your confirmation email.',
     location: 'Para42',
   },
   // landr-y31z: default mock to 'sent' — exercises the success copy path in
   // dev mode (the most common happy-path outcome for auto-approved bookings).
   confirmation_email_status: 'sent',
+  // landr-nva1a.4: realistic `summary` so dev/demo mode shows the full
+  // success screen — booking card, savings congrats, price breakdown, and
+  // after-booking content — not just the pre-nva1a.4 legacy rendering.
+  // Numbers mirror mockEstimate's 3-day streak discount (€30/day off the
+  // €60/day Tandem Classic rate over 3 days = €90 saved).
+  summary: {
+    booking_id: '00000000-0000-0000-0000-0000000000bb',
+    booking_reference: 'PARA42-DEMO-01',
+    operator_name: 'Para42',
+    product_label: 'Tandem Classic',
+    products: [
+      {
+        product_id: '00000000-0000-0000-0000-000000000001',
+        label: 'Tandem Classic',
+        qty: 1,
+        selected_days: ['2026-06-15', '2026-06-16', '2026-06-17'],
+      },
+    ],
+    dates: {
+      days: ['2026-06-15', '2026-06-16', '2026-06-17'],
+      start: '2026-06-15',
+      end: '2026-06-17',
+      label: '15–17 Jun 2026',
+    },
+    participant_count: 1,
+    participants: [{ name: 'Jane Doe' }],
+    pickup_location: null,
+    pickup_locations: [],
+    hotel: null,
+    line_items: [
+      {
+        product_id: '00000000-0000-0000-0000-000000000001',
+        label: 'Tandem Classic',
+        qty: 1,
+        units: 3,
+        unit_price: '30.00',
+        line_total: '90.00',
+        paid_to: 'operator',
+      },
+    ],
+    operator_total: '90.00',
+    hotel_total: '0.00',
+    grand_total: '90.00',
+    currency: 'EUR',
+    savings: [
+      { kind: 'multi_day', label: 'Multi-day savings', amount: '90.00' },
+    ],
+    savings_total: '90.00',
+    subtotal_before_savings: '180.00',
+    amount_due: '90.00',
+    multi_day_savings: { days: 3, amount: '90.00', consecutive: true },
+    price_overridden: false,
+    // landr-nva1a.2 shape: {product_id, html, link} — no `label` on the
+    // item itself (see PostBookingContent's doc comment in api/types.ts).
+    post_booking: [
+      {
+        product_id: '00000000-0000-0000-0000-000000000001',
+        html: '<p>Please arrive <strong>15 minutes early</strong> for check-in and bring comfortable shoes.</p>',
+        link: {
+          url: 'https://example.com/para42/waiver',
+          label: 'Sign the digital waiver',
+        },
+      },
+    ],
+  },
 })
 
 /**
@@ -593,7 +660,12 @@ export const mockSubmit = (): SubmitBookingResponse => ({
  * (days + 1) per the engine convention, services bill by days.
  *
  * Surfaces a tier-discount applied_rule when 3+ days are selected so
- * tests can exercise the discount-tag rendering path.
+ * tests can exercise the discount-tag rendering path. landr-nva1a.4:
+ * also surfaces the matching savings/subtotal_before_savings/amount_due/
+ * multi_day_savings fields (€30/day off the €60/day base for 3+ days —
+ * a 3-day booking demos exactly the -€90 example from the epic's review
+ * round) so dev/demo mode exercises the new PriceSidebar/Confirmation
+ * savings rows, not just the discount tag.
  */
 export const mockEstimate = (
   productId: string,
@@ -611,16 +683,22 @@ export const mockEstimate = (
     '00000000-0000-0000-0000-000000000402': { name: 'Breakfast', price: 10, kind: 'addon', paidTo: 'hotel' },
   }
   const main = productMap[productId]
+  // Multi-day streak saving: €30/day off the base rate for a 3+ day
+  // booking of the MAIN product only (mirrors the API's convention of
+  // discounting the operator-paid parent line, not add-ons/hotel).
+  let multiDaySavingAmount = 0
   if (main) {
     const units = days
-    const lineTotal = (main.price * units).toFixed(2)
+    const perDaySaving = days >= 3 ? 30 : 0
+    const discountedRate = main.price - perDaySaving
+    multiDaySavingAmount = perDaySaving * units
     lineItems.push({
       product_id: productId,
       label: main.name,
       qty: 1,
       units,
-      unit_price: main.price.toFixed(2),
-      line_total: lineTotal,
+      unit_price: discountedRate.toFixed(2),
+      line_total: (discountedRate * units).toFixed(2),
       paid_to: main.paidTo,
     })
     rules.push({ kind: 'per_day_base', detail: { product_id: productId } })
@@ -665,5 +743,27 @@ export const mockEstimate = (
     // warnings. Real API responses carry both keys on every estimate.
     warnings: [],
     un_priceable: false,
+    // landr-nva1a.4: only present when there's an actual multi-day saving —
+    // mirrors the real API, which omits these on an estimate with nothing
+    // to discount, and lets PriceSidebar's no-savings fallback render too.
+    ...(multiDaySavingAmount > 0
+      ? {
+          savings: [
+            {
+              kind: 'multi_day' as const,
+              label: 'Multi-day savings',
+              amount: multiDaySavingAmount.toFixed(2),
+            },
+          ],
+          savings_total: multiDaySavingAmount.toFixed(2),
+          subtotal_before_savings: (opTotal + multiDaySavingAmount).toFixed(2),
+          amount_due: opTotal.toFixed(2),
+          multi_day_savings: {
+            days,
+            amount: multiDaySavingAmount.toFixed(2),
+            consecutive: true,
+          },
+        }
+      : {}),
   }
 }

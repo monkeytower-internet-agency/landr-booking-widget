@@ -7,7 +7,13 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CustomerStageLabel } from '@/api/types'
-import { browserLocale, configureCustomerLocale, pickLocalized, resolveCustomerStageLabel } from './locale'
+import {
+  apiLocale,
+  browserLocale,
+  configureCustomerLocale,
+  pickLocalized,
+  resolveCustomerStageLabel,
+} from './locale'
 
 function setBrowserLanguage(language: string) {
   vi.stubGlobal('navigator', { language })
@@ -102,5 +108,26 @@ describe('resolveCustomerStageLabel', () => {
 
   it('falls back to the base label when no translation matches the locale', () => {
     expect(resolveCustomerStageLabel(stage, 'it')).toBe('Payment pending')
+  })
+})
+
+// landr-nva1a.4 review round: EstimateRequest.locale is max_length=16 and
+// only branches on language[-region] server-side — a longer/extended
+// navigator.language value must be shaped down, not sent verbatim (which
+// would 422 the estimate request).
+describe('apiLocale', () => {
+  it('passes through a plain language-region tag unchanged', () => {
+    expect(apiLocale('en-US')).toBe('en-US')
+    expect(apiLocale('de')).toBe('de')
+  })
+
+  it('drops extra subtags past language-region', () => {
+    expect(apiLocale('zh-Hans-CN')).toBe('zh-Hans')
+    expect(apiLocale('de-DE-u-co-phonebk')).toBe('de-DE')
+  })
+
+  it('never exceeds 16 characters', () => {
+    const shaped = apiLocale('supercalifragilisticexpialidocious-XX')
+    expect(shaped.length).toBeLessThanOrEqual(16)
   })
 })
