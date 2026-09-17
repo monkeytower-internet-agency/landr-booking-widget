@@ -2,7 +2,13 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { Confirmation } from './Confirmation'
-import type { BookingCalendarEvent, SubmitBookingResponse } from '@/api/types'
+import type {
+  BookingCalendarEvent,
+  BookingSummary,
+  SubmitBookingResponse,
+} from '@/api/types'
+import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
+import { StaffModeProvider } from '@/lib/staffMode.tsx'
 
 /**
  * Tests for the booking confirmation success page.
@@ -35,6 +41,376 @@ function baseResponse(overrides: Partial<SubmitBookingResponse> = {}): SubmitBoo
 function qs(url: string): URLSearchParams {
   return new URLSearchParams(url.split('?')[1] ?? '')
 }
+
+// ------------------------------------------------------------------
+// landr-nva1a.4: success-screen summary/savings/post-booking fixtures
+// ------------------------------------------------------------------
+
+function baseSummary(overrides: Partial<BookingSummary> = {}): BookingSummary {
+  return {
+    booking_id: MOCK_BOOKING_ID,
+    booking_reference: 'REF-1234',
+    operator_name: 'Para42',
+    product_label: 'Tandem Classic',
+    products: [
+      {
+        product_id: 'svc',
+        label: 'Tandem Classic',
+        qty: 1,
+        selected_days: ['2026-06-15', '2026-06-16', '2026-06-17'],
+      },
+    ],
+    dates: {
+      days: ['2026-06-15', '2026-06-16', '2026-06-17'],
+      start: '2026-06-15',
+      end: '2026-06-17',
+      label: '15–17 Jun 2026',
+    },
+    participant_count: 2,
+    participants: [{ name: 'Ada Lovelace' }, { name: 'Grace Hopper' }],
+    pickup_location: 'Main Beach',
+    pickup_locations: [{ id: 'pl-1', name: 'Main Beach' }],
+    hotel: null,
+    line_items: [
+      {
+        product_id: 'svc',
+        label: 'Tandem Classic',
+        qty: 1,
+        units: 3,
+        unit_price: '60.00',
+        line_total: '180.00',
+        paid_to: 'operator',
+      },
+    ],
+    operator_total: '180.00',
+    hotel_total: '0.00',
+    grand_total: '180.00',
+    currency: 'EUR',
+    savings: [],
+    savings_total: '0.00',
+    subtotal_before_savings: '180.00',
+    amount_due: '180.00',
+    multi_day_savings: null,
+    price_overridden: false,
+    ...overrides,
+  }
+}
+
+describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
+  it('renders exactly today\'s content when summary is absent (graceful degrade)', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-summary')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('confirmation-savings-congrats'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('confirmation-price-breakdown'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('confirmation-post-booking'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const card = screen.getByTestId('confirmation-summary')
+    expect(card).toHaveTextContent('Tandem Classic')
+    expect(card).toHaveTextContent(/15.*17.*Jun.*2026/)
+    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
+      '2 participants',
+    )
+    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
+      'Ada Lovelace, Grace Hopper',
+    )
+    expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
+      'Main Beach',
+    )
+  })
+
+  it('renders the hotel/room block when summary.hotel is present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [
+            { label: 'Double Room', qty: 1, addons: [{ label: 'Breakfast', qty: 2 }] },
+          ],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const hotel = screen.getByTestId('confirmation-hotel')
+    expect(hotel).toHaveTextContent('4 nights')
+    expect(hotel).toHaveTextContent('Double Room')
+    expect(hotel).toHaveTextContent('Breakfast')
+  })
+
+  it('omits the hotel block when summary.hotel is null', () => {
+    const response = baseResponse({ summary: baseSummary({ hotel: null }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-hotel')).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // Savings congrats card
+  // ------------------------------------------------------------------
+
+  it('shows the consecutive-days congrats copy', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        multi_day_savings: { days: 3, amount: '15.00', consecutive: true },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-savings-congrats')).toHaveTextContent(
+      '3 days in a row — you saved €15.00!',
+    )
+  })
+
+  it('shows the non-consecutive "by booking N days" congrats copy', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        multi_day_savings: { days: 5, amount: '20.00', consecutive: false },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-savings-congrats')).toHaveTextContent(
+      'You saved €20.00 by booking 5 days!',
+    )
+  })
+
+  it('omits the congrats card when multi_day_savings is null', () => {
+    const response = baseResponse({ summary: baseSummary({ multi_day_savings: null }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-savings-congrats'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('skips the congrats card when price_overridden is true, even with multi_day_savings present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        price_overridden: true,
+        multi_day_savings: { days: 3, amount: '15.00', consecutive: true },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-savings-congrats'),
+    ).not.toBeInTheDocument()
+    // The rest of the summary/breakdown still render.
+    expect(screen.getByTestId('confirmation-summary')).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-price-breakdown')).toBeInTheDocument()
+  })
+
+  it('skips the congrats card in staff mode, but still shows summary + breakdown', () => {
+    const STAFF: StaffSession = {
+      active: true,
+      token: 'staff.signed.token',
+      powers: ALL_STAFF_POWERS,
+      operatorId: 'a1b2c3d4-0001-0001-0001-000000000002',
+    }
+    const response = baseResponse({
+      summary: baseSummary({
+        multi_day_savings: { days: 3, amount: '15.00', consecutive: true },
+      }),
+    })
+    render(
+      <StaffModeProvider value={STAFF}>
+        <Confirmation response={response} onRestart={vi.fn()} />
+      </StaffModeProvider>,
+    )
+
+    expect(
+      screen.queryByTestId('confirmation-savings-congrats'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-summary')).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-price-breakdown')).toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // Price breakdown
+  // ------------------------------------------------------------------
+
+  it('renders Subtotal → savings rows → Amount due when savings are present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        savings: [
+          { kind: 'multi_day', label: 'Multi-day savings', amount: '15.00' },
+          { kind: 'voucher', label: 'Voucher SUMMER10', amount: '9.00' },
+        ],
+        savings_total: '24.00',
+        subtotal_before_savings: '180.00',
+        amount_due: '156.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(breakdown).toHaveTextContent('Subtotal')
+    expect(breakdown).toHaveTextContent('Multi-day savings')
+    expect(breakdown).toHaveTextContent('Voucher SUMMER10')
+    expect(breakdown).toHaveTextContent('Amount due')
+    const amountDue = screen.getByTestId('confirmation-amount-due')
+    expect(amountDue).toHaveTextContent('156')
+  })
+
+  it('renders only the Amount due row (no Subtotal) when there are no savings', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-subtotal'),
+    ).not.toBeInTheDocument()
+    const amountDue = screen.getByTestId('confirmation-amount-due')
+    expect(amountDue).toHaveTextContent('Amount due')
+    expect(amountDue).toHaveTextContent('180')
+  })
+
+  it('keeps at-hotel lines/total separate from the operator Amount due', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        hotel: { stay_window: null, rooms: [], total: '196.00' },
+        line_items: [
+          {
+            product_id: 'svc',
+            label: 'Tandem Classic',
+            qty: 1,
+            units: 3,
+            unit_price: '60.00',
+            line_total: '180.00',
+            paid_to: 'operator',
+          },
+          {
+            product_id: 'room',
+            label: 'Single Room',
+            qty: 1,
+            units: 4,
+            unit_price: '49.00',
+            line_total: '196.00',
+            paid_to: 'hotel',
+          },
+        ],
+        hotel_total: '196.00',
+        grand_total: '376.00',
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const breakdown = screen.getByTestId('confirmation-price-breakdown')
+    expect(breakdown).toHaveTextContent('Single Room')
+    expect(breakdown).toHaveTextContent('pay at check-in')
+    const amountDue = screen.getByTestId('confirmation-amount-due')
+    // Amount due is the operator-only figure (180), not grand_total (376).
+    expect(amountDue).toHaveTextContent('180')
+    expect(amountDue).not.toHaveTextContent('376')
+  })
+
+  // ------------------------------------------------------------------
+  // Post-booking content (landr-nva1a.2)
+  // ------------------------------------------------------------------
+
+  it('renders sanitized post-booking html and strips a script tag', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            label: 'Tandem Classic',
+            html: '<p>Bring sunscreen!</p><script>alert(1)</script>',
+            link: null,
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const html = screen.getByTestId('confirmation-post-booking-html')
+    expect(html).toHaveTextContent('Bring sunscreen!')
+    expect(html.innerHTML).not.toMatch(/<script/i)
+    expect(html.querySelector('script')).toBeNull()
+  })
+
+  it('renders the post-booking link as a Button with target=_blank rel=noopener noreferrer', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            label: 'Tandem Classic',
+            html: null,
+            link: { url: 'https://example.com/waiver', label: 'Sign the waiver' },
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const link = screen.getByRole('link', { name: /sign the waiver/i })
+    expect(link).toHaveAttribute('href', 'https://example.com/waiver')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('never renders a non-http(s) post-booking link (e.g. javascript:)', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            label: 'Tandem Classic',
+            html: '<p>Some info</p>',
+            link: { url: 'javascript:alert(1)', label: 'Click me' },
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByRole('link', { name: /click me/i }),
+    ).not.toBeInTheDocument()
+    // The html half of the same item still renders.
+    expect(screen.getByTestId('confirmation-post-booking-html')).toHaveTextContent(
+      'Some info',
+    )
+  })
+
+  it('omits the post-booking section entirely when summary.post_booking is absent', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-post-booking'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('omits an item that has neither html nor a valid link', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          { product_id: 'svc', label: 'Tandem Classic', html: null, link: null },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-post-booking'),
+    ).not.toBeInTheDocument()
+  })
+})
 
 describe('Confirmation', () => {
   // ------------------------------------------------------------------

@@ -1,4 +1,11 @@
-import type { SubmitBookingResponse } from '@/api/types'
+import DOMPurify from 'dompurify'
+import { PartyPopper } from 'lucide-react'
+import type {
+  BookingSummary,
+  BookingSummaryRoom,
+  PostBookingContent,
+  SubmitBookingResponse,
+} from '@/api/types'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -13,6 +20,10 @@ import {
 } from '@/lib/calendarLinks'
 import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
+import { formatDayLabel } from './dateLabel'
+import { DayChips } from './DayChips'
+import { PriceBreakdown } from './PriceBreakdown'
+import { formatMoney, splitLineItems } from './priceSidebarHelpers'
 
 interface Props {
   response: SubmitBookingResponse
@@ -55,6 +66,255 @@ function resolveApprovalKind(
   return outcome === 'auto_approved' ? 'auto' : 'manual'
 }
 
+/** http(s)-only guard for the post-booking link (landr-nva1a.4) — the API
+ * already only stores http(s) URLs, but this is the client-side backstop
+ * before we ever emit an <a href> built from operator-authored input. */
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Rich-text prose classes for the after-booking HTML block. Byte-identical
+ * scale to ProductDetailStep's PROSE_CLASSES so operator copy reads the
+ * same everywhere it appears — this block renders raw (sanitized) HTML
+ * from the dashboard's tiptap editor rather than Markdown, so it's a
+ * sibling constant, not a shared import (different source pipelines).
+ */
+const POST_BOOKING_PROSE_CLASSES =
+  'text-sm text-foreground [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-2 [&_p]:leading-relaxed last:[&_p]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-primary [&_a]:underline'
+
+/**
+ * "Your booking" card (landr-nva1a.4, step 3) — what was booked, sourced
+ * from `response.summary` (the same builder that feeds the confirmation
+ * email, so this never drifts from what the customer's inbox says).
+ */
+function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
+  const locale = browserLocale()
+  const hasParticipantNames = summary.participants.length > 0
+  return (
+    <div
+      data-testid="confirmation-summary"
+      className="space-y-3 rounded-lg border bg-surface-card p-4"
+    >
+      <h3 className="text-sm font-semibold">Your booking</h3>
+      <div className="space-y-2 text-sm">
+        {summary.products.map((product) => (
+          <div key={product.product_id}>
+            <span className="block">
+              {product.label}
+              {product.qty > 1 ? ` × ${product.qty}` : ''}
+            </span>
+            {product.selected_days && product.selected_days.length > 0 ? (
+              <DayChips dates={product.selected_days} locale={locale} />
+            ) : null}
+          </div>
+        ))}
+        {summary.dates.label ? (
+          <p
+            className="text-muted-foreground"
+            data-testid="confirmation-dates"
+          >
+            📅 {summary.dates.label}
+          </p>
+        ) : null}
+        <p data-testid="confirmation-participants">
+          {summary.participant_count}{' '}
+          {summary.participant_count === 1 ? 'participant' : 'participants'}
+          {hasParticipantNames
+            ? ` — ${summary.participants.map((p) => p.name).join(', ')}`
+            : ''}
+        </p>
+        {summary.pickup_location ? (
+          <p data-testid="confirmation-pickup">
+            Pickup: {summary.pickup_location}
+          </p>
+        ) : null}
+        {summary.hotel ? (
+          <div
+            data-testid="confirmation-hotel"
+            className="rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+          >
+            {summary.hotel.stay_window ? (
+              <p className="mb-1 text-xs text-muted-foreground">
+                {formatDayLabel(summary.hotel.stay_window.check_in, locale)} →{' '}
+                {formatDayLabel(summary.hotel.stay_window.check_out, locale)},{' '}
+                {summary.hotel.stay_window.nights}{' '}
+                {summary.hotel.stay_window.nights === 1 ? 'night' : 'nights'}
+              </p>
+            ) : null}
+            <ul className="space-y-1">
+              {(summary.hotel.rooms ?? []).map(
+                (room: BookingSummaryRoom, idx: number) => (
+                  <li key={`${room.label}-${idx}`}>
+                    {room.label} × {room.qty}
+                    {room.addons && room.addons.length > 0 ? (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        (
+                        {room.addons
+                          .map((addon) => `${addon.label} × ${addon.qty}`)
+                          .join(', ')}
+                        )
+                      </span>
+                    ) : null}
+                  </li>
+                ),
+              )}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Savings congrats card (landr-nva1a.4, step 4) — shown only when the API
+ * returned a multi_day_savings block. Copy per the epic decision:
+ * consecutive runs get "N days in a row"; non-consecutive total-days
+ * tiers get "by booking N days" instead.
+ */
+function SavingsCongratsCard({
+  days,
+  amount,
+  consecutive,
+  currency,
+}: {
+  days: number
+  amount: string
+  consecutive: boolean
+  currency: string
+}) {
+  const amountLabel = formatMoney(amount, currency)
+  const dayNoun = days === 1 ? 'day' : 'days'
+  const message = consecutive
+    ? `${days} ${dayNoun} in a row — you saved ${amountLabel}!`
+    : `You saved ${amountLabel} by booking ${days} ${dayNoun}!`
+  return (
+    <div
+      data-testid="confirmation-savings-congrats"
+      className="celebrate-pop flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+    >
+      <span aria-hidden="true" className="text-lg leading-none">
+        🎉
+      </span>
+      <span>{message}</span>
+    </div>
+  )
+}
+
+/**
+ * Price breakdown (landr-nva1a.4, step 5) — operator-paid line items →
+ * the shared PriceBreakdown (Subtotal → savings rows → Amount due) →
+ * hotel lines kept as a visually separate "pay at check-in" block, same
+ * convention as PriceSidebar.
+ */
+function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
+  const { operator, hotel } = splitLineItems(summary.line_items)
+  return (
+    <div
+      data-testid="confirmation-price-breakdown"
+      className="space-y-3 rounded-lg border bg-surface-card p-4"
+    >
+      <h3 className="text-sm font-semibold">Price breakdown</h3>
+      {operator.length > 0 ? (
+        <ul className="space-y-1 text-sm">
+          {operator.map((li) => (
+            <li
+              key={`op-${li.product_id}`}
+              className="flex items-baseline justify-between gap-2"
+            >
+              <span>{li.label}</span>
+              <span className="tabular-nums">
+                {formatMoney(li.line_total, summary.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <PriceBreakdown
+        subtotalBeforeSavings={summary.subtotal_before_savings}
+        savings={summary.savings}
+        amountDue={summary.amount_due}
+        currency={summary.currency}
+        totalLabel="Amount due"
+        totalClassName="border-t pt-2 text-base"
+        testIdPrefix="confirmation"
+      />
+      {hotel.length > 0 ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <ul className="space-y-1">
+            {hotel.map((li) => (
+              <li
+                key={`hot-${li.product_id}`}
+                className="flex items-baseline justify-between gap-2"
+              >
+                <span>{li.label}</span>
+                <span className="tabular-nums">
+                  {formatMoney(li.line_total, summary.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex items-baseline justify-between border-t border-amber-200 pt-2 font-medium dark:border-amber-900">
+            <span>At hotel · pay at check-in</span>
+            <span className="tabular-nums">
+              {formatMoney(summary.hotel_total, summary.currency)}
+            </span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * After-booking content (landr-nva1a.4, step 7 / landr-nva1a.2). Renders
+ * once per product that carries content, skipping products with neither
+ * `html` nor a valid link — an operator who cleared both fields produces
+ * no visible card rather than an empty shell.
+ */
+function PostBookingSection({ items }: { items: PostBookingContent[] }) {
+  return (
+    <div data-testid="confirmation-post-booking" className="space-y-3">
+      {items.map((item) => {
+        const link = item.link && isHttpUrl(item.link.url) ? item.link : null
+        return (
+          <div
+            key={item.product_id}
+            data-testid="confirmation-post-booking-item"
+            className="rounded-lg border bg-surface-card p-4"
+          >
+            <h4 className="mb-2 text-sm font-semibold">{item.label}</h4>
+            {item.html ? (
+              <div
+                className={POST_BOOKING_PROSE_CLASSES}
+                data-testid="confirmation-post-booking-html"
+                // landr-nva1a.4: defence in depth — the dashboard/API already
+                // sanitize on save (landr-nva1a.2), DOMPurify sanitizes again
+                // client-side before this ever reaches dangerouslySetInnerHTML.
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.html) }}
+              />
+            ) : null}
+            {link ? (
+              <Button asChild type="button" variant="outline" className="mt-3">
+                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                  {link.label}
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Confirmation({ response, onRestart }: Props) {
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
@@ -88,9 +348,35 @@ export function Confirmation({ response, onRestart }: Props) {
   // swap to operator-framed copy. Inactive ⇒ original customer copy verbatim.
   const staff = useStaffMode()
 
+  // landr-nva1a.4: `summary` is absent on an older API deploy — every
+  // section below built from it (steps 3/4/5/7) is skipped wholesale in
+  // that case, rendering exactly today's content (graceful degrade).
+  const summary = response.summary ?? null
+  const showCongrats =
+    summary !== null && !staff.active && !summary.price_overridden &&
+    summary.multi_day_savings !== null
+  const postBookingItems = (summary?.post_booking ?? []).filter(
+    (item) => Boolean(item.html) || (item.link && isHttpUrl(item.link.url)),
+  )
+
   return (
     <Card>
       <CardHeader>
+        {/*
+          landr-nva1a.4: warm/playful celebratory accent (brand voice —
+          Duolingo-flavoured). Purely decorative (aria-hidden, no text
+          content of its own) so it never changes the title element's
+          accessible name/text — e2e (booking-submit.spec.ts) and the
+          landr-5oox.6 unit tests match the title by its exact copy.
+          CSS-only pop-in (index.css `.celebrate-pop`), honours
+          prefers-reduced-motion.
+        */}
+        <div
+          aria-hidden="true"
+          className="celebrate-pop mb-1 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary"
+        >
+          <PartyPopper className="size-5" />
+        </div>
         <CardTitle data-testid="confirmation-title">
           {staff.active
             ? 'Booking created'
@@ -184,6 +470,25 @@ export function Confirmation({ response, onRestart }: Props) {
             Your booking is awaiting confirmation from the operator.
           </p>
         )}
+
+        {/* landr-nva1a.4 step 3: "Your booking" — graceful degrade when
+            summary is absent (older API deploy). */}
+        {summary ? <BookingDetailsCard summary={summary} /> : null}
+
+        {/* landr-nva1a.4 step 4: savings congrats — skipped for staff
+            bookings, a price override, or no multi-day saving at all. */}
+        {showCongrats && summary?.multi_day_savings ? (
+          <SavingsCongratsCard
+            days={summary.multi_day_savings.days}
+            amount={summary.multi_day_savings.amount}
+            consecutive={summary.multi_day_savings.consecutive}
+            currency={summary.currency}
+          />
+        ) : null}
+
+        {/* landr-nva1a.4 step 5: price breakdown. */}
+        {summary ? <ConfirmationPriceBreakdown summary={summary} /> : null}
+
         {/*
           landr-3vr5 + landr-acew: "Add to calendar" group.
 
@@ -234,8 +539,18 @@ export function Confirmation({ response, onRestart }: Props) {
             </Button>
           </div>
         ) : null}
+
+        {/* landr-nva1a.4 step 7: per-product after-booking content
+            (landr-nva1a.2). */}
+        {postBookingItems.length > 0 ? (
+          <PostBookingSection items={postBookingItems} />
+        ) : null}
+
+        {/* landr-nva1a.4 step 8: "Make another booking" demoted to a small
+            link-style affordance at the very bottom — it used to be an
+            outline button competing with the calendar/CTA group above it. */}
         <div>
-          <Button type="button" variant="outline" onClick={onRestart}>
+          <Button type="button" variant="link" size="sm" onClick={onRestart}>
             Make another booking
           </Button>
         </div>

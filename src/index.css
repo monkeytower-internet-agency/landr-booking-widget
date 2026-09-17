@@ -236,6 +236,40 @@
 }
 
 /*
+ * landr-nva1a.4: CSS-only celebratory pop-in for the success screen's
+ * playful accents — the header's confetti badge and the savings congrats
+ * card. A quick overshoot scale + a light rotate-settle reads as
+ * "celebratory" without any JS confetti/canvas library (brand voice:
+ * playful, gamified, Duolingo-flavoured). Honours prefers-reduced-motion
+ * the same way `.step-enter` does above: the class becomes a no-op and
+ * the element just appears.
+ */
+@keyframes celebrate-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(4deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.celebrate-pop {
+  animation: celebrate-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrate-pop {
+    animation: none;
+  }
+}
+
+/*
  * landr-bx5y: browser autofill (Chrome/Safari) can silently strip a phone
  * number's leading '+CC' before our JS ever sees it — the value that lands
  * in the field is already mangled, so onChange has nothing to catch. There
