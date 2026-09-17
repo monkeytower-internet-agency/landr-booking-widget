@@ -1536,6 +1536,17 @@ function Field({
  * icon). Writes through the caller's onCopy (updateParticipant /
  * updateCompanion), so persistence/validation see it exactly like a typed
  * edit.
+ *
+ * The accessible name is "Use your <field>", not "main participant" — the
+ * booker's own section is titled "Your contact details" and there is no
+ * visible "Participant 1"/"main participant" anywhere in this form, so a
+ * screen-reader user would have had nothing to map that phrase onto.
+ *
+ * The glyph stays small (a label-row affordance, not a primary control) but
+ * the hit box is 24px (WCAG 2.5.8) so a thumb can land on it. The repo's
+ * tap-44 helper is deliberately NOT used here: at 44px it either doubles
+ * every label row's height or, pulled back with a negative margin, overhangs
+ * the input below and steals taps meant for the field itself.
  */
 function CopyFromBookerButton({
   bookerValue,
@@ -1555,13 +1566,13 @@ function CopyFromBookerButton({
   return (
     <button
       type="button"
-      className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-      aria-label={`Use main participant's ${field}`}
-      title={`Use main participant's ${field}`}
+      className="flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+      aria-label={`Use your ${field}`}
+      title={`Use your ${field}`}
       data-testid={testId}
       onClick={() => onCopy(source)}
     >
-      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+      <Copy className="h-4 w-4" aria-hidden="true" />
     </button>
   )
 }

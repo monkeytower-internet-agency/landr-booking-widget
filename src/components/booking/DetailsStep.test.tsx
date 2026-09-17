@@ -1890,15 +1890,15 @@ describe('DetailsStep — copy booker contact into a secondary field (landr-0utg
     ).not.toBeInTheDocument()
   })
 
-  it('has accessible aria-labels naming the main participant', () => {
+  it('has accessible aria-labels naming the booker as "you"', () => {
     renderStep()
     fillBooker()
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     expect(
-      screen.getByRole('button', { name: "Use main participant's email" }),
+      screen.getByRole('button', { name: "Use your email" }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: "Use main participant's phone" }),
+      screen.getByRole('button', { name: "Use your phone" }),
     ).toBeInTheDocument()
   })
 })
