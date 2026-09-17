@@ -159,8 +159,10 @@ async function passLanguageStep() {
     fireEvent.click(submit)
     return
   }
+  // landr-jr30v: the first flag tap ever (no column open yet) now assigns
+  // the whole party by itself, so there is no separate "Everyone speaks X"
+  // button to click afterwards.
   fireEvent.click(screen.getByTestId('lang-add-en'))
-  fireEvent.click(screen.getByTestId('lang-everyone-en'))
   await waitFor(() =>
     expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
   )
@@ -3606,8 +3608,8 @@ describe('App', () => {
           screen.getByTestId('participant-language-board'),
         ).toBeInTheDocument(),
       )
+      // landr-jr30v: this first tap already assigns the whole party.
       fireEvent.click(screen.getByTestId('lang-add-de'))
-      fireEvent.click(screen.getByTestId('lang-everyone-de'))
       await waitFor(() =>
         expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
       )
@@ -3748,8 +3750,10 @@ describe('App', () => {
       expect(screen.queryByTestId('lang-chip-1')).not.toBeInTheDocument()
       expect(screen.queryByText('Kay')).not.toBeInTheDocument()
 
+      // landr-jr30v: this first tap already assigns the whole party (here,
+      // just the one guiding participant — Kay the companion isn't on the
+      // board at all).
       fireEvent.click(screen.getByTestId('lang-add-de'))
-      fireEvent.click(screen.getByTestId('lang-everyone-de'))
       await waitFor(() =>
         expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
       )

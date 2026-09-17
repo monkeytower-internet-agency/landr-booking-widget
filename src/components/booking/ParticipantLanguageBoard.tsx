@@ -49,6 +49,11 @@ import {
 } from '@dnd-kit/core'
 import { chipHue } from './accommodationCalc'
 import {
+  resolveChipDrop,
+  resolveFlagTap,
+  UNASSIGNED_DROP_ID,
+} from './languageBoardDrop'
+import {
   languageFlag,
   languageName,
   memberLabel,
@@ -56,8 +61,6 @@ import {
   unassignedMemberIndices,
   type ParticipantLanguageMap,
 } from './participantLanguages'
-
-const UNASSIGNED_DROP_ID = '__lang_unassigned__'
 
 /**
  * `pointerWithin` alone is wrong here even though the room board uses it:
@@ -397,6 +400,39 @@ function UnassignedTray({
   )
 }
 
+/**
+ * A CLOSED language flag chip, from the "Add language" row — landr-jr30v
+ * makes it a dnd-kit droppable too (`data: { code, closed: true }`), same
+ * shape as a LanguageColumn's, so `handleDragEnd` (via `resolveChipDrop`)
+ * routes a drop here identically: it assigns ONLY the dragged participant
+ * and opens the column as a side effect (LanguageStep.handleAssign). Tapping
+ * it (rather than dropping) goes through `resolveFlagTap` instead, which is
+ * where the "first tap = whole party" shortcut lives.
+ */
+function FlagDropChip({ code, onTap }: { code: string; onTap: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `lang-add-${code}`,
+    data: { code, closed: true },
+  })
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onTap}
+      data-testid={`lang-add-${code}`}
+      className={[
+        'inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-sm transition-colors',
+        isOver
+          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+          : 'border-border hover:border-primary hover:bg-primary/5',
+      ].join(' ')}
+    >
+      <span aria-hidden>{languageFlag(code)}</span>
+      {languageName(code)}
+    </button>
+  )
+}
+
 export function ParticipantLanguageBoard({
   offeredLanguages,
   openLanguages,
@@ -444,21 +480,33 @@ export function ParticipantLanguageBoard({
     setSelectedChip(null)
     setActiveChip(null)
     const memberIndex = event.active.data.current?.memberIndex as number | undefined
-    if (memberIndex === undefined) return
-    const overId = event.over?.id
-    if (overId === undefined || overId === null) return
-    if (overId === UNASSIGNED_DROP_ID) {
-      onAssign(memberIndex, null)
-      return
-    }
-    const code = (event.over?.data.current as { code?: string } | undefined)?.code
-    if (code) onAssign(memberIndex, code)
+    const overCode = (event.over?.data.current as { code?: string } | undefined)?.code
+    const action = resolveChipDrop(memberIndex, event.over?.id, overCode)
+    if (action.type === 'assign') onAssign(action.memberIndex, action.code)
+    else if (action.type === 'unassign') onAssign(action.memberIndex, null)
   }
 
   function placeSelected(code: string | null) {
     if (selectedChip === null) return
     onAssign(selectedChip, code)
     setSelectedChip(null)
+  }
+
+  /**
+   * Tap on a CLOSED flag chip — see `resolveFlagTap` for the three-way
+   * branch (tap-to-place beats the whole-group shortcut, which beats plain
+   * open-a-column).
+   */
+  function handleFlagTap(code: string) {
+    const action = resolveFlagTap(code, selectedChip, openLanguages.length)
+    if (action.type === 'place') {
+      onAssign(action.memberIndex, action.code)
+      setSelectedChip(null)
+    } else if (action.type === 'assignEveryone') {
+      onAssignEveryone(action.code)
+    } else {
+      onOpenLanguage(action.code)
+    }
   }
 
   const nameOf = (id: string | number | undefined): string | null => {
@@ -469,8 +517,13 @@ export function ParticipantLanguageBoard({
     over: { id: string | number; data: { current?: unknown } } | null,
   ): string => {
     if (!over) return 'no drop target'
-    const code = (over.data.current as { code?: string } | undefined)?.code
-    if (code) return languageName(code)
+    const data = over.data.current as { code?: string; closed?: boolean } | undefined
+    if (data?.code) {
+      // A CLOSED flag chip doesn't have a column yet — "Add Spanish" tells a
+      // screen-reader user what dropping here will DO, rather than naming a
+      // column that does not exist on screen yet.
+      return data.closed ? `Add ${languageName(data.code)}` : languageName(data.code)
+    }
     if (over.id === UNASSIGNED_DROP_ID) return 'the unassigned tray'
     return 'a drop target'
   }
@@ -505,8 +558,8 @@ export function ParticipantLanguageBoard({
     >
       <div className="flex flex-col gap-3" data-testid="participant-language-board">
         <p className="text-xs text-muted-foreground">
-          Open a language below, then drag each person into it — or tap a name
-          and then tap a language. Everyone needs exactly one.
+          Tap a language to put everyone in it. To split the group, drag a
+          name onto another language — or tap a name and then tap a language.
         </p>
 
         <UnassignedTray
@@ -545,24 +598,20 @@ export function ParticipantLanguageBoard({
 
         {/* "Add language" chip row — the operator's offered list minus what is
             already on screen. This is how a column comes into existence; the
-            board starts with none open (epic decision D3). */}
+            board starts with none open (epic decision D3). landr-jr30v: each
+            chip is now ALSO a dnd-kit drop target (FlagDropChip) and its tap
+            is routed through handleFlagTap, which assigns the whole party on
+            the very first tap. The label reflects which state we're in. */}
         {closedLanguages.length > 0 ? (
           <div
             className="flex flex-wrap items-center gap-2"
             data-testid="lang-add-row"
           >
-            <span className="text-xs text-muted-foreground">Add language:</span>
+            <span className="text-xs text-muted-foreground">
+              {openLanguages.length === 0 ? 'Languages:' : 'Add language:'}
+            </span>
             {closedLanguages.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => onOpenLanguage(code)}
-                data-testid={`lang-add-${code}`}
-                className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-sm hover:border-primary hover:bg-primary/5"
-              >
-                <span aria-hidden>{languageFlag(code)}</span>
-                {languageName(code)}
-              </button>
+              <FlagDropChip key={code} code={code} onTap={() => handleFlagTap(code)} />
             ))}
           </div>
         ) : null}
