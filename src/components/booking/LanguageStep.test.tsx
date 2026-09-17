@@ -138,6 +138,46 @@ describe('LanguageStep', () => {
     expect(screen.getByTestId('lang-unassigned-tray').textContent).toContain('Kay')
   })
 
+  // landr-ajlwl — a closed flag button is bimodal (see the tests above); its
+  // accessible name must say which mode is live, since its visible text
+  // ("🇩🇪 German") never changes across the three.
+  it('gives a closed flag button a mode-aware accessible name in each of the three tap modes', () => {
+    renderStep()
+    // Nothing open, nothing picked up -> a tap would assign the whole party.
+    expect(screen.getByTestId('lang-add-de')).toHaveAccessibleName(
+      'Everyone speaks German',
+    )
+
+    // A chip is picked up from the tray -> a tap would place ONLY it.
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // pick up Grace
+    expect(screen.getByTestId('lang-add-es')).toHaveAccessibleName(
+      'Place Grace in Spanish',
+    )
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // put Grace back down
+
+    // A column is already open -> a tap on another closed flag just opens it.
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first-ever tap: whole party -> de
+    expect(screen.getByTestId('lang-add-en')).toHaveAccessibleName('Add English')
+  })
+
+  it('announces the result of a flag tap in the visually-hidden status region, but not on first render', () => {
+    renderStep()
+    const status = screen.getByTestId('lang-tap-announcement')
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status.textContent).toBe('')
+
+    fireEvent.click(screen.getByTestId('lang-add-de')) // first-ever tap -> whole party
+    expect(status.textContent).toBe('Everyone assigned to German.')
+
+    fireEvent.click(screen.getByTestId('lang-add-en')) // column already open -> just opens
+    expect(status.textContent).toBe('English added.')
+
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // Grace is in 'de' -> un-assign her
+    fireEvent.click(screen.getByTestId('lang-chip-1')) // pick her back up from the tray
+    fireEvent.click(screen.getByTestId('lang-add-es')) // tap-to-place her in Spanish
+    expect(status.textContent).toBe('Grace assigned to Spanish.')
+  })
+
   it('describes the new tap-to-fill / drag-to-split flow', () => {
     renderStep()
     expect(screen.getByTestId('participant-language-board').textContent).toContain(

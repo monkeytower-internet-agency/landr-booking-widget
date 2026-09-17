@@ -9,6 +9,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  flagTapAnnouncement,
+  flagTapLabel,
   resolveChipDrop,
   resolveFlagTap,
   UNASSIGNED_DROP_ID,
@@ -83,5 +85,51 @@ describe('resolveFlagTap', () => {
   it('just opens the column on a later tap, once at least one column is open', () => {
     expect(resolveFlagTap('en', null, 1)).toEqual({ type: 'open', code: 'en' })
     expect(resolveFlagTap('en', null, 3)).toEqual({ type: 'open', code: 'en' })
+  })
+})
+
+// landr-ajlwl — the accessible-name / live-region text pair, each derived
+// from a resolveFlagTap result so they can never disagree with the tap.
+describe('flagTapLabel', () => {
+  it('names the whole-party shortcut for the assignEveryone mode', () => {
+    expect(flagTapLabel({ type: 'assignEveryone', code: 'de' }, null)).toBe(
+      'Everyone speaks German',
+    )
+  })
+
+  it('names the picked-up person for the place mode', () => {
+    expect(
+      flagTapLabel({ type: 'place', memberIndex: 2, code: 'de' }, 'Grace'),
+    ).toBe('Place Grace in German')
+  })
+
+  it('falls back to a generic name for place mode if none is given', () => {
+    expect(
+      flagTapLabel({ type: 'place', memberIndex: 2, code: 'de' }, null),
+    ).toBe('Place the selected person in German')
+  })
+
+  it('names the plain open action for the open mode', () => {
+    expect(flagTapLabel({ type: 'open', code: 'en' }, null)).toBe('Add English')
+  })
+})
+
+describe('flagTapAnnouncement', () => {
+  it('announces the whole party was assigned', () => {
+    expect(flagTapAnnouncement({ type: 'assignEveryone', code: 'de' }, null)).toBe(
+      'Everyone assigned to German.',
+    )
+  })
+
+  it('announces the picked-up person was assigned', () => {
+    expect(
+      flagTapAnnouncement({ type: 'place', memberIndex: 2, code: 'de' }, 'Grace'),
+    ).toBe('Grace assigned to German.')
+  })
+
+  it('announces a column was added', () => {
+    expect(flagTapAnnouncement({ type: 'open', code: 'en' }, null)).toBe(
+      'English added.',
+    )
   })
 })

@@ -12,7 +12,13 @@
  * component (react-refresh/only-export-components), mirroring the
  * accommodationCalc.ts / RoomAssignment.tsx and
  * participantLanguages.ts / ParticipantLanguageBoard.tsx splits.
+ *
+ * landr-ajlwl adds the label/announcement pair below, both derived from a
+ * `FlagTapAction` — the SAME decision `resolveFlagTap` already made for the
+ * click — so a closed flag's accessible name and its post-tap live-region
+ * text can never drift from what the tap actually does.
  */
+import { languageName } from './participantLanguages'
 
 /** dnd-kit droppable id for the "back to the tray" drop zone. */
 export const UNASSIGNED_DROP_ID = '__lang_unassigned__'
@@ -67,4 +73,44 @@ export function resolveFlagTap(
   if (selectedChip !== null) return { type: 'place', memberIndex: selectedChip, code }
   if (openLanguagesCount === 0) return { type: 'assignEveryone', code }
   return { type: 'open', code }
+}
+
+/**
+ * Mode-aware accessible name for a CLOSED flag chip (landr-ajlwl), given the
+ * SAME `FlagTapAction` `resolveFlagTap` returned for the current mode. A
+ * screen-reader user tabbing onto the button hears what tapping it will DO —
+ * the visible flag + language name never changes.
+ *
+ * `pickedUpName` is only consulted for the 'place' branch, where it is
+ * always non-null in practice: `resolveFlagTap` only returns 'place' when
+ * `selectedChip !== null`, and the caller derives `pickedUpName` from that
+ * same `selectedChip`. The fallback exists purely to satisfy the type.
+ */
+export function flagTapLabel(action: FlagTapAction, pickedUpName: string | null): string {
+  switch (action.type) {
+    case 'assignEveryone':
+      return `Everyone speaks ${languageName(action.code)}`
+    case 'place':
+      return `Place ${pickedUpName ?? 'the selected person'} in ${languageName(action.code)}`
+    case 'open':
+      return `Add ${languageName(action.code)}`
+  }
+}
+
+/**
+ * Live-region text announcing what a flag tap just DID (past tense), for the
+ * visually-hidden `role="status"` region in ParticipantLanguageBoard — a tap
+ * (unlike a drag) produces no dnd-kit announcement on its own. Same
+ * action/name inputs as `flagTapLabel`, so the pre-tap label and the
+ * post-tap confirmation always agree.
+ */
+export function flagTapAnnouncement(action: FlagTapAction, pickedUpName: string | null): string {
+  switch (action.type) {
+    case 'assignEveryone':
+      return `Everyone assigned to ${languageName(action.code)}.`
+    case 'place':
+      return `${pickedUpName ?? 'Selected person'} assigned to ${languageName(action.code)}.`
+    case 'open':
+      return `${languageName(action.code)} added.`
+  }
 }
