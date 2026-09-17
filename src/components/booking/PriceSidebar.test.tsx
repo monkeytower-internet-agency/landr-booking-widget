@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as client from '@/api/client'
 import type { EstimateResponse, Product } from '@/api/types'
@@ -774,5 +774,163 @@ describe('PriceSidebar un_priceable (landr-zenj.1)', () => {
     })
     expect(onUnPriceableChange).toHaveBeenCalledWith(false)
     expect(onUnPriceableChange).not.toHaveBeenCalledWith(true)
+  })
+})
+
+describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.style.overflow = ''
+  })
+
+  async function renderLoaded() {
+    vi.spyOn(client, 'estimateBookingPrice').mockResolvedValue(SAMPLE)
+    render(
+      <PriceSidebar
+        operatorToken="para42"
+        product={makeProduct()}
+        selectedDays={['2026-05-23']}
+        participantCount={1}
+        accommodationRooms={[]}
+        addons={[]}
+        debounceMs={0}
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByTestId('price-sidebar-mobile-athotel').length,
+      ).toBeGreaterThan(0),
+    )
+    return {
+      bar: screen.getByTestId('price-sidebar-mobile'),
+      toggle: screen.getByTestId('price-sidebar-mobile-toggle'),
+    }
+  }
+
+  it('keeps the toggle first in the DOM and pins it to the bottom with flex-col-reverse', async () => {
+    const { bar, toggle } = await renderLoaded()
+    // flex-col-reverse paints the first child (the toggle) at the bottom of
+    // the bottom-anchored bar, so a panel added after it grows the bar
+    // upward and the toggle never moves.
+    expect(bar).toHaveClass('flex', 'flex-col-reverse', 'fixed', 'bottom-0')
+    expect(bar.firstElementChild).toBe(toggle)
+    expect(
+      screen.queryByTestId('price-sidebar-mobile-panel'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+
+    const panel = screen.getByTestId('price-sidebar-mobile-panel')
+    // The toggle is the SAME node (not remounted, keeps focus) and still
+    // first; the revealed breakdown follows it, so Tab / a screen reader's
+    // next item lands in the breakdown.
+    expect(screen.getByTestId('price-sidebar-mobile-toggle')).toBe(toggle)
+    expect(bar.firstElementChild).toBe(toggle)
+    expect(toggle.nextElementSibling).toBe(panel)
+    expect(toggle).toHaveAttribute('aria-controls', panel.id)
+    // The breakdown really is inside the panel.
+    expect(
+      panel.querySelector('[data-testid="price-sidebar-booking-total"]'),
+    ).not.toBeNull()
+  })
+
+  it('flips the chevron and the visible label with aria-expanded', async () => {
+    const { toggle } = await renderLoaded()
+    const chevron = screen.getByTestId('price-sidebar-mobile-chevron')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(chevron).not.toHaveClass('rotate-180')
+    expect(toggle).toHaveAccessibleName(/Tap to expand/)
+    expect(toggle).not.toHaveAccessibleName(/Tap to collapse/)
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(chevron).toHaveClass('rotate-180')
+    expect(toggle).toHaveAccessibleName(/Tap to collapse/)
+    expect(toggle).not.toHaveAccessibleName(/Tap to expand/)
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(chevron).not.toHaveClass('rotate-180')
+    expect(
+      screen.queryByTestId('price-sidebar-mobile-panel'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps both pill labels mounted so the pill width never changes', async () => {
+    const { toggle } = await renderLoaded()
+    const pill = screen.getByTestId('price-sidebar-mobile-pill')
+    const labels = () =>
+      Array.from(pill.querySelectorAll('span.grid > span')).map((el) => ({
+        text: el.textContent,
+        hidden: el.classList.contains('invisible'),
+      }))
+    expect(labels()).toEqual([
+      { text: 'Tap to expand', hidden: false },
+      { text: 'Tap to collapse', hidden: true },
+    ])
+    fireEvent.click(toggle)
+    expect(labels()).toEqual([
+      { text: 'Tap to expand', hidden: true },
+      { text: 'Tap to collapse', hidden: false },
+    ])
+  })
+
+  it('renders the panel on the brand-tinted surface and locks body scroll while open', async () => {
+    const { bar, toggle } = await renderLoaded()
+    expect(bar).not.toHaveClass('border-t-primary')
+    fireEvent.click(toggle)
+    const panel = screen.getByTestId('price-sidebar-mobile-panel')
+    expect(panel).toHaveClass('bg-surface-tint')
+    expect(panel).not.toHaveClass('bg-surface-card')
+    // Muted text is re-pointed at the AA-safe token inside the tint only.
+    expect(panel).toHaveClass(
+      '[--muted-foreground:var(--surface-tint-muted-foreground)]',
+    )
+    expect(bar).toHaveClass('border-t-primary', 'bg-surface-tint')
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.click(toggle)
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('pads the body and the bar by the scrollbar width while locked, so the pill does not slide', async () => {
+    const { bar, toggle } = await renderLoaded()
+    const html = document.documentElement
+    const innerWidth = window.innerWidth
+    Object.defineProperty(html, 'clientWidth', {
+      configurable: true,
+      get: () => 1009,
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1024,
+    })
+    try {
+      fireEvent.click(toggle)
+      expect(document.body.style.paddingRight).toBe('15px')
+      expect(bar.style.paddingRight).toBe('15px')
+      fireEvent.click(toggle)
+      expect(document.body.style.paddingRight).toBe('')
+      expect(bar.style.paddingRight).toBe('')
+    } finally {
+      // Drop the own-property shadow so Element.prototype's getter applies again.
+      delete (html as unknown as Record<string, unknown>).clientWidth
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        writable: true,
+        value: innerWidth,
+      })
+    }
+  })
+
+  it('adds no padding when the scrollbar takes no space (phones)', async () => {
+    const { bar, toggle } = await renderLoaded()
+    // jsdom has no layout: clientWidth is 0, which the lock treats as
+    // "no scrollbar" instead of padding by the whole innerWidth.
+    expect(document.documentElement.clientWidth).toBe(0)
+    fireEvent.click(toggle)
+    expect(document.body.style.paddingRight).toBe('')
+    expect(bar.style.paddingRight).toBe('')
+    expect(document.body.style.overflow).toBe('hidden')
   })
 })
