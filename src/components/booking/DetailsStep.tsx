@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AnimationEvent } from 'react'
+import { Copy } from 'lucide-react'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
@@ -1029,7 +1030,19 @@ export function DetailsStep({
                   {...pLastV.inputProps}
                 />
               </Field>
-              <Field label="Email (optional)" htmlFor={`p-${idx}-email`}>
+              <Field
+                label="Email (optional)"
+                htmlFor={`p-${idx}-email`}
+                action={
+                  <CopyFromBookerButton
+                    bookerValue={booker.email}
+                    targetValue={row.email}
+                    onCopy={(value) => updateParticipant(idx, 'email', value)}
+                    field="email"
+                    testId={`copy-booker-email-p-${idx}`}
+                  />
+                }
+              >
                 <Input
                   id={`p-${idx}-email`}
                   name={`participant_${idx + 2}_email`}
@@ -1042,7 +1055,20 @@ export function DetailsStep({
                 />
               </Field>
               {/* landr-nkbi: phone is required for every participant. */}
-              <Field label="Phone" htmlFor={`p-${idx}-phone`} error={pPhoneV.error}>
+              <Field
+                label="Phone"
+                htmlFor={`p-${idx}-phone`}
+                error={pPhoneV.error}
+                action={
+                  <CopyFromBookerButton
+                    bookerValue={booker.phone}
+                    targetValue={row.phone}
+                    onCopy={(value) => updateParticipant(idx, 'phone', value)}
+                    field="phone"
+                    testId={`copy-booker-phone-p-${idx}`}
+                  />
+                }
+              >
                 <Input
                   id={`p-${idx}-phone`}
                   name={`participant_${idx + 2}_phone`}
@@ -1310,7 +1336,19 @@ export function DetailsStep({
                   {...cLastV.inputProps}
                 />
               </Field>
-              <Field label="Email (optional)" htmlFor={`companion-${idx}-email`}>
+              <Field
+                label="Email (optional)"
+                htmlFor={`companion-${idx}-email`}
+                action={
+                  <CopyFromBookerButton
+                    bookerValue={booker.email}
+                    targetValue={row.email}
+                    onCopy={(value) => updateCompanion(idx, 'email', value)}
+                    field="email"
+                    testId={`copy-booker-email-companion-${idx}`}
+                  />
+                }
+              >
                 <Input
                   id={`companion-${idx}-email`}
                   name={`companion_${idx + 1}_email`}
@@ -1326,6 +1364,15 @@ export function DetailsStep({
                 label="Phone (optional)"
                 htmlFor={`companion-${idx}-phone`}
                 error={cPhoneV.error}
+                action={
+                  <CopyFromBookerButton
+                    bookerValue={booker.phone}
+                    targetValue={row.phone}
+                    onCopy={(value) => updateCompanion(idx, 'phone', value)}
+                    field="phone"
+                    testId={`copy-booker-phone-companion-${idx}`}
+                  />
+                }
               >
                 <Input
                   id={`companion-${idx}-phone`}
@@ -1441,19 +1488,30 @@ function Field({
   label,
   htmlFor,
   error,
+  action,
   children,
 }: {
   label: string
   htmlFor?: string
   /** landr-opi3: when set, renders a red validation message below the input. */
   error?: string
+  /**
+   * landr-0utgk: optional control rendered right-aligned next to the label
+   * (currently only the "copy from main participant" icon). Kept generic
+   * rather than a dedicated prop so Field doesn't need to know what the
+   * action does.
+   */
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor={htmlFor} className="text-xs">
-        {label}
-      </Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={htmlFor} className="text-xs">
+          {label}
+        </Label>
+        {action}
+      </div>
       {children}
       {error ? (
         <p
@@ -1464,6 +1522,58 @@ function Field({
         </p>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * landr-0utgk: "copy from the main participant" icon for a secondary
+ * contact field (Trello: "so when someone brings his kids, the contact
+ * stays the same"). Renders inside a Field's `action` slot. Deliberately
+ * self-gating on visibility — every call site would otherwise repeat the
+ * same "hidden when it'd be a no-op" check, so it lives here once: hidden
+ * when the booker has nothing to copy yet, or when the target already
+ * holds that value (an icon that does nothing on click is worse than no
+ * icon). Writes through the caller's onCopy (updateParticipant /
+ * updateCompanion), so persistence/validation see it exactly like a typed
+ * edit.
+ *
+ * The accessible name is "Use your <field>", not "main participant" — the
+ * booker's own section is titled "Your contact details" and there is no
+ * visible "Participant 1"/"main participant" anywhere in this form, so a
+ * screen-reader user would have had nothing to map that phrase onto.
+ *
+ * The glyph stays small (a label-row affordance, not a primary control) but
+ * the hit box is 24px (WCAG 2.5.8) so a thumb can land on it. The repo's
+ * tap-44 helper is deliberately NOT used here: at 44px it either doubles
+ * every label row's height or, pulled back with a negative margin, overhangs
+ * the input below and steals taps meant for the field itself.
+ */
+function CopyFromBookerButton({
+  bookerValue,
+  targetValue,
+  onCopy,
+  field,
+  testId,
+}: {
+  bookerValue: string
+  targetValue: string
+  onCopy: (value: string) => void
+  field: 'email' | 'phone'
+  testId: string
+}) {
+  const source = bookerValue.trim()
+  if (!source || source === targetValue.trim()) return null
+  return (
+    <button
+      type="button"
+      className="flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+      aria-label={`Use your ${field}`}
+      title={`Use your ${field}`}
+      data-testid={testId}
+      onClick={() => onCopy(source)}
+    >
+      <Copy className="h-4 w-4" aria-hidden="true" />
+    </button>
   )
 }
 
