@@ -1093,9 +1093,16 @@ export interface BookingSummaryHotel {
  * landr-nva1a.2 (in flight alongside this ticket): per-product
  * "after booking" content — optional rich text (already-sanitized HTML
  * from the dashboard's tiptap editor) and/or a simple link. Both may be
- * set, either may be null. `html` is sanitized again client-side via
- * DOMPurify before rendering (defence in depth — the API already
- * sanitizes on save).
+ * set, either may be null. `html` is sanitized again client-side via a
+ * scoped DOMPurify instance before rendering (defence in depth — the API
+ * already sanitizes on save).
+ *
+ * landr-nva1a.4 review round: matches the real API shape verbatim
+ * (`app/routers/public_bookings.py:BookingSummaryPostBooking`,
+ * `booking_emails._build_post_booking` on the sibling landr-nva1a.2
+ * branch) — there is NO `label` field on the item itself. The widget
+ * derives a heading (when one is shown at all) by looking the
+ * `product_id` up in `BookingSummary.products`.
  */
 export interface PostBookingLink {
   url: string
@@ -1104,7 +1111,6 @@ export interface PostBookingLink {
 
 export interface PostBookingContent {
   product_id: string
-  label: string
   html: string | null
   link: PostBookingLink | null
 }

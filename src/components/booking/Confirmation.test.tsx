@@ -113,6 +113,26 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     ).not.toBeInTheDocument()
   })
 
+  // landr-nva1a.4 review round: the header reference should match the
+  // confirmation email (same build_booking_summary builder) rather than
+  // the raw booking_id UUID, whenever summary is present.
+  it('shows summary.booking_reference (not the raw booking_id) when summary is present', () => {
+    const response = baseResponse({
+      summary: baseSummary({ booking_reference: 'REF-9999' }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText('REF-9999')).toBeInTheDocument()
+    expect(screen.queryByText(MOCK_BOOKING_ID)).not.toBeInTheDocument()
+  })
+
+  it('falls back to booking_id when summary is absent (older API deploy)', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+  })
+
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
@@ -318,7 +338,9 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
   })
 
   // ------------------------------------------------------------------
-  // Post-booking content (landr-nva1a.2)
+  // Post-booking content (landr-nva1a.2). Fixture shape matches the real
+  // API verbatim: {product_id, html, link} — NO `label` on the item
+  // itself (landr-nva1a.4 review round).
   // ------------------------------------------------------------------
 
   it('renders sanitized post-booking html and strips a script tag', () => {
@@ -327,7 +349,6 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
         post_booking: [
           {
             product_id: 'svc',
-            label: 'Tandem Classic',
             html: '<p>Bring sunscreen!</p><script>alert(1)</script>',
             link: null,
           },
@@ -342,13 +363,77 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(html.querySelector('script')).toBeNull()
   })
 
+  it('strips <style> (content and all) and <form>/<input> from post-booking html', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            html: '<style>body{color:red}</style><form><input value="x"></form><p>Safe text</p>',
+            link: null,
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const html = screen.getByTestId('confirmation-post-booking-html')
+    expect(html.querySelector('style')).toBeNull()
+    expect(html.querySelector('form')).toBeNull()
+    expect(html.querySelector('input')).toBeNull()
+    // <style>'s CONTENT is dropped too, not just unwrapped as text.
+    expect(html.textContent).not.toMatch(/color:\s*red/)
+    expect(html).toHaveTextContent('Safe text')
+  })
+
+  it('forces target=_blank + rel=noopener noreferrer on an in-content <a> even when the source omits them', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            html: '<p>Read the <a href="https://example.com/waiver">waiver</a> first.</p>',
+            link: null,
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const link = screen.getByRole('link', { name: /waiver/i })
+    expect(link).toHaveAttribute('href', 'https://example.com/waiver')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('drops the href of an in-content <a> with a non-http(s)/mailto/tel scheme, but keeps its text', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [
+          {
+            product_id: 'svc',
+            html: '<p><a href="javascript:alert(1)">Click me</a></p>',
+            link: null,
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByRole('link', { name: /click me/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-post-booking-html')).toHaveTextContent(
+      'Click me',
+    )
+  })
+
   it('renders the post-booking link as a Button with target=_blank rel=noopener noreferrer', () => {
     const response = baseResponse({
       summary: baseSummary({
         post_booking: [
           {
             product_id: 'svc',
-            label: 'Tandem Classic',
             html: null,
             link: { url: 'https://example.com/waiver', label: 'Sign the waiver' },
           },
@@ -369,7 +454,6 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
         post_booking: [
           {
             product_id: 'svc',
-            label: 'Tandem Classic',
             html: '<p>Some info</p>',
             link: { url: 'javascript:alert(1)', label: 'Click me' },
           },
@@ -399,9 +483,7 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
   it('omits an item that has neither html nor a valid link', () => {
     const response = baseResponse({
       summary: baseSummary({
-        post_booking: [
-          { product_id: 'svc', label: 'Tandem Classic', html: null, link: null },
-        ],
+        post_booking: [{ product_id: 'svc', html: null, link: null }],
       }),
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
@@ -409,6 +491,57 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(
       screen.queryByTestId('confirmation-post-booking'),
     ).not.toBeInTheDocument()
+  })
+
+  // landr-nva1a.4 review round: no `label` on the wire item — the heading
+  // (when shown at all) is looked up from summary.products.
+  it('omits the item heading with a single product (nothing to disambiguate)', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        post_booking: [{ product_id: 'svc', html: '<p>Info</p>', link: null }],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const item = screen.getByTestId('confirmation-post-booking-item')
+    expect(item.querySelector('h4')).toBeNull()
+  })
+
+  it('shows the product label as the item heading, looked up by product_id, with multiple products', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        products: [
+          { product_id: 'svc', label: 'Tandem Classic', qty: 1 },
+          { product_id: 'addon-1', label: 'Video Package', qty: 1 },
+        ],
+        post_booking: [
+          { product_id: 'addon-1', html: '<p>Your video link.</p>', link: null },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const item = screen.getByTestId('confirmation-post-booking-item')
+    expect(item.querySelector('h4')).toHaveTextContent('Video Package')
+  })
+
+  it('omits the heading (not a fallback string) when product_id has no match, even with multiple products', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        products: [
+          { product_id: 'svc', label: 'Tandem Classic', qty: 1 },
+          { product_id: 'addon-1', label: 'Video Package', qty: 1 },
+        ],
+        post_booking: [
+          { product_id: 'unknown-id', html: '<p>Orphan content.</p>', link: null },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const item = screen.getByTestId('confirmation-post-booking-item')
+    expect(item.querySelector('h4')).toBeNull()
+    expect(item).toHaveTextContent('Orphan content.')
   })
 })
 

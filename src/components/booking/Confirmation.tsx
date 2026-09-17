@@ -1,7 +1,7 @@
-import DOMPurify from 'dompurify'
 import { PartyPopper } from 'lucide-react'
 import type {
   BookingSummary,
+  BookingSummaryProduct,
   BookingSummaryRoom,
   PostBookingContent,
   SubmitBookingResponse,
@@ -22,6 +22,7 @@ import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { formatDayLabel } from './dateLabel'
 import { DayChips } from './DayChips'
+import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { formatMoney, splitLineItems } from './priceSidebarHelpers'
 
@@ -278,27 +279,47 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
  * once per product that carries content, skipping products with neither
  * `html` nor a valid link — an operator who cleared both fields produces
  * no visible card rather than an empty shell.
+ *
+ * landr-nva1a.4 review round: `PostBookingContent` carries no `label` of
+ * its own (the real API shape is `{product_id, html, link}` — see the
+ * type's doc comment) — the heading is looked up from `products` by
+ * `product_id` and OMITTED (not a fallback string) when the id isn't
+ * found there, or when the booking only has one product (a heading
+ * naming the only thing on the page is noise).
  */
-function PostBookingSection({ items }: { items: PostBookingContent[] }) {
+function PostBookingSection({
+  items,
+  products,
+}: {
+  items: PostBookingContent[]
+  products: BookingSummaryProduct[]
+}) {
+  const showHeadings = products.length > 1
   return (
     <div data-testid="confirmation-post-booking" className="space-y-3">
       {items.map((item) => {
         const link = item.link && isHttpUrl(item.link.url) ? item.link : null
+        const heading = showHeadings
+          ? products.find((p) => p.product_id === item.product_id)?.label
+          : null
         return (
           <div
             key={item.product_id}
             data-testid="confirmation-post-booking-item"
             className="rounded-lg border bg-surface-card p-4"
           >
-            <h4 className="mb-2 text-sm font-semibold">{item.label}</h4>
+            {heading ? (
+              <h4 className="mb-2 text-sm font-semibold">{heading}</h4>
+            ) : null}
             {item.html ? (
               <div
                 className={POST_BOOKING_PROSE_CLASSES}
                 data-testid="confirmation-post-booking-html"
                 // landr-nva1a.4: defence in depth — the dashboard/API already
-                // sanitize on save (landr-nva1a.2), DOMPurify sanitizes again
-                // client-side before this ever reaches dangerouslySetInnerHTML.
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.html) }}
+                // sanitize on save (landr-nva1a.2); sanitizePostBookingHtml
+                // sanitizes again client-side, scoped to the tiptap output
+                // set, before this ever reaches dangerouslySetInnerHTML.
+                dangerouslySetInnerHTML={{ __html: sanitizePostBookingHtml(item.html) }}
               />
             ) : null}
             {link ? (
@@ -384,8 +405,20 @@ export function Confirmation({ response, onRestart }: Props) {
               ? 'Booking confirmed'
               : 'Booking received'}
         </CardTitle>
-        <CardDescription>
-          Reference <span className="font-mono">{response.booking_id}</span>
+        {/*
+          landr-nva1a.4 review round: `summary.booking_reference` (same
+          value the confirmation email shows — build_booking_summary is
+          the shared builder) is preferred over the raw `booking_id`
+          UUID, falling back to it when summary is absent (older API
+          deploy). "smaller" per spec — text-xs, down from CardDescription's
+          default text-sm, since the reference is a secondary detail now
+          that the header carries the celebratory weight.
+        */}
+        <CardDescription className="text-xs">
+          Reference{' '}
+          <span className="font-mono">
+            {summary?.booking_reference ?? response.booking_id}
+          </span>
         </CardDescription>
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
@@ -543,7 +576,10 @@ export function Confirmation({ response, onRestart }: Props) {
         {/* landr-nva1a.4 step 7: per-product after-booking content
             (landr-nva1a.2). */}
         {postBookingItems.length > 0 ? (
-          <PostBookingSection items={postBookingItems} />
+          <PostBookingSection
+            items={postBookingItems}
+            products={summary?.products ?? []}
+          />
         ) : null}
 
         {/* landr-nva1a.4 step 8: "Make another booking" demoted to a small
