@@ -333,9 +333,12 @@ export type Step =
    * that only collected languages inside a custom form would dead-end with a
    * 422 on every product that has no such form. Operators genuinely have those:
    * at review time kayak-demo had none of 3 products with a custom form, and
-   * para42 6 of 13. The step therefore runs whenever the operator offers any
-   * language, which is always: `operators.offered_languages` is NOT NULL with a
-   * four-language default.
+   * para42 6 of 13. The step therefore runs whenever the selected product
+   * offers a guide language (landr-p68d2: per-product `guide_languages`,
+   * falling back to the platform default when absent). landr-pv2r1 (E3): the
+   * one exception is an "any language" product (`guide_languages = []`) —
+   * the API treats participant languages as optional there, so the step is
+   * skipped.
    *
    * It sits BEFORE the custom-form chain so a flow that also declares a
    * `language` field can mirror the board's answer rather than ask twice.
@@ -735,9 +738,10 @@ export interface StepBeforeReviewArgs {
   // landr-71kz.10: prior custom-form answers keyed by form_key, so a back hop
   // into a custom-form step re-seeds the renderer from the draft.
   customFormAnswers?: Record<string, Record<string, unknown>>
-  // landr-r6e5x.4: does the per-participant language step run for this operator?
-  // True whenever they offer any guide language, which the API's NOT NULL
-  // four-language default makes universal. Absent → the pre-r6e5x walk.
+  // landr-r6e5x.4 / landr-p68d2: does the per-participant language step run
+  // for this product? True whenever it offers a guide language; false for an
+  // "any language" product (landr-pv2r1, `guide_languages = []`). Absent →
+  // the pre-r6e5x walk.
   languageStep?: boolean
 }
 
@@ -1025,8 +1029,8 @@ export function enterReviewOrCustomForm(
   args: PreReviewArgs,
   remoteFlow?: RemoteFlow | null,
   customFormAnswers?: Record<string, Record<string, unknown>>,
-  // landr-r6e5x.4: when the operator offers any guide language (always, in
-  // practice — the column is NOT NULL with a four-language default) the
+  // landr-r6e5x.4 / landr-p68d2: when the product offers a guide language
+  // (every product except an "any language" one — landr-pv2r1) the
   // assignment board is the FIRST pre-review step, ahead of the custom-form
   // chain, so a form that also declares a `language` field can mirror the
   // board's answer instead of asking the same question twice.

@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 import type { Product } from '@/api/types'
 import {
   hasThumb,
+  LANGUAGE_CHIP_MAX_FLAGS,
   productKindBadge,
+  productLanguagesChip,
   productMetaChip,
   productPriceLabel,
   thumbAlt,
@@ -211,5 +213,38 @@ describe('hasThumb / thumbAlt', () => {
       ),
     ).toBe('Sunset flight')
     expect(thumbAlt(makeProduct({ images: [] }), 'Fallback Name')).toBe('Fallback Name')
+  })
+})
+
+describe('productLanguagesChip (landr-pv2r1)', () => {
+  it('returns flags + full-name label for a restricted product', () => {
+    expect(productLanguagesChip(makeProduct({ guide_languages: ['de', 'en'] }))).toEqual({
+      flags: ['🇩🇪', '🇬🇧'],
+      codes: ['de', 'en'],
+      label: 'Offered in German and English',
+    })
+  })
+
+  it.each([
+    ['[]', []],
+    ['null', null],
+    ['undefined', undefined],
+  ])('returns null for %s', (_label, value) => {
+    expect(
+      productLanguagesChip(
+        makeProduct({ guide_languages: value as string[] | null | undefined }),
+      ),
+    ).toBeNull()
+  })
+
+  it('caps the flags but keeps every code for the +N overflow', () => {
+    const codes = ['en', 'de', 'es', 'fr', 'it', 'nl', 'pt']
+    const chip = productLanguagesChip(makeProduct({ guide_languages: codes }))
+    expect(LANGUAGE_CHIP_MAX_FLAGS).toBe(5)
+    expect(chip?.flags).toHaveLength(5)
+    expect(chip?.codes).toEqual(codes)
+    expect(chip?.label).toBe(
+      'Offered in English, German, Spanish, French, Italian, Dutch and Portuguese',
+    )
   })
 })

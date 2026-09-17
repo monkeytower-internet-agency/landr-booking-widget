@@ -3354,6 +3354,211 @@ describe('App', () => {
       ).not.toBeInTheDocument()
     })
   })
+  // ── landr-pv2r1: "any language" products (guide_languages = []) ────────────
+  //
+  // Epic decision E3: an unrestricted product skips the per-participant
+  // language step entirely, and no language assigned for an earlier
+  // restricted product may leak into its submit body.
+  describe('any-language products (landr-pv2r1)', () => {
+    const openDay = () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      return [
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ]
+    }
+
+    async function pickProduct(name: string) {
+      await waitFor(() => screen.getByText(name))
+      fireEvent.click(screen.getByRole('button', { name }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+    }
+
+    async function fillDateThenBooker() {
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const days = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(days[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const setField = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+      setField('booker_first_name', 'Ada')
+      setField('booker_last_name', 'Lovelace')
+      setField('booker_email', 'ada@example.com')
+      setField('booker_phone', '+34600000001')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    }
+
+    type Body = {
+      participants: Array<Record<string, unknown>>
+      customer_languages?: string[]
+    }
+
+    beforeEach(() => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+      })
+      mocks.getProductFlow.mockResolvedValue({ modules: null })
+      mocks.getAvailability.mockResolvedValue(openDay())
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-any',
+        semantic_state: 'pending',
+      })
+    })
+
+    it('never shows the language step and submits no participant languages', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Any Tandem',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: [],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Any Tandem')
+      await fillDateThenBooker()
+
+      // Straight from details to review — no board, no language crumb.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('review-participant-language-0')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as Body
+      expect(body.participants[0]).toMatchObject({ first_name: 'Ada' })
+      expect(body.participants[0]).not.toHaveProperty('language')
+      expect(body).not.toHaveProperty('customer_languages')
+    })
+
+    it('still runs the language step for a restricted product', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'German Trip',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: ['de', 'en'],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('German Trip')
+      await fillDateThenBooker()
+      await waitFor(() =>
+        expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
+      )
+    })
+
+    const twoProducts = () => [
+      makeProduct({
+        product_id: 'svc-restricted',
+        product_kind: 'service',
+        service_time_shape: 'single_date',
+        name: 'Restricted Flight',
+        needs_pickup: false,
+        hotel_offering: 'none',
+        guide_languages: ['en', 'de'],
+      }),
+      makeProduct({
+        product_id: 'svc-any',
+        product_kind: 'service',
+        service_time_shape: 'single_date',
+        name: 'Any Flight',
+        needs_pickup: false,
+        hotel_offering: 'none',
+        guide_languages: [],
+      }),
+    ]
+
+    // Assign German on the restricted product, reach review, back out to the
+    // catalog WITHOUT a full restart (the draft survives — landr-nmed), then
+    // book the any-language product up to its review screen.
+    async function assignThenSwitchToAny() {
+      mocks.listProducts.mockResolvedValue(twoProducts())
+      render(<App />)
+      await pickProduct('Restricted Flight')
+      await fillDateThenBooker()
+      await waitFor(() =>
+        expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
+      )
+      // landr-jr30v: the first flag tap already assigns the whole party.
+      fireEvent.click(screen.getByTestId('lang-add-de'))
+      await waitFor(() =>
+        expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
+      )
+      fireEvent.click(screen.getByTestId('language-step-submit'))
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(
+        screen.getByTestId('review-participant-language-0').textContent,
+      ).toContain('German')
+
+      await backToCatalogViaProductCrumb()
+      await pickProduct('Any Flight')
+      await fillDateThenBooker()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+    }
+
+    async function backToCatalogViaProductCrumb() {
+      fireEvent.click(await screen.findByTestId('breadcrumb-product-detail'))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('step-back-button'))
+    }
+
+    it('sends no stale language after switching from a restricted to an any-language product', async () => {
+      await assignThenSwitchToAny()
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('review-participant-language-0')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as Body
+      expect(body.participants[0]).not.toHaveProperty('language')
+      expect(body).not.toHaveProperty('customer_languages')
+    })
+
+    it('drops the assignment, so returning to the restricted product asks again', async () => {
+      await assignThenSwitchToAny()
+      await backToCatalogViaProductCrumb()
+      await pickProduct('Restricted Flight')
+      await fillDateThenBooker()
+      await waitFor(() =>
+        expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('language-step-submit')).toBeDisabled()
+    })
+  })
+
   // ── landr-r6e5x.4: per-participant guide language, end to end ──────────────
   //
   // The board lives inside the custom-form step but its output has to survive

@@ -14,6 +14,9 @@ import {
   applyLanguageAssignment,
   distinctAssignedLanguages,
   isLanguageAssignmentComplete,
+  joinLanguageNames,
+  productAcceptsAnyLanguage,
+  productDisplayLanguages,
   languageFlag,
   languageName,
   memberLabel,
@@ -167,5 +170,56 @@ describe('display', () => {
     expect(memberLabel(['Ada', ''], 0)).toBe('Ada')
     expect(memberLabel(['Ada', ''], 1)).toBe('Guest 2')
     expect(memberLabel(['Ada'], 3)).toBe('Guest 4')
+  })
+})
+
+describe('productAcceptsAnyLanguage (landr-pv2r1)', () => {
+  it('is true only for an empty array', () => {
+    expect(productAcceptsAnyLanguage([])).toBe(true)
+    expect(productAcceptsAnyLanguage(null)).toBe(false)
+    expect(productAcceptsAnyLanguage(undefined)).toBe(false)
+    expect(productAcceptsAnyLanguage(['en'])).toBe(false)
+    expect(productAcceptsAnyLanguage('')).toBe(false)
+    expect(productAcceptsAnyLanguage({})).toBe(false)
+  })
+})
+
+describe('productDisplayLanguages (landr-pv2r1)', () => {
+  it('returns [] with NO default fallback and no warning for null / undefined / [] / non-array', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(productDisplayLanguages(null)).toEqual([])
+      expect(productDisplayLanguages(undefined)).toEqual([])
+      expect(productDisplayLanguages([])).toEqual([])
+      expect(productDisplayLanguages('en')).toEqual([])
+      expect(productDisplayLanguages({ 0: 'en' })).toEqual([])
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('lower-cases, de-duplicates and preserves order', () => {
+    expect(productDisplayLanguages(['EN', 'de', 'en', ' Es ', 'DE'])).toEqual([
+      'en',
+      'de',
+      'es',
+    ])
+  })
+
+  it('drops junk entries and yields [] when nothing usable remains', () => {
+    expect(productDisplayLanguages(['eng', 42, null, '', 'fr', 'x'])).toEqual(['fr'])
+    expect(productDisplayLanguages(['eng', 42])).toEqual([])
+  })
+})
+
+describe('joinLanguageNames (landr-pv2r1)', () => {
+  it('joins English names naturally', () => {
+    expect(joinLanguageNames([])).toBe('')
+    expect(joinLanguageNames(['en'])).toBe('English')
+    expect(joinLanguageNames(['de', 'en'])).toBe('German and English')
+    expect(joinLanguageNames(['en', 'es', 'de', 'fr'])).toBe(
+      'English, Spanish, German and French',
+    )
   })
 })

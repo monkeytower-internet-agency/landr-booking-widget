@@ -188,6 +188,48 @@ export function normaliseOfferedLanguages(
 }
 
 /**
+ * landr-pv2r1 (epic decision E1) — an EMPTY `guide_languages` array means the
+ * product accepts ANY language: the per-participant language step is skipped
+ * (E3) and no languages chip/fact is shown (E4). `null` / absent is NOT "any"
+ * — that is a non-service product or a tier predating landr-p68d2.1, where
+ * the flow keeps the DEFAULT fallback via `normaliseOfferedLanguages`.
+ */
+export function productAcceptsAnyLanguage(raw: unknown): boolean {
+  return Array.isArray(raw) && raw.length === 0
+}
+
+/**
+ * landr-pv2r1 (E4) — the product's guide languages for DISPLAY only: the raw
+ * codes lower-cased, de-duplicated, order preserved, junk dropped. Unlike
+ * `normaliseOfferedLanguages` there is NO default fallback and no warning —
+ * showing the fallback set would advertise languages the operator never
+ * chose, so null / absent / `[]` / unusable input simply yields `[]`.
+ */
+export function productDisplayLanguages(raw: unknown): string[] {
+  const out: string[] = []
+  if (!Array.isArray(raw)) return out
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    if (typeof entry !== 'string') continue
+    const code = entry.trim().toLowerCase()
+    if (!/^[a-z]{2}$/.test(code) || seen.has(code)) continue
+    seen.add(code)
+    out.push(code)
+  }
+  return out
+}
+
+/**
+ * landr-pv2r1 (E4) — natural English list: "English", "English and German",
+ * "English, Spanish and German". Used for the languages chip/fact labels.
+ */
+export function joinLanguageNames(codes: readonly string[]): string {
+  const names = codes.map(languageName)
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
  * Party-member indices with no language yet, in party order. `count` is the
  * whole party size (participants + companions), so a member appended after
  * the map was built is correctly reported as unassigned.

@@ -37,6 +37,8 @@ const allMockProducts: Product[] = [
       tr: 'Babadağ üzerinde standart tandem deneyimi.',
     },
     description: '**25 minutes** in the air over Babadağ.\n\n- Fully guided from launch to landing\n- Suitable for all fitness levels\n- GoPro footage available on request',
+    // landr-pv2r1: [] = any language (no chip, language step skipped).
+    guide_languages: [],
     product_kind: 'service',
     service_time_shape: 'time_slot',
     is_contiguous: false,
@@ -82,6 +84,8 @@ const allMockProducts: Product[] = [
     short_description: 'Extended-flight tandem when conditions allow.',
     short_description_localized: null,
     description: null,
+    // landr-pv2r1: per-product guide languages (catalog chip + detail fact).
+    guide_languages: ['de', 'en'],
     product_kind: 'service',
     service_time_shape: 'time_slot',
     is_contiguous: false,
@@ -132,6 +136,8 @@ const allMockProducts: Product[] = [
     short_description: 'Anfängerkurs Gleitschirmfliegen — ausgebucht.',
     short_description_localized: { en: 'Beginner paragliding course — fully booked.', de: 'Anfängerkurs Gleitschirmfliegen — ausgebucht.' },
     description: null,
+    // landr-pv2r1: per-product guide languages (catalog chip + detail fact).
+    guide_languages: ['en', 'de', 'es', 'fr'],
     product_kind: 'service',
     service_time_shape: 'fixed_window',
     is_contiguous: false,
