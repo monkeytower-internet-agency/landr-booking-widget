@@ -1351,7 +1351,7 @@
       },
       "BookingSummary": {
         "additionalProperties": true,
-        "description": "What was booked \u2014 landr-nva1a.1. Built by\n``booking_emails.build_booking_summary``, the SAME builder behind the\nbooking emails' context, so the success screen and the confirmation email\nagree. Money fields are bare decimal strings. ``participants`` carries\nthe names from THIS request's payload only (never stored contact rows),\nand no contact emails/phones. ``extra=\"allow\"``: the\nsibling ticket landr-nva1a.2 adds ``post_booking``.",
+        "description": "What was booked \u2014 landr-nva1a.1. Built by\n``booking_emails.build_booking_summary``, the SAME builder behind the\nbooking emails' context, so the success screen and the confirmation email\nagree. Money fields are bare decimal strings. ``participants`` carries\nthe names from THIS request's payload only (never stored contact rows),\nand no contact emails/phones. ``extra=\"allow\"``.",
         "properties": {
           "amount_due": {
             "title": "Amount Due",
@@ -1442,6 +1442,13 @@
               "$ref": "#/components/schemas/BookingSummaryPickup"
             },
             "title": "Pickup Locations",
+            "type": "array"
+          },
+          "post_booking": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryPostBooking"
+            },
+            "title": "Post Booking",
             "type": "array"
           },
           "price_overridden": {
@@ -1603,6 +1610,61 @@
           "name"
         ],
         "title": "BookingSummaryPickup",
+        "type": "object"
+      },
+      "BookingSummaryPostBooking": {
+        "additionalProperties": true,
+        "description": "One product's \"after booking\" content \u2014 landr-nva1a.2. ``html`` is\nalready sanitized (``app/services/html_sanitize.py``); ``link`` is\n``None`` when the product only has rich text and no link. Only products\nwith content appear \u2014 see ``booking_emails._build_post_booking``.",
+        "properties": {
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingSummaryPostBookingLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "BookingSummaryPostBooking",
+        "type": "object"
+      },
+      "BookingSummaryPostBookingLink": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "label"
+        ],
+        "title": "BookingSummaryPostBookingLink",
         "type": "object"
       },
       "BookingSummaryProduct": {
@@ -3434,6 +3496,17 @@
             ],
             "title": "Phone"
           },
+          "pickup_accuracy_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Accuracy M"
+          },
           "pickup_address": {
             "anyOf": [
               {
@@ -3444,6 +3517,17 @@
               }
             ],
             "title": "Pickup Address"
+          },
+          "pickup_fixed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Fixed At"
           },
           "pickup_lat": {
             "anyOf": [
@@ -3606,6 +3690,17 @@
             ],
             "title": "Service Role"
           },
+          "set_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Set Source"
+          },
           "state_id": {
             "anyOf": [
               {
@@ -3673,6 +3768,22 @@
           "providers"
         ],
         "title": "DayManifestRow",
+        "type": "object"
+      },
+      "DayMessagePostIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "DayMessagePostIn",
         "type": "object"
       },
       "DayStatusPutIn": {
@@ -6178,6 +6289,29 @@
         "title": "InvoicesResponse",
         "type": "object"
       },
+      "LanguagePatchIn": {
+        "description": "PATCH participant-language body \u2014 one field, and `null` is meaningful.\n\nSame column as `public_today.MyLanguageIn` (`booking_participants.\nlanguage`), and the same clearing semantics: `null` does not mean \"leave\nunchanged\", it means \"no override \u2014 inherit the booking's language again\"\n(20260907010300). So, like `DayUnitPatchIn` above, the key is REQUIRED\n(no default): an empty body `{}` or a typo'd key is a 422 from pydantic's\nown \"field required\" validation, never a silent no-op a caller could\nmistake for a save.\n\nUnlike the public endpoint, this one is NOT restricted to a bare\ntwo-letter code. The column itself has no CHECK \u2014 landr-w9yk8.3's\ndocstring already says \"a BCP-47 tag or free-text language name...\nbecause the staff editor writes whatever an operator types into it\" \u2014\nand an operator correcting a mis-set flag from the board is exactly that\nstaff editor, not the unauthenticated public trust boundary the tighter\npattern on `MyLanguageIn` exists for.",
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "required": [
+          "language"
+        ],
+        "title": "LanguagePatchIn",
+        "type": "object"
+      },
       "LicenseCreateRequest": {
         "properties": {
           "document_url": {
@@ -6708,6 +6842,19 @@
             ],
             "title": "Geo"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -6794,6 +6941,19 @@
               }
             ],
             "title": "Geo"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
           },
           "name": {
             "anyOf": [
@@ -7249,6 +7409,22 @@
         "title": "MarkTicketsShippedOut",
         "type": "object"
       },
+      "MessagePostIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "MessagePostIn",
+        "type": "object"
+      },
       "MessageResponse": {
         "properties": {
           "body": {
@@ -7294,6 +7470,95 @@
         "title": "MessageResponse",
         "type": "object"
       },
+      "MessageTemplateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "presets": {
+            "additionalProperties": true,
+            "title": "Presets",
+            "type": "object"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "body"
+        ],
+        "title": "MessageTemplateIn",
+        "type": "object"
+      },
+      "MessageTemplatePatch": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "presets": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presets"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "MessageTemplatePatch",
+        "type": "object"
+      },
       "MultiDaySavingsOut": {
         "additionalProperties": true,
         "description": "Congrats-card payload (landr-nva1a.1): ``days`` = longest\nconsecutive run (streak pricing) or total priced days (total-days\npricing); ``amount`` = the summed multi-day saving.",
@@ -7317,6 +7582,137 @@
           "amount"
         ],
         "title": "MultiDaySavingsOut",
+        "type": "object"
+      },
+      "MyLanguageIn": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "title": "MyLanguageIn",
+        "type": "object"
+      },
+      "MyStatusIn": {
+        "additionalProperties": false,
+        "description": "The participant's own status write.\n\nDeliberately NOT a superset of the staff PUT: no `part_of_day` (an\noperator's am/pm split hint, not the participant's), no `pickup_address`\n(free text a participant cannot be trusted to keep operator-meaningful),\nno `note` \u2014 landr-pdtoe.4 gives participants a real message board, and a\nfreeform note squatting on the driver's own field would collide with it.",
+        "properties": {
+          "accuracy_m": {
+            "anyOf": [
+              {
+                "maximum": 100000000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy M"
+          },
+          "expected_back_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Back At"
+          },
+          "fixed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed At"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "status_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Id"
+          }
+        },
+        "title": "MyStatusIn",
+        "type": "object"
+      },
+      "MyUnitRequestIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "unit_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id"
+        ],
+        "title": "MyUnitRequestIn",
         "type": "object"
       },
       "NoShowIn": {
@@ -8350,6 +8746,17 @@
               }
             ],
             "title": "Timezone"
+          },
+          "today_participants_see_units": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Today Participants See Units"
           },
           "weather_enabled": {
             "anyOf": [
@@ -11791,6 +12198,43 @@
         "title": "PublishSiteWarningRequest",
         "type": "object"
       },
+      "PushSubscribeIn": {
+        "additionalProperties": false,
+        "description": "Shape mirrors the browser Push API's `PushSubscription.toJSON()` \u2014\nthe same wire shape the logged-in-user subscribe path already expects\n(20260905030000_push_subscriptions.sql), nested under `subscription` per\nthis endpoint's contract.",
+        "properties": {
+          "subscription": {
+            "$ref": "#/components/schemas/Subscription"
+          }
+        },
+        "required": [
+          "subscription"
+        ],
+        "title": "PushSubscribeIn",
+        "type": "object"
+      },
+      "PushSubscriptionKeys": {
+        "additionalProperties": false,
+        "properties": {
+          "auth": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushSubscriptionKeys",
+        "type": "object"
+      },
       "QuickCreateIn": {
         "properties": {
           "customer_email": {
@@ -12260,6 +12704,27 @@
         "title": "RemovePhotoResponse",
         "type": "object"
       },
+      "RenderIn": {
+        "additionalProperties": false,
+        "properties": {
+          "template_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Id",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "RenderIn",
+        "type": "object"
+      },
       "RequestGoliveIn": {
         "properties": {
           "notes": {
@@ -12436,6 +12901,23 @@
           "resolved_at"
         ],
         "title": "ResolveDecisionOut",
+        "type": "object"
+      },
+      "ResolveIn": {
+        "additionalProperties": false,
+        "description": "`extra=\"forbid\"`: nothing but the code may be sent. An operator id or a\nparticipant id smuggled into this body would be ignored anyway \u2014 every\nidentifier on this surface is derived, never accepted \u2014 but forbidding\nthem makes that explicit at the boundary.",
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ResolveIn",
         "type": "object"
       },
       "ResourcePoolCreateIn": {
@@ -13193,6 +13675,29 @@
           }
         },
         "title": "ServiceRolePatch",
+        "type": "object"
+      },
+      "SessionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "participant_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "participant_id"
+        ],
+        "title": "SessionIn",
         "type": "object"
       },
       "SetSiteWarningPublisherRequest": {
@@ -14329,6 +14834,26 @@
         "title": "SubmitBookingResponse",
         "type": "object"
       },
+      "Subscription": {
+        "additionalProperties": false,
+        "properties": {
+          "endpoint": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/PushSubscriptionKeys"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "Subscription",
+        "type": "object"
+      },
       "SubscriptionCheckoutIn": {
         "properties": {
           "cancel_url": {
@@ -14839,6 +15364,21 @@
         "title": "TestEmailResult",
         "type": "object"
       },
+      "TodayCodePatch": {
+        "additionalProperties": false,
+        "description": "One field, required (no default).\n\nAn empty body `{}` or a typo'd key is a 422 from pydantic's own\n\"field required\" validation, never a silent no-op \u2014 same reasoning as\nDayUnitPatchIn's (landr-bsng5.67).",
+        "properties": {
+          "rotate_weekly": {
+            "title": "Rotate Weekly",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rotate_weekly"
+        ],
+        "title": "TodayCodePatch",
+        "type": "object"
+      },
       "TrelloSyncIn": {
         "description": "Context only the browser knows \u2014 never trust reporter identity from here.\n\npage_url:      absolute URL of the page the report was filed from.\nrelated_link:  the optional link field from the report form, if filled in.\n\nAttachments are NOT passed here \u2014 the endpoint reads ticket_attachments\ndirectly (the dashboard uploads them to Storage before calling this\nendpoint), so there is nothing for the client to pass and no way for it\nto lie about what got attached.",
         "properties": {
@@ -14929,6 +15469,21 @@
           "state"
         ],
         "title": "UnitDayStateIn",
+        "type": "object"
+      },
+      "UnitRequestDecisionIn": {
+        "description": "`decision` is required (no default) \u2014 an empty body must never be read\nas a silent approval.",
+        "properties": {
+          "decision": {
+            "minLength": 1,
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "UnitRequestDecisionIn",
         "type": "object"
       },
       "UnitServicePeriodRange": {
@@ -20801,6 +21356,140 @@
         ]
       }
     },
+    "/api/public/contact-page/{token}": {
+      "get": {
+        "operationId": "public_get_contact_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Get Contact Page",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Contact Page",
+        "tags": [
+          "public-contact-page"
+        ]
+      }
+    },
+    "/api/public/contact-page/{token}/prefill": {
+      "get": {
+        "description": "The contact's OWN name/email/phone/language \u2014 nothing else.\n\nFeeds the booking widget's contact-prefill step (frqgv.3 wires the\nwidget side) when a customer re-books from their own page. Scoped to\nexactly the (operator, contact) pair the token was minted for; there is\nno way to reach anyone else's contact row through this token.",
+        "operationId": "public_contact_page_prefill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Contact Page Prefill",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Contact Prefill",
+        "tags": [
+          "public-contact-page"
+        ]
+      }
+    },
+    "/api/public/contact-page/{token}/today-bridge": {
+      "post": {
+        "description": "Mint a Today participant session for this contact, if they are on\ntoday's roster for this operator.\n\nReturns the EXACT same shape as ``POST /api/public/today/session``\n(app/routers/public_today.py) \u2014 this reuses that endpoint's own\n``issue_token`` mint function rather than re-implementing it, so a\ndashboard/widget consumer of one session shape can consume the other\nwithout a special case. 404 (same opaque body as everything else on\nthis router) when the contact has no participant row for TODAY, or when\ntoday's line is not on a live, coded service product.",
+        "operationId": "public_contact_page_today_bridge",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Contact Page Today Bridge",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Today Bridge",
+        "tags": [
+          "public-contact-page"
+        ]
+      }
+    },
     "/api/public/health": {
       "get": {
         "operationId": "health",
@@ -21844,6 +22533,507 @@
         "summary": "Initiate Subscription Checkout",
         "tags": [
           "public-subscriptions"
+        ]
+      }
+    },
+    "/api/public/today/me": {
+      "get": {
+        "operationId": "public_today_me",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Me",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Me",
+        "tags": [
+          "public-today"
+        ]
+      }
+    },
+    "/api/public/today/me/language": {
+      "put": {
+        "description": "Set my own language override.\n\nWrites `booking_participants.language`, the raw per-participant column \u2014\nNOT the effective value. NULL clears the override so the booking's\nlanguage is inherited again (20260907010300: \"NULL = inherit the\nbooking's language\"), which is the only way back to the default once a\nparticipant has set one.\n\nScoped to the participant id from the SIGNED token and additionally to\nthe operator id, so this can never touch another row even if the view\nlookup above were somehow wrong.",
+        "operationId": "public_today_put_my_language",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyLanguageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Put My Language",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put My Language",
+        "tags": [
+          "public-today"
+        ]
+      }
+    },
+    "/api/public/today/me/status": {
+      "put": {
+        "description": "Set my own status for today, optionally with where I am.\n\nWrites through the SAME advisory-locked RPC the staff board writes\nthrough (`staff_put_participant_day_state`), with `p_set_by` NULL \u2014 there\nis no users.id for a participant \u2014 and `p_set_source` 'participant'. That\nshared path is what keeps the needs_pickup notification firing exactly\nonce when a participant and a driver touch the same row at the same\nmoment: whichever call performs the flip observes the transition, the\nother does not.\n\nUnlike the briefing check-in's best-effort side write, the write here IS\nthe request, so its failures surface as clean 4xx rather than being\nswallowed.",
+        "operationId": "public_today_put_my_status",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyStatusIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Put My Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put My Status",
+        "tags": [
+          "public-today"
+        ]
+      }
+    },
+    "/api/public/today/me/unit-request": {
+      "post": {
+        "description": "Ask to be moved to a different unit for today.\n\nThis NEVER moves anyone (D5): it records a question a driver answers on\nthe Today board. A second request from the same participant on the same\nday UPDATES the outstanding one rather than stacking a duplicate \u2014 the\npartial unique index enforces one pending request per participant-day,\nand someone who changes their mind has changed the same question's\nanswer, not asked a new one.\n\nRefused with 409 when the operator has `today_participants_see_units`\noff: a participant who cannot see the units cannot meaningfully name one,\nand honouring a request naming a unit they were never shown would be\nacting on a guess.",
+        "operationId": "public_today_request_unit",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MyUnitRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Request Unit",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Unit",
+        "tags": [
+          "public-today"
+        ]
+      }
+    },
+    "/api/public/today/messages": {
+      "get": {
+        "operationId": "public_today_list_messages",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Public Today List Messages",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Messages",
+        "tags": [
+          "public-today-messages"
+        ]
+      },
+      "post": {
+        "operationId": "public_today_post_message",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessagePostIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Post Message",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Message",
+        "tags": [
+          "public-today-messages"
+        ]
+      }
+    },
+    "/api/public/today/push-subscribe": {
+      "post": {
+        "operationId": "public_today_push_subscribe",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscribeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Public Today Push Subscribe",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Push Subscribe",
+        "tags": [
+          "public-today-messages"
+        ]
+      }
+    },
+    "/api/public/today/resolve": {
+      "post": {
+        "description": "Turn an activity code into today's roster for its product.\n\nA valid code for a product with nobody on it today returns an EMPTY\nparticipant list, not a 404: \"the code works, nothing is scheduled\" is a\nreal and useful answer, and collapsing it into the not-found body would\ntell a participant to go and find their guide for no reason.",
+        "operationId": "public_today_resolve",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Resolve",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Today Code",
+        "tags": [
+          "public-today"
+        ]
+      }
+    },
+    "/api/public/today/session": {
+      "post": {
+        "description": "Mint a session token for \"this is me\" on today's roster.\n\nThe code is re-resolved here rather than trusted from the previous call:\nit may have rotated in between, and the code that is redeemed NOW is the\none whose fingerprint the token has to carry.",
+        "operationId": "public_today_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Today Session",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Today Session",
+        "tags": [
+          "public-today"
         ]
       }
     },
@@ -24319,6 +25509,84 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/language": {
+      "patch": {
+        "description": "Set (or clear) a participant's own language override (D4, landr-pdtoe.7).\n\nWrites `booking_participants.language` directly \u2014 the RAW per-participant\noverride, not the day-manifest's EFFECTIVE value (coalesce with the\nbooking's `customer_language`, computed by `staff_day_manifest.py`). A\ntap on the board's language flag opens a picker that calls this, then the\nboard re-reads the manifest to pick up the new effective value \u2014 same\ndivision of labour as the day-unit PATCH above returning the day-state\nrow while the manifest stays the read model for the board.\n\nField-allowed like the day-unit PATCH: correcting a participant's\nlanguage is exactly the kind of on-the-spot fix a driver or guide makes\nfrom the board, not something that needs owner/admin.\n\nScoped with the same `_scope_booking_and_participant` the PUT/PATCH\nabove use \u2014 a booking outside this operator is a 404, a participant\noutside this booking is a 422 \u2014 so this endpoint cannot drift into a\nlaxer check than its siblings.",
+        "operationId": "staff_patch_participant_language",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "required": true,
+            "schema": {
+              "title": "Participant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LanguagePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Participant Language",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Participant Language",
+        "tags": [
+          "staff-participant-day-state"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
       "post": {
         "operationId": "refund_payment",
@@ -26359,6 +27627,122 @@
         "summary": "List Contacts",
         "tags": [
           "staff-contacts"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
+      "get": {
+        "description": "Metadata only \u2014 never the plaintext, which is not recoverable once\nhashed. The dashboard uses this to decide whether to show \"copy link\"\n(existing token, plaintext already shown once) vs. \"create link\".",
+        "operationId": "staff_get_contact_page_token_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Get Contact Page Token Status",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Token Status",
+        "tags": [
+          "staff-contact-page-tokens"
+        ]
+      },
+      "post": {
+        "description": "Kill any current active link and mint a new one.\n\nIdempotently safe to call on a contact with no token yet (there is\nsimply nothing to revoke first). Use when a link has been over-shared,\nor on first setup.",
+        "operationId": "staff_create_or_rotate_contact_page_token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Create Or Rotate Contact Page Token",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Or Rotate Token",
+        "tags": [
+          "staff-contact-page-tokens"
         ]
       }
     },
@@ -28975,6 +30359,289 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/message-templates": {
+      "get": {
+        "operationId": "staff_list_message_templates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Message Templates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Templates",
+        "tags": [
+          "staff-message-templates"
+        ]
+      },
+      "post": {
+        "operationId": "staff_create_message_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageTemplateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Create Message Template",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Template",
+        "tags": [
+          "staff-message-templates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/message-templates/render": {
+      "post": {
+        "operationId": "staff_render_message_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Render Message Template",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Render",
+        "tags": [
+          "staff-message-templates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/message-templates/{template_id}": {
+      "delete": {
+        "operationId": "staff_delete_message_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Template",
+        "tags": [
+          "staff-message-templates"
+        ]
+      },
+      "patch": {
+        "operationId": "staff_update_message_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageTemplatePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Update Message Template",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Template",
+        "tags": [
+          "staff-message-templates"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/offers": {
       "get": {
         "operationId": "list_offers",
@@ -29460,6 +31127,151 @@
         "summary": "Patch Participant Day Status",
         "tags": [
           "staff-participant-day-statuses"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/participant-unit-requests": {
+      "get": {
+        "description": "Every unit-switch request for one day.\n\n`day` is required rather than defaulting to \"today\": the server's today\nand the operator's today are different days for half the world, and this\nendpoint is called by a board that already knows which day it is showing\n(`staff_day_manifest` resolves the operator-local date). Guessing here\nwould put yesterday's requests on today's board for an operator west of\nUTC.\n\nDefaults to pending only \u2014 the queue, which is what the board badges.\nPass `status_filter=all` for the day's full history.",
+        "operationId": "staff_list_participant_unit_requests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List Participant Unit Requests",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Unit Requests",
+        "tags": [
+          "staff-participant-day-state"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/participant-unit-requests/{request_id}/decision": {
+      "post": {
+        "description": "Approve (and move) or deny a participant's unit-switch request.\n\nORDER MATTERS: the move happens FIRST, and the request is only marked\napproved once it has landed. The other order would leave a request\nreading \"approved\" next to a participant who never moved \u2014 the driver\nwould see the answer they gave, the participant would board the wrong\nvehicle, and nothing in the data would show the disagreement. If the move\nfails, the request stays pending and the driver can try again.\n\nDeciding an already-decided request is a 409, not a silent overwrite: two\ndrivers answering the same request seconds apart must not have the second\none's answer quietly replace the first's, and the second driver needs to\nknow the question was already settled. The partial unique index\n(one pending request per participant-day) makes the pending state the\nthing being competed for; this is the read-side guard on top of it.",
+        "operationId": "staff_decide_participant_unit_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitRequestDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Decide Participant Unit Request",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Unit Request",
+        "tags": [
+          "staff-participant-day-state"
         ]
       }
     },
@@ -31932,6 +33744,191 @@
         "summary": "Create Subscription Config",
         "tags": [
           "staff-subscriptions"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/today-code": {
+      "get": {
+        "description": "The product's current code, so the operator can read it out or print it.",
+        "operationId": "staff_get_product_today_code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Get Product Today Code",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Today Code",
+        "tags": [
+          "staff-today-code"
+        ]
+      },
+      "patch": {
+        "description": "Turn weekly auto-rotation on or off.\n\nTurning it ON does NOT rotate immediately \u2014 the worker\n(app/workers/today_code_rotation.py) rotates at the next Monday 04:00 in\nthe operator's own timezone. Flipping a setting must not revoke every\nlive session as a side effect; \"new code now\" is the rotate endpoint,\none deliberate press away.",
+        "operationId": "staff_patch_product_today_code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodayCodePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Patch Product Today Code",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Today Code",
+        "tags": [
+          "staff-today-code"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/today-code/rotate": {
+      "post": {
+        "description": "Mint a fresh code, invalidating every live participant session.\n\nIdempotent in the only sense that matters here: calling it twice mints\ntwice and the second code wins. There is nothing to de-duplicate \u2014 a\nsecond rotation is a second, deliberate revocation.",
+        "operationId": "staff_rotate_product_today_code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Rotate Product Today Code",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Today Code",
+        "tags": [
+          "staff-today-code"
         ]
       }
     },
@@ -35017,6 +37014,153 @@
         "summary": "Patch Tag",
         "tags": [
           "staff-tags"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/today/{product_id}/messages": {
+      "get": {
+        "operationId": "staff_list_day_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Day Messages",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Day Messages",
+        "tags": [
+          "staff-day-messages"
+        ]
+      },
+      "post": {
+        "operationId": "staff_post_day_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayMessagePostIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Post Day Message",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Day Message",
+        "tags": [
+          "staff-day-messages"
         ]
       }
     },

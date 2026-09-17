@@ -2085,6 +2085,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/contact-page/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contact Page */
+        get: operations["public_get_contact_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/contact-page/{token}/prefill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Contact Prefill
+         * @description The contact's OWN name/email/phone/language — nothing else.
+         *
+         *     Feeds the booking widget's contact-prefill step (frqgv.3 wires the
+         *     widget side) when a customer re-books from their own page. Scoped to
+         *     exactly the (operator, contact) pair the token was minted for; there is
+         *     no way to reach anyone else's contact row through this token.
+         */
+        get: operations["public_contact_page_prefill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/contact-page/{token}/today-bridge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Today Bridge
+         * @description Mint a Today participant session for this contact, if they are on
+         *     today's roster for this operator.
+         *
+         *     Returns the EXACT same shape as ``POST /api/public/today/session``
+         *     (app/routers/public_today.py) — this reuses that endpoint's own
+         *     ``issue_token`` mint function rather than re-implementing it, so a
+         *     dashboard/widget consumer of one session shape can consume the other
+         *     without a special case. 404 (same opaque body as everything else on
+         *     this router) when the contact has no participant row for TODAY, or when
+         *     today's line is not on a live, coded service product.
+         */
+        post: operations["public_contact_page_today_bridge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/health": {
         parameters: {
             query?: never;
@@ -2661,6 +2732,201 @@ export interface paths {
          *     the operator an API call.
          */
         post: operations["initiate_subscription_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Me */
+        get: operations["public_today_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/me/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put My Language
+         * @description Set my own language override.
+         *
+         *     Writes `booking_participants.language`, the raw per-participant column —
+         *     NOT the effective value. NULL clears the override so the booking's
+         *     language is inherited again (20260907010300: "NULL = inherit the
+         *     booking's language"), which is the only way back to the default once a
+         *     participant has set one.
+         *
+         *     Scoped to the participant id from the SIGNED token and additionally to
+         *     the operator id, so this can never touch another row even if the view
+         *     lookup above were somehow wrong.
+         */
+        put: operations["public_today_put_my_language"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/me/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put My Status
+         * @description Set my own status for today, optionally with where I am.
+         *
+         *     Writes through the SAME advisory-locked RPC the staff board writes
+         *     through (`staff_put_participant_day_state`), with `p_set_by` NULL — there
+         *     is no users.id for a participant — and `p_set_source` 'participant'. That
+         *     shared path is what keeps the needs_pickup notification firing exactly
+         *     once when a participant and a driver touch the same row at the same
+         *     moment: whichever call performs the flip observes the transition, the
+         *     other does not.
+         *
+         *     Unlike the briefing check-in's best-effort side write, the write here IS
+         *     the request, so its failures surface as clean 4xx rather than being
+         *     swallowed.
+         */
+        put: operations["public_today_put_my_status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/me/unit-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Unit
+         * @description Ask to be moved to a different unit for today.
+         *
+         *     This NEVER moves anyone (D5): it records a question a driver answers on
+         *     the Today board. A second request from the same participant on the same
+         *     day UPDATES the outstanding one rather than stacking a duplicate — the
+         *     partial unique index enforces one pending request per participant-day,
+         *     and someone who changes their mind has changed the same question's
+         *     answer, not asked a new one.
+         *
+         *     Refused with 409 when the operator has `today_participants_see_units`
+         *     off: a participant who cannot see the units cannot meaningfully name one,
+         *     and honouring a request naming a unit they were never shown would be
+         *     acting on a guess.
+         */
+        post: operations["public_today_request_unit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Messages */
+        get: operations["public_today_list_messages"];
+        put?: never;
+        /** Post Message */
+        post: operations["public_today_post_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/push-subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Push Subscribe */
+        post: operations["public_today_push_subscribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Today Code
+         * @description Turn an activity code into today's roster for its product.
+         *
+         *     A valid code for a product with nobody on it today returns an EMPTY
+         *     participant list, not a 404: "the code works, nothing is scheduled" is a
+         *     real and useful answer, and collapsing it into the not-found body would
+         *     tell a participant to go and find their guide for no reason.
+         */
+        post: operations["public_today_resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/today/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Today Session
+         * @description Mint a session token for "this is me" on today's roster.
+         *
+         *     The code is re-resolved here rather than trusted from the previous call:
+         *     it may have rotated in between, and the code that is redeemed NOW is the
+         *     one whose fingerprint the token has to carry.
+         */
+        post: operations["public_today_session"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3451,6 +3717,43 @@ export interface paths {
         patch: operations["staff_patch_participant_day_unit"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Participant Language
+         * @description Set (or clear) a participant's own language override (D4, landr-pdtoe.7).
+         *
+         *     Writes `booking_participants.language` directly — the RAW per-participant
+         *     override, not the day-manifest's EFFECTIVE value (coalesce with the
+         *     booking's `customer_language`, computed by `staff_day_manifest.py`). A
+         *     tap on the board's language flag opens a picker that calls this, then the
+         *     board re-reads the manifest to pick up the new effective value — same
+         *     division of labour as the day-unit PATCH above returning the day-state
+         *     row while the manifest stays the read model for the board.
+         *
+         *     Field-allowed like the day-unit PATCH: correcting a participant's
+         *     language is exactly the kind of on-the-spot fix a driver or guide makes
+         *     from the board, not something that needs owner/admin.
+         *
+         *     Scoped with the same `_scope_booking_and_participant` the PUT/PATCH
+         *     above use — a booking outside this operator is a 404, a participant
+         *     outside this booking is a 422 — so this endpoint cannot drift into a
+         *     laxer check than its siblings.
+         */
+        patch: operations["staff_patch_participant_language"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
         parameters: {
             query?: never;
@@ -3950,6 +4253,36 @@ export interface paths {
         get: operations["list_contacts"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Token Status
+         * @description Metadata only — never the plaintext, which is not recoverable once
+         *     hashed. The dashboard uses this to decide whether to show "copy link"
+         *     (existing token, plaintext already shown once) vs. "create link".
+         */
+        get: operations["staff_get_contact_page_token_status"];
+        put?: never;
+        /**
+         * Create Or Rotate Token
+         * @description Kill any current active link and mint a new one.
+         *
+         *     Idempotently safe to call on a contact with no token yet (there is
+         *     simply nothing to revoke first). Use when a link has been over-shared,
+         *     or on first setup.
+         */
+        post: operations["staff_create_or_rotate_contact_page_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4685,6 +5018,59 @@ export interface paths {
         patch: operations["update_membership"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/message-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["staff_list_message_templates"];
+        put?: never;
+        /** Create Template */
+        post: operations["staff_create_message_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/message-templates/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Render */
+        post: operations["staff_render_message_template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/message-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Template */
+        delete: operations["staff_delete_message_template"];
+        options?: never;
+        head?: never;
+        /** Update Template */
+        patch: operations["staff_update_message_template"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/offers": {
         parameters: {
             query?: never;
@@ -4776,6 +5162,70 @@ export interface paths {
          *     changed here at all (not present on `ParticipantDayStatusPatch`).
          */
         patch: operations["patch_participant_day_status"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/participant-unit-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unit Requests
+         * @description Every unit-switch request for one day.
+         *
+         *     `day` is required rather than defaulting to "today": the server's today
+         *     and the operator's today are different days for half the world, and this
+         *     endpoint is called by a board that already knows which day it is showing
+         *     (`staff_day_manifest` resolves the operator-local date). Guessing here
+         *     would put yesterday's requests on today's board for an operator west of
+         *     UTC.
+         *
+         *     Defaults to pending only — the queue, which is what the board badges.
+         *     Pass `status_filter=all` for the day's full history.
+         */
+        get: operations["staff_list_participant_unit_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/participant-unit-requests/{request_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Unit Request
+         * @description Approve (and move) or deny a participant's unit-switch request.
+         *
+         *     ORDER MATTERS: the move happens FIRST, and the request is only marked
+         *     approved once it has landed. The other order would leave a request
+         *     reading "approved" next to a participant who never moved — the driver
+         *     would see the answer they gave, the participant would board the wrong
+         *     vehicle, and nothing in the data would show the disagreement. If the move
+         *     fails, the request stays pending and the driver can try again.
+         *
+         *     Deciding an already-decided request is a 409, not a silent overwrite: two
+         *     drivers answering the same request seconds apart must not have the second
+         *     one's answer quietly replace the first's, and the second driver needs to
+         *     know the question was already settled. The partial unique index
+         *     (one pending request per participant-day) makes the pending state the
+         *     thing being competed for; this is the read-side guard on top of it.
+         */
+        post: operations["staff_decide_participant_unit_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
@@ -5287,6 +5737,60 @@ export interface paths {
          *     config already exists (1:1 with the product — use PATCH to edit it).
          */
         post: operations["create_subscription_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/today-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Today Code
+         * @description The product's current code, so the operator can read it out or print it.
+         */
+        get: operations["staff_get_product_today_code"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Today Code
+         * @description Turn weekly auto-rotation on or off.
+         *
+         *     Turning it ON does NOT rotate immediately — the worker
+         *     (app/workers/today_code_rotation.py) rotates at the next Monday 04:00 in
+         *     the operator's own timezone. Flipping a setting must not revoke every
+         *     live session as a side effect; "new code now" is the rotate endpoint,
+         *     one deliberate press away.
+         */
+        patch: operations["staff_patch_product_today_code"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/today-code/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Today Code
+         * @description Mint a fresh code, invalidating every live participant session.
+         *
+         *     Idempotent in the only sense that matters here: calling it twice mints
+         *     twice and the second code wins. There is nothing to de-duplicate — a
+         *     second rotation is a second, deliberate revocation.
+         */
+        post: operations["staff_rotate_product_today_code"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6752,6 +7256,24 @@ export interface paths {
         patch: operations["patch_tag"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/today/{product_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Day Messages */
+        get: operations["staff_list_day_messages"];
+        put?: never;
+        /** Post Day Message */
+        post: operations["staff_post_day_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/trash/{kind}": {
         parameters: {
             query?: never;
@@ -7736,8 +8258,7 @@ export interface components {
          *     booking emails' context, so the success screen and the confirmation email
          *     agree. Money fields are bare decimal strings. ``participants`` carries
          *     the names from THIS request's payload only (never stored contact rows),
-         *     and no contact emails/phones. ``extra="allow"``: the
-         *     sibling ticket landr-nva1a.2 adds ``post_booking``.
+         *     and no contact emails/phones. ``extra="allow"``.
          */
         BookingSummary: {
             /** Amount Due */
@@ -7769,6 +8290,8 @@ export interface components {
             pickup_location?: string | null;
             /** Pickup Locations */
             pickup_locations?: components["schemas"]["BookingSummaryPickup"][];
+            /** Post Booking */
+            post_booking?: components["schemas"]["BookingSummaryPostBooking"][];
             /**
              * Price Overridden
              * @default false
@@ -7835,6 +8358,31 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BookingSummaryPostBooking
+         * @description One product's "after booking" content — landr-nva1a.2. ``html`` is
+         *     already sanitized (``app/services/html_sanitize.py``); ``link`` is
+         *     ``None`` when the product only has rich text and no link. Only products
+         *     with content appear — see ``booking_emails._build_post_booking``.
+         */
+        BookingSummaryPostBooking: {
+            /** Html */
+            html?: string | null;
+            link?: components["schemas"]["BookingSummaryPostBookingLink"] | null;
+            /** Product Id */
+            product_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryPostBookingLink */
+        BookingSummaryPostBookingLink: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
         } & {
             [key: string]: unknown;
         };
@@ -8471,8 +9019,12 @@ export interface components {
             participant_id: string;
             /** Phone */
             phone?: string | null;
+            /** Pickup Accuracy M */
+            pickup_accuracy_m?: number | null;
             /** Pickup Address */
             pickup_address?: string | null;
+            /** Pickup Fixed At */
+            pickup_fixed_at?: string | null;
             /** Pickup Lat */
             pickup_lat?: number | null;
             /** Pickup Lng */
@@ -8505,6 +9057,8 @@ export interface components {
             semantic_state?: string | null;
             /** Service Role */
             service_role?: string | null;
+            /** Set Source */
+            set_source?: string | null;
             /** State Id */
             state_id?: string | null;
             /** Status Code */
@@ -8515,6 +9069,11 @@ export interface components {
             status_id?: string | null;
             /** Status Label */
             status_label?: string | null;
+        };
+        /** DayMessagePostIn */
+        DayMessagePostIn: {
+            /** Body */
+            body: string;
         };
         /**
          * DayStatusPutIn
@@ -9397,6 +9956,30 @@ export interface components {
             rows: components["schemas"]["InvoiceRow"][];
             summary: components["schemas"]["InvoiceSummary"];
         };
+        /**
+         * LanguagePatchIn
+         * @description PATCH participant-language body — one field, and `null` is meaningful.
+         *
+         *     Same column as `public_today.MyLanguageIn` (`booking_participants.
+         *     language`), and the same clearing semantics: `null` does not mean "leave
+         *     unchanged", it means "no override — inherit the booking's language again"
+         *     (20260907010300). So, like `DayUnitPatchIn` above, the key is REQUIRED
+         *     (no default): an empty body `{}` or a typo'd key is a 422 from pydantic's
+         *     own "field required" validation, never a silent no-op a caller could
+         *     mistake for a save.
+         *
+         *     Unlike the public endpoint, this one is NOT restricted to a bare
+         *     two-letter code. The column itself has no CHECK — landr-w9yk8.3's
+         *     docstring already says "a BCP-47 tag or free-text language name...
+         *     because the staff editor writes whatever an operator types into it" —
+         *     and an operator correcting a mis-set flag from the board is exactly that
+         *     staff editor, not the unauthenticated public trust boundary the tighter
+         *     pattern on `MyLanguageIn` exists for.
+         */
+        LanguagePatchIn: {
+            /** Language */
+            language: string | null;
+        };
         /** LicenseCreateRequest */
         LicenseCreateRequest: {
             /** Document Url */
@@ -9546,6 +10129,8 @@ export interface components {
             geo?: {
                 [key: string]: unknown;
             } | null;
+            /** Icon */
+            icon?: string | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -9567,6 +10152,8 @@ export interface components {
             geo?: {
                 [key: string]: unknown;
             } | null;
+            /** Icon */
+            icon?: string | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -9716,6 +10303,11 @@ export interface components {
             /** Skipped Not Found */
             skipped_not_found: string[];
         };
+        /** MessagePostIn */
+        MessagePostIn: {
+            /** Body */
+            body: string;
+        };
         /** MessageResponse */
         MessageResponse: {
             /** Body */
@@ -9730,6 +10322,35 @@ export interface components {
             sender_id: string;
             /** Sent At */
             sent_at: string;
+        };
+        /** MessageTemplateIn */
+        MessageTemplateIn: {
+            /** Body */
+            body: string;
+            /** Name */
+            name: string;
+            /** Presets */
+            presets?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** MessageTemplatePatch */
+        MessageTemplatePatch: {
+            /** Body */
+            body?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Presets */
+            presets?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /**
          * MultiDaySavingsOut
@@ -9749,6 +10370,42 @@ export interface components {
             days: number;
         } & {
             [key: string]: unknown;
+        };
+        /** MyLanguageIn */
+        MyLanguageIn: {
+            /** Language */
+            language?: string | null;
+        };
+        /**
+         * MyStatusIn
+         * @description The participant's own status write.
+         *
+         *     Deliberately NOT a superset of the staff PUT: no `part_of_day` (an
+         *     operator's am/pm split hint, not the participant's), no `pickup_address`
+         *     (free text a participant cannot be trusted to keep operator-meaningful),
+         *     no `note` — landr-pdtoe.4 gives participants a real message board, and a
+         *     freeform note squatting on the driver's own field would collide with it.
+         */
+        MyStatusIn: {
+            /** Accuracy M */
+            accuracy_m?: number | null;
+            /** Expected Back At */
+            expected_back_at?: string | null;
+            /** Fixed At */
+            fixed_at?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Status Id */
+            status_id?: string | null;
+        };
+        /** MyUnitRequestIn */
+        MyUnitRequestIn: {
+            /** Note */
+            note?: string | null;
+            /** Unit Id */
+            unit_id: string;
         };
         /** NoShowIn */
         NoShowIn: {
@@ -10037,6 +10694,8 @@ export interface components {
             time_format_24h?: boolean | null;
             /** Timezone */
             timezone?: string | null;
+            /** Today Participants See Units */
+            today_participants_see_units?: boolean | null;
             /** Weather Enabled */
             weather_enabled?: boolean | null;
             /** Weather Lat */
@@ -11136,6 +11795,23 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * PushSubscribeIn
+         * @description Shape mirrors the browser Push API's `PushSubscription.toJSON()` —
+         *     the same wire shape the logged-in-user subscribe path already expects
+         *     (20260905030000_push_subscriptions.sql), nested under `subscription` per
+         *     this endpoint's contract.
+         */
+        PushSubscribeIn: {
+            subscription: components["schemas"]["Subscription"];
+        };
+        /** PushSubscriptionKeys */
+        PushSubscriptionKeys: {
+            /** Auth */
+            auth: string;
+            /** P256Dh */
+            p256dh: string;
+        };
         /** QuickCreateIn */
         QuickCreateIn: {
             /** Customer Email */
@@ -11292,6 +11968,15 @@ export interface components {
             /** Moderation Status */
             moderation_status: string;
         };
+        /** RenderIn */
+        RenderIn: {
+            /** Template Id */
+            template_id: string;
+            /** Values */
+            values?: {
+                [key: string]: unknown;
+            };
+        };
         /** RequestGoliveIn */
         RequestGoliveIn: {
             /** Notes */
@@ -11381,6 +12066,17 @@ export interface components {
             resolved_at: string;
             /** Resolved By */
             resolved_by: string;
+        };
+        /**
+         * ResolveIn
+         * @description `extra="forbid"`: nothing but the code may be sent. An operator id or a
+         *     participant id smuggled into this body would be ignored anyway — every
+         *     identifier on this surface is derived, never accepted — but forbidding
+         *     them makes that explicit at the boundary.
+         */
+        ResolveIn: {
+            /** Code */
+            code: string;
         };
         /**
          * ResourcePoolCreateIn
@@ -11753,6 +12449,13 @@ export interface components {
             requires_pickup_location?: boolean | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /** SessionIn */
+        SessionIn: {
+            /** Code */
+            code: string;
+            /** Participant Id */
+            participant_id: string;
         };
         /** SetSiteWarningPublisherRequest */
         SetSiteWarningPublisherRequest: {
@@ -12173,6 +12876,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** Subscription */
+        Subscription: {
+            /** Endpoint */
+            endpoint: string;
+            keys: components["schemas"]["PushSubscriptionKeys"];
+        };
         /** SubscriptionCheckoutIn */
         SubscriptionCheckoutIn: {
             /** Cancel Url */
@@ -12409,6 +13118,18 @@ export interface components {
             status: "sent" | "failed";
         };
         /**
+         * TodayCodePatch
+         * @description One field, required (no default).
+         *
+         *     An empty body `{}` or a typo'd key is a 422 from pydantic's own
+         *     "field required" validation, never a silent no-op — same reasoning as
+         *     DayUnitPatchIn's (landr-bsng5.67).
+         */
+        TodayCodePatch: {
+            /** Rotate Weekly */
+            rotate_weekly: boolean;
+        };
+        /**
          * TrelloSyncIn
          * @description Context only the browser knows — never trust reporter identity from here.
          *
@@ -12480,6 +13201,15 @@ export interface components {
              * @enum {string}
              */
             state: "auto" | "ask" | "not_available";
+        };
+        /**
+         * UnitRequestDecisionIn
+         * @description `decision` is required (no default) — an empty body must never be read
+         *     as a silent approval.
+         */
+        UnitRequestDecisionIn: {
+            /** Decision */
+            decision: string;
         };
         /**
          * UnitServicePeriodRange
@@ -15838,6 +16568,105 @@ export interface operations {
             };
         };
     };
+    public_get_contact_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_contact_page_prefill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_contact_page_today_bridge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -16511,6 +17340,327 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SubscriptionCheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_me: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_put_my_language: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyLanguageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_put_my_status: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyStatusIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_request_unit: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MyUnitRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_list_messages: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_post_message: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessagePostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_push_subscribe: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscribeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_today_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionIn"];
             };
         };
         responses: {
@@ -17959,6 +19109,45 @@ export interface operations {
             };
         };
     };
+    staff_patch_participant_language: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LanguagePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refund_payment: {
         parameters: {
             query?: never;
@@ -19087,6 +20276,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_contact_page_token_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_or_rotate_contact_page_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -20541,6 +21798,181 @@ export interface operations {
             };
         };
     };
+    staff_list_message_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_create_message_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_render_message_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_delete_message_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_update_message_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageTemplatePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_offers: {
         parameters: {
             query?: never;
@@ -20802,6 +22234,80 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ParticipantDayStatusPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_participant_unit_requests: {
+        parameters: {
+            query: {
+                day: string;
+                status_filter?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_decide_participant_unit_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitRequestDecisionIn"];
             };
         };
         responses: {
@@ -22178,6 +23684,112 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_product_today_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_product_today_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TodayCodePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_rotate_product_today_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23843,6 +25455,82 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_day_messages: {
+        parameters: {
+            query: {
+                day: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_post_day_message: {
+        parameters: {
+            query: {
+                day: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayMessagePostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
