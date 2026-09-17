@@ -19,7 +19,12 @@
  * --foreground-derived legibility are kept readable by picking near-black or
  * near-white text against the chosen surface via relative luminance. We do
  * NOT override the operator's brand colour for body text — only the *button
- * label* colour, which the operator does not configure.
+ * label* colour, which the operator does not configure. Both the theme path
+ * and the legacy primary_color path set it (landr-v94dz).
+ *
+ * Brand tint (landr-v94dz): --surface-tint-mix scales the accent's share of
+ * the bg-surface-tint surface (index.css) with the accent's luminance, so a
+ * pale accent still tints visibly. See surfaceTintMix.
  *
  * Dark mode: the widget has NO active dark mode today (the `.dark` class in
  * index.css is never applied — no prefers-color-scheme toggle, no classList
@@ -78,6 +83,8 @@ function relativeLuminance([r, g, b]: [number, number, number]): number {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 }
 
+const NEAR_BLACK_LUMINANCE = relativeLuminance([0x11, 0x11, 0x11])
+
 /**
  * Pick near-black or near-white text for legibility on the given background
  * colour. Falls back to near-white when the colour can't be parsed (callers
@@ -86,10 +93,27 @@ function relativeLuminance([r, g, b]: [number, number, number]): number {
 export function readableTextOn(background: string): string {
   const rgb = parseHex(background)
   if (!rgb) return NEAR_WHITE
-  // Threshold ~0.45 puts the flip a touch above mid-grey, biasing toward dark
-  // text (which reads better on the pale-to-mid brand backgrounds operators
-  // tend to choose).
-  return relativeLuminance(rgb) > 0.45 ? NEAR_BLACK : NEAR_WHITE
+  // landr-v94dz: whichever label has the higher WCAG contrast ratio wins (the
+  // flip lands near luminance 0.18). The old fixed 0.45 threshold gave
+  // mid-luminance accents (orange, green, sky) white labels at 2-3:1 — made
+  // visible by the always-on solid-accent pill in the mobile price bar.
+  const l = relativeLuminance(rgb)
+  const onNearBlack = (l + 0.05) / (NEAR_BLACK_LUMINANCE + 0.05)
+  const onWhite = 1.05 / (l + 0.05)
+  return onNearBlack >= onWhite ? NEAR_BLACK : NEAR_WHITE
+}
+
+/**
+ * landr-v94dz: the accent's share of bg-surface-tint (index.css). A fixed 8%
+ * of a pale/bright accent (yellow, orange, sky) lands within the
+ * just-noticeable difference of the page canvas, so the share grows with the
+ * accent's luminance: 8% for black up to 22% for near-white. Returns
+ * undefined for an unparseable colour so the index.css default stands.
+ */
+export function surfaceTintMix(accent: string): string | undefined {
+  const rgb = parseHex(accent)
+  if (!rgb) return undefined
+  return `${Math.round(Math.min(22, 8 + 20 * relativeLuminance(rgb)))}%`
 }
 
 /** Convert [r,g,b] (0–255) to HSL with h in [0,360), s/l in [0,1]. */
@@ -207,10 +231,22 @@ export function widgetThemeStyle(
       // The card surface stays the widget's neutral card (index.css), so card
       // text keeps using --card-foreground; we leave that to the default.
     }
+    const mix = surfaceTintMix(theme.accent)
+    if (mix) style['--surface-tint-mix'] = mix
     return style
   }
   if (settings.primary_color) {
-    return { '--primary': settings.primary_color }
+    const style: CSSVarStyle = { '--primary': settings.primary_color }
+    // landr-v94dz: the legacy path used to set --primary alone, leaving the
+    // default near-white label on whatever colour the operator picked. Only
+    // derive it for a parseable hex — readableTextOn's near-white fallback
+    // would otherwise override the default for no reason.
+    if (parseHex(settings.primary_color)) {
+      style['--primary-foreground'] = readableTextOn(settings.primary_color)
+    }
+    const mix = surfaceTintMix(settings.primary_color)
+    if (mix) style['--surface-tint-mix'] = mix
+    return style
   }
   return {}
 }

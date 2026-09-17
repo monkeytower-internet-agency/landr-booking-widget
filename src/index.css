@@ -22,11 +22,25 @@
    *   surface-raised — an INTERACTIVE element one level lighter than its card
    *                    container (option-cards, steppers, room rows).
    *   surface-well   — a RECESSED region (price summary rows, inset panels).
+   *   surface-tint   — an OPAQUE card surface washed with the operator's brand
+   *                    (--primary), for content that must read as set apart
+   *                    from the page (the mobile price-breakdown drawer,
+   *                    landr-v94dz). The color-mix() is inlined into the
+   *                    utility (this is @theme inline), so var(--primary)
+   *                    resolves on the element and picks up the operator
+   *                    override set on the widget root — declaring it as a
+   *                    :root custom property instead would freeze it to the
+   *                    :root default. Strength comes from --surface-tint-mix.
    */
   --color-surface-page: var(--surface-page);
   --color-surface-card: var(--surface-card);
   --color-surface-raised: var(--surface-raised);
   --color-surface-well: var(--surface-well);
+  --color-surface-tint: color-mix(
+    in oklab,
+    var(--primary) var(--surface-tint-mix),
+    var(--surface-card)
+  );
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -69,6 +83,14 @@
   --surface-card: oklch(1 0 0);
   --surface-raised: oklch(0.995 0.0008 286);
   --surface-well: oklch(0.965 0.002 286);
+  /* landr-v94dz: brand share of bg-surface-tint (light). widgetThemeStyle
+   * overrides it on the widget root per operator accent (surfaceTintMix). */
+  --surface-tint-mix: 8%;
+  /* landr-v94dz: muted text on bg-surface-tint. The default 0.556 drops to
+   * ~3.9:1 on the tint; 0.5 keeps >=4.5:1 even for a black accent at 8% and
+   * inside the amber hotel block. Re-check if the tint share is raised for
+   * dark accents. */
+  --surface-tint-muted-foreground: oklch(0.5 0 0);
 
   /* landr-3mo4: elevation shadow scale L0–L3 + an inset well shadow. Soft,
    * premium-neutral (low-alpha black), tuned for a light page. Variant tokens
@@ -109,6 +131,9 @@
   --surface-card: oklch(0.205 0 0);
   --surface-raised: oklch(0.245 0 0);
   --surface-well: oklch(0.175 0 0);
+  /* landr-v94dz: a dark card needs a larger brand share to read as tinted. */
+  --surface-tint-mix: 14%;
+  --surface-tint-muted-foreground: oklch(0.708 0 0);
 
   /* landr-3mo4: dark elevation scale — stronger black so shadows read against
    * a dark page; the inset well uses a faint top highlight + shadow. */

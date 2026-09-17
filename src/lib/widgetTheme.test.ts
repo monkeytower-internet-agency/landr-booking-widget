@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseHex,
   readableTextOn,
+  surfaceTintMix,
   rgbToHsl,
   deriveDark,
   resolveDarkTheme,
@@ -31,6 +32,7 @@ describe('readableTextOn (contrast safety)', () => {
   it('picks light text on a dark background', () => {
     expect(readableTextOn('#000000')).toBe('#ffffff')
     expect(readableTextOn('#1d4ed8')).toBe('#ffffff')
+    expect(readableTextOn('#2563eb')).toBe('#ffffff')
   })
 })
 
@@ -81,6 +83,28 @@ describe('resolveDarkTheme', () => {
   })
 })
 
+describe('readableTextOn picks the higher-contrast label (landr-v94dz)', () => {
+  it('gives mid-luminance accents a dark label (white was 2-3:1 on these)', () => {
+    expect(readableTextOn('#ff8800')).toBe('#111111')
+    expect(readableTextOn('#16a34a')).toBe('#111111')
+    expect(readableTextOn('#0ea5e9')).toBe('#111111')
+    expect(readableTextOn('#fccc2c')).toBe('#111111')
+  })
+})
+
+describe('surfaceTintMix (landr-v94dz)', () => {
+  it('scales the brand share with accent luminance, 8% to 22%', () => {
+    expect(surfaceTintMix('#000000')).toBe('8%')
+    expect(surfaceTintMix('#1d4ed8')).toBe('10%')
+    expect(surfaceTintMix('#fccc2c')).toBe('21%')
+    expect(surfaceTintMix('#ffffff')).toBe('22%')
+  })
+
+  it('returns undefined for an unparseable colour', () => {
+    expect(surfaceTintMix('rgb(1, 2, 3)')).toBeUndefined()
+  })
+})
+
 describe('widgetThemeStyle', () => {
   it('maps a 3-colour theme onto the widget CSS vars', () => {
     const style = widgetThemeStyle({
@@ -93,6 +117,7 @@ describe('widgetThemeStyle', () => {
     expect(style['--primary']).toBe('#1d4ed8')
     // contrast-safe button label on a dark-blue accent → white
     expect(style['--primary-foreground']).toBe('#ffffff')
+    expect(style['--surface-tint-mix']).toBe('10%')
   })
 
   it('theme wins over a set primary_color', () => {
@@ -109,6 +134,17 @@ describe('widgetThemeStyle', () => {
     expect(style['--primary']).toBe('#ff8800')
     expect(style['--background']).toBeUndefined()
     expect(style['--foreground']).toBeUndefined()
+  })
+
+  it('legacy primary_color also gets a readable label and a tint share (landr-v94dz)', () => {
+    const style = widgetThemeStyle({ theme: null, primary_color: '#ff8800' })
+    expect(style['--primary-foreground']).toBe('#111111')
+    expect(style['--surface-tint-mix']).toBe('16%')
+  })
+
+  it('legacy non-hex primary_color sets --primary only', () => {
+    const style = widgetThemeStyle({ theme: null, primary_color: 'rgb(1, 2, 3)' })
+    expect(style).toEqual({ '--primary': 'rgb(1, 2, 3)' })
   })
 
   it('returns no inline vars when both theme and primary_color are null', () => {

@@ -2102,6 +2102,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/hostnames/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Hostname
+         * @description Resolve a bound operator hostname to its operator slug + branding.
+         */
+        get: operations["resolve_hostname"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operators/{slug}/calendar.ics": {
         parameters: {
             query?: never;
@@ -4214,6 +4234,74 @@ export interface paths {
          *     affordance at THIS route is what landr-g71ua was filed about.
          */
         post: operations["run_operator_holded_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hostname
+         * @description Current hostname + verification status, or ``configured: false``.
+         */
+        get: operations["get_hostname"];
+        /**
+         * Put Hostname
+         * @description Claim (or replace) this operator's hostname for ``purpose``.
+         *
+         *     Replacing a hostname that was already bound to Cloudflare detaches the old
+         *     one first — leaving it attached would keep serving the operator's page on
+         *     an address they have just told us they no longer want, and would hold a
+         *     domain slot on the shared Pages project forever.
+         *
+         *     The new row always starts at ``unverified`` with the CNAME instruction
+         *     stored, whatever the previous state was. Verification is the worker's job.
+         */
+        put: operations["put_hostname"];
+        post?: never;
+        /**
+         * Delete Hostname
+         * @description Release the hostname, detaching it from Cloudflare Pages when bound.
+         *
+         *     Deleting an absent row is a 204, not a 404: the caller asked for a state
+         *     ("this operator has no custom hostname") that is already true, and the
+         *     dashboard's delete button should not error on a double-click.
+         */
+        delete: operations["delete_hostname"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Verify
+         * @description Queue this row for the next worker pass ("Check now" in the dashboard).
+         *
+         *     This endpoint does NOT talk to DNS or Cloudflare itself. Verification is
+         *     slow (a DNS lookup plus up to two Cloudflare calls) and must not run inside
+         *     a request the dashboard is waiting on; more importantly, keeping one code
+         *     path to Cloudflare means the retry/backoff/error-recording rules live in
+         *     exactly one place. All this does is clear ``last_checked_at`` and reset a
+         *     ``failed`` row to ``unverified`` so the worker picks it up immediately
+         *     instead of waiting out a backoff window.
+         */
+        post: operations["request_verify"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7642,6 +7730,159 @@ export interface components {
             staff_session: string;
         };
         /**
+         * BookingSummary
+         * @description What was booked — landr-nva1a.1. Built by
+         *     ``booking_emails.build_booking_summary``, the SAME builder behind the
+         *     booking emails' context, so the success screen and the confirmation email
+         *     agree. Money fields are bare decimal strings. ``participants`` carries
+         *     the names from THIS request's payload only (never stored contact rows),
+         *     and no contact emails/phones. ``extra="allow"``: the
+         *     sibling ticket landr-nva1a.2 adds ``post_booking``.
+         */
+        BookingSummary: {
+            /** Amount Due */
+            amount_due: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Reference */
+            booking_reference: string;
+            /** Currency */
+            currency: string;
+            dates: components["schemas"]["BookingSummaryDates"];
+            /** Grand Total */
+            grand_total: string;
+            hotel?: components["schemas"]["BookingSummaryHotel"] | null;
+            /** Hotel Total */
+            hotel_total: string;
+            /** Line Items */
+            line_items?: components["schemas"]["EstimateLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** Operator Name */
+            operator_name: string;
+            /** Operator Total */
+            operator_total: string;
+            /** Participant Count */
+            participant_count: number;
+            /** Participants */
+            participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Pickup Location */
+            pickup_location?: string | null;
+            /** Pickup Locations */
+            pickup_locations?: components["schemas"]["BookingSummaryPickup"][];
+            /**
+             * Price Overridden
+             * @default false
+             */
+            price_overridden: boolean;
+            /** Product Label */
+            product_label: string;
+            /** Products */
+            products?: components["schemas"]["BookingSummaryProduct"][];
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][];
+            /** Savings Total */
+            savings_total: string;
+            /** Subtotal Before Savings */
+            subtotal_before_savings: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BookingSummaryDates
+         * @description Activity days (hotel nights excluded). ``label`` is the localized
+         *     human form with consecutive runs folded, e.g. ``"14–16 Sep 2026"``.
+         */
+        BookingSummaryDates: {
+            /** Days */
+            days?: string[];
+            /** End */
+            end?: string | null;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Start */
+            start?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryHotel */
+        BookingSummaryHotel: {
+            /** Rooms */
+            rooms?: components["schemas"]["BookingSummaryRoom"][];
+            stay_window?: components["schemas"]["BookingSummaryStayWindow"] | null;
+            /** Total */
+            total: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryParticipant */
+        BookingSummaryParticipant: {
+            /**
+             * Is Guiding
+             * @default true
+             */
+            is_guiding: boolean;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryPickup */
+        BookingSummaryPickup: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryProduct */
+        BookingSummaryProduct: {
+            /** Label */
+            label: string;
+            /** Product Id */
+            product_id: string;
+            /** Qty */
+            qty: number;
+            /** Selected Days */
+            selected_days?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryRoom */
+        BookingSummaryRoom: {
+            /** Addons */
+            addons?: components["schemas"]["BookingSummaryRoomAddon"][];
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryRoomAddon */
+        BookingSummaryRoomAddon: {
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryStayWindow */
+        BookingSummaryStayWindow: {
+            /** Check In */
+            check_in: string;
+            /** Check Out */
+            check_out: string;
+            /** Nights */
+            nights: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * BriefingDayIn
          * @description PUT body for one day card — the operator's nightly update.
          */
@@ -8531,6 +8772,8 @@ export interface components {
         EstimateRequest: {
             /** Addon Lines */
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
+            /** Locale */
+            locale?: string | null;
             /**
              * Participants Count
              * @default 1
@@ -8547,6 +8790,8 @@ export interface components {
          *     (src/lib/pricing-simulator.ts) field-for-field.
          */
         EstimateResponse: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Applied Rules */
             applied_rules?: components["schemas"]["EstimateAppliedRule"][];
             /** Currency */
@@ -8557,8 +8802,15 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
             /**
              * Un Priceable
              * @default false
@@ -8865,6 +9117,69 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HostnameBranding */
+        HostnameBranding: {
+            /** Logo Url */
+            logo_url?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Primary Color */
+            primary_color?: string | null;
+        };
+        /** HostnameIn */
+        HostnameIn: {
+            /**
+             * Hostname
+             * @description The domain the operator owns, e.g. today.example.com.
+             */
+            hostname: string;
+        };
+        /** HostnameResolution */
+        HostnameResolution: {
+            branding: components["schemas"]["HostnameBranding"];
+            /** Operator Slug */
+            operator_slug: string;
+            /** Purpose */
+            purpose: string;
+        };
+        /**
+         * HostnameStatus
+         * @description GET/PUT response. ``configured`` is false when no row exists yet.
+         */
+        HostnameStatus: {
+            /**
+             * Cname Target
+             * @description The *.pages.dev host to CNAME to, for this tier.
+             */
+            cname_target: string;
+            /**
+             * Configured
+             * @description True iff an operator_hostnames row exists.
+             */
+            configured: boolean;
+            /**
+             * Dns Records
+             * @description Records the operator must publish, as [{type,name,value}].
+             */
+            dns_records?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Hostname */
+            hostname?: string | null;
+            /** Last Checked At */
+            last_checked_at?: string | null;
+            /** Last Error */
+            last_error?: string | null;
+            /** Purpose */
+            purpose: string;
+            /**
+             * Verification Status
+             * @description unverified | pending | verified | failed.
+             */
+            verification_status?: string | null;
+            /** Verified At */
+            verified_at?: string | null;
         };
         /** HotelIn */
         HotelIn: {
@@ -9415,6 +9730,25 @@ export interface components {
             sender_id: string;
             /** Sent At */
             sent_at: string;
+        };
+        /**
+         * MultiDaySavingsOut
+         * @description Congrats-card payload (landr-nva1a.1): ``days`` = longest
+         *     consecutive run (streak pricing) or total priced days (total-days
+         *     pricing); ``amount`` = the summed multi-day saving.
+         */
+        MultiDaySavingsOut: {
+            /** Amount */
+            amount: string;
+            /**
+             * Consecutive
+             * @default false
+             */
+            consecutive: boolean;
+            /** Days */
+            days: number;
+        } & {
+            [key: string]: unknown;
         };
         /** NoShowIn */
         NoShowIn: {
@@ -10226,6 +10560,8 @@ export interface components {
          *     ``booking_line_items()``).
          */
         PricingBreakdownResponse: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Currency */
             currency: string;
             /** Grand Total */
@@ -10236,8 +10572,15 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["PricingBreakdownLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10736,6 +11079,8 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            /** Customer Comment */
+            customer_comment?: string | null;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;
@@ -11260,6 +11605,24 @@ export interface components {
             visibility?: ("personal" | "shared") | null;
         };
         /**
+         * SavingLineOut
+         * @description One "− <label>  <amount>" row of a customer-facing price breakdown
+         *     (landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is
+         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a
+         *     positive decimal string. Shared by the estimate, the staff pricing
+         *     breakdown, and the submit response's ``summary``.
+         */
+        SavingLineOut: {
+            /** Amount */
+            amount: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * SeasonPlanIn
          * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
          *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
@@ -11653,6 +12016,8 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            /** Customer Comment */
+            customer_comment?: string | null;
             /** Customer Declarations */
             customer_declarations?: {
                 [key: string]: boolean;
@@ -11802,6 +12167,7 @@ export interface components {
             stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
+            summary?: components["schemas"]["BookingSummary"] | null;
             /** Token */
             token?: string | null;
         } & {
@@ -15492,6 +15858,38 @@ export interface operations {
             };
         };
     };
+    resolve_hostname: {
+        parameters: {
+            query: {
+                /** @description Hostname to resolve. */
+                host: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameResolution"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_operator_calendar_ics: {
         parameters: {
             query: {
@@ -19113,6 +19511,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostnameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
                 };
             };
             /** @description Validation Error */
