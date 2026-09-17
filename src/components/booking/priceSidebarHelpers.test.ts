@@ -291,6 +291,7 @@ describe('buildDiscountExplanation — savings line (landr-qj1g)', () => {
     // Line 1: the savings line (90 − 75 = 15).
     expect(lines).toHaveLength(2)
     expect(lines[1]).toMatch(/^saves .+\/day vs standard rate$/)
+    expect(lines[1]).toMatch(/15/)
   })
 
   it('does not append a savings line for per_streak_tier when base_tier is absent', () => {
@@ -331,6 +332,7 @@ describe('buildDiscountExplanation — savings line (landr-qj1g)', () => {
     // Line 1: the savings line (100 − 80 = 20).
     expect(lines).toHaveLength(2)
     expect(lines[1]).toMatch(/^saves .+\/day vs standard rate$/)
+    expect(lines[1]).toMatch(/20/)
   })
 
   it('does not append a savings line for per_total_days_tier when base_tier absent', () => {
