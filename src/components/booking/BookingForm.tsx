@@ -157,9 +157,14 @@ interface Props {
    * missing participant language is a typed 422
    * (`participant_language_missing`), never a silent default. A companion's
    * language is optional — the API validates it only if present. The
-   * LanguageStep therefore runs for every product; a map here with no
-   * participant entries means the funnel was driven past that step, and the
-   * submit will be rejected.
+   * LanguageStep therefore runs for every language-restricted product.
+   *
+   * landr-pv2r1 (E2/E3): an "any language" product (`guide_languages = []`)
+   * skips the LanguageStep and the API treats languages as optional for it;
+   * App.tsx then passes an EMPTY map here, so no participant/companion
+   * `language` and no derived `customer_languages` are sent. For a
+   * restricted product, a map with no participant entries means the funnel
+   * was driven past the step, and the submit will be rejected.
    */
   participantLanguages?: Record<number, string>
   /**
@@ -855,10 +860,11 @@ export function BookingForm({
             ...(hasBreakfast ? { has_breakfast: true as const } : {}),
             // landr-r6e5x.4 wire field (PINNED contract — landr-r6e5x.2): the
             // participant's assigned guide language, captured by the
-            // LanguageStep, which runs for every product. Omitted only when
-            // the map is empty, which the API rejects — deliberately, so a
-            // funnel bug surfaces as a typed 422 rather than a booking with
-            // silently missing language data.
+            // LanguageStep. Omitted when the map is empty: legitimate for an
+            // "any language" product (landr-pv2r1 — the step is skipped and
+            // the API accepts no language), otherwise rejected by the API —
+            // deliberately, so a funnel bug surfaces as a typed 422 rather
+            // than a booking with silently missing language data.
             ...(participantLanguages[idx]
               ? { language: participantLanguages[idx] }
               : {}),

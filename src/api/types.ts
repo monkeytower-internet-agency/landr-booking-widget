@@ -697,9 +697,9 @@ export interface Participant {
   /**
    * landr-r6e5x.4 / epic decision D3: the offered guide language this person
    * was assigned to in the widget's language board (ISO 639-1, one of the
-   * operator's `offered_languages`). REQUIRED by the submit contract whenever
-   * the operator's flow collects languages — the API answers a missing or
-   * un-offered value with a typed 422 (`participant_language_missing` /
+   * product's `guide_languages`). REQUIRED by the submit contract for a
+   * language-restricted product — the API answers a missing or un-offered
+   * value with a typed 422 (`participant_language_missing` /
    * `participant_language_invalid`, both carrying the party index).
    *
    * Persisted to `booking_participants.language` so the calendar shows the

@@ -136,6 +136,25 @@ describe('ProductDetailStep', () => {
     expect(facts).not.toHaveTextContent('min')
   })
 
+  it('renders the languages fact with flag + English name and a sentence aria-label (landr-pv2r1)', () => {
+    renderStep(makeProduct({ guide_languages: ['en', 'es', 'de', 'fr'] }))
+    const facts = screen.getByTestId('product-facts')
+    expect(facts).toHaveTextContent('English')
+    expect(facts).toHaveTextContent('🇬🇧')
+    const langFact = screen.getByLabelText(
+      'Offered in English, Spanish, German and French',
+    )
+    expect(langFact).toHaveTextContent('🇬🇧 English · 🇪🇸 Spanish · 🇩🇪 German · 🇫🇷 French')
+    // the languages fact is the last chip in the row
+    const all = within(facts).getAllByTestId('product-fact')
+    expect(all[all.length - 1]).toBe(langFact)
+  })
+
+  it('shows no languages fact for an any-language product (landr-pv2r1)', () => {
+    renderStep(makeProduct({ guide_languages: [] }))
+    expect(screen.queryByTestId('product-fact-languages')).not.toBeInTheDocument()
+  })
+
   it('shows the "from" price and hides it when price_from is null', () => {
     const { unmount } = render(
       <VariantProvider value="summit">
