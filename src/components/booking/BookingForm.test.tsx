@@ -785,6 +785,33 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(body.customer_comment).toBe('Allergic to nuts')
   })
 
+  // landr-n6ii3: the comment is now editable on the review screen too, not
+  // just echoed read-only — App.tsx wires onCustomerCommentChange straight
+  // through to bookingDraft.customerComment.
+  it('renders the comment field pre-filled and editable, reporting edits via onCustomerCommentChange', async () => {
+    const onCustomerCommentChange = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        customerComment="Please make sure the room has a bathtub."
+        onCustomerCommentChange={onCustomerCommentChange}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const field = screen.getByTestId('customer-comment')
+    expect(field).toHaveValue('Please make sure the room has a bathtub.')
+    fireEvent.change(field, { target: { value: 'Actually, no bathtub needed' } })
+    expect(onCustomerCommentChange).toHaveBeenCalledWith(
+      'Actually, no bathtub needed',
+    )
+  })
+
   it('forwards per-participant phone on submit (landr-zaan)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockResolvedValue({

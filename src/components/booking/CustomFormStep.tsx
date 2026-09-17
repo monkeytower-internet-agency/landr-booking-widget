@@ -42,6 +42,7 @@ import type {
   FormResponseEntry,
   ProductFlowResponse,
 } from '@/api/flowTypes'
+import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
 import {
@@ -103,6 +104,13 @@ export interface CustomFormStepProps {
   participantLanguages?: ParticipantLanguageMap
   /** Party size the assignment is keyed against (participants + companions). */
   partyCount?: number
+  /**
+   * landr-n6ii3: current value of the "Anything we should know?" comment,
+   * read straight off App.tsx's bookingDraft.customerComment. Optional
+   * (defaults to '' / a no-op) so existing tests need no change.
+   */
+  customerComment?: string
+  onCustomerCommentChange?: (comment: string) => void
   onBack: () => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
@@ -595,6 +603,8 @@ export function CustomFormStep({
   flow,
   participantLanguages,
   partyCount = 0,
+  customerComment = '',
+  onCustomerCommentChange = () => {},
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -800,6 +810,13 @@ export function CustomFormStep({
             )
           })
         ) : null}
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Continue. */}
+        <CustomerCommentField
+          value={customerComment}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button

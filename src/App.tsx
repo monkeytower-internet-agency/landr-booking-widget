@@ -1815,6 +1815,13 @@ function BookingFlowApp() {
                 ),
               }
             })()}
+            // landr-n6ii3: editable "Anything we should know?" field on
+            // every step from details onward — reads/writes the draft
+            // directly, live, on every keystroke.
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             // landr-87n9.2: live-lift the room + add-on selection so the
             // sidebar's at-hotel total updates as the customer picks rooms.
             // Sets the `touched` sentinel so App prefers live values over the
@@ -1887,6 +1894,13 @@ function BookingFlowApp() {
             // step re-mounts with the customer's choices restored
             // instead of resetting to the min_qty seed.
             initialAddons={step.addons}
+            // landr-n6ii3: editable "Anything we should know?" field on
+            // every step from details onward — reads/writes the draft
+            // directly, live, on every keystroke.
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             onBack={() =>
               // landr-b3g5: carry booker + participants back so the
               // DetailsStep re-mount restores them.
@@ -1927,6 +1941,13 @@ function BookingFlowApp() {
             // landr-yf0n: thread the prior pickup choice back so the
             // radio re-mounts with it already selected on back-nav.
             initialLocationId={step.pickupLocationId}
+            // landr-n6ii3: editable "Anything we should know?" field on
+            // every step from details onward — reads/writes the draft
+            // directly, live, on every keystroke.
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             onBack={() => {
               const offering = step.product.hotel_offering ?? 'none'
               if (step.product.product_kind === 'service' && offering !== 'none') {
@@ -2072,6 +2093,13 @@ function BookingFlowApp() {
                 ),
               }
             })()}
+            // landr-n6ii3: editable "Anything we should know?" field on
+            // every step from details onward — reads/writes the draft
+            // directly, live, on every keystroke.
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             onBack={() =>
               setStep(
                 stepBeforeLanguages({
@@ -2164,6 +2192,13 @@ function BookingFlowApp() {
                 partyCount: step.participants.length + step.companions.length,
               }
             })()}
+            // landr-n6ii3: editable "Anything we should know?" field on
+            // every step from details onward — reads/writes the draft
+            // directly, live, on every keystroke.
+            customerComment={bookingDraft.customerComment ?? ''}
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             onBack={() =>
               // landr-71kz.10: Back walks the custom-form chain (the prior
               // custom form, else the hotel-aware non-custom walk) — threading
@@ -2262,6 +2297,12 @@ function BookingFlowApp() {
             // participantLanguages below — DetailsStep set it several steps
             // back and no intermediate step needs to re-display or edit it.
             customerComment={bookingDraft.customerComment}
+            // landr-n6ii3: editable right here on the review screen too —
+            // writes straight through to the draft, live, on every
+            // keystroke, same as every other downstream step.
+            onCustomerCommentChange={(comment) =>
+              mergeDraft({ customerComment: comment || null })
+            }
             // landr-ffyg.2: thread the shared-double marker into the submit
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
