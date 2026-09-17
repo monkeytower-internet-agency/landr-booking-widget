@@ -2102,6 +2102,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/hostnames/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Hostname
+         * @description Resolve a bound operator hostname to its operator slug + branding.
+         */
+        get: operations["resolve_hostname"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/operators/{slug}/calendar.ics": {
         parameters: {
             query?: never;
@@ -4214,6 +4234,74 @@ export interface paths {
          *     affordance at THIS route is what landr-g71ua was filed about.
          */
         post: operations["run_operator_holded_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hostname
+         * @description Current hostname + verification status, or ``configured: false``.
+         */
+        get: operations["get_hostname"];
+        /**
+         * Put Hostname
+         * @description Claim (or replace) this operator's hostname for ``purpose``.
+         *
+         *     Replacing a hostname that was already bound to Cloudflare detaches the old
+         *     one first — leaving it attached would keep serving the operator's page on
+         *     an address they have just told us they no longer want, and would hold a
+         *     domain slot on the shared Pages project forever.
+         *
+         *     The new row always starts at ``unverified`` with the CNAME instruction
+         *     stored, whatever the previous state was. Verification is the worker's job.
+         */
+        put: operations["put_hostname"];
+        post?: never;
+        /**
+         * Delete Hostname
+         * @description Release the hostname, detaching it from Cloudflare Pages when bound.
+         *
+         *     Deleting an absent row is a 204, not a 404: the caller asked for a state
+         *     ("this operator has no custom hostname") that is already true, and the
+         *     dashboard's delete button should not error on a double-click.
+         */
+        delete: operations["delete_hostname"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Verify
+         * @description Queue this row for the next worker pass ("Check now" in the dashboard).
+         *
+         *     This endpoint does NOT talk to DNS or Cloudflare itself. Verification is
+         *     slow (a DNS lookup plus up to two Cloudflare calls) and must not run inside
+         *     a request the dashboard is waiting on; more importantly, keeping one code
+         *     path to Cloudflare means the retry/backoff/error-recording rules live in
+         *     exactly one place. All this does is clear ``last_checked_at`` and reset a
+         *     ``failed`` row to ``unverified`` so the worker picks it up immediately
+         *     instead of waiting out a backoff window.
+         */
+        post: operations["request_verify"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9029,6 +9117,69 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HostnameBranding */
+        HostnameBranding: {
+            /** Logo Url */
+            logo_url?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Primary Color */
+            primary_color?: string | null;
+        };
+        /** HostnameIn */
+        HostnameIn: {
+            /**
+             * Hostname
+             * @description The domain the operator owns, e.g. today.example.com.
+             */
+            hostname: string;
+        };
+        /** HostnameResolution */
+        HostnameResolution: {
+            branding: components["schemas"]["HostnameBranding"];
+            /** Operator Slug */
+            operator_slug: string;
+            /** Purpose */
+            purpose: string;
+        };
+        /**
+         * HostnameStatus
+         * @description GET/PUT response. ``configured`` is false when no row exists yet.
+         */
+        HostnameStatus: {
+            /**
+             * Cname Target
+             * @description The *.pages.dev host to CNAME to, for this tier.
+             */
+            cname_target: string;
+            /**
+             * Configured
+             * @description True iff an operator_hostnames row exists.
+             */
+            configured: boolean;
+            /**
+             * Dns Records
+             * @description Records the operator must publish, as [{type,name,value}].
+             */
+            dns_records?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Hostname */
+            hostname?: string | null;
+            /** Last Checked At */
+            last_checked_at?: string | null;
+            /** Last Error */
+            last_error?: string | null;
+            /** Purpose */
+            purpose: string;
+            /**
+             * Verification Status
+             * @description unverified | pending | verified | failed.
+             */
+            verification_status?: string | null;
+            /** Verified At */
+            verified_at?: string | null;
         };
         /** HotelIn */
         HotelIn: {
@@ -15707,6 +15858,38 @@ export interface operations {
             };
         };
     };
+    resolve_hostname: {
+        parameters: {
+            query: {
+                /** @description Hostname to resolve. */
+                host: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameResolution"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_operator_calendar_ics: {
         parameters: {
             query: {
@@ -19328,6 +19511,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostnameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_hostname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameStatus"];
                 };
             };
             /** @description Validation Error */
