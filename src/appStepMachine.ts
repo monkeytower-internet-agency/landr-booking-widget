@@ -85,6 +85,16 @@ export interface BookingDraft {
   customerDeclarations?: Record<string, true> | null
   customerLanguages?: string[] | null
   customerOtherLanguages?: string | null
+  /**
+   * landr-de6ej: optional free-text comment collected on DetailsStep's
+   * "Anything we should know?" field. Unlike booker/participants/companions
+   * it is NOT threaded through every intermediate Step variant — no
+   * downstream step displays or edits it, so (like participantLanguages)
+   * it is read straight off the draft at the 'fill-form' render site.
+   * Persists across reloads via bookingPersistence.ts like every other
+   * draft slice (unlike memberPerkOtp, which deliberately does not).
+   */
+  customerComment?: string | null
   // landr-71kz.3: per-custom-form answers, keyed by form key → (field key →
   // value). PLUMBING ONLY for this child — the BookingDraft carries the slot
   // and the persistence layer round-trips it, but the CustomFormStep that reads

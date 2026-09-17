@@ -139,6 +139,17 @@ interface Props {
    */
   customerOtherLanguages?: string | null
   /**
+   * landr-de6ej: optional free-text comment collected on DetailsStep's
+   * "Anything we should know?" field, read off the persistent draft (see
+   * App.tsx's bookingDraft.customerComment). Trimmed and sent as
+   * `customer_comment` when non-empty; omitted entirely otherwise so a
+   * booking with no comment stays byte-identical to the pre-landr-de6ej
+   * submit body. A non-empty value forces the API's approval evaluator
+   * into requires_general_approval — see approval.py's synthetic
+   * customer_comment rule.
+   */
+  customerComment?: string | null
+  /**
    * landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
    * guide-language assignment (memberIndex → ISO 639-1 code), captured by
    * the LanguageStep's assignment board. Unified index space, identical to
@@ -526,6 +537,7 @@ export function BookingForm({
   customerDeclarations,
   customerLanguages,
   customerOtherLanguages,
+  customerComment,
   participantLanguages = {},
   isSharedDouble = false,
   roomAssignment,
@@ -962,6 +974,12 @@ export function BookingForm({
         // price, never a 4xx), so trimming here is purely payload hygiene.
         ...(memberPerkOtp && memberPerkOtp.trim() !== ''
           ? { member_perk_otp: memberPerkOtp.trim() }
+          : {}),
+        // landr-de6ej: only sent when the customer actually typed a
+        // comment — omitted (not even an empty string) so a booking with
+        // none entered is byte-identical to the pre-landr-de6ej submit body.
+        ...(customerComment && customerComment.trim() !== ''
+          ? { customer_comment: customerComment.trim() }
           : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and

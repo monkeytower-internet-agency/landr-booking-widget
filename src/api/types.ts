@@ -885,6 +885,16 @@ export interface SubmitBookingBody {
    */
   customer_other_languages?: string | null
   /**
+   * landr-de6ej: optional free-text comment the customer left on the last
+   * step before submit. Trimmed, capped at 2000 chars. A non-empty value
+   * forces the API's approval evaluator into requires_general_approval
+   * regardless of every other rule — see PublicSubmitBookingIn.customer_comment
+   * on the API. Omitted (not even an empty string) when the customer left
+   * the field blank, so a booking with no comment stays byte-identical to
+   * the pre-landr-de6ej submit body.
+   */
+  customer_comment?: string | null
+  /**
    * landr-ffyg.1 / landr-ffyg.2: "second pilot in a shared double room"
    * marker. When true the booker shares another pilot's double room and
    * the submit MUST NOT include any hotel_room product line (the room is
