@@ -49,16 +49,31 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
             }
             className={cn(
               'inline-flex items-center gap-1.5 bg-muted px-3 py-1 text-sm text-muted-foreground',
-              tokens.chipRadius,
+              // landr-pv2r1 (E4): the languages fact can wrap onto several
+              // lines at 360px; a fully rounded pill turns into a lozenge
+              // there, so a `rounded-full` variant drops to `rounded-lg` for
+              // this fact (alpine's square radius is kept as-is).
+              languages.length > 0 && tokens.chipRadius === 'rounded-full'
+                ? 'rounded-lg'
+                : tokens.chipRadius,
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             {languages.length > 0 ? (
-              <span data-testid="product-fact-languages">
+              // landr-pv2r1 (E4): at phone width the list wraps. Each language
+              // is a nowrap unit so a flag never ends one line with its name
+              // on the next; the separator dot sits outside the units so the
+              // wrap happens between languages.
+              <span
+                data-testid="product-fact-languages"
+                className="flex min-w-0 flex-wrap items-center gap-x-1.5"
+              >
                 {languages.map((code, i) => (
-                  <span key={code}>
-                    {i > 0 ? ' · ' : null}
-                    <span aria-hidden>{languageFlag(code)}</span> {languageName(code)}
+                  <span key={code} className="inline-flex items-center gap-x-1.5">
+                    {i > 0 ? <span aria-hidden>{' · '}</span> : null}
+                    <span data-testid="product-fact-language" className="whitespace-nowrap">
+                      <span aria-hidden>{languageFlag(code)}</span> {languageName(code)}
+                    </span>
                   </span>
                 ))}
               </span>

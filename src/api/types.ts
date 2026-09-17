@@ -294,13 +294,20 @@ export interface Product {
    * ISO 639-1 guide languages OFFERED FOR THIS PRODUCT — replaces the old
    * operator-level `OperatorSettings.offered_languages` as the source the
    * language-assignment board (and the mirrored `language` custom-form
-   * field) draws from. Every party member on a booking of this product must
-   * be assigned to one of these (landr-r6e5x.4's board, narrowed here to be
-   * per-product instead of per-operator).
+   * field) draws from. When the set is restricted, every party member on a
+   * booking of this product must be assigned to one of these
+   * (landr-r6e5x.4's board, narrowed here to be per-product instead of
+   * per-operator).
    *
-   * Non-null with >=1 lower-case 2-letter codes for product_kind='service';
-   * null for every other kind (hotel rooms, add-ons, subscriptions never
-   * collect a guide language). Optional here only for the rolling-deploy
+   * TRI-STATE (landr-pv2r1 E1):
+   *   - `[]` — service product offered in ANY language. Valid, not junk:
+   *     never normalise it to the default set. The API treats participant
+   *     languages as optional (E2), the widget skips the language step (E3)
+   *     and shows no languages chip/fact (E4).
+   *   - >=1 lower-case 2-letter codes — service product restricted to that
+   *     set; the step runs and every member is assigned.
+   *   - null — every non-service kind (hotel rooms, add-ons, subscriptions
+   *     never collect a guide language). Optional here only for the rolling-deploy
    * window — a widget build ahead of the API, or pointed at a tier that
    * predates landr-p68d2.1, sees the field absent and falls back straight
    * to the platform default (see App.tsx's offeredLanguagesForProduct and
