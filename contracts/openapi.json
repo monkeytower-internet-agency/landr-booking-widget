@@ -1349,6 +1349,362 @@
         "title": "BookingSessionOut",
         "type": "object"
       },
+      "BookingSummary": {
+        "additionalProperties": true,
+        "description": "What was booked \u2014 landr-nva1a.1. Built by\n``booking_emails.build_booking_summary``, the SAME builder behind the\nbooking emails' context, so the success screen and the confirmation email\nagree. Money fields are bare decimal strings. ``participants`` carries\nthe names from THIS request's payload only (never stored contact rows),\nand no contact emails/phones. ``extra=\"allow\"``: the\nsibling ticket landr-nva1a.2 adds ``post_booking``.",
+        "properties": {
+          "amount_due": {
+            "title": "Amount Due",
+            "type": "string"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_reference": {
+            "title": "Booking Reference",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "dates": {
+            "$ref": "#/components/schemas/BookingSummaryDates"
+          },
+          "grand_total": {
+            "title": "Grand Total",
+            "type": "string"
+          },
+          "hotel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingSummaryHotel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hotel_total": {
+            "title": "Hotel Total",
+            "type": "string"
+          },
+          "line_items": {
+            "items": {
+              "$ref": "#/components/schemas/EstimateLineItem"
+            },
+            "title": "Line Items",
+            "type": "array"
+          },
+          "multi_day_savings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MultiDaySavingsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operator_name": {
+            "title": "Operator Name",
+            "type": "string"
+          },
+          "operator_total": {
+            "title": "Operator Total",
+            "type": "string"
+          },
+          "participant_count": {
+            "title": "Participant Count",
+            "type": "integer"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "pickup_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pickup Location"
+          },
+          "pickup_locations": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryPickup"
+            },
+            "title": "Pickup Locations",
+            "type": "array"
+          },
+          "price_overridden": {
+            "default": false,
+            "title": "Price Overridden",
+            "type": "boolean"
+          },
+          "product_label": {
+            "title": "Product Label",
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryProduct"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "savings": {
+            "items": {
+              "$ref": "#/components/schemas/SavingLineOut"
+            },
+            "title": "Savings",
+            "type": "array"
+          },
+          "savings_total": {
+            "title": "Savings Total",
+            "type": "string"
+          },
+          "subtotal_before_savings": {
+            "title": "Subtotal Before Savings",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_reference",
+          "operator_name",
+          "product_label",
+          "dates",
+          "participant_count",
+          "operator_total",
+          "hotel_total",
+          "grand_total",
+          "currency",
+          "savings_total",
+          "subtotal_before_savings",
+          "amount_due"
+        ],
+        "title": "BookingSummary",
+        "type": "object"
+      },
+      "BookingSummaryDates": {
+        "additionalProperties": true,
+        "description": "Activity days (hotel nights excluded). ``label`` is the localized\nhuman form with consecutive runs folded, e.g. ``\"14\u201316 Sep 2026\"``.",
+        "properties": {
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          }
+        },
+        "title": "BookingSummaryDates",
+        "type": "object"
+      },
+      "BookingSummaryHotel": {
+        "additionalProperties": true,
+        "properties": {
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryRoom"
+            },
+            "title": "Rooms",
+            "type": "array"
+          },
+          "stay_window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingSummaryStayWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "title": "Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "BookingSummaryHotel",
+        "type": "object"
+      },
+      "BookingSummaryParticipant": {
+        "additionalProperties": true,
+        "properties": {
+          "is_guiding": {
+            "default": true,
+            "title": "Is Guiding",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BookingSummaryParticipant",
+        "type": "object"
+      },
+      "BookingSummaryPickup": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "BookingSummaryPickup",
+        "type": "object"
+      },
+      "BookingSummaryProduct": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "selected_days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product_id",
+          "label",
+          "qty"
+        ],
+        "title": "BookingSummaryProduct",
+        "type": "object"
+      },
+      "BookingSummaryRoom": {
+        "additionalProperties": true,
+        "properties": {
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummaryRoomAddon"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "qty"
+        ],
+        "title": "BookingSummaryRoom",
+        "type": "object"
+      },
+      "BookingSummaryRoomAddon": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label",
+          "qty"
+        ],
+        "title": "BookingSummaryRoomAddon",
+        "type": "object"
+      },
+      "BookingSummaryStayWindow": {
+        "additionalProperties": true,
+        "properties": {
+          "check_in": {
+            "title": "Check In",
+            "type": "string"
+          },
+          "check_out": {
+            "title": "Check Out",
+            "type": "string"
+          },
+          "nights": {
+            "title": "Nights",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check_in",
+          "check_out",
+          "nights"
+        ],
+        "title": "BookingSummaryStayWindow",
+        "type": "object"
+      },
       "BriefingDayIn": {
         "description": "PUT body for one day card \u2014 the operator's nightly update.",
         "properties": {
@@ -3931,6 +4287,18 @@
             "title": "Addon Lines",
             "type": "array"
           },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
           "participants_count": {
             "default": 1,
             "minimum": 1.0,
@@ -3953,6 +4321,17 @@
         "additionalProperties": true,
         "description": "Response of POST \u2026/products/{id}/estimate (landr-xbqh). Mirrors the\nwidget's ``EstimateResponse`` TypeScript interface (src/api/types.ts)\nand the dashboard's ``SimulateEstimateResponse``\n(src/lib/pricing-simulator.ts) field-for-field.",
         "properties": {
+          "amount_due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Due"
+          },
           "applied_rules": {
             "items": {
               "$ref": "#/components/schemas/EstimateAppliedRule"
@@ -3979,9 +4358,55 @@
             "title": "Line Items",
             "type": "array"
           },
+          "multi_day_savings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MultiDaySavingsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "operator_total": {
             "title": "Operator Total",
             "type": "string"
+          },
+          "savings": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SavingLineOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings"
+          },
+          "savings_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Total"
+          },
+          "subtotal_before_savings": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtotal Before Savings"
           },
           "un_priceable": {
             "default": false,
@@ -6694,6 +7119,31 @@
         "title": "MessageResponse",
         "type": "object"
       },
+      "MultiDaySavingsOut": {
+        "additionalProperties": true,
+        "description": "Congrats-card payload (landr-nva1a.1): ``days`` = longest\nconsecutive run (streak pricing) or total priced days (total-days\npricing); ``amount`` = the summed multi-day saving.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "consecutive": {
+            "default": false,
+            "title": "Consecutive",
+            "type": "boolean"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "amount"
+        ],
+        "title": "MultiDaySavingsOut",
+        "type": "object"
+      },
       "NoShowIn": {
         "properties": {
           "charge_cancellation_fee": {
@@ -9233,6 +9683,17 @@
         "additionalProperties": true,
         "description": "Response of GET .../pricing-breakdown.\n\nSame field names as ``EstimateResponse`` (public_operators.py) plus\n``has_hotel`` \u2014 the confirmation email's own context key,\n``booking_emails._build_context`` sets it the same way (both call\n``booking_line_items()``).",
         "properties": {
+          "amount_due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Due"
+          },
           "currency": {
             "title": "Currency",
             "type": "string"
@@ -9256,9 +9717,55 @@
             "title": "Line Items",
             "type": "array"
           },
+          "multi_day_savings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MultiDaySavingsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "operator_total": {
             "title": "Operator Total",
             "type": "string"
+          },
+          "savings": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SavingLineOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings"
+          },
+          "savings_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Total"
+          },
+          "subtotal_before_savings": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtotal Before Savings"
           }
         },
         "required": [
@@ -12205,6 +12712,31 @@
         "title": "SavedViewPatch",
         "type": "object"
       },
+      "SavingLineOut": {
+        "additionalProperties": true,
+        "description": "One \"\u2212 <label>  <amount>\" row of a customer-facing price breakdown\n(landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is\n``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a\npositive decimal string. Shared by the estimate, the staff pricing\nbreakdown, and the submit response's ``summary``.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "amount"
+        ],
+        "title": "SavingLineOut",
+        "type": "object"
+      },
       "SeasonPlanIn": {
         "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
         "properties": {
@@ -13592,6 +14124,16 @@
               }
             ],
             "title": "Stage Code"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "token": {
             "anyOf": [

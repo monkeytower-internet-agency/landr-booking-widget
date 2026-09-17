@@ -7642,6 +7642,159 @@ export interface components {
             staff_session: string;
         };
         /**
+         * BookingSummary
+         * @description What was booked — landr-nva1a.1. Built by
+         *     ``booking_emails.build_booking_summary``, the SAME builder behind the
+         *     booking emails' context, so the success screen and the confirmation email
+         *     agree. Money fields are bare decimal strings. ``participants`` carries
+         *     the names from THIS request's payload only (never stored contact rows),
+         *     and no contact emails/phones. ``extra="allow"``: the
+         *     sibling ticket landr-nva1a.2 adds ``post_booking``.
+         */
+        BookingSummary: {
+            /** Amount Due */
+            amount_due: string;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Reference */
+            booking_reference: string;
+            /** Currency */
+            currency: string;
+            dates: components["schemas"]["BookingSummaryDates"];
+            /** Grand Total */
+            grand_total: string;
+            hotel?: components["schemas"]["BookingSummaryHotel"] | null;
+            /** Hotel Total */
+            hotel_total: string;
+            /** Line Items */
+            line_items?: components["schemas"]["EstimateLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** Operator Name */
+            operator_name: string;
+            /** Operator Total */
+            operator_total: string;
+            /** Participant Count */
+            participant_count: number;
+            /** Participants */
+            participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Pickup Location */
+            pickup_location?: string | null;
+            /** Pickup Locations */
+            pickup_locations?: components["schemas"]["BookingSummaryPickup"][];
+            /**
+             * Price Overridden
+             * @default false
+             */
+            price_overridden: boolean;
+            /** Product Label */
+            product_label: string;
+            /** Products */
+            products?: components["schemas"]["BookingSummaryProduct"][];
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][];
+            /** Savings Total */
+            savings_total: string;
+            /** Subtotal Before Savings */
+            subtotal_before_savings: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BookingSummaryDates
+         * @description Activity days (hotel nights excluded). ``label`` is the localized
+         *     human form with consecutive runs folded, e.g. ``"14–16 Sep 2026"``.
+         */
+        BookingSummaryDates: {
+            /** Days */
+            days?: string[];
+            /** End */
+            end?: string | null;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Start */
+            start?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryHotel */
+        BookingSummaryHotel: {
+            /** Rooms */
+            rooms?: components["schemas"]["BookingSummaryRoom"][];
+            stay_window?: components["schemas"]["BookingSummaryStayWindow"] | null;
+            /** Total */
+            total: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryParticipant */
+        BookingSummaryParticipant: {
+            /**
+             * Is Guiding
+             * @default true
+             */
+            is_guiding: boolean;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryPickup */
+        BookingSummaryPickup: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryProduct */
+        BookingSummaryProduct: {
+            /** Label */
+            label: string;
+            /** Product Id */
+            product_id: string;
+            /** Qty */
+            qty: number;
+            /** Selected Days */
+            selected_days?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryRoom */
+        BookingSummaryRoom: {
+            /** Addons */
+            addons?: components["schemas"]["BookingSummaryRoomAddon"][];
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryRoomAddon */
+        BookingSummaryRoomAddon: {
+            /** Label */
+            label: string;
+            /** Qty */
+            qty: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** BookingSummaryStayWindow */
+        BookingSummaryStayWindow: {
+            /** Check In */
+            check_in: string;
+            /** Check Out */
+            check_out: string;
+            /** Nights */
+            nights: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * BriefingDayIn
          * @description PUT body for one day card — the operator's nightly update.
          */
@@ -8531,6 +8684,8 @@ export interface components {
         EstimateRequest: {
             /** Addon Lines */
             addon_lines?: components["schemas"]["EstimateAddonLineIn"][];
+            /** Locale */
+            locale?: string | null;
             /**
              * Participants Count
              * @default 1
@@ -8547,6 +8702,8 @@ export interface components {
          *     (src/lib/pricing-simulator.ts) field-for-field.
          */
         EstimateResponse: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Applied Rules */
             applied_rules?: components["schemas"]["EstimateAppliedRule"][];
             /** Currency */
@@ -8557,8 +8714,15 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
             /**
              * Un Priceable
              * @default false
@@ -9416,6 +9580,25 @@ export interface components {
             /** Sent At */
             sent_at: string;
         };
+        /**
+         * MultiDaySavingsOut
+         * @description Congrats-card payload (landr-nva1a.1): ``days`` = longest
+         *     consecutive run (streak pricing) or total priced days (total-days
+         *     pricing); ``amount`` = the summed multi-day saving.
+         */
+        MultiDaySavingsOut: {
+            /** Amount */
+            amount: string;
+            /**
+             * Consecutive
+             * @default false
+             */
+            consecutive: boolean;
+            /** Days */
+            days: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -10226,6 +10409,8 @@ export interface components {
          *     ``booking_line_items()``).
          */
         PricingBreakdownResponse: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Currency */
             currency: string;
             /** Grand Total */
@@ -10236,8 +10421,15 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["PricingBreakdownLineItem"][];
+            multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Total */
             operator_total: string;
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -11262,6 +11454,24 @@ export interface components {
             visibility?: ("personal" | "shared") | null;
         };
         /**
+         * SavingLineOut
+         * @description One "− <label>  <amount>" row of a customer-facing price breakdown
+         *     (landr-nva1a.1, see ``app/services/booking_savings.py``). ``kind`` is
+         *     ``multi_day`` | ``voucher`` | ``perk`` | ``discount``; ``amount`` is a
+         *     positive decimal string. Shared by the estimate, the staff pricing
+         *     breakdown, and the submit response's ``summary``.
+         */
+        SavingLineOut: {
+            /** Amount */
+            amount: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * SeasonPlanIn
          * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
          *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
@@ -11806,6 +12016,7 @@ export interface components {
             stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
+            summary?: components["schemas"]["BookingSummary"] | null;
             /** Token */
             token?: string | null;
         } & {
