@@ -24,12 +24,14 @@ import { ProductArt } from '@/components/booking/art/ProductArt'
 import {
   hasThumb,
   productKindBadge,
+  productLanguagesChip,
   productMetaChip,
   productName,
   productPriceLabel,
   productShortDescription,
   thumbAlt,
 } from './productCardData'
+import { LanguagesChip } from './LanguagesChip'
 
 interface Props {
   product: Product
@@ -57,6 +59,8 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
   const description = productShortDescription(product, locale)
   const meta = productMetaChip(product, showDateModel, locale)
   const kind = productKindBadge(product, locale)
+  // landr-pv2r1: guide-languages chip (null for any-language / unset).
+  const languages = productLanguagesChip(product)
   const price = productPriceLabel(product)
   const isDraft = product.is_publicly_listed === false
 
@@ -120,10 +124,13 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
           </p>
         ) : null}
 
-        {meta || kind ? (
+        {meta || kind || languages ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {meta ? <Chip radius={tokens.chipRadius}>{meta}</Chip> : null}
             {kind ? <Chip radius={tokens.chipRadius}>{kind}</Chip> : null}
+            {languages ? (
+              <LanguagesChip chip={languages} radius={tokens.chipRadius} />
+            ) : null}
           </div>
         ) : null}
 

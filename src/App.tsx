@@ -40,7 +40,10 @@ import {
   toIndexKeyedOrUndefined,
 } from '@/components/booking/partyIdentity'
 import { LanguageStep } from '@/components/booking/LanguageStep'
-import { normaliseOfferedLanguages } from '@/components/booking/participantLanguages'
+import {
+  normaliseOfferedLanguages,
+  productAcceptsAnyLanguage,
+} from '@/components/booking/participantLanguages'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
 import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutStep'
@@ -590,15 +593,34 @@ function BookingFlowApp() {
   // widget books exactly one main service product per booking (D4), so
   // keying this off `step.product` (never an add-on) already matches.
   //
-  // The step runs whenever the resolved list is non-empty, which in practice
-  // is always: normaliseOfferedLanguages falls back to the platform default
-  // when the product predates the rollout. That is deliberate rather than
-  // incidental — the API validates `participants[].language` on EVERY
-  // public submit, so a product that skipped this step would dead-end on a
-  // 422 with nothing the customer could do.
+  // The step runs whenever the resolved list is non-empty. landr-pv2r1
+  // (epic decision E3): an EMPTY `guide_languages` array marks an
+  // "any language" product (e.g. a tandem flight) — the resolved list is
+  // then `[]`, so every `.length > 0` gate below skips the step and the API
+  // (landr-pv2r1.1, tri-state resolver) treats participant languages as
+  // optional for it. NULL / absent is NOT "any": normaliseOfferedLanguages
+  // still falls back to the platform default there, because a widget can
+  // run ahead of the API (rolling deploy) and an older API validates
+  // `participants[].language` on every submit — skipping the step for such a
+  // product would dead-end on a 422 with nothing the customer could do.
   const offeredLanguagesForProduct = useCallback(
-    (product: Product) => normaliseOfferedLanguages(product.guide_languages),
+    (product: Product) =>
+      productAcceptsAnyLanguage(product.guide_languages)
+        ? []
+        : normaliseOfferedLanguages(product.guide_languages),
     [],
+  )
+  // landr-pv2r1 (E3): the per-member language map the downstream seams
+  // (custom form, review/submit) may use for THIS product — always empty for
+  // an any-language product, so an assignment left in the draft by an
+  // earlier restricted product can never leak into the submit body
+  // (participants[].language / derived customer_languages).
+  const draftLanguagesForProduct = useCallback(
+    (product: Product): BookingDraft['participantLanguages'] =>
+      productAcceptsAnyLanguage(product.guide_languages)
+        ? {}
+        : bookingDraft.participantLanguages,
+    [bookingDraft.participantLanguages],
   )
 
   useEffect(() => {
@@ -907,10 +929,31 @@ function BookingFlowApp() {
     participants: ParticipantDetails[],
     // landr-87n9.3: non-guiding companions collected by DetailsStep.
     companions: CompanionDetails[],
+    // landr-de6ej: trimmed comment text ('' when left blank).
+    comment: string,
   ) => {
     // landr-nmed: commit the just-entered details into the persistent draft so
     // they survive a later breadcrumb jump back to Dates / the product crumb.
-    mergeDraft({ booker, participants, companions })
+    // landr-de6ej: comment folds '' -> null (mergeDraftPatch only skips
+    // `undefined`, not ''), matching every other nullable draft slice.
+    mergeDraft({
+      booker,
+      participants,
+      companions,
+      customerComment: comment || null,
+    })
+    // landr-pv2r1 (E3): an any-language product never shows the language
+    // board, so drop any assignment an earlier restricted product left in
+    // the draft — it could only mislead, and would silently re-appear if the
+    // customer went back to that product. (Done here, in the handler, rather
+    // than in an effect: react-hooks/set-state-in-effect.)
+    if (productAcceptsAnyLanguage(product.guide_languages)) {
+      setBookingDraft((prev) =>
+        prev.participantLanguages
+          ? { ...prev, participantLanguages: undefined }
+          : prev,
+      )
+    }
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -1660,6 +1703,10 @@ function BookingFlowApp() {
             // survives the remount on its own regardless of how step changed.
             initialMemberPerkOtp={memberPerkOtp}
             onMemberPerkOtpChange={setMemberPerkOtp}
+            // landr-de6ej: restore the comment on Back / reload — sourced
+            // from the persistent draft (it round-trips through
+            // sessionStorage), unlike memberPerkOtp above.
+            initialCustomerComment={bookingDraft.customerComment}
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -1669,13 +1716,14 @@ function BookingFlowApp() {
                 selection: step.selection,
               })
             }
-            onConfirm={(booker, participants, companions) =>
+            onConfirm={(booker, participants, companions, comment) =>
               afterDetails(
                 step.product,
                 step.selection,
                 booker,
                 participants,
                 companions,
+                comment,
               )
             }
             // landr-gb2f.1: live participant count + names for the sidebar.
@@ -2109,7 +2157,8 @@ function BookingFlowApp() {
               const roster = buildPartyRoster(step.participants, step.companions)
               return {
                 participantLanguages: toIndexKeyed(
-                  bookingDraft.participantLanguages,
+                  // landr-pv2r1 (E3): `{}` for an any-language product.
+                  draftLanguagesForProduct(step.product),
                   roster,
                 ),
                 partyCount: step.participants.length + step.companions.length,
@@ -2209,6 +2258,10 @@ function BookingFlowApp() {
             customerDeclarations={step.customerDeclarations}
             customerLanguages={step.customerLanguages}
             customerOtherLanguages={step.customerOtherLanguages}
+            // landr-de6ej: read straight off the persistent draft, like
+            // participantLanguages below — DetailsStep set it several steps
+            // back and no intermediate step needs to re-display or edit it.
+            customerComment={bookingDraft.customerComment}
             // landr-ffyg.2: thread the shared-double marker into the submit
             // body. true → is_shared_double=true + no hotel_room lines +
             // hotel pickup; false/undefined → regular booking.
@@ -2239,8 +2292,10 @@ function BookingFlowApp() {
                 // step, so it rides the same roster conversion as the three
                 // maps above and reaches the submit body as each
                 // participant's / companion's `language`.
+                // landr-pv2r1 (E3): `{}` for an any-language product, so no
+                // stale assignment reaches the submit body.
                 participantLanguages: toIndexKeyed(
-                  bookingDraft.participantLanguages,
+                  draftLanguagesForProduct(step.product),
                   roster,
                 ),
               }

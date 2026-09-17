@@ -688,7 +688,10 @@ export function CustomFormStep({
   // — api PR #688 predates that move but the validation shape is unchanged),
   // not the field's static option list, so every assigned code is valid by
   // construction — both it and the field's options ultimately come from the
-  // same product-scoped set. No narrowing needed.
+  // same product-scoped set. No narrowing needed. landr-pv2r1 (E2): for an
+  // any-language product (guide_languages = []) the API validates the answer
+  // as if no set were given (static options / any code), and the board never
+  // runs, so there is nothing to mirror.
   const mirrorActive = mirrorField !== null
 
   const handleChange = useCallback((key: string, value: string | string[]) => {

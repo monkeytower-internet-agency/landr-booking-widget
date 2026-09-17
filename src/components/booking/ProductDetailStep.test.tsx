@@ -136,6 +136,48 @@ describe('ProductDetailStep', () => {
     expect(facts).not.toHaveTextContent('min')
   })
 
+  it('renders the languages fact with flag + English name and a sentence aria-label (landr-pv2r1)', () => {
+    renderStep(makeProduct({ guide_languages: ['en', 'es', 'de', 'fr'] }))
+    const facts = screen.getByTestId('product-facts')
+    expect(facts).toHaveTextContent('English')
+    expect(facts).toHaveTextContent('🇬🇧')
+    const langFact = screen.getByLabelText(
+      'Offered in English, Spanish, German and French',
+    )
+    expect(langFact).toHaveTextContent('🇬🇧 English · 🇪🇸 Spanish · 🇩🇪 German · 🇫🇷 French')
+    // the languages fact is the last chip in the row
+    const all = within(facts).getAllByTestId('product-fact')
+    expect(all[all.length - 1]).toBe(langFact)
+  })
+
+  it('keeps each flag with its name and avoids a pill radius so the languages fact wraps cleanly at phone width (landr-pv2r1)', () => {
+    renderStep(
+      makeProduct({ guide_languages: ['en', 'es', 'de', 'fr', 'it', 'nl', 'pt'] }),
+    )
+    const list = screen.getByTestId('product-fact-languages')
+    expect(list.className).toMatch(/\bflex-wrap\b/)
+    const units = within(list).getAllByTestId('product-fact-language')
+    expect(units).toHaveLength(7)
+    for (const unit of units) {
+      expect(unit.className).toMatch(/\bwhitespace-nowrap\b/)
+      // flag and name live in the same nowrap unit
+      expect(unit.textContent).toMatch(/^\S+ \p{L}+$/u)
+    }
+    const langFact = list.closest('li') as HTMLElement
+    expect(langFact.className).not.toMatch(/\brounded-full\b/)
+  })
+
+  it('keeps the square alpine radius on the languages fact (landr-pv2r1)', () => {
+    renderStep(makeProduct({ guide_languages: ['en', 'es'] }), { variant: 'alpine' })
+    const langFact = screen.getByTestId('product-fact-languages').closest('li') as HTMLElement
+    expect(langFact.className).toMatch(/\brounded-sm\b/)
+  })
+
+  it('shows no languages fact for an any-language product (landr-pv2r1)', () => {
+    renderStep(makeProduct({ guide_languages: [] }))
+    expect(screen.queryByTestId('product-fact-languages')).not.toBeInTheDocument()
+  })
+
   it('shows the "from" price and hides it when price_from is null', () => {
     const { unmount } = render(
       <VariantProvider value="summit">

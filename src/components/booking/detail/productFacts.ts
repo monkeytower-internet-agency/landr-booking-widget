@@ -21,16 +21,24 @@
  *     that carries no category yet (rolling deploy). Service products
  *     with no category still carry no kind chip — their shape is
  *     conveyed by the other facts.
+ *   - landr-pv2r1 (E4): guide_languages with ≥1 usable code → a languages
+ *     fact, ALWAYS LAST, carrying the codes (order preserved) so the
+ *     component can render flag + English name per language. An "any
+ *     language" product (`[]`), NULL and absent get no fact — the DEFAULT
+ *     fallback set is never advertised.
  */
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
+import { languageName, productDisplayLanguages } from '../participantLanguages'
 
 /** Icon keys ProductFacts.tsx maps to lucide-react icons. */
-export type FactIcon = 'duration' | 'hotel' | 'pickup' | 'kind'
+export type FactIcon = 'duration' | 'hotel' | 'pickup' | 'kind' | 'languages'
 
 export interface ProductFact {
   icon: FactIcon
   label: string
+  /** landr-pv2r1: ISO 639-1 codes, set only on the `languages` fact. */
+  languages?: string[]
 }
 
 /**
@@ -81,6 +89,15 @@ export function deriveProductFacts(product: Product, locale: string): ProductFac
     facts.push({ icon: 'kind', label: categoryLabel })
   } else if (product.product_kind !== 'service') {
     facts.push({ icon: 'kind', label: humaniseKind(product.product_kind) })
+  }
+
+  const languages = productDisplayLanguages(product.guide_languages)
+  if (languages.length > 0) {
+    facts.push({
+      icon: 'languages',
+      label: languages.map(languageName).join(' · '),
+      languages,
+    })
   }
 
   return facts
