@@ -86,13 +86,18 @@ const FULL_WINDOW: FixedDateWindow = {
   capacity_reserved: 8,
 }
 
-function renderStaff(onConfirm = vi.fn(), session = STAFF) {
+function renderStaff(
+  onConfirm = vi.fn(),
+  session = STAFF,
+  initialWindowId?: string,
+) {
   render(
     <StaffModeProvider value={session}>
       <FixedDateWindowPicker
         product={makeProduct()}
         onBack={() => {}}
         onConfirm={onConfirm}
+        initialWindowId={initialWindowId}
       />
     </StaffModeProvider>,
   )
@@ -192,5 +197,27 @@ describe('FixedDateWindowPicker — staff force-book', () => {
       expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('p-1'),
     )
     expect(mocks.getStaffFixedDateWindows).not.toHaveBeenCalled()
+  })
+
+  // landr-t869m.7: unlike SingleDatePicker's (formerly buggy) plain
+  // useState, `selectedForceReasons` here is a useMemo DERIVED from
+  // `selectedWindow` (itself resolved from `initialWindowId` once `windows`
+  // loads) — so restoring a force-booked window via Back-navigation
+  // recomputes correctly with no fix needed. This test proves that rather
+  // than assuming it.
+  it('restoring a force-booked window via initialWindowId still confirms forced + its reasons (landr-t869m.7 — verified NOT buggy here)', async () => {
+    const onConfirm = renderStaff(vi.fn(), STAFF, FULL_WINDOW.id)
+
+    await waitFor(() => expect(screen.getByText(/Aug 4, 2027/)).toBeInTheDocument())
+    // Badge appears immediately once windows resolve — no click needed to
+    // (re)confirm the force, unlike the buggy SingleDatePicker case.
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
+    expect(windowArg.id).toBe(FULL_WINDOW.id)
+    expect(forced).toBe(true)
+    expect(forcedReasons).toEqual(['capacity'])
   })
 })
