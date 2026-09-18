@@ -394,24 +394,35 @@ export function AccommodationStep({
       return
     }
     let cancelled = false
-    // landr-otml0.3: the loading flip lives INSIDE the async IIFE (not
-    // synchronously in the effect body) — same pattern as
-    // useBookingEstimate.ts, to satisfy react-hooks/set-state-in-effect.
-    void (async () => {
-      setRefLookup({ status: 'loading' })
-      try {
-        const result = await lookupBookingReference(operatorToken, refInput)
-        if (!cancelled) setRefLookup({ status: 'found', result })
-      } catch {
-        if (cancelled) return
-        // landr-otml0.3: an unknown/cancelled/foreign-operator reference and
-        // a rate-limited lookup both read the same to the customer — "we
-        // couldn't find that" — they can still book without it.
-        setRefLookup({ status: 'not_found' })
-      }
-    })()
+    // landr-otml0.3 review fix (MINOR 3): debounce 400ms after the 8th valid
+    // char before firing the lookup. The API caps this endpoint at 20/h/IP —
+    // a paste-then-edit sequence (or a fast retype after a typo) can pass
+    // through a complete-looking 8-char code more than once before the
+    // customer is actually done, and each would otherwise cost a real
+    // request. The cleanup below cancels a pending timer AND an in-flight
+    // fetch's callback the same way every other debounced fetch in this
+    // codebase does (see useBookingEstimate.ts).
+    const timer = window.setTimeout(() => {
+      // landr-otml0.3: the loading flip lives INSIDE the async IIFE (not
+      // synchronously in the effect body) — same pattern as
+      // useBookingEstimate.ts, to satisfy react-hooks/set-state-in-effect.
+      void (async () => {
+        setRefLookup({ status: 'loading' })
+        try {
+          const result = await lookupBookingReference(operatorToken, refInput)
+          if (!cancelled) setRefLookup({ status: 'found', result })
+        } catch {
+          if (cancelled) return
+          // landr-otml0.3: an unknown/cancelled/foreign-operator reference
+          // and a rate-limited lookup both read the same to the customer —
+          // "we couldn't find that" — they can still book without it.
+          setRefLookup({ status: 'not_found' })
+        }
+      })()
+    }, 400)
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
     }
   }, [refInput, operatorToken])
 
