@@ -36,6 +36,8 @@ const { mocks } = vi.hoisted(() => ({
     getProductFlow: vi.fn(),
     // landr-otml0.3: ?invite=<token> resolution.
     getInvitePrefill: vi.fn(),
+    // landr-frqgv.3: ?c=<token> contact-page re-book prefill.
+    getContactPagePrefill: vi.fn(),
   },
 }))
 
@@ -61,6 +63,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     estimateBookingPrice: mocks.estimateBookingPrice,
     getProductFlow: mocks.getProductFlow,
     getInvitePrefill: mocks.getInvitePrefill,
+    getContactPagePrefill: mocks.getContactPagePrefill,
   }
 })
 
@@ -2068,6 +2071,155 @@ describe('App', () => {
       expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
       // listProductGroups should NOT be called for a ?product= deep link
       expect(mocks.listProductGroups).not.toHaveBeenCalled()
+    })
+
+    // landr-frqgv.3 (epic landr-frqgv D1): a customer following the
+    // "re-book" CTA from their own contact page (my.landr.de/c/{token})
+    // lands on the SAME product-detail step as any other ?product= deep
+    // link — unlike ?invite=, there's no product/date jump — but with
+    // their own name/email/phone already filled in on DetailsStep.
+    it('?c= prefills the booker fields on DetailsStep without skipping any step', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=solo-lesson&c=cp-tok-1`,
+      )
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'solo-lesson',
+          name: 'Solo Lesson',
+          service_time_shape: 'single_date',
+          bookable: true,
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getContactPagePrefill.mockResolvedValue({
+        first_name: 'Anna',
+        last_name: 'Smith',
+        email: 'anna@example.com',
+        phone: '+34600111222',
+        language: 'en',
+      })
+
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      expect(mocks.getContactPagePrefill).toHaveBeenCalledWith('cp-tok-1')
+
+      // Continue from product-detail → SingleDatePicker → pick a date →
+      // Continue → DetailsStep. Same navigation as any plain product deep
+      // link — nothing about ?c= changes the step sequence.
+      fireEvent.click(
+        await screen.findByTestId('product-detail-book-cta'),
+      )
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      expect(dayButtons.length).toBeGreaterThan(0)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(/your contact details/i),
+        ).toBeInTheDocument(),
+      )
+      const value = (name: string) =>
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+          ?.value
+      await waitFor(() => expect(value('booker_first_name')).toBe('Anna'))
+      expect(value('booker_last_name')).toBe('Smith')
+      expect(value('booker_email')).toBe('anna@example.com')
+      expect(value('booker_phone')).toBe('+34600111222')
+    })
+
+    it('?c= 404 is ignored silently — the plain wizard renders unprefilled', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=solo-lesson&c=bad-token`,
+      )
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'solo-lesson',
+          name: 'Solo Lesson',
+          service_time_shape: 'single_date',
+          bookable: true,
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: today.toISOString().slice(0, 10),
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getContactPagePrefill.mockRejectedValue(
+        new HttpError(404, 'Not Found', '{"detail":{"error":"not found"}}'),
+      )
+
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      await waitFor(() =>
+        expect(mocks.getContactPagePrefill).toHaveBeenCalledWith('bad-token'),
+      )
+      fireEvent.click(
+        await screen.findByTestId('product-detail-book-cta'),
+      )
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((cell) => cell.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }),
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByText(/your contact details/i),
+        ).toBeInTheDocument(),
+      )
+      expect(
+        document.querySelector<HTMLInputElement>(
+          'input[name="booker_first_name"]',
+        )?.value,
+      ).toBe('')
     })
 
     it('?invite= deep link resolves and lands directly on Dates, prefilled with the host’s days', async () => {

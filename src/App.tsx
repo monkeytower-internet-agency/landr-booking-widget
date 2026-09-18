@@ -57,6 +57,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
+  getContactPagePrefill,
   getInvitePrefill,
   getOperatorServiceRoles,
   getOperatorSettings,
@@ -138,6 +139,7 @@ function readQueryParams() {
       showSoldOut: false,
       catalog: null as string | null,
       invite: null as string | null,
+      contactPageToken: null as string | null,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -148,6 +150,12 @@ function readQueryParams() {
     group: params.get('group'),
     // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
     invite: params.get('invite'),
+    // landr-frqgv.3: `?c=<token>` from a customer's own contact page
+    // (`my.landr.de/c/{token}`, "re-book" CTA) — resolved via GET
+    // /api/public/contact-page/{token}/prefill. Unlike `invite`, this only
+    // prefills the booker's own name/email/phone (no product jump, no
+    // locale override — the widget stays English-only).
+    contactPageToken: params.get('c'),
     // landr-7zc5.3: operator preview_token — when present the products
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
@@ -291,8 +299,16 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken, showSoldOut, catalog, invite } =
-    useMemo(() => readQueryParams(), [])
+  const {
+    token,
+    product,
+    group,
+    previewToken,
+    showSoldOut,
+    catalog,
+    invite,
+    contactPageToken,
+  } = useMemo(() => readQueryParams(), [])
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -464,6 +480,38 @@ function BookingFlowApp() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invite, token])
+  // landr-frqgv.3: resolve `?c=<token>` once, at mount — a customer
+  // re-booking from their own contact page (my.landr.de/c/{token}). Unlike
+  // `invite` above, this ONLY prefills the booker's own name/email/phone;
+  // there is no product/date to jump to and no locale override (the widget
+  // stays English-only). Any failure (bad/expired token, network error,
+  // 404) is ignored silently — the plain wizard still works exactly as if
+  // `?c=` had never been supplied, which is why there's no notice state
+  // here unlike the invite flow's `inviteNotice`.
+  useEffect(() => {
+    if (!contactPageToken) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const prefill = await getContactPagePrefill(contactPageToken)
+        if (cancelled) return
+        mergeDraft({
+          booker: {
+            first_name: prefill.first_name ?? '',
+            last_name: prefill.last_name ?? '',
+            email: prefill.email ?? '',
+            phone: prefill.phone ?? '',
+          },
+        })
+      } catch {
+        // Silently ignored by design — see comment above.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactPageToken])
   // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
   // by form_key. Each custom-form step merges its entry in on confirm.
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
