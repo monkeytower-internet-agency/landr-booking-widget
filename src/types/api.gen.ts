@@ -9017,6 +9017,8 @@ export interface components {
             part_of_day?: string | null;
             /** Participant Id */
             participant_id: string;
+            /** Participant Language Override */
+            participant_language_override?: string | null;
             /** Phone */
             phone?: string | null;
             /** Pickup Accuracy M */
