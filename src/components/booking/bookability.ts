@@ -1,4 +1,5 @@
 import type { AvailabilitySlot, HotelOffering, Product, ProductGroup } from '@/api/types'
+import type { ForceReason } from '@/lib/strings'
 
 /**
  * landr-7jgo: a product is "bookable" when the customer can actually pick a
@@ -115,4 +116,38 @@ export function isDayBookable(
     return slot.accommodation_bookable !== false
   }
   return true
+}
+
+/**
+ * landr-t869m.5: which gate(s) a staff force-book bypassed for one
+ * slot/window — capacity and/or either lead-time flag. A pick can fail more
+ * than one gate at once (e.g. sold out AND past its own lead time); callers
+ * carry every applicable reason through to the review-step banner (see
+ * `forceBookReasonMessage` in `@/lib/strings`) instead of collapsing to a
+ * single boolean, so the banner never claims "capacity will be exceeded"
+ * for an override that was actually about lead time.
+ *
+ * Always returned in this canonical order (capacity, lead_time,
+ * accommodation_lead_time) so downstream message-building never has to
+ * re-sort. `accommodation_lead_time` only appears for a 'mandatory' offering
+ * — mirrors isDayBookable's own combination rule; 'optional'/'none' never
+ * let the accommodation flag block the pick itself (see AccommodationStep's
+ * separate "hotel too late" banner for that case).
+ *
+ * `ForceReason` itself lives in `@/lib/strings` (the module that turns it
+ * into copy) rather than here, so this file — which components import —
+ * never needs to import FROM the strings module.
+ */
+export function forceReasonsFor(
+  hasCapacity: boolean,
+  slot: Pick<AvailabilitySlot, 'activity_bookable' | 'accommodation_bookable'>,
+  hotelOffering: HotelOffering | undefined,
+): ForceReason[] {
+  const reasons: ForceReason[] = []
+  if (!hasCapacity) reasons.push('capacity')
+  if (!isActivityBookable(slot)) reasons.push('lead_time')
+  if (hotelOffering === 'mandatory' && slot.accommodation_bookable === false) {
+    reasons.push('accommodation_lead_time')
+  }
+  return reasons
 }

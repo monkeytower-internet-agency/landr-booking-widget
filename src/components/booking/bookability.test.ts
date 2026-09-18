@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   accommodationBookability,
+  forceReasonsFor,
   isActivityBookable,
   isBookable,
   isCategoryFullySoldOut,
@@ -144,5 +145,64 @@ describe('isDayBookable', () => {
         'mandatory',
       ),
     ).toBe(true)
+  })
+})
+
+// landr-t869m.5: forceReasonsFor is what BookingForm's review-forced banner
+// (via forceBookReasonMessage in @/lib/strings) reads to name the ACTUAL
+// gate(s) a staff force-book bypassed, instead of always claiming capacity.
+describe('forceReasonsFor', () => {
+  it('returns [] for a normally-bookable slot with capacity', () => {
+    expect(
+      forceReasonsFor(true, { activity_bookable: true }, undefined),
+    ).toEqual([])
+  })
+
+  it('capacity only: no seats left, otherwise bookable', () => {
+    expect(
+      forceReasonsFor(false, { activity_bookable: true }, undefined),
+    ).toEqual(['capacity'])
+  })
+
+  it('lead time only: has capacity but activity_bookable is false', () => {
+    expect(
+      forceReasonsFor(true, { activity_bookable: false }, undefined),
+    ).toEqual(['lead_time'])
+  })
+
+  it('accommodation lead time only: mandatory offering, activity ok, accommodation blocked', () => {
+    expect(
+      forceReasonsFor(
+        true,
+        { activity_bookable: true, accommodation_bookable: false },
+        'mandatory',
+      ),
+    ).toEqual(['accommodation_lead_time'])
+  })
+
+  it('optional offering never contributes accommodation_lead_time (matches isDayBookable)', () => {
+    expect(
+      forceReasonsFor(
+        true,
+        { activity_bookable: true, accommodation_bookable: false },
+        'optional',
+      ),
+    ).toEqual([])
+  })
+
+  it('a pick can fail more than one gate at once, in canonical order', () => {
+    expect(
+      forceReasonsFor(
+        false,
+        { activity_bookable: false, accommodation_bookable: false },
+        'mandatory',
+      ),
+    ).toEqual(['capacity', 'lead_time', 'accommodation_lead_time'])
+  })
+
+  it('FAIL-OPEN: an absent accommodation_bookable never contributes accommodation_lead_time', () => {
+    expect(
+      forceReasonsFor(false, { activity_bookable: false }, 'mandatory'),
+    ).toEqual(['capacity', 'lead_time'])
   })
 })

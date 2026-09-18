@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
-import { isDayBookable } from '@/components/booking/bookability'
+import { forceReasonsFor } from '@/components/booking/bookability'
+import type { ForceReason } from '@/lib/strings'
 import { expandWindowDays } from './expandWindowDays'
 import { formatWindowRangeLabel } from './dateLabel'
 import { Button } from '@/components/ui/button'
@@ -28,12 +29,16 @@ interface Props {
    * `date` = start_date and capacity figures mirror the window. The booking
    * submit path then expands selected_days across the full window range.
    * landr-aoak.2: `forced` is true when the operator (staff mode) selected a
-   * FULL window via the capacity-override path (false / undefined otherwise).
+   * blocked window via the override path (false / undefined otherwise).
+   * landr-t869m.5: `forcedReasons` names WHICH gate(s) were bypassed
+   * (capacity and/or lead time) — empty/undefined whenever `forced` is
+   * false/undefined.
    */
   onConfirm: (
     slot: AvailabilitySlot,
     window: FixedDateWindow,
     forced?: boolean,
+    forcedReasons?: ForceReason[],
   ) => void
   /** Operator's expose_seats_to_customer flag (landr-e10.9). When false the
    * picker hides exact seat counts and just shows Available / Full. */
@@ -127,14 +132,16 @@ export function FixedDateWindowPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWindow])
 
-  // landr-t869m.5: true when the picked window was pushed through despite
-  // being blocked — either zero remaining capacity (landr-aoak.2's original
-  // FULL case) OR the new lead-time flags. Either way it's an operator
-  // override and drives the forced submit flag identically.
-  const selectedForced = useMemo(() => {
-    if (!selectedWindow) return false
-    const full = selectedWindow.capacity - selectedWindow.capacity_reserved <= 0
-    return full || !isDayBookable(selectedWindow, product.hotel_offering)
+  // landr-t869m.5: which gate(s) the picked window bypasses, if any — empty
+  // when the window is normally bookable. Non-empty drives the forced
+  // submit flag identically regardless of WHICH gate(s) it names; the
+  // review-step banner is what actually reads the reasons (see
+  // forceBookReasonMessage in @/lib/strings).
+  const selectedForceReasons = useMemo(() => {
+    if (!selectedWindow) return []
+    const available =
+      selectedWindow.capacity - selectedWindow.capacity_reserved > 0
+    return forceReasonsFor(available, selectedWindow, product.hotel_offering)
   }, [selectedWindow, product.hotel_offering])
 
   if (error) {
@@ -173,15 +180,22 @@ export function FixedDateWindowPicker({
                 window.capacity - window.capacity_reserved,
               )
               const isFull = available === 0
-              // landr-t869m.5: does this window still satisfy the product's
-              // lead-time preparation window? Reuses the SAME isDayBookable()
-              // rule the day pickers gate on — see bookability.ts's doc for
-              // the optional/mandatory split and the fail-open contract.
-              // Never silently dropped, unlike a fully sold-out window it
-              // stays in the list, just shown as unavailable with its own
-              // reason so the customer can see the trip exists.
-              const leadTimeBlocked = !isDayBookable(window, product.hotel_offering)
-              const blocked = isFull || leadTimeBlocked
+              // landr-t869m.5: which gate(s) does this window fail, if any?
+              // Reuses the SAME forceReasonsFor()/isDayBookable() rule the
+              // day pickers gate on — see bookability.ts's doc for the
+              // optional/mandatory split and the fail-open contract. Never
+              // silently dropped: unlike a fully sold-out window it stays in
+              // the list, just shown as unavailable with its own reason so
+              // the customer can see the trip exists.
+              const windowReasons = forceReasonsFor(
+                !isFull,
+                window,
+                product.hotel_offering,
+              )
+              const leadTimeBlocked =
+                windowReasons.includes('lead_time') ||
+                windowReasons.includes('accommodation_lead_time')
+              const blocked = windowReasons.length > 0
               const isSelected = selectedId === window.id
               return (
                 <li key={window.id}>
@@ -286,7 +300,8 @@ export function FixedDateWindowPicker({
                 onConfirm(
                   windowToSlot(selectedWindow),
                   selectedWindow,
-                  selectedForced,
+                  selectedForceReasons.length > 0,
+                  selectedForceReasons.length > 0 ? selectedForceReasons : undefined,
                 )
               }
             }}

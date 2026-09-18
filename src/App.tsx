@@ -1614,14 +1614,15 @@ function BookingFlowApp() {
                 ? step.selection.slot.availability_id
                 : undefined
             }
-            onConfirm={(_slot, window, forced) => {
+            onConfirm={(_slot, window, forced, forcedReasons) => {
               const days = expandWindowDays(window)
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays: days,
-                // landr-aoak.2: a force-booked full window marks ALL its days
-                // as forced so the submit adapter raises ignore_capacity.
-                ...(forced ? { forcedDays: days } : {}),
+                // landr-aoak.2/t869m.5: a force-booked blocked window marks
+                // ALL its days as forced (so the submit adapter raises
+                // ignore_capacity) and carries WHICH gate(s) it bypassed.
+                ...(forced ? { forcedDays: days, forcedReasons } : {}),
               })
             }}
             onLiveDaysChange={setLiveSelectionDays}
@@ -1640,12 +1641,15 @@ function BookingFlowApp() {
                 ? step.selection.selectedDays
                 : undefined
             }
-            onConfirm={(selectedDays, forcedDays) =>
+            onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays,
-                // landr-aoak.2: carry the force-booked subset (staff mode only).
-                ...(forcedDays && forcedDays.length > 0 ? { forcedDays } : {}),
+                // landr-aoak.2/t869m.5: carry the force-booked subset (staff
+                // mode only) and which gate(s) it bypassed.
+                ...(forcedDays && forcedDays.length > 0
+                  ? { forcedDays, forcedReasons }
+                  : {}),
               })
             }
             onLiveDaysChange={setLiveSelectionDays}
@@ -1664,12 +1668,15 @@ function BookingFlowApp() {
                 ? step.selection.selectedDays
                 : undefined
             }
-            onConfirm={(selectedDays, forcedDays) =>
+            onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays,
-                // landr-aoak.2: carry the force-booked day (staff mode only).
-                ...(forcedDays && forcedDays.length > 0 ? { forcedDays } : {}),
+                // landr-aoak.2/t869m.5: carry the force-booked day (staff
+                // mode only) and which gate(s) it bypassed.
+                ...(forcedDays && forcedDays.length > 0
+                  ? { forcedDays, forcedReasons }
+                  : {}),
               })
             }
             onLiveDaysChange={setLiveSelectionDays}

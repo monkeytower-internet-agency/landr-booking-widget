@@ -9,6 +9,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot } from '@/api/types'
+import type { ForceReason } from '@/lib/strings'
 import { MultiDayPicker } from './MultiDayPicker'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
 import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
@@ -66,7 +67,7 @@ function StaffHarness({
   onForced,
 }: {
   staffActive: boolean
-  onForced?: (iso: string[]) => void
+  onForced?: (iso: string[], reasons: ForceReason[]) => void
 }) {
   const [value, setValue] = useState<Date[]>([])
   return (
@@ -91,9 +92,9 @@ describe('MultiDayPicker — staff force-book', () => {
     expect(dayButton(availDay)).not.toBeDisabled()
   })
 
-  it('a zero-availability day is SELECTABLE in staff mode and reported as forced', () => {
+  it('a zero-availability day is SELECTABLE in staff mode and reported as forced (capacity reason)', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    const onForced = vi.fn<(iso: string[]) => void>()
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
     render(<StaffHarness staffActive onForced={onForced} />)
 
     // In staff mode every day is clickable (no per-day disabled predicate).
@@ -102,12 +103,14 @@ describe('MultiDayPicker — staff force-book', () => {
 
     expect(window.confirm).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
-    expect(onForced).toHaveBeenLastCalledWith([isoOf(blockedDay)])
+    // landr-t869m.5: the blocked day here has zero available_seats (not a
+    // lead-time flag) — its only reason is 'capacity'.
+    expect(onForced).toHaveBeenLastCalledWith([isoOf(blockedDay)], ['capacity'])
   })
 
   it('declining the confirm leaves the blocked day unselected', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
-    const onForced = vi.fn<(iso: string[]) => void>()
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
     render(<StaffHarness staffActive onForced={onForced} />)
     fireEvent.click(dayButton(blockedDay))
     expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
@@ -118,10 +121,10 @@ describe('MultiDayPicker — staff force-book', () => {
   })
 
   it('picking an AVAILABLE day in staff mode reports no forced days', () => {
-    const onForced = vi.fn<(iso: string[]) => void>()
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
     render(<StaffHarness staffActive onForced={onForced} />)
     fireEvent.click(dayButton(availDay))
     expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
-    expect(onForced).toHaveBeenLastCalledWith([])
+    expect(onForced).toHaveBeenLastCalledWith([], [])
   })
 })
