@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
+import { isActivityBookable } from '@/components/booking/bookability'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -74,13 +75,19 @@ export function AvailabilityPicker({
 
   const availableDates = useMemo(() => {
     if (!slots) return new Set<string>()
-    return new Set(slots.filter((s) => s.available_seats > 0).map((s) => s.date))
+    return new Set(
+      slots
+        .filter((s) => s.available_seats > 0 && isActivityBookable(s))
+        .map((s) => s.date),
+    )
   }, [slots])
 
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
     const key = isoDate(selectedDate)
-    return slots.filter((s) => s.date === key && s.available_seats > 0)
+    return slots.filter(
+      (s) => s.date === key && s.available_seats > 0 && isActivityBookable(s),
+    )
   }, [slots, selectedDate])
 
   if (error) {

@@ -331,6 +331,38 @@ export interface Product {
    * than silently drifting.
    */
   guide_languages?: components['schemas']['OperatorProduct']['guide_languages']
+  /**
+   * landr-t869m.1: preparation-window DURATION in minutes (not days — a
+   * tandem flight may need 30 minutes, a multi-day trip 7 days). 0 = no
+   * configured lead time. The widget never re-derives the gating rule from
+   * this — it exists here only so `deriveStayWindow`'s check-in offset
+   * sibling fields below have somewhere to live and so the "hotel too late"
+   * copy can quote a check-in date computed from
+   * `accommodation_checkin_offset_days`. Day-level gating is read off
+   * `AvailabilitySlot.activity_bookable`/`accommodation_bookable` instead
+   * (server-computed, never re-derived client-side). Optional for
+   * rolling-deploy / mock back-compat — absent means "not evaluated",
+   * never "zero".
+   */
+  lead_time_minutes?: number
+  /**
+   * landr-t869m.1: how many days BEFORE the first selected activity day the
+   * hotel stay starts. Default (when absent) is 1 — today's hardcoded
+   * `deriveStayWindow` behaviour (check-in = first day − 1) — so a product
+   * that hasn't been configured for this behaves byte-identically. 0 is the
+   * kayak case: the trip starts in the afternoon, so the customer can
+   * arrive the same day.
+   */
+  accommodation_checkin_offset_days?: number
+  /**
+   * landr-t869m.1: lead time (minutes) for the STAY itself, measured
+   * against the derived check-in day (`activity day − accommodation_checkin_offset_days`).
+   * Not used by the widget directly (the per-day `accommodation_bookable`
+   * flag already reflects it) — kept here for completeness with the API
+   * contract and so the "required check-in date" shown in the optional-hotel
+   * copy can be derived client-side the same way the server derives it.
+   */
+  accommodation_lead_time_minutes?: number
 }
 
 /**
@@ -640,6 +672,35 @@ export interface AvailabilitySlot {
   capacity_reserved: number
   available_seats: number
   status: string
+  /**
+   * landr-t869m.1: server-computed — does this row still satisfy the
+   * product's `lead_time_minutes` preparation window? Rows with a
+   * `start_time` are checked against the exact slot datetime; rows without
+   * one (single_date / days_range) use a whole-day compare. Read this flag
+   * directly — do NOT re-derive the rule client-side (see bookability.ts).
+   *
+   * Optional/FAIL-OPEN, mirroring `Product.bookable` (landr-7jgo):
+   * absent (an API response that predates the field, or an RPC that never
+   * populates it — e.g. fixed-date-window products, which don't use this
+   * endpoint at all) is treated as bookable so an older API can never
+   * accidentally grey out a whole calendar. Only an explicit `false`
+   * removes the day.
+   */
+  activity_bookable?: boolean
+  /**
+   * landr-t869m.1: server-computed — could a stay derived from THIS day
+   * still be booked? NULL (not false, and not omitted) when the product's
+   * `hotel_offering` is 'none' — meaning "not evaluated, there is no hotel
+   * step for this product at all". `false` means the activity is still
+   * bookable but the derived check-in day no longer satisfies the stay's
+   * own lead time — see accommodationCalc.ts's `deriveStayWindow` and
+   * AccommodationStep's "hotel too late" copy.
+   *
+   * Optional/FAIL-OPEN like `activity_bookable` above: absent (older API,
+   * or an endpoint that never carries it) never blocks the accommodation
+   * step by itself.
+   */
+  accommodation_bookable?: boolean | null
 }
 
 export interface Participant {

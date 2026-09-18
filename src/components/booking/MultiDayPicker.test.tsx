@@ -371,6 +371,24 @@ describe('MultiDayPicker', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
+  it('clicking a day with activity_bookable=false is ignored, even with seats free (landr-t869m.2)', () => {
+    const leadTimeBlocked = availability.map((slot, idx) =>
+      idx === 3 ? { ...slot, activity_bookable: false } : slot,
+    )
+    const spy = vi.fn<(days: Date[]) => void>()
+    render(
+      <Harness
+        availability={leadTimeBlocked}
+        onChangeSpy={spy}
+        defaultMonth={defaultMonth}
+      />,
+    )
+    const target = dayButton(new Date(2026, 5, 13))
+    expect(target).toBeDisabled()
+    fireEvent.click(target)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
   it(
     'click+click range that brackets a disabled day still includes the surrounding days and excludes the disabled one (landr-e10.9)',
     () => {

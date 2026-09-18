@@ -3,6 +3,7 @@ import type { Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
+import { isActivityBookable } from '@/components/booking/bookability'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -85,10 +86,15 @@ export function MultiDayPicker({
   // carries the force_book power. Otherwise this is the normal customer picker.
   const canForce = staff.active && staff.powers.includes('force_book')
 
+  // landr-t869m.2: a day also needs activity_bookable !== false (the
+  // product's lead-time window). Folding this into the SAME availableSet a
+  // sold-out day already uses means the existing staff force-book path
+  // (canForce → disabled=undefined, see the Calendar below) transparently
+  // covers lead-time overrides too — no separate override plumbing needed.
   const availableSet = useMemo(() => {
     return new Set(
       availability
-        .filter((slot) => slot.available_seats > 0)
+        .filter((slot) => slot.available_seats > 0 && isActivityBookable(slot))
         .map((slot) => slot.date),
     )
   }, [availability])

@@ -23,13 +23,31 @@ function shiftDays(iso: string, delta: number): string {
 }
 
 /**
+ * landr-t869m.1: default `products.accommodation_checkin_offset_days` — how
+ * many days before the first selected activity day the stay starts. 1
+ * reproduces this file's pre-landr-t869m hardcoded behaviour byte-for-byte,
+ * so every product that hasn't been configured for the new column behaves
+ * exactly as before. Used whenever a caller has a `Product` that predates
+ * the field (older API, mock data, a test factory).
+ */
+export const DEFAULT_ACCOMMODATION_CHECKIN_OFFSET_DAYS = 1
+
+/**
  * Derived check-in/check-out + nights for a stay aligned with a multi-day
- * service. Per the spec: check-in = first selected day - 1, check-out =
- * last selected day + 1, nights = (check-out - check-in).
+ * service. Per the spec: check-in = first selected day - checkinOffsetDays,
+ * check-out = last selected day + 1, nights = (check-out - check-in).
  *
- * Nights are computed from the day span (last - first + 2), NOT from
- * selectedDays.length, because non-contiguous service selections still
- * occupy the hotel continuously across the gap. Example: selecting
+ * `checkinOffsetDays` (landr-t869m.1, `products.accommodation_checkin_offset_days`)
+ * defaults to 1 — the pre-existing hardcoded rule ("guests arrive the
+ * evening before") — so callers that don't yet thread the per-product value
+ * through (or a product predating the column) get byte-identical behaviour.
+ * 0 is the kayak case from the epic: the trip starts in the afternoon, so
+ * the customer can arrive the same day the activity starts. Check-out is
+ * NOT affected by the offset — it always stays last selected day + 1.
+ *
+ * Nights are computed from the day span (last - first + 1 + checkinOffsetDays),
+ * NOT from selectedDays.length, because non-contiguous service selections
+ * still occupy the hotel continuously across the gap. Example: selecting
  * [Mon, Wed] for the service means check-in Sun, check-out Thu, the
  * customer does not check out on Tuesday and return — that would be a
  * second booking. Pre-2026-05-21 (landr-ma5n) this used
@@ -45,12 +63,16 @@ export interface StayWindow {
   nights: number
 }
 
-export function deriveStayWindow(selectedDays: string[]): StayWindow {
+export function deriveStayWindow(
+  selectedDays: string[],
+  checkinOffsetDays: number = DEFAULT_ACCOMMODATION_CHECKIN_OFFSET_DAYS,
+): StayWindow {
   if (selectedDays.length === 0) {
     return { checkInIso: null, checkOutIso: null, nights: 0 }
   }
+  const offset = Math.max(0, checkinOffsetDays)
   const sorted = [...selectedDays].sort()
-  const checkInIso = shiftDays(sorted[0]!, -1)
+  const checkInIso = shiftDays(sorted[0]!, -offset)
   const checkOutIso = shiftDays(sorted[sorted.length - 1]!, 1)
   // Span-based night count: difference (in days) between check-out and
   // check-in. Works for both contiguous and non-contiguous selections
@@ -67,6 +89,23 @@ export function deriveStayWindow(selectedDays: string[]): StayWindow {
 }
 
 /**
+ * landr-t869m.2: the check-in date a stay for `firstActivityDayIso` would
+ * need — `checkin(D) = D - accommodation_checkin_offset_days`, the exact
+ * arithmetic app/services/lead_time.py's `accommodation_day_ok` uses
+ * server-side. This is the date the "activity still bookable, hotel too
+ * late" copy quotes in AccommodationStep; it is derived client-side from
+ * data the widget already has (the selected day + the product's own
+ * offset), NOT from a submit-time violation payload, so it can be shown
+ * before the customer ever attempts to confirm.
+ */
+export function requiredCheckinDate(
+  firstActivityDayIso: string,
+  checkinOffsetDays: number = DEFAULT_ACCOMMODATION_CHECKIN_OFFSET_DAYS,
+): string {
+  return shiftDays(firstActivityDayIso, -Math.max(0, checkinOffsetDays))
+}
+
+/**
  * Array of ISO night dates for a stay, inclusive of check-in and
  * exclusive of check-out (one entry per night the room is occupied).
  * Mirrors hotel-industry convention: a 4-night stay from Mon→Fri
@@ -76,9 +115,15 @@ export function deriveStayWindow(selectedDays: string[]): StayWindow {
  * ProductLineIn entries (landr-piyv) so the server-side pricing engine
  * computes per-night totals against the right window. Returns [] for
  * empty input — callers should skip emitting the line item in that case.
+ *
+ * `checkinOffsetDays` forwards to deriveStayWindow (see its doc); defaults
+ * to the same DEFAULT_ACCOMMODATION_CHECKIN_OFFSET_DAYS.
  */
-export function stayNightIsos(selectedDays: string[]): string[] {
-  const win = deriveStayWindow(selectedDays)
+export function stayNightIsos(
+  selectedDays: string[],
+  checkinOffsetDays: number = DEFAULT_ACCOMMODATION_CHECKIN_OFFSET_DAYS,
+): string[] {
+  const win = deriveStayWindow(selectedDays, checkinOffsetDays)
   if (!win.checkInIso || !win.checkOutIso) return []
   const out: string[] = []
   let cursor = win.checkInIso

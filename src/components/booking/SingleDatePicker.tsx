@@ -3,6 +3,7 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import { isActivityBookable } from '@/components/booking/bookability'
 import {
   Card,
   CardContent,
@@ -101,10 +102,14 @@ export function SingleDatePicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // landr-t869m.2: gate on activity_bookable too, folded into the same
+  // availableSet a sold-out day already uses — see MultiDayPicker's
+  // matching comment for why this transparently covers the staff
+  // force-book path as well.
   const availableSet = useMemo(() => {
     return new Set(
       (slots ?? [])
-        .filter((slot) => slot.available_seats > 0)
+        .filter((slot) => slot.available_seats > 0 && isActivityBookable(slot))
         .map((slot) => slot.date),
     )
   }, [slots])

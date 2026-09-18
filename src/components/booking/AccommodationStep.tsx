@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  getAvailability,
   getHotelRoomsForHotel,
   getHotelsForOperator,
   getProductAddons,
 } from '@/api/client'
 import type { Hotel, Product, ProductAddon } from '@/api/types'
+import { accommodationBookability } from '@/components/booking/bookability'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -31,6 +33,7 @@ import {
   occupancyStatus,
   partySize,
   pruneAssignments,
+  requiredCheckinDate,
   roomSubtotal,
   totalRoomCapacity,
   type BreakfastMap,
@@ -49,6 +52,7 @@ import {
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
+import { accommodationTooLateMessage } from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -425,6 +429,62 @@ export function AccommodationStep({
     }
   }, [operatorToken])
 
+  // landr-t869m.2: is the stay for the FIRST selected activity day still
+  // bookable? Read straight off public_get_product_availability's
+  // accommodation_bookable flag for that day (the RPC computes it per row —
+  // see app/services/lead_time.py's accommodation_day_ok, and
+  // AvailabilityPicker/MultiDayPicker's isActivityBookable filter for the
+  // activity-side twin). Only meaningful for offering='optional' — the
+  // widget never reaches this step for 'none', and 'mandatory' already
+  // excludes the day from the picker (activity_bookable is false whenever
+  // the stay isn't bookable on a mandatory product), so there is nothing
+  // left to warn about there.
+  //
+  // Deliberately re-fetched here rather than threaded down from the picker:
+  // the picker's own availability call is a fire-and-forget local state
+  // that never survives the step transition, and re-fetching one day is
+  // cheap. FAIL-OPEN (null = "not evaluated / unknown") on any fetch
+  // failure or absent field — never invents a warning from missing data.
+  const firstSelectedDay = selectedDays.length > 0 ? [...selectedDays].sort()[0]! : null
+  const [accommodationBookable, setAccommodationBookable] = useState<
+    boolean | null
+  >(null)
+
+  useEffect(() => {
+    // Nothing to gate for a 'mandatory'/'none' offering or an empty
+    // selection — leave the last-known value alone (accommodationTooLate
+    // below re-checks `offering === 'optional'` itself, so a stale value
+    // from a since-abandoned mode can never leak into the render).
+    if (offering !== 'optional' || !firstSelectedDay) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const rows = await getAvailability(
+          product.product_id,
+          firstSelectedDay,
+          firstSelectedDay,
+        )
+        if (cancelled) return
+        const row = rows.find((r) => r.date === firstSelectedDay)
+        setAccommodationBookable(accommodationBookability(row))
+      } catch {
+        // Fail-open: an unreachable/erroring endpoint must never manufacture
+        // a "too late" warning that wasn't there.
+        if (!cancelled) setAccommodationBookable(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [offering, firstSelectedDay, product.product_id])
+
+  const accommodationTooLate =
+    offering === 'optional' && accommodationBookable === false
+
+  const requiredCheckinIso = firstSelectedDay
+    ? requiredCheckinDate(firstSelectedDay, product.accommodation_checkin_offset_days)
+    : null
+
   // landr-punc / landr-ffyg.2: auto-select the lone hotel whenever a
   // hotel-bearing mode is active and exactly one hotel is configured.
   // Covers the mandatory-default, the package mode, and the shared-double
@@ -625,8 +685,8 @@ export function AccommodationStep({
   }
 
   const { checkInIso, checkOutIso, nights } = useMemo(
-    () => deriveStayWindow(selectedDays),
-    [selectedDays],
+    () => deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days),
+    [selectedDays, product.accommodation_checkin_offset_days],
   )
 
   const roomSelections: RoomSelection[] = useMemo(
@@ -1151,6 +1211,26 @@ export function AccommodationStep({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {/* landr-t869m.2: "activity still bookable, hotel too late" —
+            NEVER a silent disable. offering='optional' only: 'mandatory'
+            never reaches this step for such a day (the picker already
+            excludes it, since activity_bookable folds the accommodation
+            rule in for mandatory products server-side). Rendered as a
+            proper warning banner, not a tooltip, so it's visible without
+            interaction. */}
+        {accommodationTooLate && requiredCheckinIso ? (
+          <div
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+            data-testid="accommodation-too-late-warning"
+          >
+            <p className="text-amber-900 dark:text-amber-100">
+              {accommodationTooLateMessage(
+                formatDayLabel(requiredCheckinIso, locale),
+                locale,
+              )}
+            </p>
+          </div>
+        ) : null}
         {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
             when at least one hotel is configured — without a hotel the
             modes collapse (no package, no shared-double) and we fall back

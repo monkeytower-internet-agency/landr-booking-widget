@@ -455,6 +455,29 @@ const formatHttpError = (
     const languageError = readLanguageError(err.detail, participantCount)
     if (languageError) return languageErrorMessage(languageError, memberLabels)
   }
+  // landr-t869m.1: the submit endpoint hard-rejects a booking that falls
+  // inside the product's preparation window, or (separately) a stay whose
+  // derived check-in day no longer satisfies its own lead time. Both raise
+  // a 422 with {"error": "lead_time_not_met" | "accommodation_lead_time_not_met",
+  // "violations": [...], "earliest_bookable_date", "message"} — see
+  // app/services/booking_submit_errors.py. The server already builds the
+  // exact customer-facing sentence (including OMITTING any date promise
+  // when nothing qualifies within the lookahead horizon), so this reuses
+  // `message` verbatim rather than re-deriving it, and reads defensively
+  // (both an omitted key and an explicit null degrade to the generic 422
+  // dump below rather than crashing).
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail)
+  ) {
+    const code = (err.detail as { error?: unknown }).error
+    if (code === 'lead_time_not_met' || code === 'accommodation_lead_time_not_met') {
+      const message = (err.detail as { message?: unknown }).message
+      if (typeof message === 'string' && message.length > 0) return message
+    }
+  }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
   // [...]} — reachable if an estimate the customer is looking at goes
@@ -619,7 +642,9 @@ export function BookingForm({
   const selectedDays =
     selection.kind === 'days' ? selection.selectedDays : []
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
-  const stay = hasRooms ? deriveStayWindow(selectedDays) : null
+  const stay = hasRooms
+    ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
+    : null
   const showTimezone = product.service_time_shape === 'time_slot'
 
   // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
@@ -778,7 +803,10 @@ export function BookingForm({
       // Hotel-room lines book the night window (check-in → check-out
       // exclusive) — distinct from the service's selected_days. Empty
       // when the customer chose no rooms or picked a slot-style service.
-      const nightIsos = stayNightIsos(selectedDaysForSubmit)
+      const nightIsos = stayNightIsos(
+        selectedDaysForSubmit,
+        product.accommodation_checkin_offset_days,
+      )
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
