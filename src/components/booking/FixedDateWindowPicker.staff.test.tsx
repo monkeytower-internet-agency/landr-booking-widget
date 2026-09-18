@@ -123,9 +123,13 @@ describe('FixedDateWindowPicker — staff force-book', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    const [, windowArg, forced] = onConfirm.mock.calls[0]!
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
     expect(windowArg.id).toBe('w-full')
     expect(forced).toBe(true)
+    // landr-t869m.5 (review fix): assert the 4th argument too — a regression
+    // that drops selectedForceReasons would otherwise pass this test silently
+    // and fall back to the review banner's (false) capacity copy.
+    expect(forcedReasons).toEqual(['capacity'])
   })
 
   it('declining the confirm does not select the full window', async () => {
@@ -172,9 +176,13 @@ describe('FixedDateWindowPicker — staff force-book', () => {
     fireEvent.click(rowBtn)
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    const [, windowArg, forced] = onConfirm.mock.calls[0]!
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
     expect(windowArg.id).toBe('w-blocked')
     expect(forced).toBe(true)
+    // landr-t869m.5 (review fix): this window has capacity (0 reserved of 8)
+    // but activity_bookable=false — its only reason must be 'lead_time', not
+    // 'capacity', or the review banner would tell the operator the wrong thing.
+    expect(forcedReasons).toEqual(['lead_time'])
   })
 
   it('landr-r2o8: a session without force_book falls back to the public RPC', async () => {
