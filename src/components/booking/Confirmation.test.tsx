@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Confirmation } from './Confirmation'
+import { HttpError } from '@/api/client'
 import type {
   BookingCalendarEvent,
   BookingSummary,
@@ -109,6 +110,18 @@ function stubClipboard(): { writeText: ReturnType<typeof vi.fn> } {
   return { writeText }
 }
 
+/**
+ * landr-otml0.4 review fix (MAJOR 4): remove `navigator.clipboard` entirely
+ * (an insecure context / older WebView) so CopyButton is forced onto its
+ * `document.execCommand('copy')` fallback, and beyond.
+ */
+function stubClipboardUnavailable(): void {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: undefined,
+  })
+}
+
 /** Parse query params from a full URL string for targeted assertions. */
 function qs(url: string): URLSearchParams {
   return new URLSearchParams(url.split('?')[1] ?? '')
@@ -198,11 +211,36 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(screen.queryByText(MOCK_BOOKING_ID)).not.toBeInTheDocument()
   })
 
-  it('falls back to booking_id when summary is absent (older API deploy)', () => {
+  // landr-otml0.4 review fix (MAJOR 1): the raw booking_id UUID is a bearer
+  // credential elsewhere in this API (cancel, .ics download both accept it
+  // as their only credential) — it must never be shown/copyable as "the
+  // reference" text. When summary is absent we now derive the 8-hex
+  // reference client-side, the same way the API does, instead of falling
+  // back to the UUID.
+  it('derives the reference client-side (never the raw booking_id UUID) when summary is absent', () => {
     const response = baseResponse()
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    // MOCK_BOOKING_ID = '00000000-0000-0000-0000-0000000000bb' →
+    // strip hyphens, first 8 hex chars, uppercased.
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
+    expect(screen.queryByText(MOCK_BOOKING_ID)).not.toBeInTheDocument()
+  })
+
+  it('never exposes the raw booking_id UUID anywhere in the reference/copy block', () => {
+    const response = baseResponse({
+      summary: baseSummary({ booking_reference: 'REF-1234' }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).not.toHaveTextContent(
+      MOCK_BOOKING_ID,
+    )
+    expect(screen.getByTestId('confirmation-reference-copy')).not.toHaveTextContent(
+      MOCK_BOOKING_ID,
+    )
   })
 
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
@@ -828,8 +866,11 @@ describe('Confirmation', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     // Card must still render — never blank.
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    // Reference still visible.
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    // Reference still visible (derived client-side — never the raw UUID,
+    // landr-otml0.4 review fix MAJOR 1).
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
   })
 
   it('shows success copy when confirmation_email_status is "captured"', () => {
@@ -858,9 +899,12 @@ describe('Confirmation', () => {
     // The regular "confirmation email" paragraph must NOT appear.
     expect(screen.queryByText(/you will receive a confirmation email/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/confirmation email has been sent/i)).not.toBeInTheDocument()
-    // Card must still render — never blank; reference visible.
+    // Card must still render — never blank; reference visible (derived
+    // client-side — never the raw UUID, landr-otml0.4 review fix MAJOR 1).
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
     // "Make another booking" button still present.
     expect(screen.getByRole('button', { name: /make another booking/i })).toBeInTheDocument()
     // OD-7: no bus/seat/capacity/approval-policy language.
@@ -1164,6 +1208,96 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(baseInvite().invite_url))
   })
 
+  // ------------------------------------------------------------------
+  // landr-otml0.4 review fix (MAJOR 2): no share_secret → disabled + hint,
+  // never a silent no-op.
+  // ------------------------------------------------------------------
+
+  it('disables the Email button and shows a hint when share_secret is absent', () => {
+    const response = baseResponse({ invites: [baseInvite()] }) // no share_secret
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const emailButton = screen.getByTestId('invite-email')
+    expect(emailButton).toBeDisabled()
+    expect(emailButton).toHaveAttribute('title', expect.stringMatching(/unavailable/i))
+    expect(screen.getByTestId('invite-email-unavailable')).toHaveTextContent(
+      /email sending unavailable — copy the link instead/i,
+    )
+    // Clicking a disabled button never fires the handler.
+    fireEvent.click(emailButton)
+    expect(mocks.sendBookingInvite).not.toHaveBeenCalled()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-otml0.4 review fix (MAJOR 3): failure classification by HTTP
+  // status — different message and retry-ability per status.
+  // ------------------------------------------------------------------
+
+  it('404 → "link can\'t be emailed" message, no retry (button stays disabled)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(new HttpError(404, 'Not Found', ''))
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /can't be emailed from here any more — copy it instead/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).toBeDisabled()
+  })
+
+  it('422 → "email address was rejected" message, no retry (button stays disabled)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(
+      new HttpError(422, 'Unprocessable Entity', ''),
+    )
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /that email address was rejected/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).toBeDisabled()
+  })
+
+  it('429 → "too many emails" message, retry allowed (button re-enables)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(
+      new HttpError(429, 'Too Many Requests', ''),
+    )
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /too many emails right now — try again in a few minutes/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).not.toBeDisabled()
+    expect(screen.getByTestId('invite-email')).toHaveTextContent(/retry email/i)
+  })
+
+  it('a network/generic failure keeps the existing retry-able generic message', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(new TypeError('Failed to fetch'))
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /could not send that email/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).not.toBeDisabled()
+  })
+
   it('shows "Booked ✓" with the linked reference instead of actions once a companion has joined', () => {
     const invite = baseInvite({ linked_booking_reference: 'CCCC3333' })
     const response = baseResponse({ share_secret: 'secret-abc', invites: [invite] })
@@ -1249,5 +1383,63 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     )
     // The rest of the confirmation screen still renders normally.
     expect(screen.getByTestId('confirmation-summary')).toBeInTheDocument()
+  })
+})
+
+// ------------------------------------------------------------------
+// landr-otml0.4 review fix (MAJOR 4): CopyButton's never-a-silent-no-op
+// fallback chain — navigator.clipboard → execCommand('copy') → reveal a
+// manual select-and-copy input.
+// ------------------------------------------------------------------
+
+describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
+  const originalExecCommand = document.execCommand
+
+  afterEach(() => {
+    document.execCommand = originalExecCommand
+  })
+
+  it('falls back to document.execCommand("copy") when navigator.clipboard is unavailable', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => true)
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
+
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(screen.getByTestId('confirmation-reference-copy')).toHaveTextContent(/copied/i)
+  })
+
+  it('reveals a manual select-and-copy input when both clipboard and execCommand fail', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => false)
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
+
+    // The button is replaced by a readonly input carrying the exact value —
+    // never a silent no-op.
+    expect(screen.queryByTestId('confirmation-reference-copy')).not.toBeInTheDocument()
+    const manualInput = screen.getByTestId(
+      'confirmation-reference-copy-manual',
+    ) as HTMLInputElement
+    expect(manualInput).toHaveValue('REF-1234')
+    expect(manualInput).toHaveAttribute('readonly')
+  })
+
+  it('reveals the manual fallback when execCommand throws rather than returning false', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => {
+      throw new Error('not implemented')
+    })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-copy'))
+
+    const manualInput = screen.getByTestId('invite-copy-manual') as HTMLInputElement
+    expect(manualInput).toHaveValue(baseInvite().invite_url)
   })
 })
