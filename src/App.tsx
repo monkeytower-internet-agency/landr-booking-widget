@@ -322,7 +322,13 @@ function BookingFlowApp() {
   // iframe), so a fresh customer / a Safari-private embed simply starts at
   // pick-product with an empty draft. Skipped entirely when there's no
   // token (the landing page renders) or a deep link is present (?product= /
-  // ?group= drive their own entry, which must win over a stale restore).
+  // ?group= / ?invite= drive their own entry, which must win over a stale
+  // restore). `?c=` (contactPageToken) is deliberately NOT in this list —
+  // unlike invite/product/group it doesn't drive its own entry (no step
+  // jump), so a `?c=` link opened mid-funnel (e.g. a mobile pull-to-
+  // refresh) should still resume exactly where the customer left off. The
+  // prefill effect below is the one that has to defer to a restore, not
+  // this memo — see its comment.
   const restoredProgress = useMemo(
     () => (token && !product && !group && !invite ? readStoredProgress() : null),
     [token, product, group, invite],
@@ -488,8 +494,22 @@ function BookingFlowApp() {
   // 404) is ignored silently — the plain wizard still works exactly as if
   // `?c=` had never been supplied, which is why there's no notice state
   // here unlike the invite flow's `inviteNotice`.
+  //
+  // landr-frqgv.3 review fix: skip entirely when `restoredProgress` is
+  // non-null. `contactPageToken` deliberately does NOT clear the restored-
+  // progress memo above (see its comment — `?c=` doesn't drive its own
+  // entry the way invite/product/group do, so a mid-funnel reopen should
+  // resume). But this effect's mergeDraft() runs unconditionally at mount
+  // regardless of that restore, so without this guard a customer who'd
+  // already reached DetailsStep and edited their own name/email/phone —
+  // then hit an accidental mobile pull-to-refresh with `?c=` still in the
+  // URL — got those edits silently clobbered back to the (possibly stale)
+  // contact-record values on remount. A restored session already carries
+  // whatever booker data the customer entered (or none, if they haven't
+  // reached DetailsStep yet) — either way it's the customer's own more
+  // recent state, so it always wins over prefill here.
   useEffect(() => {
-    if (!contactPageToken) return
+    if (!contactPageToken || restoredProgress) return
     let cancelled = false
     void (async () => {
       try {

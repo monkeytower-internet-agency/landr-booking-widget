@@ -2222,6 +2222,70 @@ describe('App', () => {
       ).toBe('')
     })
 
+    // landr-frqgv.3 review fix: a restored (sessionStorage) mid-funnel
+    // session must win over the ?c= prefill — otherwise an accidental
+    // mobile pull-to-refresh with the contact-page link still in the URL
+    // silently clobbers whatever booker fields the customer had already
+    // edited back to the (possibly stale) contact-record values.
+    it('?c= does not overwrite a restored session’s already-edited booker fields', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&c=cp-tok-1`)
+      const product = makeProduct({
+        product_id: 'p-1',
+        slug: 'tandem',
+        name: 'Tandem',
+        service_time_shape: 'days_range',
+      })
+      mocks.listProducts.mockResolvedValue([product])
+      // Simulate the sessionStorage snapshot a previous render persisted:
+      // the customer was on DetailsStep with their OWN edited booker
+      // fields already committed.
+      window.sessionStorage.setItem(
+        BOOKING_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product,
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+            booker: {
+              first_name: 'EditedName',
+              last_name: 'EditedLast',
+              email: 'edited@example.com',
+              phone: '+34600999888',
+            },
+          },
+          bookingDraft: {},
+        }),
+      )
+      // A different value the API would otherwise prefill with — if this
+      // wins, the fix failed.
+      mocks.getContactPagePrefill.mockResolvedValue({
+        first_name: 'Anna',
+        last_name: 'Smith',
+        email: 'anna@example.com',
+        phone: '+34600111222',
+        language: 'en',
+      })
+
+      render(<App />)
+      await waitFor(() =>
+        expect(
+          document.querySelector<HTMLInputElement>(
+            'input[name="booker_first_name"]',
+          ),
+        ).toBeInTheDocument(),
+      )
+      const value = (name: string) =>
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)
+          ?.value
+      expect(value('booker_first_name')).toBe('EditedName')
+      expect(value('booker_last_name')).toBe('EditedLast')
+      expect(value('booker_email')).toBe('edited@example.com')
+      expect(value('booker_phone')).toBe('+34600999888')
+      // The prefill effect must not even have fired — a restored session
+      // skips it entirely, it doesn't just lose a race.
+      expect(mocks.getContactPagePrefill).not.toHaveBeenCalled()
+    })
+
     it('?invite= deep link resolves and lands directly on Dates, prefilled with the host’s days', async () => {
       window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
       const product = makeProduct({
