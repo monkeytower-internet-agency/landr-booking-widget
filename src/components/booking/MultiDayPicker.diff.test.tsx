@@ -192,6 +192,37 @@ describe('MultiDayPicker — invite-mode diff (landr-otml0.3)', () => {
     expect(summary).toContain('−1 day')
   })
 
+  it('CRITICAL 1 review fix: Reset never re-selects a host day that is no longer available, and reports the drop', () => {
+    // 2026-06-13 (one of the host's 2 days) is now sold out.
+    const availabilityWithGap = makeAvailability(windowStart, 10).map((slot) =>
+      slot.date === '2026-06-13' ? { ...slot, available_seats: 0 } : slot,
+    )
+    const spy = vi.fn<(days: Date[]) => void>()
+    render(
+      <Harness
+        availability={availabilityWithGap}
+        initial={hostDates}
+        originalValue={hostDates}
+        originalValueLabel="Olaf"
+        onChangeSpy={spy}
+        defaultMonth={defaultMonth}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /individual days/i }))
+    clickDay(new Date(2026, 5, 14)) // any edit, to enable Reset
+    fireEvent.click(screen.getByTestId('multi-day-reset-button'))
+    // Only the still-available host day (12th) comes back — NOT the sold-out
+    // 13th, which the old (pre-fix) bare onChange(originalValue) would have
+    // silently re-selected.
+    expect(spy.mock.calls.at(-1)![0].map(isoDate)).toEqual(['2026-06-12'])
+    expect(
+      screen.getByTestId('multi-day-reset-dropped-notice'),
+    ).toHaveTextContent('1')
+    expect(
+      screen.getByTestId('multi-day-reset-dropped-notice'),
+    ).toHaveTextContent('no longer available')
+  })
+
   it('Reset restores the host baseline exactly', () => {
     const spy = vi.fn<(days: Date[]) => void>()
     render(

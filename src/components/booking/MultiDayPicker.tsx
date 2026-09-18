@@ -152,6 +152,13 @@ export function MultiDayPicker({
 
   const [anchor, setAnchor] = useState<Date | null>(null)
   const [mode, setMode] = useState<Mode>('range')
+  // landr-otml0.3 review fix (CRITICAL 1): how many of the host's days
+  // Reset had to drop because they're no longer available. null = no reset
+  // has happened yet (or the customer has edited the selection since —
+  // cleared inside applyClick below), so the notice never lingers stale.
+  const [resetDroppedCount, setResetDroppedCount] = useState<number | null>(
+    null,
+  )
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
 
@@ -183,6 +190,10 @@ export function MultiDayPicker({
 
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
+      // landr-otml0.3 review fix (CRITICAL 1): any manual edit after a Reset
+      // retires that Reset's "N days dropped" notice — it described THAT
+      // reset, not the selection the customer is building now.
+      setResetDroppedCount(null)
       const key = isoDate(day)
       // landr-aoak.2: in staff mode an unavailable day is the operator-override
       // path — confirm, then toggle it into the selection like an individual
@@ -354,6 +365,29 @@ export function MultiDayPicker({
     () => diff?.removed.map(dateFromIso) ?? [],
     [diff],
   )
+
+  // landr-otml0.3 review fix (CRITICAL 1): Reset used to call
+  // onChange(originalValue) directly, bypassing every gate applyClick
+  // enforces (availability, lead time) — a public customer could end up
+  // with an unavailable day silently re-selected, which the API would then
+  // 422 (or a staff session would force-book unintentionally) at Confirm.
+  // Route it through the SAME availableSet gate applyClick uses: a normal
+  // customer (canForce false) gets only the host's still-available days
+  // back, with a count of how many were dropped; staff (canForce true) can
+  // restore the raw baseline since they're allowed to force-book any of it
+  // afterward anyway.
+  const handleReset = useCallback(() => {
+    if (!originalValue) return
+    if (canForce) {
+      setResetDroppedCount(null)
+      onChange(originalValue)
+      return
+    }
+    const restorable = originalValue.filter((d) => availableSet.has(isoDate(d)))
+    setResetDroppedCount(originalValue.length - restorable.length)
+    onChange(restorable)
+  }, [originalValue, canForce, availableSet, onChange])
+
   return (
     <div className="flex flex-col gap-3">
       {!isContiguous && (
@@ -455,11 +489,23 @@ export function MultiDayPicker({
             size="sm"
             className="self-start"
             disabled={!diff?.hasDiff}
-            onClick={() => onChange(originalValue)}
+            onClick={handleReset}
             data-testid="multi-day-reset-button"
           >
             Reset to {originalValueLabel ?? 'the original'}&rsquo;s dates
           </Button>
+          {resetDroppedCount !== null && resetDroppedCount > 0 ? (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="multi-day-reset-dropped-notice"
+            >
+              {resetDroppedCount}{' '}
+              {resetDroppedCount === 1
+                ? `of ${originalValueLabel ?? 'the host'}'s days is`
+                : `of ${originalValueLabel ?? 'the host'}'s days are`}{' '}
+              no longer available.
+            </p>
+          ) : null}
         </div>
       ) : null}
       {/* landr-aoak.2: surface the operator-override badge whenever the staff
