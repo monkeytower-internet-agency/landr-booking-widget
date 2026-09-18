@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Modifiers } from 'react-day-picker'
-import type { AvailabilitySlot } from '@/api/types'
+import type { AvailabilitySlot, HotelOffering } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
+import { isDayBookable } from '@/components/booking/bookability'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -24,6 +25,16 @@ interface MultiDayPickerProps {
    * When false (default): mode-aware toggle/range behaviour.
    */
   isContiguous?: boolean
+  /**
+   * landr-t869m.2: the product's hotel_offering, so a day can be gated on
+   * BOTH activity_bookable and accommodation_bookable when it's
+   * 'mandatory' — see isDayBookable's doc for why the API does NOT already
+   * combine these for this endpoint. Undefined (product predates the
+   * field, or an older mock) behaves like 'none'/'optional' — activity
+   * bookability alone gates the day, matching the pre-landr-t869m.2
+   * behaviour.
+   */
+  hotelOffering?: HotelOffering
   /**
    * landr-aoak.2 [S3]: called when the set of force-booked (zero-availability)
    * days inside the current selection changes. Only ever fires non-empty in
@@ -78,6 +89,7 @@ export function MultiDayPicker({
   helpText,
   defaultMonth,
   isContiguous = false,
+  hotelOffering,
   onForcedDaysChange,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
@@ -85,13 +97,23 @@ export function MultiDayPicker({
   // carries the force_book power. Otherwise this is the normal customer picker.
   const canForce = staff.active && staff.powers.includes('force_book')
 
+  // landr-t869m.2: a day also needs lead-time bookability (activity, plus —
+  // for a 'mandatory' hotel_offering — accommodation too; see
+  // isDayBookable's doc for why the API doesn't already combine these).
+  // Folding this into the SAME availableSet a sold-out day already uses
+  // means the existing staff force-book path (canForce →
+  // disabled=undefined, see the Calendar below) transparently covers
+  // lead-time overrides too — no separate override plumbing needed.
   const availableSet = useMemo(() => {
     return new Set(
       availability
-        .filter((slot) => slot.available_seats > 0)
+        .filter(
+          (slot) =>
+            slot.available_seats > 0 && isDayBookable(slot, hotelOffering),
+        )
         .map((slot) => slot.date),
     )
-  }, [availability])
+  }, [availability, hotelOffering])
 
   const [anchor, setAnchor] = useState<Date | null>(null)
   const [mode, setMode] = useState<Mode>('range')

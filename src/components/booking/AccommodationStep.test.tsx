@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Hotel, Product, ProductAddon } from '@/api/types'
+import type { AvailabilitySlot, Hotel, Product, ProductAddon } from '@/api/types'
 import { AccommodationStep } from './AccommodationStep'
 
 const { mocks } = vi.hoisted(() => ({
@@ -13,6 +13,14 @@ const { mocks } = vi.hoisted(() => ({
     // returns [] so existing tests don't need add-on catalogue mocks unless
     // they specifically exercise add-on UX.
     getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
+    // landr-t869m.2: AccommodationStep re-fetches the first selected day's
+    // availability row to read accommodation_bookable. Default resolves []
+    // (no matching row → fail-open, accommodationBookability(undefined) =
+    // null) so every existing test — none of which exercises the "hotel too
+    // late" warning — keeps passing unchanged.
+    getAvailability: vi.fn<
+      (id: string, from: string, to: string) => Promise<AvailabilitySlot[]>
+    >(),
   },
 }))
 
@@ -20,6 +28,7 @@ vi.mock('@/api/client', () => ({
   getHotelsForOperator: mocks.getHotelsForOperator,
   getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
   getProductAddons: mocks.getProductAddons,
+  getAvailability: mocks.getAvailability,
 }))
 
 const HOTEL_A: Hotel = {
@@ -110,6 +119,9 @@ describe('AccommodationStep', () => {
     // Default to no add-ons so the existing room-flow tests don't have
     // to know about the add-on RPC at all.
     mocks.getProductAddons.mockResolvedValue([])
+    // landr-t869m.2: default to "no row for this day" so the "hotel too
+    // late" fetch is a harmless no-op for every test that doesn't set it up.
+    mocks.getAvailability.mockResolvedValue([])
   })
 
   // ── landr-ffyg.2: top-level mode choice ────────────────────────────
@@ -176,6 +188,246 @@ describe('AccommodationStep', () => {
     expect(
       screen.getByTestId('accommodation-mode-shared-double'),
     ).toBeInTheDocument()
+  })
+
+  // ── landr-t869m.2: "activity still bookable, hotel too late" ───────
+
+  it('shows the too-late warning when the day is activity_bookable but accommodation_bookable=false (optional offering)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-too-late-warning'),
+      ).toBeInTheDocument(),
+    )
+    // Quotes the check-in date the stay would have needed (default offset 1:
+    // 2026-06-10 - 1 day = 2026-06-09).
+    expect(
+      screen.getByTestId('accommodation-too-late-warning'),
+    ).toHaveTextContent('still book this date')
+  })
+
+  it('does NOT show the too-late warning when accommodation_bookable is true', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: true,
+      },
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByTestId('accommodation-too-late-warning'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does NOT show the too-late warning for a mandatory offering (the day is simply not offered upstream)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    // Even if accommodation_bookable happened to be false here, 'mandatory'
+    // never renders the warning — the picker already excludes such a day.
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByTestId('accommodation-too-late-warning'),
+    ).not.toBeInTheDocument()
+  })
+
+  // landr-t869m.2 review fix (finding #2): the banner must not be the ONLY
+  // thing that changes — the too-late state must also be ENFORCED. Package
+  // and shared-double must disappear from the mode choice, and mode must
+  // be forced to guiding-only, so the customer cannot walk the hotel path
+  // into a guaranteed accommodation_lead_time_not_met 422 at Confirm.
+  it('optional + too-late: removes package/shared-double from the mode choice and forces guiding-only', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-too-late-warning'),
+      ).toBeInTheDocument(),
+    )
+    // The mode fieldset never renders at all once the only remaining
+    // option is guiding-only and no hotel context is needed — but the
+    // guiding-only mode itself must still be the one in effect. Assert via
+    // the ABSENCE of the hotel-bearing option testids and the presence of
+    // guiding-only-only behaviour: no room qty steppers, no hotel picker.
+    expect(
+      screen.queryByTestId('accommodation-mode-package'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('accommodation-mode-shared-double'),
+    ).not.toBeInTheDocument()
+    // The mode-forcing effect flips `mode` to 'guiding-only' asynchronously
+    // (an extra tick after the banner's own state settles) — wait for its
+    // effect (no room/hotel UI) rather than asserting synchronously.
+    await waitFor(() => {
+      expect(screen.queryByText('Single Room')).not.toBeInTheDocument()
+      expect(screen.queryByText('Hotel Mirador')).not.toBeInTheDocument()
+    })
+    // guiding-only needs no further input — Continue is enabled once the
+    // check has settled (it has, by the waitFor above).
+    expect(
+      screen.getByRole('button', { name: 'Continue' }),
+    ).not.toBeDisabled()
+  })
+
+  // landr-t869m.2 review fix (finding #2): before the accommodation_bookable
+  // fetch settles, Continue must not be clickable — otherwise a customer
+  // who picks a room in the brief window before the GET lands could reach
+  // Confirm and 422.
+  it('optional: Continue is disabled while the too-late check is still in flight', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    let resolveAvailability: (rows: AvailabilitySlot[]) => void = () => {}
+    mocks.getAvailability.mockReturnValue(
+      new Promise<AvailabilitySlot[]>((resolve) => {
+        resolveAvailability = resolve
+      }),
+    )
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-checking-notice')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+
+    resolveAvailability([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: true,
+      },
+    ])
+
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('accommodation-checking-notice'),
+      ).not.toBeInTheDocument(),
+    )
   })
 
   // ── Package mode (the existing hotel + rooms flow) ─────────────────

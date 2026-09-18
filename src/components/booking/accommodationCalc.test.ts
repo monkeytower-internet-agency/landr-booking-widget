@@ -146,6 +146,34 @@ describe('deriveStayWindow', () => {
     expect(win.nights).toBe(5)
   })
 
+  // landr-t869m.2: products.accommodation_checkin_offset_days threads
+  // through as the second argument (default 1 = today's pre-existing
+  // hardcoded behaviour, asserted by every test above that omits it).
+  it('offset=0 (kayak same-day-arrival case): check-in = first selected day, unchanged', () => {
+    const win = deriveStayWindow(['2026-06-10', '2026-06-11', '2026-06-12'], 0)
+    expect(win.checkInIso).toBe('2026-06-10')
+    expect(win.checkOutIso).toBe('2026-06-13')
+    expect(win.nights).toBe(3)
+  })
+
+  it('offset > 1: check-in shifts back by the full offset', () => {
+    const win = deriveStayWindow(['2026-06-10'], 3)
+    expect(win.checkInIso).toBe('2026-06-07')
+    expect(win.checkOutIso).toBe('2026-06-11')
+    expect(win.nights).toBe(4)
+  })
+
+  it('a negative offset is clamped to 0 rather than shifting check-in forward', () => {
+    const win = deriveStayWindow(['2026-06-10'], -5)
+    expect(win.checkInIso).toBe('2026-06-10')
+  })
+
+  it('omitting the offset defaults to 1 (byte-identical to pre-landr-t869m behaviour)', () => {
+    const withDefault = deriveStayWindow(['2026-06-10', '2026-06-12'])
+    const withExplicitOne = deriveStayWindow(['2026-06-10', '2026-06-12'], 1)
+    expect(withDefault).toEqual(withExplicitOne)
+  })
+
   it('keeps deriveStayWindow.nights consistent with stayNightIsos.length (landr-ma5n)', () => {
     // Regression guard: before the fix, deriveStayWindow.nights and
     // stayNightIsos disagreed on non-contiguous input (the latter

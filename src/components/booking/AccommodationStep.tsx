@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  getAvailability,
   getHotelRoomsForHotel,
   getHotelsForOperator,
   getProductAddons,
 } from '@/api/client'
 import type { Hotel, Product, ProductAddon } from '@/api/types'
+import { accommodationBookability } from '@/components/booking/bookability'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -31,6 +33,7 @@ import {
   occupancyStatus,
   partySize,
   pruneAssignments,
+  requiredCheckinDate,
   roomSubtotal,
   totalRoomCapacity,
   type BreakfastMap,
@@ -49,6 +52,7 @@ import {
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
+import { accommodationTooLateMessage } from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -425,6 +429,88 @@ export function AccommodationStep({
     }
   }, [operatorToken])
 
+  // landr-t869m.2 (review fix, landr review finding #1/#2): is the stay for
+  // the FIRST selected activity day still bookable? Read straight off
+  // public_get_product_availability's accommodation_bookable flag for that
+  // day (the RPC computes it per row — see
+  // app/services/lead_time.py's accommodation_day_ok).
+  //
+  // CORRECTED PREMISE: this used to say "'mandatory' already excludes the
+  // day from the picker, so there is nothing left to warn about here". That
+  // was wrong — in migration 20260918013000, the
+  // `hotel_offering <> 'mandatory' OR _accommodation_lead_time_ok(...)`
+  // clause lives ONLY in `_product_is_bookable` (the catalogue-level
+  // "bookable at all" flag), NOT in `activity_bookable`, which is a bare
+  // `_lead_time_ok(...)` with no accommodation term. The pickers now combine
+  // both flags for 'mandatory' themselves — see bookability.ts's
+  // isDayBookable(). This effect/banner only needs to run for 'optional':
+  // for 'mandatory' the day is already excluded upstream by isDayBookable,
+  // and 'none' never evaluates accommodation at all.
+  //
+  // Deliberately re-fetched here rather than threaded down from the picker:
+  // the picker's own availability call is a fire-and-forget local state
+  // that never survives the step transition, and re-fetching one day is
+  // cheap. FAIL-OPEN (null = "not evaluated / unknown") on any fetch
+  // failure or absent field — never invents a warning from missing data.
+  const firstSelectedDay = selectedDays.length > 0 ? [...selectedDays].sort()[0]! : null
+  const [accommodationBookable, setAccommodationBookable] = useState<
+    boolean | null
+  >(null)
+  // landr-t869m.2 (review finding #2): whether the check above has
+  // SETTLED (succeeded or failed) at least once for the current
+  // offering/day. Starts false so a customer can't walk through the whole
+  // package/shared-double flow to Confirm during the network round-trip
+  // before we know whether the stay is even bookable — see
+  // accommodationCheckPending below, which gates canContinue.
+  const [accommodationCheckSettled, setAccommodationCheckSettled] =
+    useState(false)
+
+  useEffect(() => {
+    // Nothing to gate for a 'mandatory'/'none' offering or an empty
+    // selection — leave the last-known value alone (accommodationTooLate
+    // below re-checks `offering === 'optional'` itself, so a stale value
+    // from a since-abandoned mode can never leak into the render).
+    if (offering !== 'optional' || !firstSelectedDay) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const rows = await getAvailability(
+          product.product_id,
+          firstSelectedDay,
+          firstSelectedDay,
+        )
+        if (cancelled) return
+        const row = rows.find((r) => r.date === firstSelectedDay)
+        setAccommodationBookable(accommodationBookability(row))
+      } catch {
+        // Fail-open: an unreachable/erroring endpoint must never manufacture
+        // a "too late" warning that wasn't there.
+        if (!cancelled) setAccommodationBookable(null)
+      } finally {
+        if (!cancelled) setAccommodationCheckSettled(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [offering, firstSelectedDay, product.product_id])
+
+  const accommodationTooLate =
+    offering === 'optional' && accommodationBookable === false
+
+  // landr-t869m.2 (review finding #2): true only in the window between
+  // mount and the check above settling, for an 'optional' offering with a
+  // day selected. Gates canContinue below so a customer cannot pick a room
+  // and confirm before we know whether the stay is bookable at all.
+  const accommodationCheckPending =
+    offering === 'optional' &&
+    firstSelectedDay !== null &&
+    !accommodationCheckSettled
+
+  const requiredCheckinIso = firstSelectedDay
+    ? requiredCheckinDate(firstSelectedDay, product.accommodation_checkin_offset_days)
+    : null
+
   // landr-punc / landr-ffyg.2: auto-select the lone hotel whenever a
   // hotel-bearing mode is active and exactly one hotel is configured.
   // Covers the mandatory-default, the package mode, and the shared-double
@@ -573,6 +659,44 @@ export function AccommodationStep({
   //   addonSelection is the output being written (not a trigger); the
   //   effect must re-run only when the catalogue arrives.
 
+  // landr-87n9.2: fire the live-lift callback with the latest flattened
+  // room + add-on lines so App.tsx can feed the PriceSidebar while the
+  // customer is still picking. Called from the event handlers below (NOT an
+  // effect) so the parent's setState batches with this component's update,
+  // keeping the react-hooks/set-state-in-effect rule happy. Builds the SAME
+  // shapes handleContinue emits: roomSelections (qty>0) +
+  // flattenPerRoomAddons(...). Only package mode carries rooms/add-ons — the
+  // other modes book no rooms, so we emit empty arrays (the hotel pill then
+  // collapses, matching the absence of room line items).
+  //
+  // Moved above changeHotel/changeMode (landr-t869m.2 review fix): both
+  // call this before its old declaration point further down, which a
+  // newer eslint-plugin-react-hooks rule flags as "accessed before
+  // declared" even though the actual call only ever happens later, at
+  // event-handler time, well after the whole component body (including
+  // this const) has run once. Declaring it earlier removes the false
+  // positive without changing any behaviour.
+  const notifyLiveAccommodation = (
+    nextMode: AccommodationMode,
+    nextSelection: Record<string, number>,
+    nextAddonSelection: Record<string, Record<string, number>>,
+  ) => {
+    if (!onLiveAccommodationChange) return
+    if (nextMode !== 'package') {
+      onLiveAccommodationChange([], [])
+      return
+    }
+    const rooms: RoomSelection[] = Object.entries(nextSelection)
+      .filter(([, qty]) => qty > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }))
+    const addonLines = flattenPerRoomAddons(
+      nextAddonSelection,
+      nextSelection,
+      addonsByRoom,
+    )
+    onLiveAccommodationChange(rooms, addonLines)
+  }
+
   // Centralised hotel-change handler — resets the room list + selected
   // quantities BEFORE the next render so the effect only handles the
   // async fetch. Used by the radio onChange in package + shared-double
@@ -624,9 +748,33 @@ export function AccommodationStep({
     notifyLiveAccommodation(next, {}, {})
   }
 
+  // landr-t869m.2 (review finding #2): the banner explains a state the UI
+  // must also ENFORCE, not just describe. When the stay has run out of
+  // lead time, force the mode to 'guiding-only' — modeOptions below also
+  // stops offering 'package'/'shared-double' while this holds, so the
+  // customer can't wander back into a hotel flow that would 422 at
+  // Confirm. Wrapped in the async-IIFE pattern per this file's existing
+  // convention (no synchronous setState in an effect body).
+  useEffect(() => {
+    if (!accommodationTooLate || mode === 'guiding-only') return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      changeMode('guiding-only')
+    })()
+    return () => {
+      cancelled = true
+    }
+    // changeMode is a plain function recreated every render (not
+    // useCallback-wrapped); including it would re-run this effect every
+    // render for no benefit — the guard above already no-ops once mode is
+    // 'guiding-only'.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accommodationTooLate, mode])
+
   const { checkInIso, checkOutIso, nights } = useMemo(
-    () => deriveStayWindow(selectedDays),
-    [selectedDays],
+    () => deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days),
+    [selectedDays, product.accommodation_checkin_offset_days],
   )
 
   const roomSelections: RoomSelection[] = useMemo(
@@ -854,8 +1002,16 @@ export function AccommodationStep({
   //   package → hotel + ≥1 room + all required add-ons met + occupancy
   //             complete (no empty rooms, everyone assigned — landr-87n9.3)
   //             + no child occupant missing an age (landr-doam.1).
+  //
+  // landr-t869m.2 (review finding #2): ALSO gated on
+  // !accommodationCheckPending regardless of mode — the too-late check for
+  // an 'optional' offering hasn't settled yet during the initial fetch
+  // round-trip, and Continue must not be clickable before we know whether
+  // the stay is even bookable (picking a room and confirming during that
+  // window would otherwise reach Confirm and 422).
   const canContinue =
-    mode === 'guiding-only'
+    !accommodationCheckPending &&
+    (mode === 'guiding-only'
       ? true
       : mode === 'shared-double'
         ? Boolean(selectedHotelId)
@@ -871,37 +1027,7 @@ export function AccommodationStep({
           totalRoomsPicked > 0 &&
           !unmetRequiredAddon &&
           occupancy.complete &&
-          !hasChildWithoutAge
-
-  // landr-87n9.2: fire the live-lift callback with the latest flattened
-  // room + add-on lines so App.tsx can feed the PriceSidebar while the
-  // customer is still picking. Called from the event handlers below (NOT an
-  // effect) so the parent's setState batches with this component's update,
-  // keeping the react-hooks/set-state-in-effect rule happy. Builds the SAME
-  // shapes handleContinue emits: roomSelections (qty>0) +
-  // flattenPerRoomAddons(...). Only package mode carries rooms/add-ons — the
-  // other modes book no rooms, so we emit empty arrays (the hotel pill then
-  // collapses, matching the absence of room line items).
-  const notifyLiveAccommodation = (
-    nextMode: AccommodationMode,
-    nextSelection: Record<string, number>,
-    nextAddonSelection: Record<string, Record<string, number>>,
-  ) => {
-    if (!onLiveAccommodationChange) return
-    if (nextMode !== 'package') {
-      onLiveAccommodationChange([], [])
-      return
-    }
-    const rooms: RoomSelection[] = Object.entries(nextSelection)
-      .filter(([, qty]) => qty > 0)
-      .map(([productId, quantity]) => ({ productId, quantity }))
-    const addonLines = flattenPerRoomAddons(
-      nextAddonSelection,
-      nextSelection,
-      addonsByRoom,
-    )
-    onLiveAccommodationChange(rooms, addonLines)
-  }
+          !hasChildWithoutAge)
 
   function bumpQty(productId: string, delta: number) {
     const next = Math.max(0, (selection[productId] ?? 0) + delta)
@@ -1109,7 +1235,15 @@ export function AccommodationStep({
 
   // landr-ffyg.2: the mode options shown to the customer. 'guiding-only'
   // is ONLY offered for an optional offering. 'package' + 'shared-double'
-  // are always offered (a hotel-bearing offering always supports them).
+  // are normally always offered (a hotel-bearing offering always supports
+  // them) —
+  //
+  // landr-t869m.2 (review finding #2): EXCEPT when accommodationTooLate.
+  // The banner only explains a state the UI must also enforce: once the
+  // derived stay has run out of its own lead time, the hotel-bearing modes
+  // are removed entirely (not just discouraged) so the customer can't pick
+  // a hotel/room path that is guaranteed to 422 at Confirm. The
+  // mode-forcing effect above keeps `mode` in sync with this list.
   const modeOptions: { value: AccommodationMode; label: string; hint: string }[] =
     [
       ...(offering === 'optional'
@@ -1121,16 +1255,20 @@ export function AccommodationStep({
             },
           ]
         : []),
-      {
-        value: 'package' as const,
-        label: 'Book accommodation (package)',
-        hint: 'Pick a hotel and rooms for your stay.',
-      },
-      {
-        value: 'shared-double' as const,
-        label: 'I am sharing a double room booked by someone else',
-        hint: 'No room booked — the other guest holds the double room. You are collected from the hotel.',
-      },
+      ...(accommodationTooLate
+        ? []
+        : [
+            {
+              value: 'package' as const,
+              label: 'Book accommodation (package)',
+              hint: 'Pick a hotel and rooms for your stay.',
+            },
+            {
+              value: 'shared-double' as const,
+              label: 'I am sharing a double room booked by someone else',
+              hint: 'No room booked — the other guest holds the double room. You are collected from the hotel.',
+            },
+          ]),
     ]
 
   // The hotel context is shown for package + shared-double modes once a
@@ -1151,6 +1289,42 @@ export function AccommodationStep({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {/* landr-t869m.2 (review finding #2): while the too-late check is
+            still in flight (offering='optional' only — see
+            accommodationCheckPending), Continue is already disabled via
+            canContinue, but nothing else stopped the customer from picking
+            a hotel/room path they might have to undo a moment later. This
+            note makes that window visible rather than silent. */}
+        {accommodationCheckPending ? (
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="accommodation-checking-notice"
+          >
+            Checking accommodation availability for this date…
+          </p>
+        ) : null}
+        {/* landr-t869m.2: "activity still bookable, hotel too late" —
+            NEVER a silent disable. offering='optional' only: for
+            'mandatory' the day itself is already excluded upstream by the
+            picker's isDayBookable() (activity_bookable AND
+            accommodation_bookable), so this step never reaches a
+            'mandatory' day whose stay has run out. Rendered as a proper
+            warning banner, not a tooltip, so it's visible without
+            interaction; the mode-forcing effect + modeOptions filter above
+            make sure the UI also ENFORCES this, not just describes it. */}
+        {accommodationTooLate && requiredCheckinIso ? (
+          <div
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+            data-testid="accommodation-too-late-warning"
+          >
+            <p className="text-amber-900 dark:text-amber-100">
+              {accommodationTooLateMessage(
+                formatDayLabel(requiredCheckinIso, locale),
+                locale,
+              )}
+            </p>
+          </div>
+        ) : null}
         {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
             when at least one hotel is configured — without a hotel the
             modes collapse (no package, no shared-double) and we fall back

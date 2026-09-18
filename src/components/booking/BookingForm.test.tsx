@@ -934,6 +934,114 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     )
   })
 
+  // landr-t869m.1/.2: the submit endpoint hard-rejects a booking that falls
+  // inside the product's preparation window with 422
+  // {"error":"lead_time_not_met",...}. The server already builds the
+  // customer-facing sentence (including the earliest-bookable-date promise
+  // when one exists) — the widget must reuse it verbatim, not fall through
+  // to the generic 422-detail dump.
+  it('maps a 422 lead_time_not_met submit error to the server-built message', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'lead_time_not_met',
+            violations: [
+              {
+                product_id: 'service-1',
+                requested_date: '2026-06-10',
+                earliest_bookable_date: '2026-06-12',
+                lead_time_minutes: 2880,
+              },
+            ],
+            earliest_bookable_date: '2026-06-12',
+            message:
+              'This activity needs more notice than the selected date(s) allow. The earliest bookable date is 2026-06-12.',
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        'The earliest bookable date is 2026-06-12',
+      ),
+    )
+    expect(screen.getByTestId('review-error')).not.toHaveTextContent(
+      'lead_time_minutes',
+    )
+  })
+
+  // landr-t869m.1/.2: the timed-lookahead case — no qualifying slot within
+  // the 365-day horizon, so the server OMITS earliest_bookable_date rather
+  // than inventing one. The widget must render the message as-is (no date
+  // promise), never crash on the missing field.
+  it('maps a 422 accommodation_lead_time_not_met error with no earliest date to the server message, without a date promise', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'accommodation_lead_time_not_met',
+            violations: [
+              {
+                product_id: 'service-1',
+                requested_date: '2026-06-10',
+                required_checkin_date: '2026-06-09',
+                lead_time_minutes: 0,
+              },
+            ],
+            message:
+              'It is too late to book the accommodation for the selected date(s).',
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        'It is too late to book the accommodation for the selected date(s).',
+      ),
+    )
+    // No date promise fabricated when the server omitted one.
+    expect(screen.getByTestId('review-error')).not.toHaveTextContent(
+      'earliest bookable date',
+    )
+  })
+
   // landr-f7ae: a stale picked availability slot (operator regenerated the
   // schedule template mid-checkout) makes public_submit_booking's RPC
   // RAISE EXCEPTION with the raw product/operator/availability UUIDs

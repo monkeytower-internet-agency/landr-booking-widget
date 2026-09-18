@@ -34,3 +34,31 @@ export function tr(key: keyof Bundle, locale?: string): string {
   void locale
   return en[key]
 }
+
+/**
+ * landr-t869m.2: the "activity still bookable, hotel too late" copy —
+ * shown in AccommodationStep when a day is activity_bookable but the
+ * derived stay's own lead time (products.accommodation_lead_time_minutes)
+ * has run out (hotel_offering='optional' only; 'mandatory' never reaches
+ * this because the day itself is excluded from the picker). Takes an
+ * already-formatted date label (see formatDayLabel in dateLabel.ts) rather
+ * than a raw ISO string so this stays a plain template, matching every
+ * other date-bearing string surface in the widget.
+ *
+ * Parameterised strings can't live on the flat Bundle type above (v1 is
+ * English-only — see file header — so this skips pickBundle/tr and returns
+ * the English template directly; the locale parameter is kept, unused, for
+ * parity with the rest of this module so a future locale add touches one
+ * file).
+ */
+export function accommodationTooLateMessage(
+  checkinDateLabel: string,
+  locale?: string,
+): string {
+  void locale
+  return (
+    `You can still book this date — the activity is available. ` +
+    `Booking a hotel stay is no longer possible for this date, though: ` +
+    `check-in would have needed to be on ${checkinDateLabel}.`
+  )
+}
