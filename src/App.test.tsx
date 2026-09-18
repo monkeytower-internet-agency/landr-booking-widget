@@ -34,6 +34,8 @@ const { mocks } = vi.hoisted(() => ({
     // custom-form). Per-test overrides supply a custom_form module to exercise
     // the data path.
     getProductFlow: vi.fn(),
+    // landr-otml0.3: ?invite=<token> resolution.
+    getInvitePrefill: vi.fn(),
   },
 }))
 
@@ -58,6 +60,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getProductAddons: mocks.getProductAddons,
     estimateBookingPrice: mocks.estimateBookingPrice,
     getProductFlow: mocks.getProductFlow,
+    getInvitePrefill: mocks.getInvitePrefill,
   }
 })
 
@@ -294,6 +297,38 @@ describe('App', () => {
       await waitFor(() => {
         const logo = screen.getByAltText('Para42') as HTMLImageElement
         expect(logo.src).toBe('https://example.com/logo.png')
+      })
+    })
+
+    it('landr-otml0.2 D8: hides the logo when widget_show_logo is explicitly false', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: null,
+        name: 'Para42',
+        widget_show_logo: false,
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId('widget-logo')).not.toBeInTheDocument()
+    })
+
+    it('landr-otml0.2 D8: shows the logo when widget_show_logo is absent (defaults true)', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: null,
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-logo')).toBeInTheDocument()
       })
     })
 
@@ -2033,6 +2068,85 @@ describe('App', () => {
       expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
       // listProductGroups should NOT be called for a ?product= deep link
       expect(mocks.listProductGroups).not.toHaveBeenCalled()
+    })
+
+    it('?invite= deep link resolves and lands directly on Dates, prefilled with the host’s days', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      const product = makeProduct({
+        product_id: 'p-invite',
+        slug: 'guided-trip',
+        name: 'Guided Trip',
+        service_time_shape: 'days_range',
+        hotel_offering: 'mandatory',
+      })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue(
+        ['2026-06-12', '2026-06-13', '2026-06-14'].map((date) => ({
+          availability_id: `slot-${date}`,
+          date,
+          start_time: null,
+          end_time: null,
+          capacity: 5,
+          capacity_reserved: 0,
+          available_seats: 5,
+          status: 'open',
+        })),
+      )
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        product_id: 'p-invite',
+        dates: ['2026-06-12', '2026-06-13'],
+        hotel_location_id: 'hotel-a',
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-1')
+      })
+      // Skips category/product/product-detail entirely — lands on Dates.
+      await waitFor(() => {
+        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      // The persistent banner names the host and reference.
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'Olaf K***n',
+      )
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'A1B2C3D4',
+      )
+      // Diff chrome renders against the host's 2-day baseline; the selection
+      // starts pre-filled at those same 2 days (a no-op diff to start).
+      expect(screen.getByTestId('multi-day-diff')).toBeInTheDocument()
+      expect(screen.getByText(/2 days selected/i)).toBeInTheDocument()
+    })
+
+    it('?invite= 404 falls back to the plain wizard with a dismissible notice', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=bad-token`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      mocks.getInvitePrefill.mockRejectedValue(
+        new HttpError(404, 'Not Found', '{"detail":{"error":"not_found"}}'),
+      )
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('invite-notice')).toHaveTextContent(
+        "isn't valid any more",
+      )
+      // Plain wizard still renders normally.
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('invite-notice-dismiss'))
+      expect(screen.queryByTestId('invite-notice')).not.toBeInTheDocument()
     })
 
     it('selecting a group from pick-category scopes the product list to that group', async () => {
