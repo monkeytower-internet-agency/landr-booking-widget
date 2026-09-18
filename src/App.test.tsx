@@ -2068,7 +2068,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
       )
-      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       // listProductGroups should NOT be called for a ?product= deep link
       expect(mocks.listProductGroups).not.toHaveBeenCalled()
     })
@@ -2525,7 +2525,7 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
       )
-      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       // Step 4: Book → picker (AvailabilityPicker for time_slot).
       fireEvent.click(screen.getByTestId('product-detail-book-cta'))
       await waitFor(() =>
