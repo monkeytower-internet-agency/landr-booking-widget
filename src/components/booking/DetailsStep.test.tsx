@@ -1902,3 +1902,137 @@ describe('DetailsStep — copy booker contact into a secondary field (landr-0utg
     ).toBeInTheDocument()
   })
 })
+
+describe('DetailsStep — separate_guiding companion contact required (D11, landr-otml0.3)', () => {
+  function addCompanionAndFill(overrides?: { first?: string; last?: string }) {
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    fireEvent.change(byName('companion_1_first_name'), {
+      target: { value: overrides?.first ?? 'Thomas' },
+    })
+    fireEvent.change(byName('companion_1_last_name'), {
+      target: { value: overrides?.last ?? 'Klein' },
+    })
+  }
+
+  it('a "guest" companion needs neither email nor phone (unchanged behaviour)', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    addCompanionAndFill()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('flipping to "separate_guiding" with no email/phone blocks Continue and shows the inline error', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    addCompanionAndFill()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(
+      screen.getByTestId('companion-0-contact-error'),
+    ).toHaveTextContent(
+      'We need an email or phone number to send Thomas their booking link',
+    )
+  })
+
+  it('an email alone satisfies the requirement', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    addCompanionAndFill()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.change(byName('companion_1_email'), {
+      target: { value: 'thomas@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, , companions] = onConfirm.mock.calls[0]!
+    expect(companions[0]).toMatchObject({
+      companion_kind: 'separate_guiding',
+      email: 'thomas@example.com',
+    })
+  })
+
+  it('a phone alone also satisfies the requirement (either channel)', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    addCompanionAndFill()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.change(byName('companion_1_phone'), {
+      target: { value: '+34600123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('flipping back to "guest" clears the requirement', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    addCompanionAndFill()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('companion-kind-0-guest'))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('labels the fields as required (not "optional") once separate_guiding is chosen', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    addCompanionAndFill()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    const row = screen.getByTestId('companion-row-0')
+    expect(row).not.toHaveTextContent(/email \(optional\)/i)
+    expect(row).not.toHaveTextContent(/phone \(optional\)/i)
+    expect(row).toHaveTextContent(
+      'We’ll use this to send them their own booking link.',
+    )
+  })
+})

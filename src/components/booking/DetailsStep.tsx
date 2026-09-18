@@ -578,12 +578,17 @@ export function DetailsStep({
     additional.forEach((_, idx) => {
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
-    companions.forEach((_, idx) => {
+    companions.forEach((row, idx) => {
       keys.push(
         `companion.${idx}.first_name`,
         `companion.${idx}.last_name`,
         `companion.${idx}.phone`,
       )
+      // landr-otml0.3 D11: the combined email-or-phone requirement only
+      // applies once the companion is flipped to 'separate_guiding'.
+      if (row.companion_kind === 'separate_guiding') {
+        keys.push(`companion.${idx}.contact`)
+      }
     })
     return keys
   }
@@ -628,6 +633,10 @@ export function DetailsStep({
             : 'phone'
       return `companion-${cMatch[1]}-${slot}`
     }
+    // landr-otml0.3 D11: focus the email field first — either channel
+    // satisfies the requirement, and email is the more common one to add.
+    const cContactMatch = /^companion\.(\d+)\.contact$/.exec(key)
+    if (cContactMatch) return `companion-${cContactMatch[1]}-email`
     return undefined
   }
 
@@ -667,6 +676,14 @@ export function DetailsStep({
         return row.phone.trim() !== '' && !isValidPhoneFormat(row.phone)
       }
       return !row[field].trim()
+    }
+    // landr-otml0.3 D11: a 'separate_guiding' companion needs email OR
+    // phone (either satisfies it) so their invite link has somewhere to go.
+    const cContactMatch = /^companion\.(\d+)\.contact$/.exec(key)
+    if (cContactMatch) {
+      const row = companions[Number(cContactMatch[1])]
+      if (!row || row.companion_kind !== 'separate_guiding') return false
+      return !row.email.trim() && !row.phone.trim()
     }
     return false
   }
@@ -1240,6 +1257,16 @@ export function DetailsStep({
               `companion-${idx}-phone`,
               'phone-optional',
             )
+            // landr-otml0.3 D11: a 'separate_guiding' companion needs email
+            // OR phone — rendered as one shared error under the pair rather
+            // than duplicated on both fields.
+            const contactKey = `companion.${idx}.contact`
+            const contactRequired = row.companion_kind === 'separate_guiding'
+            const contactError =
+              contactRequired &&
+              touched.has(contactKey) &&
+              !row.email.trim() &&
+              !row.phone.trim()
             return (
             // landr-3mo4: companion rows are raised sub-cards, matching the
             // participant rows.
@@ -1333,8 +1360,17 @@ export function DetailsStep({
                   {...cLastV.inputProps}
                 />
               </Field>
+              {/* landr-otml0.3 D11: a 'separate_guiding' companion gets their
+                  own invite link — this pair is where it goes, so at least
+                  one channel is required. Helper copy sits above the pair
+                  (per spec); the shared error renders once, below both. */}
+              {contactRequired ? (
+                <p className="sm:col-span-2 text-xs text-muted-foreground">
+                  We&rsquo;ll use this to send them their own booking link.
+                </p>
+              ) : null}
               <Field
-                label="Email (optional)"
+                label={contactRequired ? 'Email' : 'Email (optional)'}
                 htmlFor={`companion-${idx}-email`}
                 action={
                   <CopyFromBookerButton
@@ -1355,10 +1391,17 @@ export function DetailsStep({
                   onChange={(e) =>
                     updateCompanion(idx, 'email', e.target.value)
                   }
+                  onBlur={() => {
+                    if (contactRequired) markTouched(contactKey)
+                  }}
+                  aria-invalid={contactError ? true : undefined}
+                  aria-describedby={
+                    contactError ? `companion-${idx}-contact-error` : undefined
+                  }
                 />
               </Field>
               <Field
-                label="Phone (optional)"
+                label={contactRequired ? 'Phone' : 'Phone (optional)'}
                 htmlFor={`companion-${idx}-phone`}
                 error={cPhoneV.error}
                 action={
@@ -1386,8 +1429,26 @@ export function DetailsStep({
                     updateCompanion(idx, 'phone', e.target.value)
                   }}
                   onAnimationStart={handlePhoneAutofill(`companion.${idx}.phone`)}
-                  {...cPhoneV.inputProps}
+                  onBlur={() => {
+                    cPhoneV.inputProps.onBlur()
+                    if (contactRequired) markTouched(contactKey)
+                  }}
+                  aria-invalid={cPhoneV.inputProps['aria-invalid'] ?? (contactError ? true : undefined)}
+                  aria-describedby={
+                    cPhoneV.inputProps['aria-describedby'] ??
+                    (contactError ? `companion-${idx}-contact-error` : undefined)
+                  }
                 />
+                {contactError ? (
+                  <p
+                    id={`companion-${idx}-contact-error`}
+                    className="text-xs text-destructive"
+                    data-testid={`companion-${idx}-contact-error`}
+                  >
+                    We need an email or phone number to send{' '}
+                    {row.first_name.trim() || 'them'} their booking link
+                  </p>
+                ) : null}
                 {/* landr-1url: nudge toward international format (no new dep). */}
                 <p className="text-xs text-muted-foreground">
                   Include your country code
