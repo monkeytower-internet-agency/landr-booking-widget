@@ -1770,6 +1770,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operators/{operator_id}/emails/dismiss-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss every failed, undismissed outbound email for an operator */
+        post: operations["dismiss_failed_emails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/{operator_id}/emails/{email_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss a failed outbound email (operator-scoped) */
+        post: operations["dismiss_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operators/{operator_id}/emails/{email_id}/resend": {
         parameters: {
             query?: never;
@@ -3112,7 +3146,33 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Booking Detail
+         * @description The booking plus its participants, with invite links on companion rows.
+         *
+         *     landr-otml0.1. The rooming list needs three things per separate-guiding
+         *     companion: who they are, whether they have booked yet
+         *     (``linked_booking_reference`` — the "booked ✓"), and the link to send them.
+         *     Serving those here means the dashboard's booking detail is ONE request
+         *     rather than a participants read plus an invites read.
+         *
+         *     ``invite_url`` appears ONLY on companion rows (``is_guiding=false`` and
+         *     ``companion_kind='separate_guiding'``); it is ``None`` everywhere else,
+         *     because nobody else has a booking of their own to make. Guiding
+         *     participants and plain guests are unchanged.
+         *
+         *     The mint is idempotent, so opening a booking created before this feature
+         *     fills in its links rather than showing an empty column — and opening the
+         *     same booking twice returns the same links. Rotating a link is a separate,
+         *     explicit action (``POST /api/staff/operators/{op}/bookings/{id}/invites/
+         *     {companion_id}/rotate``).
+         *
+         *     ``group`` carries the STAFF shape, with booking ids: the dashboard is
+         *     operator-authorised and needs them to navigate between linked bookings. The
+         *     anonymous surfaces get the id-free projection — see
+         *     ``app/services/booking_groups.group_summary``.
+         */
+        get: operations["staff_get_booking_detail"];
         put?: never;
         post?: never;
         /**
@@ -4442,7 +4502,8 @@ export interface paths {
          *                     "severity": "error",
          *                     "title": "Hotel has no booking email",
          *                     "message": "'Grand Hotel' has no booking email ...",
-         *                     "target_route": "/settings/hotels"
+         *                     "target_route": "/settings/hotels",
+         *                     "action_label": "Fix"
          *                 }
          *             ]
          *         }
@@ -9272,6 +9333,10 @@ export interface components {
             day_date: string;
             /** Expected Back At */
             expected_back_at?: string | null;
+            /** Group Id */
+            group_id?: string | null;
+            /** Group Label */
+            group_label?: string | null;
             /** Language */
             language?: string | null;
             /** Name */
@@ -9414,6 +9479,27 @@ export interface components {
              * @description Optional subset of deployable repos; defaults to all.
              */
             repos?: string[] | null;
+        };
+        /** DismissEmailResponse */
+        DismissEmailResponse: {
+            /**
+             * Dismissed At
+             * @description ISO-8601 timestamp.
+             */
+            dismissed_at: string;
+            /**
+             * Id
+             * @description outbound_emails row id.
+             */
+            id: string;
+        };
+        /** DismissFailedEmailsResponse */
+        DismissFailedEmailsResponse: {
+            /**
+             * Dismissed
+             * @description Number of rows newly dismissed.
+             */
+            dismissed: number;
         };
         /**
          * DomainEligibility
@@ -13264,6 +13350,8 @@ export interface components {
             calendar_event?: components["schemas"]["BookingCalendarEvent"] | null;
             /** Confirmation Email Status */
             confirmation_email_status?: string | null;
+            /** Customer Page Url */
+            customer_page_url?: string | null;
             /** Group */
             group?: {
                 [key: string]: unknown;
@@ -16489,6 +16577,69 @@ export interface operations {
             };
         };
     };
+    dismiss_failed_emails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DismissFailedEmailsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                email_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DismissEmailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     resend_email: {
         parameters: {
             query?: never;
@@ -18330,6 +18481,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    staff_get_booking_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
