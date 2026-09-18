@@ -57,6 +57,7 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
+  getContactPagePrefill,
   getInvitePrefill,
   getOperatorServiceRoles,
   getOperatorSettings,
@@ -138,6 +139,7 @@ function readQueryParams() {
       showSoldOut: false,
       catalog: null as string | null,
       invite: null as string | null,
+      contactPageToken: null as string | null,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -148,6 +150,12 @@ function readQueryParams() {
     group: params.get('group'),
     // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
     invite: params.get('invite'),
+    // landr-frqgv.3: `?c=<token>` from a customer's own contact page
+    // (`my.landr.de/c/{token}`, "re-book" CTA) — resolved via GET
+    // /api/public/contact-page/{token}/prefill. Unlike `invite`, this only
+    // prefills the booker's own name/email/phone (no product jump, no
+    // locale override — the widget stays English-only).
+    contactPageToken: params.get('c'),
     // landr-7zc5.3: operator preview_token — when present the products
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
@@ -291,8 +299,16 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken, showSoldOut, catalog, invite } =
-    useMemo(() => readQueryParams(), [])
+  const {
+    token,
+    product,
+    group,
+    previewToken,
+    showSoldOut,
+    catalog,
+    invite,
+    contactPageToken,
+  } = useMemo(() => readQueryParams(), [])
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -306,7 +322,13 @@ function BookingFlowApp() {
   // iframe), so a fresh customer / a Safari-private embed simply starts at
   // pick-product with an empty draft. Skipped entirely when there's no
   // token (the landing page renders) or a deep link is present (?product= /
-  // ?group= drive their own entry, which must win over a stale restore).
+  // ?group= / ?invite= drive their own entry, which must win over a stale
+  // restore). `?c=` (contactPageToken) is deliberately NOT in this list —
+  // unlike invite/product/group it doesn't drive its own entry (no step
+  // jump), so a `?c=` link opened mid-funnel (e.g. a mobile pull-to-
+  // refresh) should still resume exactly where the customer left off. The
+  // prefill effect below is the one that has to defer to a restore, not
+  // this memo — see its comment.
   const restoredProgress = useMemo(
     () => (token && !product && !group && !invite ? readStoredProgress() : null),
     [token, product, group, invite],
@@ -464,6 +486,52 @@ function BookingFlowApp() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invite, token])
+  // landr-frqgv.3: resolve `?c=<token>` once, at mount — a customer
+  // re-booking from their own contact page (my.landr.de/c/{token}). Unlike
+  // `invite` above, this ONLY prefills the booker's own name/email/phone;
+  // there is no product/date to jump to and no locale override (the widget
+  // stays English-only). Any failure (bad/expired token, network error,
+  // 404) is ignored silently — the plain wizard still works exactly as if
+  // `?c=` had never been supplied, which is why there's no notice state
+  // here unlike the invite flow's `inviteNotice`.
+  //
+  // landr-frqgv.3 review fix: skip entirely when `restoredProgress` is
+  // non-null. `contactPageToken` deliberately does NOT clear the restored-
+  // progress memo above (see its comment — `?c=` doesn't drive its own
+  // entry the way invite/product/group do, so a mid-funnel reopen should
+  // resume). But this effect's mergeDraft() runs unconditionally at mount
+  // regardless of that restore, so without this guard a customer who'd
+  // already reached DetailsStep and edited their own name/email/phone —
+  // then hit an accidental mobile pull-to-refresh with `?c=` still in the
+  // URL — got those edits silently clobbered back to the (possibly stale)
+  // contact-record values on remount. A restored session already carries
+  // whatever booker data the customer entered (or none, if they haven't
+  // reached DetailsStep yet) — either way it's the customer's own more
+  // recent state, so it always wins over prefill here.
+  useEffect(() => {
+    if (!contactPageToken || restoredProgress) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const prefill = await getContactPagePrefill(contactPageToken)
+        if (cancelled) return
+        mergeDraft({
+          booker: {
+            first_name: prefill.first_name ?? '',
+            last_name: prefill.last_name ?? '',
+            email: prefill.email ?? '',
+            phone: prefill.phone ?? '',
+          },
+        })
+      } catch {
+        // Silently ignored by design — see comment above.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactPageToken])
   // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
   // by form_key. Each custom-form step merges its entry in on confirm.
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
