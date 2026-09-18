@@ -72,12 +72,14 @@ function Harness({
   onChangeSpy,
   defaultMonth,
   isContiguous,
+  hotelOffering,
 }: {
   availability: AvailabilitySlot[]
   initial?: Date[]
   onChangeSpy?: (days: Date[]) => void
   defaultMonth: Date
   isContiguous?: boolean
+  hotelOffering?: import('@/api/types').HotelOffering
 }) {
   const [value, setValue] = useState<Date[]>(initial)
   return (
@@ -90,6 +92,7 @@ function Harness({
       }}
       defaultMonth={defaultMonth}
       isContiguous={isContiguous}
+      hotelOffering={hotelOffering}
     />
   )
 }
@@ -369,6 +372,69 @@ describe('MultiDayPicker', () => {
     expect(target).toBeDisabled()
     fireEvent.click(target)
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('clicking a day with activity_bookable=false is ignored, even with seats free (landr-t869m.2)', () => {
+    const leadTimeBlocked = availability.map((slot, idx) =>
+      idx === 3 ? { ...slot, activity_bookable: false } : slot,
+    )
+    const spy = vi.fn<(days: Date[]) => void>()
+    render(
+      <Harness
+        availability={leadTimeBlocked}
+        onChangeSpy={spy}
+        defaultMonth={defaultMonth}
+      />,
+    )
+    const target = dayButton(new Date(2026, 5, 13))
+    expect(target).toBeDisabled()
+    fireEvent.click(target)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  // landr-t869m.2 review fix (finding #1): for hotel_offering='mandatory',
+  // a day whose ACCOMMODATION lead time has run out must not be offered
+  // either, even though the activity itself is still bookable — the API
+  // does not already combine these two flags for this endpoint (only
+  // `_product_is_bookable`, the catalogue-level flag, does that). Without
+  // this the customer could pick a mandatory-hotel day that is guaranteed
+  // to 422 with accommodation_lead_time_not_met at Confirm.
+  it('mandatory offering: a day with accommodation_bookable=false is disabled even though activity_bookable=true', () => {
+    const staleAccommodation = availability.map((slot, idx) =>
+      idx === 3
+        ? { ...slot, activity_bookable: true, accommodation_bookable: false }
+        : slot,
+    )
+    const spy = vi.fn<(days: Date[]) => void>()
+    render(
+      <Harness
+        availability={staleAccommodation}
+        onChangeSpy={spy}
+        defaultMonth={defaultMonth}
+        hotelOffering="mandatory"
+      />,
+    )
+    const target = dayButton(new Date(2026, 5, 13))
+    expect(target).toBeDisabled()
+    fireEvent.click(target)
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('optional offering: a day with accommodation_bookable=false stays selectable (only the activity flag gates)', () => {
+    const staleAccommodation = availability.map((slot, idx) =>
+      idx === 3
+        ? { ...slot, activity_bookable: true, accommodation_bookable: false }
+        : slot,
+    )
+    render(
+      <Harness
+        availability={staleAccommodation}
+        defaultMonth={defaultMonth}
+        hotelOffering="optional"
+      />,
+    )
+    const target = dayButton(new Date(2026, 5, 13))
+    expect(target).not.toBeDisabled()
   })
 
   it(

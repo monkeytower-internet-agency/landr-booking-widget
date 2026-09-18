@@ -93,6 +93,14 @@ interface BookingOverviewBodyProps
   extends ReturnType<typeof useBookingEstimate> {
   /** ISO YYYY-MM-DD days the customer picked for the guided service. */
   selectedDays: string[]
+  /**
+   * landr-t869m.1: forwarded to deriveStayWindow so the "Hotel: Sun 24 May
+   * → …" header respects the product's own check-in offset instead of the
+   * old hardcoded -1. Undefined (product predates the field, or an older
+   * API) falls back to deriveStayWindow's own default of 1 — byte-identical
+   * to pre-landr-t869m behaviour.
+   */
+  accommodationCheckinOffsetDays?: number
 }
 
 function BookingOverviewBody({
@@ -101,6 +109,7 @@ function BookingOverviewBody({
   isStale,
   error,
   selectedDays,
+  accommodationCheckinOffsetDays,
 }: BookingOverviewBodyProps) {
   if (!data && isLoading) {
     return (
@@ -156,7 +165,7 @@ function BookingOverviewBody({
   // guided days, not the +1 buffer nights.
   const stay =
     hotel.length > 0 && selectedDays.length > 0
-      ? deriveStayWindow(selectedDays)
+      ? deriveStayWindow(selectedDays, accommodationCheckinOffsetDays)
       : null
   const showStaleSpinner = isStale && data !== null
   return (
@@ -542,7 +551,11 @@ export default function PriceSidebar(props: Props) {
           ) : (
             <div className="mb-3" />
           )}
-          <BookingOverviewBody {...visible} selectedDays={selectedDays} />
+          <BookingOverviewBody
+            {...visible}
+            selectedDays={selectedDays}
+            accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+          />
         </div>
       </aside>
 
@@ -644,7 +657,11 @@ export default function PriceSidebar(props: Props) {
             data-testid="price-sidebar-mobile-panel"
             className="[--muted-foreground:var(--surface-tint-muted-foreground)] max-h-[60vh] overflow-y-auto overscroll-contain border-b border-b-primary/15 bg-surface-tint px-4 py-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
           >
-            <BookingOverviewBody {...visible} selectedDays={selectedDays} />
+            <BookingOverviewBody
+            {...visible}
+            selectedDays={selectedDays}
+            accommodationCheckinOffsetDays={product.accommodation_checkin_offset_days}
+          />
           </div>
         ) : null}
       </div>

@@ -86,11 +86,21 @@ export interface BookingDraft {
   customerLanguages?: string[] | null
   customerOtherLanguages?: string | null
   /**
-   * landr-de6ej: optional free-text comment collected on DetailsStep's
-   * "Anything we should know?" field. Unlike booker/participants/companions
-   * it is NOT threaded through every intermediate Step variant — no
-   * downstream step displays or edits it, so (like participantLanguages)
-   * it is read straight off the draft at the 'fill-form' render site.
+   * landr-de6ej: optional free-text comment first collected on DetailsStep's
+   * "Anything we should know?" field.
+   *
+   * landr-n6ii3: unlike booker/participants/companions it is NOT threaded
+   * through the Step union at all — every step from 'details' onward
+   * (pick-accommodation, pick-service-addons, pick-pickup, assign-languages,
+   * custom-form, fill-form) renders the shared CustomerCommentField reading
+   * and writing this slot DIRECTLY via App.tsx's mergeDraft, on every
+   * keystroke (not gated behind that step's Continue), so an edit made on
+   * any step survives a breadcrumb jump or reload without the customer
+   * having to press Continue again. This is the single source of truth:
+   * DetailsStep itself still buffers the comment in local state until its
+   * own Continue (like booker/participants/companions), but every step
+   * after it reads/writes here straight away. BookingForm ('fill-form')
+   * submits this value as `customer_comment`.
    * Persists across reloads via bookingPersistence.ts like every other
    * draft slice (unlike memberPerkOtp, which deliberately does not).
    */

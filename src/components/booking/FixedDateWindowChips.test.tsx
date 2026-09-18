@@ -49,6 +49,25 @@ describe('FixedDateWindowChips', () => {
     expect(chips).not.toHaveTextContent(/seats? left/i)
   })
 
+  it('landr-t869m.5: shows a lead-time-blocked window as unavailable, not dropped', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      {
+        id: 'w-1',
+        start_date: '2026-08-04',
+        end_date: '2026-08-10',
+        capacity: 8,
+        capacity_reserved: 0,
+        activity_bookable: false,
+      },
+    ])
+    render(<FixedDateWindowChips productId="p-1" slug="siv-course" />)
+    const chips = await waitFor(() =>
+      screen.getByTestId('product-date-chips-siv-course'),
+    )
+    expect(chips).toHaveTextContent(/Aug 4, 2026.*Aug 10, 2026/)
+    expect(chips).toHaveTextContent('Too late to book')
+  })
+
   it('renders nothing once loaded with zero windows', async () => {
     mocks.getFixedDateWindows.mockResolvedValue([])
     render(<FixedDateWindowChips productId="p-1" slug="siv-course" />)

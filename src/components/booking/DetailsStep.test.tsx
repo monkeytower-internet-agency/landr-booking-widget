@@ -1777,3 +1777,128 @@ describe('DetailsStep customer comment (landr-de6ej)', () => {
     )
   })
 })
+
+// landr-0utgk: per-field "copy from the main participant" icon on the four
+// secondary contact fields (Trello: "so when someone brings his kids, the
+// contact stays the same").
+describe('DetailsStep — copy booker contact into a secondary field (landr-0utgk)', () => {
+  function renderStep(onConfirm = vi.fn()) {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    return onConfirm
+  }
+
+  it('hides the participant copy icons while the booker email/phone are empty', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    expect(
+      screen.queryByTestId('copy-booker-email-p-0'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('copy-booker-phone-p-0'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the participant copy icons once the booker email/phone are filled', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fillBooker()
+    expect(screen.getByTestId('copy-booker-email-p-0')).toBeInTheDocument()
+    expect(screen.getByTestId('copy-booker-phone-p-0')).toBeInTheDocument()
+  })
+
+  it('fills the participant email/phone with the booker value on click', () => {
+    renderStep()
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByTestId('copy-booker-email-p-0'))
+    fireEvent.click(screen.getByTestId('copy-booker-phone-p-0'))
+    expect(byName('participant_2_email')).toHaveValue('ada@example.com')
+    expect(byName('participant_2_phone')).toHaveValue('+34 600 000 000')
+  })
+
+  it('hides the participant copy icon once the value matches, and it reappears once edited away', () => {
+    renderStep()
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.click(screen.getByTestId('copy-booker-email-p-0'))
+    expect(
+      screen.queryByTestId('copy-booker-email-p-0'),
+    ).not.toBeInTheDocument()
+    fireEvent.change(byName('participant_2_email'), {
+      target: { value: 'someone-else@example.com' },
+    })
+    expect(screen.getByTestId('copy-booker-email-p-0')).toBeInTheDocument()
+  })
+
+  it('a copied participant phone leaves the form submittable (no validation error, Continue works)', () => {
+    const onConfirm = renderStep()
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    fireEvent.change(byName('participant_2_first_name'), {
+      target: { value: 'Grace' },
+    })
+    fireEvent.change(byName('participant_2_last_name'), {
+      target: { value: 'Hopper' },
+    })
+    fireEvent.click(screen.getByTestId('copy-booker-phone-p-0'))
+    // Blur the copied field the way a real edit would eventually be left —
+    // it must NOT turn red even though it was just programmatically set.
+    fireEvent.blur(byName('participant_2_phone'))
+    expect(byName('participant_2_phone')).not.toHaveAttribute('aria-invalid')
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides the companion copy icons while the booker email/phone are empty, and shows them once filled', () => {
+    renderStep()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    expect(
+      screen.queryByTestId('copy-booker-email-companion-0'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('copy-booker-phone-companion-0'),
+    ).not.toBeInTheDocument()
+    fillBooker()
+    expect(
+      screen.getByTestId('copy-booker-email-companion-0'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTestId('copy-booker-phone-companion-0'),
+    ).toBeInTheDocument()
+  })
+
+  it('fills the companion email/phone with the booker value on click, then hides once matched', () => {
+    renderStep()
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
+    fireEvent.click(screen.getByTestId('copy-booker-email-companion-0'))
+    fireEvent.click(screen.getByTestId('copy-booker-phone-companion-0'))
+    expect(byName('companion_1_email')).toHaveValue('ada@example.com')
+    expect(byName('companion_1_phone')).toHaveValue('+34 600 000 000')
+    expect(
+      screen.queryByTestId('copy-booker-email-companion-0'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('copy-booker-phone-companion-0'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('has accessible aria-labels naming the booker as "you"', () => {
+    renderStep()
+    fillBooker()
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    expect(
+      screen.getByRole('button', { name: "Use your email" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: "Use your phone" }),
+    ).toBeInTheDocument()
+  })
+})

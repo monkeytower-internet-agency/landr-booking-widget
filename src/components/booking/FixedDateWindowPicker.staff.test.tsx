@@ -86,13 +86,18 @@ const FULL_WINDOW: FixedDateWindow = {
   capacity_reserved: 8,
 }
 
-function renderStaff(onConfirm = vi.fn(), session = STAFF) {
+function renderStaff(
+  onConfirm = vi.fn(),
+  session = STAFF,
+  initialWindowId?: string,
+) {
   render(
     <StaffModeProvider value={session}>
       <FixedDateWindowPicker
         product={makeProduct()}
         onBack={() => {}}
         onConfirm={onConfirm}
+        initialWindowId={initialWindowId}
       />
     </StaffModeProvider>,
   )
@@ -123,9 +128,13 @@ describe('FixedDateWindowPicker — staff force-book', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    const [, windowArg, forced] = onConfirm.mock.calls[0]!
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
     expect(windowArg.id).toBe('w-full')
     expect(forced).toBe(true)
+    // landr-t869m.5 (review fix): assert the 4th argument too — a regression
+    // that drops selectedForceReasons would otherwise pass this test silently
+    // and fall back to the review banner's (false) capacity copy.
+    expect(forcedReasons).toEqual(['capacity'])
   })
 
   it('declining the confirm does not select the full window', async () => {
@@ -150,6 +159,37 @@ describe('FixedDateWindowPicker — staff force-book', () => {
     expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
   })
 
+  it('landr-t869m.5: a lead-time-blocked window still shows in staff mode, force-bookable via the badge, not hidden', async () => {
+    const blockedWindow: FixedDateWindow = {
+      id: 'w-blocked',
+      start_date: '2027-09-01',
+      end_date: '2027-09-07',
+      capacity: 8,
+      capacity_reserved: 0,
+      activity_bookable: false,
+    }
+    mocks.getStaffFixedDateWindows.mockResolvedValue([blockedWindow])
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = renderStaff()
+
+    await waitFor(() => expect(screen.getByText(/Sep 1, 2027/)).toBeInTheDocument())
+    // Marked with the override badge, not silently dropped from the list.
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+    const rowBtn = screen.getByRole('button', { name: /Sep 1, 2027/ })
+    expect(rowBtn).not.toBeDisabled()
+
+    fireEvent.click(rowBtn)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
+    expect(windowArg.id).toBe('w-blocked')
+    expect(forced).toBe(true)
+    // landr-t869m.5 (review fix): this window has capacity (0 reserved of 8)
+    // but activity_bookable=false — its only reason must be 'lead_time', not
+    // 'capacity', or the review banner would tell the operator the wrong thing.
+    expect(forcedReasons).toEqual(['lead_time'])
+  })
+
   it('landr-r2o8: a session without force_book falls back to the public RPC', async () => {
     mocks.getFixedDateWindows.mockResolvedValue([])
     renderStaff(vi.fn(), NO_FORCE_STAFF)
@@ -157,5 +197,27 @@ describe('FixedDateWindowPicker — staff force-book', () => {
       expect(mocks.getFixedDateWindows).toHaveBeenCalledWith('p-1'),
     )
     expect(mocks.getStaffFixedDateWindows).not.toHaveBeenCalled()
+  })
+
+  // landr-t869m.7: unlike SingleDatePicker's (formerly buggy) plain
+  // useState, `selectedForceReasons` here is a useMemo DERIVED from
+  // `selectedWindow` (itself resolved from `initialWindowId` once `windows`
+  // loads) — so restoring a force-booked window via Back-navigation
+  // recomputes correctly with no fix needed. This test proves that rather
+  // than assuming it.
+  it('restoring a force-booked window via initialWindowId still confirms forced + its reasons (landr-t869m.7 — verified NOT buggy here)', async () => {
+    const onConfirm = renderStaff(vi.fn(), STAFF, FULL_WINDOW.id)
+
+    await waitFor(() => expect(screen.getByText(/Aug 4, 2027/)).toBeInTheDocument())
+    // Badge appears immediately once windows resolve — no click needed to
+    // (re)confirm the force, unlike the buggy SingleDatePicker case.
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, windowArg, forced, forcedReasons] = onConfirm.mock.calls[0]!
+    expect(windowArg.id).toBe(FULL_WINDOW.id)
+    expect(forced).toBe(true)
+    expect(forcedReasons).toEqual(['capacity'])
   })
 })

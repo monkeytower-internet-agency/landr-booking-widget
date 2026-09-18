@@ -265,4 +265,32 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     // Continue must be enabled — empty add-ons is a valid "nothing to do" path.
     expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
   })
+
+  // landr-n6ii3: the "Anything we should know?" comment is now editable on
+  // every step after details, not just where it was first collected.
+  it('renders the customer comment field pre-filled from the draft and reports edits', async () => {
+    mocks.getProductAddons.mockResolvedValue([])
+    const onCustomerCommentChange = vi.fn()
+
+    render(
+      <ServiceAddonsStep
+        product={makeProduct()}
+        customerComment="already typed on an earlier step"
+        onCustomerCommentChange={onCustomerCommentChange}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/No add-ons available/i),
+      ).toBeInTheDocument(),
+    )
+
+    const field = screen.getByTestId('customer-comment')
+    expect(field).toHaveValue('already typed on an earlier step')
+    fireEvent.change(field, { target: { value: 'a dietary need' } })
+    expect(onCustomerCommentChange).toHaveBeenCalledWith('a dietary need')
+  })
 })

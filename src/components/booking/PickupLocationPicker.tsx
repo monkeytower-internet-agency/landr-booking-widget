@@ -13,6 +13,7 @@ import {
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
+import { CustomerCommentField } from './CustomerCommentField'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
@@ -25,6 +26,13 @@ interface Props {
    * the radio list being empty + Continue disabled).
    */
   initialLocationId?: string | null
+  /**
+   * landr-n6ii3: current value of the "Anything we should know?" comment,
+   * read straight off App.tsx's bookingDraft.customerComment. Optional
+   * (defaults to '' / a no-op) so existing tests need no change.
+   */
+  customerComment?: string
+  onCustomerCommentChange?: (comment: string) => void
   onBack: () => void
   onConfirm: (locationId: string) => void
 }
@@ -51,6 +59,8 @@ export function PickupLocationPicker({
   operatorToken,
   productName,
   initialLocationId,
+  customerComment = '',
+  onCustomerCommentChange = () => {},
   onBack,
   onConfirm,
 }: Props) {
@@ -153,6 +163,13 @@ export function PickupLocationPicker({
             })}
           </fieldset>
         )}
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Continue. */}
+        <CustomerCommentField
+          value={customerComment}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button

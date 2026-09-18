@@ -1,4 +1,5 @@
-import type { Product, ProductGroup } from '@/api/types'
+import type { AvailabilitySlot, HotelOffering, Product, ProductGroup } from '@/api/types'
+import type { ForceReason } from '@/lib/strings'
 
 /**
  * landr-7jgo: a product is "bookable" when the customer can actually pick a
@@ -32,4 +33,121 @@ export function isCategoryFullySoldOut(
   group: Pick<ProductGroup, 'product_count' | 'bookable_count'>,
 ): boolean {
   return group.product_count > 0 && group.bookable_count === 0
+}
+
+/**
+ * landr-t869m.2: does this availability row still satisfy the product's
+ * preparation window (`lead_time_minutes`)? The widget reads this flag
+ * straight off `public_get_product_availability` — it never re-derives the
+ * lead-time rule itself (that logic lives once, server-side, in
+ * app/services/lead_time.py and the twin SQL functions).
+ *
+ * FAIL-OPEN on an ABSENT flag, exactly like `isBookable()` above: an older
+ * API (or a mocked/test slot) that predates the field must never
+ * accidentally grey out a whole calendar. Only an explicit `false` excludes
+ * the day.
+ */
+export function isActivityBookable(
+  slot: Pick<AvailabilitySlot, 'activity_bookable'>,
+): boolean {
+  return slot.activity_bookable !== false
+}
+
+/**
+ * landr-t869m.2: can a stay derived from this activity day still be booked?
+ * Three-way, unlike isActivityBookable — this mirrors the API's own
+ * NULL/true/false contract:
+ *   - `true`  — the stay is bookable.
+ *   - `false` — the activity is still bookable but the derived check-in day
+ *     no longer satisfies the stay's own lead time ("hotel too late").
+ *   - `null`/absent — not evaluated at all (product's hotel_offering is
+ *     'none', or an older API). Callers must not treat this as "false".
+ *
+ * Returns the raw tri-state rather than collapsing to a boolean because
+ * AccommodationStep needs to distinguish "no hotel step" from "hotel step,
+ * but too late" to decide whether to render the optional-hotel warning at
+ * all.
+ */
+export function accommodationBookability(
+  slot: Pick<AvailabilitySlot, 'accommodation_bookable'> | undefined,
+): boolean | null {
+  const value = slot?.accommodation_bookable
+  return value === undefined ? null : value
+}
+
+/**
+ * landr-t869m.2 (review fix): should a day picker OFFER this day at all,
+ * given the product's hotel_offering?
+ *
+ * CORRECTED PREMISE — the original ticket text asserted "mandatory → the
+ * day is simply not offered (the API flag already reflects this)". That is
+ * wrong: in migration 20260918013000, the
+ * `hotel_offering <> 'mandatory' OR _accommodation_lead_time_ok(...)` clause
+ * lives ONLY inside `_product_is_bookable` (the catalogue-level "is this
+ * product bookable at all" flag). `public_get_product_availability`'s
+ * `activity_bookable` is a bare `_lead_time_ok(...)` with NO accommodation
+ * term, and `accommodation_bookable` is a separate column the migration's
+ * own header says is "NOT filtered out when a flag is false" — i.e. days
+ * are never dropped server-side. Combining the two flags for a mandatory
+ * product is the WIDGET's job, not something the API already does.
+ *
+ * Rule:
+ *   - `hotel_offering !== 'mandatory'` (optional/none) — activity_bookable
+ *     alone gates the day. The accommodation half never blocks the
+ *     activity for these — that is the whole point of 'optional' (see
+ *     AccommodationStep's "hotel too late" banner), and 'none' never
+ *     evaluates accommodation at all.
+ *   - `hotel_offering === 'mandatory'` — the day is only offered when BOTH
+ *     activity_bookable AND accommodation_bookable hold. A mandatory
+ *     product cannot book the activity without the stay, so a day whose
+ *     stay has run out of lead time must not be selectable — leaving it
+ *     selectable would let the customer walk the whole flow into a
+ *     guaranteed `accommodation_lead_time_not_met` 422 at Confirm.
+ *
+ * FAIL-OPEN throughout: an absent/null accommodation_bookable (older API,
+ * or a mock) never blocks a mandatory day — only an explicit `false` does.
+ */
+export function isDayBookable(
+  slot: Pick<AvailabilitySlot, 'activity_bookable' | 'accommodation_bookable'>,
+  hotelOffering: HotelOffering | undefined,
+): boolean {
+  if (!isActivityBookable(slot)) return false
+  if (hotelOffering === 'mandatory') {
+    return slot.accommodation_bookable !== false
+  }
+  return true
+}
+
+/**
+ * landr-t869m.5: which gate(s) a staff force-book bypassed for one
+ * slot/window — capacity and/or either lead-time flag. A pick can fail more
+ * than one gate at once (e.g. sold out AND past its own lead time); callers
+ * carry every applicable reason through to the review-step banner (see
+ * `forceBookReasonMessage` in `@/lib/strings`) instead of collapsing to a
+ * single boolean, so the banner never claims "capacity will be exceeded"
+ * for an override that was actually about lead time.
+ *
+ * Always returned in this canonical order (capacity, lead_time,
+ * accommodation_lead_time) so downstream message-building never has to
+ * re-sort. `accommodation_lead_time` only appears for a 'mandatory' offering
+ * — mirrors isDayBookable's own combination rule; 'optional'/'none' never
+ * let the accommodation flag block the pick itself (see AccommodationStep's
+ * separate "hotel too late" banner for that case).
+ *
+ * `ForceReason` itself lives in `@/lib/strings` (the module that turns it
+ * into copy) rather than here, so this file — which components import —
+ * never needs to import FROM the strings module.
+ */
+export function forceReasonsFor(
+  hasCapacity: boolean,
+  slot: Pick<AvailabilitySlot, 'activity_bookable' | 'accommodation_bookable'>,
+  hotelOffering: HotelOffering | undefined,
+): ForceReason[] {
+  const reasons: ForceReason[] = []
+  if (!hasCapacity) reasons.push('capacity')
+  if (!isActivityBookable(slot)) reasons.push('lead_time')
+  if (hotelOffering === 'mandatory' && slot.accommodation_bookable === false) {
+    reasons.push('accommodation_lead_time')
+  }
+  return reasons
 }

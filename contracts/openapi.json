@@ -3485,6 +3485,17 @@
             "title": "Participant Id",
             "type": "string"
           },
+          "participant_language_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Language Override"
+          },
           "phone": {
             "anyOf": [
               {
@@ -3900,6 +3911,39 @@
           "assigned_unit_id"
         ],
         "title": "DayUnitPatchIn",
+        "type": "object"
+      },
+      "DayUnitSortItem": {
+        "description": "One row of a \"Sort into units\" batch \u2014 see `sort_day_units`.",
+        "properties": {
+          "booking_id": {
+            "minLength": 1,
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "participant_id": {
+            "minLength": 1,
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "unit_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          }
+        },
+        "required": [
+          "booking_id",
+          "participant_id"
+        ],
+        "title": "DayUnitSortItem",
         "type": "object"
       },
       "DevToStagingIn": {
@@ -4545,6 +4589,21 @@
         "additionalProperties": true,
         "description": "One row returned by the public_get_product_fixed_date_windows RPC.\nMirrors the widget's ``FixedDateWindow`` TypeScript interface\n(src/api/types.ts) field-for-field.",
         "properties": {
+          "accommodation_bookable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Bookable"
+          },
+          "activity_bookable": {
+            "title": "Activity Bookable",
+            "type": "boolean"
+          },
           "available_seats": {
             "title": "Available Seats",
             "type": "integer"
@@ -4578,7 +4637,9 @@
           "end_date",
           "capacity",
           "capacity_reserved",
-          "available_seats"
+          "available_seats",
+          "activity_bookable",
+          "accommodation_bookable"
         ],
         "title": "FixedDateWindow",
         "type": "object"
@@ -11006,6 +11067,20 @@
       },
       "ProductIn": {
         "properties": {
+          "accommodation_checkin_offset_days": {
+            "default": 1,
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Accommodation Checkin Offset Days",
+            "type": "integer"
+          },
+          "accommodation_lead_time_minutes": {
+            "default": 0,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Accommodation Lead Time Minutes",
+            "type": "integer"
+          },
           "active": {
             "default": true,
             "title": "Active",
@@ -11142,6 +11217,13 @@
             "default": false,
             "title": "Is Publicly Listed",
             "type": "boolean"
+          },
+          "lead_time_minutes": {
+            "default": 0,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Lead Time Minutes",
+            "type": "integer"
           },
           "name": {
             "maxLength": 200,
@@ -11338,6 +11420,32 @@
       },
       "ProductPatch": {
         "properties": {
+          "accommodation_checkin_offset_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Checkin Offset Days"
+          },
+          "accommodation_lead_time_minutes": {
+            "anyOf": [
+              {
+                "maximum": 525600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Lead Time Minutes"
+          },
           "active": {
             "anyOf": [
               {
@@ -11504,6 +11612,19 @@
               }
             ],
             "title": "Is Publicly Listed"
+          },
+          "lead_time_minutes": {
+            "anyOf": [
+              {
+                "maximum": 525600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Minutes"
           },
           "name": {
             "anyOf": [
@@ -27910,6 +28031,80 @@
         "summary": "Get Day Manifest",
         "tags": [
           "staff-briefings"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/day-units/{day_date}/sort": {
+      "post": {
+        "description": "Apply a whole \"Sort into units\" batch atomically (landr-1khre).\n\nD9 locks the bulk sort once ANY participant of this operator+day has left\n`expected`, and requires the operator to then arrange manually \u2014 the\nper-row `patch_day_unit` above MUST keep working exactly when this\nendpoint is locked, so the D9 check lives HERE, not there (see this\nrouter module's history / the ticket for why gating `patch_day_unit`\ninstead would have been a regression).\n\nThe client-side gate (landr-dashboard#733's `allExpected(rows)`) is\nbypassable by construction \u2014 a second driver's stale tab, a direct API\ncall \u2014 so it is re-derived server-side, INSIDE\n`staff_sort_participant_day_units`'s own transaction immediately before\nany write, not from a Python-level read here. That is what makes the\ncheck race-safe: nothing in this handler reads the day's state and\ndecides before the RPC call, so there is no window for a concurrent\nstatus tap to slip between a passing check and the write.\n\n409 `day_not_all_expected` when the lock is engaged. A single invalid\nrow (unknown booking/participant/unit) RAISEs inside the same RPC call\nand rolls back the WHOLE batch \u2014 a rejected batch writes nothing.",
+        "operationId": "staff_sort_participant_day_units",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "day_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/DayUnitSortItem"
+                },
+                "title": "Body",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Sort Participant Day Units",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sort Day Units",
+        "tags": [
+          "staff-participant-day-state"
         ]
       }
     },

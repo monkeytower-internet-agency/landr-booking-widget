@@ -107,6 +107,30 @@ const FORCED_DAYS: BookingSelection = {
   forcedDays: ['2026-02-02'],
 }
 
+// landr-t869m.5: the same forced selection but explicit about WHICH gate it
+// bypassed, so the review-forced banner names the real reason instead of
+// always claiming "capacity will be exceeded".
+const FORCED_DAYS_LEAD_TIME_ONLY: BookingSelection = {
+  kind: 'days',
+  selectedDays: ['2026-02-01', '2026-02-02'],
+  forcedDays: ['2026-02-02'],
+  forcedReasons: ['lead_time'],
+}
+
+const FORCED_DAYS_CAPACITY_ONLY: BookingSelection = {
+  kind: 'days',
+  selectedDays: ['2026-02-01', '2026-02-02'],
+  forcedDays: ['2026-02-02'],
+  forcedReasons: ['capacity'],
+}
+
+const FORCED_DAYS_BOTH: BookingSelection = {
+  kind: 'days',
+  selectedDays: ['2026-02-01', '2026-02-02'],
+  forcedDays: ['2026-02-02'],
+  forcedReasons: ['capacity', 'lead_time'],
+}
+
 describe('BookingForm — staff mode', () => {
   beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
@@ -191,6 +215,44 @@ describe('BookingForm — staff mode', () => {
       StaffSubmitBody,
     ]
     expect(body.ignore_capacity).toBe(true)
+  })
+
+  // landr-t869m.5: the review-forced banner used to always say "Capacity
+  // will be exceeded for this booking" regardless of why the pick was
+  // actually forced — false the moment a lead-time override folded into the
+  // same forced/forcedDays flag. It must now name the real reason(s).
+  describe('review-forced banner names the actual override reason (landr-t869m.5)', () => {
+    it('capacity-only: renders the EXACT pre-existing copy, unchanged', () => {
+      renderForm(FORCED_DAYS_CAPACITY_ONLY, true)
+      const banner = screen.getByTestId('review-forced')
+      expect(banner).toHaveTextContent(
+        '1 day booked past capacity. Capacity will be exceeded for this booking.',
+      )
+    })
+
+    it('an omitted forcedReasons (pre-t869m.5 caller) also falls open to the capacity copy', () => {
+      renderForm(FORCED_DAYS, true)
+      const banner = screen.getByTestId('review-forced')
+      expect(banner).toHaveTextContent(
+        '1 day booked past capacity. Capacity will be exceeded for this booking.',
+      )
+    })
+
+    it('lead-time-only: names lead time, does NOT claim capacity will be exceeded', () => {
+      renderForm(FORCED_DAYS_LEAD_TIME_ONLY, true)
+      const banner = screen.getByTestId('review-forced')
+      expect(banner).toHaveTextContent('inside the lead-time window')
+      expect(banner).not.toHaveTextContent('Capacity will be exceeded')
+      expect(banner).not.toHaveTextContent('past capacity')
+    })
+
+    it('capacity + lead time together: names BOTH reasons', () => {
+      renderForm(FORCED_DAYS_BOTH, true)
+      const banner = screen.getByTestId('review-forced')
+      expect(banner).toHaveTextContent('past capacity')
+      expect(banner).toHaveTextContent('inside the lead-time window')
+      expect(banner).toHaveTextContent('Capacity will be exceeded')
+    })
   })
 
   it('posts landr:booking-created to the parent on a successful staff submit', async () => {

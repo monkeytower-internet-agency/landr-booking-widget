@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Modifiers } from 'react-day-picker'
-import type { AvailabilitySlot } from '@/api/types'
+import type { AvailabilitySlot, HotelOffering } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
+import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
+import { describeForceReasons, type ForceReason } from '@/lib/strings'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -25,13 +27,30 @@ interface MultiDayPickerProps {
    */
   isContiguous?: boolean
   /**
+   * landr-t869m.2: the product's hotel_offering, so a day can be gated on
+   * BOTH activity_bookable and accommodation_bookable when it's
+   * 'mandatory' — see isDayBookable's doc for why the API does NOT already
+   * combine these for this endpoint. Undefined (product predates the
+   * field, or an older mock) behaves like 'none'/'optional' — activity
+   * bookability alone gates the day, matching the pre-landr-t869m.2
+   * behaviour.
+   */
+  hotelOffering?: HotelOffering
+  /**
    * landr-aoak.2 [S3]: called when the set of force-booked (zero-availability)
    * days inside the current selection changes. Only ever fires non-empty in
    * staff mode; the normal customer path never selects an unavailable day so
    * this stays []. Lets the parent step thread the forced days into the submit
    * adapter's capacity-override flag.
+   * landr-t869m.5: `forcedReasons` is the UNION of gate(s) bypassed across
+   * every forced day in the current selection (canonical order — see
+   * forceReasonsFor's doc), so the parent can pass it straight through to
+   * BookingForm's review-forced banner.
    */
-  onForcedDaysChange?: (forcedIsoDays: string[]) => void
+  onForcedDaysChange?: (
+    forcedIsoDays: string[],
+    forcedReasons: ForceReason[],
+  ) => void
 }
 
 
@@ -78,6 +97,7 @@ export function MultiDayPicker({
   helpText,
   defaultMonth,
   isContiguous = false,
+  hotelOffering,
   onForcedDaysChange,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
@@ -85,13 +105,32 @@ export function MultiDayPicker({
   // carries the force_book power. Otherwise this is the normal customer picker.
   const canForce = staff.active && staff.powers.includes('force_book')
 
+  // landr-t869m.2: a day also needs lead-time bookability (activity, plus —
+  // for a 'mandatory' hotel_offering — accommodation too; see
+  // isDayBookable's doc for why the API doesn't already combine these).
+  // Folding this into the SAME availableSet a sold-out day already uses
+  // means the existing staff force-book path (canForce →
+  // disabled=undefined, see the Calendar below) transparently covers
+  // lead-time overrides too — no separate override plumbing needed.
   const availableSet = useMemo(() => {
     return new Set(
       availability
-        .filter((slot) => slot.available_seats > 0)
+        .filter(
+          (slot) =>
+            slot.available_seats > 0 && isDayBookable(slot, hotelOffering),
+        )
         .map((slot) => slot.date),
     )
-  }, [availability])
+  }, [availability, hotelOffering])
+
+  // landr-t869m.5: date → slot lookup so a force-booked day can name WHICH
+  // gate(s) it bypassed (capacity and/or lead time), same fail-open-to-
+  // ['capacity'] contract as SingleDatePicker's slotsByDate when a date has
+  // no matching row at all.
+  const slotsByDate = useMemo(
+    () => new Map(availability.map((slot) => [slot.date, slot])),
+    [availability],
+  )
 
   const [anchor, setAnchor] = useState<Date | null>(null)
   const [mode, setMode] = useState<Mode>('range')
@@ -104,6 +143,25 @@ export function MultiDayPicker({
     () => value.map(isoDate).filter((iso) => !availableSet.has(iso)).sort(),
     [value, availableSet],
   )
+
+  // landr-t869m.5: the UNION of gate(s) bypassed across every forced day —
+  // a range can mix a sold-out day with a lead-time-blocked one, so this
+  // names every reason that applies to ANY of them rather than picking one.
+  // Canonical order (see forceReasonsFor's doc) so the badge text and the
+  // eventual review-forced banner never disagree on ordering.
+  const forcedReasons = useMemo(() => {
+    const present = new Set<ForceReason>()
+    for (const iso of forcedDays) {
+      const slot = slotsByDate.get(iso)
+      const reasons = slot
+        ? forceReasonsFor(slot.available_seats > 0, slot, hotelOffering)
+        : (['capacity'] as ForceReason[])
+      reasons.forEach((r) => present.add(r))
+    }
+    return (['capacity', 'lead_time', 'accommodation_lead_time'] as ForceReason[]).filter(
+      (r) => present.has(r),
+    )
+  }, [forcedDays, slotsByDate, hotelOffering])
 
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
@@ -249,8 +307,8 @@ export function MultiDayPicker({
   // Fires [] in the normal path (no unavailable day is ever selectable), so the
   // submit adapter receives an empty force set and behaves byte-identically.
   useEffect(() => {
-    onForcedDaysChange?.(forcedDays)
-  }, [forcedDays, onForcedDaysChange])
+    onForcedDaysChange?.(forcedDays, forcedReasons)
+  }, [forcedDays, forcedReasons, onForcedDaysChange])
 
   // Help text: caller override wins; contiguous has fixed copy; otherwise
   // follows the active mode.
@@ -315,9 +373,12 @@ export function MultiDayPicker({
       {forcedDays.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           <OperatorOverrideBadge />
+          {/* landr-t869m.5: names the actual reason(s), not a hard-coded
+              "(past capacity)" — a range can be forced for lead time alone. */}
           <span className="text-xs text-muted-foreground">
             {forcedDays.length} forced{' '}
-            {forcedDays.length === 1 ? 'day' : 'days'} (past capacity)
+            {forcedDays.length === 1 ? 'day' : 'days'} (
+            {describeForceReasons(forcedReasons)})
           </span>
         </div>
       ) : null}
