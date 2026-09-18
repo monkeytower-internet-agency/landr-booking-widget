@@ -4,6 +4,7 @@ import type {
   ApprovalRequestContext,
   AvailabilitySlot,
   BookingLookupResult,
+  ContactPagePrefill,
   CustomerStageLabel,
   EstimateRequestBody,
   EstimateResponse,
@@ -394,6 +395,24 @@ export async function submitBooking(
  */
 export async function getInvitePrefill(token: string): Promise<InvitePrefill> {
   return http<InvitePrefill>(`/api/public/invites/${encodeURIComponent(token)}`)
+}
+
+/**
+ * landr-frqgv.3 (epic landr-frqgv D1): resolve a `?c=<token>` link from a
+ * customer's own contact page (`my.landr.de/c/{token}`, the "re-book" CTA)
+ * to their own name/email/phone/language. 404 on every miss (bad/expired/
+ * revoked token) — the caller (App.tsx) ignores this silently and falls
+ * back to the plain, un-prefilled wizard; there is no notice banner like
+ * the invite flow's, since a missing prefill here is a no-op, not a
+ * degraded booking. No mock fallback — same reasoning as
+ * getInvitePrefill: only reached by following a real contact-page link.
+ */
+export async function getContactPagePrefill(
+  token: string,
+): Promise<ContactPagePrefill> {
+  return http<ContactPagePrefill>(
+    `/api/public/contact-page/${encodeURIComponent(token)}/prefill`,
+  )
 }
 
 /**
