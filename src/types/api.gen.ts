@@ -11458,6 +11458,16 @@ export interface components {
         /** ProductIn */
         ProductIn: {
             /**
+             * Accommodation Checkin Offset Days
+             * @default 1
+             */
+            accommodation_checkin_offset_days: number;
+            /**
+             * Accommodation Lead Time Minutes
+             * @default 0
+             */
+            accommodation_lead_time_minutes: number;
+            /**
              * Active
              * @default true
              */
@@ -11502,6 +11512,11 @@ export interface components {
              * @default false
              */
             is_publicly_listed: boolean;
+            /**
+             * Lead Time Minutes
+             * @default 0
+             */
+            lead_time_minutes: number;
             /** Name */
             name: string;
             /** Name Localized */
@@ -11563,6 +11578,10 @@ export interface components {
         };
         /** ProductPatch */
         ProductPatch: {
+            /** Accommodation Checkin Offset Days */
+            accommodation_checkin_offset_days?: number | null;
+            /** Accommodation Lead Time Minutes */
+            accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
             /** Capacity Per Unit */
@@ -11593,6 +11612,8 @@ export interface components {
             is_contiguous?: boolean | null;
             /** Is Publicly Listed */
             is_publicly_listed?: boolean | null;
+            /** Lead Time Minutes */
+            lead_time_minutes?: number | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
