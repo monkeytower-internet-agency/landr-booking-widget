@@ -8,6 +8,7 @@ import { describeForceReasons, type ForceReason } from '@/lib/strings'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import { computeDayDiff } from '@/components/booking/daySetDiff'
 
 type Mode = 'individual' | 'range'
 
@@ -51,6 +52,21 @@ interface MultiDayPickerProps {
     forcedIsoDays: string[],
     forcedReasons: ForceReason[],
   ) => void
+  /**
+   * landr-otml0.3 — invite-mode diff baseline (originalValue mode, ported
+   * from the dashboard's MultiDayPicker — landr-fxza.5 Section C). When
+   * provided, the calendar renders a tri-colour diff (unchanged / added /
+   * removed) against it, plus a change-summary line and a "Reset to
+   * <hostLabel>'s dates" button. Omit for the plain picker (no diff chrome) —
+   * every non-invite booking.
+   */
+  originalValue?: Date[]
+  /**
+   * The host's display name, interpolated into the summary line and the
+   * reset button. Required whenever `originalValue` is set; ignored
+   * otherwise.
+   */
+  originalValueLabel?: string
 }
 
 
@@ -99,6 +115,8 @@ export function MultiDayPicker({
   isContiguous = false,
   hotelOffering,
   onForcedDaysChange,
+  originalValue,
+  originalValueLabel,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   // landr-aoak.2: force-book only when staff mode is active AND the session
@@ -134,6 +152,13 @@ export function MultiDayPicker({
 
   const [anchor, setAnchor] = useState<Date | null>(null)
   const [mode, setMode] = useState<Mode>('range')
+  // landr-otml0.3 review fix (CRITICAL 1): how many of the host's days
+  // Reset had to drop because they're no longer available. null = no reset
+  // has happened yet (or the customer has edited the selection since —
+  // cleared inside applyClick below), so the notice never lingers stale.
+  const [resetDroppedCount, setResetDroppedCount] = useState<number | null>(
+    null,
+  )
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
 
@@ -165,6 +190,10 @@ export function MultiDayPicker({
 
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
+      // landr-otml0.3 review fix (CRITICAL 1): any manual edit after a Reset
+      // retires that Reset's "N days dropped" notice — it described THAT
+      // reset, not the selection the customer is building now.
+      setResetDroppedCount(null)
       const key = isoDate(day)
       // landr-aoak.2: in staff mode an unavailable day is the operator-override
       // path — confirm, then toggle it into the selection like an individual
@@ -320,6 +349,45 @@ export function MultiDayPicker({
         ? DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
         : DEFAULT_MULTI_DAY_HELP_RANGE)
 
+  // landr-otml0.3 — invite-mode diff (originalValue mode, ported from the
+  // dashboard — landr-fxza.5 Section C). Purely presentational: it only
+  // drives the modifiers/legend/summary below and the explicit Reset click;
+  // it never feeds back into applyClick/onChange on its own.
+  const diff = useMemo(
+    () => computeDayDiff(valueSet, originalValue),
+    [originalValue, valueSet],
+  )
+  const diffAddedDates = useMemo(
+    () => diff?.added.map(dateFromIso) ?? [],
+    [diff],
+  )
+  const diffRemovedDates = useMemo(
+    () => diff?.removed.map(dateFromIso) ?? [],
+    [diff],
+  )
+
+  // landr-otml0.3 review fix (CRITICAL 1): Reset used to call
+  // onChange(originalValue) directly, bypassing every gate applyClick
+  // enforces (availability, lead time) — a public customer could end up
+  // with an unavailable day silently re-selected, which the API would then
+  // 422 (or a staff session would force-book unintentionally) at Confirm.
+  // Route it through the SAME availableSet gate applyClick uses: a normal
+  // customer (canForce false) gets only the host's still-available days
+  // back, with a count of how many were dropped; staff (canForce true) can
+  // restore the raw baseline since they're allowed to force-book any of it
+  // afterward anyway.
+  const handleReset = useCallback(() => {
+    if (!originalValue) return
+    if (canForce) {
+      setResetDroppedCount(null)
+      onChange(originalValue)
+      return
+    }
+    const restorable = originalValue.filter((d) => availableSet.has(isoDate(d)))
+    setResetDroppedCount(originalValue.length - restorable.length)
+    onChange(restorable)
+  }, [originalValue, canForce, availableSet, onChange])
+
   return (
     <div className="flex flex-col gap-3">
       {!isContiguous && (
@@ -367,7 +435,79 @@ export function MultiDayPicker({
         // regardless of contiguity. The picker is multi-select; a
         // "continuous range" visual is meaningless here — the user picks
         // discrete days, even when they happen to be adjacent.
+        //
+        // landr-otml0.3 — diffAdded/diffRemoved are undefined (falsy) for
+        // every non-invite booking, so this is a no-op split there.
+        modifiers={{
+          diffAdded: diffAddedDates,
+          diffRemoved: diffRemovedDates,
+        }}
       />
+      {originalValue !== undefined ? (
+        <div className="flex flex-col gap-2" data-testid="multi-day-diff">
+          {diff?.hasDiff ? (
+            <>
+              <div
+                className="flex flex-wrap items-center gap-3 text-xs"
+                data-testid="multi-day-diff-legend"
+              >
+                <span className="inline-flex items-center gap-1.5 text-diff-added">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-4 items-center justify-center rounded bg-diff-added-soft-bg font-semibold"
+                  >
+                    +
+                  </span>
+                  Added
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-destructive">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-4 items-center justify-center rounded bg-destructive/10 font-semibold line-through"
+                  >
+                    &minus;
+                  </span>
+                  Removed
+                </span>
+              </div>
+              <p className="text-sm" data-testid="multi-day-diff-summary">
+                {/* landr-otml0.3 ticket spec: "+N day(s) / −M day(s) vs
+                    <host>" — separate added/removed counts, not a net
+                    delta, so a same-count swap (+1/−1) still reads as a
+                    change instead of collapsing to "+0". */}+
+                {diff?.added.length ?? 0}{' '}
+                {(diff?.added.length ?? 0) === 1 ? 'day' : 'days'} /
+                &minus;{diff?.removed.length ?? 0}{' '}
+                {(diff?.removed.length ?? 0) === 1 ? 'day' : 'days'} vs{' '}
+                {originalValueLabel ?? 'the original booking'}
+              </p>
+            </>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            disabled={!diff?.hasDiff}
+            onClick={handleReset}
+            data-testid="multi-day-reset-button"
+          >
+            Reset to {originalValueLabel ?? 'the original'}&rsquo;s dates
+          </Button>
+          {resetDroppedCount !== null && resetDroppedCount > 0 ? (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="multi-day-reset-dropped-notice"
+            >
+              {resetDroppedCount}{' '}
+              {resetDroppedCount === 1
+                ? `of ${originalValueLabel ?? 'the host'}'s days is`
+                : `of ${originalValueLabel ?? 'the host'}'s days are`}{' '}
+              no longer available.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {/* landr-aoak.2: surface the operator-override badge whenever the staff
           selection includes any force-booked (sold-out / blocked) day. */}
       {forcedDays.length > 0 ? (

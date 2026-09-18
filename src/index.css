@@ -53,6 +53,14 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  /*
+   * landr-otml0.3: invite-mode date diff (MultiDayPicker's originalValue
+   * mode, ported from the dashboard — landr-fxza.5 Section C). Only the
+   * "added" tint is new here; "removed" reuses the existing destructive
+   * tokens above (see ui/calendar.tsx's CalendarDayButton).
+   */
+  --color-diff-added: var(--diff-added);
+  --color-diff-added-soft-bg: var(--diff-added-soft-bg);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -117,6 +125,10 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* landr-otml0.3 — matches the dashboard's light-mode diff-added tokens
+   * (landr-fxza.5 Section C) so the same visual language carries over. */
+  --diff-added: oklch(0.48 0.15 140);
+  --diff-added-soft-bg: oklch(0.95 0.045 140);
 }
 
 .dark {
@@ -157,6 +169,9 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  /* landr-otml0.3 — matches the dashboard's dark-mode diff-added tokens. */
+  --diff-added: oklch(0.72 0.15 140);
+  --diff-added-soft-bg: oklch(0.225 0.04 140);
 }
 
 @layer base {

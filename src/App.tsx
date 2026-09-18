@@ -5,6 +5,7 @@ import {
   type AccommodationMode,
 } from '@/components/booking/AccommodationStep'
 import { disambiguatePartyLabels } from '@/components/booking/accommodationCalc'
+import { isBookable } from '@/components/booking/bookability'
 import type {
   BreakfastMap,
   OccupantAgeMap,
@@ -56,16 +57,24 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
 import {
+  getInvitePrefill,
   getOperatorServiceRoles,
   getOperatorSettings,
   getProductAddons,
   getProductFlow,
   HttpError,
   listProductGroups,
+  listProducts,
 } from '@/api/client'
 import { CustomFormStep } from '@/components/booking/CustomFormStep'
 import type { FormResponseEntry, ProductFlowResponse } from '@/api/flowTypes'
-import type { OperatorSettings, Product, ProductGroup, ServiceRole } from '@/api/types'
+import type {
+  InvitePrefill,
+  OperatorSettings,
+  Product,
+  ProductGroup,
+  ServiceRole,
+} from '@/api/types'
 import {
   type Step,
   type PerRoomAddons,
@@ -94,7 +103,12 @@ import {
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
-import { browserLocale, configureCustomerLocale, pickLocalized } from '@/lib/locale'
+import {
+  browserLocale,
+  configureCustomerLocale,
+  overrideBookingLocale,
+  pickLocalized,
+} from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -123,6 +137,7 @@ function readQueryParams() {
       previewToken: null as string | null,
       showSoldOut: false,
       catalog: null as string | null,
+      invite: null as string | null,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -131,6 +146,8 @@ function readQueryParams() {
     token: params.get('w'),
     product: params.get('product'),
     group: params.get('group'),
+    // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
+    invite: params.get('invite'),
     // landr-7zc5.3: operator preview_token — when present the products
     // fetch uses the preview path which returns drafts too. Absent in
     // normal customer-facing embed URLs (published-only behaviour).
@@ -274,10 +291,8 @@ function App() {
 }
 
 function BookingFlowApp() {
-  const { token, product, group, previewToken, showSoldOut, catalog } = useMemo(
-    () => readQueryParams(),
-    [],
-  )
+  const { token, product, group, previewToken, showSoldOut, catalog, invite } =
+    useMemo(() => readQueryParams(), [])
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -293,8 +308,8 @@ function BookingFlowApp() {
   // token (the landing page renders) or a deep link is present (?product= /
   // ?group= drive their own entry, which must win over a stale restore).
   const restoredProgress = useMemo(
-    () => (token && !product && !group ? readStoredProgress() : null),
-    [token, product, group],
+    () => (token && !product && !group && !invite ? readStoredProgress() : null),
+    [token, product, group, invite],
   )
   const [step, setStep] = useState<Step>(
     () => restoredProgress?.step ?? { name: 'pick-product' },
@@ -317,6 +332,32 @@ function BookingFlowApp() {
   // re-seeds its own field from this same state via initialMemberPerkOtp so
   // a Back-then-forward loop still shows (and re-sends) whatever was typed.
   const [memberPerkOtp, setMemberPerkOtp] = useState<string>('')
+  // landr-otml0.3: resolved `?invite=<token>` prefill. `undefined` = no
+  // token supplied / not yet resolved; `null` = resolved and failed (404) —
+  // the plain wizard runs; an object = the strict prefill (see
+  // InvitePrefill's doc — no booking ids). Read by the pick-selection /
+  // pick-accommodation renders below to show the diff picker + banner, and
+  // by the submit path to send invite_token.
+  const [inviteData, setInviteData] = useState<InvitePrefill | null | undefined>(
+    invite ? undefined : null,
+  )
+  // landr-otml0.3: dismissible notice for the 404 case ("this invite link
+  // isn't valid any more…"). Not a real toast component (none exists in
+  // this widget yet) — a dismissible banner in the same style as the
+  // existing preview-mode banner.
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null)
+  // landr-otml0.3: the shared-double reference the customer confirmed via
+  // AccommodationStep's masked-lookup field, lifted live (mirrors
+  // memberPerkOtp above — it only matters at the final submit).
+  const [joinRef, setJoinRef] = useState<string | null>(null)
+  // landr-otml0.3 review fix (MINOR 6): one-shot "which companion row to
+  // highlight" set after BookingForm's submit was rejected with the API's
+  // companion_contact_required 422. Cleared by DetailsStep itself once
+  // applied (onCompanionContactFocusApplied below) so it never lingers to
+  // affect an unrelated later remount.
+  const [focusCompanionContactIndex, setFocusCompanionContactIndex] = useState<
+    number | undefined
+  >(undefined)
   // landr-87n9.2: live-lifted room + per-room add-on selection from
   // AccommodationStep so the PriceSidebar's "At-hotel total" pill updates
   // WHILE the customer picks rooms — without waiting for Continue. Mirrors
@@ -349,6 +390,80 @@ function BookingFlowApp() {
   const mergeDraft = useCallback((patch: BookingDraft) => {
     setBookingDraft((prev) => mergeDraftPatch(prev, patch))
   }, [])
+  // landr-otml0.3: resolve `?invite=<token>` once, at mount. On success:
+  // seed the persistent draft (booker name, hotel + shared-double mode —
+  // the SAME slices `afterDetails` already reads to build pick-accommodation,
+  // so no separate plumbing is needed there) and jump straight to
+  // pick-selection with the matching product, skipping category/product/
+  // product-detail entirely. On 404 (or the product not being found/
+  // bookable — an edge case the ticket doesn't cover, treated the same way):
+  // fall back to the plain wizard and show a dismissible notice.
+  useEffect(() => {
+    if (!invite || !token) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const prefill = await getInvitePrefill(invite)
+        if (cancelled) return
+        // landr-otml0.3 review fix (MINOR 5): product_id is nullable on the
+        // wire (the host's product can be deleted/deactivated between mint
+        // and open) — with no product to jump to, degrade straight to the
+        // plain wizard instead of spending a listProducts round-trip on a
+        // lookup that can never match.
+        if (!prefill.product_id) {
+          setInviteData(null)
+          setInviteNotice(
+            "This invite link isn't valid any more — you can still book and enter the reference later.",
+          )
+          return
+        }
+        setInviteData(prefill)
+        // landr-otml0.3 review fix (MAJOR 2): prefill.language wins over both
+        // the raw browser locale and the operator's whitelist — see
+        // overrideBookingLocale's doc for why.
+        overrideBookingLocale(prefill.language)
+        mergeDraft({
+          booker: {
+            first_name: prefill.invitee_first_name,
+            last_name: prefill.invitee_last_name,
+            email: '',
+            phone: '',
+          },
+          hotelLocationId: prefill.hotel_location_id,
+          isSharedDouble: prefill.is_shared_double,
+          accommodationMode: prefill.is_shared_double
+            ? 'shared-double'
+            : undefined,
+        })
+        const products = await listProducts(token)
+        if (cancelled) return
+        const match = products.find((p) => p.product_id === prefill.product_id)
+        if (match && isBookable(match)) {
+          setStep({ name: 'pick-selection', product: match })
+        } else {
+          // Product deleted/inactive/sold out since the invite was minted —
+          // not specified by the ticket; degrade to the plain wizard rather
+          // than dead-ending on a step nothing can render.
+          setInviteData(null)
+          overrideBookingLocale(null)
+          setInviteNotice(
+            "This invite link isn't valid any more — you can still book and enter the reference later.",
+          )
+        }
+      } catch {
+        if (cancelled) return
+        setInviteData(null)
+        overrideBookingLocale(null)
+        setInviteNotice(
+          "This invite link isn't valid any more — you can still book and enter the reference later.",
+        )
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invite, token])
   // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
   // by form_key. Each custom-form step merges its entry in on confirm.
   // Cleared on full restart (goToProductStep). Sent to BookingForm for the
@@ -536,6 +651,9 @@ function BookingFlowApp() {
     slug: '',
     expose_seats_to_customer: false,
     logo_url: null,
+    // landr-otml0.2 D8: default true (matches the API column default) so
+    // the logo doesn't flash-hide before the settings fetch resolves.
+    widget_show_logo: true,
     primary_color: null,
     // landr-ens5 — 3-colour theme null until the fetch resolves (built-in
     // default theme until then).
@@ -842,6 +960,9 @@ function BookingFlowApp() {
       // landr-fn4i / landr-5krc: a full restart is a brand-new booking —
       // any previously-typed member-perk code must not silently ride along.
       setMemberPerkOtp('')
+      // landr-otml0.3: same reasoning — a confirmed shared-double reference
+      // from the PREVIOUS booking must not silently ride along either.
+      setJoinRef(null)
       // landr-87n9.2: clear live accommodation state on a full restart.
       clearLiveAccommodation()
       // landr-nmed: a full restart (post-booking, or "← All categories" /
@@ -1262,6 +1383,35 @@ function BookingFlowApp() {
   const isFirstStep =
     step.name === 'pick-product' || step.name === 'pick-category'
 
+  // landr-otml0.3 review fix (MINOR 4): without this, an invite link briefly
+  // rendered the full product catalogue (a fetch + render cycle) before the
+  // invite-resolution effect above swapped the step to pick-selection —
+  // visible, confusing flash for a customer who followed a link that's
+  // supposed to skip straight to Dates. `inviteData === undefined` means
+  // "still resolving" (see its declaration); once it settles to an object
+  // (success, already past this step) or `null` (404 → plain wizard is the
+  // intended fallback, so let it through) this gate no longer applies.
+  if (invite && inviteData === undefined && step.name === 'pick-product') {
+    return (
+      <div
+        className="min-h-screen overscroll-y-contain bg-background text-foreground"
+        style={brandStyle}
+        data-testid="widget-root"
+      >
+        <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+          <div
+            className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
+            data-testid="invite-resolving"
+            role="status"
+            aria-live="polite"
+          >
+            <span>Resolving your invite…</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     // landr-2mgl: overscroll-y-contain on the widget's outermost scroll
     // container stops a stray top-of-page swipe from triggering the mobile
@@ -1305,12 +1455,17 @@ function BookingFlowApp() {
           const showDescription =
             !!(operatorSettings.widget_description &&
               (!operatorSettings.widget_description_first_page_only || isFirstStep))
-          if (!operatorSettings.logo_url && !showHeadline && !showDescription) return null
+          // landr-otml0.2 D8: widget_show_logo defaults true (init state
+          // above); an explicit false hides the logo even when one is
+          // uploaded, without touching the headline/description gates.
+          const showLogo =
+            !!operatorSettings.logo_url && operatorSettings.widget_show_logo !== false
+          if (!showLogo && !showHeadline && !showDescription) return null
           return (
             <header className="flex flex-col gap-2">
-              {operatorSettings.logo_url ? (
+              {showLogo ? (
                 <img
-                  src={operatorSettings.logo_url}
+                  src={operatorSettings.logo_url ?? undefined}
                   alt={operatorSettings.name ?? operatorSettings.slug}
                   className="h-10 w-auto max-w-[160px] object-contain"
                   data-testid="widget-logo"
@@ -1350,6 +1505,51 @@ function BookingFlowApp() {
           >
             <span className="font-semibold">Preview mode</span>
             <span>— draft products are visible. This link is for operator review only.</span>
+          </div>
+        ) : null}
+
+        {/*
+          landr-otml0.3: persistent banner across every step once an invite
+          link resolved, so the customer always knows why dates/hotel came
+          pre-filled. Hidden once the booking is confirmed — nothing left to
+          explain by then.
+        */}
+        {inviteData && step.name !== 'confirmed' ? (
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-surface-well px-3 py-2 text-sm shadow-well"
+            data-testid="invite-banner"
+            role="status"
+          >
+            <span>
+              You&rsquo;re joining {inviteData.host_display_name}&rsquo;s
+              booking (ref {inviteData.host_reference}). Dates and hotel are
+              prefilled — change anything that differs for you.
+            </span>
+          </div>
+        ) : null}
+
+        {/*
+          landr-otml0.3: dismissible notice for an invite link that no
+          longer resolves (404, or the invited product is gone/sold out) —
+          this widget has no toast component, so a dismissible banner in the
+          same style as the preview-mode banner above stands in for one.
+        */}
+        {inviteNotice ? (
+          <div
+            className="flex items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            data-testid="invite-notice"
+            role="status"
+          >
+            <span>{inviteNotice}</span>
+            <button
+              type="button"
+              className="shrink-0 text-amber-800/70 hover:text-amber-900"
+              aria-label="Dismiss"
+              onClick={() => setInviteNotice(null)}
+              data-testid="invite-notice-dismiss"
+            >
+              ×
+            </button>
           </div>
         ) : null}
 
@@ -1636,11 +1836,24 @@ function BookingFlowApp() {
             product={step.product}
             onBack={goToProductStep}
             // landr (breadcrumb): restore the prior day selection on re-entry.
+            // landr-otml0.3: on the FIRST visit via an invite link (no prior
+            // selection yet), default to the host's dates instead of empty —
+            // the ticket's "dates = host's dates" prefill.
             initialSelectedDays={
               step.selection?.kind === 'days'
                 ? step.selection.selectedDays
+                : inviteData && inviteData.product_id === step.product.product_id
+                  ? inviteData.dates
+                  : undefined
+            }
+            // landr-otml0.3: invite-mode diff baseline — undefined (no diff
+            // chrome) for every non-invite booking.
+            originalDays={
+              inviteData && inviteData.product_id === step.product.product_id
+                ? inviteData.dates
                 : undefined
             }
+            originalDaysLabel={inviteData?.host_display_name}
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -1714,6 +1927,13 @@ function BookingFlowApp() {
             // from the persistent draft (it round-trips through
             // sessionStorage), unlike memberPerkOtp above.
             initialCustomerComment={bookingDraft.customerComment}
+            // landr-otml0.3 review fix (MINOR 6): set only on the one mount
+            // that follows a companion_contact_required rejection; cleared
+            // by DetailsStep itself once applied.
+            initialFocusCompanionContactIndex={focusCompanionContactIndex}
+            onCompanionContactFocusApplied={() =>
+              setFocusCompanionContactIndex(undefined)
+            }
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -1754,6 +1974,10 @@ function BookingFlowApp() {
             selectedDays={selectionToDays(step.selection)}
             operatorToken={token!}
             participantCount={step.participants.length}
+            // landr-otml0.3: hides the shared-double reference field — an
+            // invite-linked customer is already joined via the token.
+            inviteMode={!!inviteData}
+            onJoinRefChange={setJoinRef}
             // landr-sjrd: progressive name disambiguation — build the whole
             // party (participants first, companions after; mirrors the room
             // assignment index space) and split disambiguated labels back at
@@ -2360,6 +2584,28 @@ function BookingFlowApp() {
             // DetailsStep — see memberPerkOtp's declaration above for why
             // this isn't threaded through step.* like booker/participants.
             memberPerkOtp={memberPerkOtp}
+            // landr-otml0.3: the raw invite token (re-resolved server-side)
+            // — only sent when the invite actually resolved to a prefill;
+            // an expired/invalid link that fell back to the plain wizard
+            // must not send a token the API will just reject again.
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            // landr-otml0.3: the shared-double reference confirmed in
+            // AccommodationStep — top-level lifted state, same reasoning as
+            // memberPerkOtp above.
+            joinRef={joinRef ?? undefined}
+            // landr-otml0.3 review fix (MINOR 6): the API's
+            // companion_contact_required 422 sends the customer straight
+            // back to DetailsStep with that exact row highlighted, rather
+            // than leaving them to find it from formatHttpError's text
+            // alone. detailsFromDraft rebuilds the SAME details step
+            // bookingDraft.booker/participants/companions already carry
+            // (afterDetails commits them there on the way forward) —
+            // mirrors the pattern App.tsx already uses for a breadcrumb
+            // jump back to Dates.
+            onCompanionContactRequired={(companionIndex) => {
+              setFocusCompanionContactIndex(companionIndex)
+              setStep(detailsFromDraft(step.product, step.selection, bookingDraft))
+            }}
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}

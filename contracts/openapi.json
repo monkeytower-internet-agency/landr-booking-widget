@@ -1856,6 +1856,22 @@
         "title": "BriefingDayIn",
         "type": "object"
       },
+      "BriefingJoinIn": {
+        "description": "The host's booking reference, typed on the customer page (epic D4/D6).",
+        "properties": {
+          "ref": {
+            "maxLength": 16,
+            "minLength": 4,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "title": "BriefingJoinIn",
+        "type": "object"
+      },
       "BriefingPatchIn": {
         "description": "PATCH body. All fields optional; only those set are written.",
         "properties": {
@@ -6124,6 +6140,124 @@
         "title": "InsurancePatchRequest",
         "type": "object"
       },
+      "InvitePrefillOut": {
+        "additionalProperties": false,
+        "description": "What an invite link may reveal \u2014 an ALLOWLIST, not a filter.\n\n``extra=\"forbid\"`` is the point of this model. The service resolves the\ninvite against the host's booking and naturally has its uuid and the\ncompanion row's id in hand; neither may cross to the browser. A raw booking\nuuid is a bearer capability here (``/api/public/bookings/{id}/cancel`` and\nthe ``.ics`` download take the bare id), so leaking the host's would let the\ninvitee cancel the booking that invited them. The widget never needs it\neither: it echoes the ``invite_token`` back on submit, and the server\nre-resolves.\n\nWith ``forbid``, a field added to the service payload later fails loudly\nhere instead of silently widening the anonymous surface.",
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "host_display_name": {
+            "default": "",
+            "title": "Host Display Name",
+            "type": "string"
+          },
+          "host_reference": {
+            "default": "",
+            "title": "Host Reference",
+            "type": "string"
+          },
+          "hotel_location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotel Location Id"
+          },
+          "invitee_first_name": {
+            "default": "",
+            "title": "Invitee First Name",
+            "type": "string"
+          },
+          "invitee_last_name": {
+            "default": "",
+            "title": "Invitee Last Name",
+            "type": "string"
+          },
+          "is_shared_double": {
+            "default": true,
+            "title": "Is Shared Double",
+            "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          }
+        },
+        "required": [
+          "operator_id"
+        ],
+        "title": "InvitePrefillOut",
+        "type": "object"
+      },
+      "InviteSendIn": {
+        "properties": {
+          "channel": {
+            "default": "email",
+            "title": "Channel",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "InviteSendIn",
+        "type": "object"
+      },
+      "InviteSendOut": {
+        "properties": {
+          "invite_url": {
+            "title": "Invite Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "invite_url"
+        ],
+        "title": "InviteSendOut",
+        "type": "object"
+      },
       "InvoiceRow": {
         "properties": {
           "age_days": {
@@ -6863,6 +6997,22 @@
           }
         },
         "title": "LifecycleStagePatchIn",
+        "type": "object"
+      },
+      "LinkBookingIn": {
+        "description": "The other booking's 8-character reference, as the operator types it.",
+        "properties": {
+          "ref": {
+            "maxLength": 16,
+            "minLength": 4,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "title": "LinkBookingIn",
         "type": "object"
       },
       "LocationIn": {
@@ -8962,6 +9112,17 @@
             ],
             "title": "Widget Headline First Page Only"
           },
+          "widget_show_logo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Show Logo"
+          },
           "widget_tile_aspect": {
             "anyOf": [
               {
@@ -9528,6 +9689,11 @@
           "widget_headline_first_page_only": {
             "default": false,
             "title": "Widget Headline First Page Only",
+            "type": "boolean"
+          },
+          "widget_show_logo": {
+            "default": true,
+            "title": "Widget Show Logo",
             "type": "boolean"
           },
           "widget_tile_aspect": {
@@ -12207,10 +12373,34 @@
             ],
             "title": "Form Responses"
           },
+          "invite_token": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Token"
+          },
           "is_shared_double": {
             "default": false,
             "title": "Is Shared Double",
             "type": "boolean"
+          },
+          "join_ref": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join Ref"
           },
           "member_perk_otp": {
             "anyOf": [
@@ -12445,6 +12635,30 @@
           "lng"
         ],
         "title": "RaiseSosRequest",
+        "type": "object"
+      },
+      "ReferenceLookupOut": {
+        "description": "Everything a bare booking reference is allowed to reveal.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "masked_name": {
+            "title": "Masked Name",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference",
+          "masked_name",
+          "created_at"
+        ],
+        "title": "ReferenceLookupOut",
         "type": "object"
       },
       "RefundIn": {
@@ -14868,6 +15082,18 @@
             ],
             "title": "Confirmation Email Status"
           },
+          "group": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
           "ical_url": {
             "anyOf": [
               {
@@ -14878,6 +15104,25 @@
               }
             ],
             "title": "Ical Url"
+          },
+          "invites": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Invites",
+            "type": "array"
+          },
+          "join_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join Error"
           },
           "next_steps": {
             "anyOf": [
@@ -14904,6 +15149,17 @@
           "semantic_state": {
             "title": "Semantic State",
             "type": "string"
+          },
+          "share_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Secret"
           },
           "stage": {
             "anyOf": [
@@ -21203,6 +21459,84 @@
         ]
       }
     },
+    "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
+      "post": {
+        "description": "Email one fellow traveller their invite link, on the booker's behalf.",
+        "operationId": "public_send_booking_invite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "companion_id",
+            "required": true,
+            "schema": {
+              "title": "Companion Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Share-Secret",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Share-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteSendIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteSendOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Booking Invite",
+        "tags": [
+          "public-booking-groups"
+        ]
+      }
+    },
     "/api/public/bookings/{token}": {
       "get": {
         "operationId": "get_booking",
@@ -21477,6 +21811,61 @@
         ]
       }
     },
+    "/api/public/briefings/{token}/join": {
+      "post": {
+        "description": "Join this booking's trip to the booking behind ``ref`` (landr-otml0.1).\n\nTHE TOKEN IS THE AUTHORISATION for *which* booking is being joined \u2014 only\nwhoever holds this customer-page link can act as that customer. It is not\nan authorisation to make unlimited attempts, and this endpoint is two\nthings at once: a WRITE, and an oracle for \"does reference X exist in this\noperator?\". So it carries the same per-IP and per-operator caps as the\nanonymous reference lookup, plus a per-token cap \u2014 otherwise one leaked\nbriefing link would be a licence to enumerate the operator's whole\nreference space, which is exactly what the lookup's own limits exist to\nprevent.\n\nEvery failure is the SAME opaque ``join_failed``. Distinguishing \"no such\nreference\" from \"that booking cannot be joined\" would hand an enumerator\nthe one bit they are looking for: the second answer confirms the reference\nis real. The customer sees one message either way \u2014 check the code \u2014 which\nis the only action available to them regardless.",
+        "operationId": "public_briefing_join_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingJoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Public Briefing Join Group",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Group From Briefing",
+        "tags": [
+          "public-briefings"
+        ]
+      }
+    },
     "/api/public/contact-page/{token}": {
       "get": {
         "operationId": "public_get_contact_page",
@@ -21674,6 +22063,103 @@
         "summary": "Resolve Hostname",
         "tags": [
           "public-hostnames"
+        ]
+      }
+    },
+    "/api/public/invites/{token}": {
+      "get": {
+        "description": "Resolve an invite link into the widget's prefill payload.",
+        "operationId": "public_get_invite_prefill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePrefillOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Invite Prefill",
+        "tags": [
+          "public-booking-groups"
+        ]
+      }
+    },
+    "/api/public/operators/{operator_id}/bookings/lookup": {
+      "get": {
+        "description": "Confirm a booking reference and return only a masked name + created_at.",
+        "operationId": "public_lookup_booking_by_reference",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "maxLength": 16,
+              "minLength": 4,
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceLookupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Booking By Reference",
+        "tags": [
+          "public-booking-groups"
         ]
       }
     },
@@ -25069,6 +25555,326 @@
         "summary": "Put Custom Offer",
         "tags": [
           "staff-bookings-custom-offer"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
+      "get": {
+        "operationId": "staff_get_booking_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Get Booking Group",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Group",
+        "tags": [
+          "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group/link": {
+      "post": {
+        "description": "Join this booking to the group of the booking behind ``ref``.\n\nThe reference is resolved WITHIN the path operator, so an operator can\nnever link one of their bookings to another tenant's \u2014 the RPC refuses that\ntoo, but failing at the lookup means the operator is not even told the\nother reference exists.",
+        "operationId": "staff_link_booking_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkBookingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Link Booking Group",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Link Booking Group",
+        "tags": [
+          "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group/unlink": {
+      "post": {
+        "description": "Take this booking out of its group, and dissolve a group left with one.\n\nRemoving one of two members has to remove BOTH, not just the one named. A\ngroup of one is not a group: the survivor's confirmation email, customer\npage and day board would all keep rendering a \"travelling together\" block\nnaming nobody but themselves, and the operator who clicked unlink would\nreasonably believe they had undone the link. Unlinking Thomas from Olaf\nmust leave Olaf unlinked too.\n\nSo: clear this booking, then re-count. If fewer than two live members\nremain, clear the survivor as well and drop the now-meaningless group row.\n``group_summary`` independently refuses to report a one-member group, so a\ngroup that drops below two by some other route (a member cancelling) also\nstops rendering \u2014 this endpoint cleans up the data, that guard covers the\nrest.",
+        "operationId": "staff_unlink_booking_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Unlink Booking Group",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlink Booking Group",
+        "tags": [
+          "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/invites": {
+      "get": {
+        "description": "The rooming list's separate-guiding rows, each with its real invite link.\n\nUses the idempotent mint rather than a pure read, so a booking created\nbefore this feature (or one whose mint failed) gets its links filled in on\nfirst view instead of showing a permanently empty column. Nothing that\nalready has a token is touched.",
+        "operationId": "staff_list_booking_invites",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff List Booking Invites",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Booking Invites",
+        "tags": [
+          "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/invites/{companion_id}/rotate": {
+      "post": {
+        "description": "Replace a leaked invite link. Breaks the previous one \u2014 see module doc.",
+        "operationId": "staff_rotate_booking_invite_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "companion_id",
+            "required": true,
+            "schema": {
+              "title": "Companion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Staff Rotate Booking Invite Link"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Booking Invite Link",
+        "tags": [
+          "staff-booking-groups"
         ]
       }
     },
