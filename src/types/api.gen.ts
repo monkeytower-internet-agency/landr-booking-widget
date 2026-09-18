@@ -9441,6 +9441,10 @@ export interface components {
          *     (src/api/types.ts) field-for-field.
          */
         FixedDateWindow: {
+            /** Accommodation Bookable */
+            accommodation_bookable: boolean | null;
+            /** Activity Bookable */
+            activity_bookable: boolean;
             /** Available Seats */
             available_seats: number;
             /** Capacity */

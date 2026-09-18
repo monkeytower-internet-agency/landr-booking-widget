@@ -4589,6 +4589,21 @@
         "additionalProperties": true,
         "description": "One row returned by the public_get_product_fixed_date_windows RPC.\nMirrors the widget's ``FixedDateWindow`` TypeScript interface\n(src/api/types.ts) field-for-field.",
         "properties": {
+          "accommodation_bookable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Bookable"
+          },
+          "activity_bookable": {
+            "title": "Activity Bookable",
+            "type": "boolean"
+          },
           "available_seats": {
             "title": "Available Seats",
             "type": "integer"
@@ -4622,7 +4637,9 @@
           "end_date",
           "capacity",
           "capacity_reserved",
-          "available_seats"
+          "available_seats",
+          "activity_bookable",
+          "accommodation_bookable"
         ],
         "title": "FixedDateWindow",
         "type": "object"
