@@ -103,7 +103,12 @@ import {
 import { detectRoute } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
-import { browserLocale, configureCustomerLocale, pickLocalized } from '@/lib/locale'
+import {
+  browserLocale,
+  configureCustomerLocale,
+  overrideBookingLocale,
+  pickLocalized,
+} from '@/lib/locale'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -345,6 +350,14 @@ function BookingFlowApp() {
   // AccommodationStep's masked-lookup field, lifted live (mirrors
   // memberPerkOtp above — it only matters at the final submit).
   const [joinRef, setJoinRef] = useState<string | null>(null)
+  // landr-otml0.3 review fix (MINOR 6): one-shot "which companion row to
+  // highlight" set after BookingForm's submit was rejected with the API's
+  // companion_contact_required 422. Cleared by DetailsStep itself once
+  // applied (onCompanionContactFocusApplied below) so it never lingers to
+  // affect an unrelated later remount.
+  const [focusCompanionContactIndex, setFocusCompanionContactIndex] = useState<
+    number | undefined
+  >(undefined)
   // landr-87n9.2: live-lifted room + per-room add-on selection from
   // AccommodationStep so the PriceSidebar's "At-hotel total" pill updates
   // WHILE the customer picks rooms — without waiting for Continue. Mirrors
@@ -392,7 +405,23 @@ function BookingFlowApp() {
       try {
         const prefill = await getInvitePrefill(invite)
         if (cancelled) return
+        // landr-otml0.3 review fix (MINOR 5): product_id is nullable on the
+        // wire (the host's product can be deleted/deactivated between mint
+        // and open) — with no product to jump to, degrade straight to the
+        // plain wizard instead of spending a listProducts round-trip on a
+        // lookup that can never match.
+        if (!prefill.product_id) {
+          setInviteData(null)
+          setInviteNotice(
+            "This invite link isn't valid any more — you can still book and enter the reference later.",
+          )
+          return
+        }
         setInviteData(prefill)
+        // landr-otml0.3 review fix (MAJOR 2): prefill.language wins over both
+        // the raw browser locale and the operator's whitelist — see
+        // overrideBookingLocale's doc for why.
+        overrideBookingLocale(prefill.language)
         mergeDraft({
           booker: {
             first_name: prefill.invitee_first_name,
@@ -416,6 +445,7 @@ function BookingFlowApp() {
           // not specified by the ticket; degrade to the plain wizard rather
           // than dead-ending on a step nothing can render.
           setInviteData(null)
+          overrideBookingLocale(null)
           setInviteNotice(
             "This invite link isn't valid any more — you can still book and enter the reference later.",
           )
@@ -423,6 +453,7 @@ function BookingFlowApp() {
       } catch {
         if (cancelled) return
         setInviteData(null)
+        overrideBookingLocale(null)
         setInviteNotice(
           "This invite link isn't valid any more — you can still book and enter the reference later.",
         )
@@ -1352,6 +1383,35 @@ function BookingFlowApp() {
   const isFirstStep =
     step.name === 'pick-product' || step.name === 'pick-category'
 
+  // landr-otml0.3 review fix (MINOR 4): without this, an invite link briefly
+  // rendered the full product catalogue (a fetch + render cycle) before the
+  // invite-resolution effect above swapped the step to pick-selection —
+  // visible, confusing flash for a customer who followed a link that's
+  // supposed to skip straight to Dates. `inviteData === undefined` means
+  // "still resolving" (see its declaration); once it settles to an object
+  // (success, already past this step) or `null` (404 → plain wizard is the
+  // intended fallback, so let it through) this gate no longer applies.
+  if (invite && inviteData === undefined && step.name === 'pick-product') {
+    return (
+      <div
+        className="min-h-screen overscroll-y-contain bg-background text-foreground"
+        style={brandStyle}
+        data-testid="widget-root"
+      >
+        <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+          <div
+            className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
+            data-testid="invite-resolving"
+            role="status"
+            aria-live="polite"
+          >
+            <span>Resolving your invite…</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     // landr-2mgl: overscroll-y-contain on the widget's outermost scroll
     // container stops a stray top-of-page swipe from triggering the mobile
@@ -1867,6 +1927,13 @@ function BookingFlowApp() {
             // from the persistent draft (it round-trips through
             // sessionStorage), unlike memberPerkOtp above.
             initialCustomerComment={bookingDraft.customerComment}
+            // landr-otml0.3 review fix (MINOR 6): set only on the one mount
+            // that follows a companion_contact_required rejection; cleared
+            // by DetailsStep itself once applied.
+            initialFocusCompanionContactIndex={focusCompanionContactIndex}
+            onCompanionContactFocusApplied={() =>
+              setFocusCompanionContactIndex(undefined)
+            }
             onBack={() =>
               // landr (breadcrumb): carry the committed selection back so the
               // date picker re-mounts showing the customer's prior dates.
@@ -2526,6 +2593,19 @@ function BookingFlowApp() {
             // AccommodationStep — top-level lifted state, same reasoning as
             // memberPerkOtp above.
             joinRef={joinRef ?? undefined}
+            // landr-otml0.3 review fix (MINOR 6): the API's
+            // companion_contact_required 422 sends the customer straight
+            // back to DetailsStep with that exact row highlighted, rather
+            // than leaving them to find it from formatHttpError's text
+            // alone. detailsFromDraft rebuilds the SAME details step
+            // bookingDraft.booker/participants/companions already carry
+            // (afterDetails commits them there on the way forward) —
+            // mirrors the pattern App.tsx already uses for a breadcrumb
+            // jump back to Dates.
+            onCompanionContactRequired={(companionIndex) => {
+              setFocusCompanionContactIndex(companionIndex)
+              setStep(detailsFromDraft(step.product, step.selection, bookingDraft))
+            }}
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}

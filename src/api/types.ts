@@ -1234,7 +1234,14 @@ export interface SubmitBookingResponse {
  */
 export interface InvitePrefill {
   operator_id: string
-  product_id: string
+  /**
+   * landr-otml0.3 review fix (MINOR 5): nullable on the wire
+   * (`InvitePrefillOut.product_id: str | None` — the host's original
+   * product can be deleted/deactivated between minting the invite and it
+   * being opened). A null here means "prefill everything else, but there is
+   * no product to jump to" — the widget falls back to the plain wizard.
+   */
+  product_id: string | null
   dates: string[]
   hotel_location_id: string | null
   is_shared_double: boolean
