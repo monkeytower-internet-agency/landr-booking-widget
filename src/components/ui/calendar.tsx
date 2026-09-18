@@ -198,28 +198,78 @@ function CalendarDayButton({
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
+  // landr-otml0.3 — the invite-mode original-vs-new diff view, ported from
+  // the dashboard's CalendarDayButton (landr-fxza.5 Section C). `diffAdded` /
+  // `diffRemoved` are custom modifiers MultiDayPicker feeds through
+  // Calendar's `modifiers` prop ONLY when it has an `originalValue` baseline
+  // to diff against; both are `undefined` (falsy) for every other Calendar
+  // usage in this widget, so this whole block is a no-op split there.
+  const diffAdded = modifiers.diffAdded === true
+  const diffRemoved = modifiers.diffRemoved === true
+
+  const isSelectedSingle =
+    modifiers.selected &&
+    !modifiers.range_start &&
+    !modifiers.range_end &&
+    !modifiers.range_middle
+
+  // landr-711 / dashboard landr-fxza.5 parity: compute the primary-selected
+  // background in JS (rather than the data-attribute CSS selector alone) so
+  // it can be suppressed when a diff class applies — twMerge doesn't reliably
+  // dedupe a bare `bg-diff-added-soft-bg` against
+  // `data-[selected-single=true]:bg-primary` since they don't share a
+  // variant chain.
+  const isPlainSelected = isSelectedSingle && !diffAdded && !diffRemoved
+
+  const { children, "aria-label": ariaLabelProp, ...restProps } = props
+
+  let content: React.ReactNode = children
+  let ariaLabel = ariaLabelProp
+  if (diffAdded || diffRemoved) {
+    const base =
+      typeof ariaLabelProp === "string"
+        ? ariaLabelProp.replace(/, selected$/, "")
+        : undefined
+    ariaLabel = diffAdded ? `${base}, added` : `${base}, removed`
+    content = (
+      <>
+        <span
+          aria-hidden="true"
+          className="absolute top-0.5 right-1 text-[0.6em] leading-none"
+        >
+          {diffAdded ? "+" : "−"}
+        </span>
+        {children}
+      </>
+    )
+  }
+
   return (
     <Button
       ref={ref}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
+      data-selected-single={isSelectedSingle}
       data-range-start={modifiers.range_start}
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
+      data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
+      aria-label={ariaLabel}
       className={cn(
-        "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground dark:hover:text-accent-foreground [&>span]:text-xs [&>span]:opacity-70",
+        "relative flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground dark:hover:text-accent-foreground [&>span]:text-xs [&>span]:opacity-70",
+        isPlainSelected && "bg-primary text-primary-foreground",
+        diffAdded &&
+          "bg-diff-added-soft-bg text-diff-added hover:bg-diff-added-soft-bg/70",
+        diffRemoved &&
+          "bg-destructive/10 text-destructive line-through hover:bg-destructive/15",
         defaultClassNames.day,
         className
       )}
-      {...props}
-    />
+      {...restProps}
+    >
+      {content}
+    </Button>
   )
 }
 
