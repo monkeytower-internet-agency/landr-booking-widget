@@ -1,8 +1,13 @@
-import { PartyPopper } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Copy, Mail, MessageCircle, PartyPopper, Users } from 'lucide-react'
+import { sendBookingInvite } from '@/api/client'
 import type {
   BookingSummary,
   BookingSummaryProduct,
   BookingSummaryRoom,
+  GroupSummary,
+  InviteSummary,
+  JoinError,
   PostBookingContent,
   SubmitBookingResponse,
 } from '@/api/types'
@@ -29,6 +34,248 @@ import { formatMoney, splitLineItems } from './priceSidebarHelpers'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /**
+   * landr-otml0.4: true when the booker chose the shared-double
+   * accommodation mode (AccommodationStep) for THIS booking. Threaded
+   * through the step machine (not derivable from the response) — see
+   * appStepMachine.ts's 'confirmed' step doc.
+   */
+  isSharedDouble?: boolean
+}
+
+/**
+ * landr-otml0.4: small "Copy" button shared by the reference card and every
+ * invite card. Local component state (idle → copied, resetting after 2s)
+ * rather than a toast — the widget carries no toast library (unlike the
+ * dashboard's CopyLinkButton, which uses one).
+ */
+function CopyButton({
+  value,
+  label = 'Copy link',
+  testId,
+}: {
+  value: string
+  label?: string
+  testId?: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleClick() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // landr-otml0.4: clipboard can fail (insecure context, permissions,
+      // Safari private mode) — fail silently rather than showing an alarming
+      // error for what is, worst case, a missed convenience.
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={handleClick}
+      data-testid={testId}
+    >
+      {copied ? (
+        <>
+          <Check className="mr-1.5 size-3.5" aria-hidden="true" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Copy className="mr-1.5 size-3.5" aria-hidden="true" />
+          {label}
+        </>
+      )}
+    </Button>
+  )
+}
+
+/**
+ * landr-otml0.4 (D5, D11): "Send <name> their booking link" per
+ * `separate_guiding` companion. Channels follow what was captured at
+ * DetailsStep (D11) — phone → WhatsApp, email → one-click Email send,
+ * always → Copy link. No inline phone/email inputs on this screen (contact
+ * is mandatory and already captured upstream).
+ */
+function InviteCard({
+  invite,
+  bookingId,
+  shareSecret,
+}: {
+  invite: InviteSummary
+  bookingId: string
+  shareSecret?: string
+}) {
+  const [emailState, setEmailState] = useState<
+    'idle' | 'sending' | 'sent' | 'failed'
+  >('idle')
+
+  async function handleSendEmail() {
+    if (!invite.email || !shareSecret) return
+    setEmailState('sending')
+    try {
+      await sendBookingInvite(bookingId, invite.companion_id, shareSecret, invite.email)
+      setEmailState('sent')
+    } catch {
+      setEmailState('failed')
+    }
+  }
+
+  if (invite.linked_booking_reference) {
+    // Already joined — no more actions to offer, just confirm it happened.
+    return (
+      <div
+        data-testid="invite-card"
+        className="flex items-center justify-between gap-2 rounded-lg border bg-surface-card p-3 text-sm"
+      >
+        <span>{invite.name}</span>
+        <span
+          data-testid="invite-linked"
+          className="font-medium text-emerald-700 dark:text-emerald-400"
+        >
+          Booked ✓ (ref {invite.linked_booking_reference})
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-testid="invite-card"
+      className="space-y-2 rounded-lg border bg-surface-card p-3"
+    >
+      <p className="text-sm font-medium">Send {invite.name} their booking link</p>
+      <div className="flex flex-wrap gap-2">
+        {invite.whatsapp_url ? (
+          <Button asChild type="button" variant="outline" size="sm">
+            <a
+              href={invite.whatsapp_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="invite-whatsapp"
+            >
+              <MessageCircle className="mr-1.5 size-3.5" aria-hidden="true" />
+              WhatsApp
+            </a>
+          </Button>
+        ) : null}
+        {invite.email ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSendEmail}
+            disabled={emailState === 'sending' || emailState === 'sent'}
+            data-testid="invite-email"
+          >
+            <Mail className="mr-1.5 size-3.5" aria-hidden="true" />
+            {emailState === 'sending'
+              ? 'Sending…'
+              : emailState === 'sent'
+                ? 'Sent ✓'
+                : emailState === 'failed'
+                  ? 'Retry email'
+                  : 'Email'}
+          </Button>
+        ) : null}
+        <CopyButton value={invite.invite_url} testId="invite-copy" />
+      </div>
+      {emailState === 'failed' ? (
+        <p className="text-xs text-amber-700 dark:text-amber-400" role="status">
+          Could not send that email — please try again, or use WhatsApp / copy
+          the link instead.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * landr-otml0.4 (D9/D5): "Booked together with" — the other live members of
+ * this booking's group, once it has >= 2 (GroupSummary is null otherwise —
+ * see its doc). Self is excluded; the booker already knows they're on the
+ * list.
+ */
+function GroupBlock({ group }: { group: GroupSummary }) {
+  const others = group.members.filter((m) => !m.is_self)
+  if (others.length === 0) return null
+  return (
+    <div
+      data-testid="confirmation-group"
+      className="space-y-2 rounded-lg border bg-surface-card p-4"
+    >
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Users className="size-4" aria-hidden="true" />
+        Booked together with
+      </h3>
+      <ul className="space-y-1 text-sm text-muted-foreground">
+        {others.map((member) => (
+          <li key={member.reference}>
+            {member.display_name} (ref {member.reference})
+            {member.is_host ? ' — host' : ''}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
+ * landr-otml0.4 (D4): shown only when the booker chose shared-double and the
+ * submit neither joined a group nor reported a join_error — i.e. they never
+ * entered a reference at all. Links to the customer page's join form when
+ * the API supplied one (landr-otml0.2, A2); omitted otherwise rather than
+ * guessing a URL.
+ */
+function SharedDoubleHint({ customerPageUrl }: { customerPageUrl?: string | null }) {
+  return (
+    <p
+      data-testid="confirmation-shared-double-hint"
+      className="text-sm text-muted-foreground"
+    >
+      Sharing a room booked by someone else?{' '}
+      {customerPageUrl && isHttpUrl(customerPageUrl) ? (
+        <a
+          href={`${customerPageUrl}#join`}
+          className="text-primary underline"
+        >
+          Add their reference on your booking page
+        </a>
+      ) : (
+        'Add their reference on your booking page.'
+      )}
+    </p>
+  )
+}
+
+const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
+  unknown_reference:
+    "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
+  same_booking: 'That reference points to your own booking, so there was nothing to link.',
+  join_failed: "We couldn't link your booking to that reference right now.",
+}
+
+/**
+ * landr-otml0.4: soft notice for a join_ref the server could not honour.
+ * The booking itself always succeeds either way (see JoinError's doc) — this
+ * is informational, not an error state for the page as a whole.
+ */
+function JoinErrorNotice({ joinError }: { joinError: JoinError }) {
+  return (
+    <div
+      role="status"
+      data-testid="confirmation-join-error"
+      className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+    >
+      {JOIN_ERROR_MESSAGE[joinError.error]} Your booking itself is confirmed
+      as usual — you can still add the reference later on your booking page.
+    </div>
+  )
 }
 
 /**
@@ -336,7 +583,7 @@ function PostBookingSection({
   )
 }
 
-export function Confirmation({ response, onRestart }: Props) {
+export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
    * the calendar_event block returned by the API alongside ical_url.
@@ -380,6 +627,20 @@ export function Confirmation({ response, onRestart }: Props) {
     (item) => Boolean(item.html) || (item.link && isHttpUrl(item.link.url)),
   )
 
+  const referenceValue = summary?.booking_reference ?? response.booking_id
+
+  // landr-otml0.4 (D5): per-companion "send their booking link" cards, only
+  // for separate_guiding companions the API minted an invite for.
+  const invites = response.invites ?? []
+
+  // landr-otml0.4 (D4): the shared-double "add reference later" hint shows
+  // ONLY when the booker chose shared-double and neither joined a group nor
+  // hit a join_error — i.e. they never entered a reference at all. Once
+  // `group` or `join_error` is present, this booking already tried (and
+  // either succeeded or has its own notice), so the hint would be redundant.
+  const showSharedDoubleHint =
+    Boolean(isSharedDouble) && !response.group && !response.join_error
+
   return (
     <Card>
       <CardHeader>
@@ -414,12 +675,31 @@ export function Confirmation({ response, onRestart }: Props) {
           default text-sm, since the reference is a secondary detail now
           that the header carries the celebratory weight.
         */}
-        <CardDescription className="text-xs">
-          Reference{' '}
-          <span className="font-mono">
-            {summary?.booking_reference ?? response.booking_id}
+        <CardDescription className="text-xs">Reference</CardDescription>
+        {/*
+          landr-otml0.4 (D5): reference prominence — large + monospace, with
+          a copy button and the one-line invite hint. Previously this was a
+          single small line inside CardDescription; the reference is now the
+          thing customers are expected to hand to a fellow traveller, so it
+          gets its own row.
+        */}
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+          <span
+            className="font-mono text-lg font-semibold"
+            data-testid="confirmation-reference-value"
+          >
+            {referenceValue}
           </span>
-        </CardDescription>
+          <CopyButton
+            value={referenceValue}
+            label="Copy"
+            testId="confirmation-reference-copy"
+          />
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Share this with anyone booking their own guiding who wants to be
+          grouped with you.
+        </p>
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
           booking's current stage (falls back to the staff label when the
@@ -521,6 +801,37 @@ export function Confirmation({ response, onRestart }: Props) {
 
         {/* landr-nva1a.4 step 5: price breakdown. */}
         {summary ? <ConfirmationPriceBreakdown summary={summary} /> : null}
+
+        {/* landr-otml0.4 (D9): "Booked together with" — other live members
+            of this booking's group, when it has any. */}
+        {response.group ? <GroupBlock group={response.group} /> : null}
+
+        {/* landr-otml0.4: soft notice for a join_ref the server could not
+            honour — the booking itself still succeeded regardless. */}
+        {response.join_error ? (
+          <JoinErrorNotice joinError={response.join_error} />
+        ) : null}
+
+        {/* landr-otml0.4 (D4): shared-double "add a reference later" hint —
+            only when the booker never entered/confirmed one at all. */}
+        {showSharedDoubleHint ? (
+          <SharedDoubleHint customerPageUrl={response.customer_page_url} />
+        ) : null}
+
+        {/* landr-otml0.4 (D5, D11): one "send their booking link" card per
+            separate_guiding companion the API minted an invite for. */}
+        {invites.length > 0 ? (
+          <div data-testid="confirmation-invites" className="space-y-2">
+            {invites.map((invite) => (
+              <InviteCard
+                key={invite.companion_id}
+                invite={invite}
+                bookingId={response.booking_id}
+                shareSecret={response.share_secret}
+              />
+            ))}
+          </div>
+        ) : null}
 
         {/*
           landr-3vr5 + landr-acew: "Add to calendar" group.

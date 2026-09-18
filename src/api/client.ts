@@ -397,6 +397,32 @@ export async function getInvitePrefill(token: string): Promise<InvitePrefill> {
 }
 
 /**
+ * landr-otml0.4: confirmation-screen "send their booking link" by email.
+ * `POST /api/public/bookings/{id}/invites/{companion_id}/send`, authorised
+ * by the `X-Share-Secret` header (the one-time `share_secret` from the
+ * submit response — landr-otml0.1). Rate-limited server-side (10/h/booking,
+ * 30/h/IP); an unknown booking/companion or a wrong secret both come back as
+ * an opaque 404 (HttpError). No mock fallback — this only fires from the
+ * real confirmation screen, same reasoning as getInvitePrefill /
+ * lookupBookingReference.
+ */
+export async function sendBookingInvite(
+  bookingId: string,
+  companionId: string,
+  shareSecret: string,
+  email: string,
+): Promise<{ status: string; invite_url: string }> {
+  return http<{ status: string; invite_url: string }>(
+    `/api/public/bookings/${encodeURIComponent(bookingId)}/invites/${encodeURIComponent(companionId)}/send`,
+    {
+      method: 'POST',
+      headers: { 'X-Share-Secret': shareSecret },
+      body: JSON.stringify({ channel: 'email', email }),
+    },
+  )
+}
+
+/**
  * landr-otml0.3: masked lookup for the shared-double reference field
  * (AccommodationStep). Anonymous, rate-limited server-side (20/h/IP,
  * 2000/h/operator — surfaces as a plain HttpError the field's catch block

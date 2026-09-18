@@ -1225,6 +1225,15 @@ export interface SubmitBookingResponse {
    * this is surfaced as a soft notice, not a blocking error.
    */
   join_error?: JoinError | null
+  /**
+   * landr-otml0.2 (API, coordinate): the per-booking customer page
+   * (`/t/{token}` briefing) URL — hosts the join-by-reference form the
+   * shared-double "add reference later" hint links to. NOT YET on the
+   * public submit response as of landr-otml0.4 (confirmed against
+   * `booking_submit.py`) — every reader must treat this as optional and
+   * simply omit the link when absent, per the epic D6/D5 contract.
+   */
+  customer_page_url?: string | null
 }
 
 /**

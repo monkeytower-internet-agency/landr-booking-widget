@@ -2651,14 +2651,25 @@ function BookingFlowApp() {
               // non-restorable `confirmed` step, but clearing here is explicit
               // and synchronous with the success transition.
               clearStoredProgress()
-              setStep({ name: 'confirmed', response, email })
+              setStep({
+                name: 'confirmed',
+                response,
+                email,
+                // landr-otml0.4: carried through so Confirmation can show
+                // the shared-double "add reference later" hint.
+                isSharedDouble: step.isSharedDouble,
+              })
             }}
           />
         ) : null}
 
         {step.name === 'confirmed' ? (
           <>
-            <Confirmation response={step.response} onRestart={goToProductStep} />
+            <Confirmation
+              response={step.response}
+              onRestart={goToProductStep}
+              isSharedDouble={step.isSharedDouble}
+            />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
             {operatorSettings.offer_account_link ? (
