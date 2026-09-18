@@ -26,7 +26,11 @@ const isoOf = (d: Date) =>
     d.getDate(),
   ).padStart(2, '0')}`
 
-function slot(d: Date, available: number): AvailabilitySlot {
+function slot(
+  d: Date,
+  available: number,
+  activityBookable?: boolean,
+): AvailabilitySlot {
   const iso = isoOf(d)
   return {
     availability_id: `slot-${iso}`,
@@ -37,6 +41,9 @@ function slot(d: Date, available: number): AvailabilitySlot {
     capacity_reserved: 5 - available,
     available_seats: available,
     status: available > 0 ? 'open' : 'fully_booked',
+    ...(activityBookable !== undefined
+      ? { activity_bookable: activityBookable }
+      : {}),
   }
 }
 
@@ -61,19 +68,29 @@ function dayButton(date: Date): HTMLButtonElement {
 const defaultMonth = new Date(2026, 5, 1)
 const availDay = new Date(2026, 5, 10) // available
 const blockedDay = new Date(2026, 5, 11) // zero availability
+const leadTimeBlockedDay = new Date(2026, 5, 12) // capacity ok, activity_bookable=false
 
 function StaffHarness({
   staffActive,
   onForced,
+  initialValue,
 }: {
   staffActive: boolean
   onForced?: (iso: string[], reasons: ForceReason[]) => void
+  /** landr-t869m.7: seeds `value` as if restored from a prior selection
+   *  (mirrors MultiDayStep initialising `selectedDays` from
+   *  initialSelectedDays on Back-navigation re-entry). */
+  initialValue?: Date[]
 }) {
-  const [value, setValue] = useState<Date[]>([])
+  const [value, setValue] = useState<Date[]>(initialValue ?? [])
   return (
     <StaffModeProvider value={staffActive ? STAFF : undefined}>
       <MultiDayPicker
-        availability={[slot(availDay, 5), slot(blockedDay, 0)]}
+        availability={[
+          slot(availDay, 5),
+          slot(blockedDay, 0),
+          slot(leadTimeBlockedDay, 5, false),
+        ]}
         value={value}
         onChange={setValue}
         onForcedDaysChange={onForced}
@@ -126,5 +143,27 @@ describe('MultiDayPicker — staff force-book', () => {
     fireEvent.click(dayButton(availDay))
     expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
     expect(onForced).toHaveBeenLastCalledWith([], [])
+  })
+
+  // landr-t869m.7: unlike SingleDatePicker's (formerly buggy) plain
+  // useState, `forcedDays`/`forcedReasons` here are useMemo DERIVED from
+  // `value`/`availableSet`/`slotsByDate` — so a `value` seeded straight from
+  // a restored selection (as MultiDayStep does via initialSelectedDays)
+  // should already report forced + reasons correctly with no extra click.
+  // This test proves that rather than assuming it.
+  it('a value seeded from a restored force-booked selection reports forced + its reasons with no click (landr-t869m.7 — verified NOT buggy here)', () => {
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
+    render(
+      <StaffHarness
+        staffActive
+        onForced={onForced}
+        initialValue={[leadTimeBlockedDay]}
+      />,
+    )
+    expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument()
+    expect(onForced).toHaveBeenLastCalledWith(
+      [isoOf(leadTimeBlockedDay)],
+      ['lead_time'],
+    )
   })
 })
