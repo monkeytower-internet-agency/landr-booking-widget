@@ -48,14 +48,38 @@ async function pickFirstAvailableDate(page: Page) {
   // synchronous count(): checking too early reads "0 enabled" as "hop to
   // next month", which walks straight past the 60-day fetch window into
   // months with no data at all and fails for the wrong reason.
+  const monthsChecked: string[] = []
   for (let hop = 0; hop < 3; hop++) {
     const candidate = page.locator('table button:not([disabled])')
-    await expect
-      .poll(() => candidate.count(), {
-        timeout: 15_000,
-        message: 'waiting for the availability fetch to enable at least one day cell',
-      })
-      .toBeGreaterThan(0)
+    try {
+      await expect
+        .poll(() => candidate.count(), {
+          // The 60-day availability fetch is a real network round-trip and
+          // only happens once, on first mount — it resolves (or the month
+          // genuinely has zero enabled days) well before this. Give the
+          // first month the full budget; later months already have the
+          // data in memory, so a shorter poll is enough and keeps a truly
+          // sold-out month (landr-8z9hy) from stalling the whole hop loop.
+          timeout: hop === 0 ? 15_000 : 8_000,
+          message: 'waiting for the availability fetch to enable at least one day cell',
+        })
+        .toBeGreaterThan(0)
+    } catch {
+      // This month has no enabled days at all — e.g. the fixture product's
+      // seats are booked out at the front of the 60-day window by prior
+      // smoke runs (landr-8z9hy). That's a legitimately empty month, not a
+      // slow fetch, so page forward and try the next one instead of
+      // failing here.
+      const heading = await page.locator('table').getAttribute('aria-label')
+      monthsChecked.push(heading ?? `month at hop ${hop}`)
+      if (hop < 2) {
+        await page.getByRole('button', { name: /next/i }).click()
+        continue
+      }
+      throw new Error(
+        `No available booking date found — every enabled day cell was empty in: ${monthsChecked.join(', ')}`,
+      )
+    }
     const count = await candidate.count()
     for (let i = 0; i < count; i++) {
       const el = candidate.nth(i)
@@ -66,9 +90,13 @@ async function pickFirstAvailableDate(page: Page) {
       }
     }
     // Every enabled cell so far was "Today" — page forward and retry.
+    const heading = await page.locator('table').getAttribute('aria-label')
+    monthsChecked.push(heading ?? `month at hop ${hop}`)
     await page.getByRole('button', { name: /next/i }).click()
   }
-  throw new Error('No available booking date found within 3 months')
+  throw new Error(
+    `No available booking date found within 3 months — checked: ${monthsChecked.join(', ')}`,
+  )
 }
 
 test('booking-submit happy path: catalog -> date -> participant -> confirm', async ({
