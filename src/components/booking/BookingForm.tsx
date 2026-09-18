@@ -279,6 +279,20 @@ interface Props {
    */
   memberPerkOtp?: string
   /**
+   * landr-otml0.3: the raw `?invite=<token>` value, sent as `invite_token`
+   * so the API can re-resolve it server-side and join this booking into the
+   * host's group. Omitted for every non-invite booking, and for an invite
+   * link that failed to resolve (App.tsx only passes it through when the
+   * prefill actually succeeded).
+   */
+  inviteToken?: string
+  /**
+   * landr-otml0.3: the shared-double reference the customer confirmed via
+   * AccommodationStep's masked-lookup field, sent as `join_ref`. Omitted
+   * when no reference was entered/confirmed (the common case).
+   */
+  joinRef?: string
+  /**
    * landr-zenj.1: true when App.tsx's PriceSidebar has flagged the
    * currently-priced selection as un_priceable (see PriceSidebar's
    * onUnPriceableChange doc — both components are fed the same inputs on
@@ -506,6 +520,21 @@ const formatHttpError = (
   ) {
     return UN_PRICEABLE_MESSAGE
   }
+  // landr-otml0.3 D11: server-side backstop for the same rule DetailsStep
+  // already enforces client-side (detailsAreComplete) — should be
+  // unreachable in the normal flow, but a clear message beats a raw 422
+  // dump if it ever is (e.g. a stale form submitted after a slow reload).
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'companion_contact_required'
+  ) {
+    const name = (err.detail as { first_name?: unknown }).first_name
+    const who = typeof name === 'string' && name.trim() ? name : 'This companion'
+    return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
@@ -601,6 +630,8 @@ export function BookingForm({
   breakfastMap = {},
   formResponses,
   memberPerkOtp,
+  inviteToken,
+  joinRef,
   unPriceable = false,
   onBack,
   onConfirmed,
@@ -1045,6 +1076,11 @@ export function BookingForm({
         ...(customerComment && customerComment.trim() !== ''
           ? { customer_comment: customerComment.trim() }
           : {}),
+        // landr-otml0.3: omitted (not even null) for every non-invite /
+        // no-reference booking, matching every other optional-marker field
+        // in this payload.
+        ...(inviteToken ? { invite_token: inviteToken } : {}),
+        ...(joinRef ? { join_ref: joinRef } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff

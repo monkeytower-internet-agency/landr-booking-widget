@@ -689,4 +689,137 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     const body = JSON.parse(String(init.body)) as Record<string, unknown>
     expect(body).not.toHaveProperty('companions')
   })
+
+  // landr-otml0.3: invite_token / join_ref on submit.
+  it('omits invite_token and join_ref for a regular (non-invite, no-reference) booking', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('invite_token')
+    expect(body).not.toHaveProperty('join_ref')
+  })
+
+  it('sends invite_token when the booking arrived via a resolved invite link', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        inviteToken="tok-1"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.invite_token).toBe('tok-1')
+    expect(body).not.toHaveProperty('join_ref')
+  })
+
+  it('sends join_ref when the customer confirmed a shared-double reference', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.join_ref).toBe('A1B2C3D4')
+    expect(body).not.toHaveProperty('invite_token')
+  })
+
+  it('reads share_secret/invites/group/join_error from the response without throwing (contract carries them through)', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          booking_id: 'b-1',
+          semantic_state: 'pending',
+          share_secret: 'secret-abc',
+          invites: [
+            {
+              companion_id: 'c-1',
+              name: 'Thomas Klein',
+              email: 'thomas@example.com',
+              phone: null,
+              phone_digits: null,
+              invite_url: 'https://bw-dev.landr.de/?invite=tok-2',
+              whatsapp_url: null,
+              linked_booking_reference: null,
+              has_invite: true,
+            },
+          ],
+          group: {
+            group_id: 'g-1',
+            label: 'Olaf K***n',
+            members: [
+              {
+                reference: 'A1B2C3D4',
+                display_name: 'Olaf K***n',
+                is_self: false,
+                is_host: true,
+              },
+            ],
+          },
+          join_error: null,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    const onConfirmed = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={onConfirmed}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(1))
+    const [response] = onConfirmed.mock.calls[0]!
+    expect(response.share_secret).toBe('secret-abc')
+    expect(response.group.members[0].reference).toBe('A1B2C3D4')
+    expect(response.invites[0].invite_url).toContain('tok-2')
+  })
 })
