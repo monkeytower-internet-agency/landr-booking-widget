@@ -4,6 +4,7 @@ import {
   isActivityBookable,
   isBookable,
   isCategoryFullySoldOut,
+  isDayBookable,
 } from './bookability'
 
 describe('isBookable', () => {
@@ -68,5 +69,80 @@ describe('accommodationBookability', () => {
   })
   it('returns null when the row itself is undefined (no matching day found)', () => {
     expect(accommodationBookability(undefined)).toBeNull()
+  })
+})
+
+// landr-t869m.2 review fix: mandatory must combine activity_bookable AND
+// accommodation_bookable; optional/none gate on activity_bookable alone.
+// The API does NOT already combine these for public_get_product_availability
+// — see isDayBookable's own doc for the corrected premise.
+describe('isDayBookable', () => {
+  it('optional: activity_bookable alone gates the day — accommodation_bookable=false does NOT block it', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: false },
+        'optional',
+      ),
+    ).toBe(true)
+  })
+
+  it('none: activity_bookable alone gates the day (accommodation is never evaluated)', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: null },
+        'none',
+      ),
+    ).toBe(true)
+  })
+
+  it('undefined offering behaves like optional/none — activity_bookable alone gates', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: false },
+        undefined,
+      ),
+    ).toBe(true)
+  })
+
+  it('mandatory: blocks the day when activity_bookable is false, regardless of accommodation', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: false, accommodation_bookable: true },
+        'mandatory',
+      ),
+    ).toBe(false)
+  })
+
+  it('mandatory: blocks the day when accommodation_bookable is explicitly false, even though activity_bookable is true (the regression this fix closes)', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: false },
+        'mandatory',
+      ),
+    ).toBe(false)
+  })
+
+  it('mandatory: offers the day when both flags are true', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: true },
+        'mandatory',
+      ),
+    ).toBe(true)
+  })
+
+  it('mandatory: fails OPEN on an absent accommodation_bookable (older API)', () => {
+    expect(
+      isDayBookable({ activity_bookable: true }, 'mandatory'),
+    ).toBe(true)
+  })
+
+  it('mandatory: fails OPEN on a null accommodation_bookable', () => {
+    expect(
+      isDayBookable(
+        { activity_bookable: true, accommodation_bookable: null },
+        'mandatory',
+      ),
+    ).toBe(true)
   })
 })

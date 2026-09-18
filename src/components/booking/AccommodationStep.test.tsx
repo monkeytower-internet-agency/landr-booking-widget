@@ -312,6 +312,124 @@ describe('AccommodationStep', () => {
     ).not.toBeInTheDocument()
   })
 
+  // landr-t869m.2 review fix (finding #2): the banner must not be the ONLY
+  // thing that changes — the too-late state must also be ENFORCED. Package
+  // and shared-double must disappear from the mode choice, and mode must
+  // be forced to guiding-only, so the customer cannot walk the hotel path
+  // into a guaranteed accommodation_lead_time_not_met 422 at Confirm.
+  it('optional + too-late: removes package/shared-double from the mode choice and forces guiding-only', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('accommodation-too-late-warning'),
+      ).toBeInTheDocument(),
+    )
+    // The mode fieldset never renders at all once the only remaining
+    // option is guiding-only and no hotel context is needed — but the
+    // guiding-only mode itself must still be the one in effect. Assert via
+    // the ABSENCE of the hotel-bearing option testids and the presence of
+    // guiding-only-only behaviour: no room qty steppers, no hotel picker.
+    expect(
+      screen.queryByTestId('accommodation-mode-package'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('accommodation-mode-shared-double'),
+    ).not.toBeInTheDocument()
+    // The mode-forcing effect flips `mode` to 'guiding-only' asynchronously
+    // (an extra tick after the banner's own state settles) — wait for its
+    // effect (no room/hotel UI) rather than asserting synchronously.
+    await waitFor(() => {
+      expect(screen.queryByText('Single Room')).not.toBeInTheDocument()
+      expect(screen.queryByText('Hotel Mirador')).not.toBeInTheDocument()
+    })
+    // guiding-only needs no further input — Continue is enabled once the
+    // check has settled (it has, by the waitFor above).
+    expect(
+      screen.getByRole('button', { name: 'Continue' }),
+    ).not.toBeDisabled()
+  })
+
+  // landr-t869m.2 review fix (finding #2): before the accommodation_bookable
+  // fetch settles, Continue must not be clickable — otherwise a customer
+  // who picks a room in the brief window before the GET lands could reach
+  // Confirm and 422.
+  it('optional: Continue is disabled while the too-late check is still in flight', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    let resolveAvailability: (rows: AvailabilitySlot[]) => void = () => {}
+    mocks.getAvailability.mockReturnValue(
+      new Promise<AvailabilitySlot[]>((resolve) => {
+        resolveAvailability = resolve
+      }),
+    )
+
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-checking-notice')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+
+    resolveAvailability([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: true,
+      },
+    ])
+
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('accommodation-checking-notice'),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
   // ── Package mode (the existing hotel + rooms flow) ─────────────────
 
   it('package + single hotel auto-selects + shows rooms immediately (default mode)', async () => {

@@ -121,6 +121,7 @@ export function MultiDayStep({
           helpText={undefined}
           defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
+          hotelOffering={product.hotel_offering}
         />
         {selectedDays.length > 0 ? (
           // landr-3mo4: selection count surfaced as a tinted chip (committed

@@ -3,7 +3,7 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { isActivityBookable } from '@/components/booking/bookability'
+import { isDayBookable } from '@/components/booking/bookability'
 import {
   Card,
   CardContent,
@@ -102,17 +102,23 @@ export function SingleDatePicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // landr-t869m.2: gate on activity_bookable too, folded into the same
+  // landr-t869m.2: gate on lead-time bookability too, folded into the same
   // availableSet a sold-out day already uses — see MultiDayPicker's
   // matching comment for why this transparently covers the staff
-  // force-book path as well.
+  // force-book path as well. isDayBookable also folds in
+  // accommodation_bookable for a 'mandatory' hotel_offering — see its own
+  // doc for why that combination is the widget's job, not the API's.
   const availableSet = useMemo(() => {
     return new Set(
       (slots ?? [])
-        .filter((slot) => slot.available_seats > 0 && isActivityBookable(slot))
+        .filter(
+          (slot) =>
+            slot.available_seats > 0 &&
+            isDayBookable(slot, product.hotel_offering),
+        )
         .map((slot) => slot.date),
     )
-  }, [slots])
+  }, [slots, product.hotel_offering])
 
   // Stable handler so Calendar doesn't re-render on every parent render.
   // landr-aoak.2: in staff mode, picking a date with zero availability is the

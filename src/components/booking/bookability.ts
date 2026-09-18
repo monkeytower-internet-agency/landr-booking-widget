@@ -1,4 +1,4 @@
-import type { AvailabilitySlot, Product, ProductGroup } from '@/api/types'
+import type { AvailabilitySlot, HotelOffering, Product, ProductGroup } from '@/api/types'
 
 /**
  * landr-7jgo: a product is "bookable" when the customer can actually pick a
@@ -72,4 +72,47 @@ export function accommodationBookability(
 ): boolean | null {
   const value = slot?.accommodation_bookable
   return value === undefined ? null : value
+}
+
+/**
+ * landr-t869m.2 (review fix): should a day picker OFFER this day at all,
+ * given the product's hotel_offering?
+ *
+ * CORRECTED PREMISE — the original ticket text asserted "mandatory → the
+ * day is simply not offered (the API flag already reflects this)". That is
+ * wrong: in migration 20260918013000, the
+ * `hotel_offering <> 'mandatory' OR _accommodation_lead_time_ok(...)` clause
+ * lives ONLY inside `_product_is_bookable` (the catalogue-level "is this
+ * product bookable at all" flag). `public_get_product_availability`'s
+ * `activity_bookable` is a bare `_lead_time_ok(...)` with NO accommodation
+ * term, and `accommodation_bookable` is a separate column the migration's
+ * own header says is "NOT filtered out when a flag is false" — i.e. days
+ * are never dropped server-side. Combining the two flags for a mandatory
+ * product is the WIDGET's job, not something the API already does.
+ *
+ * Rule:
+ *   - `hotel_offering !== 'mandatory'` (optional/none) — activity_bookable
+ *     alone gates the day. The accommodation half never blocks the
+ *     activity for these — that is the whole point of 'optional' (see
+ *     AccommodationStep's "hotel too late" banner), and 'none' never
+ *     evaluates accommodation at all.
+ *   - `hotel_offering === 'mandatory'` — the day is only offered when BOTH
+ *     activity_bookable AND accommodation_bookable hold. A mandatory
+ *     product cannot book the activity without the stay, so a day whose
+ *     stay has run out of lead time must not be selectable — leaving it
+ *     selectable would let the customer walk the whole flow into a
+ *     guaranteed `accommodation_lead_time_not_met` 422 at Confirm.
+ *
+ * FAIL-OPEN throughout: an absent/null accommodation_bookable (older API,
+ * or a mock) never blocks a mandatory day — only an explicit `false` does.
+ */
+export function isDayBookable(
+  slot: Pick<AvailabilitySlot, 'activity_bookable' | 'accommodation_bookable'>,
+  hotelOffering: HotelOffering | undefined,
+): boolean {
+  if (!isActivityBookable(slot)) return false
+  if (hotelOffering === 'mandatory') {
+    return slot.accommodation_bookable !== false
+  }
+  return true
 }
