@@ -2358,7 +2358,7 @@ describe('App', () => {
         "isn't valid any more",
       )
       // Plain wizard still renders normally.
-      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
 
       fireEvent.click(screen.getByTestId('invite-notice-dismiss'))
@@ -2392,7 +2392,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
       })
-      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
     })
 
@@ -2421,7 +2421,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
       })
-      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       // The plain wizard's own ProductList still fetches the catalogue as
       // usual — exactly once, not the invite effect's own extra lookup
       // (which a null product_id short-circuits before it would ever try
