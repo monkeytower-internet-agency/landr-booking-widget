@@ -12,7 +12,8 @@
  */
 import { useEffect, useState } from 'react'
 import { getFixedDateWindows } from '@/api/client'
-import type { FixedDateWindow } from '@/api/types'
+import type { FixedDateWindow, HotelOffering } from '@/api/types'
+import { isDayBookable } from '@/components/booking/bookability'
 import { formatWindowRangeLabel } from '@/components/booking/dateLabel'
 import { cn } from '@/lib/utils'
 
@@ -21,12 +22,20 @@ interface Props {
   slug: string
   /** Operator's expose_seats_to_customer flag — mirrors FixedDateWindowPicker. */
   exposeSeats?: boolean
+  /**
+   * landr-t869m.5: the product's hotel_offering, so a window can be gated on
+   * BOTH activity_bookable and accommodation_bookable when it's 'mandatory'
+   * — same isDayBookable() rule FixedDateWindowPicker uses. Undefined
+   * (caller predates the field) behaves like 'none'/'optional'.
+   */
+  hotelOffering?: HotelOffering
 }
 
 export function FixedDateWindowChips({
   productId,
   slug,
   exposeSeats = true,
+  hotelOffering,
 }: Props) {
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
 
@@ -70,6 +79,11 @@ export function FixedDateWindowChips({
       {windows.map((window) => {
         const available = Math.max(0, window.capacity - window.capacity_reserved)
         const isFull = available === 0
+        // landr-t869m.5: same lead-time rule as FixedDateWindowPicker — a
+        // window that fails it is shown unavailable here too, never dropped,
+        // so the customer sees the trip exists but can't be booked this late.
+        const leadTimeBlocked = !isDayBookable(window, hotelOffering)
+        const blocked = isFull || leadTimeBlocked
         return (
           <span
             key={window.id}
@@ -81,16 +95,18 @@ export function FixedDateWindowChips({
             <span
               className={cn(
                 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                isFull
+                blocked
                   ? 'bg-muted text-muted-foreground'
                   : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
               )}
             >
               {isFull
                 ? 'Full'
-                : exposeSeats
-                  ? `${available} seat${available === 1 ? '' : 's'} left`
-                  : 'Available'}
+                : leadTimeBlocked
+                  ? 'Too late to book'
+                  : exposeSeats
+                    ? `${available} seat${available === 1 ? '' : 's'} left`
+                    : 'Available'}
             </span>
           </span>
         )

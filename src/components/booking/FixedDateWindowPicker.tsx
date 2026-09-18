@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
+import { isDayBookable } from '@/components/booking/bookability'
 import { expandWindowDays } from './expandWindowDays'
 import { formatWindowRangeLabel } from './dateLabel'
 import { Button } from '@/components/ui/button'
@@ -126,12 +127,15 @@ export function FixedDateWindowPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWindow])
 
-  // landr-aoak.2: true when the picked window has zero remaining capacity —
-  // i.e. the operator force-booked a FULL window. Drives the forced submit flag.
+  // landr-t869m.5: true when the picked window was pushed through despite
+  // being blocked — either zero remaining capacity (landr-aoak.2's original
+  // FULL case) OR the new lead-time flags. Either way it's an operator
+  // override and drives the forced submit flag identically.
   const selectedForced = useMemo(() => {
     if (!selectedWindow) return false
-    return selectedWindow.capacity - selectedWindow.capacity_reserved <= 0
-  }, [selectedWindow])
+    const full = selectedWindow.capacity - selectedWindow.capacity_reserved <= 0
+    return full || !isDayBookable(selectedWindow, product.hotel_offering)
+  }, [selectedWindow, product.hotel_offering])
 
   if (error) {
     return (
@@ -169,6 +173,15 @@ export function FixedDateWindowPicker({
                 window.capacity - window.capacity_reserved,
               )
               const isFull = available === 0
+              // landr-t869m.5: does this window still satisfy the product's
+              // lead-time preparation window? Reuses the SAME isDayBookable()
+              // rule the day pickers gate on — see bookability.ts's doc for
+              // the optional/mandatory split and the fail-open contract.
+              // Never silently dropped, unlike a fully sold-out window it
+              // stays in the list, just shown as unavailable with its own
+              // reason so the customer can see the trip exists.
+              const leadTimeBlocked = !isDayBookable(window, product.hotel_offering)
+              const blocked = isFull || leadTimeBlocked
               const isSelected = selectedId === window.id
               return (
                 <li key={window.id}>
@@ -180,17 +193,19 @@ export function FixedDateWindowPicker({
                       adds the shared brand well + ring. ≥44px tap target. */}
                   <button
                     type="button"
-                    // landr-aoak.2: a FULL window stays clickable in staff mode
-                    // (operator override). Normal customers keep disabled={isFull}.
-                    disabled={isFull && !canForce}
+                    // landr-aoak.2/t869m.5: a blocked window (full OR
+                    // lead-time) stays clickable in staff mode (operator
+                    // override — the staff submit's own 422 + force_book
+                    // handles it). Normal customers keep disabled={blocked}.
+                    disabled={blocked && !canForce}
                     onClick={() => {
-                      // Confirm the operator-override intent for a full window.
-                      // NB: `window` here is the FixedDateWindow loop variable,
-                      // so reach the browser dialog via globalThis.confirm.
-                      if (isFull && canForce) {
+                      // Confirm the operator-override intent for a blocked
+                      // window. NB: `window` here is the FixedDateWindow loop
+                      // variable, so reach the browser dialog via globalThis.confirm.
+                      if (blocked && canForce) {
                         if (
                           !globalThis.confirm(
-                            'Force-book this full course window on behalf of the customer?',
+                            'Force-book this full / blocked course window on behalf of the customer?',
                           )
                         ) {
                           return
@@ -208,7 +223,7 @@ export function FixedDateWindowPicker({
                         ? tokens.optionSelected
                         : cn(
                             'border-border bg-surface-raised hover:border-primary/40',
-                            !isFull && tokens.optionCardShadow,
+                            !blocked && tokens.optionCardShadow,
                           ),
                     )}
                   >
@@ -231,24 +246,27 @@ export function FixedDateWindowPicker({
                       <span className="font-medium tabular-nums">
                         {formatWindowRangeLabel(window.start_date, window.end_date)}
                       </span>
-                      {isFull && canForce ? (
-                        // landr-aoak.2: a full window in staff mode shows the
-                        // operator-override badge instead of a dead "Full" chip.
+                      {blocked && canForce ? (
+                        // landr-aoak.2/t869m.5: a blocked window in staff mode
+                        // shows the operator-override badge instead of a dead
+                        // "Full"/"Too late" chip.
                         <OperatorOverrideBadge />
                       ) : (
                         <span
                           className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-medium',
-                            isFull
+                            blocked
                               ? 'bg-muted text-muted-foreground'
                               : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
                           )}
                         >
                           {isFull
                             ? 'Full'
-                            : exposeSeats
-                              ? `${available} seat${available === 1 ? '' : 's'} left`
-                              : 'Available'}
+                            : leadTimeBlocked
+                              ? 'Too late to book'
+                              : exposeSeats
+                                ? `${available} seat${available === 1 ? '' : 's'} left`
+                                : 'Available'}
                         </span>
                       )}
                     </span>

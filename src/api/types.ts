@@ -53,6 +53,17 @@ export interface FixedDateWindow {
   end_date: string
   capacity: number
   capacity_reserved: number
+  /**
+   * landr-t869m.4/.5: server-computed lead-time flags on
+   * `public_get_product_fixed_date_windows`, mirroring
+   * `AvailabilitySlot.activity_bookable`/`accommodation_bookable` above —
+   * same FAIL-OPEN contract, same tri-state accommodation semantics.
+   * Windows are NEVER filtered out server-side; the widget combines these
+   * two flags per `isDayBookable()` in bookability.ts (do not re-derive the
+   * rule here).
+   */
+  activity_bookable?: boolean
+  accommodation_bookable?: boolean | null
 }
 
 /**
