@@ -2036,3 +2036,66 @@ describe('DetailsStep — separate_guiding companion contact required (D11, land
     )
   })
 })
+
+describe('DetailsStep — companion_contact_required navigate-back focus (MINOR 6, landr-otml0.3)', () => {
+  it('marks the contact error touched and focuses the email field for the given companion index on mount', () => {
+    const onApplied = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        initialCompanions={[
+          {
+            first_name: 'Grace',
+            last_name: 'Hopper',
+            email: '',
+            phone: '',
+            companion_kind: 'guest',
+          },
+          {
+            first_name: 'Thomas',
+            last_name: 'Klein',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        initialFocusCompanionContactIndex={1}
+        onCompanionContactFocusApplied={onApplied}
+      />,
+    )
+    // The error is visible immediately, without a blur, for companion 1
+    // (Thomas) — and NOT for companion 0 (Grace, a plain 'guest').
+    expect(screen.getByTestId('companion-1-contact-error')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('companion-0-contact-error'),
+    ).not.toBeInTheDocument()
+    expect(byName('companion_2_email')).toHaveFocus()
+    expect(onApplied).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing when initialFocusCompanionContactIndex is omitted (every normal entry)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        initialCompanions={[
+          {
+            first_name: 'Thomas',
+            last_name: 'Klein',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+      />,
+    )
+    expect(
+      screen.queryByTestId('companion-0-contact-error'),
+    ).not.toBeInTheDocument()
+  })
+})

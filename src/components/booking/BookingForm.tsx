@@ -303,6 +303,17 @@ interface Props {
    * are unaffected.
    */
   unPriceable?: boolean
+  /**
+   * landr-otml0.3 review fix (MINOR 6): fires with the 0-based companion
+   * index when the API rejects submit with 422 companion_contact_required
+   * (the client-side D11 gate should make this unreachable in the normal
+   * flow — see detailsAreComplete — this is the server-side backstop's UX
+   * half). The caller is expected to navigate back to DetailsStep and pass
+   * the index through as its initialFocusCompanionContactIndex prop.
+   * Optional — omitting it just means the customer sees formatHttpError's
+   * text message instead of being navigated there directly.
+   */
+  onCompanionContactRequired?: (companionIndex: number) => void
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -567,6 +578,25 @@ const formatHttpError = (
   return err.message
 }
 
+/**
+ * landr-otml0.3 review fix (MINOR 6): pull `companion_index` out of the
+ * companion_contact_required 422 so the submit handler can navigate the
+ * customer back to DetailsStep and focus that exact row, instead of just
+ * showing formatHttpError's text message and leaving them to find the field
+ * themselves. Wire shape: `{error, companion_index, first_name}` (PR #799) —
+ * `companion_index` is a plain 0-based index into `companions[]`, the same
+ * array this component's own `companions` prop is.
+ */
+function readCompanionContactRequiredIndex(err: unknown): number | null {
+  if (!(err instanceof HttpError) || err.status !== 422) return null
+  if (err.detail === null || typeof err.detail !== 'object' || Array.isArray(err.detail)) {
+    return null
+  }
+  const obj = err.detail as Record<string, unknown>
+  if (obj.error !== 'companion_contact_required') return null
+  return typeof obj.companion_index === 'number' ? obj.companion_index : null
+}
+
 const firstSelectionDate = (selection: BookingSelection): string => {
   if (selection.kind === 'slot') return selection.slot.date
   return selection.selectedDays[0] ?? ''
@@ -633,6 +663,7 @@ export function BookingForm({
   inviteToken,
   joinRef,
   unPriceable = false,
+  onCompanionContactRequired,
   onBack,
   onConfirmed,
 }: Props) {
@@ -1148,6 +1179,16 @@ export function BookingForm({
         setServerError(
           formatHttpError(err, partyMemberLabels, participants.length),
         )
+        // landr-otml0.3 review fix (MINOR 6): navigate the customer straight
+        // back to the exact companion row instead of leaving them to find it
+        // from a text message alone. Fires in addition to setServerError
+        // above (belt-and-braces: this navigates AWAY from this component,
+        // but the error text is what shows if the caller hasn't wired the
+        // callback).
+        const companionIndex = readCompanionContactRequiredIndex(err)
+        if (companionIndex !== null) {
+          onCompanionContactRequired?.(companionIndex)
+        }
       } else {
         setServerError(err instanceof Error ? err.message : String(err))
       }

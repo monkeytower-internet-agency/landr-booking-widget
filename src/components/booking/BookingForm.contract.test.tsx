@@ -332,6 +332,44 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(errBox.textContent).toMatch(/cancellation_deadline/)
   })
 
+  // landr-otml0.3 review fix (MINOR 6): companion_contact_required fires
+  // onCompanionContactRequired with the 0-based companion_index so the
+  // caller can navigate back and highlight the exact row.
+  it('fires onCompanionContactRequired with the companion_index on a companion_contact_required 422', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: 'companion_contact_required',
+            companion_index: 1,
+            first_name: 'Thomas',
+          },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    const onCompanionContactRequired = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        onCompanionContactRequired={onCompanionContactRequired}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(onCompanionContactRequired).toHaveBeenCalledWith(1),
+    )
+  })
+
   it('omits no required PublicSubmitBookingIn field when the booking has no rooms / no addons', async () => {
     render(
       <BookingForm
