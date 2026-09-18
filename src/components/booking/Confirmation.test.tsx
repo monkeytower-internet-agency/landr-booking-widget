@@ -1,14 +1,45 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Confirmation } from './Confirmation'
+import { HttpError } from '@/api/client'
 import type {
   BookingCalendarEvent,
   BookingSummary,
+  GroupSummary,
+  InviteSummary,
   SubmitBookingResponse,
 } from '@/api/types'
 import { ALL_STAFF_POWERS, type StaffSession } from '@/lib/staffMode'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
+
+// landr-otml0.4: Email-send goes through the real API client
+// (sendBookingInvite → POST .../invites/{id}/send). Mocked the same way
+// AccommodationStep.test.tsx mocks lookupBookingReference — vi.hoisted +
+// vi.mock('@/api/client') keeping every other export (submitBooking,
+// mockSubmit-backed calls, etc.) at its real implementation.
+const { mocks } = vi.hoisted(() => ({
+  mocks: {
+    sendBookingInvite: vi.fn<
+      (
+        bookingId: string,
+        companionId: string,
+        shareSecret: string,
+        email: string,
+      ) => Promise<{ status: string; invite_url: string }>
+    >(),
+  },
+}))
+
+vi.mock('@/api/client', async () => {
+  const actual = await vi.importActual<typeof import('@/api/client')>(
+    '@/api/client',
+  )
+  return {
+    ...actual,
+    sendBookingInvite: mocks.sendBookingInvite,
+  }
+})
 
 /**
  * Tests for the booking confirmation success page.
@@ -35,6 +66,60 @@ function baseResponse(overrides: Partial<SubmitBookingResponse> = {}): SubmitBoo
     semantic_state: 'pending',
     ...overrides,
   }
+}
+
+// ------------------------------------------------------------------
+// landr-otml0.4: invite card / group block / shared-double hint fixtures
+// ------------------------------------------------------------------
+
+function baseInvite(overrides: Partial<InviteSummary> = {}): InviteSummary {
+  return {
+    companion_id: 'companion-1',
+    name: 'Thomas Klein',
+    email: 'thomas@example.com',
+    phone: '+49 151 2345678',
+    phone_digits: '491512345678',
+    invite_url: 'https://widget.dev.landr.de/?invite=tok_abc123',
+    whatsapp_url:
+      'https://wa.me/491512345678?text=https%3A%2F%2Fwidget.dev.landr.de%2F%3Finvite%3Dtok_abc123',
+    linked_booking_reference: null,
+    has_invite: true,
+    ...overrides,
+  }
+}
+
+function baseGroup(overrides: Partial<GroupSummary> = {}): GroupSummary {
+  return {
+    group_id: 'grp-1',
+    label: 'Olaf K***n',
+    members: [
+      { reference: 'AAAA1111', display_name: 'Olaf K***n', is_self: true, is_host: true },
+      { reference: 'BBBB2222', display_name: 'Thomas K***n', is_self: false, is_host: false },
+    ],
+    ...overrides,
+  }
+}
+
+/** navigator.clipboard is absent in jsdom by default — stub it per test. */
+function stubClipboard(): { writeText: ReturnType<typeof vi.fn> } {
+  const writeText = vi.fn(async () => undefined)
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText },
+  })
+  return { writeText }
+}
+
+/**
+ * landr-otml0.4 review fix (MAJOR 4): remove `navigator.clipboard` entirely
+ * (an insecure context / older WebView) so CopyButton is forced onto its
+ * `document.execCommand('copy')` fallback, and beyond.
+ */
+function stubClipboardUnavailable(): void {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: undefined,
+  })
 }
 
 /** Parse query params from a full URL string for targeted assertions. */
@@ -126,11 +211,36 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(screen.queryByText(MOCK_BOOKING_ID)).not.toBeInTheDocument()
   })
 
-  it('falls back to booking_id when summary is absent (older API deploy)', () => {
+  // landr-otml0.4 review fix (MAJOR 1): the raw booking_id UUID is a bearer
+  // credential elsewhere in this API (cancel, .ics download both accept it
+  // as their only credential) — it must never be shown/copyable as "the
+  // reference" text. When summary is absent we now derive the 8-hex
+  // reference client-side, the same way the API does, instead of falling
+  // back to the UUID.
+  it('derives the reference client-side (never the raw booking_id UUID) when summary is absent', () => {
     const response = baseResponse()
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    // MOCK_BOOKING_ID = '00000000-0000-0000-0000-0000000000bb' →
+    // strip hyphens, first 8 hex chars, uppercased.
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
+    expect(screen.queryByText(MOCK_BOOKING_ID)).not.toBeInTheDocument()
+  })
+
+  it('never exposes the raw booking_id UUID anywhere in the reference/copy block', () => {
+    const response = baseResponse({
+      summary: baseSummary({ booking_reference: 'REF-1234' }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).not.toHaveTextContent(
+      MOCK_BOOKING_ID,
+    )
+    expect(screen.getByTestId('confirmation-reference-copy')).not.toHaveTextContent(
+      MOCK_BOOKING_ID,
+    )
   })
 
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
@@ -756,8 +866,11 @@ describe('Confirmation', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     // Card must still render — never blank.
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    // Reference still visible.
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    // Reference still visible (derived client-side — never the raw UUID,
+    // landr-otml0.4 review fix MAJOR 1).
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
   })
 
   it('shows success copy when confirmation_email_status is "captured"', () => {
@@ -786,9 +899,12 @@ describe('Confirmation', () => {
     // The regular "confirmation email" paragraph must NOT appear.
     expect(screen.queryByText(/you will receive a confirmation email/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/confirmation email has been sent/i)).not.toBeInTheDocument()
-    // Card must still render — never blank; reference visible.
+    // Card must still render — never blank; reference visible (derived
+    // client-side — never the raw UUID, landr-otml0.4 review fix MAJOR 1).
     expect(screen.getByText(/booking received/i)).toBeInTheDocument()
-    expect(screen.getByText(MOCK_BOOKING_ID)).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent(
+      '00000000',
+    )
     // "Make another booking" button still present.
     expect(screen.getByRole('button', { name: /make another booking/i })).toBeInTheDocument()
     // OD-7: no bus/seat/capacity/approval-policy language.
@@ -959,5 +1075,371 @@ describe('Confirmation', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.queryByTestId('confirmation-stage-label')).not.toBeInTheDocument()
+  })
+})
+
+// ------------------------------------------------------------------
+// landr-otml0.4: reference share, per-invitee cards, group block,
+// shared-double hint, join_error notice.
+// ------------------------------------------------------------------
+
+describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
+  beforeEach(() => {
+    mocks.sendBookingInvite.mockReset()
+  })
+
+  it('shows the reference prominently with a copy button and the share hint', async () => {
+    const { writeText } = stubClipboard()
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
+    expect(
+      screen.getByText(
+        /share this with anyone booking their own guiding who wants to be grouped with you/i,
+      ),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('REF-1234'))
+  })
+
+  it('renders no invite cards, group block, or hint when the response carries none of it (older API / no companions)', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-invites')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('confirmation-group')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('confirmation-shared-double-hint')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('confirmation-join-error')).not.toBeInTheDocument()
+  })
+
+  it('renders one invite card per companion, with WhatsApp/Email/Copy actions', () => {
+    const response = baseResponse({
+      share_secret: 'secret-abc',
+      invites: [baseInvite()],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByText('Send Thomas Klein their booking link')).toBeInTheDocument()
+    // wa.me URL is used exactly as the API supplied it — never rebuilt
+    // client-side (epic D5: WhatsApp is server-pre-built, no message API).
+    const whatsapp = screen.getByTestId('invite-whatsapp')
+    expect(whatsapp).toHaveAttribute('href', baseInvite().whatsapp_url)
+    expect(whatsapp).toHaveAttribute('target', '_blank')
+    expect(screen.getByTestId('invite-email')).toBeInTheDocument()
+    expect(screen.getByTestId('invite-copy')).toBeInTheDocument()
+  })
+
+  it('falls back to the WhatsApp share-sheet link (no phone) exactly as given', () => {
+    const invite = baseInvite({
+      phone: null,
+      phone_digits: null,
+      whatsapp_url: 'https://wa.me/?text=https%3A%2F%2Fwidget.dev.landr.de%2F%3Finvite%3Dtok_abc123',
+    })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [invite] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('invite-whatsapp')).toHaveAttribute('href', invite.whatsapp_url)
+  })
+
+  it('omits the WhatsApp button when the API supplied no whatsapp_url', () => {
+    const invite = baseInvite({ whatsapp_url: null })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [invite] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('invite-whatsapp')).not.toBeInTheDocument()
+    expect(screen.getByTestId('invite-email')).toBeInTheDocument()
+  })
+
+  it('omits the Email button when the companion has no captured email (D11: phone-only)', () => {
+    const invite = baseInvite({ email: null })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [invite] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('invite-email')).not.toBeInTheDocument()
+    expect(screen.getByTestId('invite-whatsapp')).toBeInTheDocument()
+    // Copy link is always offered regardless of captured contact.
+    expect(screen.getByTestId('invite-copy')).toBeInTheDocument()
+  })
+
+  it('sends the invite email on click, using the share_secret, and disables after success', async () => {
+    mocks.sendBookingInvite.mockResolvedValue({
+      status: 'queued',
+      invite_url: baseInvite().invite_url,
+    })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() => expect(screen.getByTestId('invite-email')).toHaveTextContent('Sent'))
+    expect(mocks.sendBookingInvite).toHaveBeenCalledWith(
+      MOCK_BOOKING_ID,
+      'companion-1',
+      'secret-abc',
+      'thomas@example.com',
+    )
+    expect(screen.getByTestId('invite-email')).toBeDisabled()
+  })
+
+  it('shows a retry affordance and keeps the button enabled when the email send fails', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(new Error('500'))
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email')).toHaveTextContent(/retry email/i),
+    )
+    expect(screen.getByTestId('invite-email')).not.toBeDisabled()
+    expect(
+      screen.getByText(/could not send that email/i),
+    ).toBeInTheDocument()
+  })
+
+  it('copies the invite link to the clipboard', async () => {
+    const { writeText } = stubClipboard()
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-copy'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(baseInvite().invite_url))
+  })
+
+  // ------------------------------------------------------------------
+  // landr-otml0.4 review fix (MAJOR 2): no share_secret → disabled + hint,
+  // never a silent no-op.
+  // ------------------------------------------------------------------
+
+  it('disables the Email button and shows a hint when share_secret is absent', () => {
+    const response = baseResponse({ invites: [baseInvite()] }) // no share_secret
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const emailButton = screen.getByTestId('invite-email')
+    expect(emailButton).toBeDisabled()
+    expect(emailButton).toHaveAttribute('title', expect.stringMatching(/unavailable/i))
+    expect(screen.getByTestId('invite-email-unavailable')).toHaveTextContent(
+      /email sending unavailable — copy the link instead/i,
+    )
+    // Clicking a disabled button never fires the handler.
+    fireEvent.click(emailButton)
+    expect(mocks.sendBookingInvite).not.toHaveBeenCalled()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-otml0.4 review fix (MAJOR 3): failure classification by HTTP
+  // status — different message and retry-ability per status.
+  // ------------------------------------------------------------------
+
+  it('404 → "link can\'t be emailed" message, no retry (button stays disabled)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(new HttpError(404, 'Not Found', ''))
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /can't be emailed from here any more — copy it instead/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).toBeDisabled()
+  })
+
+  it('422 → "email address was rejected" message, no retry (button stays disabled)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(
+      new HttpError(422, 'Unprocessable Entity', ''),
+    )
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /that email address was rejected/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).toBeDisabled()
+  })
+
+  it('429 → "too many emails" message, retry allowed (button re-enables)', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(
+      new HttpError(429, 'Too Many Requests', ''),
+    )
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /too many emails right now — try again in a few minutes/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).not.toBeDisabled()
+    expect(screen.getByTestId('invite-email')).toHaveTextContent(/retry email/i)
+  })
+
+  it('a network/generic failure keeps the existing retry-able generic message', async () => {
+    mocks.sendBookingInvite.mockRejectedValue(new TypeError('Failed to fetch'))
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-email'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-email-error')).toHaveTextContent(
+        /could not send that email/i,
+      ),
+    )
+    expect(screen.getByTestId('invite-email')).not.toBeDisabled()
+  })
+
+  it('shows "Booked ✓" with the linked reference instead of actions once a companion has joined', () => {
+    const invite = baseInvite({ linked_booking_reference: 'CCCC3333' })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [invite] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('invite-linked')).toHaveTextContent('Booked ✓ (ref CCCC3333)')
+    expect(screen.queryByTestId('invite-whatsapp')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('invite-email')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('invite-copy')).not.toBeInTheDocument()
+  })
+
+  it('renders the "Booked together with" group block, excluding self', () => {
+    const response = baseResponse({ group: baseGroup() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const group = screen.getByTestId('confirmation-group')
+    expect(group).toHaveTextContent('Booked together with')
+    expect(group).toHaveTextContent('Thomas K***n (ref BBBB2222)')
+    // Self is excluded — the booker already knows they're on the list.
+    expect(group).not.toHaveTextContent('Olaf K***n')
+  })
+
+  it('renders nothing for a group of one (self only — should not happen per API contract, but degrade quietly)', () => {
+    const response = baseResponse({
+      group: baseGroup({
+        members: [{ reference: 'AAAA1111', display_name: 'Olaf K***n', is_self: true, is_host: true }],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-group')).not.toBeInTheDocument()
+  })
+
+  it('shows the shared-double "add reference later" hint when isSharedDouble and no group/join_error', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    expect(screen.getByTestId('confirmation-shared-double-hint')).toBeInTheDocument()
+  })
+
+  it('omits the shared-double hint once a group already formed', () => {
+    const response = baseResponse({ group: baseGroup() })
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    expect(screen.queryByTestId('confirmation-shared-double-hint')).not.toBeInTheDocument()
+  })
+
+  it('omits the shared-double hint when a join_error already covers it', () => {
+    const response = baseResponse({ join_error: { error: 'unknown_reference' } })
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    expect(screen.queryByTestId('confirmation-shared-double-hint')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-join-error')).toBeInTheDocument()
+  })
+
+  it('links the shared-double hint to the customer page when the API supplied one', () => {
+    const response = baseResponse({ customer_page_url: 'https://my.landr.de/t/abc123' })
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    const link = screen.getByRole('link', { name: /add their reference on your booking page/i })
+    expect(link).toHaveAttribute('href', 'https://my.landr.de/t/abc123#join')
+  })
+
+  it('omits the link (plain text only) when customer_page_url is absent', () => {
+    const response = baseResponse()
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    expect(screen.queryByRole('link', { name: /add their reference/i })).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-shared-double-hint')).toHaveTextContent(
+      /add their reference on your booking page/i,
+    )
+  })
+
+  it('shows a calm join_error notice without blocking the rest of the page', () => {
+    const response = baseResponse({
+      join_error: { error: 'same_booking' },
+      summary: baseSummary(),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-join-error')).toHaveTextContent(
+      /that reference points to your own booking/i,
+    )
+    // The rest of the confirmation screen still renders normally.
+    expect(screen.getByTestId('confirmation-summary')).toBeInTheDocument()
+  })
+})
+
+// ------------------------------------------------------------------
+// landr-otml0.4 review fix (MAJOR 4): CopyButton's never-a-silent-no-op
+// fallback chain — navigator.clipboard → execCommand('copy') → reveal a
+// manual select-and-copy input.
+// ------------------------------------------------------------------
+
+describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
+  const originalExecCommand = document.execCommand
+
+  afterEach(() => {
+    document.execCommand = originalExecCommand
+  })
+
+  it('falls back to document.execCommand("copy") when navigator.clipboard is unavailable', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => true)
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
+
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(screen.getByTestId('confirmation-reference-copy')).toHaveTextContent(/copied/i)
+  })
+
+  it('reveals a manual select-and-copy input when both clipboard and execCommand fail', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => false)
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
+
+    // The button is replaced by a readonly input carrying the exact value —
+    // never a silent no-op.
+    expect(screen.queryByTestId('confirmation-reference-copy')).not.toBeInTheDocument()
+    const manualInput = screen.getByTestId(
+      'confirmation-reference-copy-manual',
+    ) as HTMLInputElement
+    expect(manualInput).toHaveValue('REF-1234')
+    expect(manualInput).toHaveAttribute('readonly')
+  })
+
+  it('reveals the manual fallback when execCommand throws rather than returning false', () => {
+    stubClipboardUnavailable()
+    document.execCommand = vi.fn(() => {
+      throw new Error('not implemented')
+    })
+    const response = baseResponse({ share_secret: 'secret-abc', invites: [baseInvite()] })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('invite-copy'))
+
+    const manualInput = screen.getByTestId('invite-copy-manual') as HTMLInputElement
+    expect(manualInput).toHaveValue(baseInvite().invite_url)
   })
 })

@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AvailabilitySlot, Hotel, Product, ProductAddon } from '@/api/types'
+import type {
+  AvailabilitySlot,
+  BookingLookupResult,
+  Hotel,
+  Product,
+  ProductAddon,
+} from '@/api/types'
 import { AccommodationStep } from './AccommodationStep'
 
 const { mocks } = vi.hoisted(() => ({
@@ -21,15 +27,25 @@ const { mocks } = vi.hoisted(() => ({
     getAvailability: vi.fn<
       (id: string, from: string, to: string) => Promise<AvailabilitySlot[]>
     >(),
+    // landr-otml0.3: shared-double reference masked lookup.
+    lookupBookingReference:
+      vi.fn<(op: string, ref: string) => Promise<BookingLookupResult>>(),
   },
 }))
 
-vi.mock('@/api/client', () => ({
-  getHotelsForOperator: mocks.getHotelsForOperator,
-  getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
-  getProductAddons: mocks.getProductAddons,
-  getAvailability: mocks.getAvailability,
-}))
+vi.mock('@/api/client', async () => {
+  const actual = await vi.importActual<typeof import('@/api/client')>(
+    '@/api/client',
+  )
+  return {
+    ...actual,
+    getHotelsForOperator: mocks.getHotelsForOperator,
+    getHotelRoomsForHotel: mocks.getHotelRoomsForHotel,
+    getProductAddons: mocks.getProductAddons,
+    getAvailability: mocks.getAvailability,
+    lookupBookingReference: mocks.lookupBookingReference,
+  }
+})
 
 const HOTEL_A: Hotel = {
   location_id: 'hotel-a',
@@ -2207,5 +2223,189 @@ describe('AccommodationStep — restored state survives re-entry (landr-abme)', 
     expect(within(double).getByTestId('occupant-row-2')).toHaveTextContent(
       /Alyda/,
     )
+  })
+})
+
+describe('AccommodationStep — shared-double reference field (landr-otml0.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getProductAddons.mockResolvedValue([])
+    mocks.getAvailability.mockResolvedValue([])
+  })
+
+  async function enterSharedDouble() {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    const onConfirm = vi.fn()
+    const onJoinRefChange = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        onJoinRefChange={onJoinRefChange}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByTestId('accommodation-mode-shared-double'))
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
+    )
+    return { onJoinRefChange }
+  }
+
+  it('shows the reference field in shared-double mode, hidden in package/guiding-only', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    // Default mode is 'package' — no reference field.
+    expect(
+      screen.queryByTestId('shared-double-reference'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('accommodation-mode-shared-double'))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-reference'),
+      ).toBeInTheDocument(),
+    )
+
+    fireEvent.click(screen.getByTestId('accommodation-mode-package'))
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('shared-double-reference'),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('is hidden entirely in invite mode even when shared-double is selected', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        initialMode="shared-double"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByTestId('shared-double-reference'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('looks up a complete 8-char reference and shows the masked confirm card', async () => {
+    await enterSharedDouble()
+    mocks.lookupBookingReference.mockResolvedValue({
+      reference: 'A1B2C3D4',
+      masked_name: 'O**f K***n',
+      created_at: new Date().toISOString(),
+    })
+
+    fireEvent.change(screen.getByTestId('shared-double-reference-input'), {
+      target: { value: 'a1b2c3d4' },
+    })
+
+    await waitFor(() =>
+      expect(mocks.lookupBookingReference).toHaveBeenCalledWith(
+        'para42',
+        'A1B2C3D4',
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-reference-confirm'),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByTestId('shared-double-reference-confirm'),
+    ).toHaveTextContent('O**f K***n')
+  })
+
+  it('confirming "Yes, link us" reports the reference via onJoinRefChange', async () => {
+    const { onJoinRefChange } = await enterSharedDouble()
+    mocks.lookupBookingReference.mockResolvedValue({
+      reference: 'A1B2C3D4',
+      masked_name: 'O**f K***n',
+      created_at: new Date().toISOString(),
+    })
+    fireEvent.change(screen.getByTestId('shared-double-reference-input'), {
+      target: { value: 'A1B2C3D4' },
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-reference-confirm'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByTestId('shared-double-reference-confirm-yes'))
+
+    expect(onJoinRefChange).toHaveBeenLastCalledWith('A1B2C3D4')
+    expect(
+      screen.getByTestId('shared-double-reference-linked'),
+    ).toBeInTheDocument()
+  })
+
+  it('picking "No" clears the field and reports null', async () => {
+    const { onJoinRefChange } = await enterSharedDouble()
+    mocks.lookupBookingReference.mockResolvedValue({
+      reference: 'A1B2C3D4',
+      masked_name: 'O**f K***n',
+      created_at: new Date().toISOString(),
+    })
+    fireEvent.change(screen.getByTestId('shared-double-reference-input'), {
+      target: { value: 'A1B2C3D4' },
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-reference-confirm'),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByTestId('shared-double-reference-confirm-no'))
+
+    expect(onJoinRefChange).toHaveBeenLastCalledWith(null)
+    expect(
+      screen.queryByTestId('shared-double-reference-confirm'),
+    ).not.toBeInTheDocument()
+    expect(
+      (screen.getByTestId('shared-double-reference-input') as HTMLInputElement)
+        .value,
+    ).toBe('')
+  })
+
+  it('shows "not found" for an unknown reference and never calls onJoinRefChange', async () => {
+    const { onJoinRefChange } = await enterSharedDouble()
+    mocks.lookupBookingReference.mockRejectedValue(new Error('404'))
+    fireEvent.change(screen.getByTestId('shared-double-reference-input'), {
+      target: { value: 'FFFFFFFF' },
+    })
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-reference-not-found'),
+      ).toBeInTheDocument(),
+    )
+    expect(onJoinRefChange).not.toHaveBeenCalled()
   })
 })

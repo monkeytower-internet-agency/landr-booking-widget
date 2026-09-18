@@ -279,6 +279,20 @@ interface Props {
    */
   memberPerkOtp?: string
   /**
+   * landr-otml0.3: the raw `?invite=<token>` value, sent as `invite_token`
+   * so the API can re-resolve it server-side and join this booking into the
+   * host's group. Omitted for every non-invite booking, and for an invite
+   * link that failed to resolve (App.tsx only passes it through when the
+   * prefill actually succeeded).
+   */
+  inviteToken?: string
+  /**
+   * landr-otml0.3: the shared-double reference the customer confirmed via
+   * AccommodationStep's masked-lookup field, sent as `join_ref`. Omitted
+   * when no reference was entered/confirmed (the common case).
+   */
+  joinRef?: string
+  /**
    * landr-zenj.1: true when App.tsx's PriceSidebar has flagged the
    * currently-priced selection as un_priceable (see PriceSidebar's
    * onUnPriceableChange doc — both components are fed the same inputs on
@@ -289,6 +303,17 @@ interface Props {
    * are unaffected.
    */
   unPriceable?: boolean
+  /**
+   * landr-otml0.3 review fix (MINOR 6): fires with the 0-based companion
+   * index when the API rejects submit with 422 companion_contact_required
+   * (the client-side D11 gate should make this unreachable in the normal
+   * flow — see detailsAreComplete — this is the server-side backstop's UX
+   * half). The caller is expected to navigate back to DetailsStep and pass
+   * the index through as its initialFocusCompanionContactIndex prop.
+   * Optional — omitting it just means the customer sees formatHttpError's
+   * text message instead of being navigated there directly.
+   */
+  onCompanionContactRequired?: (companionIndex: number) => void
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -506,6 +531,21 @@ const formatHttpError = (
   ) {
     return UN_PRICEABLE_MESSAGE
   }
+  // landr-otml0.3 D11: server-side backstop for the same rule DetailsStep
+  // already enforces client-side (detailsAreComplete) — should be
+  // unreachable in the normal flow, but a clear message beats a raw 422
+  // dump if it ever is (e.g. a stale form submitted after a slow reload).
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'companion_contact_required'
+  ) {
+    const name = (err.detail as { first_name?: unknown }).first_name
+    const who = typeof name === 'string' && name.trim() ? name : 'This companion'
+    return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
@@ -536,6 +576,25 @@ const formatHttpError = (
     return `Booking rejected (${err.status}): ${err.detail}`
   }
   return err.message
+}
+
+/**
+ * landr-otml0.3 review fix (MINOR 6): pull `companion_index` out of the
+ * companion_contact_required 422 so the submit handler can navigate the
+ * customer back to DetailsStep and focus that exact row, instead of just
+ * showing formatHttpError's text message and leaving them to find the field
+ * themselves. Wire shape: `{error, companion_index, first_name}` (PR #799) —
+ * `companion_index` is a plain 0-based index into `companions[]`, the same
+ * array this component's own `companions` prop is.
+ */
+function readCompanionContactRequiredIndex(err: unknown): number | null {
+  if (!(err instanceof HttpError) || err.status !== 422) return null
+  if (err.detail === null || typeof err.detail !== 'object' || Array.isArray(err.detail)) {
+    return null
+  }
+  const obj = err.detail as Record<string, unknown>
+  if (obj.error !== 'companion_contact_required') return null
+  return typeof obj.companion_index === 'number' ? obj.companion_index : null
 }
 
 const firstSelectionDate = (selection: BookingSelection): string => {
@@ -601,7 +660,10 @@ export function BookingForm({
   breakfastMap = {},
   formResponses,
   memberPerkOtp,
+  inviteToken,
+  joinRef,
   unPriceable = false,
+  onCompanionContactRequired,
   onBack,
   onConfirmed,
 }: Props) {
@@ -1045,6 +1107,11 @@ export function BookingForm({
         ...(customerComment && customerComment.trim() !== ''
           ? { customer_comment: customerComment.trim() }
           : {}),
+        // landr-otml0.3: omitted (not even null) for every non-invite /
+        // no-reference booking, matching every other optional-marker field
+        // in this payload.
+        ...(inviteToken ? { invite_token: inviteToken } : {}),
+        ...(joinRef ? { join_ref: joinRef } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff
@@ -1112,6 +1179,16 @@ export function BookingForm({
         setServerError(
           formatHttpError(err, partyMemberLabels, participants.length),
         )
+        // landr-otml0.3 review fix (MINOR 6): navigate the customer straight
+        // back to the exact companion row instead of leaving them to find it
+        // from a text message alone. Fires in addition to setServerError
+        // above (belt-and-braces: this navigates AWAY from this component,
+        // but the error text is what shows if the caller hasn't wired the
+        // callback).
+        const companionIndex = readCompanionContactRequiredIndex(err)
+        if (companionIndex !== null) {
+          onCompanionContactRequired?.(companionIndex)
+        }
       } else {
         setServerError(err instanceof Error ? err.message : String(err))
       }

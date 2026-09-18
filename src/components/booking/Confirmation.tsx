@@ -1,8 +1,13 @@
-import { PartyPopper } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Copy, Mail, MessageCircle, PartyPopper, Users } from 'lucide-react'
+import { HttpError, sendBookingInvite } from '@/api/client'
 import type {
   BookingSummary,
   BookingSummaryProduct,
   BookingSummaryRoom,
+  GroupSummary,
+  InviteSummary,
+  JoinError,
   PostBookingContent,
   SubmitBookingResponse,
 } from '@/api/types'
@@ -29,6 +34,400 @@ import { formatMoney, splitLineItems } from './priceSidebarHelpers'
 interface Props {
   response: SubmitBookingResponse
   onRestart: () => void
+  /**
+   * landr-otml0.4: true when the booker chose the shared-double
+   * accommodation mode (AccommodationStep) for THIS booking. Threaded
+   * through the step machine (not derivable from the response) — see
+   * appStepMachine.ts's 'confirmed' step doc.
+   */
+  isSharedDouble?: boolean
+}
+
+/**
+ * landr-otml0.4: small "Copy" button shared by the reference card and every
+ * invite card. Local component state (idle → copied, resetting after 2s)
+ * rather than a toast — the widget carries no toast library (unlike the
+ * dashboard's CopyLinkButton, which uses one).
+ */
+/**
+ * landr-otml0.4 review fix (MAJOR 4): best-effort chain, never a silent
+ * no-op. 1) the modern `navigator.clipboard` API; 2) the legacy
+ * `document.execCommand('copy')` path via an offscreen textarea (covers
+ * insecure contexts / older WebViews where `navigator.clipboard` is absent
+ * but `execCommand` still works); 3) if BOTH fail, the caller falls back to
+ * a visible, focused, readonly input so the customer can select-and-copy
+ * by hand — the one thing that always works.
+ */
+function legacyExecCommandCopy(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    // Offscreen but still focusable/selectable — execCommand('copy')
+    // requires the node to have an actual selection, which display:none
+    // or a detached node would prevent.
+    textarea.style.position = 'fixed'
+    textarea.style.top = '0'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    textarea.setSelectionRange(0, text.length)
+    const ok = document.execCommand ? document.execCommand('copy') : false
+    document.body.removeChild(textarea)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+function CopyButton({
+  value,
+  label = 'Copy link',
+  testId,
+}: {
+  value: string
+  label?: string
+  testId?: string
+}) {
+  const [status, setStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
+  const manualInputRef = useRef<HTMLInputElement>(null)
+
+  // Focus + select once, when the manual fallback first appears — not on
+  // every re-render (an inline ref callback would re-focus on each render).
+  useEffect(() => {
+    if (status === 'manual') manualInputRef.current?.select()
+  }, [status])
+
+  async function handleClick() {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('navigator.clipboard unavailable')
+      }
+      await navigator.clipboard.writeText(value)
+      setStatus('copied')
+      window.setTimeout(() => setStatus('idle'), 2000)
+      return
+    } catch {
+      // Fall through to the legacy path below.
+    }
+    if (legacyExecCommandCopy(value)) {
+      setStatus('copied')
+      window.setTimeout(() => setStatus('idle'), 2000)
+    } else {
+      // Both copy mechanisms failed — never a silent no-op. Reveal the
+      // value in a readonly input the customer can select and copy by
+      // hand; this state persists (no auto-reset) until they do.
+      setStatus('manual')
+    }
+  }
+
+  if (status === 'manual') {
+    return (
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor={testId ? `${testId}-manual-input` : undefined}
+          className="text-xs text-muted-foreground"
+        >
+          Couldn't copy automatically — select and copy:
+        </label>
+        <input
+          id={testId ? `${testId}-manual-input` : undefined}
+          ref={manualInputRef}
+          type="text"
+          readOnly
+          value={value}
+          onFocus={(e) => e.currentTarget.select()}
+          data-testid={testId ? `${testId}-manual` : 'copy-manual'}
+          className="h-8 rounded-md border bg-background px-2 font-mono text-xs"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={handleClick}
+      data-testid={testId}
+    >
+      {status === 'copied' ? (
+        <>
+          <Check className="mr-1.5 size-3.5" aria-hidden="true" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Copy className="mr-1.5 size-3.5" aria-hidden="true" />
+          {label}
+        </>
+      )}
+    </Button>
+  )
+}
+
+/**
+ * landr-otml0.4 (D5, D11): "Send <name> their booking link" per
+ * `separate_guiding` companion. Channels follow what was captured at
+ * DetailsStep (D11) — phone → WhatsApp, email → one-click Email send,
+ * always → Copy link. No inline phone/email inputs on this screen (contact
+ * is mandatory and already captured upstream).
+ */
+/**
+ * landr-otml0.4 review fix (MAJOR 3): classify a failed invite-email send by
+ * HTTP status so the customer gets an accurate next step instead of one
+ * generic "try again" for every failure. Mirrors the send endpoint's own
+ * documented failure modes (public_booking_groups.py): 404 = opaque miss
+ * (bad/expired share_secret or booking — the endpoint returns the SAME 404
+ * for an unknown booking, so this reads as "link no longer works" rather
+ * than naming the secret), 422 = the endpoint's own email-shape validator
+ * rejected the address, 429 = the per-booking/per-IP rate limit tripped.
+ * Anything else (network failure, 5xx, a non-HttpError throw) is the
+ * generic retry-able case.
+ */
+function classifyInviteSendError(err: unknown): {
+  message: string
+  canRetry: boolean
+} {
+  if (err instanceof HttpError) {
+    if (err.status === 404) {
+      return {
+        message: "This link can't be emailed from here any more — copy it instead.",
+        canRetry: false,
+      }
+    }
+    if (err.status === 422) {
+      return { message: 'That email address was rejected.', canRetry: false }
+    }
+    if (err.status === 429) {
+      return {
+        message: 'Too many emails right now — try again in a few minutes.',
+        canRetry: true,
+      }
+    }
+  }
+  return {
+    message:
+      'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
+    canRetry: true,
+  }
+}
+
+function InviteCard({
+  invite,
+  bookingId,
+  shareSecret,
+}: {
+  invite: InviteSummary
+  bookingId: string
+  shareSecret?: string
+}) {
+  const [emailState, setEmailState] = useState<
+    'idle' | 'sending' | 'sent' | 'failed'
+  >('idle')
+  const [emailError, setEmailError] = useState<{
+    message: string
+    canRetry: boolean
+  } | null>(null)
+  // No prior failure yet → the button reads "Email", not "Retry email", and
+  // stays enabled (canRetry defaults true so a fresh card is never
+  // pre-disabled by this flag).
+  const canRetryEmail = emailError?.canRetry ?? true
+
+  async function handleSendEmail() {
+    if (!invite.email || !shareSecret) return
+    setEmailState('sending')
+    setEmailError(null)
+    try {
+      await sendBookingInvite(bookingId, invite.companion_id, shareSecret, invite.email)
+      setEmailState('sent')
+    } catch (err) {
+      setEmailState('failed')
+      setEmailError(classifyInviteSendError(err))
+    }
+  }
+
+  const emailErrorMessage = emailError?.message ?? ''
+
+  if (invite.linked_booking_reference) {
+    // Already joined — no more actions to offer, just confirm it happened.
+    return (
+      <div
+        data-testid="invite-card"
+        className="flex items-center justify-between gap-2 rounded-lg border bg-surface-card p-3 text-sm"
+      >
+        <span>{invite.name}</span>
+        <span
+          data-testid="invite-linked"
+          className="font-medium text-emerald-700 dark:text-emerald-400"
+        >
+          Booked ✓ (ref {invite.linked_booking_reference})
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-testid="invite-card"
+      className="space-y-2 rounded-lg border bg-surface-card p-3"
+    >
+      <p className="text-sm font-medium">Send {invite.name} their booking link</p>
+      <div className="flex flex-wrap gap-2">
+        {invite.whatsapp_url ? (
+          <Button asChild type="button" variant="outline" size="sm">
+            <a
+              href={invite.whatsapp_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="invite-whatsapp"
+            >
+              <MessageCircle className="mr-1.5 size-3.5" aria-hidden="true" />
+              WhatsApp
+            </a>
+          </Button>
+        ) : null}
+        {invite.email ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSendEmail}
+            disabled={
+              !shareSecret ||
+              emailState === 'sending' ||
+              emailState === 'sent' ||
+              !canRetryEmail
+            }
+            // landr-otml0.4 review fix (MAJOR 2): no share_secret → a
+            // native title explains why, instead of a silent no-op. Same
+            // native-title pattern the dashboard's CopyLinkButton uses for
+            // dependency-free tooltips (no Tooltip provider in this tree).
+            title={
+              !shareSecret
+                ? 'Email sending unavailable — copy the link instead'
+                : undefined
+            }
+            data-testid="invite-email"
+          >
+            <Mail className="mr-1.5 size-3.5" aria-hidden="true" />
+            {emailState === 'sending'
+              ? 'Sending…'
+              : emailState === 'sent'
+                ? 'Sent ✓'
+                : emailState === 'failed'
+                  ? canRetryEmail
+                    ? 'Retry email'
+                    : 'Email'
+                  : 'Email'}
+          </Button>
+        ) : null}
+        <CopyButton value={invite.invite_url} testId="invite-copy" />
+      </div>
+      {!shareSecret ? (
+        <p
+          className="text-xs text-muted-foreground"
+          data-testid="invite-email-unavailable"
+        >
+          Email sending unavailable — copy the link instead.
+        </p>
+      ) : null}
+      {emailState === 'failed' ? (
+        <p
+          className="text-xs text-amber-700 dark:text-amber-400"
+          role="status"
+          data-testid="invite-email-error"
+        >
+          {emailErrorMessage}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * landr-otml0.4 (D9/D5): "Booked together with" — the other live members of
+ * this booking's group, once it has >= 2 (GroupSummary is null otherwise —
+ * see its doc). Self is excluded; the booker already knows they're on the
+ * list.
+ */
+function GroupBlock({ group }: { group: GroupSummary }) {
+  const others = group.members.filter((m) => !m.is_self)
+  if (others.length === 0) return null
+  return (
+    <div
+      data-testid="confirmation-group"
+      className="space-y-2 rounded-lg border bg-surface-card p-4"
+    >
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <Users className="size-4" aria-hidden="true" />
+        Booked together with
+      </h3>
+      <ul className="space-y-1 text-sm text-muted-foreground">
+        {others.map((member) => (
+          <li key={member.reference}>
+            {member.display_name} (ref {member.reference})
+            {member.is_host ? ' — host' : ''}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
+ * landr-otml0.4 (D4): shown only when the booker chose shared-double and the
+ * submit neither joined a group nor reported a join_error — i.e. they never
+ * entered a reference at all. Links to the customer page's join form when
+ * the API supplied one (landr-otml0.2, A2); omitted otherwise rather than
+ * guessing a URL.
+ */
+function SharedDoubleHint({ customerPageUrl }: { customerPageUrl?: string | null }) {
+  return (
+    <p
+      data-testid="confirmation-shared-double-hint"
+      className="text-sm text-muted-foreground"
+    >
+      Sharing a room booked by someone else?{' '}
+      {customerPageUrl && isHttpUrl(customerPageUrl) ? (
+        <a
+          href={`${customerPageUrl}#join`}
+          className="text-primary underline"
+        >
+          Add their reference on your booking page
+        </a>
+      ) : (
+        'Add their reference on your booking page.'
+      )}
+    </p>
+  )
+}
+
+const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
+  unknown_reference:
+    "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
+  same_booking: 'That reference points to your own booking, so there was nothing to link.',
+  join_failed: "We couldn't link your booking to that reference right now.",
+}
+
+/**
+ * landr-otml0.4: soft notice for a join_ref the server could not honour.
+ * The booking itself always succeeds either way (see JoinError's doc) — this
+ * is informational, not an error state for the page as a whole.
+ */
+function JoinErrorNotice({ joinError }: { joinError: JoinError }) {
+  return (
+    <div
+      role="status"
+      data-testid="confirmation-join-error"
+      className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+    >
+      {JOIN_ERROR_MESSAGE[joinError.error]} Your booking itself is confirmed
+      as usual — you can still add the reference later on your booking page.
+    </div>
+  )
 }
 
 /**
@@ -65,6 +464,23 @@ function resolveApprovalKind(
   outcome: SubmitBookingResponse['approval_outcome'],
 ): ApprovalKind {
   return outcome === 'auto_approved' ? 'auto' : 'manual'
+}
+
+/**
+ * landr-otml0.4 review fix (MAJOR 1): the 8-hex booking reference, derived
+ * client-side EXACTLY as the API does
+ * (`booking_id.replace("-", "")[:8].upper()` — see build_booking_summary /
+ * public_lookup_booking_by_reference) when `summary` is absent. The raw
+ * `booking_id` UUID must never be shown or fed to Copy/share on this
+ * screen — it is a bearer credential elsewhere in this API (cancel, the
+ * .ics download both accept it as their only credential), unlike the
+ * reference, which is deliberately cheap/safe to hand to a stranger
+ * (D2's masked-lookup design). This function is the one place that
+ * boundary is enforced, so no caller can accidentally reach for
+ * `response.booking_id` directly for display.
+ */
+function deriveBookingReference(bookingId: string): string {
+  return bookingId.replace(/-/g, '').slice(0, 8).toUpperCase()
 }
 
 /** http(s)-only guard for the post-booking link (landr-nva1a.4) — the API
@@ -336,7 +752,7 @@ function PostBookingSection({
   )
 }
 
-export function Confirmation({ response, onRestart }: Props) {
+export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
    * the calendar_event block returned by the API alongside ical_url.
@@ -380,6 +796,25 @@ export function Confirmation({ response, onRestart }: Props) {
     (item) => Boolean(item.html) || (item.link && isHttpUrl(item.link.url)),
   )
 
+  // landr-otml0.4 review fix (MAJOR 1): never fall back to the raw
+  // booking_id UUID here — derive the reference client-side the same way
+  // the API does when summary is absent (older deploy). See
+  // deriveBookingReference's doc for why the UUID is unsafe to promote.
+  const referenceValue =
+    summary?.booking_reference ?? deriveBookingReference(response.booking_id)
+
+  // landr-otml0.4 (D5): per-companion "send their booking link" cards, only
+  // for separate_guiding companions the API minted an invite for.
+  const invites = response.invites ?? []
+
+  // landr-otml0.4 (D4): the shared-double "add reference later" hint shows
+  // ONLY when the booker chose shared-double and neither joined a group nor
+  // hit a join_error — i.e. they never entered a reference at all. Once
+  // `group` or `join_error` is present, this booking already tried (and
+  // either succeeded or has its own notice), so the hint would be redundant.
+  const showSharedDoubleHint =
+    Boolean(isSharedDouble) && !response.group && !response.join_error
+
   return (
     <Card>
       <CardHeader>
@@ -414,12 +849,31 @@ export function Confirmation({ response, onRestart }: Props) {
           default text-sm, since the reference is a secondary detail now
           that the header carries the celebratory weight.
         */}
-        <CardDescription className="text-xs">
-          Reference{' '}
-          <span className="font-mono">
-            {summary?.booking_reference ?? response.booking_id}
+        <CardDescription className="text-xs">Reference</CardDescription>
+        {/*
+          landr-otml0.4 (D5): reference prominence — large + monospace, with
+          a copy button and the one-line invite hint. Previously this was a
+          single small line inside CardDescription; the reference is now the
+          thing customers are expected to hand to a fellow traveller, so it
+          gets its own row.
+        */}
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+          <span
+            className="font-mono text-lg font-semibold"
+            data-testid="confirmation-reference-value"
+          >
+            {referenceValue}
           </span>
-        </CardDescription>
+          <CopyButton
+            value={referenceValue}
+            label="Copy"
+            testId="confirmation-reference-copy"
+          />
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Share this with anyone booking their own guiding who wants to be
+          grouped with you.
+        </p>
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
           booking's current stage (falls back to the staff label when the
@@ -521,6 +975,37 @@ export function Confirmation({ response, onRestart }: Props) {
 
         {/* landr-nva1a.4 step 5: price breakdown. */}
         {summary ? <ConfirmationPriceBreakdown summary={summary} /> : null}
+
+        {/* landr-otml0.4 (D9): "Booked together with" — other live members
+            of this booking's group, when it has any. */}
+        {response.group ? <GroupBlock group={response.group} /> : null}
+
+        {/* landr-otml0.4: soft notice for a join_ref the server could not
+            honour — the booking itself still succeeded regardless. */}
+        {response.join_error ? (
+          <JoinErrorNotice joinError={response.join_error} />
+        ) : null}
+
+        {/* landr-otml0.4 (D4): shared-double "add a reference later" hint —
+            only when the booker never entered/confirmed one at all. */}
+        {showSharedDoubleHint ? (
+          <SharedDoubleHint customerPageUrl={response.customer_page_url} />
+        ) : null}
+
+        {/* landr-otml0.4 (D5, D11): one "send their booking link" card per
+            separate_guiding companion the API minted an invite for. */}
+        {invites.length > 0 ? (
+          <div data-testid="confirmation-invites" className="space-y-2">
+            {invites.map((invite) => (
+              <InviteCard
+                key={invite.companion_id}
+                invite={invite}
+                bookingId={response.booking_id}
+                shareSecret={response.share_secret}
+              />
+            ))}
+          </div>
+        ) : null}
 
         {/*
           landr-3vr5 + landr-acew: "Add to calendar" group.

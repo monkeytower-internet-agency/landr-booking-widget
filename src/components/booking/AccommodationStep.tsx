@@ -4,8 +4,9 @@ import {
   getHotelRoomsForHotel,
   getHotelsForOperator,
   getProductAddons,
+  lookupBookingReference,
 } from '@/api/client'
-import type { Hotel, Product, ProductAddon } from '@/api/types'
+import type { BookingLookupResult, Hotel, Product, ProductAddon } from '@/api/types'
 import { accommodationBookability } from '@/components/booking/bookability'
 import { Button } from '@/components/ui/button'
 import {
@@ -54,6 +55,27 @@ import {
 import { formatDayLabel } from './dateLabel'
 import { accommodationTooLateMessage } from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
+
+/**
+ * landr-otml0.3: "from yesterday" / "from 3 days ago" / "from today" for the
+ * shared-double reference confirm card. Calendar-day granularity (not raw
+ * elapsed hours) so a booking made at 23:58 and looked up at 00:02 reads as
+ * "yesterday", not "moments ago".
+ */
+function formatRelativeDate(iso: string): string {
+  const then = new Date(iso)
+  if (Number.isNaN(then.getTime())) return ''
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const dayDiff = Math.round(
+    (startOfDay(new Date()).getTime() - startOfDay(then).getTime()) /
+      86_400_000,
+  )
+  if (dayDiff <= 0) return 'today'
+  if (dayDiff === 1) return 'yesterday'
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  return rtf.format(-dayDiff, 'day')
+}
 
 /**
  * landr-ffyg.2: top-level accommodation MODE. Replaces the old
@@ -241,6 +263,23 @@ interface Props {
    * deterministic default placement on forward entry.
    */
   initialBreakfastMap?: BreakfastMap
+  /**
+   * landr-otml0.3 — true when this booking arrived via `?invite=<token>`.
+   * The customer is already linked to the host's group through the invite
+   * itself, so the shared-double reference field (below) is redundant and
+   * hidden entirely in this mode.
+   */
+  inviteMode?: boolean
+  /**
+   * landr-otml0.3 — fires whenever the confirmed shared-double reference
+   * changes: the 8-char code once the customer picks "Yes, link us" on the
+   * masked-lookup confirm, or `null` when they clear it / pick "No" / switch
+   * away from shared-double mode. Lifted LIVE (mirrors onLiveAccommodationChange)
+   * rather than threaded through the Step union — like memberPerkOtp, it only
+   * ever matters at the final submit. Optional; omitting it just means the
+   * field renders with no upstream effect (existing callers/tests unaffected).
+   */
+  onJoinRefChange?: (ref: string | null) => void
 }
 
 /**
@@ -297,6 +336,8 @@ export function AccommodationStep({
   initialAssignment,
   initialAgeMap,
   initialBreakfastMap,
+  inviteMode = false,
+  onJoinRefChange,
 }: Props) {
   const locale = browserLocale()
   const { tokens } = useVariant()
@@ -328,6 +369,89 @@ export function AccommodationStep({
     }
     return 'package'
   })
+
+  // landr-otml0.3 — shared-double "booking reference of the room booker"
+  // field: 8-char uppercase hex, masked lookup, "Yes, link us" confirm.
+  // Hidden entirely in invite mode (inviteMode prop) — that customer is
+  // already linked to the group via the invite token itself.
+  const [refInput, setRefInput] = useState('')
+  const [refLookup, setRefLookup] = useState<
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'found'; result: BookingLookupResult }
+    | { status: 'not_found' }
+    | { status: 'confirmed'; result: BookingLookupResult }
+  >({ status: 'idle' })
+
+  useEffect(() => {
+    // Only a complete, well-formed 8-char hex code triggers a lookup — a
+    // partial code is just "still typing", not an error. No setState here
+    // for that case (react-hooks/set-state-in-effect): the render below
+    // gates the loading/found/not_found panels on `refInput.length === 8`
+    // directly, so a stale result from a previously-complete code never
+    // shows once the customer starts editing it again.
+    if (refInput.length !== 8 || !/^[0-9A-F]{8}$/.test(refInput)) {
+      return
+    }
+    let cancelled = false
+    // landr-otml0.3 review fix (MINOR 3): debounce 400ms after the 8th valid
+    // char before firing the lookup. The API caps this endpoint at 20/h/IP —
+    // a paste-then-edit sequence (or a fast retype after a typo) can pass
+    // through a complete-looking 8-char code more than once before the
+    // customer is actually done, and each would otherwise cost a real
+    // request. The cleanup below cancels a pending timer AND an in-flight
+    // fetch's callback the same way every other debounced fetch in this
+    // codebase does (see useBookingEstimate.ts).
+    const timer = window.setTimeout(() => {
+      // landr-otml0.3: the loading flip lives INSIDE the async IIFE (not
+      // synchronously in the effect body) — same pattern as
+      // useBookingEstimate.ts, to satisfy react-hooks/set-state-in-effect.
+      void (async () => {
+        setRefLookup({ status: 'loading' })
+        try {
+          const result = await lookupBookingReference(operatorToken, refInput)
+          if (!cancelled) setRefLookup({ status: 'found', result })
+        } catch {
+          if (cancelled) return
+          // landr-otml0.3: an unknown/cancelled/foreign-operator reference
+          // and a rate-limited lookup both read the same to the customer —
+          // "we couldn't find that" — they can still book without it.
+          setRefLookup({ status: 'not_found' })
+        }
+      })()
+    }, 400)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [refInput, operatorToken])
+
+  const confirmJoinRef = () => {
+    if (refLookup.status !== 'found') return
+    setRefLookup({ status: 'confirmed', result: refLookup.result })
+    onJoinRefChange?.(refLookup.result.reference)
+  }
+  const declineJoinRef = () => {
+    setRefInput('')
+    setRefLookup({ status: 'idle' })
+    onJoinRefChange?.(null)
+  }
+  const changeRefInput = (raw: string) => {
+    // Uppercase, hex-only, capped at 8 chars — matches the reference format
+    // (8 hex chars) everywhere else it's displayed to customers.
+    const normalised = raw.toUpperCase().replace(/[^0-9A-F]/g, '').slice(0, 8)
+    setRefInput(normalised)
+    // Editing after a confirm un-links it — the customer is typing a
+    // DIFFERENT code now, so the previously confirmed join must not ride
+    // along silently. Reset synchronously (not in an effect) so the next
+    // effect run for a fresh 8-char code starts from a clean 'idle'/'loading'
+    // transition instead of stacking on top of 'confirmed'.
+    if (refLookup.status === 'confirmed') {
+      setRefLookup({ status: 'idle' })
+      onJoinRefChange?.(null)
+    }
+  }
+
   const [rooms, setRooms] = useState<Product[] | null>(null)
   const [roomsError, setRoomsError] = useState<string | null>(null)
   const [selection, setSelection] = useState<Record<string, number>>(() => {
@@ -742,6 +866,13 @@ export function AccommodationStep({
     if (next === 'guiding-only') {
       // Guiding-only has no hotel context at all.
       setSelectedHotelId(null)
+    }
+    if (next !== 'shared-double') {
+      // landr-otml0.3: leaving shared-double drops any in-progress/confirmed
+      // reference — it only ever made sense in that mode.
+      setRefInput('')
+      setRefLookup({ status: 'idle' })
+      onJoinRefChange?.(null)
     }
     // landr-87n9.2: a mode switch resets the room/add-on cart → report the
     // empty selection under the NEW mode (non-package modes emit empty too).
@@ -1449,6 +1580,99 @@ export function AccommodationStep({
             booked for you — the other guest holds the room — and you
             will be collected from the hotel.
           </p>
+        ) : null}
+
+        {/* landr-otml0.3 — shared-double reference field. Hidden entirely in
+            invite mode: that customer is already linked via the invite
+            token, so asking them for a reference too would be redundant
+            (and would offer a second, weaker join path for no reason). */}
+        {mode === 'shared-double' && selectedHotelId && !inviteMode ? (
+          <div
+            className="flex flex-col gap-2 rounded-lg border border-border bg-surface-raised p-3"
+            data-testid="shared-double-reference"
+          >
+            <label
+              htmlFor="shared-double-reference-input"
+              className="text-sm font-medium"
+            >
+              Booking reference of the person who booked the room
+            </label>
+            <input
+              id="shared-double-reference-input"
+              type="text"
+              inputMode="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={8}
+              value={refInput}
+              onChange={(e) => changeRefInput(e.target.value)}
+              placeholder="e.g. A1B2C3D4"
+              className="w-full max-w-[12rem] rounded-md border border-input bg-surface-page px-3 py-2 font-mono text-sm uppercase tracking-wider shadow-well focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid="shared-double-reference-input"
+            />
+            {/* landr-otml0.3: gated on refInput.length === 8 (not just the
+                status) so a stale result never shows once the customer
+                starts editing an already-looked-up code again — the effect
+                deliberately does not reset state on every keystroke. */}
+            {refInput.length === 8 && refLookup.status === 'loading' ? (
+              <p className="text-xs text-muted-foreground">Looking that up…</p>
+            ) : null}
+            {refInput.length === 8 && refLookup.status === 'not_found' ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid="shared-double-reference-not-found"
+              >
+                We couldn&rsquo;t find that reference for this operator —
+                double-check it, or just leave it blank and add it later.
+              </p>
+            ) : null}
+            {refInput.length === 8 && refLookup.status === 'found' ? (
+              <div
+                className="flex flex-col gap-2 rounded-md border border-border bg-surface-well p-2"
+                data-testid="shared-double-reference-confirm"
+              >
+                <p className="text-sm">
+                  Booking of {refLookup.result.masked_name} from{' '}
+                  {formatRelativeDate(refLookup.result.created_at)} — is that
+                  them?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={confirmJoinRef}
+                    data-testid="shared-double-reference-confirm-yes"
+                  >
+                    Yes, link us
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={declineJoinRef}
+                    data-testid="shared-double-reference-confirm-no"
+                  >
+                    No
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {refLookup.status === 'confirmed' ? (
+              <p
+                className="text-xs text-diff-added"
+                data-testid="shared-double-reference-linked"
+              >
+                Linked to {refLookup.result.masked_name}&rsquo;s booking.
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              It&rsquo;s nice if you have the code, totally fine if not — you
+              can add it later from your booking page. Easiest is to ask the
+              person who booked for their invite link, then everything is
+              prefilled.
+            </p>
+          </div>
         ) : null}
 
         {/* Room list — package mode only. */}
