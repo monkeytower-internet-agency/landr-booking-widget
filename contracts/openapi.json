@@ -3460,6 +3460,28 @@
             ],
             "title": "Expected Back At"
           },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "group_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Label"
+          },
           "language": {
             "anyOf": [
               {
@@ -3993,6 +4015,40 @@
           }
         },
         "title": "DevToStagingIn",
+        "type": "object"
+      },
+      "DismissEmailResponse": {
+        "properties": {
+          "dismissed_at": {
+            "description": "ISO-8601 timestamp.",
+            "title": "Dismissed At",
+            "type": "string"
+          },
+          "id": {
+            "description": "outbound_emails row id.",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dismissed_at"
+        ],
+        "title": "DismissEmailResponse",
+        "type": "object"
+      },
+      "DismissFailedEmailsResponse": {
+        "properties": {
+          "dismissed": {
+            "description": "Number of rows newly dismissed.",
+            "title": "Dismissed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dismissed"
+        ],
+        "title": "DismissFailedEmailsResponse",
         "type": "object"
       },
       "DomainEligibility": {
@@ -15082,6 +15138,17 @@
             ],
             "title": "Confirmation Email Status"
           },
+          "customer_page_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Page Url"
+          },
           "group": {
             "anyOf": [
               {
@@ -20978,6 +21045,109 @@
         ]
       }
     },
+    "/api/operators/{operator_id}/emails/dismiss-failed": {
+      "post": {
+        "operationId": "dismiss_failed_emails",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissFailedEmailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dismiss every failed, undismissed outbound email for an operator",
+        "tags": [
+          "staff-emails-dismiss"
+        ]
+      }
+    },
+    "/api/operators/{operator_id}/emails/{email_id}/dismiss": {
+      "post": {
+        "operationId": "dismiss_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "email_id",
+            "required": true,
+            "schema": {
+              "title": "Email Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissEmailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dismiss a failed outbound email (operator-scoped)",
+        "tags": [
+          "staff-emails-dismiss"
+        ]
+      }
+    },
     "/api/operators/{operator_id}/emails/{email_id}/resend": {
       "post": {
         "description": "Resend an existing outbound email, optionally overriding recipient/subject/body.\n\nCreates a NEW outbound_emails row (audit trail preserved) and drains it\ninline.  Returns the new row id, final status, and transport used.",
@@ -23836,6 +24006,54 @@
           }
         ],
         "summary": "Cancel Booking",
+        "tags": [
+          "staff-bookings"
+        ]
+      },
+      "get": {
+        "description": "The booking plus its participants, with invite links on companion rows.\n\nlandr-otml0.1. The rooming list needs three things per separate-guiding\ncompanion: who they are, whether they have booked yet\n(``linked_booking_reference`` \u2014 the \"booked \u2713\"), and the link to send them.\nServing those here means the dashboard's booking detail is ONE request\nrather than a participants read plus an invites read.\n\n``invite_url`` appears ONLY on companion rows (``is_guiding=false`` and\n``companion_kind='separate_guiding'``); it is ``None`` everywhere else,\nbecause nobody else has a booking of their own to make. Guiding\nparticipants and plain guests are unchanged.\n\nThe mint is idempotent, so opening a booking created before this feature\nfills in its links rather than showing an empty column \u2014 and opening the\nsame booking twice returns the same links. Rotating a link is a separate,\nexplicit action (``POST /api/staff/operators/{op}/bookings/{id}/invites/\n{companion_id}/rotate``).\n\n``group`` carries the STAFF shape, with booking ids: the dashboard is\noperator-authorised and needs them to navigate between linked bookings. The\nanonymous surfaces get the id-free projection \u2014 see\n``app/services/booking_groups.group_summary``.",
+        "operationId": "staff_get_booking_detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Get Booking Detail",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Detail",
         "tags": [
           "staff-bookings"
         ]
@@ -28422,7 +28640,7 @@
     },
     "/api/staff/operators/{operator_id}/config-health": {
       "get": {
-        "description": "Return all active config issues for the operator.\n\nResponse shape::\n\n    {\n        \"issues\": [\n            {\n                \"id\": \"hotel_missing_email\",\n                \"severity\": \"error\",\n                \"title\": \"Hotel has no booking email\",\n                \"message\": \"'Grand Hotel' has no booking email ...\",\n                \"target_route\": \"/settings/hotels\"\n            }\n        ]\n    }\n\nEmpty list means the operator has no active misconfigurations.\nThe dashboard renders nothing when issues is empty.",
+        "description": "Return all active config issues for the operator.\n\nResponse shape::\n\n    {\n        \"issues\": [\n            {\n                \"id\": \"hotel_missing_email\",\n                \"severity\": \"error\",\n                \"title\": \"Hotel has no booking email\",\n                \"message\": \"'Grand Hotel' has no booking email ...\",\n                \"target_route\": \"/settings/hotels\",\n                \"action_label\": \"Fix\"\n            }\n        ]\n    }\n\nEmpty list means the operator has no active misconfigurations.\nThe dashboard renders nothing when issues is empty.",
         "operationId": "get_config_health",
         "parameters": [
           {

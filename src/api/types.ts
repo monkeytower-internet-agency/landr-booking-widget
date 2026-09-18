@@ -1241,6 +1241,24 @@ export interface SubmitBookingResponse {
  * the wire (`extra="forbid"`) — no `host_booking_id`, no `companion_id`. 404
  * on every miss: bad token, wrong shape, or a cancelled host booking.
  */
+/**
+ * landr-frqgv.3 (epic landr-frqgv D1) — GET
+ * /api/public/contact-page/{token}/prefill. The contact's OWN
+ * name/email/phone/language, scoped to exactly the (operator, contact)
+ * pair the token was minted for. Feeds the widget's `?c=<token>` re-book
+ * prefill (App.tsx) — unlike InvitePrefill, there is no product_id/dates
+ * to jump to; this only seeds the booker's identity fields. `language` is
+ * carried on the wire but currently unused by the widget, which stays
+ * English-only.
+ */
+export interface ContactPagePrefill {
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+  language: string | null
+}
+
 export interface InvitePrefill {
   operator_id: string
   /**
