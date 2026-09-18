@@ -11017,6 +11017,20 @@
       },
       "ProductIn": {
         "properties": {
+          "accommodation_checkin_offset_days": {
+            "default": 1,
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Accommodation Checkin Offset Days",
+            "type": "integer"
+          },
+          "accommodation_lead_time_minutes": {
+            "default": 0,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Accommodation Lead Time Minutes",
+            "type": "integer"
+          },
           "active": {
             "default": true,
             "title": "Active",
@@ -11153,6 +11167,13 @@
             "default": false,
             "title": "Is Publicly Listed",
             "type": "boolean"
+          },
+          "lead_time_minutes": {
+            "default": 0,
+            "maximum": 525600.0,
+            "minimum": 0.0,
+            "title": "Lead Time Minutes",
+            "type": "integer"
           },
           "name": {
             "maxLength": 200,
@@ -11349,6 +11370,32 @@
       },
       "ProductPatch": {
         "properties": {
+          "accommodation_checkin_offset_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Checkin Offset Days"
+          },
+          "accommodation_lead_time_minutes": {
+            "anyOf": [
+              {
+                "maximum": 525600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accommodation Lead Time Minutes"
+          },
           "active": {
             "anyOf": [
               {
@@ -11515,6 +11562,19 @@
               }
             ],
             "title": "Is Publicly Listed"
+          },
+          "lead_time_minutes": {
+            "anyOf": [
+              {
+                "maximum": 525600.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Minutes"
           },
           "name": {
             "anyOf": [
