@@ -156,6 +156,24 @@ describe('SingleDatePicker (landr-y9k)', () => {
     expect(dayButton(twoDaysOut)).toBeDisabled()
   })
 
+  it('a day with activity_bookable=false is disabled even with seats free (landr-t869m.2)', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    mocks.getAvailability.mockResolvedValue([
+      { ...makeAvailability([tomorrow])[0]!, activity_bookable: false },
+    ])
+    render(
+      <SingleDatePicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+    await waitFor(() => dayButton(tomorrow))
+    expect(dayButton(tomorrow)).toBeDisabled()
+  })
+
   it('renders an error state if the availability fetch fails', async () => {
     mocks.getAvailability.mockRejectedValue(new Error('boom'))
     render(

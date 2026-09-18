@@ -128,6 +128,93 @@ describe('FixedDateWindowPicker', () => {
     )
   })
 
+  it('landr-t869m.5: a window inside the lead-time window is shown but not bookable', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      {
+        id: 'w-1',
+        start_date: '2027-07-07',
+        end_date: '2027-07-13',
+        capacity: 8,
+        capacity_reserved: 0,
+        activity_bookable: false,
+      },
+    ])
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/Jul 7, 2027/)).toBeInTheDocument())
+    expect(screen.getByText('Too late to book')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Jul 7, 2027/ })).toBeDisabled()
+  })
+
+  it('landr-t869m.5: a mandatory-hotel window with a too-late stay is not bookable, even with activity_bookable true', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      {
+        id: 'w-1',
+        start_date: '2027-07-07',
+        end_date: '2027-07-13',
+        capacity: 8,
+        capacity_reserved: 0,
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+    render(
+      <FixedDateWindowPicker
+        product={{ ...makeProduct(), hotel_offering: 'mandatory' }}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/Jul 7, 2027/)).toBeInTheDocument())
+    expect(screen.getByText('Too late to book')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Jul 7, 2027/ })).toBeDisabled()
+  })
+
+  it('landr-t869m.5: an optional-hotel window with a too-late stay stays bookable (accommodation gates separately)', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      {
+        id: 'w-1',
+        start_date: '2027-07-07',
+        end_date: '2027-07-13',
+        capacity: 8,
+        capacity_reserved: 0,
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+    render(
+      <FixedDateWindowPicker
+        product={{ ...makeProduct(), hotel_offering: 'optional' }}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/Jul 7, 2027/)).toBeInTheDocument())
+    expect(screen.queryByText('Too late to book')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Jul 7, 2027/ })).not.toBeDisabled()
+  })
+
+  it('landr-t869m.5: an absent lead-time flag fails open (bookable)', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-1', start_date: '2027-07-07', end_date: '2027-07-13', capacity: 8, capacity_reserved: 0 },
+    ])
+    render(
+      <FixedDateWindowPicker
+        product={{ ...makeProduct(), hotel_offering: 'mandatory' }}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/Jul 7, 2027/)).toBeInTheDocument())
+    expect(screen.queryByText('Too late to book')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Jul 7, 2027/ })).not.toBeDisabled()
+  })
+
   it('expandWindowDays covers inclusive range', () => {
     const days = expandWindowDays({
       id: 'w',

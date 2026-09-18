@@ -41,6 +41,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { CustomerCommentField } from './CustomerCommentField'
 import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
 import {
   applyLanguageAssignment,
@@ -66,6 +67,13 @@ export interface LanguageStepProps {
   offeredLanguages: string[]
   /** Restored party-index → language map for back-nav re-entry. */
   initialAssignment?: ParticipantLanguageMap
+  /**
+   * landr-n6ii3: current value of the "Anything we should know?" comment,
+   * read straight off App.tsx's bookingDraft.customerComment. Optional
+   * (defaults to '' / a no-op) so existing tests need no change.
+   */
+  customerComment?: string
+  onCustomerCommentChange?: (comment: string) => void
   onBack: () => void
   onConfirm: (assignment: ParticipantLanguageMap) => void
 }
@@ -100,6 +108,8 @@ export function LanguageStep({
   guestFlags = [],
   offeredLanguages,
   initialAssignment,
+  customerComment = '',
+  onCustomerCommentChange = () => {},
   onBack,
   onConfirm,
 }: LanguageStepProps) {
@@ -209,6 +219,13 @@ export function LanguageStep({
             ? 'Everyone has a language.'
             : `Assign every participant to a language — still waiting on ${unassignedLabels.join(', ')}.`}
         </p>
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Continue. */}
+        <CustomerCommentField
+          value={customerComment}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button

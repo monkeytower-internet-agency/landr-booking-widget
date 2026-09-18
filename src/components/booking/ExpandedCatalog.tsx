@@ -261,6 +261,7 @@ export function ExpandedCatalog({
                         productId={product.product_id}
                         slug={product.slug}
                         exposeSeats={exposeSeats}
+                        hotelOffering={product.hotel_offering}
                       />
                     ) : null}
                   </div>

@@ -78,13 +78,14 @@ function dayButton(date: Date): HTMLButtonElement {
   return match
 }
 
-function renderStaff(onConfirm = vi.fn()) {
+function renderStaff(onConfirm = vi.fn(), initialSelectedDays?: string[]) {
   render(
     <StaffModeProvider value={STAFF}>
       <SingleDatePicker
         product={makeProduct()}
         onBack={() => {}}
         onConfirm={onConfirm}
+        initialSelectedDays={initialSelectedDays}
       />
     </StaffModeProvider>,
   )
@@ -125,7 +126,14 @@ describe('SingleDatePicker — staff force-book', () => {
     expect(cont).not.toBeDisabled()
     fireEvent.click(cont)
     // selectedDays carries the day; forcedDays carries the SAME day.
-    expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)], [isoOf(tomorrow)])
+    // landr-t869m.5: no slot at all for this date (getAvailability resolved
+    // []) → reasons fail open to ['capacity'], same as before this ticket's
+    // reason-tracking (no evidence of a lead-time block either way).
+    expect(onConfirm).toHaveBeenCalledWith(
+      [isoOf(tomorrow)],
+      [isoOf(tomorrow)],
+      ['capacity'],
+    )
   })
 
   it('declining the confirm dialog does not select the blocked day', async () => {
@@ -166,6 +174,86 @@ describe('SingleDatePicker — staff force-book', () => {
     expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     // Non-forced selection → exactly one argument (byte-identical to normal).
+    expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)])
+  })
+
+  // landr-t869m.7: Back-navigation restore bug. `selected` is seeded from
+  // initialSelectedDays synchronously, but `selectedForceReasons` used to be
+  // a separate useState that always started [] and was never recomputed
+  // once availability loaded — so Back → Continue on a force-booked date
+  // dropped forcedDays AND its reasons entirely, and the staff submit
+  // 422'd. Fixed by deriving selectedForceReasons from
+  // selected/slots/availableSet via forceReasonsFor(), mirroring
+  // MultiDayPicker/FixedDateWindowPicker's already-derived pattern.
+  it('restoring a force-booked date via initialSelectedDays still confirms forced + its reasons (landr-t869m.7)', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    // Still has capacity but still fails lead time when re-mounted after
+    // Back — a distinct reason from the capacity-only case above, proving
+    // the RIGHT reason survives restore, not just a generic forced flag.
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: `slot-${isoOf(tomorrow)}`,
+        date: isoOf(tomorrow),
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: false,
+      },
+    ])
+    const onConfirm = renderStaff(vi.fn(), [isoOf(tomorrow)])
+
+    // The restored date shows immediately (seeded synchronously)...
+    expect(screen.getByTestId('single-date-selected')).toHaveTextContent(
+      isoOf(tomorrow),
+    )
+    // ...but the override badge only appears once availability has loaded
+    // and confirmed the date is still blocked.
+    await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByTestId('operator-override-badge')).toBeInTheDocument(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    // The regression: this used to fire onConfirm([iso]) with NO forcedDays
+    // or reasons, dropping ignore_capacity and 422ing the staff submit.
+    expect(onConfirm).toHaveBeenCalledWith(
+      [isoOf(tomorrow)],
+      [isoOf(tomorrow)],
+      ['lead_time'],
+    )
+  })
+
+  it('restoring a date that has since become available does NOT force it (landr-t869m.7)', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    // The date was force-booked originally, but by the time of this restore
+    // it has capacity and lead time again — recomputing from CURRENT
+    // availability must not invent a force flag that no longer applies.
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: `slot-${isoOf(tomorrow)}`,
+        date: isoOf(tomorrow),
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+      },
+    ])
+    const onConfirm = renderStaff(vi.fn(), [isoOf(tomorrow)])
+
+    await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByTestId('single-date-selected')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)])
   })
 })

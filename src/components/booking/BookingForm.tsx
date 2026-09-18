@@ -25,7 +25,9 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from './detailsTypes'
+import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
+import { forceBookReasonMessage, type ForceReason } from '@/lib/strings'
 import {
   distinctAssignedLanguages,
   languageFlag,
@@ -43,6 +45,15 @@ export type BookingSelection =
        * for every normal customer selection (the byte-identical path).
        */
       forced?: boolean
+      /**
+       * landr-t869m.5: WHICH gate(s) `forced` bypassed (capacity and/or
+       * lead time) — undefined/empty whenever `forced` is undefined/false.
+       * Drives the review-forced banner's copy (see forceBookReasonMessage
+       * in @/lib/strings); a caller that predates this ticket and only sets
+       * `forced` still gets the pre-existing capacity-flavoured copy
+       * (forceBookReasonMessage's own fail-open default).
+       */
+      forcedReasons?: ForceReason[]
     }
   | {
       kind: 'days'
@@ -53,6 +64,8 @@ export type BookingSelection =
        * normal customer selections. Drives the submit adapter's force flag.
        */
       forcedDays?: string[]
+      /** landr-t869m.5: see the `kind: 'slot'` variant's doc above. */
+      forcedReasons?: ForceReason[]
     }
 
 import { Button } from '@/components/ui/button'
@@ -147,8 +160,20 @@ interface Props {
    * submit body. A non-empty value forces the API's approval evaluator
    * into requires_general_approval — see approval.py's synthetic
    * customer_comment rule.
+   *
+   * landr-n6ii3: also editable right here on the review screen — the
+   * field below writes straight back through onCustomerCommentChange, so
+   * this prop always reflects the live value at submit time.
    */
   customerComment?: string | null
+  /**
+   * landr-n6ii3: fires on every keystroke in the review screen's editable
+   * copy of the comment field, writing straight through to App.tsx's
+   * bookingDraft.customerComment (the same slot `customerComment` above
+   * reads) — mirrors every other downstream step's onCustomerCommentChange.
+   * Optional (defaults to a no-op) so existing tests need no change.
+   */
+  onCustomerCommentChange?: (comment: string) => void
   /**
    * landr-r6e5x.4 / epic decision D3, narrowed by landr-9sjw5:
    * guide-language assignment (memberIndex → ISO 639-1 code), captured by
@@ -442,6 +467,29 @@ const formatHttpError = (
     const languageError = readLanguageError(err.detail, participantCount)
     if (languageError) return languageErrorMessage(languageError, memberLabels)
   }
+  // landr-t869m.1: the submit endpoint hard-rejects a booking that falls
+  // inside the product's preparation window, or (separately) a stay whose
+  // derived check-in day no longer satisfies its own lead time. Both raise
+  // a 422 with {"error": "lead_time_not_met" | "accommodation_lead_time_not_met",
+  // "violations": [...], "earliest_bookable_date", "message"} — see
+  // app/services/booking_submit_errors.py. The server already builds the
+  // exact customer-facing sentence (including OMITTING any date promise
+  // when nothing qualifies within the lookahead horizon), so this reuses
+  // `message` verbatim rather than re-deriving it, and reads defensively
+  // (both an omitted key and an explicit null degrade to the generic 422
+  // dump below rather than crashing).
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail)
+  ) {
+    const code = (err.detail as { error?: unknown }).error
+    if (code === 'lead_time_not_met' || code === 'accommodation_lead_time_not_met') {
+      const message = (err.detail as { message?: unknown }).message
+      if (typeof message === 'string' && message.length > 0) return message
+    }
+  }
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error": "un_priceable", "product_ids": [...], "warnings":
   // [...]} — reachable if an estimate the customer is looking at goes
@@ -543,6 +591,7 @@ export function BookingForm({
   customerLanguages,
   customerOtherLanguages,
   customerComment,
+  onCustomerCommentChange = () => {},
   participantLanguages = {},
   isSharedDouble = false,
   roomAssignment,
@@ -580,6 +629,10 @@ export function BookingForm({
       : (selection.forcedDays?.length ?? 0) > 0
   const forcedDays =
     selection.kind === 'days' ? (selection.forcedDays ?? []) : []
+  // landr-t869m.5: WHICH gate(s) the force-book bypassed — empty/undefined
+  // (any caller that predates this ticket) falls back to the pre-existing
+  // capacity-flavoured copy inside forceBookReasonMessage itself.
+  const forcedReasons: ForceReason[] = selection.forcedReasons ?? []
 
   // landr-r6e5x.4: whole-party display labels in the unified index space
   // (participants first, companions after) — the same order the API's typed
@@ -605,7 +658,9 @@ export function BookingForm({
   const selectedDays =
     selection.kind === 'days' ? selection.selectedDays : []
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
-  const stay = hasRooms ? deriveStayWindow(selectedDays) : null
+  const stay = hasRooms
+    ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
+    : null
   const showTimezone = product.service_time_shape === 'time_slot'
 
   // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
@@ -764,7 +819,10 @@ export function BookingForm({
       // Hotel-room lines book the night window (check-in → check-out
       // exclusive) — distinct from the service's selected_days. Empty
       // when the customer chose no rooms or picked a slot-style service.
-      const nightIsos = stayNightIsos(selectedDaysForSubmit)
+      const nightIsos = stayNightIsos(
+        selectedDaysForSubmit,
+        product.accommodation_checkin_offset_days,
+      )
       // Build the primary service line + any hotel_room line items
       // captured by AccommodationStep (landr-vyaz: public_submit_booking
       // already iterates products[]). Add-ons become their own lines
@@ -1322,8 +1380,12 @@ export function BookingForm({
         ) : null}
 
         {/* landr-aoak.2 [S3]: force-book summary — shown only when the operator
-            (staff mode) pushed this booking past capacity. Makes the override
-            explicit on the review screen before Confirm. */}
+            (staff mode) pushed this booking past a gate it would normally have
+            been blocked by. Makes the override explicit on the review screen
+            before Confirm. landr-t869m.5: the copy now names the ACTUAL
+            reason(s) (capacity and/or lead time) instead of always claiming
+            "capacity will be exceeded" — false whenever the override was
+            really about lead time. */}
         {forced ? (
           <section
             data-testid="review-forced"
@@ -1333,10 +1395,7 @@ export function BookingForm({
               <OperatorOverrideBadge />
             </div>
             <p className="text-amber-900 dark:text-amber-100">
-              {forcedDays.length > 0
-                ? `${forcedDays.length} day${forcedDays.length === 1 ? '' : 's'} booked past capacity.`
-                : 'This window was booked past capacity.'}{' '}
-              Capacity will be exceeded for this booking.
+              {forceBookReasonMessage(forcedReasons, forcedDays.length)}
             </p>
           </section>
         ) : null}
@@ -1405,6 +1464,13 @@ export function BookingForm({
             {serverError}
           </p>
         ) : null}
+
+        {/* landr-n6ii3: same field DetailsStep collects, editable here too —
+            last field before Confirm booking. */}
+        <CustomerCommentField
+          value={customerComment ?? ''}
+          onChange={onCustomerCommentChange}
+        />
 
         <div className="flex justify-end pt-2">
           <Button
