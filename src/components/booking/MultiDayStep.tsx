@@ -41,6 +41,15 @@ interface Props {
    * instead of starting from scratch. Empty/undefined on the first visit.
    */
   initialSelectedDays?: string[]
+  /**
+   * landr-otml0.3 — invite-mode diff baseline: the host's ISO days. When
+   * present the picker renders the tri-colour diff against them (see
+   * MultiDayPicker's originalValue prop). Undefined for every non-invite
+   * booking.
+   */
+  originalDays?: string[]
+  /** The host's display name, for the diff summary + reset button copy. */
+  originalDaysLabel?: string
 }
 
 const HORIZON_DAYS = 60
@@ -61,6 +70,8 @@ export function MultiDayStep({
   onConfirm,
   onLiveDaysChange,
   initialSelectedDays,
+  originalDays,
+  originalDaysLabel,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -136,6 +147,8 @@ export function MultiDayStep({
           defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
           hotelOffering={product.hotel_offering}
+          originalValue={originalDays?.map(dateFromIso)}
+          originalValueLabel={originalDaysLabel}
         />
         {selectedDays.length > 0 ? (
           // landr-3mo4: selection count surfaced as a tinted chip (committed

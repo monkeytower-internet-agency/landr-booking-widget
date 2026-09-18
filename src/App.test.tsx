@@ -34,6 +34,8 @@ const { mocks } = vi.hoisted(() => ({
     // custom-form). Per-test overrides supply a custom_form module to exercise
     // the data path.
     getProductFlow: vi.fn(),
+    // landr-otml0.3: ?invite=<token> resolution.
+    getInvitePrefill: vi.fn(),
   },
 }))
 
@@ -58,6 +60,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getProductAddons: mocks.getProductAddons,
     estimateBookingPrice: mocks.estimateBookingPrice,
     getProductFlow: mocks.getProductFlow,
+    getInvitePrefill: mocks.getInvitePrefill,
   }
 })
 
@@ -294,6 +297,38 @@ describe('App', () => {
       await waitFor(() => {
         const logo = screen.getByAltText('Para42') as HTMLImageElement
         expect(logo.src).toBe('https://example.com/logo.png')
+      })
+    })
+
+    it('landr-otml0.2 D8: hides the logo when widget_show_logo is explicitly false', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: null,
+        name: 'Para42',
+        widget_show_logo: false,
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId('widget-logo')).not.toBeInTheDocument()
+    })
+
+    it('landr-otml0.2 D8: shows the logo when widget_show_logo is absent (defaults true)', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        primary_color: null,
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([])
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('widget-logo')).toBeInTheDocument()
       })
     })
 
@@ -2033,6 +2068,190 @@ describe('App', () => {
       expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
       // listProductGroups should NOT be called for a ?product= deep link
       expect(mocks.listProductGroups).not.toHaveBeenCalled()
+    })
+
+    it('?invite= deep link resolves and lands directly on Dates, prefilled with the host’s days', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      const product = makeProduct({
+        product_id: 'p-invite',
+        slug: 'guided-trip',
+        name: 'Guided Trip',
+        service_time_shape: 'days_range',
+        hotel_offering: 'mandatory',
+      })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue(
+        ['2026-06-12', '2026-06-13', '2026-06-14'].map((date) => ({
+          availability_id: `slot-${date}`,
+          date,
+          start_time: null,
+          end_time: null,
+          capacity: 5,
+          capacity_reserved: 0,
+          available_seats: 5,
+          status: 'open',
+        })),
+      )
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        product_id: 'p-invite',
+        dates: ['2026-06-12', '2026-06-13'],
+        hotel_location_id: 'hotel-a',
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-1')
+      })
+      // Skips category/product/product-detail entirely — lands on Dates.
+      await waitFor(() => {
+        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      // The persistent banner names the host and reference.
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'Olaf K***n',
+      )
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'A1B2C3D4',
+      )
+      // Diff chrome renders against the host's 2-day baseline; the selection
+      // starts pre-filled at those same 2 days (a no-op diff to start).
+      expect(screen.getByTestId('multi-day-diff')).toBeInTheDocument()
+      expect(screen.getByText(/2 days selected/i)).toBeInTheDocument()
+    })
+
+    it('?invite= 404 falls back to the plain wizard with a dismissible notice', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=bad-token`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      mocks.getInvitePrefill.mockRejectedValue(
+        new HttpError(404, 'Not Found', '{"detail":{"error":"not_found"}}'),
+      )
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('invite-notice')).toHaveTextContent(
+        "isn't valid any more",
+      )
+      // Plain wizard still renders normally.
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('invite-notice-dismiss'))
+      expect(screen.queryByTestId('invite-notice')).not.toBeInTheDocument()
+    })
+
+    // landr-otml0.3 review fix (MINOR 7): the invited product can vanish
+    // (deleted/deactivated/sold out) between the invite being minted and
+    // opened — not a 404 from the invite endpoint itself, but the same
+    // fallback applies.
+    it('?invite= resolves but the invited product is gone/unbookable falls back to the plain wizard', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        // References a product_id that never shows up in listProducts —
+        // covers both "deleted" and "id typo" the same way.
+        product_id: 'p-vanished',
+        dates: ['2026-06-12'],
+        hotel_location_id: null,
+        is_shared_double: false,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
+    })
+
+    // landr-otml0.3 review fix (MINOR 5): product_id is nullable on the wire
+    // (the host's product itself can be gone by the time the invite is
+    // opened) — falls back the same way, without even attempting the
+    // listProducts round-trip.
+    it('?invite= resolves with a null product_id falls back to the plain wizard without a wasted invite-specific products fetch', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        product_id: null,
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: false,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: null,
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-notice')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      // The plain wizard's own ProductList still fetches the catalogue as
+      // usual — exactly once, not the invite effect's own extra lookup
+      // (which a null product_id short-circuits before it would ever try
+      // to match against the result).
+      expect(mocks.listProducts).toHaveBeenCalledTimes(1)
+      expect(mocks.listProducts).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        expect.objectContaining({ group: undefined, previewToken: undefined }),
+      )
+    })
+
+    // landr-otml0.3 review fix (MINOR 4): before the invite resolves, the
+    // widget must show a neutral loading state — never the product catalogue
+    // — so there's no flash of "pick your own product" for a link that's
+    // supposed to skip straight to Dates.
+    it('?invite= shows a neutral resolving state, never the product catalogue, before it resolves', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ name: 'Tandem Classic' }),
+      ])
+      let resolveInvite!: (v: unknown) => void
+      mocks.getInvitePrefill.mockReturnValue(
+        new Promise((resolve) => {
+          resolveInvite = resolve
+        }),
+      )
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-resolving')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Tandem Classic')).not.toBeInTheDocument()
+      resolveInvite({
+        operator_id: 'op-1',
+        product_id: null,
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: false,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: null,
+      })
+      await waitFor(() => {
+        expect(screen.getByText('Tandem Classic')).toBeInTheDocument()
+      })
     })
 
     it('selecting a group from pick-category scopes the product list to that group', async () => {

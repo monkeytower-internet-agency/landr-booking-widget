@@ -11,6 +11,7 @@ import {
   apiLocale,
   browserLocale,
   configureCustomerLocale,
+  overrideBookingLocale,
   pickLocalized,
   resolveCustomerStageLabel,
 } from './locale'
@@ -87,6 +88,43 @@ describe('browserLocale / configureCustomerLocale', () => {
     setBrowserLanguage('it')
     configureCustomerLocale(['de', 'es'], 'es')
     expect(browserLocale()).toBe('es')
+  })
+})
+
+describe('overrideBookingLocale (landr-otml0.3 review fix MAJOR 2)', () => {
+  afterEach(() => {
+    overrideBookingLocale(null)
+    configureCustomerLocale(null, null)
+    vi.unstubAllGlobals()
+  })
+
+  it('wins over the raw navigator locale', () => {
+    setBrowserLanguage('it')
+    overrideBookingLocale('de')
+    expect(browserLocale()).toBe('de')
+  })
+
+  it('wins over the operator whitelist too — the invite already told us this specific person’s language', () => {
+    setBrowserLanguage('es')
+    configureCustomerLocale(['en', 'es'], 'en')
+    overrideBookingLocale('de')
+    expect(browserLocale()).toBe('de')
+  })
+
+  it('a null/undefined override falls back to the normal resolution', () => {
+    setBrowserLanguage('it')
+    overrideBookingLocale(null)
+    expect(browserLocale()).toBe('it')
+    overrideBookingLocale(undefined)
+    expect(browserLocale()).toBe('it')
+  })
+
+  it('clearing the override after it was set restores normal resolution', () => {
+    setBrowserLanguage('it')
+    overrideBookingLocale('de')
+    expect(browserLocale()).toBe('de')
+    overrideBookingLocale(null)
+    expect(browserLocale()).toBe('it')
   })
 })
 

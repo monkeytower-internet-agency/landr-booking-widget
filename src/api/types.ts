@@ -473,6 +473,13 @@ export interface OperatorSettings {
   widget_description_first_page_only?: boolean
   widget_footer_first_page_only?: boolean
   /**
+   * landr-otml0.2 (API) D8: hides the header logo when explicitly false.
+   * Defaults to true on the API (new column, default `true`); optional here
+   * for rolling deploy — an absent/undefined value is also treated as "show
+   * the logo" so an older API deploy renders byte-identically to today.
+   */
+  widget_show_logo?: boolean
+  /**
    * landr-atwy — per-operator opt-in for the post-booking "Track this
    * booking in the LANDR app" account-link prompt. Default false: the
    * prompt (which creates a real LANDR auth account via signInWithOtp)
@@ -1003,6 +1010,78 @@ export interface SubmitBookingBody {
    * product with no flow; widget only sends it when a configured flow exists.
    */
   form_responses?: FormResponseEntry[]
+  /**
+   * landr-otml0.1 (API): the invite token from `?invite=<token>` (landr-otml0.3
+   * on the widget). The API re-resolves the token server-side and, on success,
+   * joins this booking into the host's booking_group and stamps
+   * `linked_booking_id` back onto the host's companion row. Omitted for every
+   * non-invite booking.
+   */
+  invite_token?: string | null
+  /**
+   * landr-otml0.1 (API): the 8-hex booking reference the customer typed and
+   * confirmed via the masked lookup (shared-double mode only — see
+   * AccommodationStep's reference field). Mutually exclusive with
+   * invite_token in practice (an invite already links the group), but the
+   * API accepts either independently. Omitted otherwise.
+   */
+  join_ref?: string | null
+}
+
+/**
+ * landr-otml0.1 (API) — one member of the public `group` shape on the submit
+ * response / briefing GET. Deliberately carries NO booking id (a raw booking
+ * UUID is a bearer capability elsewhere in this API — cancel/.ics accept it
+ * as their only credential) — `reference` is the member key.
+ */
+export interface GroupMember {
+  reference: string
+  display_name: string
+  is_self: boolean
+  is_host: boolean
+}
+
+/**
+ * landr-otml0.1 (API) — the booking group this submission belongs to, once
+ * it has at least two live members. `null` (not an empty object) whenever
+ * the booking is ungrouped or every other member has cancelled/unlinked —
+ * callers must branch on `if (group)` and nothing else.
+ */
+export interface GroupSummary {
+  group_id: string
+  label: string
+  members: GroupMember[]
+}
+
+/**
+ * landr-otml0.1 (API) — one companion's invite, returned on the submit
+ * response for every `companion_kind='separate_guiding'` companion on this
+ * booking. `invite_url` is the same stable link that will appear in every
+ * later email/rooming-list surface (the token is minted once and never
+ * rotates on view).
+ */
+export interface InviteSummary {
+  companion_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  /** E.164-ish digits only, for building a wa.me link client-side. */
+  phone_digits: string | null
+  invite_url: string
+  /** Pre-built `https://wa.me/...` link — landr-otml0.1 D5: no API endpoint. */
+  whatsapp_url: string | null
+  /** The reference of the booking this companion has already linked, if any. */
+  linked_booking_reference: string | null
+  has_invite: boolean
+}
+
+/**
+ * landr-otml0.1 (API) — present ONLY when a `join_ref` was sent and the
+ * server refused to join it (the booking itself still succeeds either way).
+ */
+export interface JoinError {
+  error: 'unknown_reference' | 'same_booking' | 'join_failed'
+  message?: string
 }
 
 /**
@@ -1121,6 +1200,78 @@ export interface SubmitBookingResponse {
    * render exactly today's content (graceful degrade) when this is missing.
    */
   summary?: BookingSummary | null
+  /**
+   * landr-otml0.1 (API): a one-time credential for
+   * `POST /api/public/bookings/{id}/invites/{companion_id}/send`, returned
+   * ONCE at submit time — never re-derivable afterward. Present on every
+   * submit response (not only invite/join ones); the confirmation screen
+   * (landr-otml0.4) needs it to re-send a companion's invite link.
+   */
+  share_secret?: string
+  /**
+   * landr-otml0.1 (API): one entry per `companion_kind='separate_guiding'`
+   * companion on this booking. Empty array when there are none.
+   */
+  invites?: InviteSummary[]
+  /**
+   * landr-otml0.1 (API): the booking group this submission joined, once it
+   * has >= 2 live members — null otherwise (ungrouped, or joined a group
+   * that dropped back to one member). See GroupSummary's doc.
+   */
+  group?: GroupSummary | null
+  /**
+   * landr-otml0.1 (API): present ONLY when this submit carried a `join_ref`
+   * that the server could not honour. The booking itself still succeeded —
+   * this is surfaced as a soft notice, not a blocking error.
+   */
+  join_error?: JoinError | null
+  /**
+   * landr-otml0.2 (API, coordinate): the per-booking customer page
+   * (`/t/{token}` briefing) URL — hosts the join-by-reference form the
+   * shared-double "add reference later" hint links to. NOT YET on the
+   * public submit response as of landr-otml0.4 (confirmed against
+   * `booking_submit.py`) — every reader must treat this as optional and
+   * simply omit the link when absent, per the epic D6/D5 contract.
+   */
+  customer_page_url?: string | null
+}
+
+/**
+ * landr-otml0.1 (API) — GET /api/public/invites/{token}. Strict allowlist on
+ * the wire (`extra="forbid"`) — no `host_booking_id`, no `companion_id`. 404
+ * on every miss: bad token, wrong shape, or a cancelled host booking.
+ */
+export interface InvitePrefill {
+  operator_id: string
+  /**
+   * landr-otml0.3 review fix (MINOR 5): nullable on the wire
+   * (`InvitePrefillOut.product_id: str | None` — the host's original
+   * product can be deleted/deactivated between minting the invite and it
+   * being opened). A null here means "prefill everything else, but there is
+   * no product to jump to" — the widget falls back to the plain wizard.
+   */
+  product_id: string | null
+  dates: string[]
+  hotel_location_id: string | null
+  is_shared_double: boolean
+  invitee_first_name: string
+  invitee_last_name: string
+  host_display_name: string
+  host_reference: string
+  language: string | null
+}
+
+/**
+ * landr-otml0.1 (API) — GET
+ * /api/public/operators/{operator_id}/bookings/lookup?ref=<REF>. 404 when the
+ * reference doesn't exist for this operator (cancelled/soft-deleted bookings
+ * are invisible too). Masking happens in SQL — `masked_name` is the only name
+ * data this endpoint will ever return.
+ */
+export interface BookingLookupResult {
+  reference: string
+  masked_name: string
+  created_at: string
 }
 
 /** One product row of BookingSummary.products. */

@@ -239,6 +239,18 @@ export function detailsAreComplete(
   for (const c of companions) {
     if (!c.first_name.trim() || !c.last_name.trim()) return false
     if (!isValidPhoneFormat(c.phone)) return false
+    // landr-otml0.3 D11: a 'separate_guiding' companion gets their own
+    // invite link, so we need SOME way to send it — email OR phone, either
+    // is enough. 'guest' companions are unaffected (contact stays fully
+    // optional). The API enforces this too (422 companion_contact_required)
+    // as a backstop; this client-side gate is what actually blocks Continue.
+    if (
+      c.companion_kind === 'separate_guiding' &&
+      !c.email.trim() &&
+      !c.phone.trim()
+    ) {
+      return false
+    }
   }
   return true
 }

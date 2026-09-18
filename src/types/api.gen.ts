@@ -1971,6 +1971,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Booking Invite
+         * @description Email one fellow traveller their invite link, on the booker's behalf.
+         */
+        post: operations["public_send_booking_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/bookings/{token}": {
         parameters: {
             query?: never;
@@ -2085,6 +2105,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/briefings/{token}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Group From Briefing
+         * @description Join this booking's trip to the booking behind ``ref`` (landr-otml0.1).
+         *
+         *     THE TOKEN IS THE AUTHORISATION for *which* booking is being joined — only
+         *     whoever holds this customer-page link can act as that customer. It is not
+         *     an authorisation to make unlimited attempts, and this endpoint is two
+         *     things at once: a WRITE, and an oracle for "does reference X exist in this
+         *     operator?". So it carries the same per-IP and per-operator caps as the
+         *     anonymous reference lookup, plus a per-token cap — otherwise one leaked
+         *     briefing link would be a licence to enumerate the operator's whole
+         *     reference space, which is exactly what the lookup's own limits exist to
+         *     prevent.
+         *
+         *     Every failure is the SAME opaque ``join_failed``. Distinguishing "no such
+         *     reference" from "that booking cannot be joined" would hand an enumerator
+         *     the one bit they are looking for: the second answer confirms the reference
+         *     is real. The customer sees one message either way — check the code — which
+         *     is the only action available to them regardless.
+         */
+        post: operations["public_briefing_join_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/contact-page/{token}": {
         parameters: {
             query?: never;
@@ -2185,6 +2241,46 @@ export interface paths {
          * @description Resolve a bound operator hostname to its operator slug + branding.
          */
         get: operations["resolve_hostname"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Invite Prefill
+         * @description Resolve an invite link into the widget's prefill payload.
+         */
+        get: operations["public_get_invite_prefill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/operators/{operator_id}/bookings/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup Booking By Reference
+         * @description Confirm a booking reference and return only a masked name + created_at.
+         */
+        get: operations["public_lookup_booking_by_reference"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3536,6 +3632,127 @@ export interface paths {
         post?: never;
         /** Delete Custom Offer */
         delete: operations["delete_custom_offer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Booking Group */
+        get: operations["staff_get_booking_group"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link Booking Group
+         * @description Join this booking to the group of the booking behind ``ref``.
+         *
+         *     The reference is resolved WITHIN the path operator, so an operator can
+         *     never link one of their bookings to another tenant's — the RPC refuses that
+         *     too, but failing at the lookup means the operator is not even told the
+         *     other reference exists.
+         */
+        post: operations["staff_link_booking_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/group/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink Booking Group
+         * @description Take this booking out of its group, and dissolve a group left with one.
+         *
+         *     Removing one of two members has to remove BOTH, not just the one named. A
+         *     group of one is not a group: the survivor's confirmation email, customer
+         *     page and day board would all keep rendering a "travelling together" block
+         *     naming nobody but themselves, and the operator who clicked unlink would
+         *     reasonably believe they had undone the link. Unlinking Thomas from Olaf
+         *     must leave Olaf unlinked too.
+         *
+         *     So: clear this booking, then re-count. If fewer than two live members
+         *     remain, clear the survivor as well and drop the now-meaningless group row.
+         *     ``group_summary`` independently refuses to report a one-member group, so a
+         *     group that drops below two by some other route (a member cancelling) also
+         *     stops rendering — this endpoint cleans up the data, that guard covers the
+         *     rest.
+         */
+        post: operations["staff_unlink_booking_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Booking Invites
+         * @description The rooming list's separate-guiding rows, each with its real invite link.
+         *
+         *     Uses the idempotent mint rather than a pure read, so a booking created
+         *     before this feature (or one whose mint failed) gets its links filled in on
+         *     first view instead of showing a permanently empty column. Nothing that
+         *     already has a token is touched.
+         */
+        get: operations["staff_list_booking_invites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/invites/{companion_id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Booking Invite Link
+         * @description Replace a leaked invite link. Breaks the previous one — see module doc.
+         */
+        post: operations["staff_rotate_booking_invite_link"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -8493,6 +8710,14 @@ export interface components {
             plan_headline?: string | null;
         };
         /**
+         * BriefingJoinIn
+         * @description The host's booking reference, typed on the customer page (epic D4/D6).
+         */
+        BriefingJoinIn: {
+            /** Ref */
+            ref: string;
+        };
+        /**
          * BriefingPatchIn
          * @description PATCH body. All fields optional; only those set are written.
          */
@@ -9944,6 +10169,76 @@ export interface components {
             /** Provider */
             provider?: string | null;
         };
+        /**
+         * InvitePrefillOut
+         * @description What an invite link may reveal — an ALLOWLIST, not a filter.
+         *
+         *     ``extra="forbid"`` is the point of this model. The service resolves the
+         *     invite against the host's booking and naturally has its uuid and the
+         *     companion row's id in hand; neither may cross to the browser. A raw booking
+         *     uuid is a bearer capability here (``/api/public/bookings/{id}/cancel`` and
+         *     the ``.ics`` download take the bare id), so leaking the host's would let the
+         *     invitee cancel the booking that invited them. The widget never needs it
+         *     either: it echoes the ``invite_token`` back on submit, and the server
+         *     re-resolves.
+         *
+         *     With ``forbid``, a field added to the service payload later fails loudly
+         *     here instead of silently widening the anonymous surface.
+         */
+        InvitePrefillOut: {
+            /** Dates */
+            dates?: string[];
+            /**
+             * Host Display Name
+             * @default
+             */
+            host_display_name: string;
+            /**
+             * Host Reference
+             * @default
+             */
+            host_reference: string;
+            /** Hotel Location Id */
+            hotel_location_id?: string | null;
+            /**
+             * Invitee First Name
+             * @default
+             */
+            invitee_first_name: string;
+            /**
+             * Invitee Last Name
+             * @default
+             */
+            invitee_last_name: string;
+            /**
+             * Is Shared Double
+             * @default true
+             */
+            is_shared_double: boolean;
+            /** Language */
+            language?: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Product Id */
+            product_id?: string | null;
+        };
+        /** InviteSendIn */
+        InviteSendIn: {
+            /**
+             * Channel
+             * @default email
+             */
+            channel: string;
+            /** Email */
+            email: string;
+        };
+        /** InviteSendOut */
+        InviteSendOut: {
+            /** Invite Url */
+            invite_url: string;
+            /** Status */
+            status: string;
+        };
         /** InvoiceRow */
         InvoiceRow: {
             /** Age Days */
@@ -10176,6 +10471,14 @@ export interface components {
             } | null;
             /** Semantic State */
             semantic_state?: ("pending" | "confirmed") | null;
+        };
+        /**
+         * LinkBookingIn
+         * @description The other booking's 8-character reference, as the operator types it.
+         */
+        LinkBookingIn: {
+            /** Ref */
+            ref: string;
         };
         /** LocationIn */
         LocationIn: {
@@ -10778,6 +11081,8 @@ export interface components {
             widget_headline?: string | null;
             /** Widget Headline First Page Only */
             widget_headline_first_page_only?: boolean | null;
+            /** Widget Show Logo */
+            widget_show_logo?: boolean | null;
             /** Widget Tile Aspect */
             widget_tile_aspect?: string | null;
             /** Widget Tile Font */
@@ -10983,6 +11288,11 @@ export interface components {
              * @default false
              */
             widget_headline_first_page_only: boolean;
+            /**
+             * Widget Show Logo
+             * @default true
+             */
+            widget_show_logo: boolean;
             /** Widget Tile Aspect */
             widget_tile_aspect?: string | null;
             /** Widget Tile Font */
@@ -11841,11 +12151,15 @@ export interface components {
             customer_preferred_locale?: string | null;
             /** Form Responses */
             form_responses?: components["schemas"]["FormResponseIn"][] | null;
+            /** Invite Token */
+            invite_token?: string | null;
             /**
              * Is Shared Double
              * @default false
              */
             is_shared_double: boolean;
+            /** Join Ref */
+            join_ref?: string | null;
             /** Member Perk Otp */
             member_perk_otp?: string | null;
             /** Participants */
@@ -11935,6 +12249,18 @@ export interface components {
              * @default 25
              */
             radius_km: number;
+        };
+        /**
+         * ReferenceLookupOut
+         * @description Everything a bare booking reference is allowed to reveal.
+         */
+        ReferenceLookupOut: {
+            /** Created At */
+            created_at: string;
+            /** Masked Name */
+            masked_name: string;
+            /** Reference */
+            reference: string;
         };
         /** RefundIn */
         RefundIn: {
@@ -12938,14 +13264,26 @@ export interface components {
             calendar_event?: components["schemas"]["BookingCalendarEvent"] | null;
             /** Confirmation Email Status */
             confirmation_email_status?: string | null;
+            /** Group */
+            group?: {
+                [key: string]: unknown;
+            } | null;
             /** Ical Url */
             ical_url?: string | null;
+            /** Invites */
+            invites?: {
+                [key: string]: unknown;
+            }[];
+            /** Join Error */
+            join_error?: string | null;
             /** Next Steps */
             next_steps?: string | null;
             /** Payment Link Sent */
             payment_link_sent?: boolean | null;
             /** Semantic State */
             semantic_state: string;
+            /** Share Secret */
+            share_secret?: string | null;
             stage?: components["schemas"]["CustomerStageLabel"] | null;
             /** Stage Code */
             stage_code?: string | null;
@@ -16450,6 +16788,44 @@ export interface operations {
             };
         };
     };
+    public_send_booking_invite: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Share-Secret"?: string | null;
+            };
+            path: {
+                booking_id: string;
+                companion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteSendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteSendOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_booking: {
         parameters: {
             query?: never;
@@ -16647,6 +17023,43 @@ export interface operations {
             };
         };
     };
+    public_briefing_join_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingJoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_get_contact_page: {
         parameters: {
             query?: never;
@@ -16785,6 +17198,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HostnameResolution"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_get_invite_prefill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePrefillOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_lookup_booking_by_reference: {
+        parameters: {
+            query: {
+                ref: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceLookupOut"];
                 };
             };
             /** @description Validation Error */
@@ -18888,6 +19365,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomOfferOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_get_booking_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_link_booking_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkBookingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_unlink_booking_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_booking_invites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_rotate_booking_invite_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                companion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    } | null;
                 };
             };
             /** @description Validation Error */
