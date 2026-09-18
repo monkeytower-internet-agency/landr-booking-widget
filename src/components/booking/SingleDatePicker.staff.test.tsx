@@ -125,7 +125,14 @@ describe('SingleDatePicker — staff force-book', () => {
     expect(cont).not.toBeDisabled()
     fireEvent.click(cont)
     // selectedDays carries the day; forcedDays carries the SAME day.
-    expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)], [isoOf(tomorrow)])
+    // landr-t869m.5: no slot at all for this date (getAvailability resolved
+    // []) → reasons fail open to ['capacity'], same as before this ticket's
+    // reason-tracking (no evidence of a lead-time block either way).
+    expect(onConfirm).toHaveBeenCalledWith(
+      [isoOf(tomorrow)],
+      [isoOf(tomorrow)],
+      ['capacity'],
+    )
   })
 
   it('declining the confirm dialog does not select the blocked day', async () => {

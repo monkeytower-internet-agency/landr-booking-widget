@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
+import type { ForceReason } from '@/lib/strings'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -19,8 +20,15 @@ interface Props {
   /**
    * landr-aoak.2: `forcedDays` carries the subset of selectedDays the operator
    * force-booked past zero availability (staff mode only; empty otherwise).
+   * landr-t869m.5: `forcedReasons` names WHICH gate(s) were bypassed across
+   * that subset (capacity and/or lead time) — empty/undefined when
+   * `forcedDays` is empty/undefined.
    */
-  onConfirm: (selectedDays: string[], forcedDays?: string[]) => void
+  onConfirm: (
+    selectedDays: string[],
+    forcedDays?: string[],
+    forcedReasons?: ForceReason[],
+  ) => void
   /**
    * Called whenever the user's day selection changes so App.tsx can feed
    * the live selection into PriceSidebar before the user presses Continue
@@ -62,6 +70,9 @@ export function MultiDayStep({
   // landr-aoak.2: force-booked (zero-availability) ISO days inside the current
   // selection. Always [] in the normal customer path.
   const [forcedDays, setForcedDays] = useState<string[]>([])
+  // landr-t869m.5: which gate(s) that forced subset bypassed. Always []
+  // alongside an empty forcedDays.
+  const [forcedReasons, setForcedReasons] = useState<ForceReason[]>([])
 
   const { fromIso, toIso } = useMemo(() => {
     const from = new Date()
@@ -117,7 +128,10 @@ export function MultiDayStep({
           availability={slots ?? EMPTY_SLOTS}
           value={selectedDays}
           onChange={setSelectedDays}
-          onForcedDaysChange={setForcedDays}
+          onForcedDaysChange={(days, reasons) => {
+            setForcedDays(days)
+            setForcedReasons(reasons)
+          }}
           helpText={undefined}
           defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
@@ -136,7 +150,13 @@ export function MultiDayStep({
           <Button
             type="button"
             disabled={selectedDays.length === 0}
-            onClick={() => onConfirm(selectedDays.map(isoDate), forcedDays)}
+            onClick={() =>
+              onConfirm(
+                selectedDays.map(isoDate),
+                forcedDays,
+                forcedDays.length > 0 ? forcedReasons : undefined,
+              )
+            }
           >
             Continue
           </Button>

@@ -508,8 +508,14 @@ describe('AccommodationStep', () => {
     })
     fireEvent.click(plusButtons[0]!)
 
+    // landr-t869m.5 (flake fix): this is an 'optional' offering with a day
+    // selected, so canContinue also waits on the mount-effect
+    // accommodation_bookable fetch (accommodationCheckSettled) landing —
+    // not just the room pick. Under full-suite load that mocked promise can
+    // still be in flight here; wait for the button to actually enable
+    // instead of asserting synchronously right after the click.
     const continueBtn = screen.getByRole('button', { name: /Continue/i })
-    expect(continueBtn).not.toBeDisabled()
+    await waitFor(() => expect(continueBtn).not.toBeDisabled())
     fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
     // landr-ffyg.2: optional + package mode reports includeHotel=true (the
@@ -609,7 +615,12 @@ describe('AccommodationStep', () => {
     expect(screen.queryByText('Single Room')).not.toBeInTheDocument()
     // Continue → empty payload, no hotel, includeHotel=false,
     // isSharedDouble=false.
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    // landr-t869m.5 (flake fix): 'optional' offering, so Continue also
+    // waits on the mount-effect accommodation_bookable fetch to settle —
+    // wait for enabled rather than clicking straight away.
+    const continueBtn = screen.getByRole('button', { name: /Continue/i })
+    await waitFor(() => expect(continueBtn).not.toBeDisabled())
+    fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onConfirm).toHaveBeenCalledWith([], null, [], false, false, {}, {}, {}, {}, {})
   })
@@ -760,7 +771,11 @@ describe('AccommodationStep', () => {
     await waitFor(() =>
       expect(screen.getByTestId('shared-double-notice')).toBeInTheDocument(),
     )
-    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    // landr-t869m.5 (flake fix): 'optional' offering — wait for the
+    // mount-effect accommodation_bookable fetch to settle before clicking.
+    const continueBtn = screen.getByRole('button', { name: /Continue/i })
+    await waitFor(() => expect(continueBtn).not.toBeDisabled())
+    fireEvent.click(continueBtn)
     expect(onConfirm).toHaveBeenCalledWith([], 'hotel-a', [], true, true, {}, {}, {}, {}, {})
   })
 

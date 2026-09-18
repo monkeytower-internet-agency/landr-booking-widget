@@ -3,7 +3,8 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { isDayBookable } from '@/components/booking/bookability'
+import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
+import type { ForceReason } from '@/lib/strings'
 import {
   Card,
   CardContent,
@@ -24,8 +25,15 @@ interface Props {
    * the BookingForm contract used by the days-range and fixed-window paths.
    * landr-aoak.2: in staff mode `forcedDays` carries the picked date when it
    * was force-booked past zero availability (empty otherwise).
+   * landr-t869m.5: `forcedReasons` names WHICH gate(s) that override
+   * bypassed (capacity and/or lead time) — empty/undefined when `forcedDays`
+   * is empty/undefined.
    */
-  onConfirm: (selectedDays: string[], forcedDays?: string[]) => void
+  onConfirm: (
+    selectedDays: string[],
+    forcedDays?: string[],
+    forcedReasons?: ForceReason[],
+  ) => void
   /**
    * Called when the user selects a date so App.tsx can feed the live
    * selection into PriceSidebar before Continue is pressed (landr-w7pi).
@@ -67,9 +75,11 @@ export function SingleDatePicker({
       ? dateFromIso(initialSelectedDays[0])
       : null,
   )
-  // True when the currently-selected date had zero availability and was picked
-  // via the operator-override path (drives the badge + the forced submit flag).
-  const [selectedForced, setSelectedForced] = useState(false)
+  // landr-t869m.5: which gate(s) the currently-selected date bypasses, if it
+  // was picked via the operator-override path (empty for a normal pick).
+  // Non-empty drives the badge + the forced submit flag identically
+  // regardless of which reason(s) it names.
+  const [selectedForceReasons, setSelectedForceReasons] = useState<ForceReason[]>([])
 
   const { fromIso, toIso, today } = useMemo(() => {
     const from = new Date()
@@ -120,6 +130,16 @@ export function SingleDatePicker({
     )
   }, [slots, product.hotel_offering])
 
+  // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
+  // gate(s) it bypassed. A date with no matching slot at all (outside the
+  // fetched horizon, or the endpoint never returned a row) has no evidence
+  // either way — fails open to ['capacity'], preserving this override's
+  // pre-existing (capacity-flavoured) copy rather than inventing a lead-time
+  // claim from missing data.
+  const slotsByDate = useMemo(() => {
+    return new Map((slots ?? []).map((slot) => [slot.date, slot]))
+  }, [slots])
+
   // Stable handler so Calendar doesn't re-render on every parent render.
   // landr-aoak.2: in staff mode, picking a date with zero availability is the
   // operator-override path — confirm the intent, then mark the selection forced
@@ -135,15 +155,19 @@ export function SingleDatePicker({
       ) {
         return
       }
+      const slot = slotsByDate.get(isoDate(d))
+      const reasons: ForceReason[] = slot
+        ? forceReasonsFor(slot.available_seats > 0, slot, product.hotel_offering)
+        : ['capacity']
       setSelected(d)
-      setSelectedForced(true)
+      setSelectedForceReasons(reasons)
       onLiveDaysChange?.([isoDate(d)])
       return
     }
     setSelected(d)
-    setSelectedForced(false)
+    setSelectedForceReasons([])
     onLiveDaysChange?.(d ? [isoDate(d)] : [])
-  }, [availableSet, canForce, onLiveDaysChange])
+  }, [availableSet, canForce, onLiveDaysChange, slotsByDate, product.hotel_offering])
 
   if (error) {
     return (
@@ -191,7 +215,7 @@ export function SingleDatePicker({
             >
               Selected: {isoDate(selected)}
             </p>
-            {selectedForced ? <OperatorOverrideBadge /> : null}
+            {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
           </div>
         ) : null}
         <div className="flex justify-end pt-2">
@@ -204,8 +228,11 @@ export function SingleDatePicker({
                 // landr-aoak.2: pass forcedDays ONLY when the selection was
                 // force-booked, so the normal path calls onConfirm([iso]) with
                 // exactly one argument (byte-identical to before).
-                if (selectedForced) onConfirm([iso], [iso])
-                else onConfirm([iso])
+                if (selectedForceReasons.length > 0) {
+                  onConfirm([iso], [iso], selectedForceReasons)
+                } else {
+                  onConfirm([iso])
+                }
               }
             }}
           >

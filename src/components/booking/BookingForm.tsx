@@ -27,6 +27,7 @@ import type {
 } from './detailsTypes'
 import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
+import { forceBookReasonMessage, type ForceReason } from '@/lib/strings'
 import {
   distinctAssignedLanguages,
   languageFlag,
@@ -44,6 +45,15 @@ export type BookingSelection =
        * for every normal customer selection (the byte-identical path).
        */
       forced?: boolean
+      /**
+       * landr-t869m.5: WHICH gate(s) `forced` bypassed (capacity and/or
+       * lead time) — undefined/empty whenever `forced` is undefined/false.
+       * Drives the review-forced banner's copy (see forceBookReasonMessage
+       * in @/lib/strings); a caller that predates this ticket and only sets
+       * `forced` still gets the pre-existing capacity-flavoured copy
+       * (forceBookReasonMessage's own fail-open default).
+       */
+      forcedReasons?: ForceReason[]
     }
   | {
       kind: 'days'
@@ -54,6 +64,8 @@ export type BookingSelection =
        * normal customer selections. Drives the submit adapter's force flag.
        */
       forcedDays?: string[]
+      /** landr-t869m.5: see the `kind: 'slot'` variant's doc above. */
+      forcedReasons?: ForceReason[]
     }
 
 import { Button } from '@/components/ui/button'
@@ -617,6 +629,10 @@ export function BookingForm({
       : (selection.forcedDays?.length ?? 0) > 0
   const forcedDays =
     selection.kind === 'days' ? (selection.forcedDays ?? []) : []
+  // landr-t869m.5: WHICH gate(s) the force-book bypassed — empty/undefined
+  // (any caller that predates this ticket) falls back to the pre-existing
+  // capacity-flavoured copy inside forceBookReasonMessage itself.
+  const forcedReasons: ForceReason[] = selection.forcedReasons ?? []
 
   // landr-r6e5x.4: whole-party display labels in the unified index space
   // (participants first, companions after) — the same order the API's typed
@@ -1364,8 +1380,12 @@ export function BookingForm({
         ) : null}
 
         {/* landr-aoak.2 [S3]: force-book summary — shown only when the operator
-            (staff mode) pushed this booking past capacity. Makes the override
-            explicit on the review screen before Confirm. */}
+            (staff mode) pushed this booking past a gate it would normally have
+            been blocked by. Makes the override explicit on the review screen
+            before Confirm. landr-t869m.5: the copy now names the ACTUAL
+            reason(s) (capacity and/or lead time) instead of always claiming
+            "capacity will be exceeded" — false whenever the override was
+            really about lead time. */}
         {forced ? (
           <section
             data-testid="review-forced"
@@ -1375,10 +1395,7 @@ export function BookingForm({
               <OperatorOverrideBadge />
             </div>
             <p className="text-amber-900 dark:text-amber-100">
-              {forcedDays.length > 0
-                ? `${forcedDays.length} day${forcedDays.length === 1 ? '' : 's'} booked past capacity.`
-                : 'This window was booked past capacity.'}{' '}
-              Capacity will be exceeded for this booking.
+              {forceBookReasonMessage(forcedReasons, forcedDays.length)}
             </p>
           </section>
         ) : null}
