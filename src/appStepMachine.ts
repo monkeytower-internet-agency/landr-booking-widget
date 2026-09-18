@@ -419,7 +419,16 @@ export type Step =
       customerLanguages?: string[] | null
       customerOtherLanguages?: string | null
     }
-  | { name: 'confirmed'; response: SubmitBookingResponse; email: string }
+  // landr-otml0.4: isSharedDouble carries through from the review step so
+  // the confirmation screen can show the "add reference later" hint when
+  // the booker chose shared-double but never confirmed a reference (no
+  // `group` and no `join_error` on the response either).
+  | {
+      name: 'confirmed'
+      response: SubmitBookingResponse
+      email: string
+      isSharedDouble?: boolean
+    }
 
 /**
  * landr-ffyg.2: derive the top-level accommodation mode from an
