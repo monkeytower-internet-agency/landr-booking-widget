@@ -4326,6 +4326,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/day-units/{day_date}/sort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sort Day Units
+         * @description Apply a whole "Sort into units" batch atomically (landr-1khre).
+         *
+         *     D9 locks the bulk sort once ANY participant of this operator+day has left
+         *     `expected`, and requires the operator to then arrange manually — the
+         *     per-row `patch_day_unit` above MUST keep working exactly when this
+         *     endpoint is locked, so the D9 check lives HERE, not there (see this
+         *     router module's history / the ticket for why gating `patch_day_unit`
+         *     instead would have been a regression).
+         *
+         *     The client-side gate (landr-dashboard#733's `allExpected(rows)`) is
+         *     bypassable by construction — a second driver's stale tab, a direct API
+         *     call — so it is re-derived server-side, INSIDE
+         *     `staff_sort_participant_day_units`'s own transaction immediately before
+         *     any write, not from a Python-level read here. That is what makes the
+         *     check race-safe: nothing in this handler reads the day's state and
+         *     decides before the RPC call, so there is no window for a concurrent
+         *     status tap to slip between a passing check and the write.
+         *
+         *     409 `day_not_all_expected` when the lock is engaged. A single invalid
+         *     row (unknown booking/participant/unit) RAISEs inside the same RPC call
+         *     and rolls back the WHOLE batch — a rejected batch writes nothing.
+         */
+        post: operations["staff_sort_participant_day_units"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/email-templates": {
         parameters: {
             query?: never;
@@ -9127,6 +9167,18 @@ export interface components {
         DayUnitPatchIn: {
             /** Assigned Unit Id */
             assigned_unit_id: string | null;
+        };
+        /**
+         * DayUnitSortItem
+         * @description One row of a "Sort into units" batch — see `sort_day_units`.
+         */
+        DayUnitSortItem: {
+            /** Booking Id */
+            booking_id: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Unit Id */
+            unit_id?: string | null;
         };
         /** DevToStagingIn */
         DevToStagingIn: {
@@ -20440,6 +20492,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_sort_participant_day_units: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayUnitSortItem"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
