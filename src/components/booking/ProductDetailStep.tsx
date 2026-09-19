@@ -36,7 +36,14 @@ import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
 export interface ProductDetailStepProps {
   product: Product
   onBook: () => void
-  onBack: () => void
+  /**
+   * landr-3y1u3: optional — omit when the widget was entered via a
+   * top-level ?product= deep link with no group/category scope to return
+   * to (there is nothing legitimate for Back to lead to). Callers pass it
+   * only when there is somewhere to go back to (drill-in from catalogue,
+   * or a scoped group).
+   */
+  onBack?: () => void
 }
 
 /**
@@ -125,7 +132,7 @@ export function ProductDetailStep({
 
   return (
     <div className="flex flex-col gap-4" data-testid="product-detail-step">
-      <BackLink onBack={onBack} />
+      {onBack ? <BackLink onBack={onBack} /> : null}
 
       <ProductGallery images={images} seed={product.slug} name={name} />
 

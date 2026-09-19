@@ -209,6 +209,31 @@ describe('ProductDetailStep', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  // landr-3y1u3: a top-level ?product= deep link (no group/category scope)
+  // has nowhere legitimate for Back to lead, so App.tsx omits onBack — the
+  // component must render with no Back affordance in that case.
+  it('renders no Back link when onBack is omitted (top-level deep link)', () => {
+    render(
+      <VariantProvider value="summit">
+        <ProductDetailStep product={makeProduct()} onBook={vi.fn()} />
+      </VariantProvider>,
+    )
+    expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+  })
+
+  it('renders no Back link on the sold-out state when onBack is omitted', () => {
+    render(
+      <VariantProvider value="summit">
+        <ProductDetailStep
+          product={makeProduct({ bookable: false })}
+          onBook={vi.fn()}
+        />
+      </VariantProvider>,
+    )
+    expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument()
+    expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+  })
+
   it('renders markdown description via the shared pipeline', () => {
     renderStep(
       makeProduct({ description: '# Heading\n\nSome **bold** body copy.' }),

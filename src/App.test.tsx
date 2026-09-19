@@ -1952,6 +1952,9 @@ describe('App', () => {
       // A sold-out fixed_window deep link must not fetch windows/availability.
       expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
       expect(mocks.getAvailability).not.toHaveBeenCalled()
+      // landr-3y1u3: same rule as the bookable deep link — no group/category
+      // scope to return to, so no Back affordance on the sold-out state.
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
     })
 
     it('deep-links a BOOKABLE single product to product-detail first (landr-d8rg.4)', async () => {
@@ -2071,6 +2074,10 @@ describe('App', () => {
       expect(await screen.findByText('Tandem Classic')).toBeInTheDocument()
       // listProductGroups should NOT be called for a ?product= deep link
       expect(mocks.listProductGroups).not.toHaveBeenCalled()
+      // landr-3y1u3: a top-level ?product= deep link has no group/category
+      // scope to return to (there's no catalogue the operator intended to
+      // show), so the product-detail page renders no Back affordance.
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
     })
 
     // landr-frqgv.3 (epic landr-frqgv D1): a customer following the
