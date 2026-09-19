@@ -1761,51 +1761,77 @@ function BookingFlowApp() {
           or to pick-category when categories were shown and there is no
           scoped group (i.e. the user deep-linked straight to product-detail).
         */}
-        {step.name === 'product-detail' ? (
-          <ProductDetailStep
-            product={step.product}
-            onBook={() =>
-              setStep({ name: 'pick-selection', product: step.product })
-            }
-            onBack={() => {
-              // landr-iyyf fix-forward (MEDIUM 1): this bare setStep back to
-              // pick-product/pick-category used to reset NEITHER remoteFlow
-              // nor its promise cache — align it with goToProductStep so
-              // leaving this product's detail page never leaves a stale
-              // cached flow behind for a later re-visit.
-              clearProductFlowCache()
-              // landr-d8rg.4 Back nav:
-              //   - If we have a picked group slug, return to the scoped product list.
-              //   - If we have multiple non-empty groups (categories/expanded catalog
-              //     were shown) and no group scope, return to pick-category.
-              //   - Otherwise return to pick-product unscoped.
+        {step.name === 'product-detail'
+          ? (() => {
               const nonEmptyGroups = (productGroups ?? []).filter(
                 (g) => g.product_count > 0,
               )
-              if (pickedGroupSlug) {
-                // Back to scoped list (group scope preserved via pickedGroupSlug state).
-                setStep({ name: 'pick-product' })
-              } else if (nonEmptyGroups.length > 1 && productGroups) {
-                // Categories/expanded catalog were shown but no group was picked
-                // (e.g. a product selected directly from the expanded catalog, or
-                // a ?product= deep link that bypasses categories). Return to
-                // pick-category — resolvedCatalogMode (landr-4a5j) is derived at
-                // render time from the SAME inputs regardless of which step
-                // instance this is, so the render swap below picks the right UI
-                // automatically; no mode needs to be threaded onto the step.
-                setStep({ name: 'pick-category', groups: productGroups })
-              } else {
-                setStep({ name: 'pick-product' })
-              }
-            }}
-          />
-        ) : null}
+              // landr-3y1u3: Back is only legitimate when there is somewhere
+              // to return to. The one case with nothing to return to is a
+              // top-level ?product= deep link with no group scope — the
+              // widget lands straight on product-detail without ever
+              // showing a catalogue (no `?group=`, no pickedGroupSlug from
+              // in-app category navigation). Every other path — normal
+              // unscoped/scoped browsing, a ?group= deep link into a scoped
+              // list — did show a list the customer can legitimately return
+              // to, so `!product` alone (no ?product= param at all) already
+              // covers the non-deep-link cases; `group`/`pickedGroupSlug`
+              // cover a scoped ?product= deep link.
+              const canGoBack = Boolean(!product || group || pickedGroupSlug)
+              return (
+                <ProductDetailStep
+                  product={step.product}
+                  onBook={() =>
+                    setStep({ name: 'pick-selection', product: step.product })
+                  }
+                  onBack={
+                    canGoBack
+                      ? () => {
+                          // landr-iyyf fix-forward (MEDIUM 1): this bare setStep back to
+                          // pick-product/pick-category used to reset NEITHER remoteFlow
+                          // nor its promise cache — align it with goToProductStep so
+                          // leaving this product's detail page never leaves a stale
+                          // cached flow behind for a later re-visit.
+                          clearProductFlowCache()
+                          // landr-d8rg.4 Back nav:
+                          //   - If we have a picked group slug, return to the scoped product list.
+                          //   - If we have multiple non-empty groups (categories/expanded catalog
+                          //     were shown) and no group scope, return to pick-category.
+                          //   - Otherwise (unreachable when canGoBack is true) return to pick-product.
+                          if (pickedGroupSlug) {
+                            // Back to scoped list (group scope preserved via pickedGroupSlug state).
+                            setStep({ name: 'pick-product' })
+                          } else if (nonEmptyGroups.length > 1 && productGroups) {
+                            // Categories/expanded catalog were shown but no group was picked
+                            // (e.g. a product selected directly from the expanded catalog).
+                            // Return to pick-category — resolvedCatalogMode (landr-4a5j) is
+                            // derived at render time from the SAME inputs regardless of which
+                            // step instance this is, so the render swap below picks the right
+                            // UI automatically; no mode needs to be threaded onto the step.
+                            setStep({ name: 'pick-category', groups: productGroups })
+                          } else {
+                            setStep({ name: 'pick-product' })
+                          }
+                        }
+                      : undefined
+                  }
+                />
+              )
+            })()
+          : null}
 
         {/*
           landr-7jgo: standalone "Fully booked" state for a single-product
           deep link (?product=<slug>) that resolved to a sold-out product.
           No date picker, no Select CTA — there is nothing to book. Back
-          returns to the (filtered) catalogue overview.
+          returns to the (filtered) catalogue overview, when one was ever
+          shown. This step is reached only via a ?product= deep link
+          (preselectSlug, ProductList's onPreselectSoldOut) — `product` is
+          therefore always set here — so, matching the landr-3y1u3
+          canGoBack rule on the product-detail branch above, Back is only
+          legitimate when the deep link was into a scoped group (?group= or
+          pickedGroupSlug); a top-level ?product= deep link has no
+          catalogue to go back to.
         */}
         {step.name === 'fully-booked' ? (
           <FullyBookedNotice
@@ -1819,7 +1845,9 @@ function BookingFlowApp() {
               step.product.short_description_localized,
               browserLocale(),
             ) || null}
-            onBack={goToProductStep}
+            onBack={
+              group || pickedGroupSlug ? goToProductStep : undefined
+            }
           />
         ) : null}
 
