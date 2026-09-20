@@ -1426,6 +1426,14 @@
             "title": "Participants",
             "type": "array"
           },
+          "periods": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
           "pickup_location": {
             "anyOf": [
               {
@@ -5580,6 +5588,44 @@
         "title": "HostnameBranding",
         "type": "object"
       },
+      "HostnameEligibility": {
+        "description": "No-side-effect pre-check for a hostname the operator is about to save.",
+        "properties": {
+          "hostname": {
+            "title": "Hostname",
+            "type": "string"
+          },
+          "path": {
+            "description": "'auto' (we would publish it) | 'manual'.",
+            "title": "Path",
+            "type": "string"
+          },
+          "provider": {
+            "description": "'cloudflare' | 'autodns' | 'manual'.",
+            "title": "Provider",
+            "type": "string"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The confirmed zone, or None.",
+            "title": "Zone"
+          }
+        },
+        "required": [
+          "hostname",
+          "path",
+          "provider"
+        ],
+        "title": "HostnameEligibility",
+        "type": "object"
+      },
       "HostnameIn": {
         "properties": {
           "hostname": {
@@ -5630,6 +5676,30 @@
             "description": "True iff an operator_hostnames row exists.",
             "title": "Configured",
             "type": "boolean"
+          },
+          "dns_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'cloudflare'/'autodns' when we published the CNAME ourselves, 'manual' when the operator must, None before the first attempt.",
+            "title": "Dns Provider"
+          },
+          "dns_provisioning_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable note on the dns_provider outcome.",
+            "title": "Dns Provisioning Detail"
           },
           "dns_records": {
             "anyOf": [
@@ -6268,6 +6338,11 @@
               }
             ],
             "title": "Product Id"
+          },
+          "widget_token": {
+            "default": "",
+            "title": "Widget Token",
+            "type": "string"
           }
         },
         "required": [
@@ -11308,6 +11383,18 @@
             "title": "Active",
             "type": "boolean"
           },
+          "briefing_content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Briefing Content"
+          },
           "capacity_per_unit": {
             "anyOf": [
               {
@@ -11678,6 +11765,18 @@
               }
             ],
             "title": "Active"
+          },
+          "briefing_content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Briefing Content"
           },
           "capacity_per_unit": {
             "anyOf": [
@@ -13785,6 +13884,67 @@
         "title": "SavingLineOut",
         "type": "object"
       },
+      "ScopedMessagePostIn": {
+        "additionalProperties": false,
+        "description": "One post at one of the three audience scopes.\n\nThe per-scope required/forbidden fields mirror the DB's\n`day_messages_scope_shape` CHECK exactly, validated here so a bad\ncombination is a 422 naming the problem rather than a 500 carrying a\nconstraint name.",
+        "properties": {
+          "body": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "booking_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
+          "day_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Date"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "scope": {
+            "enum": [
+              "activity_day",
+              "booking",
+              "operator"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "body"
+        ],
+        "title": "ScopedMessagePostIn",
+        "type": "object"
+      },
       "SeasonPlanIn": {
         "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
         "properties": {
@@ -14880,6 +15040,30 @@
             "default": false,
             "title": "Ignore Capacity",
             "type": "boolean"
+          },
+          "import_source_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Source Id"
+          },
+          "imported_from": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imported From"
           },
           "is_shared_double": {
             "default": false,
@@ -19731,6 +19915,56 @@
           }
         ],
         "summary": "Get Local Worktree",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/local-worktree/{repo}/land": {
+      "post": {
+        "description": "'Hand to Claude' \u2014 land a dirty Trillian checkout as a PR to dev.\n\nDEV/Trillian ONLY, same gate as ``GET /local-worktree`` (404\n``local_worktree_disabled`` everywhere else). Spawns a background Claude\nCode session that reviews the uncommitted/unpushed changes, opens a PR to\n``dev`` and merges it on green CI (landr-nxz5l). ``repo`` must be in the\ndeploy allowlist; it is the only value that reaches the prompt.\n\n409 when there is nothing to land, the checkout is not on ``dev``, or a\nsession is already landing it; 503 when the ``claude`` CLI is missing.",
+        "operationId": "land_local_worktree",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "title": "Repo",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Land Local Worktree",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Land Local Worktree",
         "tags": [
           "landr-staff-promotions"
         ]
@@ -25350,6 +25584,7 @@
         ]
       },
       "post": {
+        "description": "Ensure-create the briefing. ``?publish=true`` starts it live.\n\nlandr-78i5e.6: the dashboard no longer has a create-or-publish\naffordance \u2014 every booking's customer page is created AND published at\nbooking submit (``booking_briefings.ensure_briefing``), so the editor's\njob is to open a page that already exists. For the residual cases it can\nstill meet (a best-effort create that failed at submit time, a row an\noperator unpublished under the old UI) it self-heals with\n``?publish=true`` rather than showing the operator a button. The default\nstays ``false`` so the historical staff-editor contract \u2014 a NEW row\nstarts unpublished so content can be drafted \u2014 is unchanged for any other\ncaller.",
         "operationId": "create_briefing",
         "parameters": [
           {
@@ -25368,6 +25603,16 @@
             "schema": {
               "title": "Booking Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "publish",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Publish",
+              "type": "boolean"
             }
           }
         ],
@@ -29951,9 +30196,75 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}/eligibility": {
+      "get": {
+        "description": "No-side-effect pre-check: would we auto-provision ``hostname``'s DNS?\n\nlandr-2ixhq.1 (dashboard half, landr-2ixhq.2) \u2014 lets the dashboard show\n\"we'll set this up for you\" WHILE the operator is still typing, before\nthey hit save. Never writes to the DB and never publishes a record; it\nonly classifies via ``sending_dns.classify_hostname``, gated by the same\n``operator_owns_zone`` ownership check PUT/verify use \u2014 otherwise this\nendpoint would let any operator enumerate which zones sit in our DNS\naccount (landr-2ixhq.1 review finding 1).\n\nCached briefly (:data:`_ELIGIBILITY_CACHE_TTL`, per (operator_id,\nhostname)) \u2014 this is a sync endpoint the dashboard may call on every\nkeystroke while the operator types, and the classification does a\nblocking ``dig`` plus live Cloudflare/autoDNS lookups (review finding 3).\nThe dashboard debounces too, but that is not a server-side guarantee.",
+        "operationId": "get_hostname_eligibility",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hostname",
+            "required": true,
+            "schema": {
+              "title": "Hostname",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostnameEligibility"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Hostname Eligibility",
+        "tags": [
+          "staff-operator-hostnames"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/hostnames/{purpose}/verify": {
       "post": {
-        "description": "Queue this row for the next worker pass (\"Check now\" in the dashboard).\n\nThis endpoint does NOT talk to DNS or Cloudflare itself. Verification is\nslow (a DNS lookup plus up to two Cloudflare calls) and must not run inside\na request the dashboard is waiting on; more importantly, keeping one code\npath to Cloudflare means the retry/backoff/error-recording rules live in\nexactly one place. All this does is clear ``last_checked_at`` and reset a\n``failed`` row to ``unverified`` so the worker picks it up immediately\ninstead of waiting out a backoff window.",
+        "description": "Queue this row for the next worker pass (\"Check now\" in the dashboard).\n\nThis endpoint does NOT talk to DNS or Cloudflare itself. Verification is\nslow (a DNS lookup plus up to two Cloudflare calls) and must not run inside\na request the dashboard is waiting on; more importantly, keeping one code\npath to Cloudflare means the retry/backoff/error-recording rules live in\nexactly one place. All this does is clear ``last_checked_at`` and reset a\n``failed`` row to ``unverified`` so the worker picks it up immediately\ninstead of waiting out a backoff window.\n\nIt DOES, however, retry hostname DNS provisioning (landr-2ixhq.1) when the\nrow has never been auto-provisioned: \"Check now\" is the one button an\noperator presses when nothing is happening, and it should fix the fixable\ncase of a domain that moved into our DNS account after the hostname was\nclaimed.",
         "operationId": "request_verify",
         "parameters": [
           {
@@ -31858,6 +32169,178 @@
         "summary": "Update Template",
         "tags": [
           "staff-message-templates"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/messages": {
+      "post": {
+        "operationId": "staff_post_scoped_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopedMessagePostIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Post Scoped Message",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Scoped Message",
+        "tags": [
+          "staff-day-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/messages/recipient-count": {
+      "get": {
+        "description": "How many people this scope would reach right now.\n\nDrives the confirm step the all-customers option gets in the dashboard.\nGated by the SAME role rule as posting \u2014 a `field` member must not be\nable to measure the blast they are not allowed to send.",
+        "operationId": "staff_message_recipient_count",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "enum": [
+                "activity_day",
+                "booking",
+                "operator"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          },
+          {
+            "in": "query",
+            "name": "booking_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Message Recipient Count",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Message Recipient Count",
+        "tags": [
+          "staff-day-messages"
         ]
       }
     },

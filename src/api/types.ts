@@ -1262,6 +1262,14 @@ export interface ContactPagePrefill {
 export interface InvitePrefill {
   operator_id: string
   /**
+   * landr-5lrov: the operator's PUBLIC widget token — the same value the
+   * embed snippet carries in `?w=`. The shared invite link is
+   * `<base>/i/<token>` and deliberately has no `?w=`, so this is how the
+   * widget learns which operator it is rendering. Empty string is possible
+   * (operator row without a token) and is treated as "invite unusable".
+   */
+  widget_token: string
+  /**
    * landr-otml0.3 review fix (MINOR 5): nullable on the wire
    * (`InvitePrefillOut.product_id: str | None` — the host's original
    * product can be deleted/deactivated between minting the invite and it

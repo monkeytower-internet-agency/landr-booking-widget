@@ -80,7 +80,7 @@ function baseInvite(overrides: Partial<InviteSummary> = {}): InviteSummary {
     email: 'thomas@example.com',
     phone: '+49 151 2345678',
     phone_digits: '491512345678',
-    invite_url: 'https://widget.dev.landr.de/?invite=tok_abc123',
+    invite_url: 'https://widget.dev.landr.de/i/tok_abc123',
     whatsapp_url:
       'https://wa.me/491512345678?text=https%3A%2F%2Fwidget.dev.landr.de%2F%3Finvite%3Dtok_abc123',
     linked_booking_reference: null,

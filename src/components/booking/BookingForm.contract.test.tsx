@@ -814,7 +814,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
               email: 'thomas@example.com',
               phone: null,
               phone_digits: null,
-              invite_url: 'https://bw-dev.landr.de/?invite=tok-2',
+              invite_url: 'https://bw-dev.landr.de/i/tok-2',
               whatsapp_url: null,
               linked_booking_reference: null,
               has_invite: true,

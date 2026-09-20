@@ -101,7 +101,7 @@ import {
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
-import { detectRoute } from './detectRoute'
+import { detectRoute, invitePathToken } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import {
@@ -149,7 +149,11 @@ function readQueryParams() {
     product: params.get('product'),
     group: params.get('group'),
     // landr-otml0.3: invite link — resolved via GET /api/public/invites/{token}.
-    invite: params.get('invite'),
+    // landr-5lrov: the link the API now mints is `/i/<token>` (short, and the
+    // token survives link-rewriting mail gateways); `?invite=` stays an
+    // accepted alias. Neither form carries `?w=` — the operator comes back
+    // with the prefill, see the resolution effect in BookingFlowApp.
+    invite: params.get('invite') ?? invitePathToken(window.location.pathname),
     // landr-frqgv.3: `?c=<token>` from a customer's own contact page
     // (`my.landr.de/c/{token}`, "re-book" CTA) — resolved via GET
     // /api/public/contact-page/{token}/prefill. Unlike `invite`, this only
@@ -300,7 +304,7 @@ function App() {
 
 function BookingFlowApp() {
   const {
-    token,
+    token: queryToken,
     product,
     group,
     previewToken,
@@ -309,11 +313,22 @@ function BookingFlowApp() {
     invite,
     contactPageToken,
   } = useMemo(() => readQueryParams(), [])
+  // landr-5lrov: an invite link (`/i/<token>`) carries NO `?w=` — the widget
+  // token comes back with the invite prefill and is adopted here, so every
+  // `token`-gated fetch below (settings, products, submit) works exactly as it
+  // does for an embed. Null until that resolves; irrelevant for every other
+  // entry point, where `?w=` is present from the first render.
+  const [bootstrapToken, setBootstrapToken] = useState<string | null>(null)
+  const token = queryToken ?? bootstrapToken
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
   // false means "fetch returned 404".
-  const [showLanding, setShowLanding] = useState<boolean>(!token)
+  // landr-5lrov: an invite is the one case where "no token yet" is NOT the
+  // landing page — it is the "Resolving your invite…" state, which the render
+  // gate further down owns. Showing the landing page here would be the very
+  // bug this ticket fixes.
+  const [showLanding, setShowLanding] = useState<boolean>(!token && !invite)
   // landr-2mgl: restore funnel progress persisted to sessionStorage on the
   // previous render (survives an accidental mobile pull-to-refresh OR an
   // intentional reload, which both remount this component from scratch).
@@ -420,23 +435,50 @@ function BookingFlowApp() {
   // product-detail entirely. On 404 (or the product not being found/
   // bookable — an edge case the ticket doesn't cover, treated the same way):
   // fall back to the plain wizard and show a dismissible notice.
+  //
+  // landr-5lrov: this no longer requires `?w=` to be in the URL. The invite
+  // link is `/i/<token>` and nothing else, so the prefill response carries the
+  // operator's public `widget_token` and we adopt it here before any
+  // operator-scoped fetch. When the widget IS embedded (`?w=` present) that
+  // value wins — an operator embedding the widget on their own page and
+  // pasting an invite link into it should stay on their own operator.
   useEffect(() => {
-    if (!invite || !token) return
+    if (!invite) return
     let cancelled = false
+    // The operator token in force once the prefill has answered: `?w=` when
+    // embedded, otherwise whatever the prefill handed us.
+    let usableToken: string | null = queryToken
+    const failInvite = () => {
+      setInviteData(null)
+      overrideBookingLocale(null)
+      // With no `?w=` and no usable token from the prefill there is no
+      // operator to render a wizard FOR — the landing page is the only honest
+      // fallback. With a token in hand the plain wizard still works, which is
+      // what the notice invites the customer to do.
+      if (!usableToken) setShowLanding(true)
+      setInviteNotice(
+        "This invite link isn't valid any more — you can still book and enter the reference later.",
+      )
+    }
     void (async () => {
       try {
         const prefill = await getInvitePrefill(invite)
         if (cancelled) return
+        // The operator this invite belongs to. `?w=` wins when embedded.
+        const widgetToken = queryToken ?? prefill.widget_token ?? ''
+        if (!widgetToken) {
+          failInvite()
+          return
+        }
+        usableToken = widgetToken
+        if (!queryToken) setBootstrapToken(widgetToken)
         // landr-otml0.3 review fix (MINOR 5): product_id is nullable on the
         // wire (the host's product can be deleted/deactivated between mint
         // and open) — with no product to jump to, degrade straight to the
         // plain wizard instead of spending a listProducts round-trip on a
         // lookup that can never match.
         if (!prefill.product_id) {
-          setInviteData(null)
-          setInviteNotice(
-            "This invite link isn't valid any more — you can still book and enter the reference later.",
-          )
+          failInvite()
           return
         }
         setInviteData(prefill)
@@ -457,7 +499,7 @@ function BookingFlowApp() {
             ? 'shared-double'
             : undefined,
         })
-        const products = await listProducts(token)
+        const products = await listProducts(widgetToken)
         if (cancelled) return
         const match = products.find((p) => p.product_id === prefill.product_id)
         if (match && isBookable(match)) {
@@ -466,26 +508,18 @@ function BookingFlowApp() {
           // Product deleted/inactive/sold out since the invite was minted —
           // not specified by the ticket; degrade to the plain wizard rather
           // than dead-ending on a step nothing can render.
-          setInviteData(null)
-          overrideBookingLocale(null)
-          setInviteNotice(
-            "This invite link isn't valid any more — you can still book and enter the reference later.",
-          )
+          failInvite()
         }
       } catch {
         if (cancelled) return
-        setInviteData(null)
-        overrideBookingLocale(null)
-        setInviteNotice(
-          "This invite link isn't valid any more — you can still book and enter the reference later.",
-        )
+        failInvite()
       }
     })()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invite, token])
+  }, [invite, queryToken])
   // landr-frqgv.3: resolve `?c=<token>` once, at mount — a customer
   // re-booking from their own contact page (my.landr.de/c/{token}). Unlike
   // `invite` above, this ONLY prefills the booker's own name/email/phone;

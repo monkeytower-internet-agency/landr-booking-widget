@@ -2349,6 +2349,132 @@ describe('App', () => {
       expect(screen.getByText(/2 days selected/i)).toBeInTheDocument()
     })
 
+    // landr-5lrov: the shipped link is `/i/<token>` with NO `?w=`. Before this
+    // ticket the widget read its operator from `?w=` alone, so every invite
+    // link ever minted opened the landing page and dropped the invite — the
+    // bug the customer actually hit. The operator now comes back WITH the
+    // prefill and is adopted before any operator-scoped fetch.
+    it('/i/<token> with no ?w= adopts the operator from the prefill and lands on Dates', async () => {
+      window.history.replaceState({}, '', '/i/tok-short')
+      const product = makeProduct({
+        product_id: 'p-invite',
+        slug: 'guided-trip',
+        name: 'Guided Trip',
+        service_time_shape: 'days_range',
+        hotel_offering: 'mandatory',
+      })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue(
+        ['2026-06-12', '2026-06-13', '2026-06-14'].map((date) => ({
+          availability_id: `slot-${date}`,
+          date,
+          start_time: null,
+          end_time: null,
+          capacity: 5,
+          capacity_reserved: 0,
+          available_seats: 5,
+          status: 'open',
+        })),
+      )
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: MOCK_TOKEN,
+        product_id: 'p-invite',
+        dates: ['2026-06-12', '2026-06-13'],
+        hotel_location_id: 'hotel-a',
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-short')
+      })
+      await waitFor(() => {
+        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+      })
+      // The landing page — what this URL used to render — never appears.
+      expect(
+        screen.queryByText(/This is the booking-widget host for Landr/i),
+      ).not.toBeInTheDocument()
+      // Every operator-scoped fetch runs against the bootstrapped token.
+      expect(mocks.listProducts).toHaveBeenCalledWith(MOCK_TOKEN)
+      expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent('A1B2C3D4')
+    })
+
+    it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
+      window.history.replaceState({}, '', '/i/tok-no-operator')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: '',
+        product_id: 'p-invite',
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: null,
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/This is the booking-widget host for Landr/i),
+        ).toBeInTheDocument()
+      })
+      // No operator ⇒ nothing operator-scoped may be fetched.
+      expect(mocks.listProducts).not.toHaveBeenCalled()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+    })
+
+    it('/i/<token> that 404s falls back to the landing page, not a broken wizard', async () => {
+      window.history.replaceState({}, '', '/i/bad-token')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockRejectedValue(
+        new HttpError(404, 'Not Found', '{"detail":{"error":"not_found"}}'),
+      )
+      render(<App />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/This is the booking-widget host for Landr/i),
+        ).toBeInTheDocument()
+      })
+    })
+
+    // An operator embedding the widget on their own page keeps their own
+    // operator even if an invite token for someone else's is pasted in.
+    it('?w= wins over the prefill widget_token when both are present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-other',
+        widget_token: 'someone-elses-token',
+        product_id: null,
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: true,
+        invitee_first_name: '',
+        invitee_last_name: '',
+        host_display_name: '',
+        host_reference: '',
+        language: null,
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalled()
+      })
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      })
+      expect(mocks.listProducts).not.toHaveBeenCalledWith('someone-elses-token')
+    })
+
     it('?invite= 404 falls back to the plain wizard with a dismissible notice', async () => {
       window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=bad-token`)
       mocks.listProducts.mockResolvedValue([
