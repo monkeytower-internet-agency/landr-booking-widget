@@ -954,6 +954,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/promotions/local-worktree/{repo}/land": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Land Local Worktree
+         * @description 'Hand to Claude' — land a dirty Trillian checkout as a PR to dev.
+         *
+         *     DEV/Trillian ONLY, same gate as ``GET /local-worktree`` (404
+         *     ``local_worktree_disabled`` everywhere else). Spawns a background Claude
+         *     Code session that reviews the uncommitted/unpushed changes, opens a PR to
+         *     ``dev`` and merges it on green CI (landr-nxz5l). ``repo`` must be in the
+         *     deploy allowlist; it is the only value that reaches the prompt.
+         *
+         *     409 when there is nothing to land, the checkout is not on ``dev``, or a
+         *     session is already landing it; 503 when the ``claude`` CLI is missing.
+         */
+        post: operations["land_local_worktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/promotions/preview-migrations": {
         parameters: {
             query?: never;
@@ -3606,7 +3635,21 @@ export interface paths {
         /** Get Briefing */
         get: operations["staff_get_briefing"];
         put?: never;
-        /** Create Briefing */
+        /**
+         * Create Briefing
+         * @description Ensure-create the briefing. ``?publish=true`` starts it live.
+         *
+         *     landr-78i5e.6: the dashboard no longer has a create-or-publish
+         *     affordance — every booking's customer page is created AND published at
+         *     booking submit (``booking_briefings.ensure_briefing``), so the editor's
+         *     job is to open a page that already exists. For the residual cases it can
+         *     still meet (a best-effort create that failed at submit time, a row an
+         *     operator unpublished under the old UI) it self-heals with
+         *     ``?publish=true`` rather than showing the operator a button. The default
+         *     stays ``false`` so the historical staff-editor contract — a NEW row
+         *     starts unpublished so content can be drafted — is unchanged for any other
+         *     caller.
+         */
         post: operations["create_briefing"];
         delete?: never;
         options?: never;
@@ -4931,6 +4974,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/hostnames/{purpose}/eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hostname Eligibility
+         * @description No-side-effect pre-check: would we auto-provision ``hostname``'s DNS?
+         *
+         *     landr-2ixhq.1 (dashboard half, landr-2ixhq.2) — lets the dashboard show
+         *     "we'll set this up for you" WHILE the operator is still typing, before
+         *     they hit save. Never writes to the DB and never publishes a record; it
+         *     only classifies via ``sending_dns.classify_hostname``, gated by the same
+         *     ``operator_owns_zone`` ownership check PUT/verify use — otherwise this
+         *     endpoint would let any operator enumerate which zones sit in our DNS
+         *     account (landr-2ixhq.1 review finding 1).
+         *
+         *     Cached briefly (:data:`_ELIGIBILITY_CACHE_TTL`, per (operator_id,
+         *     hostname)) — this is a sync endpoint the dashboard may call on every
+         *     keystroke while the operator types, and the classification does a
+         *     blocking ``dig`` plus live Cloudflare/autoDNS lookups (review finding 3).
+         *     The dashboard debounces too, but that is not a server-side guarantee.
+         */
+        get: operations["get_hostname_eligibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/hostnames/{purpose}/verify": {
         parameters: {
             query?: never;
@@ -4951,6 +5028,12 @@ export interface paths {
          *     exactly one place. All this does is clear ``last_checked_at`` and reset a
          *     ``failed`` row to ``unverified`` so the worker picks it up immediately
          *     instead of waiting out a backoff window.
+         *
+         *     It DOES, however, retry hostname DNS provisioning (landr-2ixhq.1) when the
+         *     row has never been auto-provisioned: "Check now" is the one button an
+         *     operator presses when nothing is happening, and it should fix the fixable
+         *     case of a domain that moved into our DNS account after the hostname was
+         *     claimed.
          */
         post: operations["request_verify"];
         delete?: never;
@@ -5387,6 +5470,47 @@ export interface paths {
         head?: never;
         /** Update Template */
         patch: operations["staff_update_message_template"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Scoped Message */
+        post: operations["staff_post_scoped_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/messages/recipient-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Message Recipient Count
+         * @description How many people this scope would reach right now.
+         *
+         *     Drives the confirm step the all-customers option gets in the dashboard.
+         *     Gated by the SAME role rule as posting — a `field` member must not be
+         *     able to measure the blast they are not allowed to send.
+         */
+        get: operations["staff_message_recipient_count"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/offers": {
@@ -8604,6 +8728,10 @@ export interface components {
             participant_count: number;
             /** Participants */
             participants?: components["schemas"]["BookingSummaryParticipant"][];
+            /** Periods */
+            periods?: {
+                [key: string]: unknown;
+            }[];
             /** Pickup Location */
             pickup_location?: string | null;
             /** Pickup Locations */
@@ -10055,6 +10183,29 @@ export interface components {
             /** Primary Color */
             primary_color?: string | null;
         };
+        /**
+         * HostnameEligibility
+         * @description No-side-effect pre-check for a hostname the operator is about to save.
+         */
+        HostnameEligibility: {
+            /** Hostname */
+            hostname: string;
+            /**
+             * Path
+             * @description 'auto' (we would publish it) | 'manual'.
+             */
+            path: string;
+            /**
+             * Provider
+             * @description 'cloudflare' | 'autodns' | 'manual'.
+             */
+            provider: string;
+            /**
+             * Zone
+             * @description The confirmed zone, or None.
+             */
+            zone?: string | null;
+        };
         /** HostnameIn */
         HostnameIn: {
             /**
@@ -10086,6 +10237,16 @@ export interface components {
              * @description True iff an operator_hostnames row exists.
              */
             configured: boolean;
+            /**
+             * Dns Provider
+             * @description 'cloudflare'/'autodns' when we published the CNAME ourselves, 'manual' when the operator must, None before the first attempt.
+             */
+            dns_provider?: string | null;
+            /**
+             * Dns Provisioning Detail
+             * @description Human-readable note on the dns_provider outcome.
+             */
+            dns_provisioning_detail?: string | null;
             /**
              * Dns Records
              * @description Records the operator must publish, as [{type,name,value}].
@@ -10307,6 +10468,11 @@ export interface components {
             operator_id: string;
             /** Product Id */
             product_id?: string | null;
+            /**
+             * Widget Token
+             * @default
+             */
+            widget_token: string;
         };
         /** InviteSendIn */
         InviteSendIn: {
@@ -11924,6 +12090,10 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /** Briefing Content */
+            briefing_content?: {
+                [key: string]: unknown;
+            } | null;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
             /** Category Id */
@@ -12036,6 +12206,10 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Briefing Content */
+            briefing_content?: {
+                [key: string]: unknown;
+            } | null;
             /** Capacity Per Unit */
             capacity_per_unit?: number | null;
             /** Category Id */
@@ -12810,6 +12984,30 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ScopedMessagePostIn
+         * @description One post at one of the three audience scopes.
+         *
+         *     The per-scope required/forbidden fields mirror the DB's
+         *     `day_messages_scope_shape` CHECK exactly, validated here so a bad
+         *     combination is a 422 naming the problem rather than a 500 carrying a
+         *     constraint name.
+         */
+        ScopedMessagePostIn: {
+            /** Body */
+            body: string;
+            /** Booking Id */
+            booking_id?: string | null;
+            /** Day Date */
+            day_date?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "activity_day" | "booking" | "operator";
+        };
+        /**
          * SeasonPlanIn
          * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
          *     applied to every touched unit in ONE transaction (landr-e80s.30, follow-up
@@ -13239,6 +13437,10 @@ export interface components {
              * @default false
              */
             ignore_capacity: boolean;
+            /** Import Source Id */
+            import_source_id?: string | null;
+            /** Imported From */
+            imported_from?: string | null;
             /**
              * Is Shared Double
              * @default false
@@ -15755,6 +15957,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    land_local_worktree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -19285,7 +19520,9 @@ export interface operations {
     };
     create_briefing: {
         parameters: {
-            query?: never;
+            query?: {
+                publish?: boolean;
+            };
             header?: never;
             path: {
                 operator_id: string;
@@ -21832,6 +22069,40 @@ export interface operations {
             };
         };
     };
+    get_hostname_eligibility: {
+        parameters: {
+            query: {
+                hostname: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostnameEligibility"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     request_verify: {
         parameters: {
             query?: never;
@@ -22903,6 +23174,81 @@ export interface operations {
                 "application/json": components["schemas"]["MessageTemplatePatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_post_scoped_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopedMessagePostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_message_recipient_count: {
+        parameters: {
+            query: {
+                scope: "activity_day" | "booking" | "operator";
+                product_id?: string | null;
+                day?: string | null;
+                booking_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
