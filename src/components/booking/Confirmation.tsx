@@ -26,7 +26,7 @@ import {
 import { browserLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { formatDayLabel } from './dateLabel'
-import { DayChips } from './DayChips'
+import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { formatMoney, splitLineItems } from './priceSidebarHelpers'
@@ -513,6 +513,14 @@ const POST_BOOKING_PROSE_CLASSES =
 function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
   const hasParticipantNames = summary.participants.length > 0
+  // landr-78i5e.8 review fix (MAJOR): `periods` is optional/best-effort —
+  // an older API deploy, or any periods_for_booking lookup failure,
+  // yields it absent/[]. The widget and API promote independently
+  // (Cloudflare Pages vs Cloud Run), so deploy skew alone can trigger
+  // this. Losing the hotel check-in/check-out date to that is not
+  // acceptable degradation, so the stay-window line below is the
+  // fallback, not deleted outright.
+  const hasPeriods = Boolean(summary.periods && summary.periods.length > 0)
   return (
     <div
       data-testid="confirmation-summary"
@@ -526,11 +534,20 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
               {product.label}
               {product.qty > 1 ? ` × ${product.qty}` : ''}
             </span>
-            {product.selected_days && product.selected_days.length > 0 ? (
-              <DayChips dates={product.selected_days} locale={locale} />
-            ) : null}
           </div>
         ))}
+        {/*
+          landr-78i5e.8: the arrival/activity/departure schedule replaces
+          the old per-product DayChips above, and the hotel stay-window
+          line below (check_in/check_out now show as the arrival/departure
+          rows) — same derivation as the confirmation email, never
+          re-derived here. When absent/empty (older API deploy, or a
+          periods_for_booking lookup failure), the stay-window line in the
+          hotel block below is the fallback — see hasPeriods.
+        */}
+        {hasPeriods && summary.periods ? (
+          <PeriodsTable periods={summary.periods} locale={locale} />
+        ) : null}
         {summary.dates.label ? (
           <p
             className="text-muted-foreground"
@@ -556,7 +573,7 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
             data-testid="confirmation-hotel"
             className="rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/40"
           >
-            {summary.hotel.stay_window ? (
+            {!hasPeriods && summary.hotel.stay_window ? (
               <p className="mb-1 text-xs text-muted-foreground">
                 {formatDayLabel(summary.hotel.stay_window.check_in, locale)} →{' '}
                 {formatDayLabel(summary.hotel.stay_window.check_out, locale)},{' '}
