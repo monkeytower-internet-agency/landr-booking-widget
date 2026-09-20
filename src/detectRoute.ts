@@ -9,6 +9,7 @@
  *   /offer/{token}          → renders OfferPage          (review offer + Accept & Pay)
  *   /pay/{token}            → renders OfferPage in mode="pay" (pay outstanding balance_due)
  *   /reply/{token}/{intent} → renders ApprovalReplyPage  (hotel YES/NO/CHANGES reply)
+ *   /i/{token}              → the booking flow, as an INVITE (landr-5lrov)
  *
  * Any other path falls through to the normal booking flow.
  *
@@ -39,6 +40,19 @@ const CANCEL_PATH_RE = /^\/cancel\/([0-9a-fA-F-]+)\/?$/
 const OFFER_PATH_RE = /^\/offer\/([^/]+)\/?$/
 const PAY_PATH_RE = /^\/pay\/([^/]+)\/?$/
 const REPLY_PATH_RE = /^\/reply\/([^/]+)(?:\/(yes|no|changes))?\/?$/
+// landr-5lrov: the short invite link. `/i/{token}` is NOT a separate page —
+// it is the ordinary booking flow entered through an invite, so it is read by
+// readQueryParams (as an alias for `?invite=`) rather than returned as a route
+// kind here. The token is in the path for the same reason `/reply/{token}` is:
+// link-rewriting security gateways mangle query strings, and it keeps the link
+// short enough to paste into WhatsApp without wrapping.
+const INVITE_PATH_RE = /^\/i\/([^/]+)\/?$/
+
+/** The invite token of a `/i/{token}` URL, or null for any other path. */
+export function invitePathToken(pathname: string): string | null {
+  const m = INVITE_PATH_RE.exec(pathname)
+  return m ? decodeURIComponent(m[1]) : null
+}
 
 export function detectRoute(pathname: string):
   | { kind: 'cancel'; bookingId: string }
