@@ -1439,9 +1439,12 @@ export interface BookingSummary {
   post_booking?: PostBookingContent[]
   /**
    * landr-78i5e.1: the arrival/activity/departure periods table — see
-   * BookingPeriod. Absent on an older API deploy; Confirmation falls back
-   * to the legacy per-product day chips + hotel stay-window line in that
-   * case (same graceful-degrade convention as `post_booking`).
+   * BookingPeriod. Best-effort/optional: absent or `[]` on an older API
+   * deploy, or on a periods_for_booking lookup failure. landr-78i5e.8
+   * review fix (MAJOR): Confirmation must not go dateless when this is
+   * empty — it falls back to the hotel check-in/check-out stay-window
+   * line (the old per-product DayChips are NOT restored; those dates were
+   * always redundant with `dates.label` above them).
    */
   periods?: BookingPeriod[]
 }

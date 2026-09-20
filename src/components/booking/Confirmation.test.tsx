@@ -330,7 +330,7 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
 
   /** A gap (opted-out day) between two booked activity days splits the run
    * into two `activity` periods — see booking_periods.py's module
-   * docstring. Five rows total: arrival, activity, activity, departure. */
+   * docstring. Four rows total: arrival, activity, activity, departure. */
   function gappedPeriods(): BookingPeriod[] {
     return [
       consecutivePeriods()[0],
@@ -412,6 +412,46 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+  })
+
+  // landr-78i5e.8 review fix (MAJOR): periods is best-effort/optional — an
+  // older API deploy, or any periods_for_booking lookup failure, leaves it
+  // absent/[]. The widget and API promote independently (Cloudflare Pages
+  // vs Cloud Run), so this can happen even on a fully-current API. Losing
+  // the hotel check-in/check-out date to that is not acceptable
+  // degradation, so it must fall back to the stay-window line.
+  it('falls back to the hotel stay-window line when summary.periods is absent', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: undefined,
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-hotel')).toHaveTextContent('4 nights')
+  })
+
+  it('falls back to the hotel stay-window line when summary.periods is an empty array', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: [],
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-hotel')).toHaveTextContent('4 nights')
   })
 
   // ------------------------------------------------------------------
