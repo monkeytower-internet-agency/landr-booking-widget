@@ -5,6 +5,7 @@ import { Confirmation } from './Confirmation'
 import { HttpError } from '@/api/client'
 import type {
   BookingCalendarEvent,
+  BookingPeriod,
   BookingSummary,
   GroupSummary,
   InviteSummary,
@@ -265,6 +266,9 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     const response = baseResponse({
       summary: baseSummary({
         hotel: {
+          // landr-78i5e.8: the stay window itself now renders via the
+          // periods table (arrival/departure rows), not this room block —
+          // see the "periods" describe below.
           stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
           rooms: [
             { label: 'Double Room', qty: 1, addons: [{ label: 'Breakfast', qty: 2 }] },
@@ -276,7 +280,6 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     const hotel = screen.getByTestId('confirmation-hotel')
-    expect(hotel).toHaveTextContent('4 nights')
     expect(hotel).toHaveTextContent('Double Room')
     expect(hotel).toHaveTextContent('Breakfast')
   })
@@ -286,6 +289,129 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.queryByTestId('confirmation-hotel')).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-78i5e.8: periods table (replaces per-product DayChips + the
+  // separate hotel stay-window line)
+  // ------------------------------------------------------------------
+
+  function consecutivePeriods(): BookingPeriod[] {
+    return [
+      {
+        kind: 'arrival',
+        start_date: '2026-06-14',
+        end_date: '2026-06-14',
+        label: 'Arrival',
+        product_name: null,
+        days: 1,
+        meta: {},
+      },
+      {
+        kind: 'activity',
+        start_date: '2026-06-15',
+        end_date: '2026-06-17',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 3,
+        meta: {},
+      },
+      {
+        kind: 'departure',
+        start_date: '2026-06-18',
+        end_date: '2026-06-18',
+        label: 'Departure',
+        product_name: null,
+        days: 1,
+        meta: {},
+      },
+    ]
+  }
+
+  /** A gap (opted-out day) between two booked activity days splits the run
+   * into two `activity` periods — see booking_periods.py's module
+   * docstring. Five rows total: arrival, activity, activity, departure. */
+  function gappedPeriods(): BookingPeriod[] {
+    return [
+      consecutivePeriods()[0],
+      {
+        kind: 'activity',
+        start_date: '2026-06-15',
+        end_date: '2026-06-15',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 1,
+        meta: {},
+      },
+      {
+        kind: 'activity',
+        start_date: '2026-06-17',
+        end_date: '2026-06-17',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 1,
+        meta: {},
+      },
+      consecutivePeriods()[2],
+    ]
+  }
+
+  it('renders the three-row consecutive shape (arrival, activity, departure)', () => {
+    const response = baseResponse({
+      summary: baseSummary({ periods: consecutivePeriods() }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const periods = screen.getByTestId('confirmation-periods')
+    const rows = periods.querySelectorAll('li')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('Arrival')
+    expect(rows[1]).toHaveTextContent('Tandem Classic')
+    expect(rows[2]).toHaveTextContent('Departure')
+  })
+
+  it('renders the gapped shape as two separate activity rows', () => {
+    const response = baseResponse({
+      summary: baseSummary({ periods: gappedPeriods() }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const periods = screen.getByTestId('confirmation-periods')
+    const rows = periods.querySelectorAll('li')
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toHaveTextContent('Arrival')
+    expect(rows[1]).toHaveTextContent('Tandem Classic')
+    expect(rows[2]).toHaveTextContent('Tandem Classic')
+    expect(rows[3]).toHaveTextContent('Departure')
+  })
+
+  it('folds the hotel stay window into the periods table, not a separate line', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: consecutivePeriods(),
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    // The old standalone "check_in → check_out, N nights" line is gone —
+    // that information now lives in the periods table's arrival/departure
+    // rows instead.
+    expect(screen.getByTestId('confirmation-hotel')).not.toHaveTextContent(
+      '4 nights',
+    )
+    expect(screen.getByTestId('confirmation-periods')).toBeInTheDocument()
+  })
+
+  it('omits the periods table when summary.periods is absent (older API deploy)', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
   })
 
   // ------------------------------------------------------------------

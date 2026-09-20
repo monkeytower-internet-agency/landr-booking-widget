@@ -1374,6 +1374,30 @@ export interface PostBookingContent {
 }
 
 /**
+ * landr-78i5e.1/.8: one row of `BookingSummary.periods` — the arrival/
+ * activity/departure schedule that replaces the raw `selected_days` day
+ * chips on the confirmation screen (and, per booking, in the confirmation
+ * email — same derivation, see `app/services/booking_periods.py`).
+ *
+ * Rows arrive already ordered: arrival, then activity periods by
+ * `start_date`, then departure. A gap between two booked activity days
+ * splits the run into two `activity` rows, so a single consecutive booking
+ * yields exactly three rows total. `product_name` is `null` for
+ * arrival/departure, and "A + B" when several products share a run's days.
+ * `label` is the server-localized display string (falls back to English
+ * for locales beyond en/de) — prefer it over building one from `kind`.
+ */
+export interface BookingPeriod {
+  kind: 'arrival' | 'activity' | 'departure'
+  start_date: string
+  end_date: string
+  label: string
+  product_name: string | null
+  days: number
+  meta: Record<string, unknown>
+}
+
+/**
  * What was booked (landr-nva1a.1/.4) — built by the same server-side
  * builder that feeds the booking confirmation email, so the success
  * screen and the email agree verbatim. Money fields are bare decimal
@@ -1413,6 +1437,13 @@ export interface BookingSummary {
    * (render nothing for step 7 of the success screen).
    */
   post_booking?: PostBookingContent[]
+  /**
+   * landr-78i5e.1: the arrival/activity/departure periods table — see
+   * BookingPeriod. Absent on an older API deploy; Confirmation falls back
+   * to the legacy per-product day chips + hotel stay-window line in that
+   * case (same graceful-degrade convention as `post_booking`).
+   */
+  periods?: BookingPeriod[]
 }
 
 /**
