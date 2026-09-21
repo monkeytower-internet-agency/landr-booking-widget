@@ -5,8 +5,19 @@ import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
  * landr-l38a4: how far ahead the date pickers fetch availability. Was 60
  * days, which hid any season starting later than that — the customer landed
  * on an empty calendar with nothing to book.
+ *
+ * landr-widget-smoke-fix: landr-l38a4 originally set this to 365, but
+ * landr-api's public_get_product_availability RPC hard-caps the requested
+ * range at 90 days (`(p_to - p_from) <= 90`, stable across
+ * 20260512190528_public_rpcs.sql / 20260902040000_.../
+ * 20260914114000_...) and returns ZERO rows — not an error — for any wider
+ * window. A 365-day fetch silently came back empty for every product,
+ * which is what broke the widget-booking-smoke CI check (every day cell in
+ * Sep/Oct/Nov 2026 read as unavailable) and would have broken every real
+ * booking flow the same way had this reached staging/main. 90 is the
+ * widest window the API actually serves.
  */
-export const AVAILABILITY_HORIZON_DAYS = 365
+export const AVAILABILITY_HORIZON_DAYS = 90
 
 /** Local-midnight "today". */
 export function startOfToday(): Date {
