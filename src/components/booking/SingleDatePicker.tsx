@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
-import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import type { ForceReason } from '@/lib/strings'
+import { singleDateGate, tr, type ForceReason } from '@/lib/strings'
 import {
   Card,
   CardContent,
@@ -14,8 +13,16 @@ import {
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import {
+  availabilityWindow,
+  startOfToday,
+  useNothingBeforeNotice,
+  useStartMonth,
+} from '@/components/booking/calendarStart'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { NextAction } from '@/components/booking/NextAction'
+import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
@@ -47,8 +54,6 @@ interface Props {
   initialSelectedDays?: string[]
 }
 
-const HORIZON_DAYS = 60
-
 /**
  * Picker for service products with service_time_shape='single_date' (landr-y9k).
  *
@@ -77,11 +82,8 @@ export function SingleDatePicker({
   )
 
   const { fromIso, toIso, today } = useMemo(() => {
-    const from = new Date()
-    from.setHours(0, 0, 0, 0)
-    const to = new Date(from)
-    to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to), today: from }
+    const from = startOfToday()
+    return { ...availabilityWindow(from), today: from }
   }, [])
 
   useEffect(() => {
@@ -124,6 +126,13 @@ export function SingleDatePicker({
         .map((slot) => slot.date),
     )
   }, [slots, product.hotel_offering])
+
+  // landr-l38a4: open on the restored pick, else the first bookable day.
+  const [month, setMonth] = useStartMonth(
+    selected ? [isoDate(selected)] : [],
+    availableSet,
+  )
+  const nothingBefore = useNothingBeforeNotice(availableSet)
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. A date with no matching slot at all (outside the
@@ -203,59 +212,68 @@ export function SingleDatePicker({
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
-        <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}. Click a date
-          to continue.
-        </CardDescription>
+        <CardDescription>Available days for {product.name}.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Calendar
-          mode="single"
-          selected={selected ?? undefined}
-          onSelect={handleSelect}
-          // landr-aoak.2: in staff mode, zero-availability (sold-out / blocked)
-          // days stay SELECTABLE so the operator can force-book them. Past dates
-          // remain disabled for everyone. Normal customers keep today's exact
-          // behaviour (both predicates apply).
-          disabled={(date) =>
-            date < today || (!canForce && !availableSet.has(isoDate(date)))
-          }
-          defaultMonth={today}
-        />
-        {selected ? (
-          // landr-3mo4: selected date confirmed in a tinted (borderless) chip
-          // so the choice reads as committed, not as muted helper text.
-          <div className="flex flex-wrap items-center gap-2">
+        {/* landr-80ubl.2: one-next-action rule — the calendar owns the ring
+            until a date is picked, then ContinueAction (active by default)
+            takes over. */}
+        <NextAction active={selected === null} cue={tr('singleDatePickerCue')}>
+          <Calendar
+            mode="single"
+            selected={selected ?? undefined}
+            onSelect={handleSelect}
+            // landr-aoak.2: in staff mode, zero-availability (sold-out / blocked)
+            // days stay SELECTABLE so the operator can force-book them. Past dates
+            // remain disabled for everyone. Normal customers keep today's exact
+            // behaviour (both predicates apply).
+            disabled={(date) =>
+              date < today || (!canForce && !availableSet.has(isoDate(date)))
+            }
+            month={month}
+            onMonthChange={setMonth}
+          />
+          {nothingBefore ? (
             <p
-              className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground"
-              data-testid="single-date-selected"
+              className="text-xs text-muted-foreground"
+              data-testid="calendar-nothing-before"
             >
-              Selected: {isoDate(selected)}
+              {nothingBefore}
             </p>
-            {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
-          </div>
-        ) : null}
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            disabled={selected === null}
-            onClick={() => {
-              if (selected) {
-                const iso = isoDate(selected)
-                // landr-aoak.2: pass forcedDays ONLY when the selection was
-                // force-booked, so the normal path calls onConfirm([iso]) with
-                // exactly one argument (byte-identical to before).
-                if (selectedForceReasons.length > 0) {
-                  onConfirm([iso], [iso], selectedForceReasons)
-                } else {
-                  onConfirm([iso])
-                }
+          ) : null}
+          {selected ? (
+            // landr-3mo4: selected date confirmed in a tinted (borderless) chip
+            // so the choice reads as committed, not as muted helper text.
+            <div className="flex flex-wrap items-center gap-2">
+              <p
+                className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground"
+                data-testid="single-date-selected"
+              >
+                Selected: {isoDate(selected)}
+              </p>
+              {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
+            </div>
+          ) : null}
+        </NextAction>
+        <ContinueAction
+          ready={selected !== null}
+          reason={singleDateGate(selected !== null)}
+          reasonId="single-date-picker-gate"
+          onContinue={() => {
+            if (selected) {
+              const iso = isoDate(selected)
+              // landr-aoak.2: pass forcedDays ONLY when the selection was
+              // force-booked, so the normal path calls onConfirm([iso]) with
+              // exactly one argument (byte-identical to before).
+              if (selectedForceReasons.length > 0) {
+                onConfirm([iso], [iso], selectedForceReasons)
+              } else {
+                onConfirm([iso])
               }
-            }}
-          >
-            Continue
-          </Button>
-        </div>
+            }
+          }}
+          data-testid="single-date-picker-submit"
+        />
       </CardContent>
     </Card>
   )

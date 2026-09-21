@@ -226,3 +226,30 @@ describe('FixedDateWindowPicker', () => {
     expect(days).toEqual(['2027-07-07', '2027-07-08', '2027-07-09', '2027-07-10'])
   })
 })
+
+describe('FixedDateWindowPicker — next action + zen (landr-80ubl.2)', () => {
+  it('moves the one active NextAction from the window list to Continue once a window is picked', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-1', start_date: '2027-07-07', end_date: '2027-07-13', capacity: 8, capacity_reserved: 0 },
+    ])
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/Jul 7, 2027/)).toBeInTheDocument())
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: choose a window',
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Jul 7, 2027/ }))
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent('Next: continue')
+  })
+})

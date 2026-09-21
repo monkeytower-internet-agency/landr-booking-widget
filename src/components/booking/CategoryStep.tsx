@@ -37,6 +37,8 @@ import { useViewMode } from './browse/useViewMode'
 import { useVariant } from '@/lib/variant'
 import { browserLocale } from '@/lib/locale'
 import { cn } from '@/lib/utils'
+import { tr } from '@/lib/strings'
+import { NextAction } from './NextAction'
 import { TILE_FONT_FAMILY_MAP, type TileFontKey } from '@/lib/tileFont'
 import {
   TILE_RADIUS_CLASS_MAP,
@@ -230,45 +232,50 @@ export function CategoryStep({
         <ViewToggle value={view} onChange={setView} />
       </div>
 
-      {view === 'grid' ? (
-        <ul
-          className={cn('grid list-none', gridCols, gridGap)}
-          data-testid="category-grid"
-        >
-          {visible.map((group) => (
-            <li key={group.id}>
-              <CategoryTile
-                group={group}
-                locale={locale}
-                onPick={onPick}
-                titleFontStyle={titleFontStyle}
-                titleCaseClass={titleCaseClass}
-                tileRadiusClass={tileRadiusClass}
-                tileAspectClass={tileAspectClass}
-                tileScrim={tileScrimResolved}
-                tileHover={tileHoverResolved}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul
-          className={cn('flex list-none flex-col', gridGap)}
-          data-testid="category-list"
-        >
-          {visible.map((group) => (
-            <li key={group.id}>
-              <CategoryTileRow
-                group={group}
-                locale={locale}
-                onPick={onPick}
-                titleFontStyle={titleFontStyle}
-                titleCaseClass={titleCaseClass}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* landr-80ubl.2: one-next-action rule — picking a tile navigates
+          straight on, so the whole grid/list IS the one pending control
+          until the customer taps a tile. */}
+      <NextAction active cue={tr('categoryStepCue')}>
+        {view === 'grid' ? (
+          <ul
+            className={cn('grid list-none', gridCols, gridGap)}
+            data-testid="category-grid"
+          >
+            {visible.map((group) => (
+              <li key={group.id}>
+                <CategoryTile
+                  group={group}
+                  locale={locale}
+                  onPick={onPick}
+                  titleFontStyle={titleFontStyle}
+                  titleCaseClass={titleCaseClass}
+                  tileRadiusClass={tileRadiusClass}
+                  tileAspectClass={tileAspectClass}
+                  tileScrim={tileScrimResolved}
+                  tileHover={tileHoverResolved}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul
+            className={cn('flex list-none flex-col', gridGap)}
+            data-testid="category-list"
+          >
+            {visible.map((group) => (
+              <li key={group.id}>
+                <CategoryTileRow
+                  group={group}
+                  locale={locale}
+                  onPick={onPick}
+                  titleFontStyle={titleFontStyle}
+                  titleCaseClass={titleCaseClass}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </NextAction>
     </div>
   )
 }

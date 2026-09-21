@@ -16,6 +16,8 @@ import { ProductRow } from '@/components/booking/browse/ProductRow'
 import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
 import { ViewToggle } from '@/components/booking/browse/ViewToggle'
 import { useViewMode } from '@/components/booking/browse/useViewMode'
+import { tr } from '@/lib/strings'
+import { NextAction } from '@/components/booking/NextAction'
 
 interface Props {
   operatorToken: string
@@ -164,59 +166,63 @@ export function ProductList({
         <ViewToggle value={view} onChange={setView} />
       </div>
 
-      <div
-        className={
-          view === 'grid' ? 'grid gap-4 sm:grid-cols-2' : 'flex flex-col gap-3'
-        }
-        data-testid={`product-${view}`}
-      >
-        {visible.map((product) => {
-          // landr-7jgo: sold-out card — informational only, no picker / CTA.
-          // Only reachable here when showSoldOut is true (soldOut is empty
-          // otherwise), so we never hide a bookable product behind this branch.
-          // Reused in BOTH layouts so the "Fully booked" contract (badge, no
-          // Select) holds whether the catalogue is in grid or list view.
-          if (!isBookable(product)) {
-            const name = pickLocalized(
-              product.name,
-              product.name_localized,
-              locale,
-            )
-            const description =
-              pickLocalized(
-                product.short_description,
-                product.short_description_localized,
+      {/* landr-80ubl.2: one-next-action rule — selecting a card navigates
+          straight into the picker, so the list IS the one pending control. */}
+      <NextAction active cue={tr('productListCue')}>
+        <div
+          className={
+            view === 'grid' ? 'grid gap-4 sm:grid-cols-2' : 'flex flex-col gap-3'
+          }
+          data-testid={`product-${view}`}
+        >
+          {visible.map((product) => {
+            // landr-7jgo: sold-out card — informational only, no picker / CTA.
+            // Only reachable here when showSoldOut is true (soldOut is empty
+            // otherwise), so we never hide a bookable product behind this branch.
+            // Reused in BOTH layouts so the "Fully booked" contract (badge, no
+            // Select) holds whether the catalogue is in grid or list view.
+            if (!isBookable(product)) {
+              const name = pickLocalized(
+                product.name,
+                product.name_localized,
                 locale,
-              ) || null
-            return (
-              <FullyBookedNotice
+              )
+              const description =
+                pickLocalized(
+                  product.short_description,
+                  product.short_description_localized,
+                  locale,
+                ) || null
+              return (
+                <FullyBookedNotice
+                  key={product.product_id}
+                  name={name}
+                  description={description}
+                  compact
+                />
+              )
+            }
+
+            return view === 'grid' ? (
+              <ProductCard
                 key={product.product_id}
-                name={name}
-                description={description}
-                compact
+                product={product}
+                locale={locale}
+                showDateModel={showDateModel}
+                onSelect={onSelect}
+              />
+            ) : (
+              <ProductRow
+                key={product.product_id}
+                product={product}
+                locale={locale}
+                showDateModel={showDateModel}
+                onSelect={onSelect}
               />
             )
-          }
-
-          return view === 'grid' ? (
-            <ProductCard
-              key={product.product_id}
-              product={product}
-              locale={locale}
-              showDateModel={showDateModel}
-              onSelect={onSelect}
-            />
-          ) : (
-            <ProductRow
-              key={product.product_id}
-              product={product}
-              locale={locale}
-              showDateModel={showDateModel}
-              onSelect={onSelect}
-            />
-          )
-        })}
-      </div>
+          })}
+        </div>
+      </NextAction>
     </div>
   )
 }

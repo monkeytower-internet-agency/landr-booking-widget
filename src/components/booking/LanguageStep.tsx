@@ -32,7 +32,6 @@
  * rules that keep the common cases down to one gesture.
  */
 import { useCallback, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -41,7 +40,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { languageStepCue, languageStepGate, tr } from '@/lib/strings'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
+import { HelpDisclosure } from './HelpDisclosure'
+import { OptionalReveal } from './OptionalReveal'
 import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
 import {
   applyLanguageAssignment,
@@ -74,6 +79,20 @@ export interface LanguageStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
+  /**
+   * landr-8sk6l: the operator form's optional "Other languages spoken" field,
+   * asked here beside the board instead of on the later custom-form step. The
+   * value lives in App.tsx's draft (the form's own answer slot) and is written
+   * live, like the comment. Absent when the product's flow declares no such
+   * field — then nothing renders.
+   */
+  otherLanguages?: {
+    label: string
+    helpText?: string | null
+    maxLength?: number | null
+    value: string
+    onChange: (value: string) => void
+  }
   onBack: () => void
   onConfirm: (assignment: ParticipantLanguageMap) => void
 }
@@ -110,6 +129,7 @@ export function LanguageStep({
   initialAssignment,
   customerComment = '',
   onCustomerCommentChange = () => {},
+  otherLanguages,
   onBack,
   onConfirm,
 }: LanguageStepProps) {
@@ -175,18 +195,27 @@ export function LanguageStep({
   }, [])
 
   const gateId = 'language-step-gate'
+  // landr-80ubl.1: one next action per screen — the board while anyone is
+  // unplaced, Continue (via ContinueAction) once everyone is.
+  const nextActionCue = complete ? null : languageStepCue(unassignedLabels, started)
 
   return (
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Guide language</CardTitle>
-        <CardDescription>
-          {productName} · who speaks what, so the guide briefs everyone in a
-          language they understand
-        </CardDescription>
+        <CardDescription>{productName}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        {/* landr-80ubl.1: zen by default — the why and the how-to sit behind
+            the disclosure; the NextAction cue is the one-line instruction.
+            "Assign with dropdowns instead" stays where it was (inside the
+            board, already collapsed): it is the a11y fallback, not help copy. */}
+        <HelpDisclosure data-testid="language-step-help">
+          <p>{tr('languageStepWhy')}</p>
+          <p>{tr('languageStepHowTo')}</p>
+        </HelpDisclosure>
+
         <ParticipantLanguageBoard
           offeredLanguages={offeredLanguages}
           openLanguages={openLanguages}
@@ -197,47 +226,55 @@ export function LanguageStep({
           onAssignEveryone={handleAssignEveryone}
           onOpenLanguage={openColumn}
           onCloseLanguage={handleCloseLanguage}
+          nextActionCue={nextActionCue}
         />
 
-        {/* role="status" so the gate is announced when it changes — a disabled
-            Continue with a silent explanation is invisible to a screen reader.
-            The button points at it via aria-describedby, so focusing Continue
-            reads out why it cannot be pressed. */}
-        <p
-          id={gateId}
-          role="status"
-          className={
-            complete
-              ? 'text-xs text-muted-foreground'
-              : started
-                ? 'text-xs text-destructive'
-                : 'text-xs text-muted-foreground'
-          }
-          data-testid="language-step-gate"
-        >
-          {complete
-            ? 'Everyone has a language.'
-            : `Assign every participant to a language — still waiting on ${unassignedLabels.join(', ')}.`}
-        </p>
+        {otherLanguages ? (
+          <OptionalReveal
+            thing={otherLanguages.label}
+            hasValue={otherLanguages.value !== ''}
+            data-testid="language-step-other-languages-reveal"
+          >
+            <div className="flex flex-col gap-1" data-testid="language-step-other-languages">
+              <Label htmlFor="language-step-other-languages-input" className="text-xs">
+                {otherLanguages.label} (optional)
+              </Label>
+              <Input
+                id="language-step-other-languages-input"
+                data-testid="language-step-other-languages-input"
+                value={otherLanguages.value}
+                maxLength={otherLanguages.maxLength ?? undefined}
+                onChange={(e) => otherLanguages.onChange(e.target.value)}
+              />
+              {otherLanguages.helpText ? (
+                <p className="text-xs text-muted-foreground">{otherLanguages.helpText}</p>
+              ) : null}
+            </div>
+          </OptionalReveal>
+        ) : null}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
         <CustomerCommentField
           value={customerComment}
           onChange={onCustomerCommentChange}
+          collapsible
         />
 
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            onClick={() => onConfirm(assignment)}
-            disabled={!complete}
-            aria-describedby={complete ? undefined : gateId}
-            data-testid="language-step-submit"
-          >
-            Continue
-          </Button>
-        </div>
+        {/* The gate is a role="status" live region the disabled Continue
+            points at (aria-describedby) — a disabled button with a silent
+            explanation is invisible to a screen reader. Before the customer
+            has placed anyone it is guidance, not a failure, so it only turns
+            red once they have started. */}
+        <ContinueAction
+          ready={complete}
+          reason={languageStepGate(unassignedLabels)}
+          reasonId={gateId}
+          reasonTestId="language-step-gate"
+          reasonClassName={!complete && started ? 'text-destructive' : undefined}
+          onContinue={() => onConfirm(assignment)}
+          data-testid="language-step-submit"
+        />
       </CardContent>
     </Card>
   )

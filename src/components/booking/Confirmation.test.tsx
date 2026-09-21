@@ -5,6 +5,7 @@ import { Confirmation } from './Confirmation'
 import { HttpError } from '@/api/client'
 import type {
   BookingCalendarEvent,
+  BookingPeriod,
   BookingSummary,
   GroupSummary,
   InviteSummary,
@@ -79,7 +80,7 @@ function baseInvite(overrides: Partial<InviteSummary> = {}): InviteSummary {
     email: 'thomas@example.com',
     phone: '+49 151 2345678',
     phone_digits: '491512345678',
-    invite_url: 'https://widget.dev.landr.de/?invite=tok_abc123',
+    invite_url: 'https://widget.dev.landr.de/i/tok_abc123',
     whatsapp_url:
       'https://wa.me/491512345678?text=https%3A%2F%2Fwidget.dev.landr.de%2F%3Finvite%3Dtok_abc123',
     linked_booking_reference: null,
@@ -265,6 +266,9 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     const response = baseResponse({
       summary: baseSummary({
         hotel: {
+          // landr-78i5e.8: the stay window itself now renders via the
+          // periods table (arrival/departure rows), not this room block —
+          // see the "periods" describe below.
           stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
           rooms: [
             { label: 'Double Room', qty: 1, addons: [{ label: 'Breakfast', qty: 2 }] },
@@ -276,7 +280,6 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     const hotel = screen.getByTestId('confirmation-hotel')
-    expect(hotel).toHaveTextContent('4 nights')
     expect(hotel).toHaveTextContent('Double Room')
     expect(hotel).toHaveTextContent('Breakfast')
   })
@@ -286,6 +289,169 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(screen.queryByTestId('confirmation-hotel')).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-78i5e.8: periods table (replaces per-product DayChips + the
+  // separate hotel stay-window line)
+  // ------------------------------------------------------------------
+
+  function consecutivePeriods(): BookingPeriod[] {
+    return [
+      {
+        kind: 'arrival',
+        start_date: '2026-06-14',
+        end_date: '2026-06-14',
+        label: 'Arrival',
+        product_name: null,
+        days: 1,
+        meta: {},
+      },
+      {
+        kind: 'activity',
+        start_date: '2026-06-15',
+        end_date: '2026-06-17',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 3,
+        meta: {},
+      },
+      {
+        kind: 'departure',
+        start_date: '2026-06-18',
+        end_date: '2026-06-18',
+        label: 'Departure',
+        product_name: null,
+        days: 1,
+        meta: {},
+      },
+    ]
+  }
+
+  /** A gap (opted-out day) between two booked activity days splits the run
+   * into two `activity` periods — see booking_periods.py's module
+   * docstring. Four rows total: arrival, activity, activity, departure. */
+  function gappedPeriods(): BookingPeriod[] {
+    return [
+      consecutivePeriods()[0],
+      {
+        kind: 'activity',
+        start_date: '2026-06-15',
+        end_date: '2026-06-15',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 1,
+        meta: {},
+      },
+      {
+        kind: 'activity',
+        start_date: '2026-06-17',
+        end_date: '2026-06-17',
+        label: 'Tandem Classic',
+        product_name: 'Tandem Classic',
+        days: 1,
+        meta: {},
+      },
+      consecutivePeriods()[2],
+    ]
+  }
+
+  it('renders the three-row consecutive shape (arrival, activity, departure)', () => {
+    const response = baseResponse({
+      summary: baseSummary({ periods: consecutivePeriods() }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const periods = screen.getByTestId('confirmation-periods')
+    const rows = periods.querySelectorAll('li')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('Arrival')
+    expect(rows[1]).toHaveTextContent('Tandem Classic')
+    expect(rows[2]).toHaveTextContent('Departure')
+  })
+
+  it('renders the gapped shape as two separate activity rows', () => {
+    const response = baseResponse({
+      summary: baseSummary({ periods: gappedPeriods() }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const periods = screen.getByTestId('confirmation-periods')
+    const rows = periods.querySelectorAll('li')
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toHaveTextContent('Arrival')
+    expect(rows[1]).toHaveTextContent('Tandem Classic')
+    expect(rows[2]).toHaveTextContent('Tandem Classic')
+    expect(rows[3]).toHaveTextContent('Departure')
+  })
+
+  it('folds the hotel stay window into the periods table, not a separate line', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: consecutivePeriods(),
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    // The old standalone "check_in → check_out, N nights" line is gone —
+    // that information now lives in the periods table's arrival/departure
+    // rows instead.
+    expect(screen.getByTestId('confirmation-hotel')).not.toHaveTextContent(
+      '4 nights',
+    )
+    expect(screen.getByTestId('confirmation-periods')).toBeInTheDocument()
+  })
+
+  it('omits the periods table when summary.periods is absent (older API deploy)', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+  })
+
+  // landr-78i5e.8 review fix (MAJOR): periods is best-effort/optional — an
+  // older API deploy, or any periods_for_booking lookup failure, leaves it
+  // absent/[]. The widget and API promote independently (Cloudflare Pages
+  // vs Cloud Run), so this can happen even on a fully-current API. Losing
+  // the hotel check-in/check-out date to that is not acceptable
+  // degradation, so it must fall back to the stay-window line.
+  it('falls back to the hotel stay-window line when summary.periods is absent', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: undefined,
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-hotel')).toHaveTextContent('4 nights')
+  })
+
+  it('falls back to the hotel stay-window line when summary.periods is an empty array', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        periods: [],
+        hotel: {
+          stay_window: { check_in: '2026-06-14', check_out: '2026-06-18', nights: 4 },
+          rooms: [{ label: 'Double Room', qty: 1 }],
+          total: '292.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-periods')).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-hotel')).toHaveTextContent('4 nights')
   })
 
   // ------------------------------------------------------------------
@@ -1129,6 +1295,18 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     expect(whatsapp).toHaveAttribute('target', '_blank')
     expect(screen.getByTestId('invite-email')).toBeInTheDocument()
     expect(screen.getByTestId('invite-copy')).toBeInTheDocument()
+  })
+
+  it('leads with the invites as a headed call to action (landr-8sk6l)', () => {
+    const response = baseResponse({
+      share_secret: 'secret-abc',
+      invites: [baseInvite()],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const section = screen.getByTestId('confirmation-invites')
+    expect(section).toHaveAccessibleName('Next step: send your group their booking link')
+    // Solid primary buttons, not the outline style of secondary actions.
+    expect(screen.getByTestId('invite-email').className).toMatch(/\bbg-primary\b/)
   })
 
   it('falls back to the WhatsApp share-sheet link (no phone) exactly as given', () => {

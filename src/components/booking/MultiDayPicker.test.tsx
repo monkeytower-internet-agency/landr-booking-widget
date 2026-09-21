@@ -475,6 +475,9 @@ describe('MultiDayPicker', () => {
         defaultMonth={defaultMonth}
       />,
     )
+    // landr-80ubl.2: zen by default — the help text sits behind the
+    // HelpDisclosure toggle, collapsed on arrival.
+    fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
       'Custom help string',
     )
@@ -489,6 +492,7 @@ describe('MultiDayPicker', () => {
         defaultMonth={defaultMonth}
       />,
     )
+    fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
       /tap a start date/i,
     )
@@ -504,6 +508,7 @@ describe('MultiDayPicker', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /individual days/i }))
+    fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
     expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
       /tap days to add or remove/i,
     )
@@ -539,6 +544,7 @@ describe('MultiDayPicker', () => {
           isContiguous
         />,
       )
+      fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
       expect(screen.getByTestId('multi-day-help')).toHaveTextContent(
         /consecutive days/i,
       )

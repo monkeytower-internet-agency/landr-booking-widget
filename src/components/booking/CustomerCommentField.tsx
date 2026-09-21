@@ -1,4 +1,5 @@
 import { tr } from '@/lib/strings'
+import { OptionalReveal } from './OptionalReveal'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -12,6 +13,12 @@ export interface CustomerCommentFieldProps {
   /** Current value. '' when empty — callers fold '' <-> null at the draft boundary. */
   value: string
   onChange: (value: string) => void
+  /**
+   * landr-80ubl.1: zen by default — collapse behind "+ Add a note for us"
+   * (OptionalReveal) until clicked; a non-empty value keeps it open.
+   * Opt-in per step so steps not yet rolled out keep the open field.
+   */
+  collapsible?: boolean
 }
 
 /**
@@ -32,8 +39,9 @@ export interface CustomerCommentFieldProps {
 export function CustomerCommentField({
   value,
   onChange,
+  collapsible = false,
 }: CustomerCommentFieldProps) {
-  return (
+  const field = (
     <div className="flex flex-col gap-1" data-testid="customer-comment-section">
       <Label htmlFor="customer-comment" className="text-xs">
         Anything we should know? (optional)
@@ -61,5 +69,15 @@ export function CustomerCommentField({
         </p>
       </div>
     </div>
+  )
+  if (!collapsible) return field
+  return (
+    <OptionalReveal
+      thing={tr('customerCommentAdd')}
+      hasValue={value !== ''}
+      data-testid="customer-comment-reveal"
+    >
+      {field}
+    </OptionalReveal>
   )
 }

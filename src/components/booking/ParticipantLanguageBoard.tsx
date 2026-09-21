@@ -63,6 +63,7 @@ import {
   unassignedMemberIndices,
   type ParticipantLanguageMap,
 } from './participantLanguages'
+import { NextAction } from './NextAction'
 
 /**
  * `pointerWithin` alone is wrong here even though the room board uses it:
@@ -102,6 +103,11 @@ interface Props {
   onOpenLanguage: (code: string) => void
   /** Remove an EMPTY column. */
   onCloseLanguage: (code: string) => void
+  /**
+   * landr-80ubl.1: while non-null, the work area (tray, columns, flag row) is
+   * the step's active NextAction with this cue. null once everyone is placed.
+   */
+  nextActionCue?: string | null
 }
 
 /** Accent colour per member — same stable hue the room board gives them. */
@@ -439,10 +445,10 @@ function FlagDropChip({
       aria-label={ariaLabel}
       data-testid={`lang-add-${code}`}
       className={[
-        'inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-sm transition-colors',
+        'inline-flex items-center gap-1 rounded-full border bg-card px-3 py-1 text-sm font-medium transition-colors',
         isOver
           ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-          : 'border-border hover:border-primary hover:bg-primary/5',
+          : 'border-primary/60 text-primary hover:border-primary hover:bg-primary/5',
       ].join(' ')}
     >
       <span aria-hidden>{languageFlag(code)}</span>
@@ -461,6 +467,7 @@ export function ParticipantLanguageBoard({
   onAssignEveryone,
   onOpenLanguage,
   onCloseLanguage,
+  nextActionCue = null,
 }: Props) {
   const selectId = useId()
   // tap-to-place: the currently "picked up" member index (or null).
@@ -586,11 +593,6 @@ export function ParticipantLanguageBoard({
       onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col gap-3" data-testid="participant-language-board">
-        <p className="text-xs text-muted-foreground">
-          Tap a language to put everyone in it. To split the group, drag a
-          name onto another language — or tap a name and then tap a language.
-        </p>
-
         {/* landr-ajlwl: politely announces what a flag TAP just did. Always
             mounted (not inside the closedLanguages block below) so it survives
             tapping the very last closed flag, which removes that block. */}
@@ -603,67 +605,74 @@ export function ParticipantLanguageBoard({
           {tapAnnouncement}
         </span>
 
-        <UnassignedTray
-          unassigned={unassigned}
-          participantNames={participantNames}
-          guestFlags={guestFlags}
-          offeredLanguages={offeredLanguages}
-          selectedChip={selectedChip}
-          selectId={selectId}
-          onSelectChip={(idx) =>
-            setSelectedChip((cur) => (cur === idx ? null : idx))
-          }
-          onPlaceSelectedHere={() => placeSelected(null)}
-          onAssign={onAssign}
-        />
+        <NextAction
+          active={nextActionCue !== null}
+          cue={nextActionCue ?? ''}
+          className="gap-3"
+          data-testid="lang-next-action"
+        >
+          <UnassignedTray
+            unassigned={unassigned}
+            participantNames={participantNames}
+            guestFlags={guestFlags}
+            offeredLanguages={offeredLanguages}
+            selectedChip={selectedChip}
+            selectId={selectId}
+            onSelectChip={(idx) =>
+              setSelectedChip((cur) => (cur === idx ? null : idx))
+            }
+            onPlaceSelectedHere={() => placeSelected(null)}
+            onAssign={onAssign}
+          />
 
-        {openLanguages.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {openLanguages.map((code) => (
-              <LanguageColumn
-                key={code}
-                code={code}
-                memberIndices={membersOfLanguage(assignment, code, partyCount)}
-                participantNames={participantNames}
-                guestFlags={guestFlags}
-                selectedChip={selectedChip}
-                unassignedCount={unassigned.length}
-                onTapTarget={() => placeSelected(code)}
-                onAssign={onAssign}
-                onAssignEveryone={onAssignEveryone}
-                onCloseLanguage={onCloseLanguage}
-              />
-            ))}
-          </div>
-        ) : null}
+          {openLanguages.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {openLanguages.map((code) => (
+                <LanguageColumn
+                  key={code}
+                  code={code}
+                  memberIndices={membersOfLanguage(assignment, code, partyCount)}
+                  participantNames={participantNames}
+                  guestFlags={guestFlags}
+                  selectedChip={selectedChip}
+                  unassignedCount={unassigned.length}
+                  onTapTarget={() => placeSelected(code)}
+                  onAssign={onAssign}
+                  onAssignEveryone={onAssignEveryone}
+                  onCloseLanguage={onCloseLanguage}
+                />
+              ))}
+            </div>
+          ) : null}
 
-        {/* "Add language" chip row — the operator's offered list minus what is
-            already on screen. This is how a column comes into existence; the
-            board starts with none open (epic decision D3). landr-jr30v: each
-            chip is now ALSO a dnd-kit drop target (FlagDropChip) and its tap
-            is routed through handleFlagTap, which assigns the whole party on
-            the very first tap. The label reflects which state we're in. */}
-        {closedLanguages.length > 0 ? (
-          <div
-            className="flex flex-wrap items-center gap-2"
-            data-testid="lang-add-row"
-          >
-            <span className="text-xs text-muted-foreground">
-              {openLanguages.length === 0 ? 'Languages:' : 'Add language:'}
-            </span>
-            {closedLanguages.map((code) => (
-              <FlagDropChip
-                key={code}
-                code={code}
-                ariaLabel={flagTapLabel(
-                  resolveFlagTap(code, selectedChip, openLanguages.length),
-                  pickedUpName,
-                )}
-                onTap={() => handleFlagTap(code)}
-              />
-            ))}
-          </div>
-        ) : null}
+          {/* "Add language" chip row — the operator's offered list minus what is
+              already on screen. This is how a column comes into existence; the
+              board starts with none open (epic decision D3). landr-jr30v: each
+              chip is now ALSO a dnd-kit drop target (FlagDropChip) and its tap
+              is routed through handleFlagTap, which assigns the whole party on
+              the very first tap. The label reflects which state we're in. */}
+          {closedLanguages.length > 0 ? (
+            <div
+              className="flex flex-wrap items-center gap-2"
+              data-testid="lang-add-row"
+            >
+              <span className="text-xs text-muted-foreground">
+                {openLanguages.length === 0 ? 'Languages:' : 'Add language:'}
+              </span>
+              {closedLanguages.map((code) => (
+                <FlagDropChip
+                  key={code}
+                  code={code}
+                  ariaLabel={flagTapLabel(
+                    resolveFlagTap(code, selectedChip, openLanguages.length),
+                    pickedUpName,
+                  )}
+                  onTap={() => handleFlagTap(code)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </NextAction>
 
         {/* Explicit per-member dropdown — the always-available a11y fallback,
             mirroring the room board's "Assign with dropdowns instead". */}

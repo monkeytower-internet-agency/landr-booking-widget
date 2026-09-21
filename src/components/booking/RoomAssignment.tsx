@@ -31,6 +31,8 @@ import {
   type RoomAssignmentMap,
   type RoomUnit,
 } from './accommodationCalc'
+import { HelpDisclosure } from './HelpDisclosure'
+import { NextAction } from './NextAction'
 
 /**
  * RoomAssignment (landr-gb2f.2) — assigns participant NAME chips to per-unit
@@ -119,6 +121,15 @@ interface Props {
    * for 'partial'-mode products; 'all'-mode breakfast is automatic.
    */
   onBreakfastAssign?: (memberIndex: number, from?: number) => void
+  /**
+   * landr-80ubl.3: one-next-action rule — the caller (AccommodationStep)
+   * computes whether anyone is still unassigned and passes the cue; the
+   * board wraps itself in NextAction just like LanguageStep's
+   * ParticipantLanguageBoard. null/absent (the AccommodationStep default
+   * once everyone is placed) renders the board inactive — Continue owns
+   * the highlight instead.
+   */
+  nextActionCue?: string | null
 }
 
 function participantLabel(names: string[], index: number): string {
@@ -614,6 +625,7 @@ export function RoomAssignment({
   perRoomAddons = {},
   breakfastMap = {},
   onBreakfastAssign,
+  nextActionCue = null,
 }: Props) {
   const selectId = useId()
   // tap-to-place: the currently "picked up" participant index (or null).
@@ -812,54 +824,64 @@ export function RoomAssignment({
     >
       <div className="flex flex-col gap-3" data-testid="room-assignment">
         <p className="text-sm font-medium">Who stays where?</p>
-        <p className="text-xs text-muted-foreground">
-          Drag a name onto a room, or tap a name then tap a room. You can also
-          use the dropdown on each name. When a room has fewer breakfasts than
-          guests, drag the Breakfast chip onto whoever gets it.
-        </p>
+        <HelpDisclosure data-testid="room-assignment-help">
+          <p>
+            Drag a name onto a room, or tap a name then tap a room. You can
+            also use the dropdown on each name. When a room has fewer
+            breakfasts than guests, drag the Breakfast chip onto whoever
+            gets it.
+          </p>
+        </HelpDisclosure>
 
-        <UnassignedTray
-          unassignedIndices={unassignedIndices}
-          participantNames={participantNames}
-          guestFlags={guestFlags}
-          units={units}
-          assignment={assignment}
-          selectedChip={selectedChip}
-          selectId={selectId}
-          onSelectChip={(idx) =>
-            setSelectedChip((cur) => (cur === idx ? null : idx))
-          }
-          onPlaceSelectedHere={() => placeSelected(null)}
-          onAssign={onAssign}
-        />
+        <NextAction
+          active={nextActionCue !== null}
+          cue={nextActionCue ?? ''}
+          className="gap-3"
+          data-testid="room-assignment-next-action"
+        >
+          <UnassignedTray
+            unassignedIndices={unassignedIndices}
+            participantNames={participantNames}
+            guestFlags={guestFlags}
+            units={units}
+            assignment={assignment}
+            selectedChip={selectedChip}
+            selectId={selectId}
+            onSelectChip={(idx) =>
+              setSelectedChip((cur) => (cur === idx ? null : idx))
+            }
+            onPlaceSelectedHere={() => placeSelected(null)}
+            onAssign={onAssign}
+          />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {units.map((unit) => {
-            const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
-            const occupants = occupantsOfUnit(assignment, unit)
-            const bf = breakfastByProduct.get(unit.roomProductId)
-            return (
-              <div key={key} className="flex flex-col gap-1">
-                <UnitDropZone
-                  unit={unit}
-                  occupantIndices={occupants}
-                  participantNames={participantNames}
-                  guestFlags={guestFlags}
-                  selectedChip={selectedChip}
-                  onTapTarget={() => placeSelected(unit)}
-                  onAssign={onAssign}
-                  ageMap={ageMap}
-                  onAgeBandChange={onAgeBandChange}
-                  breakfastMode={bf?.mode ?? 'none'}
-                  productHasBreakfast={(bf?.qty ?? 0) > 0}
-                  breakfastMap={breakfastMap}
-                  onBreakfastAssign={onBreakfastAssign}
-                  breakfastDragActive={activeBreakfast !== null}
-                />
-              </div>
-            )
-          })}
-        </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {units.map((unit) => {
+              const key = roomUnitKey(unit.roomProductId, unit.unitIndex)
+              const occupants = occupantsOfUnit(assignment, unit)
+              const bf = breakfastByProduct.get(unit.roomProductId)
+              return (
+                <div key={key} className="flex flex-col gap-1">
+                  <UnitDropZone
+                    unit={unit}
+                    occupantIndices={occupants}
+                    participantNames={participantNames}
+                    guestFlags={guestFlags}
+                    selectedChip={selectedChip}
+                    onTapTarget={() => placeSelected(unit)}
+                    onAssign={onAssign}
+                    ageMap={ageMap}
+                    onAgeBandChange={onAgeBandChange}
+                    breakfastMode={bf?.mode ?? 'none'}
+                    productHasBreakfast={(bf?.qty ?? 0) > 0}
+                    breakfastMap={breakfastMap}
+                    onBreakfastAssign={onBreakfastAssign}
+                    breakfastDragActive={activeBreakfast !== null}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </NextAction>
 
         {/* Explicit per-participant dropdown — the always-available a11y
             fallback. Lists every participant with a native <select> of all

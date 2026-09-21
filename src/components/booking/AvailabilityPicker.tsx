@@ -13,6 +13,14 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import {
+  availabilityWindow,
+  useNothingBeforeNotice,
+  useStartMonth,
+} from '@/components/booking/calendarStart'
+import { availabilityGate, tr } from '@/lib/strings'
+import { NextAction } from '@/components/booking/NextAction'
+import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
@@ -32,8 +40,6 @@ interface Props {
   initialSlot?: AvailabilitySlot
 }
 
-const HORIZON_DAYS = 60
-
 export function AvailabilityPicker({
   product,
   onBack,
@@ -51,12 +57,7 @@ export function AvailabilityPicker({
     initialSlot ? initialSlot.availability_id : null,
   )
 
-  const { fromIso, toIso } = useMemo(() => {
-    const from = new Date()
-    const to = new Date()
-    to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to) }
-  }, [])
+  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
 
   useEffect(() => {
     let cancelled = false
@@ -83,6 +84,13 @@ export function AvailabilityPicker({
         .map((s) => s.date),
     )
   }, [slots, product.hotel_offering])
+
+  // landr-l38a4: open on the restored pick, else the first bookable day.
+  const [month, setMonth] = useStartMonth(
+    selectedDate ? [isoDate(selectedDate)] : [],
+    availableDates,
+  )
+  const nothingBefore = useNothingBeforeNotice(availableDates)
 
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
@@ -112,22 +120,36 @@ export function AvailabilityPicker({
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
-        <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}.
-        </CardDescription>
+        <CardDescription>Available days for {product.name}.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={(date) => {
-            setSelectedDate(date)
-            setSelectedSlotId(null)
-          }}
-          disabled={(date) => !availableDates.has(isoDate(date))}
-        />
+        {/* landr-80ubl.2: one-next-action rule — three stages in sequence
+            (date, then time, then Continue). Each NextAction is active only
+            for its own stage; ContinueAction (active by default) takes over
+            once a time is picked. */}
+        <NextAction active={!selectedDate} cue={tr('availabilityDateCue')}>
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              setSelectedDate(date)
+              setSelectedSlotId(null)
+            }}
+            disabled={(date) => !availableDates.has(isoDate(date))}
+            month={month}
+            onMonthChange={setMonth}
+          />
+          {nothingBefore ? (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="calendar-nothing-before"
+            >
+              {nothingBefore}
+            </p>
+          ) : null}
+        </NextAction>
         {selectedDate ? (
-          <div className="flex flex-col gap-2">
+          <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue')}>
             <p className="text-sm font-medium">Times on {isoDate(selectedDate)}</p>
             {slotsForSelectedDate.length === 0 ? (
               <p className="text-sm text-muted-foreground">No times available.</p>
@@ -150,22 +172,20 @@ export function AvailabilityPicker({
                 ))}
               </div>
             )}
-          </div>
+          </NextAction>
         ) : null}
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            disabled={!selectedSlotId}
-            onClick={() => {
-              const slot = slotsForSelectedDate.find(
-                (s) => s.availability_id === selectedSlotId,
-              )
-              if (slot) onConfirm(slot)
-            }}
-          >
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={!!selectedSlotId}
+          reason={availabilityGate(!!selectedDate, !!selectedSlotId)}
+          reasonId="availability-picker-gate"
+          onContinue={() => {
+            const slot = slotsForSelectedDate.find(
+              (s) => s.availability_id === selectedSlotId,
+            )
+            if (slot) onConfirm(slot)
+          }}
+          data-testid="availability-picker-submit"
+        />
       </CardContent>
     </Card>
   )
