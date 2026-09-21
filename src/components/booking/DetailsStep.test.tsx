@@ -1697,6 +1697,9 @@ describe('DetailsStep customer comment (landr-de6ej)', () => {
         onConfirm={vi.fn()}
       />,
     )
+    // landr-80ubl.3: the field is collapsed behind "+ Add a note for us"
+    // (OptionalReveal) until opened.
+    fireEvent.click(screen.getByTestId('customer-comment-reveal-add'))
     const textarea = screen.getByTestId('customer-comment')
     expect(textarea).toHaveValue('')
     expect(
@@ -1736,6 +1739,7 @@ describe('DetailsStep customer comment (landr-de6ej)', () => {
       />,
     )
     fillBooker()
+    fireEvent.click(screen.getByTestId('customer-comment-reveal-add'))
     fireEvent.change(screen.getByTestId('customer-comment'), {
       target: { value: '  Allergic to peanuts  ' },
     })
@@ -1771,6 +1775,7 @@ describe('DetailsStep customer comment (landr-de6ej)', () => {
         onConfirm={vi.fn()}
       />,
     )
+    fireEvent.click(screen.getByTestId('customer-comment-reveal-add'))
     expect(screen.getByTestId('customer-comment')).toHaveAttribute(
       'maxLength',
       '2000',

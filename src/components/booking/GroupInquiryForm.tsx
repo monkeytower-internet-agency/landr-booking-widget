@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { submitGroupInquiry } from '@/api/client'
+import { NextAction } from './NextAction'
 
 export interface GroupInquiryFormProps {
   /** Opaque widget token — used as the {operator} path segment. */
@@ -158,6 +159,7 @@ export function GroupInquiryForm({
       data-testid="group-inquiry-form"
       noValidate
     >
+      <NextAction active={!isValid} cue="add your name and email">
       <div className="grid gap-3 sm:grid-cols-2">
         {/* Name (required) */}
         <div className="flex flex-col gap-1">
@@ -203,7 +205,10 @@ export function GroupInquiryForm({
             </p>
           ) : null}
         </div>
+      </div>
+      </NextAction>
 
+      <div className="grid gap-3 sm:grid-cols-2">
         {/* Phone (optional, landr-amg6) */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="inquiry-phone" className="text-xs">

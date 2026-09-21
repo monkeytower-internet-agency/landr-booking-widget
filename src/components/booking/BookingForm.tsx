@@ -25,6 +25,7 @@ import type {
   CompanionDetails,
   ParticipantDetails,
 } from './detailsTypes'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import { forceBookReasonMessage, type ForceReason } from '@/lib/strings'
@@ -68,7 +69,6 @@ export type BookingSelection =
       forcedReasons?: ForceReason[]
     }
 
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -1598,17 +1598,23 @@ export function BookingForm({
         <CustomerCommentField
           value={customerComment ?? ''}
           onChange={onCustomerCommentChange}
+          collapsible
         />
 
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            onClick={() => void onConfirm()}
-            disabled={submitting || unPriceable}
-          >
-            {submitting ? 'Submitting…' : 'Confirm booking'}
-          </Button>
-        </div>
+        <ContinueAction
+          ready={!submitting && !unPriceable}
+          reason={
+            unPriceable
+              ? UN_PRICEABLE_MESSAGE
+              : submitting
+                ? 'Submitting your booking…'
+                : 'Ready to confirm.'
+          }
+          reasonId="review-step-gate"
+          label={submitting ? 'Submitting…' : 'Confirm booking'}
+          onContinue={() => void onConfirm()}
+          data-testid="review-confirm-btn"
+        />
       </CardContent>
     </Card>
   )
