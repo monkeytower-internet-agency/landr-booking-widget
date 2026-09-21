@@ -64,6 +64,8 @@ import { ProductRow } from '@/components/booking/browse/ProductRow'
 import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
 import { ViewToggle } from '@/components/booking/browse/ViewToggle'
 import { useViewMode } from '@/components/booking/browse/useViewMode'
+import { tr } from '@/lib/strings'
+import { NextAction } from '@/components/booking/NextAction'
 
 interface Props {
   operatorToken: string
@@ -194,6 +196,11 @@ export function ExpandedCatalog({
         <ViewToggle value={view} onChange={setView} />
       </div>
 
+      {/* landr-80ubl.2: one-next-action rule — selecting a card navigates
+          straight into the picker, so the whole catalog IS the one pending
+          control. One NextAction wraps every section, not one per section —
+          the rule is "one per screen", not "one per group". */}
+      <NextAction active cue={tr('productListCue')}>
       {sections.map(({ group, visible }) => {
         const groupName = pickLocalized(
           group.name,
@@ -271,6 +278,7 @@ export function ExpandedCatalog({
           </section>
         )
       })}
+      </NextAction>
     </div>
   )
 }

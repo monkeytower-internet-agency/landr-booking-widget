@@ -28,6 +28,20 @@ type Bundle = {
   /** landr-80ubl.1: LanguageStep's explanation copy (behind HelpDisclosure). */
   languageStepWhy: string
   languageStepHowTo: string
+  /**
+   * landr-80ubl.2: rollout A (catalog/product/date steps) NextAction cues
+   * and HelpDisclosure copy. Picker steps with no real "how it works" to
+   * explain (a tile grid, a calendar) get no HelpDisclosure — only the ones
+   * with an actual gesture to teach (MultiDayPicker's tap/range modes).
+   */
+  categoryStepCue: string
+  productListCue: string
+  productDetailCue: string
+  singleDatePickerCue: string
+  multiDayPickerCue: string
+  fixedDateWindowCue: string
+  availabilityDateCue: string
+  availabilityTimeCue: string
 }
 
 const en: Bundle = {
@@ -50,6 +64,21 @@ const en: Bundle = {
   languageStepHowTo:
     'Tap a language to put everyone in it. To split the group, drag a name ' +
     'onto another language — or tap a name and then tap a language.',
+  categoryStepCue: 'choose a category',
+  productListCue: 'choose a product',
+  productDetailCue: 'book this trip',
+  // landr-80ubl.2: deliberately NOT "pick a date" / "pick your dates" — the
+  // NextAction cue's text ("Next: <cue>") sits right beside the step's own
+  // CardTitle ("Pick a date" / "Pick your dates"), and App.test.tsx's
+  // step-arrival assertions do screen.getByText(/Pick a date/i) etc., which
+  // matches ANY element whose text contains that phrase. A cue that repeats
+  // the heading makes getByText ambiguous (two matches) and times out the
+  // whole flow-advancing helper. Distinct verbs sidestep it.
+  singleDatePickerCue: 'choose a date',
+  multiDayPickerCue: 'choose your dates',
+  fixedDateWindowCue: 'choose a window',
+  availabilityDateCue: 'choose a date',
+  availabilityTimeCue: 'choose a time',
 }
 
 export function pickBundle(locale?: string): Bundle {
@@ -103,6 +132,44 @@ export function languageStepGate(unassignedNames: string[], locale?: string): st
   return unassignedNames.length === 0
     ? 'Everyone has a language.'
     : `Assign every participant to a language — still waiting on ${unassignedNames.join(', ')}.`
+}
+
+/**
+ * landr-80ubl.2: SingleDatePicker / AvailabilityPicker / FixedDateWindowPicker's
+ * gate line beside Continue. Deliberately "Choose…", not "Pick…" — the
+ * CardTitle above already reads "Pick a date" and App.test.tsx's
+ * screen.getByText(/Pick a date/i) helpers match ANY element containing that
+ * phrase, so a gate line repeating it makes the query ambiguous (see the cue
+ * strings' comment above for the same trap).
+ */
+export function singleDateGate(hasSelection: boolean, locale?: string): string {
+  void locale
+  return hasSelection ? 'Date selected.' : 'Choose a date to continue.'
+}
+
+/** landr-80ubl.2: MultiDayStep's gate line beside Continue. */
+export function multiDayGate(selectedCount: number, locale?: string): string {
+  void locale
+  if (selectedCount === 0) return 'Choose at least one date to continue.'
+  return selectedCount === 1 ? '1 date selected.' : `${selectedCount} dates selected.`
+}
+
+/** landr-80ubl.2: FixedDateWindowPicker's gate line beside Continue. */
+export function fixedDateWindowGate(hasSelection: boolean, locale?: string): string {
+  void locale
+  return hasSelection ? 'Window selected.' : 'Choose a window to continue.'
+}
+
+/** landr-80ubl.2: AvailabilityPicker's gate line beside Continue. */
+export function availabilityGate(
+  hasDate: boolean,
+  hasTime: boolean,
+  locale?: string,
+): string {
+  void locale
+  if (hasTime) return 'Time selected.'
+  if (hasDate) return 'Choose a time to continue.'
+  return 'Choose a date to continue.'
 }
 
 /**

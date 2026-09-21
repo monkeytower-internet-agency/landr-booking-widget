@@ -476,3 +476,26 @@ describe('ProductList — languages chip (landr-pv2r1)', () => {
     expect(within(many).getByTestId('product-languages-chip')).toHaveTextContent('+2')
   })
 })
+
+describe('ProductList — next action + zen (landr-80ubl.2)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('exactly one NextAction is active: the whole list until a card is picked', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({ product_id: 'a', name: 'Open Product', bookable: true }),
+    ])
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Open Product')).toBeInTheDocument())
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: choose a product',
+    )
+  })
+})
