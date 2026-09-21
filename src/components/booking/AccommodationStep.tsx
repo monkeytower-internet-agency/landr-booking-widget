@@ -41,6 +41,7 @@ import {
   shiftMemberKeys,
   SHARED_DOUBLE_BOOKER_COUNT,
   totalRoomCapacity,
+  unitsWithEmptyBeds,
   type BreakfastMap,
   type OccupantAgeMap,
   type OccupantAgeBand,
@@ -1183,6 +1184,24 @@ export function AccommodationStep({
     return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
   }, [occupancy, partyMemberNames, assignment, sharedDoubleRooms])
 
+  // landr-395ks: shared-double allows a partly filled room on purpose (a
+  // partner may take a double), but the room is charged whole — surface a
+  // non-blocking notice so the booker knows they are paying for empty beds.
+  // Only once occupancy is otherwise complete, so it never competes with a
+  // blocking hint.
+  const emptyBedsNotice = useMemo(() => {
+    if (!sharedDoubleRooms || !occupancy.complete) return ''
+    const partial = unitsWithEmptyBeds(roomUnits, assignment)
+    if (partial.length === 0) return ''
+    const parts = partial.map(
+      ({ unit, emptyBeds }) =>
+        `${unit.roomName} #${unit.unitIndex + 1} has ${emptyBeds} empty ${
+          emptyBeds === 1 ? 'bed' : 'beds'
+        }`,
+    )
+    return `${parts.join('; ')} — you pay for the whole room. That's fine if you share it with someone not on this booking; otherwise add a guest or pick a smaller room.`
+  }, [sharedDoubleRooms, occupancy.complete, roomUnits, assignment])
+
   // landr-zeg4u.5: the other guiding participants' names, for the
   // "these people need a room here" line in the additional-accommodation block.
   const sharedDoubleGuidingNames = partyMemberNames
@@ -2015,6 +2034,16 @@ export function AccommodationStep({
                 className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
               >
                 {occupancyHint}
+              </p>
+            ) : null}
+            {/* landr-395ks: non-blocking empty-beds notice (shared-double). */}
+            {emptyBedsNotice ? (
+              <p
+                role="status"
+                data-testid="empty-beds-notice"
+                className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+              >
+                {emptyBedsNotice}
               </p>
             ) : null}
             {/* landr-doam.1: child-age blocking hint — shown when any
