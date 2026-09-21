@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Check, MapPin } from 'lucide-react'
 import { listLocations } from '@/api/client'
 import type { Location } from '@/api/types'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -13,7 +12,9 @@ import {
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
+import { NextAction } from './NextAction'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
@@ -111,7 +112,8 @@ export function PickupLocationPicker({
             No pickup locations configured — contact operator
           </p>
         ) : (
-          <fieldset className="flex flex-col gap-2">
+          <NextAction active={!selected} cue="choose your pickup location">
+            <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">Pickup location</legend>
             {locations.map((loc) => {
               const name = pickLocalized(loc.name, loc.name_localized, locale)
@@ -161,7 +163,8 @@ export function PickupLocationPicker({
                 </label>
               )
             })}
-          </fieldset>
+            </fieldset>
+          </NextAction>
         )}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
@@ -169,19 +172,18 @@ export function PickupLocationPicker({
         <CustomerCommentField
           value={customerComment}
           onChange={onCustomerCommentChange}
+          collapsible
         />
 
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            disabled={!selected || loading}
-            onClick={() => {
-              if (selected) onConfirm(selected)
-            }}
-          >
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={!!selected && !loading}
+          reason={selected ? 'Ready to continue.' : 'Choose a pickup location to continue.'}
+          reasonId="pickup-step-gate"
+          onContinue={() => {
+            if (selected) onConfirm(selected)
+          }}
+          data-testid="pickup-step-submit"
+        />
       </CardContent>
     </Card>
   )

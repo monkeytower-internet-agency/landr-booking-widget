@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { HelpDisclosure } from './HelpDisclosure'
+import { NextAction } from './NextAction'
+import { OptionalReveal } from './OptionalReveal'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -173,74 +176,89 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
       <StepBackButton onBack={onBack} label="Back to products" />
       <CardHeader>
         <CardTitle>Become a member</CardTitle>
-        <CardDescription>
-          Join {product.name} — you'll be redirected to our secure payment
-          provider to complete your membership.
-        </CardDescription>
+        <CardDescription>{product.name}</CardDescription>
       </CardHeader>
       <CardContent>
+        <HelpDisclosure>
+          <p>
+            You&rsquo;ll be redirected to our secure payment provider to
+            complete your membership.
+          </p>
+        </HelpDisclosure>
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             void onSubmit(e)
           }}
         >
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="membership-email" className="text-xs">
-              Email
-            </Label>
-            <Input
-              id="membership-email"
-              name="membership_email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setEmailTouched(true)}
-              aria-invalid={!!emailError}
-              disabled={busy}
-            />
-            {emailError ? (
-              <p className="text-xs text-destructive" data-testid="membership-email-error">
-                {emailError}
-              </p>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+          <NextAction active={emailInvalid} cue="enter your email">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="membership-first-name" className="text-xs">
-                First name (optional)
+              <Label htmlFor="membership-email" className="text-xs">
+                Email
               </Label>
               <Input
-                id="membership-first-name"
-                name="membership_first_name"
-                autoComplete="given-name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                id="membership-email"
+                name="membership_email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmailTouched(true)}
+                aria-invalid={!!emailError}
                 disabled={busy}
               />
+              {emailError ? (
+                <p className="text-xs text-destructive" data-testid="membership-email-error">
+                  {emailError}
+                </p>
+              ) : null}
             </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="membership-last-name" className="text-xs">
-                Last name (optional)
-              </Label>
-              <Input
-                id="membership-last-name"
-                name="membership_last_name"
-                autoComplete="family-name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-          </div>
-          <Button
-            type="submit"
-            disabled={busy}
-            data-testid="membership-checkout-submit-btn"
+          </NextAction>
+
+          <OptionalReveal
+            thing="your name"
+            hasValue={firstName.trim() !== '' || lastName.trim() !== ''}
+            data-testid="membership-name-reveal"
           >
-            {busy ? 'Redirecting to payment…' : 'Become a member'}
-          </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="membership-first-name" className="text-xs">
+                  First name (optional)
+                </Label>
+                <Input
+                  id="membership-first-name"
+                  name="membership_first_name"
+                  autoComplete="given-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="membership-last-name" className="text-xs">
+                  Last name (optional)
+                </Label>
+                <Input
+                  id="membership-last-name"
+                  name="membership_last_name"
+                  autoComplete="family-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+            </div>
+          </OptionalReveal>
+
+          <NextAction active={!emailInvalid && !busy} cue="become a member" className="mt-2">
+            <Button
+              type="submit"
+              disabled={busy}
+              data-testid="membership-checkout-submit-btn"
+            >
+              {busy ? 'Redirecting to payment…' : 'Become a member'}
+            </Button>
+          </NextAction>
         </form>
       </CardContent>
     </Card>

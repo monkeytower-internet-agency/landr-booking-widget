@@ -148,6 +148,9 @@ describe('MembershipCheckoutStep', () => {
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: 'member@example.com' },
     })
+    // landr-80ubl.3: optional name fields are collapsed behind "+ Add your
+    // name" (OptionalReveal) until opened.
+    fireEvent.click(screen.getByTestId('membership-name-reveal-add'))
     fireEvent.change(screen.getByLabelText(/first name/i), {
       target: { value: 'Ada' },
     })
