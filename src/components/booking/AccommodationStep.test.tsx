@@ -2409,3 +2409,202 @@ describe('AccommodationStep — shared-double reference field (landr-otml0.3)', 
     expect(onJoinRefChange).not.toHaveBeenCalled()
   })
 })
+
+// ── landr-zeg4u.4: invitee accommodation ─────────────────────────────────
+//
+// An invitee (/i/<token>) already has their bed: the host's shared double.
+// So the only mode is shared-double (no guiding-only, no package for
+// themselves), with a clear "your room is already booked" note. Companions
+// they bring along (partner, kids) can get ADDITIONAL rooms in the same
+// booking — only the companions are placed in those rooms.
+describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getProductAddons.mockResolvedValue([])
+    mocks.getAvailability.mockResolvedValue([])
+  })
+
+  it('invite mode offers only shared-double, preselected, with the room-already-booked note', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-room-booked-notice')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('invite-room-booked-notice')).toHaveTextContent(
+      /already booked/i,
+    )
+    expect(
+      screen.queryByTestId('accommodation-mode-guiding-only'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('accommodation-mode-package'),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByTestId('accommodation-mode-shared-double')).getByRole(
+        'radio',
+      ),
+    ).toBeChecked()
+  })
+
+  it('invite mode without companions: no rooms fetched, confirms shared-double with no rooms', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    expect(
+      screen.queryByTestId('additional-accommodation'),
+    ).not.toBeInTheDocument()
+    expect(mocks.getHotelRoomsForHotel).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    const [rooms, hotelId, , , isSharedDouble, assignment] =
+      onConfirm.mock.calls[0]!
+    expect(rooms).toEqual([])
+    expect(hotelId).toBe('hotel-a')
+    expect(isSharedDouble).toBe(true)
+    expect(assignment).toEqual({})
+  })
+
+  it('companions get an additional room; the invitee is never placed in it', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia', 'Leo']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('additional-accommodation')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('additional-accommodation')).toHaveTextContent(
+      /Additional accommodation/,
+    )
+    // Rooms are optional for companions: Continue works with none picked.
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    // Only the companions get chips — the invitee's bed is the shared double.
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
+    const chips = screen.getAllByTestId(/^participant-chip-/)
+    expect(chips.map((c) => c.textContent)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Mia'), expect.stringContaining('Leo')]),
+    )
+    expect(chips.some((c) => c.textContent?.includes('Thomas'))).toBe(false)
+
+    const cont = screen.getByRole('button', { name: /Continue/i })
+    expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    const [rooms, hotelId, , , isSharedDouble, assignment] =
+      onConfirm.mock.calls[0]!
+    expect(rooms).toEqual([{ productId: 'double-room', quantity: 1 }])
+    expect(hotelId).toBe('hotel-a')
+    expect(isSharedDouble).toBe(true)
+    // Unified party index: participant 0 (invitee) unassigned; companions 1, 2.
+    expect(Object.keys(assignment as object).sort()).toEqual(['1', '2'])
+    expect((assignment as Record<number, { roomProductId: string }>)[1]!.roomProductId).toBe(
+      'double-room',
+    )
+  })
+
+  it('a restored room selection whose companions were removed never ships a room', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+        initialMode="shared-double"
+        initialHotelLocationId="hotel-a"
+        initialRooms={[{ productId: 'double-room', quantity: 1 }]}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    const [rooms, , , , isSharedDouble] = onConfirm.mock.calls[0]!
+    expect(rooms).toEqual([])
+    expect(isSharedDouble).toBe(true)
+  })
+
+  it('blocks Continue while an additional room is not filled by companions', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    // One companion in a double — the invitee does NOT fill the second bed.
+    await waitFor(() =>
+      expect(screen.getByTestId('occupancy-hint')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+  })
+})
