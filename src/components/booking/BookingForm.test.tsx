@@ -204,17 +204,17 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
   // landr-zeg4u.6: the extra rooms can also hold other guiding participants
   // (only the booker's bed is the host's double) — name who they are for.
   it.each<[string, Record<number, { roomProductId: string; unitIndex: number }>, string]>([
-    ['co-pilots only', { 1: { roomProductId: 'room-1', unitIndex: 0 } }, 'Additional accommodation (for your co-pilots):'],
+    ['co-pilots only', { 1: { roomProductId: 'room-1', unitIndex: 0 } }, 'Additional accommodation (for the rest of your party):'],
     [
       'co-pilots and companions',
       {
         1: { roomProductId: 'room-1', unitIndex: 0 },
         2: { roomProductId: 'room-1', unitIndex: 0 },
       },
-      'Additional accommodation (for your companions and co-pilots):',
+      'Additional accommodation (for the rest of your party):',
     ],
     ['companions only', { 2: { roomProductId: 'room-1', unitIndex: 0 } }, 'Additional accommodation (for your companions):'],
-    ['nobody assigned', {}, 'Additional accommodation:'],
+    ['nobody assigned', {}, 'Additional accommodation (for your companions):'],
   ])('shared-double heading names who the rooms are for: %s (landr-zeg4u.6)', (_label, assignment, heading) => {
     render(
       <BookingForm

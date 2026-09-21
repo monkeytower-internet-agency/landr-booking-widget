@@ -743,22 +743,13 @@ export function BookingForm({
     selection.kind === 'days' ? selection.selectedDays : []
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
   // landr-zeg4u.6: in a shared double only the booker's bed is the host's
-  // room, so the booked rooms hold companions and/or the other guiding
-  // participants ("co-pilots", party indices 1..P-1). Name who they are for.
-  const sharedDoubleRoomsHeading = (() => {
-    const assigned = Object.keys(roomAssignment ?? {}).map(Number)
-    const hasCoPilots = assigned.some((i) => i >= 1 && i < participants.length)
-    const hasCompanions = assigned.some((i) => i >= participants.length)
-    const who =
-      hasCoPilots && hasCompanions
-        ? 'your companions and co-pilots'
-        : hasCoPilots
-          ? 'your co-pilots'
-          : hasCompanions
-            ? 'your companions'
-            : null
-    return who ? `Additional accommodation (for ${who})` : 'Additional accommodation'
-  })()
+  // room, so the booked rooms may also hold the other guiding participants
+  // (party indices 1..P-1), not just companions — name them neutrally then.
+  const sharedDoubleRoomsHeading = Object.keys(roomAssignment ?? {})
+    .map(Number)
+    .some((i) => i >= 1 && i < participants.length)
+    ? 'Additional accommodation (for the rest of your party)'
+    : 'Additional accommodation (for your companions)'
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
     : null
