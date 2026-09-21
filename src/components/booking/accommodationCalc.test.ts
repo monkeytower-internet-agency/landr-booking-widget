@@ -3,6 +3,7 @@ import type { Product, ProductAddon } from '@/api/types'
 import {
   autoAssignSharedDoubleOccupants,
   sharedDoubleOccupancyStatus,
+  unitsWithEmptyBeds,
   shiftMemberKeys,
   applyAssignment,
   assignBreakfastChip,
@@ -1603,5 +1604,36 @@ describe('shared-double room assignment (landr-zeg4u.4 / .5)', () => {
   it('shiftMemberKeys re-keys and drops negative keys', () => {
     expect(shiftMemberKeys({ 0: 'a', 2: 'b' }, -1)).toEqual({ 1: 'b' })
     expect(shiftMemberKeys({ 1: 'b' }, 1)).toEqual({ 2: 'b' })
+  })
+})
+
+describe('unitsWithEmptyBeds (landr-395ks)', () => {
+  const double = { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'Double' }
+  const triple = { roomProductId: 'triple', unitIndex: 0, capacity: 3, roomName: 'Triple' }
+
+  it('reports a partly filled unit with its empty bed count', () => {
+    const out = unitsWithEmptyBeds([double, triple], {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+      3: { roomProductId: 'triple', unitIndex: 0 },
+    })
+    expect(out).toEqual([
+      { unit: double, emptyBeds: 1 },
+      { unit: triple, emptyBeds: 1 },
+    ])
+  })
+
+  it('ignores full and fully empty units', () => {
+    const out = unitsWithEmptyBeds([double, triple], {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(out).toEqual([])
+  })
+
+  it('ignores assignments pointing at a unit that no longer exists', () => {
+    expect(
+      unitsWithEmptyBeds([double], { 1: { roomProductId: 'gone', unitIndex: 0 } }),
+    ).toEqual([])
   })
 })

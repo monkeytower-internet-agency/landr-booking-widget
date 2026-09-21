@@ -751,6 +751,28 @@ export function sharedDoubleOccupancyStatus(
 }
 
 /**
+ * landr-395ks: booked units holding at least one but fewer occupants than
+ * their capacity, with how many beds stay empty. Shared-double lets these
+ * through on purpose (a partner may take a double), but the unit is charged
+ * whole, so the step shows a non-blocking "you pay for empty beds" notice.
+ * Empty units are excluded — those already block Continue.
+ */
+export function unitsWithEmptyBeds(
+  units: RoomUnit[],
+  assignment: RoomAssignmentMap,
+): { unit: RoomUnit; emptyBeds: number }[] {
+  const pruned = pruneAssignments(assignment, units)
+  const out: { unit: RoomUnit; emptyBeds: number }[] = []
+  for (const unit of units) {
+    const count = occupantsOfUnit(pruned, unit).length
+    if (count > 0 && count < unit.capacity) {
+      out.push({ unit, emptyBeds: unit.capacity - count })
+    }
+  }
+  return out
+}
+
+/**
  * Occupancy-completeness check (landr-87n9.3) — the gate that enables
  * Continue in package mode. Returns a structured result so the UI can show
  * a precise inline hint of exactly what's blocking.
