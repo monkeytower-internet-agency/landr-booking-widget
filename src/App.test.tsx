@@ -4523,13 +4523,10 @@ describe('App', () => {
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
 
-      // The operator's form ALSO declares a language field; it must report the
-      // assignment rather than ask a second time.
-      await waitFor(() =>
-        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
-      )
-      expect(screen.getByTestId('cf-language-mirror-es')).toBeInTheDocument()
-      expect(screen.getByTestId('cf-language-mirror-de')).toBeInTheDocument()
+      // The operator's form ALSO declares a language field; it must not ask a
+      // second time — the field is hidden entirely (landr-cgq5g).
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      expect(screen.queryByTestId('cf-field-languages')).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       await waitFor(() =>
@@ -4666,9 +4663,7 @@ describe('App', () => {
         expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
-      await waitFor(() =>
-        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
-      )
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('cf-submit'))
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
