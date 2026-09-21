@@ -670,9 +670,9 @@ export function autoAssignParty(
 
 /**
  * landr-zeg4u.4: re-key a member-indexed map by `offset` (entries whose new
- * key would fall below 0 are dropped). Used to give the companions-only room
- * assignment of a shared-double booking a 0-based view of the unified party
- * index space (participants 0..P-1, companions P..P+C-1) and to map it back.
+ * key would fall below 0 are dropped). Used to give the shared-double room
+ * assignment a view of the unified party index space (participants 0..P-1,
+ * companions P..P+C-1) without the booker at index 0, and to map it back.
  */
 export function shiftMemberKeys<T>(
   map: Record<number, T>,
@@ -687,13 +687,21 @@ export function shiftMemberKeys<T>(
 }
 
 /**
- * landr-zeg4u.4: auto-assign ONLY the companions (P..P+C-1) to room units —
- * the shared-double "additional accommodation" case, where the participants'
- * own beds are the shared double room and must never land in a booked unit.
- * Any participant entry in `existing` is dropped. Same fill rules as
+ * landr-zeg4u.5: members of a shared-double booking who are NOT covered by
+ * the shared double. Only the booker (party index 0) sleeps in the host's
+ * double; everyone after them — other guiding participants (1..P-1) and the
+ * companions (P..P+C-1) — can only sleep in a room booked here.
+ */
+export const SHARED_DOUBLE_BOOKER_COUNT = 1
+
+/**
+ * landr-zeg4u.4 / .5: auto-assign everyone except the booker to room units —
+ * the shared-double "additional accommodation" case. A booker entry in
+ * `existing` is dropped. Other guiding participants come first in index
+ * order, so they get beds before companions. Same fill rules as
  * autoAssignParty otherwise.
  */
-export function autoAssignCompanions(
+export function autoAssignSharedDoubleOccupants(
   units: RoomUnit[],
   participantCount: number,
   companionCount: number,
@@ -701,18 +709,26 @@ export function autoAssignCompanions(
 ): RoomAssignmentMap {
   const local = autoAssignParticipants(
     units,
-    companionCount,
-    shiftMemberKeys(existing, -participantCount),
+    Math.max(0, partySize(participantCount, companionCount) - SHARED_DOUBLE_BOOKER_COUNT),
+    shiftMemberKeys(existing, -SHARED_DOUBLE_BOOKER_COUNT),
   )
-  return shiftMemberKeys(local, participantCount)
+  return shiftMemberKeys(local, SHARED_DOUBLE_BOOKER_COUNT)
 }
 
 /**
- * landr-zeg4u.4: occupancyStatus over the companions only (see
- * autoAssignCompanions). `unassignedMembers` is reported in the UNIFIED party
- * index space so callers can label it with the whole-party name list.
+ * landr-zeg4u.4 / .5: occupancy gate for the shared-double additional rooms.
+ * Mirrors the API's assert_shared_double_room_occupancy, which is looser than
+ * package mode's occupancyStatus:
+ *   - every booked unit needs at least one occupant (`emptyUnits` blocks);
+ *   - a unit below capacity is fine (a lone partner may take a double — the
+ *     room is priced per unit either way), so `partialUnits` is always empty;
+ *   - every OTHER guiding participant (1..P-1) must be placed — their bed is
+ *     not the shared double. Companions may be left unplaced.
+ * Over-capacity cannot happen: every assignment path caps at unit capacity.
+ * `unassignedMembers` lists only the blocking (guiding) members, in UNIFIED
+ * party indices, so callers can label them with the whole-party name list.
  */
-export function companionOccupancyStatus(
+export function sharedDoubleOccupancyStatus(
   units: RoomUnit[],
   participantCount: number,
   companionCount: number,
@@ -720,12 +736,17 @@ export function companionOccupancyStatus(
 ): OccupancyStatus {
   const local = occupancyStatus(
     units,
-    companionCount,
-    shiftMemberKeys(assignment, -participantCount),
+    Math.max(0, partySize(participantCount, companionCount) - SHARED_DOUBLE_BOOKER_COUNT),
+    shiftMemberKeys(assignment, -SHARED_DOUBLE_BOOKER_COUNT),
   )
+  const unassignedMembers = local.unassignedMembers
+    .map((i) => i + SHARED_DOUBLE_BOOKER_COUNT)
+    .filter((i) => i < participantCount)
   return {
-    ...local,
-    unassignedMembers: local.unassignedMembers.map((i) => i + participantCount),
+    complete: local.emptyUnits.length === 0 && unassignedMembers.length === 0,
+    emptyUnits: local.emptyUnits,
+    partialUnits: [],
+    unassignedMembers,
   }
 }
 

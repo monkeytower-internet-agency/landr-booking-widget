@@ -22,10 +22,10 @@ import { cn } from '@/lib/utils'
 import {
   applyAssignment,
   assignBreakfastChip,
-  autoAssignCompanions,
+  autoAssignSharedDoubleOccupants,
   autoAssignParty,
   clampBreakfastMap,
-  companionOccupancyStatus,
+  sharedDoubleOccupancyStatus,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
@@ -39,6 +39,7 @@ import {
   requiredCheckinDate,
   roomSubtotal,
   shiftMemberKeys,
+  SHARED_DOUBLE_BOOKER_COUNT,
   totalRoomCapacity,
   type BreakfastMap,
   type OccupantAgeMap,
@@ -148,8 +149,9 @@ interface Props {
    * "I am sharing a double room booked by someone else" mode. On submit this
    * becomes the top-level `is_shared_double` boolean (landr-ffyg.1) and
    * NO hotel_room product lines are sent — only the guiding service line —
-   * UNLESS companions get additional rooms (landr-zeg4u.4): then rooms,
-   * add-ons and a companions-only assignment ride along as in package mode.
+   * UNLESS the people travelling with the booker get additional rooms
+   * (landr-zeg4u.4 / .5): then rooms, add-ons and an assignment of everyone
+   * but the booker ride along as in package mode.
    */
   onConfirm: (
     rooms: RoomSelection[],
@@ -643,15 +645,21 @@ export function AccommodationStep({
     firstSelectedDay !== null &&
     !accommodationCheckSettled
 
-  // landr-zeg4u.4: shared-double covers the customer's OWN bed only. The
-  // companions they bring along (partner, kids) may get ADDITIONAL rooms in
-  // the same booking — only the companions are placed in them. Off when the
-  // stay has run out of lead time (no room can be booked then).
+  // landr-zeg4u.4 / .5: shared-double covers the BOOKER'S own bed only. The
+  // people they bring along — companions (partner, kids) and any other
+  // guiding participant — may get ADDITIONAL rooms in the same booking; the
+  // booker is never placed in them. Rooms are optional for companions but
+  // REQUIRED once a second guiding participant is in the party (their bed is
+  // not the shared double). Off when the stay has run out of lead time (no
+  // room can be booked then).
   const companionCount = companionNames.length
-  const companionsOnlyRooms =
-    mode === 'shared-double' && companionCount > 0 && !accommodationTooLate
+  const sharedDoubleRoomsRequired = participantCount > 1
+  const sharedDoubleRooms =
+    mode === 'shared-double' &&
+    (companionCount > 0 || sharedDoubleRoomsRequired) &&
+    !accommodationTooLate
   // Which modes carry room steppers + assignment at all.
-  const bookRooms = mode === 'package' || companionsOnlyRooms
+  const bookRooms = mode === 'package' || sharedDoubleRooms
 
   const requiredCheckinIso = firstSelectedDay
     ? requiredCheckinDate(firstSelectedDay, product.accommodation_checkin_offset_days)
@@ -828,10 +836,13 @@ export function AccommodationStep({
     nextAddonSelection: Record<string, Record<string, number>>,
   ) => {
     if (!onLiveAccommodationChange) return
-    // landr-zeg4u.4: shared-double with companions books their rooms too.
+    // landr-zeg4u.4 / .5: shared-double books rooms for everyone but the
+    // booker too.
     const nextBooksRooms =
       nextMode === 'package' ||
-      (nextMode === 'shared-double' && companionCount > 0 && !accommodationTooLate)
+      (nextMode === 'shared-double' &&
+        (companionCount > 0 || sharedDoubleRoomsRequired) &&
+        !accommodationTooLate)
     if (!nextBooksRooms) {
       onLiveAccommodationChange([], [])
       return
@@ -979,9 +990,11 @@ export function AccommodationStep({
   // (participants 0..P-1, companions P..P+C-1). Companions DO occupy beds /
   // count toward occupancy but NOT toward the guiding price.
   const partyCount = partySize(participantCount, companionCount)
-  // landr-zeg4u.4: who sleeps in the booked units — the whole party in
-  // package mode, the companions only in shared-double.
-  const occupantCount = companionsOnlyRooms ? companionCount : partyCount
+  // landr-zeg4u.4 / .5: who sleeps in the booked units — the whole party in
+  // package mode, everyone but the booker in shared-double.
+  const occupantCount = sharedDoubleRooms
+    ? partyCount - SHARED_DOUBLE_BOOKER_COUNT
+    : partyCount
 
   // landr-gb2f.2 / landr-87n9.3: re-run whole-party auto-assign whenever the
   // set of units OR the party size changes (room added/removed/qty bumped,
@@ -1013,8 +1026,8 @@ export function AccommodationStep({
     void (async () => {
       if (cancelled) return
       setAssignment((prev) =>
-        companionsOnlyRooms
-          ? autoAssignCompanions(roomUnits, participantCount, companionCount, prev)
+        sharedDoubleRooms
+          ? autoAssignSharedDoubleOccupants(roomUnits, participantCount, companionCount, prev)
           : autoAssignParty(roomUnits, participantCount, companionCount, prev),
       )
     })()
@@ -1022,7 +1035,7 @@ export function AccommodationStep({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitSignature, participantCount, companionCount, roomCatalogueReady, companionsOnlyRooms])
+  }, [unitSignature, participantCount, companionCount, roomCatalogueReady, sharedDoubleRooms])
   // ^ keyed on unitSignature (a stable string) + participantCount +
   //   companionCount rather than the roomUnits array identity (which changes
   //   every render). The setAssignment functional update reads the latest
@@ -1084,10 +1097,10 @@ export function AccommodationStep({
   // blocking. Only computed in package mode (the other modes have no units).
   const occupancy = useMemo(
     () =>
-      companionsOnlyRooms
-        ? companionOccupancyStatus(roomUnits, participantCount, companionCount, assignment)
+      sharedDoubleRooms
+        ? sharedDoubleOccupancyStatus(roomUnits, participantCount, companionCount, assignment)
         : occupancyStatus(roomUnits, partyCount, assignment),
-    [companionsOnlyRooms, roomUnits, participantCount, companionCount, partyCount, assignment],
+    [sharedDoubleRooms, roomUnits, participantCount, companionCount, partyCount, assignment],
   )
 
   // landr-87n9.3: build the unified party-member chip arrays for
@@ -1155,8 +1168,24 @@ export function AccommodationStep({
       const n = (partyMemberNames[i] ?? '').trim()
       return n.length > 0 ? n : `Guest ${i + 1}`
     })
+    // landr-zeg4u.5: in shared-double only the other guiding participants
+    // block — companions may stay unplaced — so don't ask for "everyone".
+    if (sharedDoubleRooms) {
+      return `Only your own bed is the shared double — ${names.join(', ')} still ${
+        names.length === 1 ? 'needs' : 'need'
+      } a room.`
+    }
     return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
-  }, [occupancy, partyMemberNames, assignment])
+  }, [occupancy, partyMemberNames, assignment, sharedDoubleRooms])
+
+  // landr-zeg4u.5: the other guiding participants' names, for the
+  // "these people need a room here" line in the additional-accommodation block.
+  const sharedDoubleGuidingNames = partyMemberNames
+    .slice(SHARED_DOUBLE_BOOKER_COUNT, participantCount)
+    .map((n, i) => {
+      const t = n.trim()
+      return t.length > 0 ? t : `Guest ${i + SHARED_DOUBLE_BOOKER_COUNT + 1}`
+    })
 
   // landr-doam.1: block Continue when any assigned child occupant has no age.
   // Pure helper — reads the current assignment + ageMap without side effects.
@@ -1181,10 +1210,12 @@ export function AccommodationStep({
       ? true
       : mode === 'shared-double'
         ? Boolean(selectedHotelId) &&
-          // landr-zeg4u.4: additional rooms for companions are optional,
-          // but once one is picked it must be properly occupied.
-          (!companionsOnlyRooms ||
-            totalRoomsPicked === 0 ||
+          // landr-zeg4u.4 / .5: additional rooms are optional for companions,
+          // but required once another guiding participant is in the party;
+          // once one is picked it must be properly occupied (no empty unit,
+          // every other guiding participant placed — partial units are fine).
+          (!sharedDoubleRooms ||
+            (!sharedDoubleRoomsRequired && totalRoomsPicked === 0) ||
             (addonCatalogueReady &&
               !unmetRequiredAddon &&
               occupancy.complete &&
@@ -1336,12 +1367,12 @@ export function AccommodationStep({
     // declarations/fill-form. includeHotel reports the offering-driven
     // gate: for optional offerings the hotel context IS present so we
     // report true; for mandatory it's undefined (the gate doesn't apply).
-    // landr-zeg4u.4: with additional rooms picked for companions, fall
-    // through to the room path below (still reporting isSharedDouble). A
-    // stale restored room selection with no companions left never ships.
+    // landr-zeg4u.4 / .5: with additional rooms picked, fall through to the
+    // room path below (still reporting isSharedDouble). A stale restored room
+    // selection with nobody but the booker left never ships.
     if (
       mode === 'shared-double' &&
-      (!companionsOnlyRooms || totalRoomsPicked === 0)
+      (!sharedDoubleRooms || totalRoomsPicked === 0)
     ) {
       onConfirm(
         [],
@@ -1357,7 +1388,7 @@ export function AccommodationStep({
       )
       return
     }
-    // package mode (or shared-double + companion rooms) — rooms required.
+    // package mode (or shared-double + additional rooms) — rooms required.
     if (roomSelections.length === 0) return
     // landr-yybu: flatten the per-room add-on map back to AddonSelection[].
     // Sum qty per addon_product_id across rooms, only for rooms still in the
@@ -1759,22 +1790,26 @@ export function AccommodationStep({
           </div>
         ) : null}
 
-        {/* Room list — package mode, and shared-double with companions
-            (landr-zeg4u.4: "Additional accommodation" for them only). */}
+        {/* Room list — package mode, and shared-double with anyone besides
+            the booker (landr-zeg4u.4 / .5: "Additional accommodation" for
+            them only). */}
         {bookRooms && selectedHotelId ? (
           <fieldset
             className="flex flex-col gap-3 border-t pt-3"
             data-testid={
-              companionsOnlyRooms ? 'additional-accommodation' : undefined
+              sharedDoubleRooms ? 'additional-accommodation' : undefined
             }
           >
             <legend className="text-sm font-medium">
-              {companionsOnlyRooms ? 'Additional accommodation' : 'Rooms'}
+              {sharedDoubleRooms ? 'Additional accommodation' : 'Rooms'}
             </legend>
-            {companionsOnlyRooms ? (
+            {sharedDoubleRooms ? (
               <p className="text-xs text-muted-foreground">
-                Optional — rooms for the people travelling with you. Your own
-                bed is already covered by the shared double room.
+                {sharedDoubleRoomsRequired
+                  ? `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${sharedDoubleGuidingNames.join(', ')} ${
+                      sharedDoubleGuidingNames.length === 1 ? 'needs' : 'need'
+                    } a room here.`
+                  : 'Optional — rooms for the people travelling with you. Your own bed is already covered by the shared double room.'}
               </p>
             ) : null}
             {rooms === null && !roomsError ? (
@@ -1911,28 +1946,28 @@ export function AccommodationStep({
         {bookRooms && roomUnits.length > 0 && occupantCount > 0 ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
             <legend className="text-sm font-medium">Room assignment</legend>
-            {companionsOnlyRooms ? (
-              // landr-zeg4u.4: companions only. RoomAssignment works in a
-              // 0-based member space, so hand it a companions-only VIEW of
-              // the unified maps and shift its callbacks back by P.
+            {sharedDoubleRooms ? (
+              // landr-zeg4u.4 / .5: everyone but the booker. RoomAssignment
+              // works in a 0-based member space, so hand it a VIEW of the
+              // unified maps without index 0 and shift its callbacks back.
               <RoomAssignment
                 units={roomUnits}
-                participantNames={companionNames}
-                guestFlags={companionNames.map(() => true)}
-                assignment={shiftMemberKeys(assignment, -participantCount)}
+                participantNames={partyMemberNames.slice(SHARED_DOUBLE_BOOKER_COUNT)}
+                guestFlags={partyGuestFlags.slice(SHARED_DOUBLE_BOOKER_COUNT)}
+                assignment={shiftMemberKeys(assignment, -SHARED_DOUBLE_BOOKER_COUNT)}
                 onAssign={(i, target) =>
-                  assignParticipant(i + participantCount, target)
+                  assignParticipant(i + SHARED_DOUBLE_BOOKER_COUNT, target)
                 }
-                ageMap={shiftMemberKeys(ageMap, -participantCount)}
+                ageMap={shiftMemberKeys(ageMap, -SHARED_DOUBLE_BOOKER_COUNT)}
                 onAgeBandChange={(i, band, age) =>
-                  handleAgeBandChange(i + participantCount, band, age)
+                  handleAgeBandChange(i + SHARED_DOUBLE_BOOKER_COUNT, band, age)
                 }
                 perRoomAddons={addonSelection}
-                breakfastMap={shiftMemberKeys(breakfastMap, -participantCount)}
+                breakfastMap={shiftMemberKeys(breakfastMap, -SHARED_DOUBLE_BOOKER_COUNT)}
                 onBreakfastAssign={(i, from) =>
                   handleBreakfastAssign(
-                    i + participantCount,
-                    from === undefined ? undefined : from + participantCount,
+                    i + SHARED_DOUBLE_BOOKER_COUNT,
+                    from === undefined ? undefined : from + SHARED_DOUBLE_BOOKER_COUNT,
                   )
                 }
               />

@@ -205,9 +205,12 @@ interface Props {
   participantLanguages?: Record<number, string>
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
-   * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
-   * accommodationRooms is empty (no hotel_room lines), and the
-   * pickupLocationId is the shared hotel. Defaults false.
+   * the submit carries the top-level is_shared_double=true (landr-ffyg.1)
+   * and the pickupLocationId is the shared hotel. The booker's own bed is
+   * the shared double, so accommodationRooms is usually empty; when it is
+   * not, those hotel_room lines are ADDITIONAL rooms for the people
+   * travelling with the booker (landr-zeg4u.4 / .5), labelled as such on the
+   * review. Defaults false.
    */
   isSharedDouble?: boolean
   /**
@@ -1216,9 +1219,22 @@ export function BookingForm({
                 4 nights") via formatDayRange (sibling helper in dateLabel.ts
                 already pins UTC for ISO inputs). */}
             <div className="font-medium">
-              Hotel: {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
+              {/* landr-zeg4u.5: in a shared double these rooms are not the
+                  booker's — say whose they are. */}
+              {isSharedDouble
+                ? 'Additional accommodation (for your companions): '
+                : 'Hotel: '}
+              {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
               {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
             </div>
+            {isSharedDouble ? (
+              <p
+                className="text-muted-foreground mt-1 text-xs"
+                data-testid="shared-double-own-bed-note"
+              >
+                Your own bed is the shared double room booked by the host.
+              </p>
+            ) : null}
             <p className="text-muted-foreground mt-1 text-xs">
               Paid directly to hotel — not included in your booking total.
             </p>
