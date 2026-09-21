@@ -658,6 +658,11 @@ export function AccommodationStep({
     mode === 'shared-double' &&
     (companionCount > 0 || sharedDoubleRoomsRequired) &&
     !accommodationTooLate
+  // landr-zeg4u.6: ...but when the stay is too late for rooms, the other
+  // guiding participants have no bed at all — the API would 422
+  // (participant_unassigned). Explain it and block Continue instead.
+  const sharedDoubleOthersTooLate =
+    mode === 'shared-double' && sharedDoubleRoomsRequired && accommodationTooLate
   // Which modes carry room steppers + assignment at all.
   const bookRooms = mode === 'package' || sharedDoubleRooms
 
@@ -1210,6 +1215,7 @@ export function AccommodationStep({
       ? true
       : mode === 'shared-double'
         ? Boolean(selectedHotelId) &&
+          !sharedDoubleOthersTooLate &&
           // landr-zeg4u.4 / .5: additional rooms are optional for companions,
           // but required once another guiding participant is in the party;
           // once one is picked it must be properly occupied (no empty unit,
@@ -1544,6 +1550,17 @@ export function AccommodationStep({
               )}
             </p>
           </div>
+        ) : null}
+        {sharedDoubleOthersTooLate ? (
+          <p
+            role="status"
+            data-testid="shared-double-too-late-others"
+            className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+          >
+            Only you share the host&apos;s room; it&apos;s too late to book
+            rooms for other pilots ({sharedDoubleGuidingNames.join(', ')}) —
+            remove them or contact the operator.
+          </p>
         ) : null}
         {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
             when at least one hotel is configured — without a hotel the

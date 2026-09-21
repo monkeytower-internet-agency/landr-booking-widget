@@ -549,6 +549,25 @@ const formatHttpError = (
     const who = typeof name === 'string' && name.trim() ? name : 'This companion'
     return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
   }
+  // landr-zeg4u.6: server backstop for the shared-double room rules the
+  // accommodation step already enforces — only the booker's bed is the host's
+  // double, so every other guiding participant needs a booked room.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'shared_double_room_occupancy_invalid'
+  ) {
+    const detail = err.detail as { reason?: unknown; participant_index?: unknown }
+    if (detail.reason === 'participant_unassigned') {
+      const idx = detail.participant_index
+      const label = typeof idx === 'number' ? memberLabels[idx] : undefined
+      const who = label && label.trim() ? label : 'Another pilot'
+      return `${who} needs a room: only you share the host's room. Please go back to accommodation and book a room for them, or remove them from the booking.`
+    }
+    return "The extra rooms don't match the people staying in them. Please go back to accommodation and check who sleeps in each room."
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
