@@ -1297,6 +1297,18 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     expect(screen.getByTestId('invite-copy')).toBeInTheDocument()
   })
 
+  it('leads with the invites as a headed call to action (landr-8sk6l)', () => {
+    const response = baseResponse({
+      share_secret: 'secret-abc',
+      invites: [baseInvite()],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const section = screen.getByTestId('confirmation-invites')
+    expect(section).toHaveAccessibleName('Next step: send your group their booking link')
+    // Solid primary buttons, not the outline style of secondary actions.
+    expect(screen.getByTestId('invite-email').className).toMatch(/\bbg-primary\b/)
+  })
+
   it('falls back to the WhatsApp share-sheet link (no phone) exactly as given', () => {
     const invite = baseInvite({
       phone: null,

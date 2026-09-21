@@ -42,6 +42,11 @@ import {
 } from '@/components/booking/partyIdentity'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
+  findOtherLanguagesField,
+  otherLanguagesFromDraft,
+  withOtherLanguages,
+} from '@/components/booking/otherLanguages'
+import {
   normaliseOfferedLanguages,
   productAcceptsAnyLanguage,
 } from '@/components/booking/participantLanguages'
@@ -2461,6 +2466,40 @@ function BookingFlowApp() {
             onCustomerCommentChange={(comment) =>
               mergeDraft({ customerComment: comment || null })
             }
+            // landr-8sk6l: "Other languages spoken" is asked here, beside the
+            // board, and written live into the operator form's own answer
+            // slot — the custom form later mirrors it instead of asking again.
+            {...(() => {
+              const lifted = findOtherLanguagesField(
+                resolvedFlowForProduct(step.product.product_id),
+              )
+              if (!lifted) return {}
+              return {
+                otherLanguages: {
+                  label:
+                    pickLocalized(lifted.field.label, lifted.field.label_localized, 'en') ||
+                    'Other languages spoken',
+                  helpText: pickLocalized(
+                    lifted.field.help_text,
+                    lifted.field.help_text_localized,
+                    'en',
+                  ),
+                  maxLength: lifted.field.validation?.max_length ?? null,
+                  value: otherLanguagesFromDraft(
+                    bookingDraft.customFormAnswers,
+                    lifted.formKey,
+                  ),
+                  onChange: (value: string) =>
+                    mergeDraft({
+                      customFormAnswers: withOtherLanguages(
+                        bookingDraft.customFormAnswers,
+                        lifted.formKey,
+                        value,
+                      ),
+                    }),
+                },
+              }
+            })()}
             onBack={() =>
               setStep(
                 stepBeforeLanguages({
@@ -2539,6 +2578,24 @@ function BookingFlowApp() {
             // CustomFormStepProps.flow's doc for the forward-dead-end bug
             // this closes.
             flow={resolvedFlowForProduct(step.product.product_id)}
+            // landr-8sk6l: asked on the LanguageStep when that step ran for
+            // this product; the form then hides its own field.
+            {...(() => {
+              if (offeredLanguagesForProduct(step.product).length === 0) return {}
+              const lifted = findOtherLanguagesField(
+                resolvedFlowForProduct(step.product.product_id),
+              )
+              if (!lifted) return {}
+              return {
+                otherLanguagesUpstream: {
+                  formKey: lifted.formKey,
+                  value: otherLanguagesFromDraft(
+                    bookingDraft.customFormAnswers,
+                    lifted.formKey,
+                  ),
+                },
+              }
+            })()}
             // landr-r6e5x.4: the assignment the LanguageStep captured upstream.
             // When this form also declares a `language` field it reports this
             // instead of asking again — the board is the single source.

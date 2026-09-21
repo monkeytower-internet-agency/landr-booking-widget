@@ -85,10 +85,13 @@ function CopyButton({
   value,
   label = 'Copy link',
   testId,
+  size = 'sm',
 }: {
   value: string
   label?: string
   testId?: string
+  /** landr-8sk6l: 'default' matches the invite card's full-size buttons. */
+  size?: 'sm' | 'default'
 }) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
   const manualInputRef = useRef<HTMLInputElement>(null)
@@ -149,7 +152,7 @@ function CopyButton({
     <Button
       type="button"
       variant="outline"
-      size="sm"
+      size={size}
       onClick={handleClick}
       data-testid={testId}
     >
@@ -274,17 +277,17 @@ function InviteCard({
       data-testid="invite-card"
       className="space-y-2 rounded-lg border bg-surface-card p-3"
     >
-      <p className="text-sm font-medium">Send {invite.name} their booking link</p>
+      <p className="text-sm font-semibold">Send {invite.name} their booking link</p>
       <div className="flex flex-wrap gap-2">
         {invite.whatsapp_url ? (
-          <Button asChild type="button" variant="outline" size="sm">
+          <Button asChild type="button">
             <a
               href={invite.whatsapp_url}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="invite-whatsapp"
             >
-              <MessageCircle className="mr-1.5 size-3.5" aria-hidden="true" />
+              <MessageCircle className="mr-1.5 size-4" aria-hidden="true" />
               WhatsApp
             </a>
           </Button>
@@ -292,8 +295,6 @@ function InviteCard({
         {invite.email ? (
           <Button
             type="button"
-            variant="outline"
-            size="sm"
             onClick={handleSendEmail}
             disabled={
               !shareSecret ||
@@ -312,7 +313,7 @@ function InviteCard({
             }
             data-testid="invite-email"
           >
-            <Mail className="mr-1.5 size-3.5" aria-hidden="true" />
+            <Mail className="mr-1.5 size-4" aria-hidden="true" />
             {emailState === 'sending'
               ? 'Sending…'
               : emailState === 'sent'
@@ -324,7 +325,7 @@ function InviteCard({
                   : 'Email'}
           </Button>
         ) : null}
-        <CopyButton value={invite.invite_url} testId="invite-copy" />
+        <CopyButton value={invite.invite_url} testId="invite-copy" size="default" />
       </div>
       {!shareSecret ? (
         <p
@@ -975,6 +976,45 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           </p>
         )}
 
+        {/* landr-otml0.4 (D5, D11): one "send their booking link" card per
+            separate_guiding companion the API minted an invite for.
+            landr-8sk6l: the booking isn't complete for the group until each of
+            them books, so this is the screen's call to action — lifted to
+            sit straight under the status line, in a brand-tinted panel with
+            solid buttons, instead of trailing the price breakdown. */}
+        {invites.length > 0 ? (
+          <section
+            data-testid="confirmation-invites"
+            aria-labelledby="confirmation-invites-heading"
+            className="space-y-3 rounded-xl border-2 border-primary/40 bg-primary/5 p-4"
+          >
+            <div className="flex items-start gap-2">
+              <Users className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+              <div>
+                <h3
+                  id="confirmation-invites-heading"
+                  className="text-base font-semibold"
+                >
+                  Next step: send your group their booking {invites.length === 1 ? 'link' : 'links'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Each of them completes their own booking from their link.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {invites.map((invite) => (
+                <InviteCard
+                  key={invite.companion_id}
+                  invite={invite}
+                  bookingId={response.booking_id}
+                  shareSecret={response.share_secret}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {/* landr-nva1a.4 step 3: "Your booking" — graceful degrade when
             summary is absent (older API deploy). */}
         {summary ? <BookingDetailsCard summary={summary} /> : null}
@@ -1007,21 +1047,6 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             only when the booker never entered/confirmed one at all. */}
         {showSharedDoubleHint ? (
           <SharedDoubleHint customerPageUrl={response.customer_page_url} />
-        ) : null}
-
-        {/* landr-otml0.4 (D5, D11): one "send their booking link" card per
-            separate_guiding companion the API minted an invite for. */}
-        {invites.length > 0 ? (
-          <div data-testid="confirmation-invites" className="space-y-2">
-            {invites.map((invite) => (
-              <InviteCard
-                key={invite.companion_id}
-                invite={invite}
-                bookingId={response.booking_id}
-                shareSecret={response.share_secret}
-              />
-            ))}
-          </div>
         ) : null}
 
         {/*

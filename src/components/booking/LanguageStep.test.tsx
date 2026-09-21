@@ -310,3 +310,37 @@ describe('LanguageStep', () => {
     expect(screen.getByTestId('lang-chip-1').textContent).toContain('Guest 2')
   })
 })
+
+describe('LanguageStep — other languages spoken (landr-8sk6l)', () => {
+  it('renders nothing when the flow declares no such field', () => {
+    renderStep()
+    expect(screen.queryByTestId('language-step-other-languages')).toBeNull()
+  })
+
+  it('renders the operator label and reports every keystroke', () => {
+    const onChange = vi.fn()
+    render(
+      <LanguageStep
+        productName="Tandem"
+        participantNames={NAMES}
+        guestFlags={GUESTS}
+        offeredLanguages={['en']}
+        otherLanguages={{
+          label: 'Other languages spoken',
+          maxLength: 200,
+          value: '',
+          onChange,
+        }}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('language-step-other-languages').textContent).toContain(
+      'Other languages spoken (optional)',
+    )
+    const input = screen.getByTestId('language-step-other-languages-input')
+    expect(input).toHaveAttribute('maxLength', '200')
+    fireEvent.change(input, { target: { value: 'Italian' } })
+    expect(onChange).toHaveBeenCalledWith('Italian')
+  })
+})

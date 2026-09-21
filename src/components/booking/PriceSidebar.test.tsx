@@ -520,10 +520,24 @@ describe('PriceSidebar — day chips + hotel span + names (landr-2wyi)', () => {
     const explanation = desktop.querySelector(
       '[data-testid="price-sidebar-discount-explanation"]',
     )
-    expect(explanation?.textContent).toMatch(/Multi-day rate applied/)
+    // landr-8sk6l: heading shares the chip's line, just above the explanation.
+    const discount = desktop.querySelector('[data-testid="price-sidebar-discount"]')
+    expect(discount?.textContent).toMatch(/Streak discount\s*Multi-day rate applied/)
     expect(explanation?.textContent).toMatch(/3 consecutive days/)
     expect(explanation?.textContent).toMatch(/75/)
     expect(explanation?.textContent).toMatch(/\/day/)
+    // landr-8sk6l: the block sits inside the price breakdown, before Amount
+    // due, so Grand total is the sidebar's last priced line.
+    const order = Array.from(
+      desktop.querySelectorAll(
+        '[data-testid="price-sidebar-discounts"], [data-testid="price-sidebar-amount-due"], [data-testid="price-sidebar-grand-total"]',
+      ),
+    ).map((el) => el.getAttribute('data-testid'))
+    expect(order).toEqual([
+      'price-sidebar-discounts',
+      'price-sidebar-amount-due',
+      'price-sidebar-grand-total',
+    ])
   })
 
   it('reflects the per-participant multiplier in the discount explanation (landr-8s6c)', async () => {

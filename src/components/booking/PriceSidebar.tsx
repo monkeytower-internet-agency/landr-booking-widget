@@ -168,6 +168,57 @@ function BookingOverviewBody({
       ? deriveStayWindow(selectedDays, accommodationCheckinOffsetDays)
       : null
   const showStaleSpinner = isStale && data !== null
+  // landr-8sk6l: the discount explanation sits inside the price block, under
+  // the savings rows it explains (Subtotal → − saving → this → Amount due),
+  // so Grand total is the sidebar's last line.
+  const discountBlock =
+    data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
+      // landr-8s6c: each discount rule renders its terse tag PLUS a
+      // plain-language explanation of why the price dropped — the
+      // consecutive-day count + the per-day rate that was applied —
+      // so the customer sees the multi-day rate working, not just a
+      // bare "Streak discount" pill. Explanation lines come from
+      // buildDiscountExplanation (reads applied_rules[].detail).
+      <ul className="space-y-2 py-1" data-testid="price-sidebar-discounts">
+        {data.applied_rules
+          .filter((r) => isDiscountRule(r.kind))
+          .map((rule, idx) => {
+            const lines = buildDiscountExplanation(rule, data.currency)
+            return (
+              // landr-8sk6l: chip and heading share one line so the block
+              // stays compact inside the price well.
+              <li key={`rule-${idx}`} data-testid="price-sidebar-discount">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
+                    {discountLabel(rule.kind)}
+                  </span>
+                  {lines.length > 0 ? (
+                    <span className="text-xs font-medium text-foreground/80">
+                      {explanationHeading(rule.kind)}
+                    </span>
+                  ) : null}
+                </div>
+                {lines.length > 0 ? (
+                  <div
+                    className="mt-1 text-xs text-muted-foreground"
+                    data-testid="price-sidebar-discount-explanation"
+                  >
+                    {lines.map((line, lineIdx) => (
+                      <span
+                        key={`rule-${idx}-line-${lineIdx}`}
+                        className="block tabular-nums"
+                      >
+                        {line}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
+      </ul>
+    ) : null
+
   return (
     <div className="space-y-4">
       {operator.length > 0 ? (
@@ -222,6 +273,7 @@ function BookingOverviewBody({
             totalLabel="Amount due"
             totalClassName="mt-3 rounded-lg bg-primary/5 px-3 py-2 shadow-well text-base"
             testIdPrefix="price-sidebar"
+            details={discountBlock}
           />
         </section>
       ) : null}
@@ -284,6 +336,7 @@ function BookingOverviewBody({
           </p>
         </section>
       ) : null}
+      {operator.length === 0 ? discountBlock : null}
       <div
         className="flex items-baseline justify-between border-t pt-3"
         data-testid="price-sidebar-grand-total"
@@ -297,46 +350,6 @@ function BookingOverviewBody({
           </span>
         )}
       </div>
-      {data.applied_rules.some((r) => isDiscountRule(r.kind)) ? (
-        // landr-8s6c: each discount rule renders its terse tag PLUS a
-        // plain-language explanation of why the price dropped — the
-        // consecutive-day count + the per-day rate that was applied —
-        // so the customer sees the multi-day rate working, not just a
-        // bare "Streak discount" pill. Explanation lines come from
-        // buildDiscountExplanation (reads applied_rules[].detail).
-        <ul className="space-y-2" data-testid="price-sidebar-discounts">
-          {data.applied_rules
-            .filter((r) => isDiscountRule(r.kind))
-            .map((rule, idx) => {
-              const lines = buildDiscountExplanation(rule, data.currency)
-              return (
-                <li key={`rule-${idx}`} data-testid="price-sidebar-discount">
-                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
-                    {discountLabel(rule.kind)}
-                  </span>
-                  {lines.length > 0 ? (
-                    <div
-                      className="mt-1 text-xs text-muted-foreground"
-                      data-testid="price-sidebar-discount-explanation"
-                    >
-                      <span className="block font-medium text-foreground/80">
-                        {explanationHeading(rule.kind)}
-                      </span>
-                      {lines.map((line, lineIdx) => (
-                        <span
-                          key={`rule-${idx}-line-${lineIdx}`}
-                          className="block tabular-nums"
-                        >
-                          {line}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </li>
-              )
-            })}
-        </ul>
-      ) : null}
       {showStaleSpinner ? (
         <p
           className="text-xs text-muted-foreground"
