@@ -188,3 +188,31 @@ describe('SingleDatePicker (landr-y9k)', () => {
     )
   })
 })
+
+describe('SingleDatePicker — next action + zen (landr-80ubl.2)', () => {
+  it('moves the one active NextAction from the calendar to Continue once a date is picked', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    mocks.getAvailability.mockResolvedValue(makeAvailability([tomorrow]))
+    render(
+      <SingleDatePicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+    await waitFor(() => dayButton(tomorrow))
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: choose a date',
+    )
+    fireEvent.click(dayButton(tomorrow))
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent('Next: continue')
+  })
+})

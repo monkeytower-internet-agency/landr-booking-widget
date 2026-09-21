@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getProductAddons } from '@/api/client'
 import type { Product, ProductAddon } from '@/api/types'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -11,7 +10,9 @@ import {
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
 import { AddonsList } from './AddonsList'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
+import { NextAction } from './NextAction'
 import { StepBackButton } from './StepBackButton'
 import {
   defaultAddonQty,
@@ -154,24 +155,33 @@ export function ServiceAddonsStep({
           </p>
         ) : null}
         {addons !== null && addons.length > 0 ? (
-          <AddonsList
-            addons={addons}
-            selection={selection}
-            onChange={setSelection}
-            expectedQty={1}
-          />
+          <NextAction active={unmetRequired} cue="pick your required add-ons">
+            <AddonsList
+              addons={addons}
+              selection={selection}
+              onChange={setSelection}
+              expectedQty={1}
+            />
+          </NextAction>
         ) : null}
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
         <CustomerCommentField
           value={customerComment}
           onChange={onCustomerCommentChange}
+          collapsible
         />
-        <div className="flex justify-end pt-2">
-          <Button type="button" disabled={!canContinue} onClick={handleContinue}>
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={canContinue}
+          reason={
+            canContinue
+              ? 'Ready to continue.'
+              : 'Pick every required add-on to continue.'
+          }
+          reasonId="addons-step-gate"
+          onContinue={handleContinue}
+          data-testid="addons-step-submit"
+        />
       </CardContent>
     </Card>
   )

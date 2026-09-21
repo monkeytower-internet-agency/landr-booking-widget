@@ -50,6 +50,7 @@ import {
   type RoomUnit,
 } from './accommodationCalc'
 import { AddonsList } from './AddonsList'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { RoomAssignment } from './RoomAssignment'
 import {
@@ -1184,6 +1185,11 @@ export function AccommodationStep({
     return `Assign everyone to a room — still waiting on: ${names.join(', ')}.`
   }, [occupancy, partyMemberNames, assignment, sharedDoubleRooms])
 
+  // landr-80ubl.3: one-next-action rule — RoomAssignment wraps itself in
+  // NextAction when this is non-null; once occupancy is complete the
+  // highlight moves down to Continue instead (no cue).
+  const roomAssignmentCue = occupancy.complete ? null : 'assign everyone to a room'
+
   // landr-395ks: shared-double allows a partly filled room on purpose (a
   // partner may take a double), but the room is charged whole — surface a
   // non-blocking notice so the booker knows they are paying for empty beds.
@@ -2006,6 +2012,7 @@ export function AccommodationStep({
                     from === undefined ? undefined : from + SHARED_DOUBLE_BOOKER_COUNT,
                   )
                 }
+                nextActionCue={roomAssignmentCue}
               />
             ) : (
               <RoomAssignment
@@ -2022,6 +2029,7 @@ export function AccommodationStep({
                 perRoomAddons={addonSelection}
                 breakfastMap={breakfastMap}
                 onBreakfastAssign={handleBreakfastAssign}
+                nextActionCue={roomAssignmentCue}
               />
             )}
             {/* landr-87n9.3: inline blocking hint — only shown while
@@ -2112,13 +2120,16 @@ export function AccommodationStep({
         <CustomerCommentField
           value={customerComment}
           onChange={onCustomerCommentChange}
+          collapsible
         />
 
-        <div className="flex justify-end pt-2">
-          <Button type="button" disabled={!canContinue} onClick={handleContinue}>
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={canContinue}
+          reason={canContinue ? 'Ready to continue.' : occupancyHint || 'Complete the steps above to continue.'}
+          reasonId="accommodation-step-gate"
+          onContinue={handleContinue}
+          data-testid="accommodation-step-submit"
+        />
       </CardContent>
     </Card>
   )

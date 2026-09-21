@@ -21,7 +21,6 @@
  * pinned spec in the landr-71kz.2 handoff §VISIBILITY-RULE CONTRACT.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -43,6 +42,7 @@ import type {
   FormResponseEntry,
   ProductFlowResponse,
 } from '@/api/flowTypes'
+import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
@@ -769,6 +769,11 @@ export function CustomFormStep({
             // still carries the mirrored value, so it's submitted/validated
             // exactly as before; only the redundant re-display is dropped.
             if (mirrorActive && mirrorField && field.key === mirrorField.key) return null
+            // landr-80ubl.3: every OTHER operator-authored field (required or
+            // not) stays visible — unlike the widget's own optional extras,
+            // each one was deliberately added to the flow by the operator, so
+            // collapsing it behind "+ Add …" would hide a configured question
+            // rather than tidy up an incidental one.
             return (
               <FieldRenderer
                 key={field.key}
@@ -787,18 +792,20 @@ export function CustomFormStep({
         <CustomerCommentField
           value={customerComment}
           onChange={onCustomerCommentChange}
+          collapsible
         />
 
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading || !!fetchError || !isFormComplete}
-            data-testid="cf-submit"
-          >
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={!loading && !fetchError && isFormComplete}
+          reason={
+            isFormComplete
+              ? 'Ready to continue.'
+              : 'Complete every required field to continue.'
+          }
+          reasonId="cf-step-gate"
+          onContinue={handleSubmit}
+          data-testid="cf-submit"
+        />
       </CardContent>
     </Card>
   )

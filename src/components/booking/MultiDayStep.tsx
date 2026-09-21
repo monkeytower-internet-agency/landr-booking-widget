@@ -16,6 +16,9 @@ import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { DayChips } from '@/components/booking/DayChips'
 import { isDayBookable } from '@/components/booking/bookability'
 import { availabilityWindow } from '@/components/booking/calendarStart'
+import { multiDayGate, tr } from '@/lib/strings'
+import { NextAction } from '@/components/booking/NextAction'
+import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
@@ -170,7 +173,7 @@ export function MultiDayStep({
                 : `${blocked} of ${host}'s days are no longer available — change your dates to continue.`}
             </p>
           ) : null}
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
+          <div className="flex flex-wrap items-start justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -178,13 +181,20 @@ export function MultiDayStep({
             >
               Change dates
             </Button>
-            <Button
-              type="button"
-              disabled={slots === null || blocked > 0}
-              onClick={() => onConfirm([...originalDays].sort())}
-            >
-              Continue with these dates
-            </Button>
+            <ContinueAction
+              ready={slots !== null && blocked === 0}
+              reason={
+                slots === null
+                  ? 'Loading availability…'
+                  : blocked > 0
+                    ? 'Change your dates to continue.'
+                    : "Ready to continue with the host's dates."
+              }
+              reasonId="multi-day-step-invite-gate"
+              onContinue={() => onConfirm([...originalDays].sort())}
+              label="Continue with these dates"
+              data-testid="multi-day-step-invite-submit"
+            />
           </div>
         </CardContent>
       </Card>
@@ -199,44 +209,47 @@ export function MultiDayStep({
         <CardDescription>Available days for {product.name}.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <MultiDayPicker
-          availability={slots ?? EMPTY_SLOTS}
-          value={selectedDays}
-          onChange={setSelectedDays}
-          onForcedDaysChange={(days, reasons) => {
-            setForcedDays(days)
-            setForcedReasons(reasons)
-          }}
-          helpText={undefined}
-          isContiguous={product.is_contiguous}
-          hotelOffering={product.hotel_offering}
-          originalValue={originalDays?.map(dateFromIso)}
-          originalValueLabel={originalDaysLabel}
+        {/* landr-80ubl.2: one-next-action rule — the picker owns the ring
+            until at least one day is picked, then ContinueAction (active by
+            default) takes over. */}
+        <NextAction active={selectedDays.length === 0} cue={tr('multiDayPickerCue')}>
+          <MultiDayPicker
+            availability={slots ?? EMPTY_SLOTS}
+            value={selectedDays}
+            onChange={setSelectedDays}
+            onForcedDaysChange={(days, reasons) => {
+              setForcedDays(days)
+              setForcedReasons(reasons)
+            }}
+            helpText={undefined}
+            isContiguous={product.is_contiguous}
+            hotelOffering={product.hotel_offering}
+            originalValue={originalDays?.map(dateFromIso)}
+            originalValueLabel={originalDaysLabel}
+          />
+          {selectedDays.length > 0 ? (
+            // landr-3mo4: selection count surfaced as a tinted chip (committed
+            // state), not muted helper text.
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground">
+              {selectedDays.length === 1
+                ? `1 day selected`
+                : `${selectedDays.length} days selected`}
+            </p>
+          ) : null}
+        </NextAction>
+        <ContinueAction
+          ready={selectedDays.length > 0}
+          reason={multiDayGate(selectedDays.length)}
+          reasonId="multi-day-step-gate"
+          onContinue={() =>
+            onConfirm(
+              selectedDays.map(isoDate),
+              forcedDays,
+              forcedDays.length > 0 ? forcedReasons : undefined,
+            )
+          }
+          data-testid="multi-day-step-submit"
         />
-        {selectedDays.length > 0 ? (
-          // landr-3mo4: selection count surfaced as a tinted chip (committed
-          // state), not muted helper text.
-          <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground">
-            {selectedDays.length === 1
-              ? `1 day selected`
-              : `${selectedDays.length} days selected`}
-          </p>
-        ) : null}
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            disabled={selectedDays.length === 0}
-            onClick={() =>
-              onConfirm(
-                selectedDays.map(isoDate),
-                forcedDays,
-                forcedDays.length > 0 ? forcedReasons : undefined,
-              )
-            }
-          >
-            Continue
-          </Button>
-        </div>
       </CardContent>
     </Card>
   )

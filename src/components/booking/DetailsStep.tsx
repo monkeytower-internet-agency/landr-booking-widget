@@ -33,6 +33,7 @@ import {
 // landr-uwvl: stable per-member identity for the room-assignment maps.
 import { withMemberId } from './partyIdentity'
 import { GroupInquiryForm } from './GroupInquiryForm'
+import { NextAction } from './NextAction'
 import {
   Dialog,
   DialogContent,
@@ -820,6 +821,17 @@ export function DetailsStep({
     participantsForValidation,
     companions,
   )
+  // landr-80ubl.3: the one-next-action rule's pending required control for
+  // this screen is "your contact details" — the other sections (additional
+  // participants, companions) are opt-in via their own "+ Add" affordances,
+  // so they don't compete for the single highlight.
+  const bookerComplete =
+    booker.first_name.trim() !== '' &&
+    booker.last_name.trim() !== '' &&
+    booker.email.trim() !== '' &&
+    booker.email.includes('@') &&
+    booker.phone.trim() !== '' &&
+    isValidPhoneFormat(booker.phone)
 
   const handleContinue = () => {
     // landr-79re: the Continue button is ALWAYS tappable now (no
@@ -898,6 +910,7 @@ export function DetailsStep({
             browser after this change (none available in this environment);
             the bulk-fill touch-detection above is the fallback that catches
             a mangled value either way, regardless of whether this helps. */}
+        <NextAction active={!bookerComplete} cue="enter your name, email and phone">
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">Your contact details</legend>
           <p className="text-xs text-muted-foreground">
@@ -1023,6 +1036,7 @@ export function DetailsStep({
             </div>
           ) : null}
         </fieldset>
+        </NextAction>
 
         {/* Additional participants — same stepper pattern as the legacy
             ParticipantsStep (landr-mbge) but now growing/shrinking a
@@ -1547,19 +1561,36 @@ export function DetailsStep({
             value is still local (committed to the draft on Continue below,
             same as booker/participants/companions); every step after this
             one reads/writes bookingDraft.customerComment directly. */}
-        <CustomerCommentField value={comment} onChange={setComment} />
+        <CustomerCommentField value={comment} onChange={setComment} collapsible />
 
-        <div className="flex justify-end pt-2">
-          {/* landr-79re: Continue is ALWAYS tappable so mobile customers get
-              feedback. handleContinue gates on canContinue internally —
-              revealing all required-field errors (markAllTouched) and focusing
-              the first invalid field instead of silently doing nothing. There
-              is no in-flight/pending state on this step, so no disabled gate is
-              needed. */}
-          <Button type="button" onClick={handleContinue}>
-            Continue
-          </Button>
-        </div>
+        {/* landr-79re: Continue is ALWAYS tappable so mobile customers get
+            feedback — handleContinue gates on canContinue internally,
+            revealing all required-field errors (markAllTouched) and
+            focusing the first invalid field instead of silently doing
+            nothing. ContinueAction's own Button always disables when not
+            ready, which would break that contract, so this step wires the
+            same accent/reason presentation by hand instead of using the
+            primitive directly. */}
+        <NextAction active={canContinue} cue="continue" className="mt-2">
+          <div className="flex items-center justify-end gap-3">
+            <p
+              id="details-step-gate"
+              role="status"
+              data-testid="details-step-gate"
+              className="min-w-0 flex-1 text-xs text-muted-foreground"
+            >
+              {canContinue ? 'Ready to continue.' : 'Fill in every required field to continue.'}
+            </p>
+            <Button
+              type="button"
+              variant={canContinue ? 'default' : 'secondary'}
+              onClick={handleContinue}
+              data-testid="details-step-submit"
+            >
+              Continue
+            </Button>
+          </div>
+        </NextAction>
       </CardContent>
     </Card>
   )
