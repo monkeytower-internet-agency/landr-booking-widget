@@ -742,6 +742,23 @@ export function BookingForm({
   const selectedDays =
     selection.kind === 'days' ? selection.selectedDays : []
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
+  // landr-zeg4u.6: in a shared double only the booker's bed is the host's
+  // room, so the booked rooms hold companions and/or the other guiding
+  // participants ("co-pilots", party indices 1..P-1). Name who they are for.
+  const sharedDoubleRoomsHeading = (() => {
+    const assigned = Object.keys(roomAssignment ?? {}).map(Number)
+    const hasCoPilots = assigned.some((i) => i >= 1 && i < participants.length)
+    const hasCompanions = assigned.some((i) => i >= participants.length)
+    const who =
+      hasCoPilots && hasCompanions
+        ? 'your companions and co-pilots'
+        : hasCoPilots
+          ? 'your co-pilots'
+          : hasCompanions
+            ? 'your companions'
+            : null
+    return who ? `Additional accommodation (for ${who})` : 'Additional accommodation'
+  })()
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
     : null
@@ -1238,11 +1255,9 @@ export function BookingForm({
                 4 nights") via formatDayRange (sibling helper in dateLabel.ts
                 already pins UTC for ISO inputs). */}
             <div className="font-medium">
-              {/* landr-zeg4u.5: in a shared double these rooms are not the
-                  booker's — say whose they are. */}
-              {isSharedDouble
-                ? 'Additional accommodation (for your companions): '
-                : 'Hotel: '}
+              {/* landr-zeg4u.5 / .6: in a shared double these rooms are not
+                  the booker's — say whose they are. */}
+              {isSharedDouble ? `${sharedDoubleRoomsHeading}: ` : 'Hotel: '}
               {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
               {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
             </div>
