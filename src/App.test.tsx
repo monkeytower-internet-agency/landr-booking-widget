@@ -1225,6 +1225,8 @@ describe('App', () => {
       // assign-languages: the field is pre-filled from the (empty) draft,
       // and this is where the customer actually types their comment.
       await screen.findByTestId('participant-language-board')
+      // landr-80ubl.1: empty optional field sits behind "+ Add a note for us".
+      fireEvent.click(screen.getByRole('button', { name: /add a note for us/i }))
       expect(screen.getByTestId('customer-comment')).toHaveValue('')
       fireEvent.change(screen.getByTestId('customer-comment'), {
         target: { value: 'Allergic to bee stings' },

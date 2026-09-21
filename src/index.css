@@ -93,7 +93,7 @@
   --surface-well: oklch(0.965 0.002 286);
   /* landr-v94dz: brand share of bg-surface-tint (light). widgetThemeStyle
    * overrides it on the widget root per operator accent (surfaceTintMix). */
-  --surface-tint-mix: 8%;
+  --surface-tint-mix: 11%; /* = surfaceTintMix(DEFAULT_ACCENT) */
   /* landr-v94dz: muted text on bg-surface-tint. The default 0.556 drops to
    * ~3.9:1 on the tint; 0.5 keeps >=4.5:1 even for a black accent at 8% and
    * inside the amber hotel block. Re-check if the tint share is raised for
@@ -112,8 +112,12 @@
   --elev-inset: inset 0 1px 2px 0 rgb(17 24 39 / 0.07);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  /* landr-80ubl.1: unthemed operators get a calm blue accent (was near-black
+   * oklch(0.205 0 0), which made the next action indistinguishable from body
+   * text). Keep in sync with DEFAULT_ACCENT in lib/widgetTheme.ts (a test
+   * asserts it). Themed operators override all three on the widget root. */
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);

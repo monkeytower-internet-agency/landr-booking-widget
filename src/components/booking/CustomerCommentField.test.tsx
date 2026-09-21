@@ -53,3 +53,18 @@ describe('CustomerCommentField (landr-n6ii3)', () => {
     expect(screen.getByTestId('customer-comment')).not.toBeRequired()
   })
 })
+
+describe('CustomerCommentField collapsible (landr-80ubl.1)', () => {
+  it('collapsible + empty: only the "+ Add a note for us" link until clicked', () => {
+    render(<CustomerCommentField value="" onChange={vi.fn()} collapsible />)
+    expect(screen.queryByTestId('customer-comment')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /add a note for us/i }))
+    expect(screen.getByTestId('customer-comment')).toBeInTheDocument()
+  })
+
+  it('collapsible + prefilled: open straight away', () => {
+    render(<CustomerCommentField value="Vegan" onChange={vi.fn()} collapsible />)
+    expect(screen.getByTestId('customer-comment')).toHaveValue('Vegan')
+  })
+})
+
