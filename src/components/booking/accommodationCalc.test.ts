@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  autoAssignCompanions,
+  companionOccupancyStatus,
+  shiftMemberKeys,
   applyAssignment,
   assignBreakfastChip,
   autoAssignParticipants,
@@ -1543,5 +1546,33 @@ describe('assignment-map hygiene (landr-abme)', () => {
     const after = applyAssignment(before, 0, zeroCap)
     expect(after).toEqual(before)
     expect(Object.keys(after)).not.toContain('undefined')
+  })
+})
+
+describe('companion-only room assignment (landr-zeg4u.4)', () => {
+  const units = [
+    { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'Double' },
+  ]
+
+  it('autoAssignCompanions places companions only and drops participant entries', () => {
+    const out = autoAssignCompanions(units, 1, 2, {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(Object.keys(out).map(Number).sort()).toEqual([1, 2])
+    expect(out[1]).toMatchObject({ roomProductId: 'double', unitIndex: 0 })
+  })
+
+  it('companionOccupancyStatus reports unassigned companions in party indices', () => {
+    const status = companionOccupancyStatus(units, 1, 3, {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(status.complete).toBe(false)
+    expect(status.unassignedMembers).toEqual([3])
+  })
+
+  it('shiftMemberKeys re-keys and drops negative keys', () => {
+    expect(shiftMemberKeys({ 0: 'a', 2: 'b' }, -1)).toEqual({ 1: 'b' })
+    expect(shiftMemberKeys({ 1: 'b' }, 1)).toEqual({ 2: 'b' })
   })
 })

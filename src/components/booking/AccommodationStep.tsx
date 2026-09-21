@@ -22,8 +22,10 @@ import { cn } from '@/lib/utils'
 import {
   applyAssignment,
   assignBreakfastChip,
+  autoAssignCompanions,
   autoAssignParty,
   clampBreakfastMap,
+  companionOccupancyStatus,
   deriveStayWindow,
   expandRoomUnits,
   flattenPerRoomAddons,
@@ -36,6 +38,7 @@ import {
   pruneAssignments,
   requiredCheckinDate,
   roomSubtotal,
+  shiftMemberKeys,
   totalRoomCapacity,
   type BreakfastMap,
   type OccupantAgeMap,
@@ -144,7 +147,9 @@ interface Props {
    * landr-ffyg.2: isSharedDouble is true when the customer chose the
    * "I am sharing a double room booked by someone else" mode. On submit this
    * becomes the top-level `is_shared_double` boolean (landr-ffyg.1) and
-   * NO hotel_room product lines are sent — only the guiding service line.
+   * NO hotel_room product lines are sent — only the guiding service line —
+   * UNLESS companions get additional rooms (landr-zeg4u.4): then rooms,
+   * add-ons and a companions-only assignment ride along as in package mode.
    */
   onConfirm: (
     rooms: RoomSelection[],
@@ -268,6 +273,11 @@ interface Props {
    * The customer is already linked to the host's group through the invite
    * itself, so the shared-double reference field (below) is redundant and
    * hidden entirely in this mode.
+   *
+   * landr-zeg4u.4: the invitee's own bed IS the host's shared double, so
+   * invite mode offers only 'shared-double' (no guiding-only, no package for
+   * themselves), preselected, with a "your room is already booked" note.
+   * Companions they bring can still get additional rooms (see below).
    */
   inviteMode?: boolean
   /**
@@ -359,6 +369,8 @@ export function AccommodationStep({
   // guiding-only or shared-double). 'guiding-only' is only valid for
   // optional offerings — a mandatory offering can never opt out of a hotel.
   const [mode, setMode] = useState<AccommodationMode>(() => {
+    // landr-zeg4u.4: an invitee is sharing the host's double by definition.
+    if (inviteMode) return 'shared-double'
     if (initialMode) {
       // Guard: a stale 'guiding-only' on a mandatory product is invalid.
       if (initialMode === 'guiding-only' && isMandatory) return 'package'
@@ -631,6 +643,16 @@ export function AccommodationStep({
     firstSelectedDay !== null &&
     !accommodationCheckSettled
 
+  // landr-zeg4u.4: shared-double covers the customer's OWN bed only. The
+  // companions they bring along (partner, kids) may get ADDITIONAL rooms in
+  // the same booking — only the companions are placed in them. Off when the
+  // stay has run out of lead time (no room can be booked then).
+  const companionCount = companionNames.length
+  const companionsOnlyRooms =
+    mode === 'shared-double' && companionCount > 0 && !accommodationTooLate
+  // Which modes carry room steppers + assignment at all.
+  const bookRooms = mode === 'package' || companionsOnlyRooms
+
   const requiredCheckinIso = firstSelectedDay
     ? requiredCheckinDate(firstSelectedDay, product.accommodation_checkin_offset_days)
     : null
@@ -658,13 +680,13 @@ export function AccommodationStep({
     }
   }, [needsHotel, hotels, selectedHotelId])
 
-  // Fetch rooms when a hotel is selected AND we're in package mode. The
-  // shared-double mode never renders room steppers, so we skip the room
-  // fetch entirely there. The previous-state cleanup (rooms→null +
+  // Fetch rooms when a hotel is selected AND this mode books rooms (package,
+  // or shared-double with companions — landr-zeg4u.4). Plain shared-double
+  // never renders room steppers, so we skip the room fetch entirely there. The previous-state cleanup (rooms→null +
   // selection→{}) happens in the hotel-change handlers rather than
   // synchronously inside the effect — see react-hooks/set-state-in-effect.
   useEffect(() => {
-    if (mode !== 'package') return
+    if (!bookRooms) return
     if (!selectedHotelId) return
     let cancelled = false
     void (async () => {
@@ -680,7 +702,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [operatorToken, selectedHotelId, mode])
+  }, [operatorToken, selectedHotelId, bookRooms])
 
   // Fetch add-ons per room as soon as the rooms list resolves. Done as
   // an N-fetch (one per room) rather than a single bulk call because
@@ -806,7 +828,11 @@ export function AccommodationStep({
     nextAddonSelection: Record<string, Record<string, number>>,
   ) => {
     if (!onLiveAccommodationChange) return
-    if (nextMode !== 'package') {
+    // landr-zeg4u.4: shared-double with companions books their rooms too.
+    const nextBooksRooms =
+      nextMode === 'package' ||
+      (nextMode === 'shared-double' && companionCount > 0 && !accommodationTooLate)
+    if (!nextBooksRooms) {
       onLiveAccommodationChange([], [])
       return
     }
@@ -887,7 +913,9 @@ export function AccommodationStep({
   // Confirm. Wrapped in the async-IIFE pattern per this file's existing
   // convention (no synchronous setState in an effect body).
   useEffect(() => {
-    if (!accommodationTooLate || mode === 'guiding-only') return
+    // landr-zeg4u.4: an invitee stays shared-double — their bed is already
+    // booked, so a too-late stay only removes the additional rooms.
+    if (inviteMode || !accommodationTooLate || mode === 'guiding-only') return
     let cancelled = false
     void (async () => {
       if (cancelled) return
@@ -901,7 +929,7 @@ export function AccommodationStep({
     // render for no benefit — the guard above already no-ops once mode is
     // 'guiding-only'.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accommodationTooLate, mode])
+  }, [accommodationTooLate, mode, inviteMode])
 
   const { checkInIso, checkOutIso, nights } = useMemo(
     () => deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days),
@@ -921,8 +949,8 @@ export function AccommodationStep({
   // on the resolved room catalogue for capacity_per_unit + display names,
   // so it's empty until `rooms` loads.
   const roomUnits: RoomUnit[] = useMemo(
-    () => (mode === 'package' ? expandRoomUnits(roomSelections, rooms ?? []) : []),
-    [mode, roomSelections, rooms],
+    () => (bookRooms ? expandRoomUnits(roomSelections, rooms ?? []) : []),
+    [bookRooms, roomSelections, rooms],
   )
 
   // landr-abme: CATALOGUE READINESS. The hotel + room + per-room-add-on
@@ -940,9 +968,9 @@ export function AccommodationStep({
   // Non-package modes book no rooms at all, so they are trivially "ready".
   // A hotel with zero rooms resolves `rooms` to [] and fires no add-on
   // fetches, so it is ready too; the only unready state is genuinely in-flight.
-  const roomCatalogueReady = mode !== 'package' || rooms !== null
+  const roomCatalogueReady = !bookRooms || rooms !== null
   const addonCatalogueReady =
-    mode !== 'package' ||
+    !bookRooms ||
     (rooms !== null &&
       (rooms.length === 0 || Object.keys(addonsByRoom).length > 0))
 
@@ -950,8 +978,10 @@ export function AccommodationStep({
   // is the unified index space the assignment map + auto-assign operate on
   // (participants 0..P-1, companions P..P+C-1). Companions DO occupy beds /
   // count toward occupancy but NOT toward the guiding price.
-  const companionCount = companionNames.length
   const partyCount = partySize(participantCount, companionCount)
+  // landr-zeg4u.4: who sleeps in the booked units — the whole party in
+  // package mode, the companions only in shared-double.
+  const occupantCount = companionsOnlyRooms ? companionCount : partyCount
 
   // landr-gb2f.2 / landr-87n9.3: re-run whole-party auto-assign whenever the
   // set of units OR the party size changes (room added/removed/qty bumped,
@@ -983,14 +1013,16 @@ export function AccommodationStep({
     void (async () => {
       if (cancelled) return
       setAssignment((prev) =>
-        autoAssignParty(roomUnits, participantCount, companionCount, prev),
+        companionsOnlyRooms
+          ? autoAssignCompanions(roomUnits, participantCount, companionCount, prev)
+          : autoAssignParty(roomUnits, participantCount, companionCount, prev),
       )
     })()
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitSignature, participantCount, companionCount, roomCatalogueReady])
+  }, [unitSignature, participantCount, companionCount, roomCatalogueReady, companionsOnlyRooms])
   // ^ keyed on unitSignature (a stable string) + participantCount +
   //   companionCount rather than the roomUnits array identity (which changes
   //   every render). The setAssignment functional update reads the latest
@@ -1020,10 +1052,10 @@ export function AccommodationStep({
   // catalogue, so every re-entry used to flash a role="alert" "3 people, 0
   // beds" box before correcting itself.
   const showCapacityWarning =
-    mode === 'package' &&
+    bookRooms &&
     roomCatalogueReady &&
     totalRoomsPicked > 0 &&
-    totalCapacity < partyCount
+    totalCapacity < occupantCount
 
   // Required add-ons gate Continue regardless of room selection — if a
   // room with a required breakfast is in the cart and the breakfast qty
@@ -1033,7 +1065,7 @@ export function AccommodationStep({
   // landr-yybu: addonSelection is now per-room, so look up
   // (addonSelection[roomId] ?? {})[addon_product_id].
   const unmetRequiredAddon = useMemo(() => {
-    if (mode !== 'package' || totalRoomsPicked === 0) return false
+    if (!bookRooms || totalRoomsPicked === 0) return false
     for (const [roomId] of Object.entries(selection)) {
       const list = addonsByRoom[roomId] ?? []
       const roomAddonQtys = addonSelection[roomId] ?? {}
@@ -1043,7 +1075,7 @@ export function AccommodationStep({
       }
     }
     return false
-  }, [mode, totalRoomsPicked, selection, addonsByRoom, addonSelection])
+  }, [bookRooms, totalRoomsPicked, selection, addonsByRoom, addonSelection])
 
   // landr-87n9.3: OCCUPANCY GATING (package mode). Continue is blocked until
   // EVERY booked room unit has >= 1 occupant AND every party member
@@ -1051,8 +1083,11 @@ export function AccommodationStep({
   // a structured status so the inline hint below can name exactly what's
   // blocking. Only computed in package mode (the other modes have no units).
   const occupancy = useMemo(
-    () => occupancyStatus(roomUnits, partyCount, assignment),
-    [roomUnits, partyCount, assignment],
+    () =>
+      companionsOnlyRooms
+        ? companionOccupancyStatus(roomUnits, participantCount, companionCount, assignment)
+        : occupancyStatus(roomUnits, partyCount, assignment),
+    [companionsOnlyRooms, roomUnits, participantCount, companionCount, partyCount, assignment],
   )
 
   // landr-87n9.3: build the unified party-member chip arrays for
@@ -1145,7 +1180,15 @@ export function AccommodationStep({
     (mode === 'guiding-only'
       ? true
       : mode === 'shared-double'
-        ? Boolean(selectedHotelId)
+        ? Boolean(selectedHotelId) &&
+          // landr-zeg4u.4: additional rooms for companions are optional,
+          // but once one is picked it must be properly occupied.
+          (!companionsOnlyRooms ||
+            totalRoomsPicked === 0 ||
+            (addonCatalogueReady &&
+              !unmetRequiredAddon &&
+              occupancy.complete &&
+              !hasChildWithoutAge))
         : Boolean(selectedHotelId) &&
           // landr-abme: the room catalogue can resolve a full round-trip
           // before the per-room add-on catalogue does. In that window
@@ -1293,7 +1336,13 @@ export function AccommodationStep({
     // declarations/fill-form. includeHotel reports the offering-driven
     // gate: for optional offerings the hotel context IS present so we
     // report true; for mandatory it's undefined (the gate doesn't apply).
-    if (mode === 'shared-double') {
+    // landr-zeg4u.4: with additional rooms picked for companions, fall
+    // through to the room path below (still reporting isSharedDouble). A
+    // stale restored room selection with no companions left never ships.
+    if (
+      mode === 'shared-double' &&
+      (!companionsOnlyRooms || totalRoomsPicked === 0)
+    ) {
       onConfirm(
         [],
         selectedHotelId,
@@ -1308,7 +1357,7 @@ export function AccommodationStep({
       )
       return
     }
-    // package mode — rooms required.
+    // package mode (or shared-double + companion rooms) — rooms required.
     if (roomSelections.length === 0) return
     // landr-yybu: flatten the per-room add-on map back to AddonSelection[].
     // Sum qty per addon_product_id across rooms, only for rooms still in the
@@ -1349,7 +1398,7 @@ export function AccommodationStep({
       selectedHotelId,
       addonLines,
       offering === 'optional' ? true : undefined,
-      false,
+      mode === 'shared-double',
       finalAssignment,
       ageMap,
       // landr-gb2f.5: pass the raw per-room add-on selection so the review
@@ -1375,8 +1424,21 @@ export function AccommodationStep({
   // are removed entirely (not just discouraged) so the customer can't pick
   // a hotel/room path that is guaranteed to 422 at Confirm. The
   // mode-forcing effect above keeps `mode` in sync with this list.
+  //
+  // landr-zeg4u.4: invite mode offers ONLY shared-double — the invitee's bed
+  // is the host's double, already booked (even when the stay is too late for
+  // additional rooms).
+  const sharedDoubleOption = {
+    value: 'shared-double' as const,
+    label: 'I am sharing a double room booked by someone else',
+    hint: inviteMode
+      ? 'Your bed is in the double room the person who invited you already booked. You are collected from the hotel.'
+      : 'No room booked — the other guest holds the double room. You are collected from the hotel.',
+  }
   const modeOptions: { value: AccommodationMode; label: string; hint: string }[] =
-    [
+    inviteMode
+      ? [sharedDoubleOption]
+      : [
       ...(offering === 'optional'
         ? [
             {
@@ -1394,11 +1456,7 @@ export function AccommodationStep({
               label: 'Book accommodation (package)',
               hint: 'Pick a hotel and rooms for your stay.',
             },
-            {
-              value: 'shared-double' as const,
-              label: 'I am sharing a double room booked by someone else',
-              hint: 'No room booked — the other guest holds the double room. You are collected from the hotel.',
-            },
+            sharedDoubleOption,
           ]),
     ]
 
@@ -1576,9 +1634,35 @@ export function AccommodationStep({
             className="rounded-lg border border-border bg-surface-well p-3 text-sm shadow-well"
             data-testid="shared-double-notice"
           >
-            You are sharing a double room with another guest. No room is
-            booked for you — the other guest holds the room — and you
-            will be collected from the hotel.
+            {inviteMode ? (
+              <span data-testid="invite-room-booked-notice">
+                Your own room is already booked — you are sharing the double
+                room of the person who invited you, and you will be collected
+                from the hotel.
+              </span>
+            ) : (
+              <>
+                You are sharing a double room with another guest. No room is
+                booked for you — the other guest holds the room — and you
+                will be collected from the hotel.
+              </>
+            )}
+          </p>
+        ) : null}
+
+        {/* landr-zeg4u.4: an invitee with no companions yet — point them at
+            where family/friends get added, so the extra-rooms option is
+            discoverable. */}
+        {mode === 'shared-double' &&
+        inviteMode &&
+        companionCount === 0 &&
+        !accommodationTooLate ? (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="additional-accommodation-hint"
+          >
+            Travelling with family or friends? Add them as companions in the
+            previous step and you can book additional rooms for them here.
           </p>
         ) : null}
 
@@ -1675,10 +1759,24 @@ export function AccommodationStep({
           </div>
         ) : null}
 
-        {/* Room list — package mode only. */}
-        {mode === 'package' && selectedHotelId ? (
-          <fieldset className="flex flex-col gap-3 border-t pt-3">
-            <legend className="text-sm font-medium">Rooms</legend>
+        {/* Room list — package mode, and shared-double with companions
+            (landr-zeg4u.4: "Additional accommodation" for them only). */}
+        {bookRooms && selectedHotelId ? (
+          <fieldset
+            className="flex flex-col gap-3 border-t pt-3"
+            data-testid={
+              companionsOnlyRooms ? 'additional-accommodation' : undefined
+            }
+          >
+            <legend className="text-sm font-medium">
+              {companionsOnlyRooms ? 'Additional accommodation' : 'Rooms'}
+            </legend>
+            {companionsOnlyRooms ? (
+              <p className="text-xs text-muted-foreground">
+                Optional — rooms for the people travelling with you. Your own
+                bed is already covered by the shared double room.
+              </p>
+            ) : null}
             {rooms === null && !roomsError ? (
               <p className="text-sm text-muted-foreground">Loading rooms…</p>
             ) : null}
@@ -1810,24 +1908,51 @@ export function AccommodationStep({
             (P..P+C-1), with companions badged as "guest". Continue is now
             GATED on occupancy completeness (every room occupied + everyone
             assigned — see the occupancy hint + canContinue above). */}
-        {mode === 'package' && roomUnits.length > 0 && partyCount > 0 ? (
+        {bookRooms && roomUnits.length > 0 && occupantCount > 0 ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
             <legend className="text-sm font-medium">Room assignment</legend>
-            <RoomAssignment
-              units={roomUnits}
-              participantNames={partyMemberNames}
-              guestFlags={partyGuestFlags}
-              assignment={assignment}
-              onAssign={assignParticipant}
-              ageMap={ageMap}
-              onAgeBandChange={handleAgeBandChange}
-              // landr-z59y: per-room add-on selection drives the breakfast count
-              // + the draggable "Breakfast" chips; breakfastMap holds which
-              // occupants currently have a chip; onBreakfastAssign reassigns one.
-              perRoomAddons={addonSelection}
-              breakfastMap={breakfastMap}
-              onBreakfastAssign={handleBreakfastAssign}
-            />
+            {companionsOnlyRooms ? (
+              // landr-zeg4u.4: companions only. RoomAssignment works in a
+              // 0-based member space, so hand it a companions-only VIEW of
+              // the unified maps and shift its callbacks back by P.
+              <RoomAssignment
+                units={roomUnits}
+                participantNames={companionNames}
+                guestFlags={companionNames.map(() => true)}
+                assignment={shiftMemberKeys(assignment, -participantCount)}
+                onAssign={(i, target) =>
+                  assignParticipant(i + participantCount, target)
+                }
+                ageMap={shiftMemberKeys(ageMap, -participantCount)}
+                onAgeBandChange={(i, band, age) =>
+                  handleAgeBandChange(i + participantCount, band, age)
+                }
+                perRoomAddons={addonSelection}
+                breakfastMap={shiftMemberKeys(breakfastMap, -participantCount)}
+                onBreakfastAssign={(i, from) =>
+                  handleBreakfastAssign(
+                    i + participantCount,
+                    from === undefined ? undefined : from + participantCount,
+                  )
+                }
+              />
+            ) : (
+              <RoomAssignment
+                units={roomUnits}
+                participantNames={partyMemberNames}
+                guestFlags={partyGuestFlags}
+                assignment={assignment}
+                onAssign={assignParticipant}
+                ageMap={ageMap}
+                onAgeBandChange={handleAgeBandChange}
+                // landr-z59y: per-room add-on selection drives the breakfast count
+                // + the draggable "Breakfast" chips; breakfastMap holds which
+                // occupants currently have a chip; onBreakfastAssign reassigns one.
+                perRoomAddons={addonSelection}
+                breakfastMap={breakfastMap}
+                onBreakfastAssign={handleBreakfastAssign}
+              />
+            )}
             {/* landr-87n9.3: inline blocking hint — only shown while
                 occupancy is incomplete so the customer knows exactly what to
                 fix before Continue enables. */}
@@ -1867,8 +1992,8 @@ export function AccommodationStep({
             data-testid="overbook-capacity-warning"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            You have {partyCount}{' '}
-            {partyCount === 1 ? 'person' : 'people'} but only{' '}
+            You have {occupantCount}{' '}
+            {occupantCount === 1 ? 'person' : 'people'} but only{' '}
             {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
           </p>
         ) : null}
@@ -1881,7 +2006,7 @@ export function AccommodationStep({
             stay window for orientation inside the package mode so the
             customer knows which nights the rooms below cover, plus the
             payment notice so it's read alongside the room list. */}
-        {mode === 'package' && selectedHotelId && rooms && rooms.length > 0 ? (
+        {bookRooms && selectedHotelId && rooms && rooms.length > 0 ? (
           <div className="flex flex-col gap-1">
             <p
               className="text-xs text-muted-foreground"

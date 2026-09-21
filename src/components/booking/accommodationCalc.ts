@@ -669,6 +669,67 @@ export function autoAssignParty(
 }
 
 /**
+ * landr-zeg4u.4: re-key a member-indexed map by `offset` (entries whose new
+ * key would fall below 0 are dropped). Used to give the companions-only room
+ * assignment of a shared-double booking a 0-based view of the unified party
+ * index space (participants 0..P-1, companions P..P+C-1) and to map it back.
+ */
+export function shiftMemberKeys<T>(
+  map: Record<number, T>,
+  offset: number,
+): Record<number, T> {
+  const out: Record<number, T> = {}
+  for (const [key, value] of Object.entries(map)) {
+    const next = Number(key) + offset
+    if (next >= 0) out[next] = value
+  }
+  return out
+}
+
+/**
+ * landr-zeg4u.4: auto-assign ONLY the companions (P..P+C-1) to room units —
+ * the shared-double "additional accommodation" case, where the participants'
+ * own beds are the shared double room and must never land in a booked unit.
+ * Any participant entry in `existing` is dropped. Same fill rules as
+ * autoAssignParty otherwise.
+ */
+export function autoAssignCompanions(
+  units: RoomUnit[],
+  participantCount: number,
+  companionCount: number,
+  existing: RoomAssignmentMap = {},
+): RoomAssignmentMap {
+  const local = autoAssignParticipants(
+    units,
+    companionCount,
+    shiftMemberKeys(existing, -participantCount),
+  )
+  return shiftMemberKeys(local, participantCount)
+}
+
+/**
+ * landr-zeg4u.4: occupancyStatus over the companions only (see
+ * autoAssignCompanions). `unassignedMembers` is reported in the UNIFIED party
+ * index space so callers can label it with the whole-party name list.
+ */
+export function companionOccupancyStatus(
+  units: RoomUnit[],
+  participantCount: number,
+  companionCount: number,
+  assignment: RoomAssignmentMap,
+): OccupancyStatus {
+  const local = occupancyStatus(
+    units,
+    companionCount,
+    shiftMemberKeys(assignment, -participantCount),
+  )
+  return {
+    ...local,
+    unassignedMembers: local.unassignedMembers.map((i) => i + participantCount),
+  }
+}
+
+/**
  * Occupancy-completeness check (landr-87n9.3) — the gate that enables
  * Continue in package mode. Returns a structured result so the UI can show
  * a precise inline hint of exactly what's blocking.

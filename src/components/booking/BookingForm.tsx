@@ -1082,8 +1082,9 @@ export function BookingForm({
           : {}),
         // landr-ffyg.2: top-level shared-double marker (landr-ffyg.1).
         // Always sent — true for the second-pilot-sharing mode (in which
-        // case accommodationRooms is empty so no hotel_room line ships and
-        // pickupLocationId is the shared hotel), false for every other
+        // case pickupLocationId is the shared hotel and any hotel_room line
+        // is an additional room for companions only — landr-zeg4u.4), false
+        // for every other
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
         // landr-71kz.4: form_responses from CustomFormStep(s). Optional —

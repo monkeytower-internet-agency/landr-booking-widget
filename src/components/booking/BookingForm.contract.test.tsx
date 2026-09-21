@@ -471,6 +471,56 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     }
   })
 
+  // landr-zeg4u.4: an invitee sharing the host's double may book ADDITIONAL
+  // rooms for the companions they bring. The shared double still covers the
+  // guiding participant (no room on them); only companions carry a room.
+  it('shared-double + additional rooms: room line ships, only companions carry the room', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        companions={[
+          { first_name: 'Mia', last_name: '', email: '', phone: '', companion_kind: 'guest' },
+          { first_name: 'Leo', last_name: '', email: '', phone: '', companion_kind: 'guest' },
+        ]}
+        pickupLocationId="loc-shared-hotel"
+        accommodationRooms={[{ productId: 'room-double', quantity: 1 }]}
+        roomAssignment={{
+          1: { roomProductId: 'room-double', unitIndex: 0 },
+          2: { roomProductId: 'room-double', unitIndex: 0 },
+        }}
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+
+    expect(body.is_shared_double).toBe(true)
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products.map((p) => p.product_id)).toEqual(['svc-main', 'room-double'])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants[0]).toMatchObject({
+      pickup_location_id: 'loc-shared-hotel',
+      room_product_id: null,
+      room_unit_index: null,
+    })
+    const companions = body.companions as Array<Record<string, unknown>>
+    for (const c of companions) {
+      expect(c).toMatchObject({ room_product_id: 'room-double', room_unit_index: 0 })
+    }
+  })
+
   // landr-gb2f.2: PINNED wire contract — assigned participants carry
   // room_product_id + room_unit_index; unassigned send null. products[]
   // line items are NOT changed by the assignment.
