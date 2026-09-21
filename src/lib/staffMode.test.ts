@@ -146,6 +146,19 @@ describe('isAllowedStaffOrigin', () => {
     }
   })
 
+  it('accepts every dashboard deploy tier (dev, staging, prod)', () => {
+    // Mirrors landr-dashboard src/lib/tier.ts TIER_DASHBOARD_ORIGIN — a tier
+    // missing here silently drops the staff session ("Add booking" then runs
+    // as a customer and cannot force-book).
+    for (const origin of [
+      'https://dashboard.dev.landr.de',
+      'https://dashboard-staging.landr.de',
+      'https://dashboard.landr.de',
+    ]) {
+      expect(isAllowedStaffOrigin(origin)).toBe(true)
+    }
+  })
+
   it('accepts localhost / 127.0.0.1 dev origins on any port', () => {
     expect(isAllowedStaffOrigin('http://localhost:5173')).toBe(true)
     expect(isAllowedStaffOrigin('http://127.0.0.1:8080')).toBe(true)
