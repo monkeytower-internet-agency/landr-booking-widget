@@ -7,6 +7,7 @@ import {
   deriveDark,
   resolveDarkTheme,
   widgetThemeStyle,
+  DEFAULT_ACCENT,
 } from './widgetTheme'
 import type { WidgetTheme } from '@/api/types'
 
@@ -152,3 +153,45 @@ describe('widgetThemeStyle', () => {
     expect(Object.keys(style)).toHaveLength(0)
   })
 })
+
+describe('default accent for unthemed operators (landr-80ubl.1)', () => {
+  // vitest.config's `css: false` blanks even `?raw` CSS imports, and the app
+  // tsconfig carries no @types/node, so read the file via Node's builtin
+  // loader (vitest runs from the repo root).
+  const nodeProcess = (
+    globalThis as unknown as {
+      process: {
+        cwd(): string
+        getBuiltinModule(id: 'node:fs'): { readFileSync(p: string, enc: 'utf8'): string }
+      }
+    }
+  ).process
+  const indexCss = nodeProcess
+    .getBuiltinModule('node:fs')
+    .readFileSync(`${nodeProcess.cwd()}/src/index.css`, 'utf8')
+  const rootBlock = indexCss.slice(indexCss.indexOf(':root {'), indexCss.indexOf('.dark {'))
+
+  it('index.css :root --primary is the blue DEFAULT_ACCENT, with a white label', () => {
+    expect(DEFAULT_ACCENT).toBe('#2563eb')
+    expect(rootBlock).toMatch(new RegExp(`--primary:\\s*${DEFAULT_ACCENT};`))
+    expect(rootBlock).toMatch(/--primary-foreground:\s*#ffffff;/)
+    expect(readableTextOn(DEFAULT_ACCENT)).toBe(readableTextOn('#000000'))
+  })
+
+  it('the default tint share matches what surfaceTintMix gives the default accent', () => {
+    expect(rootBlock).toContain(`--surface-tint-mix: ${surfaceTintMix(DEFAULT_ACCENT)};`)
+  })
+
+  it('an unthemed operator gets no inline override, so the blue default stands', () => {
+    expect(widgetThemeStyle({ theme: null, primary_color: null })).toEqual({})
+  })
+
+  it('a themed operator still gets exactly their own accent', () => {
+    const style = widgetThemeStyle({
+      theme: { brand: '#111111', accent: '#ff6600', background: '#ffffff' },
+      primary_color: null,
+    })
+    expect(style['--primary']).toBe('#ff6600')
+  })
+})
+

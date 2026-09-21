@@ -178,11 +178,12 @@ describe('LanguageStep', () => {
     expect(status.textContent).toBe('Grace assigned to Spanish.')
   })
 
-  it('describes the new tap-to-fill / drag-to-split flow', () => {
+  it('describes the tap-to-fill / drag-to-split flow behind "How this works" (landr-80ubl.1)', () => {
     renderStep()
-    expect(screen.getByTestId('participant-language-board').textContent).toContain(
-      'Tap a language',
-    )
+    expect(screen.queryByText(/Tap a language/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /how this works/i }))
+    expect(screen.getByText(/Tap a language to put everyone in it/)).toBeInTheDocument()
+    expect(screen.getByText(/who speaks what/)).toBeInTheDocument()
   })
 
   it('labels the add-language row "Languages:" before anything is open, "Add language:" after', () => {
@@ -335,6 +336,9 @@ describe('LanguageStep — other languages spoken (landr-8sk6l)', () => {
         onConfirm={vi.fn()}
       />,
     )
+    // landr-80ubl.1: optional, so it starts behind "+ Add …".
+    expect(screen.queryByTestId('language-step-other-languages')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /add other languages spoken/i }))
     expect(screen.getByTestId('language-step-other-languages').textContent).toContain(
       'Other languages spoken (optional)',
     )
@@ -344,3 +348,65 @@ describe('LanguageStep — other languages spoken (landr-8sk6l)', () => {
     expect(onChange).toHaveBeenCalledWith('Italian')
   })
 })
+
+describe('LanguageStep — next action + zen (landr-80ubl.1)', () => {
+  const activeBoxes = () =>
+    document.querySelectorAll('[data-next-action="active"]')
+
+  it('exactly one NextAction is active: the board while anyone is unassigned', () => {
+    renderStep()
+    expect(activeBoxes()).toHaveLength(1)
+    expect(screen.getByTestId('lang-next-action')).toHaveAttribute(
+      'data-next-action',
+      'active',
+    )
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: tap the language your group speaks',
+    )
+    assignVia(0, 'en')
+    assignVia(1, 'en')
+    expect(activeBoxes()).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: pick a language for Kay',
+    )
+  })
+
+  it('moves the one active NextAction to Continue once everyone is placed', () => {
+    renderStep()
+    assignVia(0, 'en')
+    assignVia(1, 'en')
+    assignVia(2, 'de')
+    expect(activeBoxes()).toHaveLength(1)
+    expect(screen.getByTestId('lang-next-action')).toHaveAttribute(
+      'data-next-action',
+      'inactive',
+    )
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent('Next: continue')
+    expect(screen.getByTestId('language-step-submit')).toHaveAttribute('data-variant', 'default')
+  })
+
+  it('keeps the comment behind "+ Add a note for us", open when prefilled', () => {
+    renderStep()
+    expect(screen.queryByTestId('customer-comment')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /add a note for us/i }))
+    expect(screen.getByTestId('customer-comment')).toHaveFocus()
+  })
+
+  it('shows a prefilled comment and other-languages value without a click', () => {
+    render(
+      <LanguageStep
+        productName="Tandem"
+        participantNames={NAMES}
+        guestFlags={GUESTS}
+        offeredLanguages={['en']}
+        customerComment="Vegan"
+        otherLanguages={{ label: 'Other languages spoken', value: 'Italian', onChange: vi.fn() }}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('customer-comment')).toHaveValue('Vegan')
+    expect(screen.getByTestId('language-step-other-languages-input')).toHaveValue('Italian')
+  })
+})
+
