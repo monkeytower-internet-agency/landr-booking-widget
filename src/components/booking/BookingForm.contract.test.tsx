@@ -370,6 +370,85 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     )
   })
 
+  // landr-zeg4u.6: safety net for the shared-double rule — only the booker's
+  // bed is the host's double, so the API 422s any other guiding participant
+  // without a room. Name them instead of dumping the raw error.
+  it('maps a shared_double_room_occupancy_invalid participant_unassigned 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: 'shared_double_room_occupancy_invalid',
+            reason: 'participant_unassigned',
+            participant_index: 1,
+            room_product_id: null,
+            unit_index: null,
+            message: 'raw server text',
+          },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[
+          { ...BOOKER, service_role_code: '' },
+          { ...BOOKER, first_name: 'Anna', last_name: 'Pilot', service_role_code: '' },
+        ]}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/Anna/)
+    expect(errBox.textContent).toMatch(/only you share the host's room/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+
+  it('maps any other shared_double_room_occupancy_invalid 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: 'shared_double_room_occupancy_invalid',
+            reason: 'unit_empty',
+            room_product_id: 'double-room',
+            unit_index: 0,
+          },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/go back to accommodation/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+
   it('omits no required PublicSubmitBookingIn field when the booking has no rooms / no addons', async () => {
     render(
       <BookingForm

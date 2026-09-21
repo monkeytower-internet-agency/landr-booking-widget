@@ -2691,4 +2691,87 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(isSharedDouble).toBe(true)
     expect(Object.keys(assignment as object)).toEqual(['1'])
   })
+
+  it('too late for rooms + another guiding participant: explains and blocks Continue (landr-zeg4u.6)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        participantNames={['Thomas', 'Anna']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('shared-double-too-late-others'),
+      ).toBeInTheDocument(),
+    )
+    const note = screen.getByTestId('shared-double-too-late-others')
+    expect(note).toHaveTextContent(/Only you share the host's room/)
+    expect(note).toHaveTextContent(/Anna/)
+    expect(note).toHaveTextContent(/remove them or contact the operator/)
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('too late for rooms with only the invitee: Continue stays enabled, no extra note (landr-zeg4u.6)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    mocks.getAvailability.mockResolvedValue([
+      {
+        availability_id: 'a-1',
+        date: '2026-06-10',
+        start_time: null,
+        end_time: null,
+        capacity: 5,
+        capacity_reserved: 0,
+        available_seats: 5,
+        status: 'open',
+        activity_bookable: true,
+        accommodation_bookable: false,
+      },
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    expect(
+      screen.queryByTestId('shared-double-too-late-others'),
+    ).not.toBeInTheDocument()
+  })
 })
