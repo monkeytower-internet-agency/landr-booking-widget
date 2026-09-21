@@ -2577,7 +2577,44 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(isSharedDouble).toBe(true)
   })
 
-  it('blocks Continue while an additional room is not filled by companions', async () => {
+  it('a lone companion may take a double — partial rooms are allowed (landr-zeg4u.5)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    // One companion in a double — the invitee does NOT fill the second bed,
+    // and that is fine: the room is priced per unit either way.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    expect(screen.queryByTestId('occupancy-hint')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    const [rooms, , , , , assignment] = onConfirm.mock.calls[0]!
+    expect(rooms).toEqual([{ productId: 'double-room', quantity: 1 }])
+    expect(Object.keys(assignment as object)).toEqual(['1'])
+  })
+
+  it('not every companion has to be placed (landr-zeg4u.5)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([
       makeRoom('double-room', 'Double Room', 73, 2),
@@ -2589,7 +2626,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
         operatorToken="para42"
         participantCount={1}
         participantNames={['Thomas']}
-        companionNames={['Mia']}
+        companionNames={['Mia', 'Leo', 'Ben']}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         inviteMode
@@ -2601,10 +2638,57 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /Increase Double Room quantity/i }),
     )
-    // One companion in a double — the invitee does NOT fill the second bed.
     await waitFor(() =>
-      expect(screen.getByTestId('occupancy-hint')).toBeInTheDocument(),
+      expect(screen.getAllByTestId(/^participant-chip-/)).toHaveLength(3),
     )
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+    expect(screen.queryByTestId('occupancy-hint')).not.toBeInTheDocument()
+  })
+
+  it('another guiding participant must get a room; only the booker shares the double (landr-zeg4u.5)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        participantNames={['Thomas', 'Anna']}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('additional-accommodation')).toBeInTheDocument(),
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    // No room yet: Anna has no bed, so Continue is blocked and says why.
     expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+    expect(screen.getByTestId('additional-accommodation')).toHaveTextContent(
+      /Anna/,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    const chips = screen.getAllByTestId(/^participant-chip-/)
+    expect(chips.some((c) => c.textContent?.includes('Anna'))).toBe(true)
+    expect(chips.some((c) => c.textContent?.includes('Thomas'))).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+    const [rooms, , , , isSharedDouble, assignment] = onConfirm.mock.calls[0]!
+    expect(rooms).toEqual([{ productId: 'double-room', quantity: 1 }])
+    expect(isSharedDouble).toBe(true)
+    expect(Object.keys(assignment as object)).toEqual(['1'])
   })
 })
