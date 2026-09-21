@@ -1192,3 +1192,49 @@ describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5
     expect(screen.queryByTestId('cf-language-mirror')).toBeNull()
   })
 })
+
+describe('CustomFormStep — other_languages asked on the LanguageStep (landr-8sk6l)', () => {
+  function renderLifted(value: string, formKey = 'lang_form', onConfirm = vi.fn()) {
+    mocks.getProductFlow.mockResolvedValue(langMirrorFlow())
+    render(
+      <CustomFormStep
+        operatorToken="tok"
+        productId="p1"
+        formKey="lang_form"
+        productName="Tandem"
+        participantLanguages={{ 0: 'es' }}
+        partyCount={1}
+        otherLanguagesUpstream={{ formKey, value }}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    return onConfirm
+  }
+
+  it('hides the field and submits the upstream value', async () => {
+    const onConfirm = renderLifted('  Italian, Dutch ')
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    expect(screen.queryByTestId('cf-field-other_languages')).toBeNull()
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect(entry.answers.other_languages).toBe('Italian, Dutch')
+  })
+
+  it('omits the answer when left blank upstream', async () => {
+    const onConfirm = renderLifted('   ')
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    expect('other_languages' in entry.answers).toBe(false)
+  })
+
+  it('keeps its own field when the upstream value belongs to another form', async () => {
+    renderLifted('Italian', 'other_form')
+    await waitFor(() =>
+      expect(screen.getByTestId('cf-field-other_languages')).toBeTruthy(),
+    )
+  })
+})

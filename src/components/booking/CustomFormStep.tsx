@@ -35,6 +35,7 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { pickLocalized } from '@/lib/locale'
+import { findOtherLanguagesField, OTHER_LANGUAGES_FIELD_KEY } from './otherLanguages'
 import { getProductFlow } from '@/api/client'
 import type {
   FlowFieldDef,
@@ -111,6 +112,13 @@ export interface CustomFormStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
+  /**
+   * landr-8sk6l: "Other languages spoken" was already asked on the
+   * LanguageStep (see otherLanguages.ts). When `formKey` matches this form,
+   * the `other_languages` field is not rendered and its answer is this value —
+   * the same single-source mirror as `participantLanguages`.
+   */
+  otherLanguagesUpstream?: { formKey: string; value: string }
   onBack: () => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
@@ -605,6 +613,7 @@ export function CustomFormStep({
   partyCount = 0,
   customerComment = '',
   onCustomerCommentChange = () => {},
+  otherLanguagesUpstream,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -718,10 +727,27 @@ export function CustomFormStep({
   // The mirrored answer replaces whatever is (or isn't) in `answers` for that
   // one field, for validation, visibility and pruning alike — one source of
   // truth, so a late change upstream can never leave the two disagreeing.
+  // landr-8sk6l: same idea for "Other languages spoken" when the language step
+  // asked it. Blank upstream drops the key, like an untouched optional field.
+  const otherLanguagesLifted =
+    otherLanguagesUpstream !== undefined &&
+    otherLanguagesUpstream.formKey === formKey &&
+    formDef !== null &&
+    findOtherLanguagesField({
+      modules: [{ kind: 'custom_form', position: 0, form: formDef }],
+    }) !== null
   const effectiveAnswers: AnswerMap = useMemo(() => {
-    if (!mirrorActive || !mirrorField) return answers
-    return { ...answers, [mirrorField.key]: assignedLanguages }
-  }, [answers, mirrorActive, mirrorField, assignedLanguages])
+    const next: AnswerMap =
+      mirrorActive && mirrorField
+        ? { ...answers, [mirrorField.key]: assignedLanguages }
+        : { ...answers }
+    if (otherLanguagesLifted) {
+      const v = otherLanguagesUpstream!.value.trim()
+      if (v) next[OTHER_LANGUAGES_FIELD_KEY] = v
+      else delete next[OTHER_LANGUAGES_FIELD_KEY]
+    }
+    return next
+  }, [answers, mirrorActive, mirrorField, assignedLanguages, otherLanguagesLifted, otherLanguagesUpstream])
 
   const handleSubmit = () => {
     if (!formDef) return
@@ -789,6 +815,7 @@ export function CustomFormStep({
         ) : formDef ? (
           formDef.fields.map((field) => {
             if (!isFieldVisible(field, effectiveAnswers)) return null
+            if (otherLanguagesLifted && field.key === OTHER_LANGUAGES_FIELD_KEY) return null
             return (
               <FieldRenderer
                 key={field.key}
