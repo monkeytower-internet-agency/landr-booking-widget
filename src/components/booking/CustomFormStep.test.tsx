@@ -1127,22 +1127,24 @@ function renderMirrorStep(
   return onConfirm
 }
 
-describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5x.4)', () => {
-  it('shows the assigned languages read-only instead of a second control', async () => {
-    renderMirrorStep()
+describe('CustomFormStep — language field hidden when already assigned upstream (landr-cgq5g)', () => {
+  it('does not render the language field at all, but still submits the assignment', async () => {
+    const onConfirm = renderMirrorStep()
 
-    await waitFor(() => expect(screen.getByTestId('cf-language-mirror')).toBeTruthy())
-    // The ranked multi-select is NOT rendered — one source of truth.
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    // Neither the read-only mirror nor the ranked multi-select is rendered —
+    // the field is skipped entirely, not shown a second way.
+    expect(screen.queryByTestId('cf-field-languages')).toBeNull()
     expect(screen.queryByTestId('cf-lang-row-en')).toBeNull()
     expect(screen.queryByTestId('participant-language-board')).toBeNull()
-    // Booker first, then the rest: es before de.
-    expect(screen.getByTestId('cf-language-mirror-es')).toBeTruthy()
-    expect(screen.getByTestId('cf-language-mirror-de')).toBeTruthy()
-    expect(screen.getByTestId('cf-field-languages').textContent).toContain(
-      'go back a step to change',
-    )
     // The free-text field beside it is untouched.
     expect(screen.getByTestId('cf-field-other_languages')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
+    // Booker first, then the rest: es before de.
+    expect(entry.answers.languages).toEqual(['es', 'de'])
   })
 
   it('satisfies a REQUIRED language field from the assignment alone, with no input', async () => {
@@ -1166,8 +1168,8 @@ describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5
       options: ['en', 'de'],
     })
 
-    await waitFor(() => expect(screen.getByTestId('cf-language-mirror')).toBeTruthy())
-    expect(screen.getByTestId('cf-language-mirror-fr')).toBeTruthy()
+    await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+    expect(screen.queryByTestId('cf-field-languages')).toBeNull()
     fireEvent.click(screen.getByTestId('cf-submit'))
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
     const entry = onConfirm.mock.calls[0][0] as { answers: Record<string, unknown> }
@@ -1189,7 +1191,7 @@ describe('CustomFormStep — language field mirrors the LanguageStep (landr-r6e5
       />,
     )
     await waitFor(() => expect(screen.getByTestId('cf-lang-row-en')).toBeTruthy())
-    expect(screen.queryByTestId('cf-language-mirror')).toBeNull()
+    expect(screen.queryByTestId('cf-field-languages')).toBeTruthy()
   })
 })
 
