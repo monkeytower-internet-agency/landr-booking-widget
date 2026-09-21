@@ -2406,6 +2406,145 @@ describe('App', () => {
       expect(screen.getByTestId('invite-banner')).toHaveTextContent('A1B2C3D4')
     })
 
+    // landr-zeg4u.1: the bug this regression-tests — ensureProductFlow was a
+    // useCallback([]) that closed over `token` at first render. On `/i/<token>`
+    // (no `?w=`) that's null until the invite prefill resolves, so the
+    // product's flow fetch ran with token=null, 404d, and the null result was
+    // cached FOREVER in flowFetchesRef — degrading every invited booking to
+    // the legacy plan (no custom_form step) even once the real token arrived,
+    // and failing submit with the API's 422 form_responses_required. Assert
+    // the custom-form step still renders (and its answers still ship as
+    // form_responses) when the product is reached via an invite link.
+    it('/i/<token> with a required custom_form still shows the declarations step before review (landr-zeg4u.1)', async () => {
+      window.history.replaceState({}, '', '/i/tok-declarations')
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-invite-cf',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: MOCK_TOKEN,
+        product_id: 'svc-invite-cf',
+        dates: [iso],
+        hotel_location_id: null,
+        is_shared_double: false,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-invite-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-declarations')
+      })
+
+      // Dates → pick a date → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      await waitFor(() => {
+        const enabled = screen
+          .getAllByRole('gridcell')
+          .map((c) => c.querySelector('button'))
+          .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+        expect(enabled.length).toBeGreaterThan(0)
+      })
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // Your details → fill booker → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Thomas')
+      setInput('booker_last_name', 'Klein')
+      setInput('booker_email', 'thomas@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
+      // step — NOT straight to review, which is the pre-fix bug.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('cf-field-language')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        form_responses?: {
+          form_key: string
+          answers: Record<string, unknown>
+        }[]
+      }
+      expect(submitBody.form_responses).toBeDefined()
+      const entry = submitBody.form_responses!.find(
+        (r) => r.form_key === 'customer_declarations',
+      )!
+      expect(entry).toBeDefined()
+      expect(entry.answers.license_valid).toEqual(['yes'])
+
+      // getProductFlow was fetched with the BOOTSTRAPPED token, never null —
+      // the direct regression check for the ensureProductFlow ref fix.
+      expect(mocks.getProductFlow).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        'svc-invite-cf',
+      )
+      expect(mocks.getProductFlow).not.toHaveBeenCalledWith(
+        null,
+        expect.anything(),
+      )
+    })
+
     it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
       window.history.replaceState({}, '', '/i/tok-no-operator')
       mocks.listProducts.mockResolvedValue([])

@@ -325,6 +325,17 @@ function BookingFlowApp() {
   // entry point, where `?w=` is present from the first render.
   const [bootstrapToken, setBootstrapToken] = useState<string | null>(null)
   const token = queryToken ?? bootstrapToken
+  // landr-zeg4u.1: ensureProductFlow (below) is a useCallback([]) — the ref
+  // lets it read the CURRENT token on every call instead of the null it
+  // closed over at first render for an invite link (`/i/<token>`, no `?w=`),
+  // where `token` starts null and only becomes real once the invite prefill
+  // resolves and calls setBootstrapToken. Without this, ensureProductFlow
+  // fetched with token=null forever (see the guard in ensureProductFlow
+  // itself, which also refuses to cache a null-token fetch).
+  const tokenRef = useRef(token)
+  useEffect(() => {
+    tokenRef.current = token
+  }, [token])
   // landr-il9f.2: no token → landing page immediately (no fetch needed).
   // Unknown token → landing page after the settings fetch returns 404.
   // 'unknown' means "no token supplied"; null means "fetch pending";
@@ -648,9 +659,18 @@ function BookingFlowApp() {
     (productId: string): Promise<ProductFlowResponse | null> => {
       const inFlight = flowFetchesRef.current.get(productId)
       if (inFlight) return inFlight
+      // landr-zeg4u.1: an invite link (`/i/<token>`, no `?w=`) mounts with
+      // `token` null — bootstrapToken only arrives once the invite prefill
+      // resolves. Fetching with no token 404s (getProductFlow swallows it to
+      // null), and caching THAT in flowFetchesRef would strand the product on
+      // the legacy plan (no custom_form) forever, even once the real token
+      // shows up. So: don't fetch, and — critically — don't cache, when there
+      // is no token yet; the next caller (once token resolves) retries clean.
+      const currentToken = tokenRef.current
+      if (!currentToken) return Promise.resolve(null)
       const promise = (async () => {
         try {
-          const flow = await getProductFlow(token!, productId)
+          const flow = await getProductFlow(currentToken, productId)
           setRemoteFlow((prev) =>
             prev && prev.productId === productId && prev.flow === flow
               ? prev
@@ -667,8 +687,11 @@ function BookingFlowApp() {
       flowFetchesRef.current.set(productId, promise)
       return promise
     },
-    // token is stable for the lifetime of this component (read once at mount).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // token is read via tokenRef (a ref access, not a dep) so this stays
+    // reference-stable across renders — its identity is depended on
+    // elsewhere (withResolvedFlow's own deps) and must not change every
+    // token update. See tokenRef above for why a plain [token] dep isn't
+    // used instead.
     [],
   )
   // landr-iyyf fix-forward (MEDIUM 1): flowFetchesRef caches SETTLED promises
