@@ -294,6 +294,49 @@ describe('buildDiscountExplanation — savings line (landr-qj1g)', () => {
     expect(lines[1]).toMatch(/15/)
   })
 
+  it('puts a savings line under EACH run, not only the last one', () => {
+    // Regression: a 3-day run + a 6-day run showed "saves 20" once, under the
+    // 6-day run only — the 3-day run's own saving was missing.
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [
+          [3, 75.0],
+          [6, 70.0],
+        ],
+        per_participant: true,
+        participants: 1,
+        base_tier: { threshold_min: 1, amount_per_unit: 90.0 },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(4)
+    expect(lines[0]).toMatch(/^3 consecutive days/)
+    expect(lines[1]).toMatch(/^saves .*15.*\/day vs standard rate$/)
+    expect(lines[2]).toMatch(/^6 consecutive days/)
+    expect(lines[3]).toMatch(/^saves .*20.*\/day vs standard rate$/)
+  })
+
+  it('omits the savings line for a run already at the standard rate', () => {
+    const rule: EstimateAppliedRule = {
+      kind: 'per_streak_tier',
+      detail: {
+        streaks: [
+          [1, 90.0],
+          [4, 75.0],
+        ],
+        per_participant: false,
+        participants: null,
+        base_tier: { threshold_min: 1, amount_per_unit: 90.0 },
+      },
+    }
+    const lines = buildDiscountExplanation(rule, 'EUR')
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toMatch(/^1 day/)
+    expect(lines[1]).toMatch(/^4 consecutive days/)
+    expect(lines[2]).toMatch(/^saves .*15/)
+  })
+
   it('does not append a savings line for per_streak_tier when base_tier is absent', () => {
     const rule: EstimateAppliedRule = {
       kind: 'per_streak_tier',

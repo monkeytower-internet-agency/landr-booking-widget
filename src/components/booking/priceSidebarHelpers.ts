@@ -163,8 +163,10 @@ function withParticipantSuffix(
  * per_streak_tier detail = { streaks: [[length, perDay], ...],
  * per_participant, participants, base_tier? }. One line per consecutive
  * run, e.g. "3 consecutive days · €75.00/day". When base_tier is present
- * (landr-qj1g), appends a savings line: "saves €15.00/day vs standard rate".
- * A booking with two separate runs (25–27 + 29–30) yields two run lines.
+ * (landr-qj1g), each run line is followed by its own savings line, e.g.
+ * "saves €15.00/day vs standard rate" (omitted for a run at the standard
+ * rate). A booking with two separate runs (25–27 + 29–30) yields two run
+ * lines, each with its own saving.
  */
 function buildStreakTierExplanation(
   detail: Record<string, unknown> | undefined,
@@ -176,6 +178,19 @@ function buildStreakTierExplanation(
   const perParticipant = Boolean(detail.per_participant)
   const participants =
     typeof detail.participants === 'number' ? detail.participants : null
+  // landr-qj1g: base_tier is the short-stay (standard) bracket. Each run
+  // gets its OWN savings line directly under it when its rate beats the
+  // standard rate — a booking with a 3-day and a 6-day run saves different
+  // amounts per day, so one trailing line (the old behaviour, which only
+  // compared the LAST run) left every earlier run without its saving.
+  const baseTier =
+    detail.base_tier && typeof detail.base_tier === 'object'
+      ? (detail.base_tier as Record<string, unknown>)
+      : null
+  const basePerDay =
+    baseTier && typeof baseTier.amount_per_unit === 'number'
+      ? baseTier.amount_per_unit
+      : null
   const lines: string[] = []
   for (const entry of streaks) {
     if (!Array.isArray(entry) || entry.length < 2) continue
@@ -187,20 +202,8 @@ function buildStreakTierExplanation(
         ? `${length} day · ${formatPerDay(perDay, currency)}`
         : `${length} consecutive days · ${formatPerDay(perDay, currency)}`
     lines.push(withParticipantSuffix(base, perParticipant, participants))
-  }
-  // landr-qj1g: if a base_tier was provided and its rate differs from every
-  // applied rate, append one savings line. We show the highest applied rate
-  // (from the last [length, perDay] in streaks) for the comparison.
-  const baseTier =
-    detail.base_tier && typeof detail.base_tier === 'object'
-      ? (detail.base_tier as Record<string, unknown>)
-      : null
-  if (baseTier && typeof baseTier.amount_per_unit === 'number' && streaks.length > 0) {
-    const lastEntry = streaks[streaks.length - 1]
-    if (Array.isArray(lastEntry) && lastEntry.length >= 2) {
-      const appliedPerDay = Number(lastEntry[1])
-      const basePerDay = baseTier.amount_per_unit
-      const saving = basePerDay - appliedPerDay
+    if (basePerDay !== null) {
+      const saving = basePerDay - perDay
       if (Number.isFinite(saving) && saving > 0.005) {
         lines.push(`saves ${formatPerDay(saving, currency)} vs standard rate`)
       }
