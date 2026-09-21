@@ -32,6 +32,8 @@ import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ProductGallery } from '@/components/booking/detail/ProductGallery'
 import { ProductFacts } from '@/components/booking/detail/ProductFacts'
 import { formatPriceFrom } from '@/components/booking/detail/priceFromLabel'
+import { tr } from '@/lib/strings'
+import { NextAction } from '@/components/booking/NextAction'
 
 export interface ProductDetailStepProps {
   product: Product
@@ -153,35 +155,48 @@ export function ProductDetailStep({
         </div>
       ) : null}
 
+      {/* landr-80ubl.2: one-next-action rule — arriving here always has
+          exactly one pending action (Book), desktop and mobile alike. */}
       {/* Desktop price + CTA — in-flow at the bottom of the content. */}
-      <div
-        className="mt-2 hidden items-center justify-between gap-4 border-t pt-4 md:flex"
-        data-testid="product-detail-cta-desktop"
+      <NextAction
+        active
+        cue={tr('productDetailCue')}
+        className="mt-2 hidden md:flex"
       >
-        {priceLabel ? (
-          <span
-            className="text-lg font-semibold tabular-nums"
-            data-testid="product-detail-price"
-          >
-            {priceLabel}
-          </span>
-        ) : (
-          <span />
-        )}
-        <Button
-          type="button"
-          size="lg"
-          onClick={onBook}
-          data-testid="product-detail-book-cta"
-          className="px-8 font-semibold"
+        <div
+          className="flex items-center justify-between gap-4"
+          data-testid="product-detail-cta-desktop"
         >
-          Book now
-        </Button>
-      </div>
+          {priceLabel ? (
+            <span
+              className="text-lg font-semibold tabular-nums"
+              data-testid="product-detail-price"
+            >
+              {priceLabel}
+            </span>
+          ) : (
+            <span />
+          )}
+          <Button
+            type="button"
+            size="lg"
+            onClick={onBook}
+            data-testid="product-detail-book-cta"
+            className="px-8 font-semibold"
+          >
+            Book now
+          </Button>
+        </div>
+      </NextAction>
 
       {/* Mobile sticky bottom bar — mirrors PriceSidebar's fixed-bar
           pattern (fixed inset-x-0 bottom-0 + a matching h-16 spacer below
-          so the bar never covers the last bit of content). */}
+          so the bar never covers the last bit of content). Deliberately NOT
+          a second NextAction: the fixed bar's own border/shadow chrome
+          already reads as the CTA, and data-next-action="active" must stay
+          singular per screen — the hidden desktop NextAction above still
+          carries it (md:hidden here, hidden md:flex there; both markups are
+          always in the DOM, CSS just picks which shows). */}
       <div
         data-testid="product-detail-cta-mobile"
         className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t bg-card px-4 py-3 shadow-lg md:hidden"

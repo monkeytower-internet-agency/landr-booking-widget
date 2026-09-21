@@ -309,3 +309,15 @@ describe('ProductDetailStep description fallback', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('ProductDetailStep — next action + zen (landr-80ubl.2)', () => {
+  it('exactly one NextAction is active: the desktop Book CTA (mobile bar is a plain duplicate)', () => {
+    renderStep(makeProduct())
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: book this trip',
+    )
+  })
+})

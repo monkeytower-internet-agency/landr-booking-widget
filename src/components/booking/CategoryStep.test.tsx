@@ -583,3 +583,20 @@ describe('CategoryStep — grid/list toggle', () => {
     expect(onPick).toHaveBeenCalledWith(courses)
   })
 })
+
+describe('CategoryStep — next action + zen (landr-80ubl.2)', () => {
+  it('exactly one NextAction is active: the whole grid until a tile is picked', () => {
+    render(
+      <CategoryStep
+        groups={[makeGroup({ id: 'g-1', slug: 'tandem', name: 'Tandem Flights' })]}
+        onPick={vi.fn()}
+      />,
+    )
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: choose a category',
+    )
+  })
+})

@@ -13,6 +13,7 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
+import { HelpDisclosure } from '@/components/booking/HelpDisclosure'
 
 type Mode = 'individual' | 'range'
 
@@ -548,14 +549,12 @@ export function MultiDayPicker({
           </span>
         </div>
       ) : null}
-      {/* landr-3mo4: help text recessed into a faint well so it reads as a
-          quiet hint beneath the calendar rather than floating loose copy. */}
-      <p
-        className="rounded-lg bg-surface-well px-3 py-2 text-xs text-muted-foreground shadow-well"
-        data-testid="multi-day-help"
-      >
-        {text}
-      </p>
+      {/* landr-80ubl.2: zen by default — the gesture instructions move
+          behind the disclosure (landr-3mo4's well styling dropped along
+          with it; HelpDisclosure has its own quiet toggle treatment). */}
+      <HelpDisclosure>
+        <p data-testid="multi-day-help">{text}</p>
+      </HelpDisclosure>
     </div>
   )
 }
