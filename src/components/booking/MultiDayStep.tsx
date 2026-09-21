@@ -13,6 +13,9 @@ import {
 import { MultiDayPicker } from '@/components/booking/MultiDayPicker'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import { DayChips } from '@/components/booking/DayChips'
+import { isDayBookable } from '@/components/booking/bookability'
+import { availabilityWindow } from '@/components/booking/calendarStart'
 
 interface Props {
   product: Product
@@ -52,8 +55,6 @@ interface Props {
   originalDaysLabel?: string
 }
 
-const HORIZON_DAYS = 60
-
 // Stable empty reference for the availability prop while slots are still
 // loading. Handing MultiDayPicker a fresh `[]` (i.e. `slots ?? []`) every
 // render made its availableSet/forcedDays memos recompute each render and its
@@ -85,12 +86,32 @@ export function MultiDayStep({
   // alongside an empty forcedDays.
   const [forcedReasons, setForcedReasons] = useState<ForceReason[]>([])
 
-  const { fromIso, toIso } = useMemo(() => {
-    const from = new Date()
-    const to = new Date()
-    to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to) }
-  }, [])
+  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
+
+  // landr-l38a4: an invite lands on a read-only summary of the host's days
+  // (join as-is in one tap); the calendar only opens behind "Change dates".
+  // A re-entry whose selection already differs from the host's goes straight
+  // to the calendar — the customer has been editing.
+  const [editing, setEditing] = useState(() => {
+    if (!originalDays) return true
+    const initial = [...(initialSelectedDays ?? [])].sort().join(',')
+    return initial !== [...originalDays].sort().join(',')
+  })
+
+  // Host days that can no longer be booked (sold out / lead time passed).
+  // "Continue with these dates" would 422, so the summary blocks it and
+  // points at "Change dates". Empty until availability has loaded.
+  const unavailableOriginalDays = useMemo(() => {
+    if (!originalDays || slots === null) return []
+    const bookable = new Set(
+      slots
+        .filter(
+          (s) => s.available_seats > 0 && isDayBookable(s, product.hotel_offering),
+        )
+        .map((s) => s.date),
+    )
+    return originalDays.filter((iso) => !bookable.has(iso))
+  }, [originalDays, slots, product.hotel_offering])
 
   useEffect(() => {
     let cancelled = false
@@ -125,14 +146,57 @@ export function MultiDayStep({
     )
   }
 
+  if (!editing && originalDays) {
+    const host = originalDaysLabel ?? 'the host'
+    const blocked = unavailableOriginalDays.length
+    return (
+      <Card data-testid="invite-dates-summary">
+        <StepBackButton onBack={onBack} />
+        <CardHeader>
+          <CardTitle>Your dates</CardTitle>
+          <CardDescription>
+            The same days as {host} for {product.name}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <DayChips dates={originalDays} />
+          {blocked > 0 ? (
+            <p
+              className="text-sm text-destructive"
+              data-testid="invite-dates-unavailable"
+            >
+              {blocked === 1
+                ? `1 of ${host}'s days is no longer available — change your dates to continue.`
+                : `${blocked} of ${host}'s days are no longer available — change your dates to continue.`}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditing(true)}
+            >
+              Change dates
+            </Button>
+            <Button
+              type="button"
+              disabled={slots === null || blocked > 0}
+              onClick={() => onConfirm([...originalDays].sort())}
+            >
+              Continue with these dates
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick your dates</CardTitle>
-        <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}.
-        </CardDescription>
+        <CardDescription>Available days for {product.name}.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <MultiDayPicker
@@ -144,7 +208,6 @@ export function MultiDayStep({
             setForcedReasons(reasons)
           }}
           helpText={undefined}
-          defaultMonth={new Date()}
           isContiguous={product.is_contiguous}
           hotelOffering={product.hotel_offering}
           originalValue={originalDays?.map(dateFromIso)}

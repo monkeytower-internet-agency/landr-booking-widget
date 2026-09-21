@@ -14,6 +14,12 @@ import {
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import {
+  availabilityWindow,
+  startOfToday,
+  useNothingBeforeNotice,
+  useStartMonth,
+} from '@/components/booking/calendarStart'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 
@@ -47,8 +53,6 @@ interface Props {
   initialSelectedDays?: string[]
 }
 
-const HORIZON_DAYS = 60
-
 /**
  * Picker for service products with service_time_shape='single_date' (landr-y9k).
  *
@@ -77,11 +81,8 @@ export function SingleDatePicker({
   )
 
   const { fromIso, toIso, today } = useMemo(() => {
-    const from = new Date()
-    from.setHours(0, 0, 0, 0)
-    const to = new Date(from)
-    to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to), today: from }
+    const from = startOfToday()
+    return { ...availabilityWindow(from), today: from }
   }, [])
 
   useEffect(() => {
@@ -124,6 +125,13 @@ export function SingleDatePicker({
         .map((slot) => slot.date),
     )
   }, [slots, product.hotel_offering])
+
+  // landr-l38a4: open on the restored pick, else the first bookable day.
+  const [month, setMonth] = useStartMonth(
+    selected ? [isoDate(selected)] : [],
+    availableSet,
+  )
+  const nothingBefore = useNothingBeforeNotice(availableSet)
 
   // landr-t869m.5: date → slot lookup so a force-booked pick can name WHICH
   // gate(s) it bypassed. A date with no matching slot at all (outside the
@@ -204,8 +212,7 @@ export function SingleDatePicker({
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
         <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}. Click a date
-          to continue.
+          Available days for {product.name}. Click a date to continue.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -220,8 +227,17 @@ export function SingleDatePicker({
           disabled={(date) =>
             date < today || (!canForce && !availableSet.has(isoDate(date)))
           }
-          defaultMonth={today}
+          month={month}
+          onMonthChange={setMonth}
         />
+        {nothingBefore ? (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="calendar-nothing-before"
+          >
+            {nothingBefore}
+          </p>
+        ) : null}
         {selected ? (
           // landr-3mo4: selected date confirmed in a tinted (borderless) chip
           // so the choice reads as committed, not as muted helper text.
