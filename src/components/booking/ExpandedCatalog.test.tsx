@@ -524,3 +524,42 @@ describe('ExpandedCatalog — date-window chips (landr-4a5j)', () => {
     expect(mocks.getFixedDateWindows).not.toHaveBeenCalled()
   })
 })
+
+describe('ExpandedCatalog — next action + zen (landr-80ubl.2)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('exactly one NextAction is active for the whole catalog, not one per section', async () => {
+    mocks.listProducts.mockResolvedValue([
+      makeProduct({
+        product_id: 'a', slug: 'a', name: 'Guided day',
+        group_slug: 'guiding', bookable: true,
+      }),
+      makeProduct({
+        product_id: 'b', slug: 'b', name: 'Course window',
+        group_slug: 'courses', bookable: true,
+      }),
+    ])
+    render(
+      <ExpandedCatalog
+        operatorToken="tok"
+        groups={[
+          makeGroup({ id: 'g-1', slug: 'guiding', name: 'Guiding', product_count: 1 }),
+          makeGroup({ id: 'g-2', slug: 'courses', name: 'Courses', product_count: 1 }),
+        ]}
+        onSelect={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Guided day')).toBeInTheDocument())
+    expect(
+      document.querySelectorAll('[data-next-action="active"]'),
+    ).toHaveLength(1)
+    expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+      'Next: choose a product',
+    )
+  })
+})

@@ -3,10 +3,9 @@ import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { forceReasonsFor } from '@/components/booking/bookability'
-import type { ForceReason } from '@/lib/strings'
+import { fixedDateWindowGate, tr, type ForceReason } from '@/lib/strings'
 import { expandWindowDays } from './expandWindowDays'
 import { formatWindowRangeLabel } from './dateLabel'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -19,6 +18,8 @@ import { useVariant } from '@/lib/variant'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { cn } from '@/lib/utils'
+import { NextAction } from '@/components/booking/NextAction'
+import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
@@ -166,6 +167,10 @@ export function FixedDateWindowPicker({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {/* landr-80ubl.2: one-next-action rule — the window list owns the
+            ring until one is picked, then ContinueAction (active by
+            default) takes over. */}
+        <NextAction active={!selectedWindow} cue={tr('fixedDateWindowCue')}>
         {windows === null ? (
           <p className="text-sm text-muted-foreground">Loading windows…</p>
         ) : windows.length === 0 ? (
@@ -290,25 +295,24 @@ export function FixedDateWindowPicker({
             })}
           </ul>
         )}
+        </NextAction>
 
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            disabled={!selectedWindow}
-            onClick={() => {
-              if (selectedWindow) {
-                onConfirm(
-                  windowToSlot(selectedWindow),
-                  selectedWindow,
-                  selectedForceReasons.length > 0,
-                  selectedForceReasons.length > 0 ? selectedForceReasons : undefined,
-                )
-              }
-            }}
-          >
-            Continue
-          </Button>
-        </div>
+        <ContinueAction
+          ready={!!selectedWindow}
+          reason={fixedDateWindowGate(!!selectedWindow)}
+          reasonId="fixed-date-window-picker-gate"
+          onContinue={() => {
+            if (selectedWindow) {
+              onConfirm(
+                windowToSlot(selectedWindow),
+                selectedWindow,
+                selectedForceReasons.length > 0,
+                selectedForceReasons.length > 0 ? selectedForceReasons : undefined,
+              )
+            }
+          }}
+          data-testid="fixed-date-window-picker-submit"
+        />
       </CardContent>
     </Card>
   )
