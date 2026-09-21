@@ -370,6 +370,85 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     )
   })
 
+  // landr-zeg4u.6: safety net for the shared-double rule — only the booker's
+  // bed is the host's double, so the API 422s any other guiding participant
+  // without a room. Name them instead of dumping the raw error.
+  it('maps a shared_double_room_occupancy_invalid participant_unassigned 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: 'shared_double_room_occupancy_invalid',
+            reason: 'participant_unassigned',
+            participant_index: 1,
+            room_product_id: null,
+            unit_index: null,
+            message: 'raw server text',
+          },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[
+          { ...BOOKER, service_role_code: '' },
+          { ...BOOKER, first_name: 'Anna', last_name: 'Pilot', service_role_code: '' },
+        ]}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/Anna/)
+    expect(errBox.textContent).toMatch(/only you share the host's room/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+
+  it('maps any other shared_double_room_occupancy_invalid 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: 'shared_double_room_occupancy_invalid',
+            reason: 'unit_empty',
+            room_product_id: 'double-room',
+            unit_index: 0,
+          },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/go back to accommodation/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+
   it('omits no required PublicSubmitBookingIn field when the booking has no rooms / no addons', async () => {
     render(
       <BookingForm
@@ -468,6 +547,56 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(participants.length).toBeGreaterThan(0)
     for (const p of participants) {
       expect(p.pickup_location_id).toBe('loc-shared-hotel')
+    }
+  })
+
+  // landr-zeg4u.4: an invitee sharing the host's double may book ADDITIONAL
+  // rooms for the companions they bring. The shared double still covers the
+  // guiding participant (no room on them); only companions carry a room.
+  it('shared-double + additional rooms: room line ships, only companions carry the room', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        companions={[
+          { first_name: 'Mia', last_name: '', email: '', phone: '', companion_kind: 'guest' },
+          { first_name: 'Leo', last_name: '', email: '', phone: '', companion_kind: 'guest' },
+        ]}
+        pickupLocationId="loc-shared-hotel"
+        accommodationRooms={[{ productId: 'room-double', quantity: 1 }]}
+        roomAssignment={{
+          1: { roomProductId: 'room-double', unitIndex: 0 },
+          2: { roomProductId: 'room-double', unitIndex: 0 },
+        }}
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+
+    expect(body.is_shared_double).toBe(true)
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products.map((p) => p.product_id)).toEqual(['svc-main', 'room-double'])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants[0]).toMatchObject({
+      pickup_location_id: 'loc-shared-hotel',
+      room_product_id: null,
+      room_unit_index: null,
+    })
+    const companions = body.companions as Array<Record<string, unknown>>
+    for (const c of companions) {
+      expect(c).toMatchObject({ room_product_id: 'room-double', room_unit_index: 0 })
     }
   })
 
@@ -814,7 +943,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
               email: 'thomas@example.com',
               phone: null,
               phone_digits: null,
-              invite_url: 'https://bw-dev.landr.de/?invite=tok-2',
+              invite_url: 'https://bw-dev.landr.de/i/tok-2',
               whatsapp_url: null,
               linked_booking_reference: null,
               has_invite: true,

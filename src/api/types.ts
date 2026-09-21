@@ -1262,6 +1262,14 @@ export interface ContactPagePrefill {
 export interface InvitePrefill {
   operator_id: string
   /**
+   * landr-5lrov: the operator's PUBLIC widget token — the same value the
+   * embed snippet carries in `?w=`. The shared invite link is
+   * `<base>/i/<token>` and deliberately has no `?w=`, so this is how the
+   * widget learns which operator it is rendering. Empty string is possible
+   * (operator row without a token) and is treated as "invite unusable".
+   */
+  widget_token: string
+  /**
    * landr-otml0.3 review fix (MINOR 5): nullable on the wire
    * (`InvitePrefillOut.product_id: str | None` — the host's original
    * product can be deleted/deactivated between minting the invite and it
@@ -1374,6 +1382,30 @@ export interface PostBookingContent {
 }
 
 /**
+ * landr-78i5e.1/.8: one row of `BookingSummary.periods` — the arrival/
+ * activity/departure schedule that replaces the raw `selected_days` day
+ * chips on the confirmation screen (and, per booking, in the confirmation
+ * email — same derivation, see `app/services/booking_periods.py`).
+ *
+ * Rows arrive already ordered: arrival, then activity periods by
+ * `start_date`, then departure. A gap between two booked activity days
+ * splits the run into two `activity` rows, so a single consecutive booking
+ * yields exactly three rows total. `product_name` is `null` for
+ * arrival/departure, and "A + B" when several products share a run's days.
+ * `label` is the server-localized display string (falls back to English
+ * for locales beyond en/de) — prefer it over building one from `kind`.
+ */
+export interface BookingPeriod {
+  kind: 'arrival' | 'activity' | 'departure'
+  start_date: string
+  end_date: string
+  label: string
+  product_name: string | null
+  days: number
+  meta: Record<string, unknown>
+}
+
+/**
  * What was booked (landr-nva1a.1/.4) — built by the same server-side
  * builder that feeds the booking confirmation email, so the success
  * screen and the email agree verbatim. Money fields are bare decimal
@@ -1413,6 +1445,16 @@ export interface BookingSummary {
    * (render nothing for step 7 of the success screen).
    */
   post_booking?: PostBookingContent[]
+  /**
+   * landr-78i5e.1: the arrival/activity/departure periods table — see
+   * BookingPeriod. Best-effort/optional: absent or `[]` on an older API
+   * deploy, or on a periods_for_booking lookup failure. landr-78i5e.8
+   * review fix (MAJOR): Confirmation must not go dateless when this is
+   * empty — it falls back to the hotel check-in/check-out stay-window
+   * line (the old per-product DayChips are NOT restored; those dates were
+   * always redundant with `dates.label` above them).
+   */
+  periods?: BookingPeriod[]
 }
 
 /**

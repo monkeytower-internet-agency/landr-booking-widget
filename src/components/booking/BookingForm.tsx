@@ -205,9 +205,12 @@ interface Props {
   participantLanguages?: Record<number, string>
   /**
    * landr-ffyg.2: "second pilot in a shared double room" mode. When true
-   * the submit carries the top-level is_shared_double=true (landr-ffyg.1),
-   * accommodationRooms is empty (no hotel_room lines), and the
-   * pickupLocationId is the shared hotel. Defaults false.
+   * the submit carries the top-level is_shared_double=true (landr-ffyg.1)
+   * and the pickupLocationId is the shared hotel. The booker's own bed is
+   * the shared double, so accommodationRooms is usually empty; when it is
+   * not, those hotel_room lines are ADDITIONAL rooms for the people
+   * travelling with the booker (landr-zeg4u.4 / .5), labelled as such on the
+   * review. Defaults false.
    */
   isSharedDouble?: boolean
   /**
@@ -546,6 +549,25 @@ const formatHttpError = (
     const who = typeof name === 'string' && name.trim() ? name : 'This companion'
     return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
   }
+  // landr-zeg4u.6: server backstop for the shared-double room rules the
+  // accommodation step already enforces — only the booker's bed is the host's
+  // double, so every other guiding participant needs a booked room.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'shared_double_room_occupancy_invalid'
+  ) {
+    const detail = err.detail as { reason?: unknown; participant_index?: unknown }
+    if (detail.reason === 'participant_unassigned') {
+      const idx = detail.participant_index
+      const label = typeof idx === 'number' ? memberLabels[idx] : undefined
+      const who = label && label.trim() ? label : 'Another pilot'
+      return `${who} needs a room: only you share the host's room. Please go back to accommodation and book a room for them, or remove them from the booking.`
+    }
+    return "The extra rooms don't match the people staying in them. Please go back to accommodation and check who sleeps in each room."
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
@@ -720,6 +742,23 @@ export function BookingForm({
   const selectedDays =
     selection.kind === 'days' ? selection.selectedDays : []
   const hasRooms = (accommodationRooms?.length ?? 0) > 0
+  // landr-zeg4u.6: in a shared double only the booker's bed is the host's
+  // room, so the booked rooms hold companions and/or the other guiding
+  // participants ("co-pilots", party indices 1..P-1). Name who they are for.
+  const sharedDoubleRoomsHeading = (() => {
+    const assigned = Object.keys(roomAssignment ?? {}).map(Number)
+    const hasCoPilots = assigned.some((i) => i >= 1 && i < participants.length)
+    const hasCompanions = assigned.some((i) => i >= participants.length)
+    const who =
+      hasCoPilots && hasCompanions
+        ? 'your companions and co-pilots'
+        : hasCoPilots
+          ? 'your co-pilots'
+          : hasCompanions
+            ? 'your companions'
+            : null
+    return who ? `Additional accommodation (for ${who})` : 'Additional accommodation'
+  })()
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
     : null
@@ -1082,8 +1121,9 @@ export function BookingForm({
           : {}),
         // landr-ffyg.2: top-level shared-double marker (landr-ffyg.1).
         // Always sent — true for the second-pilot-sharing mode (in which
-        // case accommodationRooms is empty so no hotel_room line ships and
-        // pickupLocationId is the shared hotel), false for every other
+        // case pickupLocationId is the shared hotel and any hotel_room line
+        // is an additional room for companions only — landr-zeg4u.4), false
+        // for every other
         // mode. The API persists it on bookings.is_shared_double.
         is_shared_double: isSharedDouble,
         // landr-71kz.4: form_responses from CustomFormStep(s). Optional —
@@ -1215,9 +1255,20 @@ export function BookingForm({
                 4 nights") via formatDayRange (sibling helper in dateLabel.ts
                 already pins UTC for ISO inputs). */}
             <div className="font-medium">
-              Hotel: {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
+              {/* landr-zeg4u.5 / .6: in a shared double these rooms are not
+                  the booker's — say whose they are. */}
+              {isSharedDouble ? `${sharedDoubleRoomsHeading}: ` : 'Hotel: '}
+              {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
               {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
             </div>
+            {isSharedDouble ? (
+              <p
+                className="text-muted-foreground mt-1 text-xs"
+                data-testid="shared-double-own-bed-note"
+              >
+                Your own bed is the shared double room booked by the host.
+              </p>
+            ) : null}
             <p className="text-muted-foreground mt-1 text-xs">
               Paid directly to hotel — not included in your booking total.
             </p>

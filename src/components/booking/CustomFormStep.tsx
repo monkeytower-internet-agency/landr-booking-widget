@@ -35,6 +35,7 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { pickLocalized } from '@/lib/locale'
+import { findOtherLanguagesField, OTHER_LANGUAGES_FIELD_KEY } from './otherLanguages'
 import { getProductFlow } from '@/api/client'
 import type {
   FlowFieldDef,
@@ -47,8 +48,6 @@ import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisib
 import { RankedLanguagePicker } from './RankedLanguagePicker'
 import {
   distinctAssignedLanguages,
-  languageFlag,
-  languageName,
   type ParticipantLanguageMap,
 } from './participantLanguages'
 
@@ -111,6 +110,13 @@ export interface CustomFormStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
+  /**
+   * landr-8sk6l: "Other languages spoken" was already asked on the
+   * LanguageStep (see otherLanguages.ts). When `formKey` matches this form,
+   * the `other_languages` field is not rendered and its answer is this value —
+   * the same single-source mirror as `participantLanguages`.
+   */
+  otherLanguagesUpstream?: { formKey: string; value: string }
   onBack: () => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
@@ -275,28 +281,12 @@ function normaliseInitial(
 
 // ─── FieldRenderer ────────────────────────────────────────────────────────────
 
-/**
- * landr-r6e5x.4: what the form's `language` field shows once the assignment
- * has already been made on the LanguageStep. The field becomes a read-only
- * SUMMARY — the board upstream is the single source of truth, and a second
- * editable control here would let the two disagree with no rule for which wins.
- */
-interface LanguageMirrorContext {
-  /** The field key the summary stands in for. */
-  fieldKey: string
-  /** The languages actually assigned, booker first. */
-  assigned: string[]
-  /** What will be mirrored into the answer — see mirroredLanguageAnswer. */
-  mirrored: string[]
-}
-
 interface FieldRendererProps {
   field: FlowFieldDef
   answers: AnswerMap
   error: string | null
   locale: string
   onChange: (key: string, value: string | string[]) => void
-  languageMirror?: LanguageMirrorContext | null
 }
 
 function FieldRenderer({
@@ -305,7 +295,6 @@ function FieldRenderer({
   error,
   locale,
   onChange,
-  languageMirror = null,
 }: FieldRendererProps) {
   const { tokens } = useVariant()
   const label = pickLocalized(field.label, field.label_localized, locale) || field.key
@@ -439,45 +428,12 @@ function FieldRenderer({
       // free-text input rather than render an empty, unusable picker
       // ("malformed config degrades, never throws").
       case 'language': {
-        // landr-r6e5x.4 / epic decision D3: languages are assigned PER PERSON
-        // on the LanguageStep, which runs before this form. When the operator's
-        // form also declares a language field, it reports what was assigned
-        // instead of asking again — one source of truth, no way for the two
-        // controls to disagree.
-        if (languageMirror && languageMirror.fieldKey === field.key) {
-          return (
-            <div
-              className="flex flex-col gap-2"
-              data-testid={`cf-field-${field.key}`}
-            >
-              <div
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-well p-3 shadow-well"
-                data-testid="cf-language-mirror"
-              >
-                {languageMirror.assigned.length === 0 ? (
-                  <span className="text-xs italic text-muted-foreground">
-                    No language assigned yet.
-                  </span>
-                ) : (
-                  languageMirror.assigned.map((code) => (
-                    <span
-                      key={code}
-                      data-testid={`cf-language-mirror-${code}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-sm font-medium"
-                    >
-                      <span aria-hidden>{languageFlag(code)}</span>
-                      {languageName(code)}
-                    </span>
-                  ))
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Taken from the guide-language step — go back a step to change
-                who speaks what.
-              </p>
-            </div>
-          )
-        }
+        // landr-r6e5x.4 / epic decision D3, landr-cgq5g: languages are
+        // assigned PER PERSON on the LanguageStep, which runs before this
+        // form. When the operator's form also declares a language field, the
+        // render loop above skips it entirely (effectiveAnswers still mirrors
+        // the assignment into the submitted answer) — one source of truth, no
+        // redundant re-display, no way for two controls to disagree.
         if (field.options && field.options.length > 0) {
           const ordered = (answers[field.key] as string[] | undefined) ?? []
           return (
@@ -605,6 +561,7 @@ export function CustomFormStep({
   partyCount = 0,
   customerComment = '',
   onCustomerCommentChange = () => {},
+  otherLanguagesUpstream,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -718,10 +675,27 @@ export function CustomFormStep({
   // The mirrored answer replaces whatever is (or isn't) in `answers` for that
   // one field, for validation, visibility and pruning alike — one source of
   // truth, so a late change upstream can never leave the two disagreeing.
+  // landr-8sk6l: same idea for "Other languages spoken" when the language step
+  // asked it. Blank upstream drops the key, like an untouched optional field.
+  const otherLanguagesLifted =
+    otherLanguagesUpstream !== undefined &&
+    otherLanguagesUpstream.formKey === formKey &&
+    formDef !== null &&
+    findOtherLanguagesField({
+      modules: [{ kind: 'custom_form', position: 0, form: formDef }],
+    }) !== null
   const effectiveAnswers: AnswerMap = useMemo(() => {
-    if (!mirrorActive || !mirrorField) return answers
-    return { ...answers, [mirrorField.key]: assignedLanguages }
-  }, [answers, mirrorActive, mirrorField, assignedLanguages])
+    const next: AnswerMap =
+      mirrorActive && mirrorField
+        ? { ...answers, [mirrorField.key]: assignedLanguages }
+        : { ...answers }
+    if (otherLanguagesLifted) {
+      const v = otherLanguagesUpstream!.value.trim()
+      if (v) next[OTHER_LANGUAGES_FIELD_KEY] = v
+      else delete next[OTHER_LANGUAGES_FIELD_KEY]
+    }
+    return next
+  }, [answers, mirrorActive, mirrorField, assignedLanguages, otherLanguagesLifted, otherLanguagesUpstream])
 
   const handleSubmit = () => {
     if (!formDef) return
@@ -789,6 +763,12 @@ export function CustomFormStep({
         ) : formDef ? (
           formDef.fields.map((field) => {
             if (!isFieldVisible(field, effectiveAnswers)) return null
+            if (otherLanguagesLifted && field.key === OTHER_LANGUAGES_FIELD_KEY) return null
+            // landr-cgq5g: languages are already assigned per person on the
+            // LanguageStep upstream — don't ask again here. effectiveAnswers
+            // still carries the mirrored value, so it's submitted/validated
+            // exactly as before; only the redundant re-display is dropped.
+            if (mirrorActive && mirrorField && field.key === mirrorField.key) return null
             return (
               <FieldRenderer
                 key={field.key}
@@ -797,15 +777,6 @@ export function CustomFormStep({
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
                 onChange={handleChange}
-                languageMirror={
-                  mirrorActive && mirrorField && mirrorField.key === field.key
-                    ? {
-                        fieldKey: mirrorField.key,
-                        assigned: assignedLanguages,
-                        mirrored: assignedLanguages,
-                      }
-                    : null
-                }
               />
             )
           })

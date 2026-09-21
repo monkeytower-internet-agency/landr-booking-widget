@@ -13,6 +13,11 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
+import {
+  availabilityWindow,
+  useNothingBeforeNotice,
+  useStartMonth,
+} from '@/components/booking/calendarStart'
 
 interface Props {
   product: Product
@@ -32,8 +37,6 @@ interface Props {
   initialSlot?: AvailabilitySlot
 }
 
-const HORIZON_DAYS = 60
-
 export function AvailabilityPicker({
   product,
   onBack,
@@ -51,12 +54,7 @@ export function AvailabilityPicker({
     initialSlot ? initialSlot.availability_id : null,
   )
 
-  const { fromIso, toIso } = useMemo(() => {
-    const from = new Date()
-    const to = new Date()
-    to.setDate(to.getDate() + HORIZON_DAYS)
-    return { fromIso: isoDate(from), toIso: isoDate(to) }
-  }, [])
+  const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
 
   useEffect(() => {
     let cancelled = false
@@ -83,6 +81,13 @@ export function AvailabilityPicker({
         .map((s) => s.date),
     )
   }, [slots, product.hotel_offering])
+
+  // landr-l38a4: open on the restored pick, else the first bookable day.
+  const [month, setMonth] = useStartMonth(
+    selectedDate ? [isoDate(selectedDate)] : [],
+    availableDates,
+  )
+  const nothingBefore = useNothingBeforeNotice(availableDates)
 
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
@@ -112,9 +117,7 @@ export function AvailabilityPicker({
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>Pick a date</CardTitle>
-        <CardDescription>
-          Showing the next {HORIZON_DAYS} days for {product.name}.
-        </CardDescription>
+        <CardDescription>Available days for {product.name}.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <Calendar
@@ -125,7 +128,17 @@ export function AvailabilityPicker({
             setSelectedSlotId(null)
           }}
           disabled={(date) => !availableDates.has(isoDate(date))}
+          month={month}
+          onMonthChange={setMonth}
         />
+        {nothingBefore ? (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="calendar-nothing-before"
+          >
+            {nothingBefore}
+          </p>
+        ) : null}
         {selectedDate ? (
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Times on {isoDate(selectedDate)}</p>

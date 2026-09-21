@@ -669,6 +669,110 @@ export function autoAssignParty(
 }
 
 /**
+ * landr-zeg4u.4: re-key a member-indexed map by `offset` (entries whose new
+ * key would fall below 0 are dropped). Used to give the shared-double room
+ * assignment a view of the unified party index space (participants 0..P-1,
+ * companions P..P+C-1) without the booker at index 0, and to map it back.
+ */
+export function shiftMemberKeys<T>(
+  map: Record<number, T>,
+  offset: number,
+): Record<number, T> {
+  const out: Record<number, T> = {}
+  for (const [key, value] of Object.entries(map)) {
+    const next = Number(key) + offset
+    if (next >= 0) out[next] = value
+  }
+  return out
+}
+
+/**
+ * landr-zeg4u.5: members of a shared-double booking who are NOT covered by
+ * the shared double. Only the booker (party index 0) sleeps in the host's
+ * double; everyone after them — other guiding participants (1..P-1) and the
+ * companions (P..P+C-1) — can only sleep in a room booked here.
+ */
+export const SHARED_DOUBLE_BOOKER_COUNT = 1
+
+/**
+ * landr-zeg4u.4 / .5: auto-assign everyone except the booker to room units —
+ * the shared-double "additional accommodation" case. A booker entry in
+ * `existing` is dropped. Other guiding participants come first in index
+ * order, so they get beds before companions. Same fill rules as
+ * autoAssignParty otherwise.
+ */
+export function autoAssignSharedDoubleOccupants(
+  units: RoomUnit[],
+  participantCount: number,
+  companionCount: number,
+  existing: RoomAssignmentMap = {},
+): RoomAssignmentMap {
+  const local = autoAssignParticipants(
+    units,
+    Math.max(0, partySize(participantCount, companionCount) - SHARED_DOUBLE_BOOKER_COUNT),
+    shiftMemberKeys(existing, -SHARED_DOUBLE_BOOKER_COUNT),
+  )
+  return shiftMemberKeys(local, SHARED_DOUBLE_BOOKER_COUNT)
+}
+
+/**
+ * landr-zeg4u.4 / .5: occupancy gate for the shared-double additional rooms.
+ * Mirrors the API's assert_shared_double_room_occupancy, which is looser than
+ * package mode's occupancyStatus:
+ *   - every booked unit needs at least one occupant (`emptyUnits` blocks);
+ *   - a unit below capacity is fine (a lone partner may take a double — the
+ *     room is priced per unit either way), so `partialUnits` is always empty;
+ *   - every OTHER guiding participant (1..P-1) must be placed — their bed is
+ *     not the shared double. Companions may be left unplaced.
+ * Over-capacity cannot happen: every assignment path caps at unit capacity.
+ * `unassignedMembers` lists only the blocking (guiding) members, in UNIFIED
+ * party indices, so callers can label them with the whole-party name list.
+ */
+export function sharedDoubleOccupancyStatus(
+  units: RoomUnit[],
+  participantCount: number,
+  companionCount: number,
+  assignment: RoomAssignmentMap,
+): OccupancyStatus {
+  const local = occupancyStatus(
+    units,
+    Math.max(0, partySize(participantCount, companionCount) - SHARED_DOUBLE_BOOKER_COUNT),
+    shiftMemberKeys(assignment, -SHARED_DOUBLE_BOOKER_COUNT),
+  )
+  const unassignedMembers = local.unassignedMembers
+    .map((i) => i + SHARED_DOUBLE_BOOKER_COUNT)
+    .filter((i) => i < participantCount)
+  return {
+    complete: local.emptyUnits.length === 0 && unassignedMembers.length === 0,
+    emptyUnits: local.emptyUnits,
+    partialUnits: [],
+    unassignedMembers,
+  }
+}
+
+/**
+ * landr-395ks: booked units holding at least one but fewer occupants than
+ * their capacity, with how many beds stay empty. Shared-double lets these
+ * through on purpose (a partner may take a double), but the unit is charged
+ * whole, so the step shows a non-blocking "you pay for empty beds" notice.
+ * Empty units are excluded — those already block Continue.
+ */
+export function unitsWithEmptyBeds(
+  units: RoomUnit[],
+  assignment: RoomAssignmentMap,
+): { unit: RoomUnit; emptyBeds: number }[] {
+  const pruned = pruneAssignments(assignment, units)
+  const out: { unit: RoomUnit; emptyBeds: number }[] = []
+  for (const unit of units) {
+    const count = occupantsOfUnit(pruned, unit).length
+    if (count > 0 && count < unit.capacity) {
+      out.push({ unit, emptyBeds: unit.capacity - count })
+    }
+  }
+  return out
+}
+
+/**
  * Occupancy-completeness check (landr-87n9.3) — the gate that enables
  * Continue in package mode. Returns a structured result so the UI can show
  * a precise inline hint of exactly what's blocking.

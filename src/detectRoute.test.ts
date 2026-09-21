@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectRoute } from './detectRoute'
+import { detectRoute, invitePathToken } from './detectRoute'
 
 /**
  * Path-based route detection (landr-sgnd). The widget is otherwise a
@@ -193,6 +193,33 @@ describe('detectRoute', () => {
     expect(detectRoute('/offer/abc123XYZ-tok')).toEqual({
       kind: 'offer',
       token: 'abc123XYZ-tok',
+    })
+  })
+
+
+  // landr-5lrov: the short invite link. `/i/{token}` stays a BOOKING route —
+  // it is the ordinary flow entered through an invite — and the token is read
+  // by invitePathToken, not by detectRoute.
+  describe('invitePathToken (/i/{token})', () => {
+    it('reads the token out of /i/{token}', () => {
+      expect(invitePathToken('/i/abc123XYZ-tok_9')).toBe('abc123XYZ-tok_9')
+    })
+
+    it('tolerates a trailing slash and percent-encoding', () => {
+      expect(invitePathToken('/i/abc123/')).toBe('abc123')
+      expect(invitePathToken('/i/a%2Bb')).toBe('a+b')
+    })
+
+    it('is null for every other path, including prefix collisions', () => {
+      expect(invitePathToken('/')).toBeNull()
+      expect(invitePathToken('/i')).toBeNull()
+      expect(invitePathToken('/i/')).toBeNull()
+      expect(invitePathToken('/invite/abc')).toBeNull()
+      expect(invitePathToken('/i/abc/def')).toBeNull()
+    })
+
+    it('leaves /i/{token} on the booking route', () => {
+      expect(detectRoute('/i/abc123')).toEqual({ kind: 'booking' })
     })
   })
 })

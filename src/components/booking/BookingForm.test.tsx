@@ -174,6 +174,90 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     expect(stay.textContent).toMatch(/4 nights/)
   })
 
+  it('labels shared-double rooms as additional accommodation for companions (landr-zeg4u.5)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        companions={[{ first_name: 'Mia', last_name: 'L', email: '', phone: '', companion_kind: 'guest' }]}
+        roomAssignment={{ 1: { roomProductId: 'room-1', unitIndex: 0 } }}
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const stay = screen.getByTestId('hotel-stay-block')
+    expect(stay).toHaveTextContent(
+      /Additional accommodation \(for your companions\)/,
+    )
+    expect(stay).toHaveTextContent(/4 nights/)
+    expect(screen.getByTestId('shared-double-own-bed-note')).toHaveTextContent(
+      /your own bed is the shared double room booked by the host/i,
+    )
+  })
+
+  // landr-zeg4u.6: the extra rooms can also hold other guiding participants
+  // (only the booker's bed is the host's double) — name who they are for.
+  it.each<[string, Record<number, { roomProductId: string; unitIndex: number }>, string]>([
+    ['co-pilots only', { 1: { roomProductId: 'room-1', unitIndex: 0 } }, 'Additional accommodation (for your co-pilots):'],
+    [
+      'co-pilots and companions',
+      {
+        1: { roomProductId: 'room-1', unitIndex: 0 },
+        2: { roomProductId: 'room-1', unitIndex: 0 },
+      },
+      'Additional accommodation (for your companions and co-pilots):',
+    ],
+    ['companions only', { 2: { roomProductId: 'room-1', unitIndex: 0 } }, 'Additional accommodation (for your companions):'],
+    ['nobody assigned', {}, 'Additional accommodation:'],
+  ])('shared-double heading names who the rooms are for: %s (landr-zeg4u.6)', (_label, assignment, heading) => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          { ...bookerAsParticipant(ADA_BOOKER), first_name: 'Anna' },
+        ]}
+        companions={[{ first_name: 'Mia', last_name: 'L', email: '', phone: '', companion_kind: 'guest' }]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        roomAssignment={assignment}
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('hotel-stay-block').textContent).toContain(heading)
+  })
+
+  it('keeps the plain hotel heading when not sharing a double (landr-zeg4u.5)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('hotel-stay-block')).not.toHaveTextContent(
+      /Additional accommodation/,
+    )
+    expect(screen.queryByTestId('shared-double-own-bed-note')).toBeNull()
+  })
+
   it('omits the hotel block when accommodationRooms is empty or absent', () => {
     render(
       <BookingForm

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  autoAssignSharedDoubleOccupants,
+  sharedDoubleOccupancyStatus,
+  unitsWithEmptyBeds,
+  shiftMemberKeys,
   applyAssignment,
   assignBreakfastChip,
   autoAssignParticipants,
@@ -1543,5 +1547,93 @@ describe('assignment-map hygiene (landr-abme)', () => {
     const after = applyAssignment(before, 0, zeroCap)
     expect(after).toEqual(before)
     expect(Object.keys(after)).not.toContain('undefined')
+  })
+})
+
+describe('shared-double room assignment (landr-zeg4u.4 / .5)', () => {
+  const units = [
+    { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'Double' },
+  ]
+
+  it('autoAssignSharedDoubleOccupants places everyone but the booker and drops a booker entry', () => {
+    const out = autoAssignSharedDoubleOccupants(units, 1, 2, {
+      0: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(Object.keys(out).map(Number).sort()).toEqual([1, 2])
+    expect(out[1]).toMatchObject({ roomProductId: 'double', unitIndex: 0 })
+  })
+
+  it('places other guiding participants before companions', () => {
+    const single = [
+      { roomProductId: 'single', unitIndex: 0, capacity: 1, roomName: 'Single' },
+    ]
+    // P=2 (booker + Anna), C=1: Anna (index 1) takes the only bed.
+    const out = autoAssignSharedDoubleOccupants(single, 2, 1, {})
+    expect(Object.keys(out).map(Number)).toEqual([1])
+  })
+
+  it('a partially filled unit and an unplaced companion do not block', () => {
+    const status = sharedDoubleOccupancyStatus(units, 1, 3, {
+      1: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(status.complete).toBe(true)
+    expect(status.unassignedMembers).toEqual([])
+  })
+
+  it('another guiding participant without a room blocks, reported in party indices', () => {
+    const status = sharedDoubleOccupancyStatus(units, 3, 1, {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      3: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(status.complete).toBe(false)
+    expect(status.unassignedMembers).toEqual([2])
+  })
+
+  it('an empty booked unit blocks', () => {
+    const status = sharedDoubleOccupancyStatus(units, 1, 1, {})
+    expect(status.complete).toBe(false)
+    expect(status.emptyUnits).toHaveLength(1)
+  })
+
+  it('with no rooms booked another guiding participant still blocks', () => {
+    const status = sharedDoubleOccupancyStatus([], 2, 0, {})
+    expect(status.complete).toBe(false)
+    expect(status.unassignedMembers).toEqual([1])
+  })
+
+  it('shiftMemberKeys re-keys and drops negative keys', () => {
+    expect(shiftMemberKeys({ 0: 'a', 2: 'b' }, -1)).toEqual({ 1: 'b' })
+    expect(shiftMemberKeys({ 1: 'b' }, 1)).toEqual({ 2: 'b' })
+  })
+})
+
+describe('unitsWithEmptyBeds (landr-395ks)', () => {
+  const double = { roomProductId: 'double', unitIndex: 0, capacity: 2, roomName: 'Double' }
+  const triple = { roomProductId: 'triple', unitIndex: 0, capacity: 3, roomName: 'Triple' }
+
+  it('reports a partly filled unit with its empty bed count', () => {
+    const out = unitsWithEmptyBeds([double, triple], {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'triple', unitIndex: 0 },
+      3: { roomProductId: 'triple', unitIndex: 0 },
+    })
+    expect(out).toEqual([
+      { unit: double, emptyBeds: 1 },
+      { unit: triple, emptyBeds: 1 },
+    ])
+  })
+
+  it('ignores full and fully empty units', () => {
+    const out = unitsWithEmptyBeds([double, triple], {
+      1: { roomProductId: 'double', unitIndex: 0 },
+      2: { roomProductId: 'double', unitIndex: 0 },
+    })
+    expect(out).toEqual([])
+  })
+
+  it('ignores assignments pointing at a unit that no longer exists', () => {
+    expect(
+      unitsWithEmptyBeds([double], { 1: { roomProductId: 'gone', unitIndex: 0 } }),
+    ).toEqual([])
   })
 })

@@ -18,6 +18,7 @@
  * react-refresh/only-export-components happy (see PriceSidebar/DayChips
  * for the same convention).
  */
+import type { ReactNode } from 'react'
 import type { SavingLine } from '@/api/types'
 import { cn } from '@/lib/utils'
 import { formatMoney } from './priceSidebarHelpers'
@@ -36,6 +37,13 @@ export interface PriceBreakdownProps {
   /** Prefixes every data-testid so the two call sites stay distinguishable. */
   testIdPrefix: string
   className?: string
+  /**
+   * landr-8sk6l: rendered after the savings rows (or after nothing, when
+   * there are none) and before the total — the sidebar puts its
+   * "Multi-day rate applied" explanation here so it reads as one block with
+   * the saving it explains.
+   */
+  details?: ReactNode
 }
 
 export function PriceBreakdown({
@@ -47,6 +55,7 @@ export function PriceBreakdown({
   totalClassName,
   testIdPrefix,
   className,
+  details,
 }: PriceBreakdownProps) {
   const rows = savings ?? []
   const hasSavings = rows.length > 0 && Boolean(subtotalBeforeSavings)
@@ -80,6 +89,7 @@ export function PriceBreakdown({
           </ul>
         </>
       ) : null}
+      {details}
       <div
         className={cn(
           'flex items-baseline justify-between',

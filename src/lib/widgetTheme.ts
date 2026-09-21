@@ -38,6 +38,13 @@ import type { CSSProperties } from 'react'
 import type { OperatorSettings, WidgetTheme } from '@/api/types'
 
 /** A CSSProperties carrying arbitrary `--*` custom properties. */
+/**
+ * landr-80ubl.1: the accent an UNTHEMED operator gets — index.css's :root
+ * --primary (widgetThemeStyle returns {} for them, so the stylesheet default
+ * stands). Exported so the parity test can pin index.css to it.
+ */
+export const DEFAULT_ACCENT = '#2563eb'
+
 type CSSVarStyle = CSSProperties & Record<`--${string}`, string>
 
 const NEAR_BLACK = '#111111'

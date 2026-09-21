@@ -9,6 +9,10 @@ import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { computeDayDiff } from '@/components/booking/daySetDiff'
+import {
+  useNothingBeforeNotice,
+  useStartMonth,
+} from '@/components/booking/calendarStart'
 
 type Mode = 'individual' | 'range'
 
@@ -17,7 +21,11 @@ interface MultiDayPickerProps {
   value: Date[]
   onChange: (days: Date[]) => void
   helpText?: string
-  /** Initial visible month. Forwarded to react-day-picker; tests rely on this. */
+  /**
+   * Initial visible month; tests rely on this. When omitted (landr-l38a4) the
+   * calendar opens on the earliest selected day's month, else the first
+   * bookable day's month, else today's.
+   */
   defaultMonth?: Date
   /**
    * When true (product.is_contiguous, landr-y9k): selection MUST be a single
@@ -161,6 +169,15 @@ export function MultiDayPicker({
   )
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
+
+  // landr-l38a4: open on the first selected day (Back nav / invite prefill)
+  // or the first bookable day (season starts later) — never a dead month.
+  const [month, setMonth] = useStartMonth(
+    value.map(isoDate),
+    availableSet,
+    defaultMonth,
+  )
+  const nothingBefore = useNothingBeforeNotice(availableSet)
 
   // landr-aoak.2: the force-booked subset of the current selection — selected
   // days that have zero availability. Empty for every normal selection.
@@ -426,7 +443,8 @@ export function MultiDayPicker({
         disabled={
           canForce ? undefined : (date) => !availableSet.has(isoDate(date))
         }
-        defaultMonth={defaultMonth}
+        month={month}
+        onMonthChange={setMonth}
         // landr-711: do NOT pass range_start / range_middle / range_end
         // modifiers. CalendarDayButton paints range_middle with bg-accent
         // (light gray) instead of bg-primary, so mid-run selected days
@@ -443,6 +461,14 @@ export function MultiDayPicker({
           diffRemoved: diffRemovedDates,
         }}
       />
+      {nothingBefore ? (
+        <p
+          className="text-xs text-muted-foreground"
+          data-testid="calendar-nothing-before"
+        >
+          {nothingBefore}
+        </p>
+      ) : null}
       {originalValue !== undefined ? (
         <div className="flex flex-col gap-2" data-testid="multi-day-diff">
           {diff?.hasDiff ? (

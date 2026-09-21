@@ -1225,6 +1225,8 @@ describe('App', () => {
       // assign-languages: the field is pre-filled from the (empty) draft,
       // and this is where the customer actually types their comment.
       await screen.findByTestId('participant-language-board')
+      // landr-80ubl.1: empty optional field sits behind "+ Add a note for us".
+      fireEvent.click(screen.getByRole('button', { name: /add a note for us/i }))
       expect(screen.getByTestId('customer-comment')).toHaveValue('')
       fireEvent.change(screen.getByTestId('customer-comment'), {
         target: { value: 'Allergic to bee stings' },
@@ -2331,11 +2333,22 @@ describe('App', () => {
       await waitFor(() => {
         expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-1')
       })
-      // Skips category/product/product-detail entirely — lands on Dates.
+      // Skips category/product/product-detail entirely — lands on Dates,
+      // shown first as a summary of the host's days (landr-l38a4).
       await waitFor(() => {
-        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+        expect(screen.getByTestId('invite-dates-summary')).toBeInTheDocument()
       })
       expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      const summary = screen.getByTestId('invite-dates-summary')
+      expect(
+        summary.querySelectorAll('[data-day="2026-06-12"], [data-day="2026-06-13"]'),
+      ).toHaveLength(2)
+      // Enabled once availability confirms every host day is still bookable.
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Continue with these dates/i }),
+        ).toBeEnabled()
+      })
       // The persistent banner names the host and reference.
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'Olaf K***n',
@@ -2343,10 +2356,282 @@ describe('App', () => {
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'A1B2C3D4',
       )
+      // "Change dates" opens the calendar on the host's first day's month —
+      // not today's (landr-l38a4).
+      fireEvent.click(screen.getByRole('button', { name: /Change dates/i }))
+      await waitFor(() => {
+        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+      })
+      expect(screen.getByText(/June 2026/)).toBeInTheDocument()
       // Diff chrome renders against the host's 2-day baseline; the selection
       // starts pre-filled at those same 2 days (a no-op diff to start).
       expect(screen.getByTestId('multi-day-diff')).toBeInTheDocument()
       expect(screen.getByText(/2 days selected/i)).toBeInTheDocument()
+    })
+
+    // landr-5lrov: the shipped link is `/i/<token>` with NO `?w=`. Before this
+    // ticket the widget read its operator from `?w=` alone, so every invite
+    // link ever minted opened the landing page and dropped the invite — the
+    // bug the customer actually hit. The operator now comes back WITH the
+    // prefill and is adopted before any operator-scoped fetch.
+    it('/i/<token> with no ?w= adopts the operator from the prefill and lands on Dates', async () => {
+      window.history.replaceState({}, '', '/i/tok-short')
+      const product = makeProduct({
+        product_id: 'p-invite',
+        slug: 'guided-trip',
+        name: 'Guided Trip',
+        service_time_shape: 'days_range',
+        hotel_offering: 'mandatory',
+      })
+      mocks.listProducts.mockResolvedValue([product])
+      mocks.getAvailability.mockResolvedValue(
+        ['2026-06-12', '2026-06-13', '2026-06-14'].map((date) => ({
+          availability_id: `slot-${date}`,
+          date,
+          start_time: null,
+          end_time: null,
+          capacity: 5,
+          capacity_reserved: 0,
+          available_seats: 5,
+          status: 'open',
+        })),
+      )
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: MOCK_TOKEN,
+        product_id: 'p-invite',
+        dates: ['2026-06-12', '2026-06-13'],
+        hotel_location_id: 'hotel-a',
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-short')
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-dates-summary')).toBeInTheDocument()
+      })
+      // The landing page — what this URL used to render — never appears.
+      expect(
+        screen.queryByText(/This is the booking-widget host for Landr/i),
+      ).not.toBeInTheDocument()
+      // Every operator-scoped fetch runs against the bootstrapped token.
+      expect(mocks.listProducts).toHaveBeenCalledWith(MOCK_TOKEN)
+      expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent('A1B2C3D4')
+    })
+
+    // landr-zeg4u.1: the bug this regression-tests — ensureProductFlow was a
+    // useCallback([]) that closed over `token` at first render. On `/i/<token>`
+    // (no `?w=`) that's null until the invite prefill resolves, so the
+    // product's flow fetch ran with token=null, 404d, and the null result was
+    // cached FOREVER in flowFetchesRef — degrading every invited booking to
+    // the legacy plan (no custom_form step) even once the real token arrived,
+    // and failing submit with the API's 422 form_responses_required. Assert
+    // the custom-form step still renders (and its answers still ship as
+    // form_responses) when the product is reached via an invite link.
+    it('/i/<token> with a required custom_form still shows the declarations step before review (landr-zeg4u.1)', async () => {
+      window.history.replaceState({}, '', '/i/tok-declarations')
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getProductFlow.mockResolvedValue(declarationsFlow())
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-invite-cf',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: MOCK_TOKEN,
+        product_id: 'svc-invite-cf',
+        dates: [iso],
+        hotel_location_id: null,
+        is_shared_double: false,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-invite-1',
+        status: 'confirmed',
+      })
+
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-declarations')
+      })
+
+      // Dates → pick a date → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      await waitFor(() => {
+        const enabled = screen
+          .getAllByRole('gridcell')
+          .map((c) => c.querySelector('button'))
+          .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+        expect(enabled.length).toBeGreaterThan(0)
+      })
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      // Your details → fill booker → Continue.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Thomas')
+      setInput('booker_last_name', 'Klein')
+      setInput('booker_email', 'thomas@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
+      // step — NOT straight to review, which is the pre-fix bug.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('cf-field-language')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        form_responses?: {
+          form_key: string
+          answers: Record<string, unknown>
+        }[]
+      }
+      expect(submitBody.form_responses).toBeDefined()
+      const entry = submitBody.form_responses!.find(
+        (r) => r.form_key === 'customer_declarations',
+      )!
+      expect(entry).toBeDefined()
+      expect(entry.answers.license_valid).toEqual(['yes'])
+
+      // getProductFlow was fetched with the BOOTSTRAPPED token, never null —
+      // the direct regression check for the ensureProductFlow ref fix.
+      expect(mocks.getProductFlow).toHaveBeenCalledWith(
+        MOCK_TOKEN,
+        'svc-invite-cf',
+      )
+      expect(mocks.getProductFlow).not.toHaveBeenCalledWith(
+        null,
+        expect.anything(),
+      )
+    })
+
+    it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
+      window.history.replaceState({}, '', '/i/tok-no-operator')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: '',
+        product_id: 'p-invite',
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: true,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: null,
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/This is the booking-widget host for Landr/i),
+        ).toBeInTheDocument()
+      })
+      // No operator ⇒ nothing operator-scoped may be fetched.
+      expect(mocks.listProducts).not.toHaveBeenCalled()
+      expect(mocks.getOperatorSettings).not.toHaveBeenCalled()
+    })
+
+    it('/i/<token> that 404s falls back to the landing page, not a broken wizard', async () => {
+      window.history.replaceState({}, '', '/i/bad-token')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockRejectedValue(
+        new HttpError(404, 'Not Found', '{"detail":{"error":"not_found"}}'),
+      )
+      render(<App />)
+      await waitFor(() => {
+        expect(
+          screen.getByText(/This is the booking-widget host for Landr/i),
+        ).toBeInTheDocument()
+      })
+    })
+
+    // An operator embedding the widget on their own page keeps their own
+    // operator even if an invite token for someone else's is pasted in.
+    it('?w= wins over the prefill widget_token when both are present', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&invite=tok-1`)
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-other',
+        widget_token: 'someone-elses-token',
+        product_id: null,
+        dates: [],
+        hotel_location_id: null,
+        is_shared_double: true,
+        invitee_first_name: '',
+        invitee_last_name: '',
+        host_display_name: '',
+        host_reference: '',
+        language: null,
+      })
+      render(<App />)
+      await waitFor(() => {
+        expect(mocks.getInvitePrefill).toHaveBeenCalled()
+      })
+      await waitFor(() => {
+        expect(mocks.getOperatorSettings).toHaveBeenCalledWith(MOCK_TOKEN)
+      })
+      expect(mocks.listProducts).not.toHaveBeenCalledWith('someone-elses-token')
     })
 
     it('?invite= 404 falls back to the plain wizard with a dismissible notice', async () => {
@@ -4238,13 +4523,10 @@ describe('App', () => {
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
 
-      // The operator's form ALSO declares a language field; it must report the
-      // assignment rather than ask a second time.
-      await waitFor(() =>
-        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
-      )
-      expect(screen.getByTestId('cf-language-mirror-es')).toBeInTheDocument()
-      expect(screen.getByTestId('cf-language-mirror-de')).toBeInTheDocument()
+      // The operator's form ALSO declares a language field; it must not ask a
+      // second time — the field is hidden entirely (landr-cgq5g).
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
+      expect(screen.queryByTestId('cf-field-languages')).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId('cf-submit'))
 
       await waitFor(() =>
@@ -4381,9 +4663,7 @@ describe('App', () => {
         expect(screen.getByTestId('language-step-submit')).toBeEnabled(),
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
-      await waitFor(() =>
-        expect(screen.getByTestId('cf-language-mirror')).toBeInTheDocument(),
-      )
+      await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
       fireEvent.click(screen.getByTestId('cf-submit'))
       await waitFor(() =>
         expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),

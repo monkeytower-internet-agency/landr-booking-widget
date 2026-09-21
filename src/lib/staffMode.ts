@@ -211,6 +211,11 @@ export function staffInitFromMessage(msg: StaffInitMessage): StaffSession {
  */
 export const STAFF_ORIGIN_ALLOWLIST: readonly string[] = [
   'https://dashboard.dev.landr.de',
+  // Staging dashboard (CF Pages landr-dashboard-staging; landr-dashboard
+  // src/lib/tier.ts TIER_DASHBOARD_ORIGIN). Missing it made the staff-init
+  // postMessage a silent no-op there — "Add booking" ran as a customer, so
+  // lead-time/sold-out days were unselectable and force-book was gone.
+  'https://dashboard-staging.landr.de',
   'https://dashboard.landr.de',
   'https://app.landr.de',
 ]
