@@ -2331,11 +2331,22 @@ describe('App', () => {
       await waitFor(() => {
         expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-1')
       })
-      // Skips category/product/product-detail entirely — lands on Dates.
+      // Skips category/product/product-detail entirely — lands on Dates,
+      // shown first as a summary of the host's days (landr-l38a4).
       await waitFor(() => {
-        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+        expect(screen.getByTestId('invite-dates-summary')).toBeInTheDocument()
       })
       expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      const summary = screen.getByTestId('invite-dates-summary')
+      expect(
+        summary.querySelectorAll('[data-day="2026-06-12"], [data-day="2026-06-13"]'),
+      ).toHaveLength(2)
+      // Enabled once availability confirms every host day is still bookable.
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Continue with these dates/i }),
+        ).toBeEnabled()
+      })
       // The persistent banner names the host and reference.
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'Olaf K***n',
@@ -2343,6 +2354,13 @@ describe('App', () => {
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'A1B2C3D4',
       )
+      // "Change dates" opens the calendar on the host's first day's month —
+      // not today's (landr-l38a4).
+      fireEvent.click(screen.getByRole('button', { name: /Change dates/i }))
+      await waitFor(() => {
+        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+      })
+      expect(screen.getByText(/June 2026/)).toBeInTheDocument()
       // Diff chrome renders against the host's 2-day baseline; the selection
       // starts pre-filled at those same 2 days (a no-op diff to start).
       expect(screen.getByTestId('multi-day-diff')).toBeInTheDocument()
@@ -2394,7 +2412,7 @@ describe('App', () => {
         expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-short')
       })
       await waitFor(() => {
-        expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument()
+        expect(screen.getByTestId('invite-dates-summary')).toBeInTheDocument()
       })
       // The landing page — what this URL used to render — never appears.
       expect(
