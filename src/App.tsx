@@ -121,6 +121,7 @@ import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
 import { VariantProvider } from '@/lib/variant.tsx'
 import { variantFromLocation, hasVariantInLocation, useVariant } from '@/lib/variant'
 import { StaffModeProvider } from '@/lib/staffMode.tsx'
+import { isBookingInProgress, useStaffDirtySignal } from '@/lib/staffDirty'
 import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
@@ -371,6 +372,9 @@ function BookingFlowApp() {
   // (landr-w7pi). Cleared whenever we leave pick-selection so the next
   // visit to that step starts fresh.
   const [liveSelectionDays, setLiveSelectionDays] = useState<string[]>([])
+  // landr-g98ug: tell the dashboard's Add-booking overlay (staff embed only)
+  // whether closing it would throw away a booking in progress.
+  useStaffDirtySignal(isBookingInProgress(step, liveSelectionDays.length))
   // landr-gb2f.1: live participant count + names from DetailsStep before
   // Continue is pressed. Mirrors the liveSelectionDays pattern. Cleared
   // when leaving the details step so back-nav starts fresh.
