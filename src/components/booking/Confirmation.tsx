@@ -277,7 +277,7 @@ function InviteCard({
       data-testid="invite-card"
       className="space-y-2 rounded-lg border bg-surface-card p-3"
     >
-      <p className="text-sm font-semibold">Send {invite.name} their booking link</p>
+      <p className="text-sm font-semibold">Send booking link to {invite.name}</p>
       <div className="flex flex-wrap gap-2">
         {invite.whatsapp_url ? (
           <Button asChild type="button">
