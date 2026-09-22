@@ -3,7 +3,7 @@ Contributors: monkeytower
 Tags: booking, iframe, shortcode
 Requires at least: 6.0
 Tested up to: 6.6
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: MIT
 
 Embed the LANDR booking widget via a shortcode.
@@ -24,10 +24,20 @@ Drops the LANDR booking widget into any page or post using a shortcode. The widg
    Optional attributes:
    - `group="slug"` to scope the embed to one product category and all of its sub-categories.
    - `product="slug"` to deep-link to a single product (wins over `group=` when both are given).
+   - `start="dates"` to open directly on the date picker instead of the product detail step (only meaningful together with `product=`).
    - `height="900"` to override the iframe height (default 800px).
    - `src="https://..."` to override the configured widget origin for this one page.
 
+The iframe now auto-resizes to fit its content: the widget posts its content
+height to the parent page, and the plugin listens for that message and grows
+or shrinks the iframe accordingly. The `height=` attribute is only the
+initial height before the first resize message arrives.
+
 == Changelog ==
+
+= 0.5.0 =
+* Add `start="dates"` attribute — with `product=`, opens the widget on the date picker and skips the product-detail step.
+* Auto-resize the iframe to fit its content via `postMessage` (`landr:resize`), instead of scrolling inside a fixed-height box. Origin- and source-checked; falls back to the configured `height=` for older widget deploys that never post.
 
 = 0.4.0 =
 * Add `group=` attribute — scope the embed to one product category and its nested sub-categories (resolved server-side).
