@@ -24,7 +24,8 @@ import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   onConfirm: (slot: AvailabilitySlot) => void
   /**
    * landr-e10.9: when false (default), hides the numeric remaining-seat

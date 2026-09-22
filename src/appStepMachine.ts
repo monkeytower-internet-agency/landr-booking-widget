@@ -1217,6 +1217,24 @@ export interface BreadcrumbOptions {
    * and the review crumb's back-target. Absent → the pre-r6e5x trail.
    */
   languageStep?: boolean
+  /**
+   * landr-6eita.1: the product was entered via `?product=…&start=dates`, so
+   * Dates is the first funnel step — there is no product-detail crumb before
+   * it (the step was never shown and must not be reachable). Absent → the
+   * trail starts at the product crumb as before.
+   */
+  startAtDates?: boolean
+}
+
+/**
+ * landr-6eita.1: the step a selected product opens on. Normally its
+ * product-detail (Overview) page; with `?start=dates` (single-product embed
+ * whose host page already describes the product) straight on the date picker.
+ */
+export function productEntryStep(product: Product, startAtDates: boolean): Step {
+  return startAtDates
+    ? { name: 'pick-selection', product }
+    : { name: 'product-detail', product }
 }
 
 const BREADCRUMB_LABELS: Partial<Record<Step['name'], string>> = {
@@ -1432,6 +1450,8 @@ export function detailsFromDraft(
 export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
   switch (step.name) {
     case 'pick-selection':
+      // landr-6eita.1: with start=dates, Dates is the first step.
+      if (opts.startAtDates) return null
       return { name: 'product-detail', product: step.product }
     case 'details':
       return {

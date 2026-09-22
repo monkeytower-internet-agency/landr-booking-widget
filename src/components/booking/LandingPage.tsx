@@ -6,7 +6,7 @@
  */
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex min-h-screen embedded:min-h-0 flex-col items-center justify-center gap-4 p-8 text-center">
       <h1 className="text-2xl font-semibold">
         This is the booking-widget host for Landr
       </h1>

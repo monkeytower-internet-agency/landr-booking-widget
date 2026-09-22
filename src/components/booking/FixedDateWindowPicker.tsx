@@ -23,7 +23,8 @@ import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   /**
    * The widget pipeline downstream of this picker (BookingForm + pickup) only
    * knows AvailabilitySlot. We synthesise a slot from the picked window where
