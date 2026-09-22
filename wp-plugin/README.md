@@ -35,10 +35,19 @@ The setting accepts any full `https://` URL. A trailing slash is added automatic
   token="<widget_token>"      (* required — opaque widget token from Dashboard → Embed generator *)
   group="courses"             ( optional — scope to one product category + all its sub-categories )
   product="open-water"        ( optional — deep-link to a single product slug )
+  start="dates"               ( optional — with product=, opens on the date picker, skipping product-detail )
   height="900"                ( optional — iframe height in px, default 800 )
   src="https://bw.landr.de/"  ( optional — per-page override of the Settings URL )
 ]
 ```
+
+The iframe auto-resizes to fit its content: the widget posts its content
+height to the parent page via `postMessage`, and the plugin's footer script
+(printed once per page, regardless of how many shortcodes are on it) listens
+for that message — checking the message source and origin against the
+iframe's own `src` — and updates the iframe's height. The `height=` attribute
+above is only the initial height, used until the first resize message
+arrives (so older widget deploys that never post keep working unchanged).
 
 The `token=` value maps to `?w=<token>` in the iframe `src`; the API resolves the operator server-side, so the operator slug never appears in the page source. Pass at most one of `group=`/`product=` — when both are given, `product=` wins and the widget lands directly on that product (the `group=` filter is still forwarded).
 
