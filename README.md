@@ -80,10 +80,13 @@ The widget is loaded by Para42's WordPress site via the shortcode `[landr_bookin
 - `w` — opaque widget token (required; no token → generic landing page)
 - `group` — optional product-category slug; scopes the embed to that category and all its sub-categories
 - `product` — optional pre-selected product slug (wins over `group` when both are present). A single-product deep link ALWAYS renders that product; if it is sold out it shows a "Fully booked" state (no date picker, no Select CTA)
+- `start` — optional; `dates` opens a single-product embed (`product=` required, ignored otherwise) straight on the date picker. The product-detail (Overview) step is skipped and nothing links back to it — for host pages that already describe the product. A sold-out product still shows "Fully booked". (landr-6eita.1)
 - `preview_token` — optional operator preview token; surfaces draft products during operator preview
 - `show_sold_out` — optional; `true` (or `1`) makes the catalogue / category overview SHOW sold-out products as informational "Fully booked" cards (no Select CTA) instead of hiding them. Default off: sold-out products are hidden from the overview. (landr-7jgo)
 - `variant` — optional visual direction: `aurora` (default, brand-gradient immersive), `summit` (editorial / image-forward), or `alpine` (crisp classic, dense). Token-level theming applied across the whole flow. (landr-d8rg.3)
 - `preview` — optional; `1` (or `true`) enables a floating bottom-right **variant switcher** chip so a reviewer can flip aurora / summit / alpine live without editing the URL (it updates `?variant=` in place, no reload). A `preview_token` also enables the switcher. Customer-facing embeds omit both, so the switcher never ships to end users. (landr-d8rg.8)
+
+**Auto-height (landr-6eita.1).** When embedded (`window.parent !== window`) the widget posts `{ type: 'landr:resize', height }` (integer CSS px of its content, target `'*'`) to the parent whenever its height changes, so the host can size the iframe instead of the widget scrolling inside it. The parent must accept it only from its own landr iframe (`event.source`) and that iframe's `src` origin (`event.origin`); the WP plugin and the dashboard embed snippet do this. Implementation: `src/lib/autoHeight.ts`.
 
 ## Repo layout
 

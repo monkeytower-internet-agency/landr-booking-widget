@@ -9,7 +9,8 @@ import { StepBackButton } from './StepBackButton'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
 }
 
 const KIND_LABEL: Record<NonNullable<Product['product_kind']>, string> = {

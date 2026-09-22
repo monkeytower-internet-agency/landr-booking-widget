@@ -14,6 +14,7 @@ import {
   draftFromStep,
   mergeCapturedDraft,
   mergeDraftPatch,
+  productEntryStep,
   sidebarInputsForStep,
   enterReviewOrCustomForm,
   stepAfterAccommodation,
@@ -585,6 +586,30 @@ describe('breadcrumb navigation (landr)', () => {
     expect(crumbs.slice(0, -1).every((c) => c.target !== null)).toBe(true)
   })
 
+  // landr-6eita.1: ?start=dates — Dates is the first funnel step.
+  it('starts the trail at Dates (no Overview crumb) with startAtDates', () => {
+    const crumbs = buildBreadcrumb(fillForm(), {
+      ...NO_DECL,
+      productLabel: 'Tandem Flight',
+      startAtDates: true,
+    })
+    expect(crumbs.map((c) => c.name)).toEqual([
+      'pick-selection',
+      'details',
+      'fill-form',
+    ])
+    expect(crumbs.map((c) => c.label)).not.toContain('Tandem Flight')
+  })
+
+  it('renders no trail on the Dates step itself with startAtDates', () => {
+    const dates: Step = { name: 'pick-selection', product: makeProduct() }
+    expect(stepBefore(dates, { startAtDates: true })).toBeNull()
+    // A single crumb → StepBackButton shows no breadcrumb.
+    expect(buildBreadcrumb(dates, { startAtDates: true })).toHaveLength(1)
+    // Default: Dates walks back to the product's Overview.
+    expect(stepBefore(dates, NO_DECL)?.name).toBe('product-detail')
+  })
+
   it('uses the product label for the Overview crumb when provided', () => {
     const crumbs = buildBreadcrumb(fillForm(), {
       ...NO_DECL,
@@ -1057,5 +1082,23 @@ describe('language step routing (landr-r6e5x.4)', () => {
     const inputs = sidebarInputsForStep(step)
     expect(inputs).not.toBeNull()
     expect(inputs!.participantCount).toBe(2)
+  })
+})
+
+describe('productEntryStep (landr-6eita.1)', () => {
+  it('opens a product on its product-detail step by default', () => {
+    const product = makeProduct()
+    expect(productEntryStep(product, false)).toEqual({
+      name: 'product-detail',
+      product,
+    })
+  })
+
+  it('opens straight on the date picker with start=dates', () => {
+    const product = makeProduct()
+    expect(productEntryStep(product, true)).toEqual({
+      name: 'pick-selection',
+      product,
+    })
   })
 })

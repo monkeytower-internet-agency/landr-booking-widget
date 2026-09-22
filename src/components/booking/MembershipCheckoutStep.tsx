@@ -72,7 +72,8 @@ type ErrorKind = 'not_found' | 'rate_limited' | 'generic'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   widgetToken: string
 }
 

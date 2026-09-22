@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectRoute, invitePathToken } from './detectRoute'
+import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 
 /**
  * Path-based route detection (landr-sgnd). The widget is otherwise a
@@ -221,5 +221,23 @@ describe('detectRoute', () => {
     it('leaves /i/{token} on the booking route', () => {
       expect(detectRoute('/i/abc123')).toEqual({ kind: 'booking' })
     })
+  })
+})
+
+// landr-6eita.1: ?start=dates is only meaningful together with ?product=.
+describe('startsAtDates', () => {
+  it('is true for start=dates with a product slug', () => {
+    expect(startsAtDates('?w=tok&product=guided-day&start=dates')).toBe(true)
+  })
+
+  it('is false without ?product= (or with an empty one)', () => {
+    expect(startsAtDates('?w=tok&start=dates')).toBe(false)
+    expect(startsAtDates('?w=tok&product=&start=dates')).toBe(false)
+  })
+
+  it('is false when start is absent or any other value', () => {
+    expect(startsAtDates('?w=tok&product=guided-day')).toBe(false)
+    expect(startsAtDates('?w=tok&product=guided-day&start=overview')).toBe(false)
+    expect(startsAtDates('?w=tok&product=guided-day&start=')).toBe(false)
   })
 })

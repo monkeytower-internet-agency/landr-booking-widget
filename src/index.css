@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* landr-6eita.1: set on <html> by startAutoHeight (src/lib/autoHeight.ts)
+   while the widget runs inside an iframe. `embedded:min-h-0` on the app
+   shells makes the document exactly content-tall so the posted landr:resize
+   height can shrink as well as grow. */
+@custom-variant embedded (&:is([data-landr-embedded] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -184,6 +189,13 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* landr-6eita.1: embedded, the document is only as tall as the widget. If
+     the parent doesn't size the iframe to it (an older embed snippet with a
+     fixed height), let the host page show below the widget rather than a
+     default-coloured band that ignores the operator's brand background. */
+  html[data-landr-embedded] body {
+    background-color: transparent;
   }
 }
 

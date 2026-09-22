@@ -26,7 +26,8 @@ import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   /**
    * Commits the picked date as a one-element selected_days array, matching
    * the BookingForm contract used by the days-range and fixed-window paths.

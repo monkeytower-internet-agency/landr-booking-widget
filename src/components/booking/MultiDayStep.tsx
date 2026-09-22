@@ -22,7 +22,8 @@ import { ContinueAction } from '@/components/booking/ContinueAction'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   /**
    * landr-aoak.2: `forcedDays` carries the subset of selectedDays the operator
    * force-booked past zero availability (staff mode only; empty otherwise).

@@ -76,3 +76,16 @@ export function detectRoute(pathname: string):
   }
   return { kind: 'booking' }
 }
+
+/**
+ * landr-6eita.1: `?start=dates` — a single-product embed opens straight on the
+ * date picker instead of the product-detail (Overview) step, for operators who
+ * already describe the product on their own page. Only meaningful together
+ * with `?product=<slug>`; ignored (false) otherwise, and any other `start=`
+ * value is the default behaviour. Takes the raw search string so it is
+ * testable without a window.
+ */
+export function startsAtDates(search: string): boolean {
+  const params = new URLSearchParams(search)
+  return params.get('start') === 'dates' && Boolean(params.get('product'))
+}
