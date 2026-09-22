@@ -666,12 +666,9 @@ export interface paths {
          * Customer Signoff
          * @description Create (or dedupe) a customer-originated staging→main proposal.
          *
-         *     Auth: X-Release-Relay-Token (service-to-service). Behaviour:
-         *       * DEDUPE — if an open staging_to_main run (proposed, signoff_source=
-         *         'customer') already exists, refresh it and return already_pending.
-         *       * else create a proposed staging_to_main run (signoff_source='customer',
-         *         signoff_by_label=signer_label), pinning current staging SHAs, then
-         *         NOTIFY the landr staff approvers (same path as the staff propose flow).
+         *     Auth: X-Release-Relay-Token (service-to-service). See
+         *     ``_handle_customer_signoff_locally`` for the actual create/dedupe/notify
+         *     behaviour once ownership is established.
          *
          *     Returns {"status": "requested" | "already_pending", "run_id": ...}.
          */
@@ -1685,12 +1682,22 @@ export interface paths {
         put?: never;
         /**
          * Request Golive
-         * @description File a customer request-go-live and relay it to the dev control plane.
+         * @description File a customer request-go-live.
          *
-         *     Requires ``is_release_signer`` and the staging/relay deployment side. Relays
-         *     over the shared service secret to
-         *     POST {control_plane}/api/internal/release/customer-signoff and mirrors back
-         *     the control-plane status (``requested`` | ``already_pending``).
+         *     Requires ``is_release_signer`` and the staging/relay deployment side.
+         *
+         *     landr-ogs5r: when THIS deployment already owns the staging_to_main rows
+         *     (``_owns_tier_data("prod")`` — in practice, staging itself) the signoff is
+         *     handled LOCALLY, in-process, via
+         *     ``operator_release_internal._handle_customer_signoff_locally`` — the same
+         *     function the dev control plane's ``/customer-signoff`` endpoint calls.
+         *     Previously this always relayed to dev even when dev didn't own the data,
+         *     which just forwarded the request straight back to staging (dev's
+         *     ``RELEASE_STAGING_PLANE_URL``) — a pointless staging→dev→staging round
+         *     trip that 502'd outright whenever that second hop wasn't configured. The
+         *     relay to ``RELEASE_CONTROL_PLANE_URL`` remains as the fallback for a
+         *     deployment that does NOT own the data (mirrors back the control-plane
+         *     status, ``requested`` | ``already_pending``).
          */
         post: operations["request_golive"];
         delete?: never;
@@ -7442,7 +7449,7 @@ export interface paths {
          *                     "done": false,
          *                     "title": "Company details",
          *                     "message": "Missing: legal name, country.",
-         *                     "target_route": "/account/company"
+         *                     "target_route": "/settings/company"
          *                 }
          *             ]
          *         }
@@ -10176,6 +10183,8 @@ export interface components {
         };
         /** HostnameBranding */
         HostnameBranding: {
+            /** Favicon Url */
+            favicon_url?: string | null;
             /** Logo Url */
             logo_url?: string | null;
             /** Name */
