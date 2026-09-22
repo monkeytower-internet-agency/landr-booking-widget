@@ -1287,7 +1287,7 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
-    expect(screen.getByText('Send Thomas Klein their booking link')).toBeInTheDocument()
+    expect(screen.getByText('Send booking link to Thomas Klein')).toBeInTheDocument()
     // wa.me URL is used exactly as the API supplied it — never rebuilt
     // client-side (epic D5: WhatsApp is server-pre-built, no message API).
     const whatsapp = screen.getByTestId('invite-whatsapp')
