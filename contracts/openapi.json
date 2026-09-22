@@ -5551,6 +5551,17 @@
       },
       "HostnameBranding": {
         "properties": {
+          "favicon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favicon Url"
+          },
           "logo_url": {
             "anyOf": [
               {
@@ -19382,7 +19393,7 @@
     },
     "/api/internal/release/customer-signoff": {
       "post": {
-        "description": "Create (or dedupe) a customer-originated staging\u2192main proposal.\n\nAuth: X-Release-Relay-Token (service-to-service). Behaviour:\n  * DEDUPE \u2014 if an open staging_to_main run (proposed, signoff_source=\n    'customer') already exists, refresh it and return already_pending.\n  * else create a proposed staging_to_main run (signoff_source='customer',\n    signoff_by_label=signer_label), pinning current staging SHAs, then\n    NOTIFY the landr staff approvers (same path as the staff propose flow).\n\nReturns {\"status\": \"requested\" | \"already_pending\", \"run_id\": ...}.",
+        "description": "Create (or dedupe) a customer-originated staging\u2192main proposal.\n\nAuth: X-Release-Relay-Token (service-to-service). See\n``_handle_customer_signoff_locally`` for the actual create/dedupe/notify\nbehaviour once ownership is established.\n\nReturns {\"status\": \"requested\" | \"already_pending\", \"run_id\": ...}.",
         "operationId": "customer_signoff",
         "parameters": [
           {
@@ -21101,7 +21112,7 @@
     },
     "/api/operator/release/request-golive": {
       "post": {
-        "description": "File a customer request-go-live and relay it to the dev control plane.\n\nRequires ``is_release_signer`` and the staging/relay deployment side. Relays\nover the shared service secret to\nPOST {control_plane}/api/internal/release/customer-signoff and mirrors back\nthe control-plane status (``requested`` | ``already_pending``).",
+        "description": "File a customer request-go-live.\n\nRequires ``is_release_signer`` and the staging/relay deployment side.\n\nlandr-ogs5r: when THIS deployment already owns the staging_to_main rows\n(``_owns_tier_data(\"prod\")`` \u2014 in practice, staging itself) the signoff is\nhandled LOCALLY, in-process, via\n``operator_release_internal._handle_customer_signoff_locally`` \u2014 the same\nfunction the dev control plane's ``/customer-signoff`` endpoint calls.\nPreviously this always relayed to dev even when dev didn't own the data,\nwhich just forwarded the request straight back to staging (dev's\n``RELEASE_STAGING_PLANE_URL``) \u2014 a pointless staging\u2192dev\u2192staging round\ntrip that 502'd outright whenever that second hop wasn't configured. The\nrelay to ``RELEASE_CONTROL_PLANE_URL`` remains as the fallback for a\ndeployment that does NOT own the data (mirrors back the control-plane\nstatus, ``requested`` | ``already_pending``).",
         "operationId": "request_golive",
         "requestBody": {
           "content": {
@@ -37923,7 +37934,7 @@
     },
     "/api/staff/operators/{operator_id}/setup-checklist": {
       "get": {
-        "description": "Return every setup-checklist item for the operator, done or not.\n\nResponse shape::\n\n    {\n        \"items\": [\n            {\n                \"id\": \"company\",\n                \"done\": false,\n                \"title\": \"Company details\",\n                \"message\": \"Missing: legal name, country.\",\n                \"target_route\": \"/account/company\"\n            }\n        ]\n    }\n\nUnlike config-health, this always returns every registered item (never\nan empty list on a healthy operator) \u2014 the checklist needs to show\ncompleted steps too.",
+        "description": "Return every setup-checklist item for the operator, done or not.\n\nResponse shape::\n\n    {\n        \"items\": [\n            {\n                \"id\": \"company\",\n                \"done\": false,\n                \"title\": \"Company details\",\n                \"message\": \"Missing: legal name, country.\",\n                \"target_route\": \"/settings/company\"\n            }\n        ]\n    }\n\nUnlike config-health, this always returns every registered item (never\nan empty list on a healthy operator) \u2014 the checklist needs to show\ncompleted steps too.",
         "operationId": "get_setup_checklist",
         "parameters": [
           {
