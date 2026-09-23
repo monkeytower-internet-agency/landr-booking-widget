@@ -808,6 +808,53 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(products[2]).not.toHaveProperty('product_availability_id')
   })
 
+  // landr-k9pji.1: a booking_mode='on_request' product's synthesised day has
+  // availability_id === null (no product_availability row exists). The key
+  // must be OMITTED, not sent as null — and the day still reaches the API as
+  // selected_days.
+  it('omits product_availability_id for a synthesised on-request slot (availability_id null)', async () => {
+    const SYNTHETIC_SELECTION: BookingSelection = {
+      kind: 'slot',
+      slot: {
+        availability_id: null,
+        date: '2026-06-11',
+        start_time: null,
+        end_time: null,
+        capacity: 2,
+        capacity_reserved: 0,
+        available_seats: 2,
+        status: 'open',
+      },
+    }
+
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SYNTHETIC_SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products[0]).toMatchObject({
+      product_id: 'svc-main',
+      selected_days: ['2026-06-11'],
+    })
+    expect(products[0]).not.toHaveProperty('product_availability_id')
+  })
+
   it('omits product_availability_id for a days-range selection (no single slot to attach)', async () => {
     render(
       <BookingForm

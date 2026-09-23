@@ -2007,7 +2007,7 @@ function BookingFlowApp() {
             // slot's availability_id — re-select it on back-nav re-entry.
             initialWindowId={
               step.selection?.kind === 'slot'
-                ? step.selection.slot.availability_id
+                ? (step.selection.slot.availability_id ?? undefined)
                 : undefined
             }
             onConfirm={(_slot, window, forced, forcedReasons) => {

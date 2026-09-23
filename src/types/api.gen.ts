@@ -666,12 +666,9 @@ export interface paths {
          * Customer Signoff
          * @description Create (or dedupe) a customer-originated staging→main proposal.
          *
-         *     Auth: X-Release-Relay-Token (service-to-service). Behaviour:
-         *       * DEDUPE — if an open staging_to_main run (proposed, signoff_source=
-         *         'customer') already exists, refresh it and return already_pending.
-         *       * else create a proposed staging_to_main run (signoff_source='customer',
-         *         signoff_by_label=signer_label), pinning current staging SHAs, then
-         *         NOTIFY the landr staff approvers (same path as the staff propose flow).
+         *     Auth: X-Release-Relay-Token (service-to-service). See
+         *     ``_handle_customer_signoff_locally`` for the actual create/dedupe/notify
+         *     behaviour once ownership is established.
          *
          *     Returns {"status": "requested" | "already_pending", "run_id": ...}.
          */
@@ -1685,12 +1682,22 @@ export interface paths {
         put?: never;
         /**
          * Request Golive
-         * @description File a customer request-go-live and relay it to the dev control plane.
+         * @description File a customer request-go-live.
          *
-         *     Requires ``is_release_signer`` and the staging/relay deployment side. Relays
-         *     over the shared service secret to
-         *     POST {control_plane}/api/internal/release/customer-signoff and mirrors back
-         *     the control-plane status (``requested`` | ``already_pending``).
+         *     Requires ``is_release_signer`` and the staging/relay deployment side.
+         *
+         *     landr-ogs5r: when THIS deployment already owns the staging_to_main rows
+         *     (``_owns_tier_data("prod")`` — in practice, staging itself) the signoff is
+         *     handled LOCALLY, in-process, via
+         *     ``operator_release_internal._handle_customer_signoff_locally`` — the same
+         *     function the dev control plane's ``/customer-signoff`` endpoint calls.
+         *     Previously this always relayed to dev even when dev didn't own the data,
+         *     which just forwarded the request straight back to staging (dev's
+         *     ``RELEASE_STAGING_PLANE_URL``) — a pointless staging→dev→staging round
+         *     trip that 502'd outright whenever that second hop wasn't configured. The
+         *     relay to ``RELEASE_CONTROL_PLANE_URL`` remains as the fallback for a
+         *     deployment that does NOT own the data (mirrors back the control-plane
+         *     status, ``requested`` | ``already_pending``).
          */
         post: operations["request_golive"];
         delete?: never;
@@ -3053,8 +3060,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resolve Today Code
-         * @description Turn an activity code into today's roster for its product.
+         * Resolve Activity Code
+         * @description Turn an activity code — or a booking reference — into today's roster.
+         *
+         *     A booking reference answers the same shape plus `booking_id` (opaque, the
+         *     booking's `booking_group`) and `narrow_participant_ids`; for a code those
+         *     are `null` and `[]`.
          *
          *     A valid code for a product with nobody on it today returns an EMPTY
          *     participant list, not a 404: "the code works, nothing is scheduled" is a
@@ -3976,6 +3987,61 @@ export interface paths {
          *     operator path param.
          */
         delete: operations["delete_booking_note"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Day Group
+         * @description Join `participant_id` into whatever day bubble `target_participant_id`
+         *     is currently showing in — the write behind dropping a chip onto a group
+         *     bubble (D6/D7). Booking and booking_groups are never touched; see
+         *     `staff_join_day_group`'s migration header (20260923020200) for the full
+         *     mint-then-join semantics.
+         *
+         *     Returns every row the RPC wrote — the joiner, plus (only the first time a
+         *     never-yet-merged native group is joined) every native-group member freshly
+         *     keyed so the whole bubble becomes addressable.
+         */
+        post: operations["staff_join_participant_day_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave Day Group
+         * @description Detach `participant_id` from their current day bubble — the ONLY way
+         *     to leave a group for today (D6: never offered as a drag side-effect,
+         *     only from the participant detail sheet's "Leave group for today").
+         *
+         *     No body: there is nothing to say beyond which participant, on which day.
+         *     Booking and booking_groups are never touched; see
+         *     `staff_leave_day_group`'s migration header (20260923020200) for why a
+         *     bare NULL isn't always enough to actually detach.
+         */
+        post: operations["staff_leave_participant_day_group"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5963,6 +6029,64 @@ export interface paths {
         patch: operations["patch_product"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/activity-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Activity Code
+         * @description The product's current code, so the operator can read it out or print it.
+         *
+         *     "field" (drivers) is deliberately included here, unlike PATCH/rotate below:
+         *     the Today header needs to show the code to whoever is running the shift,
+         *     not just office staff (landr-w29zl.1 / epic landr-w29zl decisions 2/7/10/15).
+         */
+        get: operations["staff_get_product_activity_code"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Activity Code
+         * @description Turn weekly auto-rotation on or off.
+         *
+         *     Turning it ON does NOT rotate immediately — the worker
+         *     (app/workers/activity_code_rotation.py) rotates at the next Monday 04:00 in
+         *     the operator's own timezone. Flipping a setting must not revoke every
+         *     live session as a side effect; "new code now" is the rotate endpoint,
+         *     one deliberate press away.
+         */
+        patch: operations["staff_patch_product_activity_code"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/activity-code/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Activity Code
+         * @description Mint a fresh code, invalidating every live participant session.
+         *
+         *     Idempotent in the only sense that matters here: calling it twice mints
+         *     twice and the second code wins. There is nothing to de-duplicate — a
+         *     second rotation is a second, deliberate revocation.
+         */
+        post: operations["staff_rotate_product_activity_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/approval-override": {
         parameters: {
             query?: never;
@@ -6179,60 +6303,6 @@ export interface paths {
          *     config already exists (1:1 with the product — use PATCH to edit it).
          */
         post: operations["create_subscription_config"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/products/{product_id}/today-code": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Today Code
-         * @description The product's current code, so the operator can read it out or print it.
-         */
-        get: operations["staff_get_product_today_code"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Patch Today Code
-         * @description Turn weekly auto-rotation on or off.
-         *
-         *     Turning it ON does NOT rotate immediately — the worker
-         *     (app/workers/today_code_rotation.py) rotates at the next Monday 04:00 in
-         *     the operator's own timezone. Flipping a setting must not revoke every
-         *     live session as a side effect; "new code now" is the rotate endpoint,
-         *     one deliberate press away.
-         */
-        patch: operations["staff_patch_product_today_code"];
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/products/{product_id}/today-code/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rotate Today Code
-         * @description Mint a fresh code, invalidating every live participant session.
-         *
-         *     Idempotent in the only sense that matters here: calling it twice mints
-         *     twice and the second code wins. There is nothing to de-duplicate — a
-         *     second rotation is a second, deliberate revocation.
-         */
-        post: operations["staff_rotate_product_today_code"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7442,7 +7512,7 @@ export interface paths {
          *                     "done": false,
          *                     "title": "Company details",
          *                     "message": "Missing: legal name, country.",
-         *                     "target_route": "/account/company"
+         *                     "target_route": "/settings/company"
          *                 }
          *             ]
          *         }
@@ -7696,6 +7766,61 @@ export interface paths {
          * @description Rename or recolor a tag. Empty patch → 400.
          */
         patch: operations["patch_tag"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/today/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Today Messages
+         * @description The day's staff send history for the Today composer, oldest first.
+         *
+         *     Every ``participants``-scoped message and every ``activity_day`` board
+         *     post of this operator on ``day``, each with ``recipient_count`` (for a
+         *     participants message: the people it was addressed to; for a board post:
+         *     the people on that board now) and ``recipient_ids`` (participants
+         *     messages only, else null). With ``product_id``: that product's board
+         *     posts, plus the participants messages addressed to at least one person
+         *     on that product that day.
+         */
+        get: operations["staff_list_today_messages"];
+        put?: never;
+        /** Post Today Message */
+        post: operations["staff_post_today_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/today/messages/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today Message Dry Run
+         * @description Who a send would address, before sending it.
+         *
+         *     ``count`` = everyone addressed (the number an ``all_today`` send must
+         *     echo back as ``confirm_count``); ``reachable_count`` = those push/email
+         *     may contact (``do_not_contact`` removed); ``email_count`` = distinct
+         *     addresses; ``missing`` = requested participant ids not on this
+         *     operator's board that day (they would 422 the send).
+         */
+        get: operations["staff_today_message_dry_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/today/{product_id}/messages": {
@@ -8100,6 +8225,18 @@ export interface components {
             acknowledged_at?: string | null;
             /** Has Ack */
             has_ack: boolean;
+        };
+        /**
+         * ActivityCodePatch
+         * @description One field, required (no default).
+         *
+         *     An empty body `{}` or a typo'd key is a 422 from pydantic's own
+         *     "field required" validation, never a silent no-op — same reasoning as
+         *     DayUnitPatchIn's (landr-bsng5.67).
+         */
+        ActivityCodePatch: {
+            /** Rotate Weekly */
+            rotate_weekly: boolean;
         };
         /** AlertOut */
         AlertOut: {
@@ -8510,10 +8647,17 @@ export interface components {
          *     landr-mizc: capacity_reserved dropped from product_availability
          *     (always 0, dead since the Slice-8 maintenance trigger was removed) and
          *     from this RPC's return columns — dropped here to match.
+         *
+         *     landr-k9pji.1: ``availability_id`` is NULL on a SYNTHESISED day — a
+         *     ``booking_mode='on_request'`` product's open whole-day row for a date with
+         *     no real product_availability row (migration 20260923132737). Such a row
+         *     has no id to send back, so the widget books it WITHOUT
+         *     ``product_availability_id`` (public_submit_booking only validates the id
+         *     when one is supplied).
          */
         AvailabilitySlot: {
             /** Availability Id */
-            availability_id: string;
+            availability_id: string | null;
             /** Available Seats */
             available_seats: number;
             /** Capacity */
@@ -9418,6 +9562,21 @@ export interface components {
             /** Nights */
             nights: number;
         };
+        /**
+         * DayGroupJoinIn
+         * @description POST .../day-group/{day_date}/join body — the bubble being joined.
+         *
+         *     Both fields are required: the target's booking_id is needed up front
+         *     (not looked up from participant_id) so this endpoint's tenant-scoping
+         *     check mirrors `_scope_booking_and_participant`'s shape exactly, the same
+         *     as every other write here.
+         */
+        DayGroupJoinIn: {
+            /** Target Booking Id */
+            target_booking_id: string;
+            /** Target Participant Id */
+            target_participant_id: string;
+        };
         /** DayManifestOut */
         DayManifestOut: {
             /** Date */
@@ -9459,6 +9618,8 @@ export interface components {
             contact_id?: string | null;
             /** Day Date */
             day_date: string;
+            /** Day Group Key */
+            day_group_key: string;
             /** Expected Back At */
             expected_back_at?: string | null;
             /** Group Id */
@@ -9544,9 +9705,13 @@ export interface components {
          *     router module docstring for why this endpoint doesn't try to preserve it
          *     implicitly.
          *
-         *     `assigned_unit_id` is deliberately NOT a field here: the unit is written
+         *     `assigned_unit_id` is deliberately NOT a field here: the unit is SET
          *     only by the PATCH day-unit endpoint below, so a status tap can never
-         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).
+         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29). The
+         *     RPC this PUT calls can still CLEAR it server-side on a leaves_unit
+         *     status transition (landr-0zzp3) — that isn't a caller-supplied value,
+         *     so it doesn't reopen the revert risk this field's absence guards
+         *     against.
          */
         DayStatusPutIn: {
             /**
@@ -10176,6 +10341,8 @@ export interface components {
         };
         /** HostnameBranding */
         HostnameBranding: {
+            /** Favicon Url */
+            favicon_url?: string | null;
             /** Logo Url */
             logo_url?: string | null;
             /** Name */
@@ -11567,7 +11734,11 @@ export interface components {
          * @description Create payload for a new participant-day status.
          *
          *     `semantic_state` is required here — and ONLY here, see
-         *     `ParticipantDayStatusPatch` below and the module docstring.
+         *     `ParticipantDayStatusPatch` below and the module docstring. `leaves_unit`
+         *     is optional here — omitting it lets the DB's `BEFORE INSERT` trigger
+         *     default it from `semantic_state` (see module docstring) — but, unlike
+         *     `semantic_state`, remains mutable after create via
+         *     `ParticipantDayStatusPatch`.
          */
         ParticipantDayStatusIn: {
             /**
@@ -11585,6 +11756,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Leaves Unit */
+            leaves_unit?: boolean | null;
             /**
              * Semantic State
              * @enum {string}
@@ -11621,6 +11794,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Leaves Unit */
+            leaves_unit?: boolean | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -12090,6 +12265,12 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /**
+             * Booking Mode
+             * @default scheduled
+             * @enum {string}
+             */
+            booking_mode: "scheduled" | "on_request";
             /** Briefing Content */
             briefing_content?: {
                 [key: string]: unknown;
@@ -12155,6 +12336,11 @@ export interface components {
              * @default true
              */
             needs_provider: boolean;
+            /**
+             * On Request Daily Capacity
+             * @default 2
+             */
+            on_request_daily_capacity: number;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -12206,6 +12392,8 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Booking Mode */
+            booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
             briefing_content?: {
                 [key: string]: unknown;
@@ -12250,6 +12438,8 @@ export interface components {
             needs_pickup?: boolean | null;
             /** Needs Provider */
             needs_provider?: boolean | null;
+            /** On Request Daily Capacity */
+            on_request_daily_capacity?: number | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -12511,6 +12701,26 @@ export interface components {
             radius_km: number;
         };
         /**
+         * RecipientSetIn
+         * @description One recipient set. Per-type required/forbidden fields are validated
+         *     here so a malformed combination is a 422 naming the problem.
+         */
+        RecipientSetIn: {
+            /** Participant Ids */
+            participant_ids?: string[] | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Status Id */
+            status_id?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "participants" | "unit" | "status" | "product_day" | "all_today";
+            /** Unit Id */
+            unit_id?: string | null;
+        };
+        /**
          * ReferenceLookupOut
          * @description Everything a bare booking reference is allowed to reveal.
          */
@@ -12734,7 +12944,9 @@ export interface components {
         };
         /**
          * ResolveIn
-         * @description `extra="forbid"`: nothing but the code may be sent. An operator id or a
+         * @description `code` is an activity code OR a booking reference (landr-29qh1).
+         *
+         *     `extra="forbid"`: nothing but the code may be sent. An operator id or a
          *     participant id smuggled into this body would be ignored anyway — every
          *     identifier on this surface is derived, never accepted — but forbidding
          *     them makes that explicit at the boundary.
@@ -13824,17 +14036,26 @@ export interface components {
              */
             status: "sent" | "failed";
         };
-        /**
-         * TodayCodePatch
-         * @description One field, required (no default).
-         *
-         *     An empty body `{}` or a typo'd key is a 422 from pydantic's own
-         *     "field required" validation, never a silent no-op — same reasoning as
-         *     DayUnitPatchIn's (landr-bsng5.67).
-         */
-        TodayCodePatch: {
-            /** Rotate Weekly */
-            rotate_weekly: boolean;
+        /** TodayMessagePostIn */
+        TodayMessagePostIn: {
+            /** Body */
+            body?: string | null;
+            /** Code Product Id */
+            code_product_id?: string | null;
+            /** Confirm Count */
+            confirm_count?: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Kind
+             * @default text
+             * @enum {string}
+             */
+            kind: "text" | "activity_code";
+            recipients: components["schemas"]["RecipientSetIn"];
         };
         /**
          * TrelloSyncIn
@@ -20181,6 +20402,82 @@ export interface operations {
             };
         };
     };
+    staff_join_participant_day_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayGroupJoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_leave_participant_day_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_put_participant_day_status: {
         parameters: {
             query?: never;
@@ -24564,6 +24861,112 @@ export interface operations {
             };
         };
     };
+    staff_get_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityCodePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_rotate_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_product_approval_override: {
         parameters: {
             query?: never;
@@ -24983,112 +25386,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_get_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_patch_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TodayCodePatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_rotate_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -26751,6 +27048,119 @@ export interface operations {
                 "application/json": components["schemas"]["TagPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_today_messages: {
+        parameters: {
+            query: {
+                day: string;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_post_today_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TodayMessagePostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_today_message_dry_run: {
+        parameters: {
+            query: {
+                day: string;
+                type: "participants" | "unit" | "status" | "product_day" | "all_today";
+                participant_ids?: string[] | null;
+                unit_id?: string | null;
+                status_id?: string | null;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
