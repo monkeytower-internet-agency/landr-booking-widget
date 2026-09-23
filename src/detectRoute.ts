@@ -5,7 +5,7 @@
  * regex check at the top of App is enough.
  *
  * Supported paths:
- *   /cancel/{uuid}          → renders CancelPage        (cancel-confirm + POST)
+ *   /cancel/{token}         → renders CancelPage        (preview + cancel-confirm + POST)
  *   /offer/{token}          → renders OfferPage          (review offer + Accept & Pay)
  *   /pay/{token}            → renders OfferPage in mode="pay" (pay outstanding balance_due)
  *   /reply/{token}/{intent} → renders ApprovalReplyPage  (hotel YES/NO/CHANGES reply)
@@ -33,8 +33,14 @@
  * OfferPage component rendered in mode="pay" (Accept & Pay copy swapped for
  * "Pay now" copy). Match order against the other prefixes doesn't matter;
  * the prefixes are disjoint.
+ *
+ * landr-5aih0.7: /cancel/{token} carries the SIGNED booking token
+ * (`{booking_hex}.{expiry}.{base64url sig}`), no longer the bare booking
+ * UUID — hence dots, underscores and mixed case. An old /cancel/{uuid} link
+ * still matches and lands on CancelPage, whose preview call then 401s into
+ * the "link is no longer valid" state.
  */
-const CANCEL_PATH_RE = /^\/cancel\/([0-9a-fA-F-]+)\/?$/
+const CANCEL_PATH_RE = /^\/cancel\/([A-Za-z0-9._-]+)\/?$/
 // HMAC tokens are URL-safe base64 (no padding), typically 43+ chars,
 // but we accept any non-empty non-slash sequence so a short test token works.
 const OFFER_PATH_RE = /^\/offer\/([^/]+)\/?$/
@@ -55,13 +61,13 @@ export function invitePathToken(pathname: string): string | null {
 }
 
 export function detectRoute(pathname: string):
-  | { kind: 'cancel'; bookingId: string }
+  | { kind: 'cancel'; token: string }
   | { kind: 'offer'; token: string }
   | { kind: 'pay'; token: string }
   | { kind: 'reply'; token: string; intent?: 'yes' | 'no' | 'changes' }
   | { kind: 'booking' } {
   const cm = CANCEL_PATH_RE.exec(pathname)
-  if (cm) return { kind: 'cancel', bookingId: cm[1] }
+  if (cm) return { kind: 'cancel', token: cm[1] }
   const om = OFFER_PATH_RE.exec(pathname)
   if (om) return { kind: 'offer', token: om[1] }
   const pm = PAY_PATH_RE.exec(pathname)

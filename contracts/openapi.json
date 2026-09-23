@@ -1152,6 +1152,11 @@
       },
       "BookingCancelIn": {
         "properties": {
+          "notify_customer": {
+            "default": true,
+            "title": "Notify Customer",
+            "type": "boolean"
+          },
           "reason": {
             "maxLength": 500,
             "minLength": 1,
@@ -1419,6 +1424,16 @@
             "title": "Line Items",
             "type": "array"
           },
+          "meeting_point": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookingSummaryPickup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "multi_day_savings": {
             "anyOf": [
               {
@@ -1625,13 +1640,39 @@
       },
       "BookingSummaryPickup": {
         "additionalProperties": true,
+        "description": "One pickup location of the booking summary \u2014 a meeting-point block\n(landr-5aih0.1; was ``{id, name}``). See :class:`MeetingPointBlock`.",
         "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "google_maps_url": {
+            "default": "",
+            "title": "Google Maps Url",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
           },
+          "lat": {
+            "default": "",
+            "title": "Lat",
+            "type": "string"
+          },
+          "lng": {
+            "default": "",
+            "title": "Lng",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "waze_url": {
+            "default": "",
+            "title": "Waze Url",
             "type": "string"
           }
         },
@@ -1845,6 +1886,18 @@
               }
             ],
             "title": "Is Published"
+          },
+          "meeting_point_location_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Point Location Id"
           },
           "meeting_point_text": {
             "anyOf": [
@@ -2285,6 +2338,155 @@
         ],
         "title": "CampaignScope",
         "type": "string"
+      },
+      "CancelOperatorContact": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CancelOperatorContact",
+        "type": "object"
+      },
+      "CancelPreviewResponse": {
+        "description": "GET /{token}/cancel-preview. ``deadline`` is ISO-8601 UTC;\n``timezone`` is the operator's IANA zone the page renders it in.\n``locale`` (de/en/es) is the language the booking's emails are sent in,\nso the page can match the email the customer clicked from.\n``refund_status`` is the recorded outcome once ``already_cancelled``.",
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "already_cancelled": {
+            "title": "Already Cancelled",
+            "type": "boolean"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_reference": {
+            "title": "Booking Reference",
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/CancelOperatorContact"
+          },
+          "policy_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Text"
+          },
+          "refund": {
+            "$ref": "#/components/schemas/CancelRefund"
+          },
+          "refund_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "refunded",
+                  "manual_refund_needed",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Status"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_reference",
+          "allowed",
+          "already_cancelled",
+          "timezone",
+          "refund",
+          "operator",
+          "locale"
+        ],
+        "title": "CancelPreviewResponse",
+        "type": "object"
+      },
+      "CancelRefund": {
+        "description": "What a cancellation returns to the customer and how.\n\n``method``: ``stripe_auto`` (back to the card automatically), ``manual``\n(the operator refunds some or all of it by hand), ``none`` (nothing paid).\n``amount`` is a two-decimal string.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "stripe_auto",
+              "manual",
+              "none"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency",
+          "method"
+        ],
+        "title": "CancelRefund",
+        "type": "object"
       },
       "ChangelogEntryOut": {
         "description": "Deliberately ``category``/``description`` ONLY.\n\n``app.services.promotion.get_changelog`` returns richer entries (``sha``,\n``author``, ``url``, ``repo``) \u2014 internal git metadata including a link\ninto the PRIVATE ``monkeytower-internet-agency`` GitHub org. This\nendpoint has no staff/signer gate (see the module docstring), so those\nfields are trimmed here rather than exposed to every authenticated\nidentity on the platform. Neither rfqp.5's version badge nor rfqp.6's\n\"What's New\" panel consume them.",
@@ -7207,6 +7409,18 @@
       },
       "LocationIn": {
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
           "color": {
             "anyOf": [
               {
@@ -7307,6 +7521,18 @@
       },
       "LocationPatch": {
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
           "color": {
             "anyOf": [
               {
@@ -7808,6 +8034,51 @@
           "skipped_not_found"
         ],
         "title": "MarkTicketsShippedOut",
+        "type": "object"
+      },
+      "MeetingPointBlock": {
+        "additionalProperties": true,
+        "description": "A meeting-point block (landr-5aih0.1, ``app.services.meeting_point``):\none pickup location with its address, coordinates and the server-derived\nGoogle Maps / Waze deep links. Every field is a string, \"\" when unknown.",
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "google_maps_url": {
+            "default": "",
+            "title": "Google Maps Url",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lat": {
+            "default": "",
+            "title": "Lat",
+            "type": "string"
+          },
+          "lng": {
+            "default": "",
+            "title": "Lng",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "waze_url": {
+            "default": "",
+            "title": "Waze Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MeetingPointBlock",
         "type": "object"
       },
       "MessagePostIn": {
@@ -8455,6 +8726,16 @@
             ],
             "title": "Last Name"
           },
+          "pickup_location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeetingPointBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "service_role_label": {
             "anyOf": [
               {
@@ -8744,6 +9025,33 @@
       "OperatorPatch": {
         "description": "Partial update payload \u2014 every field is optional.",
         "properties": {
+          "cancellation_notice_hours": {
+            "anyOf": [
+              {
+                "maximum": 8760.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Notice Hours"
+          },
+          "cancellation_policy_text": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Policy Text"
+          },
           "city": {
             "anyOf": [
               {
@@ -12483,6 +12791,7 @@
         "type": "object"
       },
       "PublicCancelResponse": {
+        "description": "POST /{token}/cancel. Same shape on the first cancel and on the\nidempotent repeat (``message`` says which).",
         "properties": {
           "booking_id": {
             "title": "Booking Id",
@@ -12495,6 +12804,22 @@
           "ok": {
             "title": "Ok",
             "type": "boolean"
+          },
+          "refund_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "refunded",
+                  "manual_refund_needed",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Status"
           }
         },
         "required": [
@@ -22067,48 +22392,6 @@
         ]
       }
     },
-    "/api/public/bookings/{booking_id}/cancel": {
-      "post": {
-        "operationId": "cancel_booking_public",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicCancelResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Cancel Booking Public",
-        "tags": [
-          "public-bookings"
-        ]
-      }
-    },
     "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
       "post": {
         "description": "Email one fellow traveller their invite link, on the booker's behalf.",
@@ -22313,6 +22596,92 @@
           }
         },
         "summary": "Get Booking Hotel Calendar",
+        "tags": [
+          "public-bookings"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/cancel": {
+      "post": {
+        "description": "Cancel the booking behind ``token`` (the widget calls this only after\nthe customer confirms). Inside the deadline: soft-delete, refund what was\npaid (Stripe automatically, anything else flagged to the operator), email\ncustomer + operator, bell the operator's team. 409\n``cancellation_deadline_passed`` after the deadline; idempotent 200 on an\nalready-cancelled booking; 401 bad token; 404 unknown booking.",
+        "operationId": "cancel_booking_public",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCancelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Booking Public",
+        "tags": [
+          "public-bookings"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/cancel-preview": {
+      "get": {
+        "description": "Whether the booking behind ``token`` can still be cancelled for free,\nuntil when, what would be refunded, and whom to contact otherwise.\nRead-only. 401 on a bad/expired token, 404 when the booking is gone.",
+        "operationId": "get_cancel_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cancel Preview",
         "tags": [
           "public-bookings"
         ]
@@ -24431,7 +24800,7 @@
     },
     "/api/staff/bookings/{booking_id}": {
       "delete": {
-        "description": "Soft-cancel a booking. Reason is required.\n\nSets bookings.deleted_at + deletion_reason; the capacity trigger\nreleases reserved seats automatically. The booking row remains\nfor audit / history purposes (and stays visible via include_deleted\nfilters in future list endpoints).",
+        "description": "Soft-cancel a booking. Reason is required.\n\nSets bookings.deleted_at + deletion_reason; the capacity trigger\nreleases reserved seats automatically. The booking row remains\nfor audit / history purposes (and stays visible via include_deleted\nfilters in future list endpoints). With notify_customer (default true)\nthe customer is emailed a booking_cancelled notice (landr-5aih0.7).",
         "operationId": "cancel_booking",
         "parameters": [
           {

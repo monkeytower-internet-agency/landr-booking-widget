@@ -2024,23 +2024,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/bookings/{booking_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cancel Booking Public */
-        post: operations["cancel_booking_public"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
         parameters: {
             query?: never;
@@ -2104,6 +2087,53 @@ export interface paths {
         };
         /** Get Booking Hotel Calendar */
         get: operations["get_booking_hotel_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Booking Public
+         * @description Cancel the booking behind ``token`` (the widget calls this only after
+         *     the customer confirms). Inside the deadline: soft-delete, refund what was
+         *     paid (Stripe automatically, anything else flagged to the operator), email
+         *     customer + operator, bell the operator's team. 409
+         *     ``cancellation_deadline_passed`` after the deadline; idempotent 200 on an
+         *     already-cancelled booking; 401 bad token; 404 unknown booking.
+         */
+        post: operations["cancel_booking_public"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cancel Preview
+         * @description Whether the booking behind ``token`` can still be cancelled for free,
+         *     until when, what would be refunded, and whom to contact otherwise.
+         *     Read-only. 401 on a bad/expired token, 404 when the booking is gone.
+         */
+        get: operations["get_cancel_preview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3222,7 +3252,8 @@ export interface paths {
          *     Sets bookings.deleted_at + deletion_reason; the capacity trigger
          *     releases reserved seats automatically. The booking row remains
          *     for audit / history purposes (and stays visible via include_deleted
-         *     filters in future list endpoints).
+         *     filters in future list endpoints). With notify_customer (default true)
+         *     the customer is emailed a booking_cancelled notice (landr-5aih0.7).
          */
         delete: operations["cancel_booking"];
         options?: never;
@@ -8776,6 +8807,11 @@ export interface components {
         };
         /** BookingCancelIn */
         BookingCancelIn: {
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Reason */
             reason: string;
         };
@@ -8863,6 +8899,7 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            meeting_point?: components["schemas"]["BookingSummaryPickup"] | null;
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Name */
             operator_name: string;
@@ -8942,12 +8979,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** BookingSummaryPickup */
+        /**
+         * BookingSummaryPickup
+         * @description One pickup location of the booking summary — a meeting-point block
+         *     (landr-5aih0.1; was ``{id, name}``). See :class:`MeetingPointBlock`.
+         */
         BookingSummaryPickup: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
             /** Id */
             id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
             /** Name */
             name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
         } & {
             [key: string]: unknown;
         };
@@ -9035,6 +9101,8 @@ export interface components {
             } | null;
             /** Is Published */
             is_published?: boolean | null;
+            /** Meeting Point Location Id */
+            meeting_point_location_id?: string | null;
             /** Meeting Point Text */
             meeting_point_text?: string | null;
             /** Plan Detail */
@@ -9176,6 +9244,64 @@ export interface components {
          * @enum {string}
          */
         CampaignScope: "booking" | "subscription" | "any";
+        /** CancelOperatorContact */
+        CancelOperatorContact: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
+         * CancelPreviewResponse
+         * @description GET /{token}/cancel-preview. ``deadline`` is ISO-8601 UTC;
+         *     ``timezone`` is the operator's IANA zone the page renders it in.
+         *     ``locale`` (de/en/es) is the language the booking's emails are sent in,
+         *     so the page can match the email the customer clicked from.
+         *     ``refund_status`` is the recorded outcome once ``already_cancelled``.
+         */
+        CancelPreviewResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Already Cancelled */
+            already_cancelled: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Reference */
+            booking_reference: string;
+            /** Deadline */
+            deadline?: string | null;
+            /** Locale */
+            locale: string;
+            operator: components["schemas"]["CancelOperatorContact"];
+            /** Policy Text */
+            policy_text?: string | null;
+            refund: components["schemas"]["CancelRefund"];
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
+            /** Timezone */
+            timezone: string;
+        };
+        /**
+         * CancelRefund
+         * @description What a cancellation returns to the customer and how.
+         *
+         *     ``method``: ``stripe_auto`` (back to the card automatically), ``manual``
+         *     (the operator refunds some or all of it by hand), ``none`` (nothing paid).
+         *     ``amount`` is a two-decimal string.
+         */
+        CancelRefund: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "stripe_auto" | "manual" | "none";
+        };
         /**
          * ChangelogEntryOut
          * @description Deliberately ``category``/``description`` ONLY.
@@ -10901,6 +11027,8 @@ export interface components {
         };
         /** LocationIn */
         LocationIn: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -10924,6 +11052,8 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -11082,6 +11212,45 @@ export interface components {
             skipped_done: string[];
             /** Skipped Not Found */
             skipped_not_found: string[];
+        };
+        /**
+         * MeetingPointBlock
+         * @description A meeting-point block (landr-5aih0.1, ``app.services.meeting_point``):
+         *     one pickup location with its address, coordinates and the server-derived
+         *     Google Maps / Waze deep links. Every field is a string, "" when unknown.
+         */
+        MeetingPointBlock: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
+            /** Id */
+            id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
+            /** Name */
+            name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
+        } & {
+            [key: string]: unknown;
         };
         /** MessagePostIn */
         MessagePostIn: {
@@ -11316,6 +11485,7 @@ export interface components {
             first_name?: string | null;
             /** Last Name */
             last_name?: string | null;
+            pickup_location?: components["schemas"]["MeetingPointBlock"] | null;
             /** Service Role Label */
             service_role_label?: string | null;
         } & {
@@ -11408,6 +11578,12 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Cancellation Notice Hours */
+            cancellation_notice_hours?: number | null;
+            /** Cancellation Policy Text */
+            cancellation_policy_text?: {
+                [key: string]: string;
+            } | null;
             /** City */
             city?: string | null;
             /** Country */
@@ -12555,7 +12731,11 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** PublicCancelResponse */
+        /**
+         * PublicCancelResponse
+         * @description POST /{token}/cancel. Same shape on the first cancel and on the
+         *     idempotent repeat (``message`` says which).
+         */
         PublicCancelResponse: {
             /** Booking Id */
             booking_id: string;
@@ -12563,6 +12743,8 @@ export interface components {
             message: string;
             /** Ok */
             ok: boolean;
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
@@ -17364,37 +17546,6 @@ export interface operations {
             };
         };
     };
-    cancel_booking_public: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicCancelResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     public_send_booking_invite: {
         parameters: {
             query?: never;
@@ -17514,6 +17665,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_booking_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCancelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cancel_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelPreviewResponse"];
                 };
             };
             /** @description Validation Error */

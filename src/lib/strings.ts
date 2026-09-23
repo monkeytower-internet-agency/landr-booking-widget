@@ -294,18 +294,9 @@ type Bundle = {
   meetingPointOpenInGoogleMapsAria: string
   meetingPointOpenInWazeAria: string
 
-  // ---- CancelPage ----
-  bookingCancelledTitle: string
-  sorryToSeeYouGo: string
-  yourBookingHasBeenCancelled: string
-  cancellationFailedTitle: string
-  cancelYourBookingTitle: string
-  cancelYourBookingBody: string
-  cancellingEllipsis: string
-  yesCancelBooking: string
-  noKeepBooking: string
-  couldNotCancelBooking: string
-  bookingIdPrefix: string
+  // CancelPage (landr-5aih0.7) speaks the booking EMAIL's language from its
+  // own page-scoped bundle, src/components/booking/cancelStrings.ts — same
+  // pattern as ApprovalReplyPage — so it has no keys here.
 
   // ---- OfferPage ----
   confirmingYourPayment: string
@@ -719,18 +710,6 @@ const en: Bundle = {
   savingsNonConsecutiveTemplate: 'You saved {amount} by booking {days} {dayWord}!',
   meetingPointOpenInGoogleMapsAria: 'Open in Google Maps',
   meetingPointOpenInWazeAria: 'Open in Waze',
-
-  bookingCancelledTitle: 'Booking cancelled',
-  sorryToSeeYouGo: 'Sorry to see you go.',
-  yourBookingHasBeenCancelled: 'Your booking has been cancelled. You can close this window.',
-  cancellationFailedTitle: 'Cancellation failed',
-  cancelYourBookingTitle: 'Cancel your booking?',
-  cancelYourBookingBody: 'This will cancel your booking right away. You cannot undo this.',
-  cancellingEllipsis: 'Cancelling…',
-  yesCancelBooking: 'Yes, cancel booking',
-  noKeepBooking: 'No, keep booking',
-  couldNotCancelBooking: 'We could not cancel this booking. The link may be invalid or already used.',
-  bookingIdPrefix: 'Booking',
 
   confirmingYourPayment: 'Confirming your payment…',
   usuallyTakesAFewSeconds: 'This usually takes a few seconds.',
@@ -1147,18 +1126,6 @@ const de: Bundle = {
   savingsNonConsecutiveTemplate: 'Sie haben {amount} gespart, weil Sie {days} {dayWord} gebucht haben!',
   meetingPointOpenInGoogleMapsAria: 'In Google Maps öffnen',
   meetingPointOpenInWazeAria: 'In Waze öffnen',
-
-  bookingCancelledTitle: 'Buchung storniert',
-  sorryToSeeYouGo: 'Schade, dass Sie gehen.',
-  yourBookingHasBeenCancelled: 'Ihre Buchung wurde storniert. Sie können dieses Fenster schließen.',
-  cancellationFailedTitle: 'Stornierung fehlgeschlagen',
-  cancelYourBookingTitle: 'Buchung stornieren?',
-  cancelYourBookingBody: 'Dies storniert Ihre Buchung sofort. Das kann nicht rückgängig gemacht werden.',
-  cancellingEllipsis: 'Wird storniert…',
-  yesCancelBooking: 'Ja, Buchung stornieren',
-  noKeepBooking: 'Nein, Buchung behalten',
-  couldNotCancelBooking: 'Diese Buchung konnte nicht storniert werden. Der Link ist möglicherweise ungültig oder bereits verwendet.',
-  bookingIdPrefix: 'Buchung',
 
   confirmingYourPayment: 'Ihre Zahlung wird bestätigt…',
   usuallyTakesAFewSeconds: 'Das dauert normalerweise nur wenige Sekunden.',
