@@ -795,12 +795,47 @@ export interface InitiatePaymentRequest {
 }
 
 /**
- * Response from POST /api/public/payments/initiate.
+ * Response from POST /api/public/payments/initiate, as CONSUMED by the
+ * widget — `amount` is a real number here. See InitiatePaymentWireResponse
+ * below for what actually arrives on the wire; `initiatePayment()` coerces
+ * between the two so no caller (OfferPage) has to think about the string
+ * vs. number distinction.
  */
 export interface InitiatePaymentResponse {
   checkout_url: string
   payment_id: string | null
   stripe_payment_intent_id: string | null
+  /**
+   * landr-k9pji.5 (API, landr-k9pji.4 PR #848): the amount THIS checkout
+   * session actually charges — the operator's deposit_percent share of
+   * `totals.balance_due` when a deposit is configured, else equal to
+   * balance_due (full amount). OfferPage compares this against
+   * `totals.balance_due` to decide whether to render a "Deposit (N %)"
+   * line (N computed client-side as `amount / balance_due`). Optional so
+   * the widget tolerates an older API deploy; absent means "no deposit
+   * info available" — OfferPage falls back to today's (no deposit line)
+   * behaviour.
+   */
+  amount?: number
+}
+
+/**
+ * landr-k9pji.5 review fix — the RAW wire shape of POST
+ * /api/public/payments/initiate. `amount` (and every other money field the
+ * endpoint returns — `deposit`, `deposit_percent`, `balance_due`, none of
+ * which the widget reads today) is a JSON STRING on the wire
+ * (`app/routers/public_payments.py`: `"amount": str(charge_amount)`, not a
+ * number) — confirmed against `origin/dev`. Coercing the RAW string wasn't
+ * happening before this fix: `InitiatePaymentResponse.amount` was typed
+ * `number` while the actual payload sent a string like `"336.00"`, so every
+ * consumer (`<`, `/`, `formatCurrency`'s `.toFixed(2)` fallback path) was
+ * one non-numeric response away from silently misbehaving or throwing.
+ */
+interface InitiatePaymentWireResponse {
+  checkout_url: string
+  payment_id: string | null
+  stripe_payment_intent_id: string | null
+  amount?: string
 }
 
 /**
@@ -812,10 +847,24 @@ export interface InitiatePaymentResponse {
 export async function initiatePayment(
   body: InitiatePaymentRequest,
 ): Promise<InitiatePaymentResponse> {
-  return http<InitiatePaymentResponse>('/api/public/payments/initiate', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+  const raw = await http<InitiatePaymentWireResponse>(
+    '/api/public/payments/initiate',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+  // landr-k9pji.5 review fix — the one place the string→number coercion
+  // happens, so every other file keeps working with a real number. A
+  // non-numeric/absent value coerces to `undefined` (never NaN) so
+  // OfferPage's `resp.amount != null` deposit check stays false-safe.
+  const amount = raw.amount != null ? Number(raw.amount) : undefined
+  return {
+    checkout_url: raw.checkout_url,
+    payment_id: raw.payment_id,
+    stripe_payment_intent_id: raw.stripe_payment_intent_id,
+    amount: amount != null && Number.isFinite(amount) ? amount : undefined,
+  }
 }
 
 /**

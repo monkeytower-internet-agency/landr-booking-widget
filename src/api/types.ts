@@ -1199,6 +1199,14 @@ export interface SubmitBookingResponse {
    * "no payment-link line" on the confirmation screen.
    */
   payment_link_sent?: boolean
+  /**
+   * landr-k9pji.5 (API, landr-k9pji.4 PR #848): how this operator expects to
+   * be paid — 'on_site' | 'bank_transfer' | 'online'. Drives Confirmation's
+   * payment copy (see PAYMENT_MODE_COPY there). Optional so the widget
+   * tolerates an older API deploy that predates the field; Confirmation
+   * falls back to today's payment_link_sent-based copy when absent.
+   */
+  payment_mode?: 'online' | 'bank_transfer' | 'on_site'
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
