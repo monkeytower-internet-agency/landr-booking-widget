@@ -11169,6 +11169,39 @@
         "title": "PhotoResponse",
         "type": "object"
       },
+      "PresetOut": {
+        "description": "One preset the onboarding wizard can offer.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "persona": {
+            "enum": [
+              "solo",
+              "company"
+            ],
+            "title": "Persona",
+            "type": "string"
+          },
+          "tagline": {
+            "title": "Tagline",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "tagline",
+          "persona"
+        ],
+        "title": "PresetOut",
+        "type": "object"
+      },
       "PreviewMigrationsResponse": {
         "description": "Read-only preview shown in the propose/promote dialogs (landr-a99u.14.6).\n\n``pending_count`` is the number of migrations the target tier would receive\nif a run of ``kind`` were started right now; ``files`` is the ordered list\nof filenames (ascending timestamp), matching what the executor would apply.",
         "properties": {
@@ -15351,7 +15384,7 @@
         "type": "object"
       },
       "SignupRequest": {
-        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (en/de; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)",
+        "description": "POST /api/public/signup body.\n\n`name` is the operator/business display name (-> operators.name). `slug` is\nthe desired public handle. `turnstile_token` is the Cloudflare widget's\nclient response token. `password` is the new account password (GoTrue\nenforces its own minimum; we keep a soft floor here). `locale` selects the\nverification-email language (en/de; defaults en).\n\nBoth field names and their marketing-site aliases are accepted (back-compat):\n  name / operator_name, slug / operator_slug  (landr-oqrz.1)\n\n`preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,\ne.g. `solo_pilot` from the website's solo landing CTA. Must be one of\n`app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.\nBlank = not sent. Stored on the operator only; the wizard applies it.",
         "properties": {
           "email": {
             "maxLength": 320,
@@ -15376,6 +15409,18 @@
             "minLength": 8,
             "title": "Password",
             "type": "string"
+          },
+          "preset_key": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Key"
           },
           "slug": {
             "maxLength": 30,
@@ -24304,7 +24349,7 @@
     },
     "/api/public/signup": {
       "post": {
-        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
+        "description": "Self-onboarding signup pipeline (see module docstring for the full flow).\n\nSuccess: 201 {\"status\": \"verification_email_sent\", \"verification_required\":\ntrue} \u2014 IDENTICAL on both fresh signup AND duplicate email (M1). The\ncreated operator is FREE tier; NO session is returned \u2014 the user must click\nthe verification link we emailed before they can sign in.\noperator_id is intentionally omitted here; callers must fetch it AFTER the\nuser verifies their email (avoids email-enumeration oracle).\n\nError contract:\n  * 422 unknown_preset_key \u2014 preset_key is not in PRESET_KEYS (checked\n                      first, before Turnstile, so no token is burnt).\n  * 403 captcha_*   \u2014 Turnstile failed / unavailable.\n  * 429             \u2014 per-IP or global rate limit exceeded.\n  * 503             \u2014 rate-limiter infra error (fail CLOSED).\n  * 422 invalid_slug \u2014 slug fails the grammar/reserved rules (+suggestions).\n  * 409 slug_taken   \u2014 slug collision (+3 suggested alternates).\n  * 500             \u2014 GoTrue create failed, OR the RPC failed AFTER the auth\n                      user was created (the auth user is then COMPENSATINGLY\n                      deleted before responding), OR the verification email\n                      could not even be ENQUEUED (also compensated). NOTE:\n                      the response 201s as soon as the email is queued \u2014\n                      it no longer waits for the actual Resend/SES send\n                      (landr-csot; see module docstring).\n\nNOTE (M1): an already-registered EMAIL does NOT yield a distinct error \u2014 it\nreturns the same generic \"verification_email_sent\" body as a new signup, so\nthe endpoint can't be used to enumerate which emails have accounts.",
         "operationId": "signup",
         "requestBody": {
           "content": {
@@ -34228,6 +34273,58 @@
         "summary": "Decide Unit Request",
         "tags": [
           "staff-participant-day-state"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/presets": {
+      "get": {
+        "description": "Every preset ``POST /apply-preset`` accepts, in the order the wizard\nshows them (solo pilot first, blank last). Static registry data; the\noperator's current choice is ``onboarding_preset_key`` on\n``GET /api/staff/operators/{operator_id}``.",
+        "operationId": "list_presets_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetOut"
+                  },
+                  "title": "Response List Presets Endpoint",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Presets Endpoint",
+        "tags": [
+          "staff-operator-presets"
         ]
       }
     },

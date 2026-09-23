@@ -2816,6 +2816,8 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
+         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
+         *                           first, before Turnstile, so no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -5822,6 +5824,29 @@ export interface paths {
          *     thing being competed for; this is the read-side guard on top of it.
          */
         post: operations["staff_decide_participant_unit_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Presets Endpoint
+         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
+         *     shows them (solo pilot first, blank last). Static registry data; the
+         *     operator's current choice is ``onboarding_preset_key`` on
+         *     ``GET /api/staff/operators/{operator_id}``.
+         */
+        get: operations["list_presets_endpoint"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -12314,6 +12339,23 @@ export interface components {
             subject_type: string;
         };
         /**
+         * PresetOut
+         * @description One preset the onboarding wizard can offer.
+         */
+        PresetOut: {
+            /** Key */
+            key: string;
+            /**
+             * Persona
+             * @enum {string}
+             */
+            persona: "solo" | "company";
+            /** Tagline */
+            tagline: string;
+            /** Title */
+            title: string;
+        };
+        /**
          * PreviewMigrationsResponse
          * @description Read-only preview shown in the propose/promote dialogs (landr-a99u.14.6).
          *
@@ -13853,6 +13895,11 @@ export interface components {
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
+         *
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
+         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
+         *     Blank = not sent. Stored on the operator only; the wizard applies it.
          */
         SignupRequest: {
             /** Email */
@@ -13866,6 +13913,8 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /** Preset Key */
+            preset_key?: string | null;
             /** Slug */
             slug: string;
             /** Turnstile Token */
@@ -24396,6 +24445,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_presets_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetOut"][];
                 };
             };
             /** @description Validation Error */
