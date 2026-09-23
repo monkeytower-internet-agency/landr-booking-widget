@@ -12,6 +12,7 @@ import type {
   Hotel,
   InvitePrefill,
   Location,
+  MeetingPoint,
   OperatorSettings,
   Product,
   ProductAddon,
@@ -642,6 +643,8 @@ export interface OfferParticipant {
   first_name: string
   last_name: string | null
   service_role_label: string | null
+  /** landr-5aih0.1 — the participant's pickup location (meeting point) block. */
+  pickup_location?: MeetingPoint | null
 }
 
 /**
