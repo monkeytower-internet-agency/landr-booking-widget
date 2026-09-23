@@ -635,6 +635,32 @@ export interface Location {
   name_localized: Record<string, string> | null
   parent_id: string | null
   role_type: { code: string; label: string } | null
+  /**
+   * landr-5aih0.1 — a pickup location IS the meeting point. Free-text
+   * address (a hotel falls back to its Hotels-page address) and coordinates,
+   * both null when the operator never set them. Optional so a response from
+   * an API that predates them still type-checks. Never build map links from
+   * these client-side: the API derives Google Maps / Waze URLs
+   * (MeetingPoint below).
+   */
+  address?: string | null
+  geo?: { lat: number; lng: number } | null
+}
+
+/**
+ * landr-5aih0.1 — a meeting-point block, derived server-side ONCE
+ * (landr-api app/services/meeting_point.py). Every value is a string, ""
+ * when unknown: `google_maps_url` uses the coordinates, else the address;
+ * `waze_url` needs coordinates. Rendering is landr-5aih0.2.
+ */
+export interface MeetingPoint {
+  id: string
+  name: string
+  address: string
+  lat: string
+  lng: string
+  google_maps_url: string
+  waze_url: string
 }
 
 /**
@@ -1326,8 +1352,12 @@ export interface BookingSummaryParticipant {
   is_guiding?: boolean
 }
 
-/** One pickup option of BookingSummary.pickup_locations. */
-export interface BookingSummaryPickup {
+/**
+ * One pickup option of BookingSummary.pickup_locations. landr-5aih0.1: the
+ * API now sends the full MeetingPoint block; the extra fields are optional
+ * here so an older API response still type-checks.
+ */
+export interface BookingSummaryPickup extends Partial<MeetingPoint> {
   id: string
   name: string
 }
@@ -1422,6 +1452,8 @@ export interface BookingSummary {
   participants: BookingSummaryParticipant[]
   pickup_location: string | null
   pickup_locations: BookingSummaryPickup[]
+  /** landr-5aih0.1 — first pickup location's block, or the all-"" block. */
+  meeting_point?: MeetingPoint | null
   hotel: BookingSummaryHotel | null
   line_items: EstimateLineItem[]
   operator_total: string
