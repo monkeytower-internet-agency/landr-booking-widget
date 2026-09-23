@@ -213,3 +213,83 @@ describe('submitStaffBooking (landr-aoak.4)', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
+
+// landr-k9pji.5 review fix — `initiatePayment` has no mock-mode branch (the
+// offer/pay link is email-deep-link only, see its own doc comment), so
+// these hit the real fetch path, mocked at the Response level like
+// submitStaffBooking's 'encodes the operator id' test above.
+describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9pji.5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const REQUEST = {
+    booking_token: 'tok-1',
+    return_url: 'https://widget.dev.landr.de/pay/tok-1?paid=1',
+    cancel_url: 'https://widget.dev.landr.de/pay/tok-1?paid=cancelled',
+  }
+
+  it('coerces the wire amount string to a real number', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', '0')
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
+    // app/routers/public_payments.py sends `"amount": str(charge_amount)` —
+    // a JSON string like "336.00", confirmed against origin/dev. Every
+    // other money field the endpoint returns (deposit_percent, balance_due)
+    // is stringified the same way, but the widget doesn't read those today.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
+          payment_id: 'pay-1',
+          stripe_payment_intent_id: 'pi_1',
+          amount: '336.00',
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const resp = await client.initiatePayment(REQUEST)
+
+    expect(resp.amount).toBe(336)
+    expect(typeof resp.amount).toBe('number')
+  })
+
+  it('leaves amount undefined (never NaN) when the wire field is absent — older API deploy', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', '0')
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
+          payment_id: 'pay-1',
+          stripe_payment_intent_id: 'pi_1',
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const resp = await client.initiatePayment(REQUEST)
+
+    expect(resp.amount).toBeUndefined()
+  })
+
+  it('leaves amount undefined (never NaN) when the wire field is non-numeric junk', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', '0')
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
+          payment_id: 'pay-1',
+          stripe_payment_intent_id: 'pi_1',
+          amount: 'not-a-number',
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const resp = await client.initiatePayment(REQUEST)
+
+    expect(resp.amount).toBeUndefined()
+  })
+})

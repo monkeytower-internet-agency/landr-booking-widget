@@ -53,6 +53,14 @@ const OFFER = {
   ],
 }
 
+// landr-k9pji.5 review fix — this file mocks `initiatePayment` itself (the
+// already-coerced, consumer-facing shape — `InitiatePaymentResponse.amount`
+// is a real `number`), so its fixtures use numbers throughout, same as
+// below. The wire format (landr-api sends `amount` as a JSON STRING) and
+// the string→number coercion boundary are covered separately, at the
+// `initiatePayment()` unit level, in src/api/client.test.ts — mocking a
+// STRING here instead would test a shape OfferPage never actually receives
+// once client.ts does its job.
 const INITIATE_RESP = {
   checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
   payment_id: 'pay-uuid',
