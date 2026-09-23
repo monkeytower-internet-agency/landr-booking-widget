@@ -59,7 +59,18 @@ import {
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
-import { accommodationTooLateMessage, nightsWord, tr } from '@/lib/strings'
+import {
+  accommodationTooLateMessage,
+  additionalAccommodationRequiredHint,
+  nightsWord,
+  occupancyOverbookWarning,
+  sharedDoubleOthersTooLateMessage,
+  sharedDoubleReferenceFoundLabel,
+  sharedDoubleReferenceLinkedLabel,
+  sharedDoubleReferenceNotFoundMessage,
+  splitOnPlaceholder,
+  tr,
+} from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -1582,9 +1593,7 @@ export function AccommodationStep({
             data-testid="shared-double-too-late-others"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            Only you share the host&apos;s room; it&apos;s too late to book
-            rooms for other pilots ({sharedDoubleGuidingNames.join(', ')}) —
-            remove them or contact the operator.
+            {sharedDoubleOthersTooLateMessage(sharedDoubleGuidingNames.join(', '), locale)}
           </p>
         ) : null}
         {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
@@ -1644,11 +1653,18 @@ export function AccommodationStep({
         {showHotelContext ? (
           hotels.length === 1 ? (
             <p className="text-sm text-muted-foreground">
-              Staying at{' '}
-              <span className="font-medium text-foreground">
-                {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
-              </span>
-              .
+              {(() => {
+                const [before, after] = splitOnPlaceholder(tr('stayingAtTemplate', locale), 'hotel')
+                return (
+                  <>
+                    {before}
+                    <span className="font-medium text-foreground">
+                      {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
+                    </span>
+                    {after}
+                  </>
+                )
+              })()}
             </p>
           ) : (
             <fieldset className="flex flex-col gap-2">
@@ -1745,7 +1761,7 @@ export function AccommodationStep({
               htmlFor="shared-double-reference-input"
               className="text-sm font-medium"
             >
-              Booking reference of the person who booked the room
+              {tr('sharedDoubleReferenceInputLabel', locale)}
             </label>
             <input
               id="shared-double-reference-input"
@@ -1766,15 +1782,16 @@ export function AccommodationStep({
                 starts editing an already-looked-up code again — the effect
                 deliberately does not reset state on every keystroke. */}
             {refInput.length === 8 && refLookup.status === 'loading' ? (
-              <p className="text-xs text-muted-foreground">Looking that up…</p>
+              <p className="text-xs text-muted-foreground">
+                {tr('sharedDoubleReferenceLookingUp', locale)}
+              </p>
             ) : null}
             {refInput.length === 8 && refLookup.status === 'not_found' ? (
               <p
                 className="text-xs text-muted-foreground"
                 data-testid="shared-double-reference-not-found"
               >
-                We couldn&rsquo;t find that reference for this operator —
-                double-check it, or just leave it blank and add it later.
+                {sharedDoubleReferenceNotFoundMessage(locale)}
               </p>
             ) : null}
             {refInput.length === 8 && refLookup.status === 'found' ? (
@@ -1783,9 +1800,11 @@ export function AccommodationStep({
                 data-testid="shared-double-reference-confirm"
               >
                 <p className="text-sm">
-                  Booking of {refLookup.result.masked_name} from{' '}
-                  {formatRelativeDate(refLookup.result.created_at)} — is that
-                  them?
+                  {sharedDoubleReferenceFoundLabel(
+                    refLookup.result.masked_name,
+                    formatRelativeDate(refLookup.result.created_at),
+                    locale,
+                  )}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -1794,7 +1813,7 @@ export function AccommodationStep({
                     onClick={confirmJoinRef}
                     data-testid="shared-double-reference-confirm-yes"
                   >
-                    Yes, link us
+                    {tr('sharedDoubleReferenceConfirmYes', locale)}
                   </Button>
                   <Button
                     type="button"
@@ -1803,7 +1822,7 @@ export function AccommodationStep({
                     onClick={declineJoinRef}
                     data-testid="shared-double-reference-confirm-no"
                   >
-                    No
+                    {tr('sharedDoubleReferenceConfirmNo', locale)}
                   </Button>
                 </div>
               </div>
@@ -1813,14 +1832,11 @@ export function AccommodationStep({
                 className="text-xs text-diff-added"
                 data-testid="shared-double-reference-linked"
               >
-                Linked to {refLookup.result.masked_name}&rsquo;s booking.
+                {sharedDoubleReferenceLinkedLabel(refLookup.result.masked_name, locale)}
               </p>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              It&rsquo;s nice if you have the code, totally fine if not — you
-              can add it later from your booking page. Easiest is to ask the
-              person who booked for their invite link, then everything is
-              prefilled.
+              {tr('sharedDoubleReferenceHelp', locale)}
             </p>
           </div>
         ) : null}
@@ -1841,10 +1857,12 @@ export function AccommodationStep({
             {sharedDoubleRooms ? (
               <p className="text-xs text-muted-foreground">
                 {sharedDoubleRoomsRequired
-                  ? `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${sharedDoubleGuidingNames.join(', ')} ${
-                      sharedDoubleGuidingNames.length === 1 ? 'needs' : 'need'
-                    } a room here.`
-                  : 'Optional — rooms for the people travelling with you. Your own bed is already covered by the shared double room.'}
+                  ? additionalAccommodationRequiredHint(
+                      sharedDoubleGuidingNames.join(', '),
+                      sharedDoubleGuidingNames.length,
+                      locale,
+                    )
+                  : tr('additionalAccommodationOptionalHint', locale)}
               </p>
             ) : null}
             {rooms === null && !roomsError ? (
@@ -1971,7 +1989,7 @@ export function AccommodationStep({
                       // landr-yybu: room-linked add-ons are hard-capped at the
                       // room's occupancy (incl single-occupancy rooms → cap 1).
                       occupancyLimited
-                      heading="Add-ons"
+                      heading={tr('addonsTitle', locale)}
                     />
                   ) : null}
                 </div>
@@ -2082,9 +2100,7 @@ export function AccommodationStep({
             data-testid="overbook-capacity-warning"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            You have {occupantCount}{' '}
-            {occupantCount === 1 ? 'person' : 'people'} but only{' '}
-            {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
+            {occupancyOverbookWarning(occupantCount, totalCapacity, locale)}
           </p>
         ) : null}
         {/* landr-yybu: bottom aggregate breakfast warning removed.

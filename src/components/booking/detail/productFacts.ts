@@ -122,7 +122,7 @@ export function deriveProductFacts(product: Product, locale: string): ProductFac
   if (languages.length > 0) {
     facts.push({
       icon: 'languages',
-      label: languages.map(languageName).join(' · '),
+      label: languages.map((code) => languageName(code, locale)).join(' · '),
       languages,
     })
   }

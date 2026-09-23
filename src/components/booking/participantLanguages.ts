@@ -85,6 +85,72 @@ const LANGUAGE_NAMES: Record<string, string> = {
 }
 
 /**
+ * landr-5aih0.17: German fallback table for `languageName`'s German branch,
+ * covering the same 35 codes as `LANGUAGE_NAMES` above. `Intl.DisplayNames`
+ * is the primary source (broad CLDR coverage, no maintenance burden), but
+ * (a) it can be absent in an old embedded WebView and (b) `Intl.DisplayNames`
+ * capitalises language names as CLDR spells them, which is already correct
+ * German style (nouns are capitalised) — this table exists purely as the
+ * `typeof Intl.DisplayNames === 'undefined'` fallback, kept in the same code
+ * order as LANGUAGE_NAMES so the two are easy to eyeball against each other.
+ */
+const LANGUAGE_NAMES_DE: Record<string, string> = {
+  ar: 'Arabisch',
+  bg: 'Bulgarisch',
+  bs: 'Bosnisch',
+  ca: 'Katalanisch',
+  cs: 'Tschechisch',
+  da: 'Dänisch',
+  de: 'Deutsch',
+  el: 'Griechisch',
+  en: 'Englisch',
+  es: 'Spanisch',
+  et: 'Estnisch',
+  eu: 'Baskisch',
+  fi: 'Finnisch',
+  fr: 'Französisch',
+  ga: 'Irisch',
+  gl: 'Galicisch',
+  he: 'Hebräisch',
+  hi: 'Hindi',
+  hr: 'Kroatisch',
+  hu: 'Ungarisch',
+  id: 'Indonesisch',
+  is: 'Isländisch',
+  it: 'Italienisch',
+  ja: 'Japanisch',
+  ko: 'Koreanisch',
+  lt: 'Litauisch',
+  lv: 'Lettisch',
+  mk: 'Mazedonisch',
+  nl: 'Niederländisch',
+  no: 'Norwegisch',
+  pl: 'Polnisch',
+  pt: 'Portugiesisch',
+  ro: 'Rumänisch',
+  ru: 'Russisch',
+  sk: 'Slowakisch',
+  sl: 'Slowenisch',
+  sq: 'Albanisch',
+  sr: 'Serbisch',
+  sv: 'Schwedisch',
+  th: 'Thailändisch',
+  tr: 'Türkisch',
+  uk: 'Ukrainisch',
+  vi: 'Vietnamesisch',
+  zh: 'Chinesisch',
+}
+
+// landr-5aih0.17: one shared Intl.DisplayNames('de', …) instance — cheap to
+// construct but no reason to rebuild it on every languageName() call in a
+// list. `undefined` when the runtime predates Intl.DisplayNames (falls back
+// to LANGUAGE_NAMES_DE below).
+const GERMAN_LANGUAGE_DISPLAY_NAMES: Intl.DisplayNames | undefined =
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
+    ? new Intl.DisplayNames(['de'], { type: 'language' })
+    : undefined
+
+/**
  * ISO 639-1 → a representative flag emoji. A language is not a country, so
  * this is deliberately "the flag customers associate with the language"
  * rather than anything authoritative; codes with no obvious single flag (or
@@ -135,9 +201,27 @@ const LANGUAGE_FLAGS: Record<string, string> = {
 
 const NEUTRAL_FLAG = '🌐'
 
-/** Display name for a language code — falls back to the upper-cased code. */
-export function languageName(code: string): string {
+/**
+ * Display name for a language code — falls back to the upper-cased code.
+ *
+ * landr-5aih0.17: `locale` is optional and defaults to English, so every
+ * pre-existing call site (including languageBoardDrop.ts's dnd-kit
+ * screen-reader announcer sentences, which stay English by decision) is
+ * unchanged unless it explicitly opts in to the customer's resolved locale.
+ * The German branch prefers `Intl.DisplayNames('de', {type:'language'})`
+ * (broad CLDR coverage — every ISO 639-1 code this widget could ever see,
+ * not just the 35 in the fallback table) and only falls back to
+ * LANGUAGE_NAMES_DE when the runtime lacks Intl.DisplayNames or it returns
+ * the bare code unchanged (its own "I don't know this one" signal).
+ */
+export function languageName(code: string, locale?: string): string {
   const key = String(code ?? '').toLowerCase()
+  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
+  if (base === 'de') {
+    const fromIntl = GERMAN_LANGUAGE_DISPLAY_NAMES?.of(key)
+    if (fromIntl && fromIntl.toLowerCase() !== key) return fromIntl
+    return LANGUAGE_NAMES_DE[key] ?? key.toUpperCase()
+  }
   return LANGUAGE_NAMES[key] ?? key.toUpperCase()
 }
 
@@ -220,13 +304,18 @@ export function productDisplayLanguages(raw: unknown): string[] {
 }
 
 /**
- * landr-pv2r1 (E4) — natural English list: "English", "English and German",
- * "English, Spanish and German". Used for the languages chip/fact labels.
+ * landr-pv2r1 (E4) — natural-language list: "English", "English and
+ * German", "English, Spanish and German" ("Englisch", "Englisch und
+ * Deutsch", "Englisch, Spanisch und Deutsch" for German). Used for the
+ * languages chip/fact labels. `locale` defaults to English, same as
+ * `languageName` above.
  */
-export function joinLanguageNames(codes: readonly string[]): string {
-  const names = codes.map(languageName)
+export function joinLanguageNames(codes: readonly string[], locale?: string): string {
+  const names = codes.map((code) => languageName(code, locale))
   if (names.length <= 1) return names.join('')
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  const base = (locale ?? '').trim().toLowerCase().split(/[-_]/)[0]
+  const and = base === 'de' ? 'und' : 'and'
+  return `${names.slice(0, -1).join(', ')} ${and} ${names[names.length - 1]}`
 }
 
 /**

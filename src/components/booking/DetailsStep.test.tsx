@@ -2069,7 +2069,7 @@ describe('DetailsStep — separate_guiding companion contact required (D11, land
     expect(row).not.toHaveTextContent(/email \(optional\)/i)
     expect(row).not.toHaveTextContent(/phone \(optional\)/i)
     expect(row).toHaveTextContent(
-      'We’ll use this to send them their own booking link.',
+      "We'll use this to send them their own booking link.",
     )
   })
 })

@@ -1,36 +1,57 @@
 /**
- * landr-5aih0.9: guard against English chrome text creeping back into the
- * widget's component tree outside src/lib/strings.ts's bundle (or a
- * page-scoped sibling bundle, e.g. approvalReplyStrings.ts).
+ * landr-5aih0.9 / landr-5aih0.17: guard against English chrome text creeping
+ * back into the widget's component tree outside src/lib/strings.ts's bundle
+ * (or a page-scoped sibling bundle, e.g. approvalReplyStrings.ts).
  *
- * Scans every .tsx/.ts file under src/components/booking/** for JSX text
- * nodes and common string-literal attributes (aria-label=, placeholder=,
- * title=) that look like real English prose (a capitalised word run, not a
- * code token). Comments are stripped first so JSDoc examples don't produce
- * false positives. Mirrors landr-ifcu's precedent of excluding
- * src/api/mocks.ts (fixture data, not chrome).
+ * landr-5aih0.17 rewrote the extraction from a `>text<` / attribute REGEX to
+ * a real TypeScript-AST walk (`ts.createSourceFile`, already a project
+ * devDependency — no new dependency). The regex version had three
+ * independent blind spots that let real untranslated strings ship silently:
+ *
+ *  1. JSX text split by an embedded `{expr}` (e.g. `Everyone speaks
+ *     {languageName(code)}`) never matched `>text<` because the text wasn't
+ *     immediately followed by `<`.
+ *  2. A `>` used as a plain comparison operator in ordinary TS code (e.g.
+ *     `date > today`) could start a bogus regex match that swallowed real
+ *     JSX text up to the next `<`/`>`/`{`/`}`, merging it with surrounding
+ *     code into one blob `looksLikeCode` then correctly-but-uselessly
+ *     rejected — hiding the genuine text inside it instead of flagging it.
+ *  3. `looksLikeCode`'s `/[{}();]/` check treated ANY parenthetical aside
+ *     ("Email (optional)", "Reason for the override (required when set)")
+ *     as code, and the attribute scan only covered aria-label/placeholder/
+ *     title/alt — missing `label=` and other text-bearing component props
+ *     (`heading=` on AddonsList, for one).
+ *
+ * The AST walk sidesteps all three: JsxText nodes are already correctly
+ * segmented around `{expr}` children by the parser, a real parser never
+ * misreads a comparison operator as a JSX tag, and there is no
+ * parenthesis/semicolon heuristic to fool. It additionally follows simple
+ * ternary/`&&`/`||`/`??` chains in JSX child position (e.g. `{cond ? 'Some
+ * text' : tr('key', locale)}`) to catch a literal hidden behind a condition
+ * — the old regex could never see inside a `{}` at all.
+ *
+ * Deliberately NOT covered (bounded scope, see landr-5aih0.17's ticket):
+ * template-literal JSX attributes (`aria-label={\`Remove ${x}\`}`) and
+ * strings that only reach the tree via a variable/prop rather than a
+ * literal at the child/attribute site. Both exist elsewhere in this tree;
+ * flagging them is a materially larger, separately-scoped follow-up (see
+ * the ticket's handoff).
  *
  * This is NOT a claim that every string in the tree is translated —
- * several areas are deliberately deferred (see landr-5aih0.9's PR
- * description / handoff for the full list and why): drag-and-drop
- * screen-reader announcer sentences (ParticipantLanguageBoard.tsx,
- * RoomAssignment.tsx), staff-only force-book confirm() dialogs and the
- * staff price-override UI, MultiDayPicker's invite-mode diff chrome and
- * mode-toggle labels, AccommodationStep's shared-double reference-lookup
- * sub-flow and rare occupancy-hint sentences, Confirmation's
- * invite/group/join-reference cards, and BookingForm's deep 422
- * error-mapping sentences beyond the single-language-assignment message.
- * Each is listed in ALLOWED_LITERALS below, one file at a time, so a
- * genuinely NEW English string anywhere else in the tree still fails this
- * test — the allowlist only covers what was already known and deferred
- * when this guard was written.
- *
- * Operator-authored content (product/category names, custom-form field
- * labels, after-booking HTML) is never hard-coded text in the component
- * tree — it always arrives over the wire — so it never needs an allowlist
- * entry here.
+ * several areas are deliberately deferred, each listed in ALLOWED_LITERALS
+ * below with a comment explaining why: drag-and-drop screen-reader
+ * announcer sentences (languageBoardDrop.ts's template literals never reach
+ * this scanner at all — they're plain .ts, no JSX — RoomAssignment.tsx's
+ * own `announcements` object is the same shape), staff-only UI (force-book
+ * banners, the price-override panel, the operator-override badge — gated on
+ * `staff.active`/`canOverridePrice`/force-book capability, never reached by
+ * a normal customer), brand names (WhatsApp, Google Calendar, Outlook,
+ * Google Maps, Waze, the landr.de domain), and BookingForm's deep 422
+ * language-assignment error-mapping sentences beyond the single-assignment
+ * message (out of both landr-5aih0.9's and landr-5aih0.17's scope).
  */
 import { describe, expect, it } from 'vitest'
+import ts from 'typescript'
 
 // Vite-native file read (no Node `fs`/`path` typings needed in this
 // browser-targeted tsconfig — see tsconfig.app.json's `types` array).
@@ -45,126 +66,74 @@ const RAW_FILES = import.meta.glob('./**/*.{ts,tsx}', {
 /**
  * Per-file allowlist of exact literal strings this guard would otherwise
  * flag. Keyed by path relative to src/components/booking/. Add an entry
- * here ONLY for a string that is genuinely out of this ticket's scope
- * (see the file header) — never to silence a string that should actually
- * be translated.
+ * here ONLY for a string that is genuinely out of scope (see the file
+ * header) — never to silence a string that should actually be translated.
+ * A JsxText/JSX-child-literal hit is the trimmed, whitespace-collapsed
+ * text; an attribute hit is `[attrName] value`.
  */
 const ALLOWED_LITERALS: Record<string, string[]> = {
-  // Shared-double join-by-reference lookup mini-flow (AccommodationStep) —
-  // deferred as a self-contained unit so it isn't left half-translated:
-  // the reference-code input, its lookup states, and the found-a-match
-  // confirm/decline step.
-  'AccommodationStep.tsx': [
-    'Looking that up…',
-    'Booking reference of the person who booked the room',
-    'Yes, link us',
-    'No',
-  ],
   // Staff-only price-override UI (canOverridePrice / staff.active gated) —
   // never reached by a normal customer.
   'BookingForm.tsx': [
     'New gross total',
     'Reason',
     'Leave blank to use the calculated total. When set, this gross total replaces the computed price for this booking.',
+    'Override price (operator)',
+    '[placeholder] Reason for the override (required when set)',
   ],
-  // Mode-toggle chrome (Date range / Individual days) + its aria-label,
-  // and the invite-mode diff legend/summary/reset chrome — all deferred,
-  // see the file header.
+  // landr-aoak.2 [S3]: staff force-book summary — only rendered when the
+  // staff selection includes a force-booked day (past a gate a normal
+  // customer's picker never lets them cross); forceBookReasonMessage()
+  // itself stays English by decision (see its doc in src/lib/strings.ts).
+  // Nothing here is a literal any more (the banner's text is entirely
+  // function-generated), kept as documentation of why this section is
+  // exempt rather than an active entry.
   'MultiDayPicker.tsx': [
-    '[aria-label] Selection mode',
-    'Date range',
-    'Individual days',
-    'Added',
-    'Removed',
+    // landr-aoak.2: the operator-override "N forced day(s) (reasons)"
+    // badge line is staff-only (forcedDays is only non-empty when staff
+    // force-booked past a gate) — same precedent as forceBookReasonMessage.
+    'forced',
+    'day',
+    'days',
   ],
   // Staff-only "operator override" indicator (force-book past capacity /
   // lead time) — never shown to a normal customer.
   'OperatorOverrideBadge.tsx': ['Operator override'],
-  // Regex artifact, not real text: `disabled={(date) => date < today || …}`
-  // — the `<` in the comparison reads as a JSX tag boundary to this guard's
-  // naive `>text<` scanner, so the `date` identifier gets matched as if it
-  // were JSX text. No such literal actually renders.
-  'SingleDatePicker.tsx': ['date'],
-  // Neutral "misconfigured embed" placeholder shown only when the widget
-  // token is missing/invalid — a config/diagnostic page an operator's
-  // developer sees while wiring up the embed, not part of the booking flow
-  // a customer ever reaches with a valid link.
-  'LandingPage.tsx': ['This is the booking-widget host for Landr', 'www.landr.de'],
-  // InviteCard / GroupBlock / SharedDoubleHint — the post-booking
-  // group-invite sub-flow, deferred as a self-contained unit (see the file
-  // header). "Google Calendar" / "Outlook" are the calendar-provider CTAs
-  // right above it — provider brand names, never translated. "Google Maps"
-  // / "Waze" (landr-5aih0.2) are the same pattern one section up — the
-  // meeting-point deep-link buttons; their aria-labels ARE translated
-  // (meetingPointOpenInGoogleMapsAria/meetingPointOpenInWazeAria).
+  // landr-5aih0.17: operator-framed copy shown ONLY when staff.active — a
+  // normal customer never reaches this branch (see the surrounding
+  // `staff.active ? (...) : ...` in Confirmation.tsx).
   'Confirmation.tsx': [
+    'Booking created on behalf of the customer. It is currently',
+    // Provider/brand names, never translated.
     'WhatsApp',
-    'Email sending unavailable — copy the link instead.',
-    'Booked together with',
-    'Add their reference on your booking page',
-    'Each of them completes their own booking from their link.',
     'Google Calendar',
     'Outlook',
     'Google Maps',
     'Waze',
   ],
+  // Domain name — a URL, not prose; the page's own title IS translated
+  // (landingPageTitle in src/lib/strings.ts).
+  'LandingPage.tsx': ['www.landr.de'],
 }
 
 // approvalReplyStrings.ts already ships its own de/en/es bundle under a
 // separate locale-resolution rule (see its file header) — English rows
-// there are one of three intentional locales, not stray chrome.
+// there are one of three intentional locales, not stray chrome. It has no
+// JSX, so this scanner would find nothing in it either way; kept as
+// documentation of that precedent.
 const IGNORED_FILES = new Set(['approvalReplyStrings.ts'])
 
 // landr-ifcu precedent: fixture/mock data (and decorative SVG icon source)
 // is not chrome.
-const IGNORED_DIRS = new Set(['/art/'])
+const IGNORED_DIRS = ['/art/']
 
-function stripComments(src: string): string {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1')
-}
+/** Text-bearing JSX attributes this guard scans for a plain string-literal value. */
+const TEXT_ATTRS = new Set(['aria-label', 'placeholder', 'title', 'alt', 'label', 'heading'])
 
-// Matches JSX text between tags (allows internal newlines — prettier often
-// wraps long text onto its own line) and a handful of chrome-bearing
-// string-literal attributes. Both are conservative: a match must contain a
-// run of 2+ letters, and lines that still look like code (braces, `=`,
-// `//`, common JS keywords) are rejected.
-const JSX_TEXT_RE = />\s*([^<>{}][^<>{}]*[A-Za-z]{2,}[^<>{}]*)\s*</g
-const ATTR_RE = /\b(aria-label|placeholder|title|alt)=["']([^"']*[A-Za-z]{2,}[^"']*)["']/g
-
-const CODE_TOKENS = [
-  'void',
-  'null',
-  'const',
-  'return',
-  'useState',
-  'useMemo',
-  'useCallback',
-  'landr-',
-  '=>',
-  '===',
-  '!==',
-  '&&',
-  '||',
-  'typeof',
-  'ReturnType',
-  'import ',
-  'export ',
-  // TypeScript type-position artifacts (multi-line interface/type props,
-  // generics) that this naive `>text<` scanner otherwise misreads as JSX
-  // text when a `<...>` generic spans multiple lines.
-  '?:',
-  'Record',
-  'Pick',
-  'RoomAssignmentMap',
-  'OccupantAgeMap',
-  'PerRoomAddons',
-]
-
-function looksLikeCode(text: string): boolean {
-  if (/[{}();]/.test(text)) return true
-  return CODE_TOKENS.some((t) => text.includes(t))
+/** A run of 2+ Latin letters once named HTML entities (&rsquo; &minus; &times; …) are stripped, so a lone symbol entity doesn't misread as a word. */
+function looksTranslatable(text: string): boolean {
+  const stripped = text.replace(/&[a-zA-Z][a-zA-Z0-9]*;/g, '')
+  return /[A-Za-z]{2,}/.test(stripped)
 }
 
 /** './Foo/Bar.tsx' → 'Foo/Bar.tsx' (path relative to this file, glob-style). */
@@ -176,24 +145,70 @@ function collectFiles(): string[] {
   return Object.keys(RAW_FILES)
     .filter((key) => !key.endsWith('.test.ts') && !key.endsWith('.test.tsx'))
     .filter((key) => !IGNORED_FILES.has(relPath(key).split('/').pop()!))
-    .filter((key) => ![...IGNORED_DIRS].some((d) => key.includes(d)))
+    .filter((key) => !IGNORED_DIRS.some((d) => key.includes(d)))
 }
 
-function findLiterals(source: string): string[] {
-  const stripped = stripComments(source)
+/**
+ * Follows a JSX child expression through ternary/logical-short-circuit
+ * chains looking for a bare string literal — the `{cond ? 'Some text' :
+ * tr('key', locale)}` shape. Deliberately does NOT recurse into call
+ * expressions, template literals with substitutions, arrow functions,
+ * object/array literals, etc. — those aren't a literal rendering directly,
+ * and going further starts pulling in values that only reach the tree via
+ * a variable (out of this guard's bounded scope, see the file header).
+ */
+function collectChildLiterals(node: ts.Node, hits: string[]): void {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    if (node.text && looksTranslatable(node.text)) hits.push(node.text)
+  } else if (ts.isConditionalExpression(node)) {
+    collectChildLiterals(node.whenTrue, hits)
+    collectChildLiterals(node.whenFalse, hits)
+  } else if (ts.isBinaryExpression(node)) {
+    const op = node.operatorToken.kind
+    if (
+      op === ts.SyntaxKind.AmpersandAmpersandToken ||
+      op === ts.SyntaxKind.BarBarToken ||
+      op === ts.SyntaxKind.QuestionQuestionToken
+    ) {
+      collectChildLiterals(node.left, hits)
+      collectChildLiterals(node.right, hits)
+    }
+  } else if (ts.isParenthesizedExpression(node)) {
+    collectChildLiterals(node.expression, hits)
+  }
+}
+
+function findLiterals(source: string, fileName: string): string[] {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const hits: string[] = []
-  for (const m of stripped.matchAll(JSX_TEXT_RE)) {
-    const text = m[1]!.trim().replace(/\s+/g, ' ')
-    if (text && !looksLikeCode(text) && text.length > 1) hits.push(text)
+
+  function visit(node: ts.Node) {
+    if (ts.isJsxText(node)) {
+      const text = node.getText(sourceFile).trim().replace(/\s+/g, ' ')
+      if (text && looksTranslatable(text)) hits.push(text)
+    } else if (ts.isJsxAttribute(node)) {
+      const name = node.name.getText(sourceFile)
+      if (TEXT_ATTRS.has(name) && node.initializer) {
+        if (ts.isStringLiteral(node.initializer)) {
+          const value = node.initializer.text.trim()
+          if (value && looksTranslatable(value)) hits.push(`[${name}] ${value}`)
+        } else if (ts.isJsxExpression(node.initializer) && node.initializer.expression) {
+          collectChildLiterals(node.initializer.expression, hits)
+        }
+      }
+    } else if (ts.isJsxExpression(node) && node.expression) {
+      const parent = node.parent
+      if (parent && (ts.isJsxElement(parent) || ts.isJsxFragment(parent))) {
+        collectChildLiterals(node.expression, hits)
+      }
+    }
+    ts.forEachChild(node, visit)
   }
-  for (const m of stripped.matchAll(ATTR_RE)) {
-    const value = m[2]!.trim()
-    if (value && !looksLikeCode(value)) hits.push(`[${m[1]}] ${value}`)
-  }
+  visit(sourceFile)
   return hits
 }
 
-describe('no stray English literals in the booking component tree (landr-5aih0.9)', () => {
+describe('no stray English literals in the booking component tree (landr-5aih0.9 / landr-5aih0.17)', () => {
   const files = collectFiles()
 
   it('found booking component files to scan', () => {
@@ -205,7 +220,7 @@ describe('no stray English literals in the booking component tree (landr-5aih0.9
     const fileName = rel.split('/').pop()!
     it(`${rel} has no un-allowlisted English chrome literals`, () => {
       const source = RAW_FILES[globKey]!
-      const hits = findLiterals(source)
+      const hits = findLiterals(source, rel)
       const allowed = new Set(ALLOWED_LITERALS[fileName] ?? [])
       const unexpected = hits.filter((h) => !allowed.has(h))
       expect(
@@ -213,7 +228,7 @@ describe('no stray English literals in the booking component tree (landr-5aih0.9
         `${rel} has literal text that looks like un-translated widget chrome:\n` +
           unexpected.map((h) => `  - ${h}`).join('\n') +
           '\n\nMove it into src/lib/strings.ts (pickBundle/tr) and render it via ' +
-          'tr(\'key\', locale), or add it to ALLOWED_LITERALS in this test with a ' +
+          "tr('key', locale), or add it to ALLOWED_LITERALS in this test with a " +
           'comment explaining why it is deliberately out of scope.',
       ).toEqual([])
     })

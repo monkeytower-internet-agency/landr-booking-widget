@@ -62,7 +62,7 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
   const meta = productMetaChip(product, showDateModel, locale)
   const kind = productKindBadge(product, locale)
   // landr-pv2r1: guide-languages chip (null for any-language / unset).
-  const languages = productLanguagesChip(product)
+  const languages = productLanguagesChip(product, locale)
   const price = productPriceLabel(product)
   const isDraft = product.is_publicly_listed === false
 

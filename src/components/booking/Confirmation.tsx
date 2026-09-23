@@ -30,7 +30,17 @@ import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { formatMoney, splitLineItems } from './priceSidebarHelpers'
-import { nightsWord, participantCountLabel, pickBundle, plural, tr } from '@/lib/strings'
+import {
+  bookedRefLabel,
+  bookedTogetherMemberLabel,
+  nextStepSendGroupLabel,
+  nightsWord,
+  participantCountLabel,
+  pickBundle,
+  plural,
+  sendBookingLinkToLabel,
+  tr,
+} from '@/lib/strings'
 
 interface Props {
   response: SubmitBookingResponse
@@ -197,26 +207,26 @@ function classifyInviteSendError(err: unknown): {
   message: string
   canRetry: boolean
 } {
+  const locale = browserLocale()
   if (err instanceof HttpError) {
     if (err.status === 404) {
       return {
-        message: "This link can't be emailed from here any more — copy it instead.",
+        message: tr('linkCannotBeEmailed', locale),
         canRetry: false,
       }
     }
     if (err.status === 422) {
-      return { message: 'That email address was rejected.', canRetry: false }
+      return { message: tr('emailAddressRejected', locale), canRetry: false }
     }
     if (err.status === 429) {
       return {
-        message: 'Too many emails right now — try again in a few minutes.',
+        message: tr('tooManyEmailsRetry', locale),
         canRetry: true,
       }
     }
   }
   return {
-    message:
-      'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
+    message: tr('couldNotSendEmailGeneric', locale),
     canRetry: true,
   }
 }
@@ -256,6 +266,7 @@ function InviteCard({
   }
 
   const emailErrorMessage = emailError?.message ?? ''
+  const locale = browserLocale()
 
   if (invite.linked_booking_reference) {
     // Already joined — no more actions to offer, just confirm it happened.
@@ -269,7 +280,7 @@ function InviteCard({
           data-testid="invite-linked"
           className="font-medium text-emerald-700 dark:text-emerald-400"
         >
-          Booked ✓ (ref {invite.linked_booking_reference})
+          {bookedRefLabel(invite.linked_booking_reference, locale)}
         </span>
       </div>
     )
@@ -280,7 +291,7 @@ function InviteCard({
       data-testid="invite-card"
       className="space-y-2 rounded-lg border bg-surface-card p-3"
     >
-      <p className="text-sm font-semibold">Send booking link to {invite.name}</p>
+      <p className="text-sm font-semibold">{sendBookingLinkToLabel(invite.name, locale)}</p>
       <div className="flex flex-wrap gap-2">
         {invite.whatsapp_url ? (
           <Button asChild type="button">
@@ -309,23 +320,19 @@ function InviteCard({
             // native title explains why, instead of a silent no-op. Same
             // native-title pattern the dashboard's CopyLinkButton uses for
             // dependency-free tooltips (no Tooltip provider in this tree).
-            title={
-              !shareSecret
-                ? 'Email sending unavailable — copy the link instead'
-                : undefined
-            }
+            title={!shareSecret ? tr('emailUnavailableNotice', locale) : undefined}
             data-testid="invite-email"
           >
             <Mail className="mr-1.5 size-4" aria-hidden="true" />
             {emailState === 'sending'
-              ? 'Sending…'
+              ? tr('sendingEllipsis', locale)
               : emailState === 'sent'
-                ? 'Sent ✓'
+                ? tr('inviteEmailSentLabel', locale)
                 : emailState === 'failed'
                   ? canRetryEmail
-                    ? 'Retry email'
-                    : 'Email'
-                  : 'Email'}
+                    ? tr('retryEmailLabel', locale)
+                    : tr('emailLabelShort', locale)
+                  : tr('emailLabelShort', locale)}
           </Button>
         ) : null}
         <CopyButton value={invite.invite_url} testId="invite-copy" size="default" />
@@ -335,7 +342,7 @@ function InviteCard({
           className="text-xs text-muted-foreground"
           data-testid="invite-email-unavailable"
         >
-          Email sending unavailable — copy the link instead.
+          {tr('emailUnavailableNotice', locale)}
         </p>
       ) : null}
       {emailState === 'failed' ? (
@@ -360,6 +367,7 @@ function InviteCard({
 function GroupBlock({ group }: { group: GroupSummary }) {
   const others = group.members.filter((m) => !m.is_self)
   if (others.length === 0) return null
+  const locale = browserLocale()
   return (
     <div
       data-testid="confirmation-group"
@@ -367,13 +375,12 @@ function GroupBlock({ group }: { group: GroupSummary }) {
     >
       <h3 className="flex items-center gap-1.5 text-sm font-semibold">
         <Users className="size-4" aria-hidden="true" />
-        Booked together with
+        {tr('groupBookedTogetherWith', locale)}
       </h3>
       <ul className="space-y-1 text-sm text-muted-foreground">
         {others.map((member) => (
           <li key={member.reference}>
-            {member.display_name} (ref {member.reference})
-            {member.is_host ? ' — host' : ''}
+            {bookedTogetherMemberLabel(member.display_name, member.reference, member.is_host, locale)}
           </li>
         ))}
       </ul>
@@ -389,31 +396,31 @@ function GroupBlock({ group }: { group: GroupSummary }) {
  * guessing a URL.
  */
 function SharedDoubleHint({ customerPageUrl }: { customerPageUrl?: string | null }) {
+  const locale = browserLocale()
   return (
     <p
       data-testid="confirmation-shared-double-hint"
       className="text-sm text-muted-foreground"
     >
-      Sharing a room booked by someone else?{' '}
+      {tr('sharedDoubleHintQuestion', locale)}{' '}
       {customerPageUrl && isHttpUrl(customerPageUrl) ? (
         <a
           href={`${customerPageUrl}#join`}
           className="text-primary underline"
         >
-          Add their reference on your booking page
+          {tr('addReferenceLinkLabel', locale)}
         </a>
       ) : (
-        'Add their reference on your booking page.'
+        `${tr('addReferenceLinkLabel', locale)}.`
       )}
     </p>
   )
 }
 
-const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
-  unknown_reference:
-    "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
-  same_booking: 'That reference points to your own booking, so there was nothing to link.',
-  join_failed: "We couldn't link your booking to that reference right now.",
+function joinErrorMessage(error: JoinError['error'], locale?: string): string {
+  if (error === 'unknown_reference') return tr('joinErrorUnknownReference', locale)
+  if (error === 'same_booking') return tr('joinErrorSameBooking', locale)
+  return tr('joinErrorJoinFailed', locale)
 }
 
 /**
@@ -422,14 +429,14 @@ const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
  * is informational, not an error state for the page as a whole.
  */
 function JoinErrorNotice({ joinError }: { joinError: JoinError }) {
+  const locale = browserLocale()
   return (
     <div
       role="status"
       data-testid="confirmation-join-error"
       className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
     >
-      {JOIN_ERROR_MESSAGE[joinError.error]} Your booking itself is confirmed
-      as usual — you can still add the reference later on your booking page.
+      {joinErrorMessage(joinError.error, locale)} {tr('joinErrorFollowup', locale)}
     </div>
   )
 }
@@ -964,7 +971,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             className="mt-1 text-sm text-muted-foreground"
             data-testid="confirmation-stage-label"
           >
-            Status: {resolveCustomerStageLabel(response.stage, browserLocale())}
+            {tr('statusLabel', locale)} {resolveCustomerStageLabel(response.stage, browserLocale())}
           </p>
         ) : null}
       </CardHeader>
@@ -993,7 +1000,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           >
             <p className="font-medium">
               {approvalKind === 'auto'
-                ? 'Your booking is confirmed — but we could not send the confirmation email.'
+                ? tr('bookingConfirmedEmailFailed', locale)
                 : tr('confirmationEmailFailed', locale)}
             </p>
             <p className="mt-1">
@@ -1004,7 +1011,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                * iteration may surface operator_name here; for now we use the
                * safe generic fallback. See landr-y31z spec note.
                */}
-              Please contact the operator directly to confirm your booking details.
+              {tr('contactOperatorToConfirm', locale)}
             </p>
           </div>
         ) : staff.active ? (
@@ -1055,10 +1062,10 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                   id="confirmation-invites-heading"
                   className="text-base font-semibold"
                 >
-                  Next step: send your group their booking {invites.length === 1 ? 'link' : 'links'}
+                  {nextStepSendGroupLabel(invites.length, locale)}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Each of them completes their own booking from their link.
+                  {tr('eachCompletesOwnBooking', locale)}
                 </p>
               </div>
             </div>
