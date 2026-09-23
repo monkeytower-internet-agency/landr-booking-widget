@@ -1882,6 +1882,15 @@ export function AccommodationStep({
                 // sub-card so the room reads as a distinct, selectable block.
                 <div
                   key={room.product_id}
+                  // landr-ykzuq: stable per-room scope. PriceSidebar renders
+                  // its own line item with the SAME room name text once an
+                  // estimate resolves (a separate async path — see
+                  // PriceSidebar.tsx's `li.label`), so a bare
+                  // screen.getByText(roomName) is genuinely ambiguous once
+                  // both have rendered, not just slow. Tests scope into this
+                  // card by product id instead of querying room name text
+                  // page-wide.
+                  data-testid={`room-card-${room.product_id}`}
                   className={cn(
                     'flex flex-col gap-2 border border-border bg-surface-raised p-3',
                     tokens.optionCardRadius,

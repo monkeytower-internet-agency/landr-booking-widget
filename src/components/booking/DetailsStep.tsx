@@ -413,46 +413,49 @@ export function DetailsStep({
   // Replaces the top stepper's grow path. Appends one empty row (capped at
   // MAX_ADDITIONAL) and notifies the live sidebar. Existing rows' data is
   // untouched (preserves landr-nmed entered data for other rows).
+  //
+  // landr-ykzuq: notifyLive() calls the PARENT's onLiveParticipantsChange,
+  // which sets App.tsx's state. Each of these handlers used to call it from
+  // INSIDE the setX() updater function — React can invoke that updater
+  // eagerly (its state-update bail-out check) while DetailsStep is still
+  // rendering, which then trips "Cannot update a component (BookingFlowApp)
+  // while rendering a different component (DetailsStep)". Fixed by deriving
+  // `next` from the current closure value (accurate here — these are plain
+  // event handlers, not concurrent/batched updates), calling setX with the
+  // plain value, and only THEN calling notifyLive — after DetailsStep's own
+  // render has finished, from the event handler, same as before.
   const addParticipant = () => {
-    setAdditional((current) => {
-      if (current.length >= MAX_ADDITIONAL) return current
-      const next = [...current, emptyParticipant(defaultRoleCode)]
-      notifyLive(booker, next, companions)
-      return next
-    })
+    if (additional.length >= MAX_ADDITIONAL) return
+    const next = [...additional, emptyParticipant(defaultRoleCode)]
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-4uyu: remove a SPECIFIC additional participant by index (the per-card
   // × control), not just the last one as the stepper did. Splicing the chosen
   // index preserves the entered data of all the OTHER rows (landr-nmed).
   const removeParticipant = (idx: number) => {
-    setAdditional((current) => {
-      if (idx < 0 || idx >= current.length) return current
-      const next = current.slice(0, idx).concat(current.slice(idx + 1))
-      notifyLive(booker, next, companions)
-      return next
-    })
+    if (idx < 0 || idx >= additional.length) return
+    const next = additional.slice(0, idx).concat(additional.slice(idx + 1))
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
-    setCompanions((current) => {
-      if (current.length >= MAX_COMPANIONS) return current
-      const next = [...current, emptyCompanion()]
-      notifyLive(booker, additional, next)
-      return next
-    })
+    if (companions.length >= MAX_COMPANIONS) return
+    const next = [...companions, emptyCompanion()]
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   // landr-4uyu: remove a SPECIFIC companion by index (per-card × control),
   // preserving the other companion rows' data (landr-nmed).
   const removeCompanion = (idx: number) => {
-    setCompanions((current) => {
-      if (idx < 0 || idx >= current.length) return current
-      const next = current.slice(0, idx).concat(current.slice(idx + 1))
-      notifyLive(booker, additional, next)
-      return next
-    })
+    if (idx < 0 || idx >= companions.length) return
+    const next = companions.slice(0, idx).concat(companions.slice(idx + 1))
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   const updateCompanion = <K extends keyof CompanionDetails>(
@@ -460,22 +463,18 @@ export function DetailsStep({
     key: K,
     value: CompanionDetails[K],
   ) => {
-    setCompanions((prev) => {
-      const next = prev.slice()
-      const row = next[idx]
-      if (!row) return prev
-      next[idx] = { ...row, [key]: value }
-      notifyLive(booker, additional, next)
-      return next
-    })
+    const row = companions[idx]
+    if (!row) return
+    const next = companions.slice()
+    next[idx] = { ...row, [key]: value }
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   const updateBookerField = (key: keyof BookerDetails, value: string) => {
-    setBooker((prev) => {
-      const next = { ...prev, [key]: value }
-      notifyLive(next, additional, companions)
-      return next
-    })
+    const next = { ...booker, [key]: value }
+    setBooker(next)
+    notifyLive(next, additional, companions)
   }
 
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
@@ -530,14 +529,12 @@ export function DetailsStep({
     key: keyof ParticipantDetails,
     value: string,
   ) => {
-    setAdditional((prev) => {
-      const next = prev.slice()
-      const row = next[idx]
-      if (!row) return prev
-      next[idx] = { ...row, [key]: value }
-      notifyLive(booker, next, companions)
-      return next
-    })
+    const row = additional[idx]
+    if (!row) return
+    const next = additional.slice()
+    next[idx] = { ...row, [key]: value }
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-opi3: per-field "touched" tracking so an EMPTY REQUIRED field turns
