@@ -66,6 +66,7 @@ import { ViewToggle } from '@/components/booking/browse/ViewToggle'
 import { useViewMode } from '@/components/booking/browse/useViewMode'
 import { tr } from '@/lib/strings'
 import { NextAction } from '@/components/booking/NextAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   operatorToken: string
@@ -83,6 +84,11 @@ interface Props {
    * per-product date-window chips (mirrors FixedDateWindowPicker). */
   exposeSeats?: boolean
   onSelect: (product: Product) => void
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 /**
@@ -116,9 +122,11 @@ export function ExpandedCatalog({
   showSoldOut = false,
   exposeSeats = true,
   onSelect,
+  onLoaded,
 }: Props) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(products !== null || error !== null, onLoaded)
   const [view, setView] = useViewMode()
   const locale = browserLocale()
   const showDateModel = showDateModelDetail()

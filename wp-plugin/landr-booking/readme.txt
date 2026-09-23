@@ -3,7 +3,7 @@ Contributors: monkeytower
 Tags: booking, iframe, shortcode
 Requires at least: 6.0
 Tested up to: 6.6
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: MIT
 
 Embed the LANDR booking widget via a shortcode.
@@ -34,6 +34,9 @@ or shrinks the iframe accordingly. The `height=` attribute is only the
 initial height before the first resize message arrives.
 
 == Changelog ==
+
+= 0.5.1 =
+* Print the auto-resize listener inline, right after the first booking iframe, instead of only in the page footer. Page builders such as Thrive Architect can render the shortcode after (or without) `wp_footer`, which left the iframe at its initial height. The footer copy stays as a fallback; a window-level guard makes sure only one listener is ever registered.
 
 = 0.5.0 =
 * Add `start="dates"` attribute — with `product=`, opens the widget on the date picker and skips the product-detail step.

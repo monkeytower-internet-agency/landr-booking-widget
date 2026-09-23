@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as client from '@/api/client'
 import type { EstimateResponse, Product } from '@/api/types'
+import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import PriceSidebar from './PriceSidebar'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
@@ -1060,5 +1061,25 @@ describe('PriceSidebar mobile drawer (landr-v94dz)', () => {
     expect(document.body.style.paddingRight).toBe('')
     expect(bar.style.paddingRight).toBe('')
     expect(document.body.style.overflow).toBe('hidden')
+  })
+
+  // landr-tkgx8.3: inside an auto-height iframe, fixed bottom-0 is the bottom
+  // of the whole widget — the bar goes in normal flow, opens downward, needs
+  // no spacer, no scroll lock, and caps the drawer in px (vh = widget height).
+  it('renders in normal flow when embedded', async () => {
+    document.documentElement.setAttribute(EMBEDDED_ATTR, '')
+    try {
+      const { bar, toggle } = await renderLoaded()
+      expect(bar).toHaveClass('embedded:static', 'embedded:flex-col')
+      expect(bar.nextElementSibling).toHaveClass('h-20', 'embedded:hidden')
+      fireEvent.click(toggle)
+      expect(screen.getByTestId('price-sidebar-mobile-panel')).toHaveClass(
+        'max-h-[60vh]',
+        'embedded:max-h-[480px]',
+      )
+      expect(document.body.style.overflow).toBe('')
+    } finally {
+      document.documentElement.removeAttribute(EMBEDDED_ATTR)
+    }
   })
 })

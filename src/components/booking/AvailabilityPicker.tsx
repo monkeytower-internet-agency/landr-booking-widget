@@ -23,6 +23,7 @@ import { availabilityGate, availableDaysForLabel, seatsCountLabel, timesOnLabel,
 import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
@@ -41,6 +42,11 @@ interface Props {
    * empty. Undefined on the first visit.
    */
   initialSlot?: AvailabilitySlot
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 export function AvailabilityPicker({
@@ -49,9 +55,11 @@ export function AvailabilityPicker({
   onConfirm,
   exposeSeatsToCustomer = false,
   initialSlot,
+  onLoaded,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed date + slot from the restored selection.
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
     initialSlot ? dateFromIso(initialSlot.date) : undefined,

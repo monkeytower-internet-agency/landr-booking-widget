@@ -42,9 +42,10 @@ The setting accepts any full `https://` URL. A trailing slash is added automatic
 ```
 
 The iframe auto-resizes to fit its content: the widget posts its content
-height to the parent page via `postMessage`, and the plugin's footer script
-(printed once per page, regardless of how many shortcodes are on it) listens
-for that message — checking the message source and origin against the
+height to the parent page via `postMessage`, and the plugin's listener script
+(printed inline right after the first iframe, once per page regardless of how
+many shortcodes are on it, with a guarded `wp_footer` copy as a fallback for
+page builders that strip inline scripts — 0.5.1) listens for that message — checking the message source and origin against the
 iframe's own `src` — and updates the iframe's height. The `height=` attribute
 above is only the initial height, used until the first resize message
 arrives (so older widget deploys that never post keep working unchanged).

@@ -196,10 +196,13 @@ export function ProductDetailStep({
           already reads as the CTA, and data-next-action="active" must stay
           singular per screen — the hidden desktop NextAction above still
           carries it (md:hidden here, hidden md:flex there; both markups are
-          always in the DOM, CSS just picks which shows). */}
+          always in the DOM, CSS just picks which shows).
+          landr-tkgx8.3: embedded (auto-height iframe), fixed bottom-0 is the
+          bottom of the whole widget, not of the customer's screen — the bar
+          sits in normal flow there and needs no spacer. */}
       <div
         data-testid="product-detail-cta-mobile"
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t bg-card px-4 py-3 shadow-lg md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t bg-card px-4 py-3 shadow-lg md:hidden embedded:static embedded:rounded-xl embedded:border"
       >
         {priceLabel ? (
           <span
@@ -221,7 +224,7 @@ export function ProductDetailStep({
         </Button>
       </div>
       {/* Spacer so the mobile fixed bar never covers the content above. */}
-      <div aria-hidden className="h-16 md:hidden" />
+      <div aria-hidden className="h-16 md:hidden embedded:hidden" />
     </div>
   )
 }
