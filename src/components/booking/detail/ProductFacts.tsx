@@ -45,7 +45,7 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
             // announces itself as one natural sentence instead.
             aria-label={
               languages.length > 0
-                ? `${tr('offeredInPrefix', locale)} ${joinLanguageNames(languages)}`
+                ? `${tr('offeredInPrefix', locale)} ${joinLanguageNames(languages, locale)}`
                 : undefined
             }
             className={cn(
@@ -73,7 +73,7 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
                   <span key={code} className="inline-flex items-center gap-x-1.5">
                     {i > 0 ? <span aria-hidden>{' · '}</span> : null}
                     <span data-testid="product-fact-language" className="whitespace-nowrap">
-                      <span aria-hidden>{languageFlag(code)}</span> {languageName(code)}
+                      <span aria-hidden>{languageFlag(code)}</span> {languageName(code, locale)}
                     </span>
                   </span>
                 ))}

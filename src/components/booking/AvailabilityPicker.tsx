@@ -19,7 +19,7 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
-import { availabilityGate, availableDaysForLabel, tr } from '@/lib/strings'
+import { availabilityGate, availableDaysForLabel, seatsCountLabel, timesOnLabel, tr } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
@@ -156,7 +156,7 @@ export function AvailabilityPicker({
         </NextAction>
         {selectedDate ? (
           <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue', locale)}>
-            <p className="text-sm font-medium">Times on {isoDate(selectedDate)}</p>
+            <p className="text-sm font-medium">{timesOnLabel(isoDate(selectedDate), locale)}</p>
             {slotsForSelectedDate.length === 0 ? (
               <p className="text-sm text-muted-foreground">{tr('noTimesAvailable', locale)}</p>
             ) : (
@@ -171,7 +171,7 @@ export function AvailabilityPicker({
                     {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
                     {exposeSeatsToCustomer ? (
                       <span className="ml-2 text-xs text-muted-foreground">
-                        {slot.available_seats} seats
+                        {seatsCountLabel(slot.available_seats, locale)}
                       </span>
                     ) : null}
                   </Button>

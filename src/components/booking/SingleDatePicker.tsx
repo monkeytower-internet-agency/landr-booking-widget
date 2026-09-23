@@ -252,7 +252,7 @@ export function SingleDatePicker({
                 className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground"
                 data-testid="single-date-selected"
               >
-                Selected: {isoDate(selected)}
+                {tr('selectedDateTemplate', locale).replace('{date}', isoDate(selected))}
               </p>
               {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
             </div>

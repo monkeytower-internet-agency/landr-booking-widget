@@ -5,6 +5,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale } from '@/lib/locale'
+import { isGermanLocale, shopComingSoonBody, tr } from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 interface Props {
@@ -25,6 +27,21 @@ const KIND_LABEL: Record<NonNullable<Product['product_kind']>, string> = {
   gift_card: 'gift card',
 }
 
+// landr-5aih0.17: German nouns for the same kinds carry different genders
+// (der/die/das), which a single {kind}-substitution template can't agree
+// with grammatically — shopComingSoonBodyTemplate sidesteps that by
+// treating the kind as a parenthetical label ("Diese Art von Produkt
+// ({kind})…") rather than a grammatical subject, so a flat translation
+// table (no der/die/das needed) is enough here.
+const KIND_LABEL_DE: Record<NonNullable<Product['product_kind']>, string> = {
+  service: 'Leistung',
+  hotel_room: 'Hotelzimmer',
+  subscription: 'Abonnement',
+  digital_good: 'digitales Produkt',
+  physical_good: 'physisches Produkt',
+  gift_card: 'Geschenkkarte',
+}
+
 /**
  * Rendered when product.product_kind ∈ {digital_good, physical_good, gift_card}.
  *
@@ -33,16 +50,16 @@ const KIND_LABEL: Record<NonNullable<Product['product_kind']>, string> = {
  * stub asking the customer to contact the operator directly (landr-y9k).
  */
 export function ShopComingSoonStub({ product, onBack }: Props) {
-  const kindLabel = KIND_LABEL[product.product_kind] ?? 'product'
+  const locale = browserLocale()
+  const kindLabel = isGermanLocale(locale)
+    ? (KIND_LABEL_DE[product.product_kind] ?? 'Produkt')
+    : (KIND_LABEL[product.product_kind] ?? 'product')
   return (
     <Card data-testid="shop-coming-soon-stub">
-      <StepBackButton onBack={onBack} label="Back to products" />
+      <StepBackButton onBack={onBack} label={tr('backToProductsLabel', locale)} />
       <CardHeader>
         <CardTitle>{product.name}</CardTitle>
-        <CardDescription>
-          This {kindLabel} is sold in our Shop, which is coming soon. Please
-          contact the operator directly to order it in the meantime.
-        </CardDescription>
+        <CardDescription>{shopComingSoonBody(kindLabel, locale)}</CardDescription>
       </CardHeader>
     </Card>
   )

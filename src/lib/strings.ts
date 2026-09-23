@@ -50,6 +50,11 @@ type Bundle = {
   productDetailCue: string
   singleDatePickerCue: string
   multiDayPickerCue: string
+  selectionModeAria: string
+  dateRangeModeLabel: string
+  individualDaysModeLabel: string
+  diffAddedLabel: string
+  diffRemovedLabel: string
   fixedDateWindowCue: string
   availabilityDateCue: string
   availabilityTimeCue: string
@@ -80,6 +85,10 @@ type Bundle = {
   // ---- AvailabilityPicker / SingleDatePicker ----
   noTimesAvailable: string
   anyTime: string
+  timesOnTemplate: string
+  seatSingular: string
+  seatPlural: string
+  selectedDateTemplate: string
 
   // ---- FixedDateWindowPicker / FixedDateWindowChips ----
   pickACourseWindow: string
@@ -117,6 +126,7 @@ type Bundle = {
   guideLanguageTitle: string
   optionalSuffix: string
   unassignedOption: string
+  roomFullSuffix: string
   languagesColon: string
   addLanguageColon: string
   guestSuffix: string
@@ -126,6 +136,8 @@ type Bundle = {
   assignWithDropdownsInstead: string
   languageDropdownPlaceholder: string
   assignToLanguageAriaTemplate: string
+  everyoneSpeaksTemplate: string
+  moveSelectedHereUnassign: string
 
   // ---- CustomFormStep ----
   selectPlaceholder: string
@@ -134,6 +146,8 @@ type Bundle = {
   couldNotLoadFormRetry: string
   additionalInformationTitle: string
   completeEveryRequiredField: string
+  unsupportedFieldTypeTemplate: string
+  productFormSubtitleTemplate: string
   loadingEllipsis: string
 
   // ---- CustomerCommentField ----
@@ -213,6 +227,19 @@ type Bundle = {
   sharedDoubleNormalNotice: string
   travellingWithFamilyHint: string
   pleaseEnterChildAgeHint: string
+  // ---- landr-5aih0.17: shared-double reference-lookup mini-flow,
+  // occupancy-mismatch warning, "staying at" notice ----
+  sharedDoubleReferenceInputLabel: string
+  sharedDoubleReferenceLookingUp: string
+  sharedDoubleReferenceNotFoundTemplate: string
+  sharedDoubleReferenceFoundTemplate: string
+  sharedDoubleReferenceConfirmYes: string
+  sharedDoubleReferenceConfirmNo: string
+  sharedDoubleReferenceLinkedTemplate: string
+  sharedDoubleReferenceHelp: string
+  additionalAccommodationOptionalHint: string
+  sharedDoubleOthersTooLateTemplate: string
+  stayingAtTemplate: string
 
   // ---- RoomAssignment ----
   whoStaysWhereTitle: string
@@ -245,6 +272,23 @@ type Bundle = {
   yourCompanionsAndCoPilots: string
   yourCoPilots: string
   yourCompanions: string
+  othersJoiningReviewHeading: string
+  breakfastIncludedLabel: string
+  breakfastPartialLabel: string
+  noBreakfastLabel: string
+  withBreakfastLabel: string
+  withoutBreakfastLabel: string
+  otherParticipantsTotalTemplate: string
+  addAnyoneElseUpToTemplate: string
+  participantOrdinalTemplate: string
+  companionOrdinalTemplate: string
+  maxCompanionsReachedTemplate: string
+  companionInviteHint: string
+  companionContactRequiredTemplate: string
+  themFallback: string
+  youWillBeListedAsParticipant1: string
+  notAMemberOrNoCode: string
+  companionsShareAccommodationExplainer: string
   guestFallbackTemplate: string
   readyToConfirm: string
   submittingYourBookingEllipsis: string
@@ -293,6 +337,29 @@ type Bundle = {
    */
   meetingPointOpenInGoogleMapsAria: string
   meetingPointOpenInWazeAria: string
+  // ---- landr-5aih0.17: invite/group cards, join flow, status line ----
+  bookedRefTemplate: string
+  sendBookingLinkToTemplate: string
+  inviteEmailSentLabel: string
+  emailUnavailableNotice: string
+  groupBookedTogetherWith: string
+  bookedTogetherMemberTemplate: string
+  hostSuffixLabel: string
+  sharedDoubleHintQuestion: string
+  addReferenceLinkLabel: string
+  joinErrorUnknownReference: string
+  joinErrorSameBooking: string
+  joinErrorJoinFailed: string
+  joinErrorFollowup: string
+  bookingConfirmedEmailFailed: string
+  contactOperatorToConfirm: string
+  nextStepSendGroupLinkSingular: string
+  nextStepSendGroupLinkPlural: string
+  eachCompletesOwnBooking: string
+  linkCannotBeEmailed: string
+  emailAddressRejected: string
+  tooManyEmailsRetry: string
+  couldNotSendEmailGeneric: string
 
   // ---- CancelPage ----
   bookingCancelledTitle: string
@@ -414,6 +481,8 @@ type Bundle = {
   bookNow: string
   tickEveryLanguageHelp: string
   draftPreviewBadge: string
+  shopComingSoonBodyTemplate: string
+  landingPageTitle: string
 
   // ---- priceSidebarHelpers: discount explanation lines ----
   perDaySuffix: string
@@ -487,6 +556,11 @@ const en: Bundle = {
   // whole flow-advancing helper. Distinct verbs sidestep it.
   singleDatePickerCue: 'choose a date',
   multiDayPickerCue: 'choose your dates',
+  selectionModeAria: 'Selection mode',
+  dateRangeModeLabel: 'Date range',
+  individualDaysModeLabel: 'Individual days',
+  diffAddedLabel: 'Added',
+  diffRemovedLabel: 'Removed',
   fixedDateWindowCue: 'choose a window',
   availabilityDateCue: 'choose a date',
   availabilityTimeCue: 'choose a time',
@@ -512,6 +586,10 @@ const en: Bundle = {
 
   noTimesAvailable: 'No times available.',
   anyTime: 'Any time',
+  timesOnTemplate: 'Times on {date}',
+  seatSingular: 'seat',
+  seatPlural: 'seats',
+  selectedDateTemplate: 'Selected: {date}',
 
   pickACourseWindow: 'Pick a course window',
   couldNotLoadCourseWindows: 'Could not load course windows.',
@@ -547,6 +625,7 @@ const en: Bundle = {
   guideLanguageTitle: 'Guide language',
   optionalSuffix: '(optional)',
   unassignedOption: 'Unassigned',
+  roomFullSuffix: ' (full)',
   languagesColon: 'Languages:',
   addLanguageColon: 'Add language:',
   guestSuffix: '(guest)',
@@ -556,6 +635,8 @@ const en: Bundle = {
   assignWithDropdownsInstead: 'Assign with dropdowns instead',
   languageDropdownPlaceholder: '→ language…',
   assignToLanguageAriaTemplate: 'Assign {name} to a language',
+  everyoneSpeaksTemplate: 'Everyone speaks {language}',
+  moveSelectedHereUnassign: 'Move selected here (unassign)',
 
   selectPlaceholder: '— select —',
   noFormConfigForProduct: 'No form configuration found for this product.',
@@ -563,6 +644,8 @@ const en: Bundle = {
   couldNotLoadFormRetry: 'Could not load the form. Please go back and try again.',
   additionalInformationTitle: 'Additional information',
   completeEveryRequiredField: 'Complete every required field to continue.',
+  unsupportedFieldTypeTemplate: '(Unsupported field type: {type})',
+  productFormSubtitleTemplate: '{product} · please complete the form below',
   loadingEllipsis: 'Loading…',
 
   customerCommentPlaceholder:
@@ -645,6 +728,22 @@ const en: Bundle = {
     'Travelling with family or friends? Add them as companions in the previous step and you can book additional rooms for them here.',
   pleaseEnterChildAgeHint:
     'Please enter the age for each child guest — the hotel needs it to prepare the room.',
+  sharedDoubleReferenceInputLabel: 'Booking reference of the person who booked the room',
+  sharedDoubleReferenceLookingUp: 'Looking that up…',
+  sharedDoubleReferenceNotFoundTemplate:
+    "We couldn't find that reference for this operator — double-check it, or just leave it blank and add it later.",
+  sharedDoubleReferenceFoundTemplate: 'Booking of {name} from {date} — is that them?',
+  sharedDoubleReferenceConfirmYes: 'Yes, link us',
+  sharedDoubleReferenceConfirmNo: 'No',
+  sharedDoubleReferenceLinkedTemplate: "Linked to {name}'s booking.",
+  sharedDoubleReferenceHelp:
+    "It's nice if you have the code, totally fine if not — you can add it later from your booking page. " +
+    'Easiest is to ask the person who booked for their invite link, then everything is prefilled.',
+  additionalAccommodationOptionalHint:
+    'Optional — rooms for the people travelling with you. Your own bed is already covered by the shared double room.',
+  sharedDoubleOthersTooLateTemplate:
+    "Only you share the host's room; it's too late to book rooms for other pilots ({names}) — remove them or contact the operator.",
+  stayingAtTemplate: 'Staying at {hotel}.',
 
   whoStaysWhereTitle: 'Who stays where?',
   roomAssignmentHelp:
@@ -678,6 +777,28 @@ const en: Bundle = {
   yourCompanionsAndCoPilots: 'your companions and co-pilots',
   yourCoPilots: 'your co-pilots',
   yourCompanions: 'your companions',
+  othersJoiningReviewHeading: 'Others joining',
+  breakfastIncludedLabel: 'breakfast included',
+  breakfastPartialLabel: 'breakfast for some guests only',
+  noBreakfastLabel: 'no breakfast',
+  withBreakfastLabel: 'with breakfast',
+  withoutBreakfastLabel: 'without breakfast',
+  otherParticipantsTotalTemplate: 'Other participants ({n} total)',
+  addAnyoneElseUpToTemplate: 'Add anyone else taking part. You can add up to {n} more.',
+  participantOrdinalTemplate: 'Participant {n}',
+  companionOrdinalTemplate: 'Guest {n}',
+  maxCompanionsReachedTemplate: 'Maximum of {n} guests reached',
+  companionInviteHint: "We'll use this to send them their own booking link.",
+  companionContactRequiredTemplate: 'We need an email or phone number to send {name} their booking link',
+  themFallback: 'them',
+  youWillBeListedAsParticipant1:
+    "You'll be listed as participant 1. Add more people below if others are joining.",
+  notAMemberOrNoCode:
+    "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
+  companionsShareAccommodationExplainer:
+    'Anyone else sharing your accommodation — partners, friends, family members, or fellow activity ' +
+    "participants who book and pay for their own guiding separately. They're added to the hotel headcount " +
+    "and room assignment, but not to this booking's activity or price.",
   guestFallbackTemplate: 'Guest {n}',
   readyToConfirm: 'Ready to confirm.',
   submittingYourBookingEllipsis: 'Submitting your booking…',
@@ -719,6 +840,31 @@ const en: Bundle = {
   savingsNonConsecutiveTemplate: 'You saved {amount} by booking {days} {dayWord}!',
   meetingPointOpenInGoogleMapsAria: 'Open in Google Maps',
   meetingPointOpenInWazeAria: 'Open in Waze',
+  bookedRefTemplate: 'Booked ✓ (ref {ref})',
+  sendBookingLinkToTemplate: 'Send booking link to {name}',
+  inviteEmailSentLabel: 'Sent ✓',
+  emailUnavailableNotice: 'Email sending unavailable — copy the link instead.',
+  groupBookedTogetherWith: 'Booked together with',
+  bookedTogetherMemberTemplate: '{name} (ref {ref})',
+  hostSuffixLabel: ' — host',
+  sharedDoubleHintQuestion: 'Sharing a room booked by someone else?',
+  addReferenceLinkLabel: 'Add their reference on your booking page',
+  joinErrorUnknownReference:
+    "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
+  joinErrorSameBooking: 'That reference points to your own booking, so there was nothing to link.',
+  joinErrorJoinFailed: "We couldn't link your booking to that reference right now.",
+  joinErrorFollowup:
+    'Your booking itself is confirmed as usual — you can still add the reference later on your booking page.',
+  bookingConfirmedEmailFailed: 'Your booking is confirmed — but we could not send the confirmation email.',
+  contactOperatorToConfirm: 'Please contact the operator directly to confirm your booking details.',
+  nextStepSendGroupLinkSingular: 'Next step: send your group their booking link',
+  nextStepSendGroupLinkPlural: 'Next step: send your group their booking links',
+  eachCompletesOwnBooking: 'Each of them completes their own booking from their link.',
+  linkCannotBeEmailed: "This link can't be emailed from here any more — copy it instead.",
+  emailAddressRejected: 'That email address was rejected.',
+  tooManyEmailsRetry: 'Too many emails right now — try again in a few minutes.',
+  couldNotSendEmailGeneric:
+    'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
 
   bookingCancelledTitle: 'Booking cancelled',
   sorryToSeeYouGo: 'Sorry to see you go.',
@@ -851,6 +997,9 @@ const en: Bundle = {
   bookNow: 'Book now',
   tickEveryLanguageHelp: 'Tick every language you speak, and drag your preferred one to the top.',
   draftPreviewBadge: 'Draft — preview',
+  shopComingSoonBodyTemplate:
+    'This {kind} is sold in our Shop, which is coming soon. Please contact the operator directly to order it in the meantime.',
+  landingPageTitle: 'This is the booking-widget host for Landr',
 
   perDaySuffix: '/day',
   daySingular: 'day',
@@ -914,6 +1063,11 @@ const de: Bundle = {
   productDetailCue: 'diese Tour buchen',
   singleDatePickerCue: 'Datum wählen',
   multiDayPickerCue: 'Ihre Termine wählen',
+  selectionModeAria: 'Auswahlmodus',
+  dateRangeModeLabel: 'Zeitraum',
+  individualDaysModeLabel: 'Einzelne Tage',
+  diffAddedLabel: 'Hinzugefügt',
+  diffRemovedLabel: 'Entfernt',
   fixedDateWindowCue: 'einen Zeitraum wählen',
   availabilityDateCue: 'Datum wählen',
   availabilityTimeCue: 'Uhrzeit wählen',
@@ -939,6 +1093,10 @@ const de: Bundle = {
 
   noTimesAvailable: 'Keine Uhrzeiten verfügbar.',
   anyTime: 'Beliebige Uhrzeit',
+  timesOnTemplate: 'Uhrzeiten am {date}',
+  seatSingular: 'Platz',
+  seatPlural: 'Plätze',
+  selectedDateTemplate: 'Ausgewählt: {date}',
 
   pickACourseWindow: 'Zeitraum wählen',
   couldNotLoadCourseWindows: 'Zeiträume konnten nicht geladen werden.',
@@ -974,6 +1132,7 @@ const de: Bundle = {
   guideLanguageTitle: 'Guide-Sprache',
   optionalSuffix: '(optional)',
   unassignedOption: 'Nicht zugeordnet',
+  roomFullSuffix: ' (voll)',
   languagesColon: 'Sprachen:',
   addLanguageColon: 'Sprache hinzufügen:',
   guestSuffix: '(Gast)',
@@ -983,6 +1142,8 @@ const de: Bundle = {
   assignWithDropdownsInstead: 'Stattdessen über Dropdowns zuordnen',
   languageDropdownPlaceholder: '→ Sprache…',
   assignToLanguageAriaTemplate: '{name} eine Sprache zuordnen',
+  everyoneSpeaksTemplate: 'Alle sprechen {language}',
+  moveSelectedHereUnassign: 'Ausgewählte hierher verschieben (nicht zugeordnet)',
 
   selectPlaceholder: '— auswählen —',
   noFormConfigForProduct: 'Für dieses Angebot wurde keine Formularkonfiguration gefunden.',
@@ -990,6 +1151,8 @@ const de: Bundle = {
   couldNotLoadFormRetry: 'Das Formular konnte nicht geladen werden. Bitte gehen Sie zurück und versuchen Sie es erneut.',
   additionalInformationTitle: 'Zusätzliche Informationen',
   completeEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
+  unsupportedFieldTypeTemplate: '(Nicht unterstützter Feldtyp: {type})',
+  productFormSubtitleTemplate: '{product} · bitte füllen Sie das folgende Formular aus',
   loadingEllipsis: 'Wird geladen…',
 
   customerCommentPlaceholder:
@@ -1072,6 +1235,24 @@ const de: Bundle = {
     'Reisen Sie mit Familie oder Freunden? Fügen Sie sie im vorherigen Schritt als Begleitpersonen hinzu, dann können Sie hier zusätzliche Zimmer für sie buchen.',
   pleaseEnterChildAgeHint:
     'Bitte geben Sie für jedes Kind das Alter an — das Hotel benötigt es zur Vorbereitung des Zimmers.',
+  sharedDoubleReferenceInputLabel: 'Buchungsreferenz der Person, die das Zimmer gebucht hat',
+  sharedDoubleReferenceLookingUp: 'Wird gesucht…',
+  sharedDoubleReferenceNotFoundTemplate:
+    'Wir konnten diese Referenz für diesen Anbieter nicht finden — prüfen Sie sie noch einmal, oder lassen Sie das Feld leer und tragen Sie sie später nach.',
+  sharedDoubleReferenceFoundTemplate: 'Buchung von {name} vom {date} — ist das die richtige Person?',
+  sharedDoubleReferenceConfirmYes: 'Ja, verknüpfen',
+  sharedDoubleReferenceConfirmNo: 'Nein',
+  sharedDoubleReferenceLinkedTemplate: 'Mit der Buchung von {name} verknüpft.',
+  sharedDoubleReferenceHelp:
+    'Schön, wenn Sie den Code zur Hand haben — kein Problem, wenn nicht, Sie können ihn später auf Ihrer ' +
+    'Buchungsseite nachtragen. Am einfachsten ist es, die Person, die gebucht hat, nach ihrem Einladungslink ' +
+    'zu fragen — dann ist alles schon ausgefüllt.',
+  additionalAccommodationOptionalHint:
+    'Optional — Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt.',
+  sharedDoubleOthersTooLateTemplate:
+    'Nur Sie teilen sich das Zimmer mit dem Gastgeber; für die anderen Piloten ({names}) ist es zu spät, ' +
+    'um Zimmer zu buchen — entfernen Sie sie oder kontaktieren Sie den Anbieter.',
+  stayingAtTemplate: 'Übernachtung in {hotel}.',
 
   whoStaysWhereTitle: 'Wer wohnt wo?',
   roomAssignmentHelp:
@@ -1106,6 +1287,29 @@ const de: Bundle = {
   yourCompanionsAndCoPilots: 'Ihre Begleitpersonen und weitere Teilnehmer',
   yourCoPilots: 'weitere Teilnehmer',
   yourCompanions: 'Ihre Begleitpersonen',
+  othersJoiningReviewHeading: 'Begleitpersonen',
+  breakfastIncludedLabel: 'Frühstück inklusive',
+  breakfastPartialLabel: 'Frühstück nur für einige Gäste',
+  noBreakfastLabel: 'kein Frühstück',
+  withBreakfastLabel: 'mit Frühstück',
+  withoutBreakfastLabel: 'ohne Frühstück',
+  otherParticipantsTotalTemplate: 'Weitere Teilnehmer ({n} insgesamt)',
+  addAnyoneElseUpToTemplate: 'Fügen Sie alle weiteren Teilnehmenden hinzu. Sie können bis zu {n} weitere hinzufügen.',
+  participantOrdinalTemplate: 'Teilnehmer {n}',
+  companionOrdinalTemplate: 'Gast {n}',
+  maxCompanionsReachedTemplate: 'Maximal {n} Gäste erreicht',
+  companionInviteHint: 'Damit senden wir ihnen ihren eigenen Buchungslink.',
+  companionContactRequiredTemplate:
+    'Wir benötigen eine E-Mail-Adresse oder Telefonnummer, um {name} den Buchungslink zu senden',
+  themFallback: 'ihnen',
+  youWillBeListedAsParticipant1:
+    'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
+  notAMemberOrNoCode:
+    'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
+  companionsShareAccommodationExplainer:
+    'Alle weiteren Personen, die sich Ihre Unterkunft teilen — Partner/innen, Freunde, Familienmitglieder ' +
+    'oder andere Aktivitätsteilnehmende, die ihr Guiding separat buchen und bezahlen. Sie werden zur ' +
+    'Hotelbelegung und Zimmerzuteilung hinzugefügt, aber nicht zur Aktivität oder zum Preis dieser Buchung.',
   guestFallbackTemplate: 'Gast {n}',
   readyToConfirm: 'Bereit zum Bestätigen.',
   submittingYourBookingEllipsis: 'Ihre Buchung wird gesendet…',
@@ -1147,6 +1351,32 @@ const de: Bundle = {
   savingsNonConsecutiveTemplate: 'Sie haben {amount} gespart, weil Sie {days} {dayWord} gebucht haben!',
   meetingPointOpenInGoogleMapsAria: 'In Google Maps öffnen',
   meetingPointOpenInWazeAria: 'In Waze öffnen',
+  bookedRefTemplate: 'Gebucht ✓ (Ref. {ref})',
+  sendBookingLinkToTemplate: 'Buchungslink senden an {name}',
+  inviteEmailSentLabel: 'Gesendet ✓',
+  emailUnavailableNotice: 'E-Mail-Versand nicht verfügbar — kopieren Sie stattdessen den Link.',
+  groupBookedTogetherWith: 'Gemeinsam gebucht mit',
+  bookedTogetherMemberTemplate: '{name} (Ref. {ref})',
+  hostSuffixLabel: ' — Gastgeber',
+  sharedDoubleHintQuestion: 'Teilen Sie sich ein Zimmer, das jemand anders gebucht hat?',
+  addReferenceLinkLabel: 'Referenz auf Ihrer Buchungsseite hinzufügen',
+  joinErrorUnknownReference:
+    'Wir konnten keine Buchung mit dieser Referenz finden, daher wurde Ihre Buchung nicht damit verknüpft.',
+  joinErrorSameBooking: 'Diese Referenz verweist auf Ihre eigene Buchung, es gab also nichts zu verknüpfen.',
+  joinErrorJoinFailed: 'Wir konnten Ihre Buchung gerade nicht mit dieser Referenz verknüpfen.',
+  joinErrorFollowup:
+    'Ihre Buchung selbst ist wie gewohnt bestätigt — Sie können die Referenz später weiterhin auf Ihrer Buchungsseite hinzufügen.',
+  bookingConfirmedEmailFailed:
+    'Ihre Buchung ist bestätigt — die Bestätigungs-E-Mail konnten wir jedoch nicht senden.',
+  contactOperatorToConfirm: 'Bitte kontaktieren Sie den Anbieter direkt, um Ihre Buchungsdetails zu bestätigen.',
+  nextStepSendGroupLinkSingular: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihren Buchungslink',
+  nextStepSendGroupLinkPlural: 'Nächster Schritt: Senden Sie Ihrer Gruppe ihre Buchungslinks',
+  eachCompletesOwnBooking: 'Jede Person schließt ihre eigene Buchung über ihren Link ab.',
+  linkCannotBeEmailed: 'Dieser Link kann von hier aus nicht mehr per E-Mail versendet werden — kopieren Sie ihn stattdessen.',
+  emailAddressRejected: 'Diese E-Mail-Adresse wurde abgelehnt.',
+  tooManyEmailsRetry: 'Gerade zu viele E-Mails — versuchen Sie es in ein paar Minuten erneut.',
+  couldNotSendEmailGeneric:
+    'Diese E-Mail konnte nicht gesendet werden — bitte versuchen Sie es erneut, oder nutzen Sie WhatsApp / kopieren Sie den Link.',
 
   bookingCancelledTitle: 'Buchung storniert',
   sorryToSeeYouGo: 'Schade, dass Sie gehen.',
@@ -1281,6 +1511,9 @@ const de: Bundle = {
   tickEveryLanguageHelp:
     'Kreuzen Sie jede Sprache an, die Sie sprechen, und ziehen Sie Ihre bevorzugte nach oben.',
   draftPreviewBadge: 'Entwurf — Vorschau',
+  shopComingSoonBodyTemplate:
+    'Diese Art von Produkt ({kind}) wird über unseren Shop verkauft, der in Kürze verfügbar ist. Bitte kontaktieren Sie den Anbieter direkt, um es in der Zwischenzeit zu bestellen.',
+  landingPageTitle: 'Dies ist die Host-Seite für das Landr-Buchungswidget.',
 
   perDaySuffix: '/Tag',
   daySingular: 'Tag',
@@ -1710,4 +1943,195 @@ export function forceBookReasonMessage(
   const capitalizedConsequence =
     consequence.charAt(0).toUpperCase() + consequence.slice(1)
   return `${subject} ${clause}. ${capitalizedConsequence} for this booking.`
+}
+
+// ---------------------------------------------------------------------------
+// landr-5aih0.17: template-filling helpers for the newly-bundled strings
+// above (shared-double reference lookup, MultiDayPicker diff chrome,
+// Confirmation invite/group cards, DetailsStep participant/companion copy,
+// ShopComingSoonStub, CustomFormStep). Mirrors the existing helper pattern
+// (availableDaysForLabel etc.) — a thin `.replace()` over a bundle template,
+// or direct locale branching where German's plural/grammar genuinely
+// diverges from a shared placeholder template.
+// ---------------------------------------------------------------------------
+
+/** AccommodationStep shared-double reference lookup: "not found" copy has no placeholders — exposed as a function for symmetry with its siblings below. */
+export function sharedDoubleReferenceNotFoundMessage(locale?: string): string {
+  return tr('sharedDoubleReferenceNotFoundTemplate', locale)
+}
+
+/** "Booking of {name} from {date} — is that them?" */
+export function sharedDoubleReferenceFoundLabel(name: string, dateLabel: string, locale?: string): string {
+  return tr('sharedDoubleReferenceFoundTemplate', locale)
+    .replace('{name}', name)
+    .replace('{date}', dateLabel)
+}
+
+/** "Linked to {name}'s booking." */
+export function sharedDoubleReferenceLinkedLabel(name: string, locale?: string): string {
+  return tr('sharedDoubleReferenceLinkedTemplate', locale).replace('{name}', name)
+}
+
+/** shared-double "too late for other pilots" notice, naming who is affected. */
+export function sharedDoubleOthersTooLateMessage(names: string, locale?: string): string {
+  return tr('sharedDoubleOthersTooLateTemplate', locale).replace('{names}', names)
+}
+
+/**
+ * AccommodationStep's room-vs-occupant capacity mismatch warning. English
+ * and German pluralise "person"/"bed" differently from every other bundle
+ * plural pair already in this file, so this stays a small direct-branching
+ * helper rather than four more bundle fields.
+ */
+export function occupancyOverbookWarning(occupants: number, beds: number, locale?: string): string {
+  const german = isGermanLocale(locale)
+  const occupantWord = german ? plural(occupants, 'Person', 'Personen') : plural(occupants, 'person', 'people')
+  const bedWord = german ? plural(beds, 'Bett', 'Betten') : plural(beds, 'bed', 'beds')
+  return german
+    ? `Sie haben ${occupants} ${occupantWord}, aber nur ${beds} ${bedWord} — sind Sie sicher?`
+    : `You have ${occupants} ${occupantWord} but only ${beds} ${bedWord} — sure?`
+}
+
+/** ShopComingSoonStub's body copy, given an already-localized product-kind label. */
+export function shopComingSoonBody(kindLabel: string, locale?: string): string {
+  return tr('shopComingSoonBodyTemplate', locale).replace('{kind}', kindLabel)
+}
+
+/** MultiDayPicker's invite-diff "+N day(s) / −M day(s) vs <original>" summary line. */
+export function multiDayDiffSummary(
+  added: number,
+  removed: number,
+  originalLabel: string | null | undefined,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const addedWord = plural(added, t.daySingular, t.dayPlural)
+  const removedWord = plural(removed, t.daySingular, t.dayPlural)
+  const original = originalLabel ?? (isGermanLocale(locale) ? 'die ursprüngliche Buchung' : 'the original booking')
+  return isGermanLocale(locale)
+    ? `+${added} ${addedWord} / −${removed} ${removedWord} gegenüber ${original}`
+    : `+${added} ${addedWord} / −${removed} ${removedWord} vs ${original}`
+}
+
+/** MultiDayPicker's "Reset to <original>'s dates" button label. */
+export function multiDayResetToDatesLabel(originalLabel: string | null | undefined, locale?: string): string {
+  if (isGermanLocale(locale)) {
+    return originalLabel
+      ? `Zurücksetzen auf die Termine von ${originalLabel}`
+      : 'Zurücksetzen auf die ursprünglichen Termine'
+  }
+  return `Reset to ${originalLabel ?? 'the original'}’s dates`
+}
+
+/** MultiDayPicker's "N of <host>'s days are no longer available" reset-drop notice. */
+export function multiDayResetDroppedNotice(
+  count: number,
+  originalLabel: string | null | undefined,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const dayWord = plural(count, t.daySingular, t.dayPlural)
+  if (isGermanLocale(locale)) {
+    const name = originalLabel ?? 'des Gastgebers'
+    const verb = count === 1 ? 'ist' : 'sind'
+    return `${count} ${dayWord} von ${name} ${verb} nicht mehr verfügbar.`
+  }
+  const name = originalLabel ?? 'the host'
+  const verb = count === 1 ? 'is' : 'are'
+  return `${count} of ${name}'s days ${verb} no longer available.`
+}
+
+/** ParticipantLanguageBoard's "Everyone speaks {language}" one-tap button. */
+export function everyoneSpeaksLabel(languageDisplayName: string, locale?: string): string {
+  return tr('everyoneSpeaksTemplate', locale).replace('{language}', languageDisplayName)
+}
+
+/** Confirmation invite card: "Booked ✓ (ref ABC123)". */
+export function bookedRefLabel(ref: string, locale?: string): string {
+  return tr('bookedRefTemplate', locale).replace('{ref}', ref)
+}
+
+/** Confirmation invite card: "Send booking link to {name}". */
+export function sendBookingLinkToLabel(name: string, locale?: string): string {
+  return tr('sendBookingLinkToTemplate', locale).replace('{name}', name)
+}
+
+/** Confirmation group block: "{name} (ref {ref})" plus an optional " — host" suffix. */
+export function bookedTogetherMemberLabel(
+  name: string,
+  ref: string,
+  isHost: boolean,
+  locale?: string,
+): string {
+  const base = tr('bookedTogetherMemberTemplate', locale).replace('{name}', name).replace('{ref}', ref)
+  return isHost ? `${base}${tr('hostSuffixLabel', locale)}` : base
+}
+
+/** Confirmation's "Next step: send your group their booking link(s)" heading. */
+export function nextStepSendGroupLabel(inviteCount: number, locale?: string): string {
+  return inviteCount === 1
+    ? tr('nextStepSendGroupLinkSingular', locale)
+    : tr('nextStepSendGroupLinkPlural', locale)
+}
+
+/** DetailsStep: "Other participants ({n} total)". */
+export function otherParticipantsHeading(n: number, locale?: string): string {
+  return tr('otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */
+export function addAnyoneElseUpTo(n: number, locale?: string): string {
+  return tr('addAnyoneElseUpToTemplate', locale).replace('{n}', String(n))
+}
+
+/** DetailsStep per-row heading: "Participant {n}". */
+export function participantOrdinalLabel(n: number, locale?: string): string {
+  return tr('participantOrdinalTemplate', locale).replace('{n}', String(n))
+}
+
+/** DetailsStep per-row companion fallback name: "Guest {n}". */
+export function companionOrdinalLabel(n: number, locale?: string): string {
+  return tr('companionOrdinalTemplate', locale).replace('{n}', String(n))
+}
+
+/** DetailsStep companion contact-required error, naming the companion (or a generic fallback). */
+export function companionContactRequiredMessage(name: string | undefined, locale?: string): string {
+  const who = name && name.trim().length > 0 ? name : tr('themFallback', locale)
+  return tr('companionContactRequiredTemplate', locale).replace('{name}', who)
+}
+
+/** DetailsStep: "Maximum of {n} guests reached". */
+export function maxCompanionsReachedMessage(n: number, locale?: string): string {
+  return tr('maxCompanionsReachedTemplate', locale).replace('{n}', String(n))
+}
+
+/** CustomFormStep's dev/config-error fallback for an unrecognised field type. */
+export function unsupportedFieldTypeLabel(fieldType: string, locale?: string): string {
+  return tr('unsupportedFieldTypeTemplate', locale).replace('{type}', fieldType)
+}
+
+/** CustomFormStep's "{product} · please complete the form below" subtitle. */
+export function productFormSubtitle(productName: string, locale?: string): string {
+  return tr('productFormSubtitleTemplate', locale).replace('{product}', productName)
+}
+
+/** AccommodationStep additional-accommodation hint when it's mandatory (a shared-double companion needs their own room). */
+export function additionalAccommodationRequiredHint(names: string, count: number, locale?: string): string {
+  if (isGermanLocale(locale)) {
+    const verb = count === 1 ? 'braucht' : 'brauchen'
+    return `Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, aber ${names} ${verb} hier ein Zimmer.`
+  }
+  const verb = count === 1 ? 'needs' : 'need'
+  return `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${names} ${verb} a room here.`
+}
+
+/** AvailabilityPicker's "Times on {date}" subheading. */
+export function timesOnLabel(dateLabel: string, locale?: string): string {
+  return tr('timesOnTemplate', locale).replace('{date}', dateLabel)
+}
+
+/** AvailabilityPicker's bare "{n} seats" count (operators.expose_seats_to_customer). */
+export function seatsCountLabel(n: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return `${n} ${plural(n, t.seatSingular, t.seatPlural)}`
 }

@@ -34,7 +34,7 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { pickLocalized, browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
 import { findOtherLanguagesField, OTHER_LANGUAGES_FIELD_KEY } from './otherLanguages'
 import { getProductFlow } from '@/api/client'
 import type {
@@ -288,6 +288,8 @@ interface FieldRendererProps {
   answers: AnswerMap
   error: string | null
   locale: string
+  /** landr-5aih0.17: widget-chrome locale (the "unsupported field type" fallback is a dev/config diagnostic, not operator content — it follows the customer's resolved locale like every other chrome string, not the English-pinned `locale` above). */
+  uiLocale?: string
   onChange: (key: string, value: string | string[]) => void
 }
 
@@ -296,6 +298,7 @@ function FieldRenderer({
   answers,
   error,
   locale,
+  uiLocale,
   onChange,
 }: FieldRendererProps) {
   const { tokens } = useVariant()
@@ -516,7 +519,7 @@ function FieldRenderer({
       default:
         return (
           <p className="text-xs text-muted-foreground" data-testid={`cf-field-${field.key}`}>
-            (Unsupported field type: {field.field_type})
+            {unsupportedFieldTypeLabel(field.field_type, uiLocale)}
           </p>
         )
     }
@@ -756,7 +759,7 @@ export function CustomFormStep({
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>{formTitle}</CardTitle>
-        <CardDescription>{productName} · please complete the form below</CardDescription>
+        <CardDescription>{productFormSubtitle(productName, uiLocale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {loading ? (
@@ -788,6 +791,7 @@ export function CustomFormStep({
                 answers={effectiveAnswers}
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
+                uiLocale={uiLocale}
                 onChange={handleChange}
               />
             )

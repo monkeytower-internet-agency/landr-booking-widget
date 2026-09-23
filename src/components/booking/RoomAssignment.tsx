@@ -1069,7 +1069,7 @@ function UnassignedTray({
                   return (
                     <option key={k} value={k} disabled={full}>
                       {unitOptionLabel(u)}
-                      {full ? ' (full)' : ''}
+                      {full ? tr('roomFullSuffix', browserLocale()) : ''}
                     </option>
                   )
                 })}
@@ -1085,7 +1085,7 @@ function UnassignedTray({
           data-testid="unassign-here"
           className="self-start rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
-          Move selected here (unassign)
+          {tr('moveSelectedHereUnassign', browserLocale())}
         </button>
       ) : null}
     </div>

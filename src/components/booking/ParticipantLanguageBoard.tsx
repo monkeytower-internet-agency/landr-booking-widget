@@ -65,7 +65,7 @@ import {
 } from './participantLanguages'
 import { NextAction } from './NextAction'
 import { browserLocale } from '@/lib/locale'
-import { languageStepGate, tr } from '@/lib/strings'
+import { everyoneSpeaksLabel, languageStepGate, tr } from '@/lib/strings'
 
 /**
  * `pointerWithin` alone is wrong here even though the room board uses it:
@@ -229,7 +229,7 @@ function LanguageColumn({
       ref={setNodeRef}
       data-testid={`lang-column-${code}`}
       role="group"
-      aria-label={`${languageName(code)} speakers`}
+      aria-label={`${languageName(code, browserLocale())} speakers`}
       className={[
         'flex flex-col gap-2 rounded-lg border p-3 transition-colors',
         isOver
@@ -244,7 +244,7 @@ function LanguageColumn({
           <span aria-hidden className="mr-1">
             {languageFlag(code)}
           </span>
-          {languageName(code)}
+          {languageName(code, browserLocale())}
         </span>
         <span className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground tabular-nums">
@@ -257,7 +257,7 @@ function LanguageColumn({
               type="button"
               onClick={() => onCloseLanguage(code)}
               data-testid={`lang-remove-${code}`}
-              aria-label={`Remove ${languageName(code)}`}
+              aria-label={`Remove ${languageName(code, browserLocale())}`}
               className="rounded-md border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
             >
               ✕
@@ -306,7 +306,7 @@ function LanguageColumn({
           data-testid={`lang-everyone-${code}`}
           className="self-start rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
-          Everyone speaks {languageName(code)}
+          {everyoneSpeaksLabel(languageName(code, browserLocale()), browserLocale())}
         </button>
       ) : null}
     </div>
@@ -392,7 +392,7 @@ function UnassignedTray({
                 <option value="">{tr('languageDropdownPlaceholder', locale)}</option>
                 {offeredLanguages.map((code) => (
                   <option key={code} value={code}>
-                    {languageName(code)}
+                    {languageName(code, browserLocale())}
                   </option>
                 ))}
               </select>
@@ -407,7 +407,7 @@ function UnassignedTray({
           data-testid="lang-unassign-here"
           className="self-start rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
-          Move selected here (unassign)
+          {tr('moveSelectedHereUnassign', browserLocale())}
         </button>
       ) : null}
     </div>
@@ -458,7 +458,7 @@ function FlagDropChip({
       ].join(' ')}
     >
       <span aria-hidden>{languageFlag(code)}</span>
-      {languageName(code)}
+      {languageName(code, browserLocale())}
     </button>
   )
 }
@@ -717,7 +717,7 @@ export function ParticipantLanguageBoard({
                       customer never has to visit the chip row first. */}
                   {offeredLanguages.map((code) => (
                     <option key={code} value={code}>
-                      {languageName(code)}
+                      {languageName(code, browserLocale())}
                     </option>
                   ))}
                 </select>

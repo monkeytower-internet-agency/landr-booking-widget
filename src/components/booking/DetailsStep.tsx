@@ -6,7 +6,15 @@ import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
-import { tr } from '@/lib/strings'
+import {
+  addAnyoneElseUpTo,
+  companionContactRequiredMessage,
+  companionOrdinalLabel,
+  maxCompanionsReachedMessage,
+  otherParticipantsHeading,
+  participantOrdinalLabel,
+  tr,
+} from '@/lib/strings'
 import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
 import { Button } from '@/components/ui/button'
 import {
@@ -912,8 +920,7 @@ export function DetailsStep({
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
           <p className="text-xs text-muted-foreground">
-            You&rsquo;ll be listed as participant 1. Add more people below if
-            others are joining.
+            {tr('youWillBeListedAsParticipant1', locale)}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr('firstNameLabel', locale)} htmlFor="booker-first" error={bookerFirstV.error}>
@@ -1027,8 +1034,7 @@ export function DetailsStep({
                 onChange={(e) => updateMemberPerkOtp(e.target.value)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Not a member, or don&rsquo;t have a code? Leave this blank —
-                it won&rsquo;t affect your booking.
+                {tr('notAMemberOrNoCode', locale)}
               </p>
             </div>
           ) : null}
@@ -1040,10 +1046,10 @@ export function DetailsStep({
             list of full participant rows instead of a single counter. */}
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
-            Other participants ({totalCount} total)
+            {otherParticipantsHeading(totalCount, locale)}
           </legend>
           <p className="text-xs text-muted-foreground">
-            Add anyone else taking part. You can add up to {MAX_ADDITIONAL} more.
+            {addAnyoneElseUpTo(MAX_ADDITIONAL, locale)}
           </p>
 
           {additional.map((row, idx) => {
@@ -1071,7 +1077,7 @@ export function DetailsStep({
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Participant {idx + 2}
+                  {participantOrdinalLabel(idx + 2, locale)}
                 </span>
                 <Button
                   type="button"
@@ -1110,7 +1116,7 @@ export function DetailsStep({
                 />
               </Field>
               <Field
-                label="Email (optional)"
+                label={`${tr('emailLabel', locale)} ${tr('optionalSuffix', locale)}`}
                 htmlFor={`p-${idx}-email`}
                 action={
                   <CopyFromBookerButton
@@ -1296,10 +1302,7 @@ export function DetailsStep({
             {tr('othersSharingYourRoom', locale)}
           </legend>
           <p className="text-xs text-muted-foreground">
-            Anyone else sharing your accommodation — partners, friends, family
-            members, or fellow activity participants who book and pay for their
-            own guiding separately. They&rsquo;re added to the hotel headcount
-            and room assignment, but not to this booking&rsquo;s activity or price.
+            {tr('companionsShareAccommodationExplainer', locale)}
           </p>
           {companions.map((row, idx) => {
             // landr-rxjo: both first and last name are required for companions.
@@ -1343,7 +1346,7 @@ export function DetailsStep({
                   specific guest can be removed; the other rows' data persists. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Guest {idx + 1}
+                  {companionOrdinalLabel(idx + 1, locale)}
                 </span>
                 <Button
                   type="button"
@@ -1429,7 +1432,7 @@ export function DetailsStep({
                   (per spec); the shared error renders once, below both. */}
               {contactRequired ? (
                 <p className="sm:col-span-2 text-xs text-muted-foreground">
-                  We&rsquo;ll use this to send them their own booking link.
+                  {tr('companionInviteHint', locale)}
                 </p>
               ) : null}
               <Field
@@ -1508,8 +1511,7 @@ export function DetailsStep({
                     className="text-xs text-destructive"
                     data-testid={`companion-${idx}-contact-error`}
                   >
-                    We need an email or phone number to send{' '}
-                    {row.first_name.trim() || 'them'} their booking link
+                    {companionContactRequiredMessage(row.first_name.trim(), locale)}
                   </p>
                 ) : null}
                 {/* landr-1url: nudge toward international format (no new dep). */}
@@ -1533,7 +1535,7 @@ export function DetailsStep({
               data-testid="companions-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                Maximum of {MAX_COMPANIONS} guests reached
+                {maxCompanionsReachedMessage(MAX_COMPANIONS, locale)}
               </p>
             </div>
           ) : (

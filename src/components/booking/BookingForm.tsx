@@ -28,7 +28,13 @@ import type {
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
-import { additionalAccommodationHeading, forceBookReasonMessage, nightsWord, tr, type ForceReason } from '@/lib/strings'
+import {
+  additionalAccommodationHeading,
+  forceBookReasonMessage,
+  nightsWord,
+  tr,
+  type ForceReason,
+} from '@/lib/strings'
 import {
   distinctAssignedLanguages,
   languageFlag,
@@ -472,7 +478,7 @@ function languageErrorMessage(
   if (err.code === 'participant_language_invalid') {
     const offeredText =
       err.offered.length > 0
-        ? ` Please go back and pick one of: ${err.offered.map(languageName).join(', ')}.`
+        ? ` Please go back and pick one of: ${err.offered.map((code) => languageName(code)).join(', ')}.`
         : ' Please go back and pick another.'
     return who
       ? `${who} ${named.length > 1 ? 'were' : 'was'} assigned a language this operator does not offer.${offeredText}`
@@ -1304,7 +1310,7 @@ export function BookingForm({
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
         >
           <h3 className="mb-2 text-sm font-semibold">
-            Participants ({participants.length})
+            {tr('participantsTitle', locale)} ({participants.length})
           </h3>
           <ol className="space-y-1 text-sm">
             {participants.map((p, idx) => (
@@ -1339,7 +1345,7 @@ export function BookingForm({
                     <span aria-hidden className="mr-1">
                       {languageFlag(participantLanguages[idx])}
                     </span>
-                    {languageName(participantLanguages[idx])}
+                    {languageName(participantLanguages[idx], locale)}
                   </span>
                 ) : null}
               </li>
@@ -1357,7 +1363,7 @@ export function BookingForm({
             className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
           >
             <h3 className="mb-2 text-sm font-semibold">
-              Others joining ({companions.length})
+              {tr('othersJoiningReviewHeading', locale)} ({companions.length})
             </h3>
             <ol className="space-y-1 text-sm">
               {companions.map((c, idx) => (
@@ -1414,6 +1420,7 @@ export function BookingForm({
                       </span>
                       {languageName(
                         participantLanguages[participants.length + idx]!,
+                        locale,
                       )}
                     </span>
                   ) : null}
@@ -1462,13 +1469,13 @@ export function BookingForm({
                     >
                       {row.hasBreakfastMapData
                         ? row.breakfastState === 'all'
-                          ? '· breakfast included'
+                          ? `· ${tr('breakfastIncludedLabel', locale)}`
                           : row.breakfastState === 'some'
-                            ? '· breakfast for some guests only'
-                            : '· no breakfast'
+                            ? `· ${tr('breakfastPartialLabel', locale)}`
+                            : `· ${tr('noBreakfastLabel', locale)}`
                         : row.hasBreakfast
-                          ? 'with breakfast'
-                          : 'without breakfast'}
+                          ? tr('withBreakfastLabel', locale)
+                          : tr('withoutBreakfastLabel', locale)}
                     </span>
                     {/* Legacy path: show plain occupant names when no per-occupant data */}
                     {!row.hasBreakfastMapData && row.occupantNames.length > 0 ? (
@@ -1492,7 +1499,9 @@ export function BookingForm({
                               occupant.hasBreakfast ? 'text-primary' : 'text-muted-foreground'
                             }
                           >
-                            {occupant.hasBreakfast ? '· with breakfast' : '· no breakfast'}
+                            {occupant.hasBreakfast
+                              ? `· ${tr('withBreakfastLabel', locale)}`
+                              : `· ${tr('noBreakfastLabel', locale)}`}
                           </span>
                         </li>
                       ))}
