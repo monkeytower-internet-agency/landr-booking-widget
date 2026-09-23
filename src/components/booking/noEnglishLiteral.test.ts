@@ -93,7 +93,10 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
   // InviteCard / GroupBlock / SharedDoubleHint — the post-booking
   // group-invite sub-flow, deferred as a self-contained unit (see the file
   // header). "Google Calendar" / "Outlook" are the calendar-provider CTAs
-  // right above it — provider brand names, never translated.
+  // right above it — provider brand names, never translated. "Google Maps"
+  // / "Waze" (landr-5aih0.2) are the same pattern one section up — the
+  // meeting-point deep-link buttons; their aria-labels ARE translated
+  // (meetingPointOpenInGoogleMapsAria/meetingPointOpenInWazeAria).
   'Confirmation.tsx': [
     'WhatsApp',
     'Email sending unavailable — copy the link instead.',
@@ -102,6 +105,8 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
     'Each of them completes their own booking from their link.',
     'Google Calendar',
     'Outlook',
+    'Google Maps',
+    'Waze',
   ],
 }
 

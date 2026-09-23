@@ -98,4 +98,31 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     expect(screen.getByText('Booking confirmed')).toBeInTheDocument()
     expect(screen.getByTestId('confirmation-summary')).toHaveTextContent('Your booking')
   })
+
+  // landr-5aih0.2: the meeting-point block's button TEXT stays "Google
+  // Maps"/"Waze" in every locale (brand names — see
+  // noEnglishLiteral.test.ts's ALLOWED_LITERALS), but the aria-label is
+  // translated, same as the Google/Outlook calendar buttons above it.
+  it('translates the meeting-point aria-labels to German; the brand-name button text stays as-is', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1',
+          name: 'Main Beach',
+          address: 'Playa de las Américas, 38660',
+          lat: '28.05',
+          lng: '-16.73',
+          google_maps_url: 'https://www.google.com/maps/search/?api=1&query=28.05,-16.73',
+          waze_url: 'https://waze.com/ul?ll=28.05,-16.73&navigate=yes',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByRole('link', { name: 'In Google Maps öffnen' }),
+    ).toHaveTextContent('Google Maps')
+    expect(screen.getByRole('link', { name: 'In Waze öffnen' })).toHaveTextContent('Waze')
+  })
 })

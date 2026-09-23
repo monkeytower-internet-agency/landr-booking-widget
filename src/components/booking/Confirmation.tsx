@@ -525,6 +525,26 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
   // acceptable degradation, so the stay-window line below is the
   // fallback, not deleted outright.
   const hasPeriods = Boolean(summary.periods && summary.periods.length > 0)
+  // landr-5aih0.2: the meeting-point block (address + Google Maps/Waze deep
+  // links), derived server-side once (app/services/meeting_point.py) and
+  // carried on summary.meeting_point. The API always sends an object (the
+  // all-"" block when the booking has no pickup location) rather than null,
+  // but the type stays nullable for older-API rolling-deploy safety — either
+  // way, an empty/unusable block (no address, no map links) falls back to
+  // the plain pickup_location text above, unchanged.
+  const meetingPoint = summary.meeting_point
+  const meetingPointMapsUrl =
+    meetingPoint?.google_maps_url && isHttpUrl(meetingPoint.google_maps_url)
+      ? meetingPoint.google_maps_url
+      : null
+  const meetingPointWazeUrl =
+    meetingPoint?.waze_url && isHttpUrl(meetingPoint.waze_url)
+      ? meetingPoint.waze_url
+      : null
+  const meetingPointAddress = meetingPoint?.address || null
+  const hasMeetingPointDetail = Boolean(
+    meetingPointAddress || meetingPointMapsUrl || meetingPointWazeUrl,
+  )
   return (
     <div
       data-testid="confirmation-summary"
@@ -570,6 +590,39 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
           <p data-testid="confirmation-pickup">
             {tr('pickupPrefix', locale)} {summary.pickup_location}
           </p>
+        ) : null}
+        {hasMeetingPointDetail ? (
+          <div data-testid="confirmation-meeting-point" className="space-y-1.5">
+            {meetingPointAddress ? (
+              <p className="text-muted-foreground">{meetingPointAddress}</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {meetingPointMapsUrl ? (
+                <Button asChild type="button" variant="outline" size="sm">
+                  <a
+                    href={meetingPointMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={tr('meetingPointOpenInGoogleMapsAria', locale)}
+                  >
+                    Google Maps
+                  </a>
+                </Button>
+              ) : null}
+              {meetingPointWazeUrl ? (
+                <Button asChild type="button" variant="outline" size="sm">
+                  <a
+                    href={meetingPointWazeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={tr('meetingPointOpenInWazeAria', locale)}
+                  >
+                    Waze
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </div>
         ) : null}
         {summary.hotel ? (
           <div
