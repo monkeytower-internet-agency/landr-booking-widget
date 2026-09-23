@@ -567,8 +567,9 @@ export const mockSubmit = (): SubmitBookingResponse => ({
   approval_outcome: 'auto_approved',
   // landr-3vr5: mock the per-booking iCal URL so storybook/dev mode
   // exercises the "Add to calendar" anchor branch in Confirmation.tsx.
+  // landr-5aih0.4: token-scoped (signed booking token, not the UUID).
   ical_url:
-    'https://api.dev.landr.de/api/public/bookings/00000000-0000-0000-0000-0000000000bb/calendar.ics',
+    'https://api.dev.landr.de/api/public/bookings/000000000000000000000000000000bb.1900000000.mock-signature/calendar.ics',
   // landr-acew: parsed calendar event data so the confirmation screen can
   // build Google Calendar and Outlook deep-link URLs without an extra
   // API call. Mirrors the first VEVENT the ICS service would emit for a

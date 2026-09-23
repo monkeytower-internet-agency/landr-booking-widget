@@ -483,12 +483,14 @@ function resolveApprovalKind(
  * (`booking_id.replace("-", "")[:8].upper()` — see build_booking_summary /
  * public_lookup_booking_by_reference) when `summary` is absent. The raw
  * `booking_id` UUID must never be shown or fed to Copy/share on this
- * screen — it is a bearer credential elsewhere in this API (cancel, the
- * .ics download both accept it as their only credential), unlike the
+ * screen — it used to be a bearer credential in this API (cancel and the
+ * .ics download accepted it alone until landr-5aih0.7 / landr-5aih0.4
+ * moved both to signed tokens) and still identifies the booking, unlike the
  * reference, which is deliberately cheap/safe to hand to a stranger
  * (D2's masked-lookup design). This function is the one place that
  * boundary is enforced, so no caller can accidentally reach for
- * `response.booking_id` directly for display.
+ * `response.booking_id` directly for display — the .ics download filename
+ * below uses the reference too.
  */
 function deriveBookingReference(bookingId: string): string {
   return bookingId.replace(/-/g, '').slice(0, 8).toUpperCase()
@@ -1129,6 +1131,11 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           right-click / long-press save behaviour works everywhere.
           Google and Outlook open the provider's compose form in a new
           tab; the .ics link downloads the file.
+
+          landr-5aih0.4: ical_url is token-scoped
+          (/api/public/bookings/{token}/calendar.ics); the suggested
+          filename carries the booking reference, never the UUID (same
+          name the API's Content-Disposition uses).
          */}
         {response.ical_url ? (
           <div className="flex flex-wrap gap-2">
@@ -1159,7 +1166,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             <Button asChild type="button" variant="outline">
               <a
                 href={response.ical_url}
-                download={`landr-booking-${response.booking_id}.ics`}
+                download={`landr-booking-${referenceValue}.ics`}
               >
                 {tr('downloadIcsButton', locale)}
               </a>
