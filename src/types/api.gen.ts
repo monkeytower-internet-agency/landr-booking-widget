@@ -4078,6 +4078,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-pickup/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Day Pickup
+         * @description Set (or clear) one participant-day's pickup time and, optionally, its
+         *     per-day pickup location override.
+         *
+         *     Creates the state row when missing (status unset = "expected"), exactly
+         *     like the day-unit PATCH, and never touches the status, unit, note or the
+         *     needs_pickup position. Returns the manifest-shaped pickup (see
+         *     `DayPickupOut`). 404 booking outside this operator; 422 participant not
+         *     on the booking, both location kinds, or a location that is not this
+         *     operator's; 409 `day_in_past`.
+         */
+        put: operations["staff_put_participant_day_pickup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
         parameters: {
             query?: never;
@@ -4738,6 +4766,39 @@ export interface paths {
         get: operations["staff_day_manifest"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/day-pickup/{day_date}/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Day Pickup
+         * @description Apply one pickup payload to many participants of this operator on one
+         *     day — ONE transaction PER ROW (one RPC call each), never all-or-nothing:
+         *     a participant that fails (not this operator's, a location the RPC
+         *     refuses) is reported in its own result and every other row still lands.
+         *     Contrast `sort_day_units`, which is atomic on purpose (D9's lock).
+         *
+         *     Whole-request 422/409 only for what is true of EVERY row: a malformed
+         *     body, both location kinds at once, or `day_in_past`. Per-row
+         *     `status_code`/`error` mirror the single PUT's answer for that row
+         *     (404 `participant_not_found` for an id outside this operator — the
+         *     caller must not learn it exists).
+         *
+         *     Location-key presence has the single PUT's meaning: omit both to write
+         *     only the time and keep each participant's own location override.
+         */
+        post: operations["staff_bulk_set_participant_day_pickup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9784,6 +9845,10 @@ export interface components {
             pickup_location_id?: string | null;
             /** Pickup Location Name */
             pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
             /** Pickup Note */
             pickup_note?: string | null;
             /** Pickup Time */
@@ -9821,6 +9886,134 @@ export interface components {
         DayMessagePostIn: {
             /** Body */
             body: string;
+        };
+        /**
+         * DayPickupBulkIn
+         * @description POST .../day-pickup/{day_date}/bulk body — the same pickup payload
+         *     applied to many participants of this operator on one day (the /today
+         *     sheet's "apply to everyone on this unit", the booking sheet's "pickup
+         *     time for all participants"). Participants may span bookings — a unit
+         *     does — so each id is resolved to its booking server-side.
+         */
+        DayPickupBulkIn: {
+            /** Participant Ids */
+            participant_ids: string[];
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
+        };
+        /** DayPickupBulkOut */
+        DayPickupBulkOut: {
+            /** Changed */
+            changed: number;
+            /** Failed */
+            failed: number;
+            /** Results */
+            results: components["schemas"]["DayPickupBulkResult"][];
+        };
+        /**
+         * DayPickupBulkResult
+         * @description One participant's outcome. `ok` false carries the same `error` token
+         *     and `status_code` the single-participant PUT would have answered.
+         */
+        DayPickupBulkResult: {
+            /** Error */
+            error?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Participant Id */
+            participant_id: string;
+            pickup?: components["schemas"]["DayPickupOut"] | null;
+            /** Status Code */
+            status_code: number;
+        };
+        /**
+         * DayPickupOut
+         * @description The participant-day's pickup, MANIFEST-SHAPED: the same field names
+         *     and the same baseline-vs-override resolution `DayManifestRow` uses
+         *     (`app/services/day_pickup.py::effective_pickup`), so a client can patch
+         *     the row it already holds straight from this response.
+         *
+         *     The effective `pickup_location_*` / `pickup_note` fields need the
+         *     participant's manifest row and are null when the participant is not on
+         *     that day's manifest (not booked that day, or the booking is not live);
+         *     `pickup_time` and the raw override are always the written values.
+         */
+        DayPickupOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Changed */
+            changed: boolean;
+            /** Day Date */
+            day_date: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Pickup Location Color */
+            pickup_location_color?: string | null;
+            /** Pickup Location Icon */
+            pickup_location_icon?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Pickup Location Name */
+            pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
+            /** Pickup Note */
+            pickup_note?: string | null;
+            /** Pickup Time */
+            pickup_time?: string | null;
+        };
+        /**
+         * DayPickupPutIn
+         * @description PUT .../day-pickup/{day_date} body.
+         *
+         *     `pickup_time` is REQUIRED (no default) and `null` clears it — the same
+         *     required-nullable shape as `DayUnitPatchIn`, so an empty body or a typo'd
+         *     key is a 422 rather than a silent clear. Operator-local wall-clock
+         *     ("07:40"), never a UTC offset (Decision #57 — the column is `time`
+         *     without time zone).
+         *
+         *     The two location keys are OPTIONAL, and presence is what matters:
+         *       * OMITTED (both) — the participant-day's current location override is
+         *         left exactly as it is; only the time is written. This is how "set
+         *         the pickup time for everyone" avoids wiping one participant's own
+         *         per-day pickup point.
+         *       * PRESENT (either, `null` included) — the override is REPLACED by what
+         *         is supplied; both `null` clears it back to the participant's
+         *         baseline pickup (`booking_participants.pickup_location_id`).
+         *     At most one may be non-null (422 `pickup_location_not_both`, the table's
+         *     not-both CHECK). Blank text counts as null.
+         */
+        DayPickupPutIn: {
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
         };
         /**
          * DayStatusPutIn
@@ -20691,6 +20884,44 @@ export interface operations {
             };
         };
     };
+    staff_put_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_put_participant_day_status: {
         parameters: {
             query?: never;
@@ -22079,6 +22310,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_bulk_set_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupBulkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupBulkOut"];
                 };
             };
             /** @description Validation Error */
