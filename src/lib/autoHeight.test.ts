@@ -172,7 +172,9 @@ describe('startAutoHeight', () => {
     flushFrames()
     const dialog = document.createElement('div')
     dialog.setAttribute('role', 'dialog')
-    dialog.getBoundingClientRect = () => ({ height: 900 }) as DOMRect
+    // Centred in a 640px frame: top = 320 - 450.
+    dialog.getBoundingClientRect = () =>
+      ({ top: -130, height: 900, bottom: 770 }) as DOMRect
     const portal = document.createElement('div')
     portal.appendChild(dialog)
     document.body.appendChild(portal)
@@ -205,7 +207,8 @@ describe('startAutoHeight', () => {
     const openDialog = async (height: number) => {
       const dialog = document.createElement('div')
       dialog.setAttribute('role', 'dialog')
-      dialog.getBoundingClientRect = () => ({ height }) as DOMRect
+      dialog.getBoundingClientRect = () =>
+        ({ top: 0, height, bottom: height }) as DOMRect
       document.body.appendChild(dialog)
       await Promise.resolve()
       return dialog
@@ -217,6 +220,72 @@ describe('startAutoHeight', () => {
     trigger.getBoundingClientRect = () => ({ top: 2950, height: 40 }) as DOMRect
     trigger.dispatchEvent(new Event('pointerdown', { bubbles: true }))
     expect((await openDialog(400)).style.top).toBe('2768px')
+  })
+
+  // landr-tkgx8.3 (c): after anchorDialog moves a dialog down (or it grows
+  // once open), its bottom edge — not just its height — must fit the frame.
+  it('floors the height on an open dialog\'s bottom edge', async () => {
+    const { win, parent } = makeWindow({ embedded: true })
+    start(win)
+    flushFrames()
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.getBoundingClientRect = () =>
+      ({ top: 500, height: 300, bottom: 800 }) as DOMRect
+    document.body.appendChild(dialog)
+    await Promise.resolve()
+    flushFrames()
+    // 300 + 2 * 32 = 364 < 640 content; the bottom edge 800 + 32 wins.
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: RESIZE_MESSAGE_TYPE, height: 832 },
+      '*',
+    )
+  })
+
+  // landr-tkgx8.3 (a): a portalled Select / Popover menu opening near the
+  // bottom of the widget is fixed-positioned outside #root — without a floor
+  // the iframe clips it.
+  it('grows to fit portalled popper content below the content', async () => {
+    const { win, parent } = makeWindow({ embedded: true })
+    start(win)
+    flushFrames()
+    const trigger = document.createElement('button')
+    trigger.getBoundingClientRect = () => ({ top: 600, height: 40 }) as DOMRect
+    root.appendChild(trigger)
+    trigger.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+
+    const wrapper = document.createElement('div')
+    wrapper.setAttribute('data-radix-popper-content-wrapper', '')
+    let bottom = -100 // Radix mounts it off-screen, then positions it.
+    wrapper.getBoundingClientRect = () =>
+      ({ top: bottom - 200, height: 200, bottom }) as DOMRect
+    const portal = document.createElement('div')
+    portal.appendChild(wrapper)
+    document.body.appendChild(portal)
+    await Promise.resolve()
+    expect(FakeResizeObserver.instances[0]!.observed).toContain(wrapper)
+    // Popper content is positioned by Radix, never re-anchored by us.
+    expect(wrapper.style.top).toBe('')
+    flushFrames()
+    expect(parent.postMessage).toHaveBeenCalledTimes(1)
+
+    // Positioning is an inline-style change, not a resize — still re-measured.
+    bottom = 900
+    wrapper.style.transform = 'translate(0px, 700px)'
+    await Promise.resolve()
+    flushFrames()
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: RESIZE_MESSAGE_TYPE, height: 908 },
+      '*',
+    )
+
+    portal.remove()
+    await Promise.resolve()
+    flushFrames()
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: RESIZE_MESSAGE_TYPE, height: 640 },
+      '*',
+    )
   })
 
   it('leaves a dialog centred when there was no prior interaction', async () => {

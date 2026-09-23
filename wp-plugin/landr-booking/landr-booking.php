@@ -3,7 +3,7 @@
  * Plugin Name: LANDR Booking
  * Plugin URI:  https://github.com/monkeytower-internet-agency/landr-booking-widget
  * Description: Embeds the LANDR booking widget via the [landr_booking token="..."] shortcode. Widget origin is configurable under Settings → LANDR Booking.
- * Version:     0.5.0
+ * Version:     0.5.1
  * Author:      Monkeytower Internet Agency
  * License:     MIT
  */
@@ -97,68 +97,88 @@ function landr_booking_shortcode( $atts ) {
         $height_px = 800;
     }
 
-    landr_booking_enqueue_resize_listener();
-
-    return sprintf(
+    $iframe = sprintf(
         '<iframe src="%s" class="landr-booking-frame" style="width:100%%;height:%dpx;border:none;" loading="lazy" allow="payment" title="LANDR booking widget"></iframe>',
         esc_url( $url ),
         $height_px
     );
+
+    return $iframe . landr_booking_resize_listener_once();
 }
 add_shortcode( 'landr_booking', 'landr_booking_shortcode' );
 
 /* -------------------------------------------------------------------------
  * Auto-resize: listen for landr:resize postMessages from embedded widgets
- * and grow/shrink the iframe to fit (landr-6eita). One inline script per
- * page, printed in wp_footer, gated by a static flag so multiple shortcodes
- * on the same page only ever print it once. The configured height= stays
- * the initial height until the first message arrives; a widget deploy that
- * never posts (older builds) keeps working at that fixed height.
+ * and grow/shrink the iframe to fit (landr-6eita). The configured height=
+ * stays the initial height until the first message arrives; a widget deploy
+ * that never posts (older builds) keeps working at that fixed height.
+ *
+ * landr-tkgx8.3 (0.5.1): the listener is printed INLINE, right after the
+ * first shortcode's iframe (static flag: once per request), so it is
+ * registered before the iframe can post and does not depend on the theme
+ * calling wp_footer AFTER the shortcode renders — page builders (Thrive
+ * Architect) may render the shortcode late or bypass wp_footer entirely.
+ * wp_footer still prints it as a fallback for builders that strip inline
+ * scripts from shortcode output; the script itself carries a window-level
+ * guard, so whichever copy runs first registers the one listener.
  * ---------------------------------------------------------------------- */
 
-function landr_booking_enqueue_resize_listener() {
+function landr_booking_resize_listener_once() {
     static $printed = false;
     if ( $printed ) {
-        return;
+        return '';
     }
     $printed = true;
     add_action( 'wp_footer', 'landr_booking_print_resize_listener' );
+    return landr_booking_resize_listener_script();
 }
 
 function landr_booking_print_resize_listener() {
-    ?>
-    <script>
-    (function () {
-        window.addEventListener('message', function (event) {
-            if (!event.data || event.data.type !== 'landr:resize') {
-                return;
+    echo landr_booking_resize_listener_script(); // phpcs:ignore WordPress.Security.EscapeOutput -- static markup.
+}
+
+/**
+ * The listener <script>. No blank lines inside: some builders run wpautop
+ * over shortcode output, which would wrap them in <p>.
+ */
+function landr_booking_resize_listener_script() {
+    return <<<'HTML'
+<script>
+(function () {
+    if (window.landrBookingResizeListener) {
+        return;
+    }
+    window.landrBookingResizeListener = true;
+    window.addEventListener('message', function (event) {
+        if (!event.data || event.data.type !== 'landr:resize') {
+            return;
+        }
+        var height = event.data.height;
+        if (typeof height !== 'number' || !isFinite(height) || height <= 0) {
+            return;
+        }
+        var frames = document.getElementsByClassName('landr-booking-frame');
+        for (var i = 0; i < frames.length; i++) {
+            var frame = frames[i];
+            if (frame.contentWindow !== event.source) {
+                continue;
             }
-            var height = event.data.height;
-            if (typeof height !== 'number' || !isFinite(height) || height <= 0) {
-                return;
+            var frameOrigin;
+            try {
+                frameOrigin = new URL(frame.src, window.location.href).origin;
+            } catch (e) {
+                continue;
             }
-            var frames = document.getElementsByClassName('landr-booking-frame');
-            for (var i = 0; i < frames.length; i++) {
-                var frame = frames[i];
-                if (frame.contentWindow !== event.source) {
-                    continue;
-                }
-                var frameOrigin;
-                try {
-                    frameOrigin = new URL(frame.src, window.location.href).origin;
-                } catch (e) {
-                    continue;
-                }
-                if (event.origin !== frameOrigin) {
-                    continue;
-                }
-                frame.style.height = height + 'px';
-                break;
+            if (event.origin !== frameOrigin) {
+                continue;
             }
-        });
-    })();
-    </script>
-    <?php
+            frame.style.height = height + 'px';
+            break;
+        }
+    });
+})();
+</script>
+HTML;
 }
 
 /* -------------------------------------------------------------------------

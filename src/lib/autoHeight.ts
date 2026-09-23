@@ -26,7 +26,12 @@
  *
  * Dialogs are `position: fixed`, so they add nothing to the document height.
  * An open dialog taller than the content would be clipped by the iframe, so
- * its height (plus a margin) counts as a floor on the posted height. And once
+ * its height (plus a margin) counts as a floor on the posted height — and so
+ * does its bottom edge (landr-tkgx8.3): once anchored lower down (below) or
+ * grown after opening, a dialog shorter than the content can still reach
+ * past the iframe's bottom. Portalled Radix popper content (Select / Popover
+ * menus) is fixed-positioned outside #root as well and floors the height on
+ * its bottom edge the same way. And once
  * the iframe is as tall as the widget, "centred in the viewport" means centred
  * in the whole widget — possibly far off the part of the host page the
  * customer is looking at. The widget cannot scroll a cross-origin parent
@@ -48,6 +53,15 @@ export const EMBEDDED_ATTR = 'data-landr-embedded'
 const DIALOG_MARGIN_PX = 32
 
 const DIALOG_SELECTOR = '[role="dialog"], [role="alertdialog"]'
+
+/** Portalled Radix popper content (Select / Popover / DropdownMenu). */
+const POPPER_SELECTOR = '[data-radix-popper-content-wrapper]'
+
+/** Breathing room kept below open popper content. */
+const POPPER_MARGIN_PX = 8
+
+/** Everything outside #root's flow that the iframe must still fit. */
+const OVERLAY_SELECTOR = `${DIALOG_SELECTOR}, ${POPPER_SELECTOR}`
 
 /** The window globals startAutoHeight uses (injectable for tests). */
 export type AutoHeightWindow = Window &
@@ -75,18 +89,26 @@ export function isEmbedded(win: Window): boolean {
 
 /**
  * The integer CSS px height the iframe needs to show everything: the app
- * root's content height, floored by any open dialog. Measured from #root
- * (not documentElement.scrollHeight, which never drops below the viewport and
- * would ratchet the iframe up forever).
+ * root's content height, floored by any open dialog or popper. Measured from
+ * #root (not documentElement.scrollHeight, which never drops below the
+ * viewport and would ratchet the iframe up forever).
+ *
+ * Overlays are fixed-positioned, so their rect is in iframe-viewport px —
+ * exactly the iframe height needed to show their bottom edge.
  */
 export function measureContentHeight(doc: Document): number {
   const root = doc.getElementById('root') ?? doc.body
   let height = Math.max(root.getBoundingClientRect().height, root.scrollHeight)
   doc.querySelectorAll(DIALOG_SELECTOR).forEach((el) => {
+    const rect = el.getBoundingClientRect()
     height = Math.max(
       height,
-      el.getBoundingClientRect().height + DIALOG_MARGIN_PX * 2,
+      rect.height + DIALOG_MARGIN_PX * 2,
+      rect.bottom + DIALOG_MARGIN_PX,
     )
+  })
+  doc.querySelectorAll(POPPER_SELECTOR).forEach((el) => {
+    height = Math.max(height, el.getBoundingClientRect().bottom + POPPER_MARGIN_PX)
   })
   return Math.ceil(height)
 }
@@ -150,17 +172,24 @@ export function startAutoHeight(win: AutoHeightWindow = window): () => void {
   const resizeObserver = new win.ResizeObserver(schedule)
   resizeObserver.observe(doc.getElementById('root') ?? doc.body)
 
-  // Dialog portals mount as direct children of <body>, outside #root, so the
-  // root observer never sees them open. Watch body's children for portals,
-  // observe any dialog they carry (its content can change size too) and
-  // centre a newly opened dialog where the customer is looking.
-  const observedDialogs = new WeakSet<Element>()
+  // Moves don't resize: re-measure when an overlay's inline style changes
+  // (the popper positioning itself, anchorDialog setting `top`).
+  const styleObserver = new win.MutationObserver(schedule)
+
+  // Dialog / popper portals mount as direct children of <body>, outside
+  // #root, so the root observer never sees them open. Watch body's children
+  // for portals, observe any overlay they carry (its content can change size
+  // too) and centre a newly opened dialog where the customer is looking.
+  const observedOverlays = new WeakSet<Element>()
   const mutationObserver = new win.MutationObserver(() => {
-    doc.querySelectorAll(DIALOG_SELECTOR).forEach((el) => {
-      if (observedDialogs.has(el)) return
-      observedDialogs.add(el)
+    doc.querySelectorAll(OVERLAY_SELECTOR).forEach((el) => {
+      if (observedOverlays.has(el)) return
+      observedOverlays.add(el)
       resizeObserver.observe(el)
-      if (el instanceof win.HTMLElement) anchorDialog(el)
+      styleObserver.observe(el, { attributes: true, attributeFilter: ['style'] })
+      if (el instanceof win.HTMLElement && el.matches(DIALOG_SELECTOR)) {
+        anchorDialog(el)
+      }
     })
     schedule()
   })
@@ -171,6 +200,7 @@ export function startAutoHeight(win: AutoHeightWindow = window): () => void {
   return () => {
     resizeObserver.disconnect()
     mutationObserver.disconnect()
+    styleObserver.disconnect()
     doc.removeEventListener('pointerdown', rememberAnchor, true)
     doc.removeEventListener('focusin', rememberAnchor, true)
     if (frame) win.cancelAnimationFrame(frame)
