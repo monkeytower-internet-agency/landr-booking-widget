@@ -9,6 +9,8 @@
  */
 import type { ReactNode } from 'react'
 import type { Product } from '@/api/types'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 import { ProductArt } from '@/components/booking/art/ProductArt'
@@ -108,7 +110,7 @@ export function ProductRow({ product, locale, showDateModel, onSelect }: Props) 
               className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
               data-testid="draft-badge"
             >
-              Draft — preview
+              {tr('draftPreviewBadge', browserLocale())}
             </span>
           ) : null}
         </div>

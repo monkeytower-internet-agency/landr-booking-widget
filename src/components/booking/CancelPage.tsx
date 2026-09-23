@@ -9,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 
 /**
  * Customer one-click cancel landing page (landr-sgnd).
@@ -39,6 +41,7 @@ interface Props {
 }
 
 export function CancelPage({ bookingId }: Props) {
+  const locale = browserLocale()
   const [status, setStatus] = useState<Status>('confirm')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -55,8 +58,8 @@ export function CancelPage({ bookingId }: Props) {
       // enumeration cues from a public page).
       setErrorMessage(
         err instanceof Error && err.message
-          ? 'We could not cancel this booking. The link may be invalid or already used.'
-          : 'Something went wrong. Please try again later.',
+          ? tr('couldNotCancelBooking', locale)
+          : tr('somethingWentWrongRetry', locale),
       )
       setStatus('error')
     }
@@ -76,12 +79,12 @@ export function CancelPage({ bookingId }: Props) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Booking cancelled</CardTitle>
-          <CardDescription>Sorry to see you go.</CardDescription>
+          <CardTitle>{tr('bookingCancelledTitle', locale)}</CardTitle>
+          <CardDescription>{tr('sorryToSeeYouGo', locale)}</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            Your booking has been cancelled. You can close this window.
+            {tr('yourBookingHasBeenCancelled', locale)}
           </p>
         </CardContent>
       </Card>
@@ -92,11 +95,11 @@ export function CancelPage({ bookingId }: Props) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Cancellation failed</CardTitle>
+          <CardTitle>{tr('cancellationFailedTitle', locale)}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm">
-            {errorMessage ?? 'Something went wrong.'}
+            {errorMessage ?? tr('somethingWentWrong', locale)}
           </p>
           <div className="flex gap-2">
             <Button
@@ -107,7 +110,7 @@ export function CancelPage({ bookingId }: Props) {
                 setErrorMessage(null)
               }}
             >
-              Try again
+              {tr('tryAgain', locale)}
             </Button>
           </div>
         </CardContent>
@@ -123,14 +126,14 @@ export function CancelPage({ bookingId }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Cancel your booking?</CardTitle>
+        <CardTitle>{tr('cancelYourBookingTitle', locale)}</CardTitle>
         <CardDescription>
-          This will cancel your booking right away. You cannot undo this.
+          {tr('cancelYourBookingBody', locale)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-xs text-muted-foreground">
-          Booking <span className="font-mono">{bookingId}</span>
+          {tr('bookingIdPrefix', locale)} <span className="font-mono">{bookingId}</span>
         </p>
         <div className="flex gap-2">
           <Button
@@ -141,7 +144,7 @@ export function CancelPage({ bookingId }: Props) {
             }}
             disabled={busy}
           >
-            {busy ? 'Cancelling…' : 'Yes, cancel booking'}
+            {busy ? tr('cancellingEllipsis', locale) : tr('yesCancelBooking', locale)}
           </Button>
           <Button
             type="button"
@@ -149,7 +152,7 @@ export function CancelPage({ bookingId }: Props) {
             onClick={onNo}
             disabled={busy}
           >
-            No, keep booking
+            {tr('noKeepBooking', locale)}
           </Button>
         </div>
       </CardContent>

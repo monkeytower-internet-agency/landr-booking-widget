@@ -4,7 +4,8 @@ import type { AvailabilitySlot, HotelOffering } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import { describeForceReasons, type ForceReason } from '@/lib/strings'
+import { describeForceReasons, tr, type ForceReason } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -128,6 +129,7 @@ export function MultiDayPicker({
   originalValueLabel,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
+  const locale = browserLocale()
   // landr-aoak.2: force-book only when staff mode is active AND the session
   // carries the force_book power. Otherwise this is the normal customer picker.
   const canForce = staff.active && staff.powers.includes('force_book')
@@ -328,7 +330,7 @@ export function MultiDayPicker({
       }
       onChange(sortedDates(next))
     },
-    [anchor, availableSet, canForce, isContiguous, onChange, valueSet],
+    [anchor, availableSet, canForce, isContiguous, onChange, valueSet, setResetDroppedCount],
   )
 
   const handleSelect = (
@@ -358,14 +360,17 @@ export function MultiDayPicker({
   }, [forcedDays, forcedReasons, onForcedDaysChange])
 
   // Help text: caller override wins; contiguous has fixed copy; otherwise
-  // follows the active mode.
+  // follows the active mode. landr-5aih0.9: resolved through the bundle
+  // (locale-aware) rather than the English-only exported constants below —
+  // those stay as the documented English defaults for any external caller
+  // that still passes helpText explicitly.
   const text =
     helpText ??
     (isContiguous
-      ? CONTIGUOUS_MULTI_DAY_HELP
+      ? tr('multiDayPickerHelpContiguous', locale)
       : mode === 'individual'
-        ? DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
-        : DEFAULT_MULTI_DAY_HELP_RANGE)
+        ? tr('multiDayPickerHelp', locale)
+        : tr('multiDayPickerHelpRange', locale))
 
   // landr-otml0.3 — invite-mode diff (originalValue mode, ported from the
   // dashboard — landr-fxza.5 Section C). Purely presentational: it only
@@ -404,7 +409,7 @@ export function MultiDayPicker({
     const restorable = originalValue.filter((d) => availableSet.has(isoDate(d)))
     setResetDroppedCount(originalValue.length - restorable.length)
     onChange(restorable)
-  }, [originalValue, canForce, availableSet, onChange])
+  }, [originalValue, canForce, availableSet, onChange, setResetDroppedCount])
 
   return (
     <div className="flex flex-col gap-3">

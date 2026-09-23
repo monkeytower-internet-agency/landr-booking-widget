@@ -1,24 +1,55 @@
 import { describe, expect, it } from 'vitest'
-import { describeForceReasons, forceBookReasonMessage, pickBundle, tr } from './strings'
+import {
+  describeForceReasons,
+  forceBookReasonMessage,
+  isGermanLocale,
+  pickBundle,
+  plural,
+  tr,
+} from './strings'
 
-// landr-ifcu: widget is English-only in v1. pickBundle / tr must ignore the
-// locale argument entirely — German-locale browsers still get English copy.
-describe('strings (English-only, landr-ifcu)', () => {
-  it('pickBundle returns the English bundle for any locale', () => {
-    const en = pickBundle('en')
+// landr-5aih0.9: German UI (absorbs landr-wchwi). pickBundle/tr now resolve
+// a real locale — 'de*' gets the German bundle, everything else (including
+// no locale at all) still gets English, preserving landr-ifcu's v1 default.
+describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
+  it('pickBundle returns the German bundle for de/de-DE/de-AT, case-insensitively', () => {
     const de = pickBundle('de')
-    const deDE = pickBundle('de-DE')
-    const fr = pickBundle('fr-FR')
-    expect(en).toBe(de)
-    expect(en).toBe(deDE)
-    expect(en).toBe(fr)
+    expect(pickBundle('de-DE')).toBe(de)
+    expect(pickBundle('de-AT')).toBe(de)
+    expect(pickBundle('DE')).toBe(de)
+    expect(pickBundle('De-de')).toBe(de)
+    expect(de.multiDayPickerHelp).toMatch(/^Tippen Sie auf Tage/)
+  })
+
+  it('pickBundle falls back to English for every other locale, including none', () => {
+    const en = pickBundle('en')
+    expect(pickBundle(undefined)).toBe(en)
+    expect(pickBundle('')).toBe(en)
+    expect(pickBundle('fr-FR')).toBe(en)
+    expect(pickBundle('es')).toBe(en)
     expect(en.multiDayPickerHelp).toMatch(/^Tap days to add or remove/)
   })
 
-  it('tr returns the English string for any locale', () => {
-    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Tap days to add or remove/)
-    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Tap days to add or remove/)
+  it('tr resolves per the same locale rule as pickBundle', () => {
+    expect(tr('multiDayPickerHelp', 'de')).toMatch(/^Tippen Sie auf Tage/)
+    expect(tr('multiDayPickerHelp', 'de-DE')).toMatch(/^Tippen Sie auf Tage/)
     expect(tr('multiDayPickerHelp')).toMatch(/^Tap days to add or remove/)
+    expect(tr('multiDayPickerHelp', 'fr-FR')).toMatch(/^Tap days to add or remove/)
+  })
+
+  it('isGermanLocale matches pickBundle', () => {
+    expect(isGermanLocale('de-DE')).toBe(true)
+    expect(isGermanLocale('de')).toBe(true)
+    expect(isGermanLocale('en')).toBe(false)
+    expect(isGermanLocale(undefined)).toBe(false)
+  })
+})
+
+describe('plural', () => {
+  it('picks the singular form only for exactly 1', () => {
+    expect(plural(1, 'one', 'other')).toBe('one')
+    expect(plural(0, 'one', 'other')).toBe('other')
+    expect(plural(2, 'one', 'other')).toBe('other')
   })
 })
 

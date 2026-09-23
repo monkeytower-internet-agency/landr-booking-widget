@@ -16,6 +16,8 @@ import { HelpDisclosure } from './HelpDisclosure'
 import { NextAction } from './NextAction'
 import { OptionalReveal } from './OptionalReveal'
 import { StepBackButton } from './StepBackButton'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 
 /**
  * "Become a member" checkout CTA for subscription-kind products (landr-1kk.5).
@@ -77,19 +79,15 @@ interface Props {
   widgetToken: string
 }
 
-const ERROR_COPY: Record<ErrorKind, { title: string; body: string }> = {
-  not_found: {
-    title: 'Membership unavailable',
-    body: 'This membership option is not available right now. Please contact the operator directly.',
-  },
-  rate_limited: {
-    title: 'Too many attempts',
-    body: 'Please wait a few minutes and try again.',
-  },
-  generic: {
-    title: 'Something went wrong',
-    body: 'We could not start checkout. Please try again or contact the operator.',
-  },
+function errorCopy(kind: ErrorKind, locale?: string): { title: string; body: string } {
+  switch (kind) {
+    case 'not_found':
+      return { title: tr('membershipUnavailableTitle', locale), body: tr('membershipUnavailableBody', locale) }
+    case 'rate_limited':
+      return { title: tr('tooManyAttemptsTitle', locale), body: tr('tooManyAttemptsBody', locale) }
+    case 'generic':
+      return { title: tr('somethingWentWrong', locale).replace(/\.$/, ''), body: tr('membershipGenericErrorBody', locale) }
+  }
 }
 
 /** Current widget URL + `member=<flag>`, preserving every other query param
@@ -110,10 +108,11 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
   const [status, setStatus] = useState<Status>('form')
   const [errorKind, setErrorKind] = useState<ErrorKind>('generic')
 
+  const locale = browserLocale()
   const trimmedEmail = email.trim()
   const emailInvalid = !trimmedEmail || !trimmedEmail.includes('@')
   const emailError =
-    emailTouched && emailInvalid ? 'Enter a valid email address' : undefined
+    emailTouched && emailInvalid ? tr('enterValidEmail', locale) : undefined
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -148,10 +147,10 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
   }
 
   if (status === 'error') {
-    const { title, body } = ERROR_COPY[errorKind]
+    const { title, body } = errorCopy(errorKind, locale)
     return (
       <Card data-testid="membership-checkout-error">
-        <StepBackButton onBack={onBack} label="Back to products" />
+        <StepBackButton onBack={onBack} label={tr('backToProductsLabel', locale)} />
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{body}</CardDescription>
@@ -163,7 +162,7 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
             onClick={() => setStatus('form')}
             data-testid="membership-checkout-retry-btn"
           >
-            Try again
+            {tr('tryAgain', locale)}
           </Button>
         </CardContent>
       </Card>
@@ -174,17 +173,14 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
 
   return (
     <Card data-testid="membership-checkout-form">
-      <StepBackButton onBack={onBack} label="Back to products" />
+      <StepBackButton onBack={onBack} label={tr('backToProductsLabel', locale)} />
       <CardHeader>
-        <CardTitle>Become a member</CardTitle>
+        <CardTitle>{tr('becomeAMember', locale)}</CardTitle>
         <CardDescription>{product.name}</CardDescription>
       </CardHeader>
       <CardContent>
         <HelpDisclosure>
-          <p>
-            You&rsquo;ll be redirected to our secure payment provider to
-            complete your membership.
-          </p>
+          <p>{tr('membershipRedirectHelp', locale)}</p>
         </HelpDisclosure>
         <form
           className="flex flex-col gap-4"
@@ -192,10 +188,10 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
             void onSubmit(e)
           }}
         >
-          <NextAction active={emailInvalid} cue="enter your email">
+          <NextAction active={emailInvalid} cue={tr('enterYourEmailCue', locale)}>
             <div className="flex flex-col gap-1">
               <Label htmlFor="membership-email" className="text-xs">
-                Email
+                {tr('emailLabel', locale)}
               </Label>
               <Input
                 id="membership-email"
@@ -217,14 +213,14 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
           </NextAction>
 
           <OptionalReveal
-            thing="your name"
+            thing={tr('yourNameThing', locale)}
             hasValue={firstName.trim() !== '' || lastName.trim() !== ''}
             data-testid="membership-name-reveal"
           >
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="membership-first-name" className="text-xs">
-                  First name (optional)
+                  {tr('firstNameLabel', locale)} {tr('optionalSuffix', locale)}
                 </Label>
                 <Input
                   id="membership-first-name"
@@ -237,7 +233,7 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="membership-last-name" className="text-xs">
-                  Last name (optional)
+                  {tr('lastNameLabel', locale)} {tr('optionalSuffix', locale)}
                 </Label>
                 <Input
                   id="membership-last-name"
@@ -251,13 +247,13 @@ export function MembershipCheckoutStep({ product, onBack, widgetToken }: Props) 
             </div>
           </OptionalReveal>
 
-          <NextAction active={!emailInvalid && !busy} cue="become a member" className="mt-2">
+          <NextAction active={!emailInvalid && !busy} cue={tr('becomeAMemberCue', locale)} className="mt-2">
             <Button
               type="submit"
               disabled={busy}
               data-testid="membership-checkout-submit-btn"
             >
-              {busy ? 'Redirecting to payment…' : 'Become a member'}
+              {busy ? tr('redirectingToPaymentDots', locale) : tr('becomeAMember', locale)}
             </Button>
           </NextAction>
         </form>

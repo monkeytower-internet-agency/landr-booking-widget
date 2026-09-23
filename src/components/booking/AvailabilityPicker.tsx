@@ -19,7 +19,8 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
-import { availabilityGate, tr } from '@/lib/strings'
+import { availabilityGate, availableDaysForLabel, tr } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 
@@ -60,6 +61,7 @@ export function AvailabilityPicker({
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
     initialSlot ? slotKey(initialSlot) : null,
   )
+  const locale = browserLocale()
 
   const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
 
@@ -112,7 +114,7 @@ export function AvailabilityPicker({
       <Card>
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Could not load availability.</CardTitle>
+          <CardTitle>{tr('couldNotLoadAvailability', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -123,15 +125,15 @@ export function AvailabilityPicker({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pick a date</CardTitle>
-        <CardDescription>Available days for {product.name}.</CardDescription>
+        <CardTitle>{tr('pickADate', locale)}</CardTitle>
+        <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* landr-80ubl.2: one-next-action rule — three stages in sequence
             (date, then time, then Continue). Each NextAction is active only
             for its own stage; ContinueAction (active by default) takes over
             once a time is picked. */}
-        <NextAction active={!selectedDate} cue={tr('availabilityDateCue')}>
+        <NextAction active={!selectedDate} cue={tr('availabilityDateCue', locale)}>
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -153,10 +155,10 @@ export function AvailabilityPicker({
           ) : null}
         </NextAction>
         {selectedDate ? (
-          <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue')}>
+          <NextAction active={!selectedSlotId} cue={tr('availabilityTimeCue', locale)}>
             <p className="text-sm font-medium">Times on {isoDate(selectedDate)}</p>
             {slotsForSelectedDate.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No times available.</p>
+              <p className="text-sm text-muted-foreground">{tr('noTimesAvailable', locale)}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {slotsForSelectedDate.map((slot) => (
@@ -166,7 +168,7 @@ export function AvailabilityPicker({
                     variant={selectedSlotId === slotKey(slot) ? 'default' : 'outline'}
                     onClick={() => setSelectedSlotId(slotKey(slot))}
                   >
-                    {slot.start_time?.slice(0, 5) ?? 'Any time'}
+                    {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
                     {exposeSeatsToCustomer ? (
                       <span className="ml-2 text-xs text-muted-foreground">
                         {slot.available_seats} seats
@@ -180,7 +182,7 @@ export function AvailabilityPicker({
         ) : null}
         <ContinueAction
           ready={!!selectedSlotId}
-          reason={availabilityGate(!!selectedDate, !!selectedSlotId)}
+          reason={availabilityGate(!!selectedDate, !!selectedSlotId, locale)}
           reasonId="availability-picker-gate"
           onContinue={() => {
             const slot = slotsForSelectedDate.find(

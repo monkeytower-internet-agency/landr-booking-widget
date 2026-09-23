@@ -104,7 +104,7 @@ export function CategoryTile({
     group.description_localized,
     locale,
   )
-  const countLabel = offerCountLabel(group)
+  const countLabel = offerCountLabel(group, locale)
   // landr-872c: FULLY SOLD-OUT — render disabled, never navigate, never hide.
   const fullySoldOut = isCategoryFullySoldOut(group)
   // image_url is OPTIONAL on the wire; undefined is treated as "no image".

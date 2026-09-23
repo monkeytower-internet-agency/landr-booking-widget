@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { submitGroupInquiry } from '@/api/client'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { NextAction } from './NextAction'
 
 export interface GroupInquiryFormProps {
@@ -65,6 +67,7 @@ export function GroupInquiryForm({
   const [partySize, setPartySize] = useState('')
   const [message, setMessage] = useState('')
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
+  const locale = browserLocale()
 
   // Field-level touched tracking (same pattern as DetailsStep).
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set())
@@ -73,11 +76,11 @@ export function GroupInquiryForm({
 
   // Required-field validation helpers (only name + email are required).
   const requiredError = (key: string, value: string): string | undefined =>
-    touched.has(key) && !value.trim() ? 'Required' : undefined
+    touched.has(key) && !value.trim() ? tr('required', locale) : undefined
   const emailError = (key: string, value: string): string | undefined => {
     if (!touched.has(key)) return undefined
-    if (!value.trim()) return 'Required'
-    if (!value.includes('@')) return 'Enter a valid email address'
+    if (!value.trim()) return tr('required', locale)
+    if (!value.includes('@')) return tr('enterValidEmail', locale)
     return undefined
   }
   // Group size is optional: only flag a value that is present AND invalid.
@@ -85,7 +88,7 @@ export function GroupInquiryForm({
     if (!touched.has('party_size')) return undefined
     if (!partySize.trim()) return undefined
     const n = Number(partySize)
-    if (isNaN(n) || n < 1) return 'Enter a valid group size'
+    if (isNaN(n) || n < 1) return tr('enterValidGroupSize', locale)
     return undefined
   }
 
@@ -133,7 +136,7 @@ export function GroupInquiryForm({
           className="text-sm font-medium text-primary"
           data-testid="group-inquiry-success"
         >
-          Thanks — we&rsquo;ll be in touch!
+          {tr('thanksWellBeInTouch', locale)}
         </p>
         {onCancel ? (
           <div className="flex justify-end">
@@ -144,7 +147,7 @@ export function GroupInquiryForm({
               onClick={onCancel}
               data-testid="group-inquiry-close"
             >
-              Close
+              {tr('closeLabel', locale)}
             </Button>
           </div>
         ) : null}
@@ -159,12 +162,12 @@ export function GroupInquiryForm({
       data-testid="group-inquiry-form"
       noValidate
     >
-      <NextAction active={!isValid} cue="add your name and email">
+      <NextAction active={!isValid} cue={tr('addYourNameAndEmailCue', locale)}>
       <div className="grid gap-3 sm:grid-cols-2">
         {/* Name (required) */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="inquiry-name" className="text-xs">
-            Your name
+            {tr('yourNameLabel', locale)}
           </Label>
           <Input
             id="inquiry-name"
@@ -186,7 +189,7 @@ export function GroupInquiryForm({
         {/* Email (required) */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="inquiry-email" className="text-xs">
-            Email
+            {tr('emailLabel', locale)}
           </Label>
           <Input
             id="inquiry-email"
@@ -212,7 +215,7 @@ export function GroupInquiryForm({
         {/* Phone (optional, landr-amg6) */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="inquiry-phone" className="text-xs">
-            Phone <span className="text-muted-foreground">(optional)</span>
+            {tr('phoneLabel', locale)} <span className="text-muted-foreground">{tr('optionalSuffix', locale)}</span>
           </Label>
           <Input
             id="inquiry-phone"
@@ -227,7 +230,7 @@ export function GroupInquiryForm({
         {/* Group size (optional) */}
         <div className="flex flex-col gap-1">
           <Label htmlFor="inquiry-party-size" className="text-xs">
-            Group size <span className="text-muted-foreground">(optional)</span>
+            {tr('groupSizeLabel', locale)} <span className="text-muted-foreground">{tr('optionalSuffix', locale)}</span>
           </Label>
           <Input
             id="inquiry-party-size"
@@ -251,7 +254,7 @@ export function GroupInquiryForm({
       {/* Message (optional) */}
       <div className="flex flex-col gap-1">
         <Label htmlFor="inquiry-message" className="text-xs">
-          Message <span className="text-muted-foreground">(optional)</span>
+          {tr('messageLabel', locale)} <span className="text-muted-foreground">{tr('optionalSuffix', locale)}</span>
         </Label>
         <textarea
           id="inquiry-message"
@@ -260,7 +263,7 @@ export function GroupInquiryForm({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-          placeholder="Tell us about your group, preferred dates, and any questions…"
+          placeholder={tr('groupInquiryPlaceholder', locale)}
         />
       </div>
 
@@ -271,7 +274,7 @@ export function GroupInquiryForm({
           className="text-xs text-muted-foreground"
           data-testid="group-inquiry-error"
         >
-          Couldn&rsquo;t send your message. Please get in touch
+          {tr('couldNotSendMessage', locale)}
           {contactMailto ? ': ' : '.'}
           {contactMailto ? (
             <a
@@ -298,7 +301,7 @@ export function GroupInquiryForm({
               disabled={submitState === 'loading'}
               data-testid="group-inquiry-cancel"
             >
-              Cancel
+              {tr('cancelLabel', locale)}
             </Button>
           ) : null}
           <Button
@@ -307,7 +310,7 @@ export function GroupInquiryForm({
             disabled={!isValid || submitState === 'loading'}
             data-testid="group-inquiry-submit"
           >
-            {submitState === 'loading' ? 'Sending…' : 'Send enquiry'}
+            {submitState === 'loading' ? tr('sendingEllipsis', locale) : tr('sendEnquiry', locale)}
           </Button>
         </div>
         {/* Always keep mailto as a secondary escape hatch */}
@@ -319,7 +322,7 @@ export function GroupInquiryForm({
             className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             data-testid="participants-contact-mailto"
           >
-            Or email us
+            {tr('orEmailUs', locale)}
           </a>
         ) : null}
       </div>

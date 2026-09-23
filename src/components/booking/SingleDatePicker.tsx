@@ -3,7 +3,8 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import { singleDateGate, tr, type ForceReason } from '@/lib/strings'
+import { availableDaysForLabel, singleDateGate, tr, type ForceReason } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import {
   Card,
   CardContent,
@@ -70,6 +71,7 @@ export function SingleDatePicker({
   initialSelectedDays,
 }: Props) {
   const staff = useStaffMode()
+  const locale = browserLocale()
   // landr-aoak.2: force-book is only offered when staff mode is active AND the
   // session carries the force_book power. Otherwise this is the normal picker.
   const canForce = staff.active && staff.powers.includes('force_book')
@@ -201,7 +203,7 @@ export function SingleDatePicker({
       <Card>
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Could not load availability.</CardTitle>
+          <CardTitle>{tr('couldNotLoadAvailability', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -212,14 +214,14 @@ export function SingleDatePicker({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pick a date</CardTitle>
-        <CardDescription>Available days for {product.name}.</CardDescription>
+        <CardTitle>{tr('pickADate', locale)}</CardTitle>
+        <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* landr-80ubl.2: one-next-action rule — the calendar owns the ring
             until a date is picked, then ContinueAction (active by default)
             takes over. */}
-        <NextAction active={selected === null} cue={tr('singleDatePickerCue')}>
+        <NextAction active={selected === null} cue={tr('singleDatePickerCue', locale)}>
           <Calendar
             mode="single"
             selected={selected ?? undefined}
@@ -258,7 +260,7 @@ export function SingleDatePicker({
         </NextAction>
         <ContinueAction
           ready={selected !== null}
-          reason={singleDateGate(selected !== null)}
+          reason={singleDateGate(selected !== null, locale)}
           reasonId="single-date-picker-gate"
           onContinue={() => {
             if (selected) {

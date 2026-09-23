@@ -39,6 +39,8 @@ import { cn } from '@/lib/utils'
 import { deriveStayWindow, type RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
+import { browserLocale } from '@/lib/locale'
+import { forNamesLine, hotelSpanLabel, qtyTimesUnits, tr } from '@/lib/strings'
 import { DayChips } from './DayChips'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
@@ -111,23 +113,23 @@ function BookingOverviewBody({
   selectedDays,
   accommodationCheckinOffsetDays,
 }: BookingOverviewBodyProps) {
+  const locale = browserLocale()
   if (!data && isLoading) {
     return (
-      <p className="text-sm text-muted-foreground">Calculating…</p>
+      <p className="text-sm text-muted-foreground">{tr('calculatingEllipsis', locale)}</p>
     )
   }
   if (!data && error) {
     return (
       <p className="text-sm text-muted-foreground">
-        Couldn&apos;t fetch price — your final total will be shown at
-        confirmation.
+        {tr('couldNotFetchPrice', locale)}
       </p>
     )
   }
   if (!data) {
     return (
       <p className="text-sm text-muted-foreground">
-        Pick your options to see the price.
+        {tr('pickYourOptionsToSeePrice', locale)}
       </p>
     )
   }
@@ -183,18 +185,18 @@ function BookingOverviewBody({
         {data.applied_rules
           .filter((r) => isDiscountRule(r.kind))
           .map((rule, idx) => {
-            const lines = buildDiscountExplanation(rule, data.currency)
+            const lines = buildDiscountExplanation(rule, data.currency, locale)
             return (
               // landr-8sk6l: chip and heading share one line so the block
               // stays compact inside the price well.
               <li key={`rule-${idx}`} data-testid="price-sidebar-discount">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
-                    {discountLabel(rule.kind)}
+                    {discountLabel(rule.kind, locale)}
                   </span>
                   {lines.length > 0 ? (
                     <span className="text-xs font-medium text-foreground/80">
-                      {explanationHeading(rule.kind)}
+                      {explanationHeading(rule.kind, locale)}
                     </span>
                   ) : null}
                 </div>
@@ -224,7 +226,7 @@ function BookingOverviewBody({
       {operator.length > 0 ? (
         <section data-testid="price-sidebar-operator-section">
           <h4 className="mb-1 text-sm font-semibold text-foreground">
-            You pay now
+            {tr('youPayNowHeading', locale)}
           </h4>
           <ul className="space-y-2 text-sm">
             {operator.map((li) => (
@@ -242,13 +244,12 @@ function BookingOverviewBody({
                   <DayChips dates={selectedDays} />
                   {li.qty > 1 ? (
                     <span className="mt-1 block text-xs text-muted-foreground">
-                      {li.qty} × {li.units}{' '}
-                      {li.units === 1 ? 'day' : 'days'}
+                      {qtyTimesUnits(li.qty, li.units, 'day', locale)}
                     </span>
                   ) : null}
                 </span>
                 <span className="tabular-nums">
-                  {formatMoney(li.line_total, data.currency)}
+                  {formatMoney(li.line_total, data.currency, locale)}
                 </span>
               </li>
             ))}
@@ -270,7 +271,7 @@ function BookingOverviewBody({
             savings={data.savings}
             amountDue={data.amount_due ?? data.operator_total}
             currency={data.currency}
-            totalLabel="Amount due"
+            totalLabel={tr('amountDueLabel', locale)}
             totalClassName="mt-3 rounded-lg bg-primary/5 px-3 py-2 shadow-well text-base"
             testIdPrefix="price-sidebar"
             details={discountBlock}
@@ -288,16 +289,19 @@ function BookingOverviewBody({
           className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/40"
         >
           <h4 className="mb-1 text-sm font-semibold text-foreground">
-            At-hotel total · pay at check-in
+            {tr('atHotelTotalPayAtCheckin', locale)}
           </h4>
           {stay && stay.checkInIso && stay.checkOutIso ? (
             <p
               className="mb-2 text-xs text-muted-foreground"
               data-testid="price-sidebar-hotel-span"
             >
-              Hotel: {formatDayLabel(stay.checkInIso)} →{' '}
-              {formatDayLabel(stay.checkOutIso)}, {stay.nights}{' '}
-              {stay.nights === 1 ? 'night' : 'nights'}
+              {hotelSpanLabel(
+                formatDayLabel(stay.checkInIso, locale),
+                formatDayLabel(stay.checkOutIso, locale),
+                stay.nights,
+                locale,
+              )}
             </p>
           ) : null}
           <ul className="space-y-1 text-sm">
@@ -309,11 +313,11 @@ function BookingOverviewBody({
                 <span className="flex-1">
                   <span className="block">{li.label}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {li.qty} × {li.units} {li.units === 1 ? 'night' : 'nights'}
+                    {qtyTimesUnits(li.qty, li.units, 'night', locale)}
                   </span>
                 </span>
                 <span className="tabular-nums">
-                  {formatMoney(li.line_total, data.currency)}
+                  {formatMoney(li.line_total, data.currency, locale)}
                 </span>
               </li>
             ))}
@@ -322,17 +326,16 @@ function BookingOverviewBody({
             className="mt-2 flex items-baseline justify-between border-t border-amber-200 pt-2 text-sm dark:border-amber-900"
             data-testid="price-sidebar-hotel-total"
           >
-            <span className="font-medium">Subtotal</span>
+            <span className="font-medium">{tr('offerSubtotalLabel', locale)}</span>
             <span className="font-medium tabular-nums">
-              {formatMoney(data.hotel_total, data.currency)}
+              {formatMoney(data.hotel_total, data.currency, locale)}
             </span>
           </div>
           <p
             className="mt-2 text-xs italic text-muted-foreground"
             data-testid="price-sidebar-hotel-caveat"
           >
-            Paid directly to the hotel at check-in. Not included in your
-            booking total.
+            {tr('payableDirectlyToHotelCaveat', locale)}
           </p>
         </section>
       ) : null}
@@ -341,12 +344,12 @@ function BookingOverviewBody({
         className="flex items-baseline justify-between border-t pt-3"
         data-testid="price-sidebar-grand-total"
       >
-        <span className="text-base font-semibold">Grand total</span>
+        <span className="text-base font-semibold">{tr('grandTotalLabel', locale)}</span>
         {isLoading ? (
           <div className="h-4 w-16 animate-pulse rounded bg-muted" />
         ) : (
           <span className="text-base font-semibold tabular-nums">
-            {formatMoney(data.grand_total, data.currency)}
+            {formatMoney(data.grand_total, data.currency, locale)}
           </span>
         )}
       </div>
@@ -355,7 +358,7 @@ function BookingOverviewBody({
           className="text-xs text-muted-foreground"
           data-testid="price-sidebar-stale"
         >
-          Updating…
+          {tr('updatingEllipsis', locale)}
         </p>
       ) : null}
     </div>
@@ -363,15 +366,15 @@ function BookingOverviewBody({
 }
 
 /** Human label for the supported discount-rule kinds. */
-function discountLabel(kind: string): string {
+function discountLabel(kind: string, locale?: string): string {
   switch (kind) {
     case 'per_total_days_tier':
-      return 'Multi-day discount'
+      return tr('multiDayDiscountLabel', locale)
     case 'per_streak_tier':
-      return 'Streak discount'
+      return tr('streakDiscountLabel', locale)
     case 'voucher_percent':
     case 'voucher_fixed':
-      return 'Voucher applied'
+      return tr('voucherAppliedLabel', locale)
     default:
       return kind
   }
@@ -382,11 +385,11 @@ function discountLabel(kind: string): string {
  * WHY in plain language — both tier kinds resolve to "Multi-day rate
  * applied" since that's the reason the per-day price dropped.
  */
-function explanationHeading(kind: string): string {
+function explanationHeading(kind: string, locale?: string): string {
   switch (kind) {
     case 'per_streak_tier':
     case 'per_total_days_tier':
-      return 'Multi-day rate applied'
+      return tr('multiDayRateAppliedHeading', locale)
     default:
       return ''
   }
@@ -413,14 +416,15 @@ export default function PriceSidebar(props: Props) {
   // Human-friendly "for Ada, Grace + 1 other" line. Only renders when
   // DetailsStep has surfaced the names (landr-8c03). Three or fewer
   // names: list them all; otherwise show the first two + "+N others".
+  const locale = browserLocale()
   const namesLine = useMemo(() => {
     const names = (participantNames ?? []).filter((n) => n.length > 0)
     if (names.length === 0) return null
-    if (names.length <= 3) return `For ${names.join(', ')}`
-    const head = names.slice(0, 2).join(', ')
+    if (names.length <= 3) return forNamesLine(names, 0, locale)
+    const head = names.slice(0, 2)
     const rest = names.length - 2
-    return `For ${head} + ${rest} other${rest === 1 ? '' : 's'}`
-  }, [participantNames])
+    return forNamesLine(head, rest, locale)
+  }, [participantNames, locale])
 
   // landr-hpyn: never price an empty selection. selectedDays only ever
   // arrives empty on the pick-selection step BEFORE the customer has
@@ -522,11 +526,12 @@ export default function PriceSidebar(props: Props) {
     ? formatMoney(
         visible.data.amount_due ?? visible.data.operator_total,
         visible.data.currency,
+        locale,
       )
     : '—'
   const atHotelLabel =
     visible.data && Number(visible.data.hotel_total) > 0
-      ? formatMoney(visible.data.hotel_total, visible.data.currency)
+      ? formatMoney(visible.data.hotel_total, visible.data.currency, locale)
       : null
 
   return (
@@ -541,12 +546,12 @@ export default function PriceSidebar(props: Props) {
             canvas. */}
         <div className="sticky top-6 rounded-xl border bg-surface-card p-4 shadow-elev-2">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-base font-semibold">Booking overview</h3>
+            <h3 className="text-base font-semibold">{tr('bookingOverviewTitle', locale)}</h3>
             {visible.isStale ? (
               <button
                 type="button"
                 onClick={visible.refresh}
-                title="Update price"
+                title={tr('updatePriceTitle', locale)}
                 data-testid="price-sidebar-refresh"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
@@ -606,7 +611,7 @@ export default function PriceSidebar(props: Props) {
         >
           <span className="flex min-w-0 flex-col">
             <span className="text-xs font-medium text-muted-foreground">
-              Amount due
+              {tr('amountDueLabel', locale)}
             </span>
             <span className="text-lg font-semibold tabular-nums text-foreground">
               {bookingTotalLabel}
@@ -616,7 +621,7 @@ export default function PriceSidebar(props: Props) {
                 className="text-xs text-muted-foreground"
                 data-testid="price-sidebar-mobile-athotel"
               >
-                + {atHotelLabel} at hotel
+                + {atHotelLabel} {tr('atHotelSuffix', locale)}
               </span>
             ) : null}
           </span>
@@ -636,7 +641,7 @@ export default function PriceSidebar(props: Props) {
                 )}
                 aria-hidden={mobileOpen || undefined}
               >
-                Tap to expand
+                {tr('tapToExpand', locale)}
               </span>
               <span
                 className={cn(
@@ -645,7 +650,7 @@ export default function PriceSidebar(props: Props) {
                 )}
                 aria-hidden={!mobileOpen || undefined}
               >
-                Tap to collapse
+                {tr('tapToCollapse', locale)}
               </span>
             </span>
             <ChevronUp

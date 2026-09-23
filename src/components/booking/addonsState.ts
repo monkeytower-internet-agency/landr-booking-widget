@@ -6,6 +6,7 @@
  * trigger the rule and block CI; see landr-znl history).
  */
 import type { ProductAddon, ProductKind } from '@/api/types'
+import { tr } from '@/lib/strings'
 
 /** Single line item: an add-on product + how many of it the customer picked. */
 export interface AddonSelection {
@@ -79,12 +80,14 @@ export function clampAddonQty(
 export function requiredAddonError(
   addon: ProductAddon,
   qty: number,
+  locale?: string,
 ): string | null {
   if (!addon.is_required) return null
   if (qty >= addon.min_qty && qty >= 1) return null
-  return addon.min_qty > 1
-    ? `Required — pick at least ${addon.min_qty}`
-    : 'Required'
+  if (addon.min_qty > 1) {
+    return tr('requiredPickAtLeastTemplate', locale).replace('{n}', String(addon.min_qty))
+  }
+  return tr('required', locale)
 }
 
 /**

@@ -19,6 +19,7 @@
  * reader; the control's own gate/status text carries announcements.
  */
 import type { ReactNode } from 'react'
+import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
@@ -50,7 +51,7 @@ export function NextAction({
     >
       {active ? (
         <p className="text-xs font-semibold text-primary" data-testid="next-action-cue">
-          {tr('nextActionPrefix')} {cue}
+          {tr('nextActionPrefix', browserLocale())} {cue}
         </p>
       ) : null}
       {children}

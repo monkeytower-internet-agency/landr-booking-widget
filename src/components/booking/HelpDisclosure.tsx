@@ -10,6 +10,7 @@
  *   </HelpDisclosure>
  */
 import { useId, useState, type ReactNode } from 'react'
+import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +24,7 @@ export interface HelpDisclosureProps {
 
 export function HelpDisclosure({
   children,
-  label = tr('helpDisclosureLabel'),
+  label = tr('helpDisclosureLabel', browserLocale()),
   className,
   'data-testid': testId = 'help-disclosure',
 }: HelpDisclosureProps) {

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { ContinueAction } from './ContinueAction'
@@ -95,26 +96,26 @@ export function PickupLocationPicker({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pickup location</CardTitle>
+        <CardTitle>{tr('pickupLocationTitle', locale)}</CardTitle>
         <CardDescription>
-          {productName} · Choose where we pick you up
+          {productName} · {tr('chooseWhereWePickYouUp', locale)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">
-            Loading pickup locations…
+            {tr('loadingPickupLocations', locale)}
           </p>
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : locations.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No pickup locations configured — contact operator
+            {tr('noPickupLocationsConfigured', locale)}
           </p>
         ) : (
-          <NextAction active={!selected} cue="choose your pickup location">
+          <NextAction active={!selected} cue={tr('pickupLocationCue', locale)}>
             <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Pickup location</legend>
+            <legend className="sr-only">{tr('pickupLocationTitle', locale)}</legend>
             {locations.map((loc) => {
               const name = pickLocalized(loc.name, loc.name_localized, locale)
               const isSelected = selected === loc.location_id
@@ -177,7 +178,7 @@ export function PickupLocationPicker({
 
         <ContinueAction
           ready={!!selected && !loading}
-          reason={selected ? 'Ready to continue.' : 'Choose a pickup location to continue.'}
+          reason={selected ? tr('readyToContinue', locale) : tr('choosePickupLocationToContinue', locale)}
           reasonId="pickup-step-gate"
           onContinue={() => {
             if (selected) onConfirm(selected)

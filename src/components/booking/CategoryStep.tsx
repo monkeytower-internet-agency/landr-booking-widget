@@ -216,7 +216,7 @@ export function CategoryStep({
         data-variant={variant}
       >
         <p className="text-sm text-muted-foreground">
-          No categories are available right now.
+          {tr('noCategoriesAvailable', locale)}
         </p>
       </div>
     )
@@ -235,7 +235,7 @@ export function CategoryStep({
       {/* landr-80ubl.2: one-next-action rule — picking a tile navigates
           straight on, so the whole grid/list IS the one pending control
           until the customer taps a tile. */}
-      <NextAction active cue={tr('categoryStepCue')}>
+      <NextAction active cue={tr('categoryStepCue', locale)}>
         {view === 'grid' ? (
           <ul
             className={cn('grid list-none', gridCols, gridGap)}
