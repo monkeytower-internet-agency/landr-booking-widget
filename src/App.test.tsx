@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
@@ -1591,13 +1591,29 @@ describe('App', () => {
       // (Double Room visible), NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
       await backPastLanguageStep()
-      // Explicit timeout: this hop re-mounts AccommodationStep and re-runs its
-      // hotel/room fetches behind a step transition, and it is the one
-      // assertion in this file that has been observed to time out on the 1s
-      // default under a cold, loaded run (landr-r6e5x.4). Nothing about the
-      // behaviour is slow — the default is just too tight for this step.
+      // landr-ykzuq: the REAL race, found by raising this wait's timeout and
+      // reading the failure it was actually hiding. This hop re-mounts
+      // AccommodationStep, which re-fetches hotels/rooms (landr-r6e5x.4's
+      // "too tight on a cold, loaded run" — true, hence the explicit
+      // timeout), AND the still-mounted PriceSidebar independently re-fetches
+      // its own price estimate and renders a line item with the SAME room
+      // name text (PriceSidebar.tsx's `li.label`). A bare
+      // screen.getByText('Double Room') is unambiguous only in the WINDOW
+      // before the sidebar's re-render lands — once both have settled (which
+      // happens more often, not less, the longer this waits) there are two
+      // matching elements and getByText throws "Found multiple elements",
+      // which waitFor keeps retrying against a query that can never resolve
+      // to exactly one match again, exhausting the timeout. Scoping into the
+      // room card by its stable per-product testid (added alongside this
+      // fix, see AccommodationStep.tsx) makes the query correct regardless
+      // of how many other places on the page also say "Double Room".
       await waitFor(
-        () => expect(screen.getByText('Double Room')).toBeInTheDocument(),
+        () =>
+          expect(
+            within(screen.getByTestId('room-card-room-double')).getByText(
+              'Double Room',
+            ),
+          ).toBeInTheDocument(),
         { timeout: 5000 },
       )
       // Sanity: we did not land on a pickup picker.
