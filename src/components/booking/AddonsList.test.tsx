@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProductAddon } from '@/api/types'
 import { AddonsList } from './AddonsList'
@@ -478,5 +478,37 @@ describe('AddonsList (landr-cip6)', () => {
     const warn = screen.getByTestId('addon-underbook-bf')
     expect(warn).toHaveTextContent(/a room that sleeps 2/i)
     expect(warn).toHaveTextContent(/one per guest/i)
+  })
+})
+
+// landr-5aih0.27: the quantity-stepper aria-labels were a raw template
+// literal (`Decrease ${addonName} quantity`) the AST guard couldn't see
+// before this ticket extended it to JSX-attribute template expressions —
+// proves the fix actually renders translated, not just that the guard
+// stops flagging the source.
+describe('AddonsList — German UI (landr-5aih0.27)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('translates the quantity-stepper aria-labels to German', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    const addon = makeAddon({ addon_product_id: 'bf', name: 'Breakfast' })
+    render(
+      <AddonsList
+        addons={[addon]}
+        selection={{ bf: 1 }}
+        onChange={vi.fn()}
+        expectedQty={1}
+      />,
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Menge von Breakfast verringern' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Menge von Breakfast erhöhen' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Decrease|Increase/ })).not.toBeInTheDocument()
   })
 })

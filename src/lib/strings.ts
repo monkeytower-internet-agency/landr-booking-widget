@@ -520,6 +520,23 @@ type Bundle = {
   tapToCollapse: string
   atHotelSuffix: string
   qtyTimesDayTemplate: string
+
+  // ---- landr-5aih0.27: JSX-attribute template-literal strings (AddonsList,
+  // AccommodationStep, RoomAssignment, ParticipantLanguageBoard,
+  // RankedLanguagePicker, DetailsStep) ----
+  decreaseQtyAriaTemplate: string
+  increaseQtyAriaTemplate: string
+  ownerHasBreakfastTemplate: string
+  breakfastDragHintTemplate: string
+  roomUnitAriaTemplate: string
+  assignToRoomTemplate: string
+  languageSpeakersTemplate: string
+  removeLanguageTemplate: string
+  reorderLanguageTemplate: string
+  removeParticipantAriaTemplate: string
+  removeCompanionAriaTemplate: string
+  useYourEmailAria: string
+  useYourPhoneAria: string
 }
 
 const en: Bundle = {
@@ -1029,6 +1046,21 @@ const en: Bundle = {
   tapToCollapse: 'Tap to collapse',
   atHotelSuffix: 'at hotel',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
+
+  // ---- landr-5aih0.27 ----
+  decreaseQtyAriaTemplate: 'Decrease {item} quantity',
+  increaseQtyAriaTemplate: 'Increase {item} quantity',
+  ownerHasBreakfastTemplate: '{owner} has breakfast',
+  breakfastDragHintTemplate: "{owner}'s breakfast — drag onto another guest to move it",
+  roomUnitAriaTemplate: '{room} — unit {n}',
+  assignToRoomTemplate: 'Assign {name} to a room',
+  languageSpeakersTemplate: '{language} speakers',
+  removeLanguageTemplate: 'Remove {language}',
+  reorderLanguageTemplate: 'Reorder {language}',
+  removeParticipantAriaTemplate: 'Remove participant {n}',
+  removeCompanionAriaTemplate: 'Remove companion {n}',
+  useYourEmailAria: 'Use your email',
+  useYourPhoneAria: 'Use your phone',
 }
 
 const de: Bundle = {
@@ -1537,6 +1569,21 @@ const de: Bundle = {
   tapToCollapse: 'Zum Einklappen tippen',
   atHotelSuffix: 'im Hotel',
   qtyTimesDayTemplate: '{qty} × {units} {unitWord}',
+
+  // ---- landr-5aih0.27 ----
+  decreaseQtyAriaTemplate: 'Menge von {item} verringern',
+  increaseQtyAriaTemplate: 'Menge von {item} erhöhen',
+  ownerHasBreakfastTemplate: '{owner} hat Frühstück',
+  breakfastDragHintTemplate: 'Frühstück von {owner} — auf einen anderen Gast ziehen, um es zu verschieben',
+  roomUnitAriaTemplate: '{room} — Einheit {n}',
+  assignToRoomTemplate: '{name} einem Zimmer zuweisen',
+  languageSpeakersTemplate: '{language}-Sprechende',
+  removeLanguageTemplate: '{language} entfernen',
+  reorderLanguageTemplate: '{language} verschieben',
+  removeParticipantAriaTemplate: 'Teilnehmer {n} entfernen',
+  removeCompanionAriaTemplate: 'Begleitperson {n} entfernen',
+  useYourEmailAria: 'E-Mail übernehmen',
+  useYourPhoneAria: 'Telefon übernehmen',
 }
 
 /**
@@ -2124,4 +2171,81 @@ export function timesOnLabel(dateLabel: string, locale?: string): string {
 export function seatsCountLabel(n: number, locale?: string): string {
   const t = pickBundle(locale)
   return `${n} ${plural(n, t.seatSingular, t.seatPlural)}`
+}
+
+/**
+ * landr-5aih0.27: JSX-attribute template-literal strings — the ~15 aria-
+ * label/title values the noEnglishLiteral AST guard couldn't see before
+ * this ticket extended it to walk JsxAttribute → TemplateExpression (see
+ * noEnglishLiteral.test.ts's header). Each of these replaces a raw
+ * `` `Some text ${x}` `` attribute value with a bundle-backed call.
+ */
+
+/** AddonsList / AccommodationStep quantity-stepper aria-label ("Decrease {item} quantity" / "Increase {item} quantity"). */
+export function qtyAdjustAriaLabel(
+  direction: 'decrease' | 'increase',
+  itemName: string,
+  locale?: string,
+): string {
+  const key = direction === 'decrease' ? 'decreaseQtyAriaTemplate' : 'increaseQtyAriaTemplate'
+  return tr(key, locale).replace('{item}', itemName)
+}
+
+/** RoomAssignment's static (all-mode) breakfast chip aria-label: "{owner} has breakfast". */
+export function ownerHasBreakfastLabel(ownerLabel: string, locale?: string): string {
+  return tr('ownerHasBreakfastTemplate', locale).replace('{owner}', ownerLabel)
+}
+
+/** RoomAssignment's draggable breakfast chip aria-label — names the owner and the drag affordance. */
+export function breakfastDragHintLabel(ownerLabel: string, locale?: string): string {
+  return tr('breakfastDragHintTemplate', locale).replace('{owner}', ownerLabel)
+}
+
+/** RoomAssignment's room-unit droppable aria-label: "{room} — unit {n}". */
+export function roomUnitAriaLabel(roomName: string, unitNumber: number, locale?: string): string {
+  return tr('roomUnitAriaTemplate', locale).replace('{room}', roomName).replace('{n}', String(unitNumber))
+}
+
+/** RoomAssignment's unassigned-tray inline select aria-label: "Assign {name} to a room". */
+export function assignToRoomAriaLabel(name: string, locale?: string): string {
+  return tr('assignToRoomTemplate', locale).replace('{name}', name)
+}
+
+/** ParticipantLanguageBoard column aria-label: "{language} speakers". */
+export function languageSpeakersAriaLabel(languageDisplayName: string, locale?: string): string {
+  return tr('languageSpeakersTemplate', locale).replace('{language}', languageDisplayName)
+}
+
+/** ParticipantLanguageBoard's "close an empty language column" aria-label: "Remove {language}". */
+export function removeLanguageAriaLabel(languageDisplayName: string, locale?: string): string {
+  return tr('removeLanguageTemplate', locale).replace('{language}', languageDisplayName)
+}
+
+/** RankedLanguagePicker's drag-handle aria-label: "Reorder {language}". */
+export function reorderLanguageAriaLabel(languageDisplayName: string, locale?: string): string {
+  return tr('reorderLanguageTemplate', locale).replace('{language}', languageDisplayName)
+}
+
+/** DetailsStep's per-row remove-participant button aria-label: "Remove participant {n}". */
+export function removeParticipantAriaLabel(n: number, locale?: string): string {
+  return tr('removeParticipantAriaTemplate', locale).replace('{n}', String(n))
+}
+
+/** DetailsStep's per-row remove-companion button aria-label: "Remove companion {n}". */
+export function removeCompanionAriaLabel(n: number, locale?: string): string {
+  return tr('removeCompanionAriaTemplate', locale).replace('{n}', String(n))
+}
+
+/**
+ * DetailsStep's "copy from booker" affordance aria-label / title ("Use
+ * your email" / "Use your phone"). Named without a `use` prefix
+ * (landr-5aih0.27 review fix) — eslint's react-hooks/rules-of-hooks
+ * treats any `useXxx`-named function as a Hook and flags a call inside
+ * a conditional-return component (CopyFromBookerButton's early `return
+ * null`) as a rules-of-hooks violation, even though this is a plain
+ * string-lookup helper with no hook behavior at all.
+ */
+export function copyFromBookerAriaLabel(field: 'email' | 'phone', locale?: string): string {
+  const t = pickBundle(locale)
+  return field === 'email' ? t.useYourEmailAria : t.useYourPhoneAria
 }

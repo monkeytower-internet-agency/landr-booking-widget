@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { ProductAddon } from '@/api/types'
 import { browserLocale, pickLocalized } from '@/lib/locale'
-import { addonDeviationMessage, tr } from '@/lib/strings'
+import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
@@ -165,7 +165,7 @@ export function AddonsList({
                   className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={qty <= 0}
                   onClick={() => bumpQty(addon, -1)}
-                  aria-label={`Decrease ${addonName} quantity`}
+                  aria-label={qtyAdjustAriaLabel('decrease', addonName, locale)}
                 >
                   −
                 </Button>
@@ -182,7 +182,7 @@ export function AddonsList({
                   className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={atMax}
                   onClick={() => bumpQty(addon, 1)}
-                  aria-label={`Increase ${addonName} quantity`}
+                  aria-label={qtyAdjustAriaLabel('increase', addonName, locale)}
                 >
                   +
                 </Button>

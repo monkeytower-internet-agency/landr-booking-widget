@@ -64,6 +64,7 @@ import {
   additionalAccommodationRequiredHint,
   nightsWord,
   occupancyOverbookWarning,
+  qtyAdjustAriaLabel,
   sharedDoubleOthersTooLateMessage,
   sharedDoubleReferenceFoundLabel,
   sharedDoubleReferenceLinkedLabel,
@@ -1933,7 +1934,7 @@ export function AccommodationStep({
                           className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                           disabled={qty <= 0}
                           onClick={() => bumpQty(room.product_id, -1)}
-                          aria-label={`Decrease ${roomName} quantity`}
+                          aria-label={qtyAdjustAriaLabel('decrease', roomName, locale)}
                         >
                           −
                         </Button>
@@ -1949,7 +1950,7 @@ export function AccommodationStep({
                           size="icon"
                           className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                           onClick={() => bumpQty(room.product_id, 1)}
-                          aria-label={`Increase ${roomName} quantity`}
+                          aria-label={qtyAdjustAriaLabel('increase', roomName, locale)}
                         >
                           +
                         </Button>
