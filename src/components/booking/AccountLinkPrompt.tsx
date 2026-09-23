@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale } from '@/lib/locale'
+import { splitOnPlaceholder, tr } from '@/lib/strings'
 
 interface Props {
   operatorToken: string
@@ -30,6 +32,9 @@ type PromptState =
  * prompt and never unwind the booking confirmation.
  */
 export function AccountLinkPrompt({ operatorToken, email }: Props) {
+  const locale = browserLocale()
+  const [bodyBefore, bodyAfter] = splitOnPlaceholder(tr('accountLinkBodyTemplate', locale), 'email')
+  const [inboxBefore, inboxAfter] = splitOnPlaceholder(tr('checkYourInboxTemplate', locale), 'email')
   const [state, setState] = useState<PromptState>({ kind: 'idle' })
   const dialogRef = useRef<HTMLDivElement>(null)
   const acceptButtonRef = useRef<HTMLButtonElement>(null)
@@ -87,22 +92,22 @@ export function AccountLinkPrompt({ operatorToken, email }: Props) {
     >
       <Card>
         <CardHeader>
-          <CardTitle id={titleId}>Track this booking in the LANDR app</CardTitle>
+          <CardTitle id={titleId}>{tr('trackBookingTitle', locale)}</CardTitle>
           <CardDescription id={descriptionId}>
-            Link <span className="font-mono">{email}</span> to a LANDR account so you can
-            see your booking, get updates, and manage cancellations from your phone.
+            {bodyBefore}<span className="font-mono">{email}</span>{bodyAfter}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {state.kind === 'sent' ? (
             <p className="text-sm">
-              Check your inbox — we sent a sign-in link to{' '}
-              <span className="font-mono">{email}</span>.
+              {inboxBefore}
+              <span className="font-mono">{email}</span>
+              {inboxAfter}
             </p>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                Optional — your booking is already confirmed either way.
+                {tr('accountLinkOptionalNote', locale)}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <Button
@@ -111,7 +116,7 @@ export function AccountLinkPrompt({ operatorToken, email }: Props) {
                   onClick={onDecline}
                   disabled={state.kind === 'sending'}
                 >
-                  No thanks, continue as guest
+                  {tr('noThanksContinueAsGuest', locale)}
                 </Button>
                 <Button
                   ref={acceptButtonRef}
@@ -119,13 +124,14 @@ export function AccountLinkPrompt({ operatorToken, email }: Props) {
                   onClick={onAccept}
                   disabled={state.kind === 'sending'}
                 >
-                  {state.kind === 'sending' ? 'Sending…' : 'Yes, send me a link'}
+                  {state.kind === 'sending' ? tr('sendingEllipsis', locale) : tr('yesSendMeALink', locale)}
                 </Button>
               </div>
               {state.kind === 'error' ? (
                 <p className="text-sm text-destructive" role="alert">
-                  Couldn't send the link: {state.message}. Your booking is still
-                  confirmed.
+                  {splitOnPlaceholder(tr('couldNotSendLinkTemplate', locale), 'message')[0]}
+                  {state.message}
+                  {splitOnPlaceholder(tr('couldNotSendLinkTemplate', locale), 'message')[1]}
                 </p>
               ) : null}
             </>

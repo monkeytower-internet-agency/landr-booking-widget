@@ -4,7 +4,15 @@ import type { AvailabilitySlot, HotelOffering } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import { describeForceReasons, type ForceReason } from '@/lib/strings'
+import {
+  describeForceReasons,
+  multiDayDiffSummary,
+  multiDayResetDroppedNotice,
+  multiDayResetToDatesLabel,
+  tr,
+  type ForceReason,
+} from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
@@ -128,6 +136,7 @@ export function MultiDayPicker({
   originalValueLabel,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
+  const locale = browserLocale()
   // landr-aoak.2: force-book only when staff mode is active AND the session
   // carries the force_book power. Otherwise this is the normal customer picker.
   const canForce = staff.active && staff.powers.includes('force_book')
@@ -328,7 +337,7 @@ export function MultiDayPicker({
       }
       onChange(sortedDates(next))
     },
-    [anchor, availableSet, canForce, isContiguous, onChange, valueSet],
+    [anchor, availableSet, canForce, isContiguous, onChange, valueSet, setResetDroppedCount],
   )
 
   const handleSelect = (
@@ -358,14 +367,17 @@ export function MultiDayPicker({
   }, [forcedDays, forcedReasons, onForcedDaysChange])
 
   // Help text: caller override wins; contiguous has fixed copy; otherwise
-  // follows the active mode.
+  // follows the active mode. landr-5aih0.9: resolved through the bundle
+  // (locale-aware) rather than the English-only exported constants below —
+  // those stay as the documented English defaults for any external caller
+  // that still passes helpText explicitly.
   const text =
     helpText ??
     (isContiguous
-      ? CONTIGUOUS_MULTI_DAY_HELP
+      ? tr('multiDayPickerHelpContiguous', locale)
       : mode === 'individual'
-        ? DEFAULT_MULTI_DAY_HELP_INDIVIDUAL
-        : DEFAULT_MULTI_DAY_HELP_RANGE)
+        ? tr('multiDayPickerHelp', locale)
+        : tr('multiDayPickerHelpRange', locale))
 
   // landr-otml0.3 — invite-mode diff (originalValue mode, ported from the
   // dashboard — landr-fxza.5 Section C). Purely presentational: it only
@@ -404,14 +416,14 @@ export function MultiDayPicker({
     const restorable = originalValue.filter((d) => availableSet.has(isoDate(d)))
     setResetDroppedCount(originalValue.length - restorable.length)
     onChange(restorable)
-  }, [originalValue, canForce, availableSet, onChange])
+  }, [originalValue, canForce, availableSet, onChange, setResetDroppedCount])
 
   return (
     <div className="flex flex-col gap-3">
       {!isContiguous && (
         <div
           role="group"
-          aria-label="Selection mode"
+          aria-label={tr('selectionModeAria', locale)}
           className="flex flex-row gap-1"
         >
           <Button
@@ -421,7 +433,7 @@ export function MultiDayPicker({
             aria-pressed={mode === 'range'}
             onClick={() => setMode('range')}
           >
-            Date range
+            {tr('dateRangeModeLabel', locale)}
           </Button>
           <Button
             type="button"
@@ -430,7 +442,7 @@ export function MultiDayPicker({
             aria-pressed={mode === 'individual'}
             onClick={() => setMode('individual')}
           >
-            Individual days
+            {tr('individualDaysModeLabel', locale)}
           </Button>
         </div>
       )}
@@ -485,7 +497,7 @@ export function MultiDayPicker({
                   >
                     +
                   </span>
-                  Added
+                  {tr('diffAddedLabel', locale)}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-destructive">
                   <span
@@ -494,19 +506,15 @@ export function MultiDayPicker({
                   >
                     &minus;
                   </span>
-                  Removed
+                  {tr('diffRemovedLabel', locale)}
                 </span>
               </div>
               <p className="text-sm" data-testid="multi-day-diff-summary">
                 {/* landr-otml0.3 ticket spec: "+N day(s) / −M day(s) vs
                     <host>" — separate added/removed counts, not a net
                     delta, so a same-count swap (+1/−1) still reads as a
-                    change instead of collapsing to "+0". */}+
-                {diff?.added.length ?? 0}{' '}
-                {(diff?.added.length ?? 0) === 1 ? 'day' : 'days'} /
-                &minus;{diff?.removed.length ?? 0}{' '}
-                {(diff?.removed.length ?? 0) === 1 ? 'day' : 'days'} vs{' '}
-                {originalValueLabel ?? 'the original booking'}
+                    change instead of collapsing to "+0". */}
+                {multiDayDiffSummary(diff?.added.length ?? 0, diff?.removed.length ?? 0, originalValueLabel, locale)}
               </p>
             </>
           ) : null}
@@ -519,18 +527,14 @@ export function MultiDayPicker({
             onClick={handleReset}
             data-testid="multi-day-reset-button"
           >
-            Reset to {originalValueLabel ?? 'the original'}&rsquo;s dates
+            {multiDayResetToDatesLabel(originalValueLabel, locale)}
           </Button>
           {resetDroppedCount !== null && resetDroppedCount > 0 ? (
             <p
               className="text-xs text-muted-foreground"
               data-testid="multi-day-reset-dropped-notice"
             >
-              {resetDroppedCount}{' '}
-              {resetDroppedCount === 1
-                ? `of ${originalValueLabel ?? 'the host'}'s days is`
-                : `of ${originalValueLabel ?? 'the host'}'s days are`}{' '}
-              no longer available.
+              {multiDayResetDroppedNotice(resetDroppedCount, originalValueLabel, locale)}
             </p>
           ) : null}
         </div>

@@ -666,12 +666,9 @@ export interface paths {
          * Customer Signoff
          * @description Create (or dedupe) a customer-originated staging→main proposal.
          *
-         *     Auth: X-Release-Relay-Token (service-to-service). Behaviour:
-         *       * DEDUPE — if an open staging_to_main run (proposed, signoff_source=
-         *         'customer') already exists, refresh it and return already_pending.
-         *       * else create a proposed staging_to_main run (signoff_source='customer',
-         *         signoff_by_label=signer_label), pinning current staging SHAs, then
-         *         NOTIFY the landr staff approvers (same path as the staff propose flow).
+         *     Auth: X-Release-Relay-Token (service-to-service). See
+         *     ``_handle_customer_signoff_locally`` for the actual create/dedupe/notify
+         *     behaviour once ownership is established.
          *
          *     Returns {"status": "requested" | "already_pending", "run_id": ...}.
          */
@@ -764,28 +761,6 @@ export interface paths {
         get: operations["relay_version"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/internal/stripe/webhook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stripe Webhook
-         * @description LEGACY app-level endpoint — verifies the app-level secret only.
-         *
-         *     Behaviour UNCHANGED by landr-1nwu.3 (platform / single-tenant back-compat).
-         */
-        post: operations["stripe_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1685,12 +1660,22 @@ export interface paths {
         put?: never;
         /**
          * Request Golive
-         * @description File a customer request-go-live and relay it to the dev control plane.
+         * @description File a customer request-go-live.
          *
-         *     Requires ``is_release_signer`` and the staging/relay deployment side. Relays
-         *     over the shared service secret to
-         *     POST {control_plane}/api/internal/release/customer-signoff and mirrors back
-         *     the control-plane status (``requested`` | ``already_pending``).
+         *     Requires ``is_release_signer`` and the staging/relay deployment side.
+         *
+         *     landr-ogs5r: when THIS deployment already owns the staging_to_main rows
+         *     (``_owns_tier_data("prod")`` — in practice, staging itself) the signoff is
+         *     handled LOCALLY, in-process, via
+         *     ``operator_release_internal._handle_customer_signoff_locally`` — the same
+         *     function the dev control plane's ``/customer-signoff`` endpoint calls.
+         *     Previously this always relayed to dev even when dev didn't own the data,
+         *     which just forwarded the request straight back to staging (dev's
+         *     ``RELEASE_STAGING_PLANE_URL``) — a pointless staging→dev→staging round
+         *     trip that 502'd outright whenever that second hop wasn't configured. The
+         *     relay to ``RELEASE_CONTROL_PLANE_URL`` remains as the fallback for a
+         *     deployment that does NOT own the data (mirrors back the control-plane
+         *     status, ``requested`` | ``already_pending``).
          */
         post: operations["request_golive"];
         delete?: never;
@@ -2000,40 +1985,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/bookings/{booking_id}/calendar.ics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Booking Calendar Ics */
-        get: operations["get_booking_calendar_ics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/public/bookings/{booking_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cancel Booking Public */
-        post: operations["cancel_booking_public"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
         parameters: {
             query?: never;
@@ -2071,6 +2022,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/calendar.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Calendar Ics
+         * @description The whole booking as one .ics (landr-3vr5; token-scoped, landr-5aih0.4).
+         *
+         *     Timed + zoned VEVENTs for days with a known start (pickup time, else the
+         *     time-slot start), all-day otherwise; LOCATION/GEO = the meeting point.
+         *     See :mod:`app.services.booking_calendar_context`.
+         *
+         *     410 for a bare booking UUID: that was the pre-5aih0.4 link (the UUID was
+         *     the credential). It is never looked up, so the answer does not reveal
+         *     whether the booking exists. 401 for any other bad/expired token, 404 when
+         *     a valid token's booking no longer exists (or was cancelled).
+         */
+        get: operations["get_booking_calendar_ics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/bookings/{token}/calendar/guided-{idx}.ics": {
         parameters: {
             query?: never;
@@ -2097,6 +2077,53 @@ export interface paths {
         };
         /** Get Booking Hotel Calendar */
         get: operations["get_booking_hotel_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Booking Public
+         * @description Cancel the booking behind ``token`` (the widget calls this only after
+         *     the customer confirms). Inside the deadline: soft-delete, refund what was
+         *     paid (Stripe automatically, anything else flagged to the operator), email
+         *     customer + operator, bell the operator's team. 409
+         *     ``cancellation_deadline_passed`` after the deadline; idempotent 200 on an
+         *     already-cancelled booking; 401 bad token; 404 unknown booking.
+         */
+        post: operations["cancel_booking_public"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cancel Preview
+         * @description Whether the booking behind ``token`` can still be cancelled for free,
+         *     until when, what would be refunded, and whom to contact otherwise.
+         *     Read-only. 401 on a bad/expired token, 404 when the booking is gone.
+         */
+        get: operations["get_cancel_preview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2779,6 +2806,8 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
+         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
+         *                           first, before Turnstile, so no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -3053,8 +3082,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resolve Today Code
-         * @description Turn an activity code into today's roster for its product.
+         * Resolve Activity Code
+         * @description Turn an activity code — or a booking reference — into today's roster.
+         *
+         *     A booking reference answers the same shape plus `booking_id` (opaque, the
+         *     booking's `booking_group`) and `narrow_participant_ids`; for a code those
+         *     are `null` and `[]`.
          *
          *     A valid code for a product with nobody on it today returns an EMPTY
          *     participant list, not a 404: "the code works, nothing is scheduled" is a
@@ -3211,7 +3244,8 @@ export interface paths {
          *     Sets bookings.deleted_at + deletion_reason; the capacity trigger
          *     releases reserved seats automatically. The booking row remains
          *     for audit / history purposes (and stays visible via include_deleted
-         *     filters in future list endpoints).
+         *     filters in future list endpoints). With notify_customer (default true)
+         *     the customer is emailed a booking_cancelled notice (landr-5aih0.7).
          */
         delete: operations["cancel_booking"];
         options?: never;
@@ -3981,6 +4015,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join Day Group
+         * @description Join `participant_id` into whatever day bubble `target_participant_id`
+         *     is currently showing in — the write behind dropping a chip onto a group
+         *     bubble (D6/D7). Booking and booking_groups are never touched; see
+         *     `staff_join_day_group`'s migration header (20260923020200) for the full
+         *     mint-then-join semantics.
+         *
+         *     Returns every row the RPC wrote — the joiner, plus (only the first time a
+         *     never-yet-merged native group is joined) every native-group member freshly
+         *     keyed so the whole bubble becomes addressable.
+         */
+        post: operations["staff_join_participant_day_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-group/{day_date}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave Day Group
+         * @description Detach `participant_id` from their current day bubble — the ONLY way
+         *     to leave a group for today (D6: never offered as a drag side-effect,
+         *     only from the participant detail sheet's "Leave group for today").
+         *
+         *     No body: there is nothing to say beyond which participant, on which day.
+         *     Booking and booking_groups are never touched; see
+         *     `staff_leave_day_group`'s migration header (20260923020200) for why a
+         *     bare NULL isn't always enough to actually detach.
+         */
+        post: operations["staff_leave_participant_day_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-pickup/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Day Pickup
+         * @description Set (or clear) one participant-day's pickup time and, optionally, its
+         *     per-day pickup location override.
+         *
+         *     Creates the state row when missing (status unset = "expected"), exactly
+         *     like the day-unit PATCH, and never touches the status, unit, note or the
+         *     needs_pickup position. Returns the manifest-shaped pickup (see
+         *     `DayPickupOut`). 404 booking outside this operator; 422 participant not
+         *     on the booking, both location kinds, or a location that is not this
+         *     operator's; 409 `day_in_past`.
+         */
+        put: operations["staff_put_participant_day_pickup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
         parameters: {
             query?: never;
@@ -4647,6 +4764,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/day-pickup/{day_date}/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Day Pickup
+         * @description Apply one pickup payload to many participants of this operator on one
+         *     day — ONE transaction PER ROW (one RPC call each), never all-or-nothing:
+         *     a participant that fails (not this operator's, a location the RPC
+         *     refuses) is reported in its own result and every other row still lands.
+         *     Contrast `sort_day_units`, which is atomic on purpose (D9's lock).
+         *
+         *     Whole-request 422/409 only for what is true of EVERY row: a malformed
+         *     body, both location kinds at once, or `day_in_past`. Per-row
+         *     `status_code`/`error` mirror the single PUT's answer for that row
+         *     (404 `participant_not_found` for an id outside this operator — the
+         *     caller must not learn it exists).
+         *
+         *     Location-key presence has the single PUT's meaning: omit both to write
+         *     only the time and keep each participant's own location override.
+         */
+        post: operations["staff_bulk_set_participant_day_pickup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/day-units/{day_date}/sort": {
         parameters: {
             query?: never;
@@ -5281,8 +5431,8 @@ export interface paths {
          *     estate, or who hand landr a restricted key without webhook write access,
          *     still need it — and it is the recovery route when this fails.
          *
-         *     Applies ONLY to the per-operator endpoint. The legacy app-level
-         *     POST /api/internal/stripe/webhook and its app-level secret are untouched.
+         *     Registers the per-operator endpoint — the only Stripe webhook route
+         *     since landr-k9pji.4 removed the app-level one.
          */
         post: operations["connect_stripe_webhook_endpoint"];
         delete?: never;
@@ -5670,6 +5820,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Presets Endpoint
+         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
+         *     shows them (solo pilot first, blank last). Static registry data; the
+         *     operator's current choice is ``onboarding_preset_key`` on
+         *     ``GET /api/staff/operators/{operator_id}``.
+         */
+        get: operations["list_presets_endpoint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
         parameters: {
             query?: never;
@@ -5963,6 +6136,64 @@ export interface paths {
         patch: operations["patch_product"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/activity-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Activity Code
+         * @description The product's current code, so the operator can read it out or print it.
+         *
+         *     "field" (drivers) is deliberately included here, unlike PATCH/rotate below:
+         *     the Today header needs to show the code to whoever is running the shift,
+         *     not just office staff (landr-w29zl.1 / epic landr-w29zl decisions 2/7/10/15).
+         */
+        get: operations["staff_get_product_activity_code"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Activity Code
+         * @description Turn weekly auto-rotation on or off.
+         *
+         *     Turning it ON does NOT rotate immediately — the worker
+         *     (app/workers/activity_code_rotation.py) rotates at the next Monday 04:00 in
+         *     the operator's own timezone. Flipping a setting must not revoke every
+         *     live session as a side effect; "new code now" is the rotate endpoint,
+         *     one deliberate press away.
+         */
+        patch: operations["staff_patch_product_activity_code"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/activity-code/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Activity Code
+         * @description Mint a fresh code, invalidating every live participant session.
+         *
+         *     Idempotent in the only sense that matters here: calling it twice mints
+         *     twice and the second code wins. There is nothing to de-duplicate — a
+         *     second rotation is a second, deliberate revocation.
+         */
+        post: operations["staff_rotate_product_activity_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/approval-override": {
         parameters: {
             query?: never;
@@ -6179,60 +6410,6 @@ export interface paths {
          *     config already exists (1:1 with the product — use PATCH to edit it).
          */
         post: operations["create_subscription_config"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/products/{product_id}/today-code": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Today Code
-         * @description The product's current code, so the operator can read it out or print it.
-         */
-        get: operations["staff_get_product_today_code"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Patch Today Code
-         * @description Turn weekly auto-rotation on or off.
-         *
-         *     Turning it ON does NOT rotate immediately — the worker
-         *     (app/workers/today_code_rotation.py) rotates at the next Monday 04:00 in
-         *     the operator's own timezone. Flipping a setting must not revoke every
-         *     live session as a side effect; "new code now" is the rotate endpoint,
-         *     one deliberate press away.
-         */
-        patch: operations["staff_patch_product_today_code"];
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/products/{product_id}/today-code/rotate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rotate Today Code
-         * @description Mint a fresh code, invalidating every live participant session.
-         *
-         *     Idempotent in the only sense that matters here: calling it twice mints
-         *     twice and the second code wins. There is nothing to de-duplicate — a
-         *     second rotation is a second, deliberate revocation.
-         */
-        post: operations["staff_rotate_product_today_code"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7442,7 +7619,7 @@ export interface paths {
          *                     "done": false,
          *                     "title": "Company details",
          *                     "message": "Missing: legal name, country.",
-         *                     "target_route": "/account/company"
+         *                     "target_route": "/settings/company"
          *                 }
          *             ]
          *         }
@@ -7696,6 +7873,61 @@ export interface paths {
          * @description Rename or recolor a tag. Empty patch → 400.
          */
         patch: operations["patch_tag"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/today/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Today Messages
+         * @description The day's staff send history for the Today composer, oldest first.
+         *
+         *     Every ``participants``-scoped message and every ``activity_day`` board
+         *     post of this operator on ``day``, each with ``recipient_count`` (for a
+         *     participants message: the people it was addressed to; for a board post:
+         *     the people on that board now) and ``recipient_ids`` (participants
+         *     messages only, else null). With ``product_id``: that product's board
+         *     posts, plus the participants messages addressed to at least one person
+         *     on that product that day.
+         */
+        get: operations["staff_list_today_messages"];
+        put?: never;
+        /** Post Today Message */
+        post: operations["staff_post_today_message"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/today/messages/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today Message Dry Run
+         * @description Who a send would address, before sending it.
+         *
+         *     ``count`` = everyone addressed (the number an ``all_today`` send must
+         *     echo back as ``confirm_count``); ``reachable_count`` = those push/email
+         *     may contact (``do_not_contact`` removed); ``email_count`` = distinct
+         *     addresses; ``missing`` = requested participant ids not on this
+         *     operator's board that day (they would 422 the send).
+         */
+        get: operations["staff_today_message_dry_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/today/{product_id}/messages": {
@@ -8100,6 +8332,18 @@ export interface components {
             acknowledged_at?: string | null;
             /** Has Ack */
             has_ack: boolean;
+        };
+        /**
+         * ActivityCodePatch
+         * @description One field, required (no default).
+         *
+         *     An empty body `{}` or a typo'd key is a 422 from pydantic's own
+         *     "field required" validation, never a silent no-op — same reasoning as
+         *     DayUnitPatchIn's (landr-bsng5.67).
+         */
+        ActivityCodePatch: {
+            /** Rotate Weekly */
+            rotate_weekly: boolean;
         };
         /** AlertOut */
         AlertOut: {
@@ -8510,10 +8754,17 @@ export interface components {
          *     landr-mizc: capacity_reserved dropped from product_availability
          *     (always 0, dead since the Slice-8 maintenance trigger was removed) and
          *     from this RPC's return columns — dropped here to match.
+         *
+         *     landr-k9pji.1: ``availability_id`` is NULL on a SYNTHESISED day — a
+         *     ``booking_mode='on_request'`` product's open whole-day row for a date with
+         *     no real product_availability row (migration 20260923132737). Such a row
+         *     has no id to send back, so the widget books it WITHOUT
+         *     ``product_availability_id`` (public_submit_booking only validates the id
+         *     when one is supplied).
          */
         AvailabilitySlot: {
             /** Availability Id */
-            availability_id: string;
+            availability_id: string | null;
             /** Available Seats */
             available_seats: number;
             /** Capacity */
@@ -8632,6 +8883,11 @@ export interface components {
         };
         /** BookingCancelIn */
         BookingCancelIn: {
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Reason */
             reason: string;
         };
@@ -8719,6 +8975,7 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            meeting_point?: components["schemas"]["BookingSummaryPickup"] | null;
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Name */
             operator_name: string;
@@ -8798,12 +9055,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** BookingSummaryPickup */
+        /**
+         * BookingSummaryPickup
+         * @description One pickup location of the booking summary — a meeting-point block
+         *     (landr-5aih0.1; was ``{id, name}``). See :class:`MeetingPointBlock`.
+         */
         BookingSummaryPickup: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
             /** Id */
             id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
             /** Name */
             name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
         } & {
             [key: string]: unknown;
         };
@@ -8891,6 +9177,8 @@ export interface components {
             } | null;
             /** Is Published */
             is_published?: boolean | null;
+            /** Meeting Point Location Id */
+            meeting_point_location_id?: string | null;
             /** Meeting Point Text */
             meeting_point_text?: string | null;
             /** Plan Detail */
@@ -9032,6 +9320,64 @@ export interface components {
          * @enum {string}
          */
         CampaignScope: "booking" | "subscription" | "any";
+        /** CancelOperatorContact */
+        CancelOperatorContact: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
+         * CancelPreviewResponse
+         * @description GET /{token}/cancel-preview. ``deadline`` is ISO-8601 UTC;
+         *     ``timezone`` is the operator's IANA zone the page renders it in.
+         *     ``locale`` (de/en/es) is the language the booking's emails are sent in,
+         *     so the page can match the email the customer clicked from.
+         *     ``refund_status`` is the recorded outcome once ``already_cancelled``.
+         */
+        CancelPreviewResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Already Cancelled */
+            already_cancelled: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Reference */
+            booking_reference: string;
+            /** Deadline */
+            deadline?: string | null;
+            /** Locale */
+            locale: string;
+            operator: components["schemas"]["CancelOperatorContact"];
+            /** Policy Text */
+            policy_text?: string | null;
+            refund: components["schemas"]["CancelRefund"];
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
+            /** Timezone */
+            timezone: string;
+        };
+        /**
+         * CancelRefund
+         * @description What a cancellation returns to the customer and how.
+         *
+         *     ``method``: ``stripe_auto`` (back to the card automatically), ``manual``
+         *     (the operator refunds some or all of it by hand), ``none`` (nothing paid).
+         *     ``amount`` is a two-decimal string.
+         */
+        CancelRefund: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "stripe_auto" | "manual" | "none";
+        };
         /**
          * ChangelogEntryOut
          * @description Deliberately ``category``/``description`` ONLY.
@@ -9418,6 +9764,21 @@ export interface components {
             /** Nights */
             nights: number;
         };
+        /**
+         * DayGroupJoinIn
+         * @description POST .../day-group/{day_date}/join body — the bubble being joined.
+         *
+         *     Both fields are required: the target's booking_id is needed up front
+         *     (not looked up from participant_id) so this endpoint's tenant-scoping
+         *     check mirrors `_scope_booking_and_participant`'s shape exactly, the same
+         *     as every other write here.
+         */
+        DayGroupJoinIn: {
+            /** Target Booking Id */
+            target_booking_id: string;
+            /** Target Participant Id */
+            target_participant_id: string;
+        };
         /** DayManifestOut */
         DayManifestOut: {
             /** Date */
@@ -9459,6 +9820,8 @@ export interface components {
             contact_id?: string | null;
             /** Day Date */
             day_date: string;
+            /** Day Group Key */
+            day_group_key: string;
             /** Expected Back At */
             expected_back_at?: string | null;
             /** Group Id */
@@ -9497,6 +9860,10 @@ export interface components {
             pickup_location_id?: string | null;
             /** Pickup Location Name */
             pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
             /** Pickup Note */
             pickup_note?: string | null;
             /** Pickup Time */
@@ -9536,6 +9903,134 @@ export interface components {
             body: string;
         };
         /**
+         * DayPickupBulkIn
+         * @description POST .../day-pickup/{day_date}/bulk body — the same pickup payload
+         *     applied to many participants of this operator on one day (the /today
+         *     sheet's "apply to everyone on this unit", the booking sheet's "pickup
+         *     time for all participants"). Participants may span bookings — a unit
+         *     does — so each id is resolved to its booking server-side.
+         */
+        DayPickupBulkIn: {
+            /** Participant Ids */
+            participant_ids: string[];
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
+        };
+        /** DayPickupBulkOut */
+        DayPickupBulkOut: {
+            /** Changed */
+            changed: number;
+            /** Failed */
+            failed: number;
+            /** Results */
+            results: components["schemas"]["DayPickupBulkResult"][];
+        };
+        /**
+         * DayPickupBulkResult
+         * @description One participant's outcome. `ok` false carries the same `error` token
+         *     and `status_code` the single-participant PUT would have answered.
+         */
+        DayPickupBulkResult: {
+            /** Error */
+            error?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Participant Id */
+            participant_id: string;
+            pickup?: components["schemas"]["DayPickupOut"] | null;
+            /** Status Code */
+            status_code: number;
+        };
+        /**
+         * DayPickupOut
+         * @description The participant-day's pickup, MANIFEST-SHAPED: the same field names
+         *     and the same baseline-vs-override resolution `DayManifestRow` uses
+         *     (`app/services/day_pickup.py::effective_pickup`), so a client can patch
+         *     the row it already holds straight from this response.
+         *
+         *     The effective `pickup_location_*` / `pickup_note` fields need the
+         *     participant's manifest row and are null when the participant is not on
+         *     that day's manifest (not booked that day, or the booking is not live);
+         *     `pickup_time` and the raw override are always the written values.
+         */
+        DayPickupOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Changed */
+            changed: boolean;
+            /** Day Date */
+            day_date: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Pickup Location Color */
+            pickup_location_color?: string | null;
+            /** Pickup Location Icon */
+            pickup_location_icon?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Pickup Location Name */
+            pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
+            /** Pickup Note */
+            pickup_note?: string | null;
+            /** Pickup Time */
+            pickup_time?: string | null;
+        };
+        /**
+         * DayPickupPutIn
+         * @description PUT .../day-pickup/{day_date} body.
+         *
+         *     `pickup_time` is REQUIRED (no default) and `null` clears it — the same
+         *     required-nullable shape as `DayUnitPatchIn`, so an empty body or a typo'd
+         *     key is a 422 rather than a silent clear. Operator-local wall-clock
+         *     ("07:40"), never a UTC offset (Decision #57 — the column is `time`
+         *     without time zone).
+         *
+         *     The two location keys are OPTIONAL, and presence is what matters:
+         *       * OMITTED (both) — the participant-day's current location override is
+         *         left exactly as it is; only the time is written. This is how "set
+         *         the pickup time for everyone" avoids wiping one participant's own
+         *         per-day pickup point.
+         *       * PRESENT (either, `null` included) — the override is REPLACED by what
+         *         is supplied; both `null` clears it back to the participant's
+         *         baseline pickup (`booking_participants.pickup_location_id`).
+         *     At most one may be non-null (422 `pickup_location_not_both`, the table's
+         *     not-both CHECK). Blank text counts as null.
+         */
+        DayPickupPutIn: {
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
+        };
+        /**
          * DayStatusPutIn
          * @description PUT body — full-replace semantics (part_of_day/note/pickup_*\/
          *     expected_back_at are set to exactly what's supplied, defaulting to NULL
@@ -9544,9 +10039,13 @@ export interface components {
          *     router module docstring for why this endpoint doesn't try to preserve it
          *     implicitly.
          *
-         *     `assigned_unit_id` is deliberately NOT a field here: the unit is written
+         *     `assigned_unit_id` is deliberately NOT a field here: the unit is SET
          *     only by the PATCH day-unit endpoint below, so a status tap can never
-         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29).
+         *     revert a concurrent move-to-unit (landr-bsng5.60 / landr-kvxt.29). The
+         *     RPC this PUT calls can still CLEAR it server-side on a leaves_unit
+         *     status transition (landr-0zzp3) — that isn't a caller-supplied value,
+         *     so it doesn't reopen the revert risk this field's absence guards
+         *     against.
          */
         DayStatusPutIn: {
             /**
@@ -10176,6 +10675,8 @@ export interface components {
         };
         /** HostnameBranding */
         HostnameBranding: {
+            /** Favicon Url */
+            favicon_url?: string | null;
             /** Logo Url */
             logo_url?: string | null;
             /** Name */
@@ -10734,6 +11235,8 @@ export interface components {
         };
         /** LocationIn */
         LocationIn: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -10757,6 +11260,8 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -10915,6 +11420,45 @@ export interface components {
             skipped_done: string[];
             /** Skipped Not Found */
             skipped_not_found: string[];
+        };
+        /**
+         * MeetingPointBlock
+         * @description A meeting-point block (landr-5aih0.1, ``app.services.meeting_point``):
+         *     one pickup location with its address, coordinates and the server-derived
+         *     Google Maps / Waze deep links. Every field is a string, "" when unknown.
+         */
+        MeetingPointBlock: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
+            /** Id */
+            id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
+            /** Name */
+            name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
+        } & {
+            [key: string]: unknown;
         };
         /** MessagePostIn */
         MessagePostIn: {
@@ -11149,6 +11693,7 @@ export interface components {
             first_name?: string | null;
             /** Last Name */
             last_name?: string | null;
+            pickup_location?: components["schemas"]["MeetingPointBlock"] | null;
             /** Service Role Label */
             service_role_label?: string | null;
         } & {
@@ -11241,6 +11786,12 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Cancellation Notice Hours */
+            cancellation_notice_hours?: number | null;
+            /** Cancellation Policy Text */
+            cancellation_policy_text?: {
+                [key: string]: string;
+            } | null;
             /** City */
             city?: string | null;
             /** Country */
@@ -11255,6 +11806,8 @@ export interface components {
             default_locale?: string | null;
             /** Default Tax Rate */
             default_tax_rate?: number | string | null;
+            /** Deposit Percent */
+            deposit_percent?: number | null;
             /** First Day Of Week */
             first_day_of_week?: number | null;
             /** Group Discount Threshold */
@@ -11277,6 +11830,8 @@ export interface components {
             name?: string | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Payment Mode */
+            payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Pending Booking Expiry Hours */
             pending_booking_expiry_hours?: number | null;
             /** Phone */
@@ -11567,7 +12122,11 @@ export interface components {
          * @description Create payload for a new participant-day status.
          *
          *     `semantic_state` is required here — and ONLY here, see
-         *     `ParticipantDayStatusPatch` below and the module docstring.
+         *     `ParticipantDayStatusPatch` below and the module docstring. `leaves_unit`
+         *     is optional here — omitting it lets the DB's `BEFORE INSERT` trigger
+         *     default it from `semantic_state` (see module docstring) — but, unlike
+         *     `semantic_state`, remains mutable after create via
+         *     `ParticipantDayStatusPatch`.
          */
         ParticipantDayStatusIn: {
             /**
@@ -11585,6 +12144,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Leaves Unit */
+            leaves_unit?: boolean | null;
             /**
              * Semantic State
              * @enum {string}
@@ -11621,6 +12182,8 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /** Leaves Unit */
+            leaves_unit?: boolean | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -11768,6 +12331,23 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /**
+         * PresetOut
+         * @description One preset the onboarding wizard can offer.
+         */
+        PresetOut: {
+            /** Key */
+            key: string;
+            /**
+             * Persona
+             * @enum {string}
+             */
+            persona: "solo" | "company";
+            /** Tagline */
+            tagline: string;
+            /** Title */
+            title: string;
         };
         /**
          * PreviewMigrationsResponse
@@ -12090,6 +12670,12 @@ export interface components {
              * @default true
              */
             active: boolean;
+            /**
+             * Booking Mode
+             * @default scheduled
+             * @enum {string}
+             */
+            booking_mode: "scheduled" | "on_request";
             /** Briefing Content */
             briefing_content?: {
                 [key: string]: unknown;
@@ -12155,6 +12741,11 @@ export interface components {
              * @default true
              */
             needs_provider: boolean;
+            /**
+             * On Request Daily Capacity
+             * @default 2
+             */
+            on_request_daily_capacity: number;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -12206,6 +12797,8 @@ export interface components {
             accommodation_lead_time_minutes?: number | null;
             /** Active */
             active?: boolean | null;
+            /** Booking Mode */
+            booking_mode?: ("scheduled" | "on_request") | null;
             /** Briefing Content */
             briefing_content?: {
                 [key: string]: unknown;
@@ -12250,6 +12843,8 @@ export interface components {
             needs_pickup?: boolean | null;
             /** Needs Provider */
             needs_provider?: boolean | null;
+            /** On Request Daily Capacity */
+            on_request_daily_capacity?: number | null;
             /** Product Group Id */
             product_group_id?: string | null;
             /** Product Kind */
@@ -12365,7 +12960,11 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** PublicCancelResponse */
+        /**
+         * PublicCancelResponse
+         * @description POST /{token}/cancel. Same shape on the first cancel and on the
+         *     idempotent repeat (``message`` says which).
+         */
         PublicCancelResponse: {
             /** Booking Id */
             booking_id: string;
@@ -12373,6 +12972,8 @@ export interface components {
             message: string;
             /** Ok */
             ok: boolean;
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
@@ -12509,6 +13110,26 @@ export interface components {
              * @default 25
              */
             radius_km: number;
+        };
+        /**
+         * RecipientSetIn
+         * @description One recipient set. Per-type required/forbidden fields are validated
+         *     here so a malformed combination is a 422 naming the problem.
+         */
+        RecipientSetIn: {
+            /** Participant Ids */
+            participant_ids?: string[] | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Status Id */
+            status_id?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "participants" | "unit" | "status" | "product_day" | "all_today";
+            /** Unit Id */
+            unit_id?: string | null;
         };
         /**
          * ReferenceLookupOut
@@ -12734,7 +13355,9 @@ export interface components {
         };
         /**
          * ResolveIn
-         * @description `extra="forbid"`: nothing but the code may be sent. An operator id or a
+         * @description `code` is an activity code OR a booking reference (landr-29qh1).
+         *
+         *     `extra="forbid"`: nothing but the code may be sent. An operator id or a
          *     participant id smuggled into this body would be ignored anyway — every
          *     identifier on this surface is derived, never accepted — but forbidding
          *     them makes that explicit at the boundary.
@@ -13266,6 +13889,11 @@ export interface components {
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
+         *
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
+         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
+         *     Blank = not sent. Stored on the operator only; the wizard applies it.
          */
         SignupRequest: {
             /** Email */
@@ -13279,6 +13907,8 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /** Preset Key */
+            preset_key?: string | null;
             /** Slug */
             slug: string;
             /** Turnstile Token */
@@ -13570,6 +14200,8 @@ export interface components {
             next_steps?: string | null;
             /** Payment Link Sent */
             payment_link_sent?: boolean | null;
+            /** Payment Mode */
+            payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Semantic State */
             semantic_state: string;
             /** Share Secret */
@@ -13824,17 +14456,26 @@ export interface components {
              */
             status: "sent" | "failed";
         };
-        /**
-         * TodayCodePatch
-         * @description One field, required (no default).
-         *
-         *     An empty body `{}` or a typo'd key is a 422 from pydantic's own
-         *     "field required" validation, never a silent no-op — same reasoning as
-         *     DayUnitPatchIn's (landr-bsng5.67).
-         */
-        TodayCodePatch: {
-            /** Rotate Weekly */
-            rotate_weekly: boolean;
+        /** TodayMessagePostIn */
+        TodayMessagePostIn: {
+            /** Body */
+            body?: string | null;
+            /** Code Product Id */
+            code_product_id?: string | null;
+            /** Confirm Count */
+            confirm_count?: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Kind
+             * @default text
+             * @enum {string}
+             */
+            kind: "text" | "activity_code";
+            recipients: components["schemas"]["RecipientSetIn"];
         };
         /**
          * TrelloSyncIn
@@ -15774,28 +16415,6 @@ export interface operations {
             };
         };
     };
-    stripe_webhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-    };
     remove_photo: {
         parameters: {
             query?: never;
@@ -17112,68 +17731,6 @@ export interface operations {
             };
         };
     };
-    get_booking_calendar_ics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cancel_booking_public: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicCancelResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     public_send_booking_invite: {
         parameters: {
             query?: never;
@@ -17243,6 +17800,37 @@ export interface operations {
             };
         };
     };
+    get_booking_calendar_ics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_booking_guided_calendar: {
         parameters: {
             query?: never;
@@ -17293,6 +17881,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_booking_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCancelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cancel_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20181,6 +20831,120 @@ export interface operations {
             };
         };
     };
+    staff_join_participant_day_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayGroupJoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_leave_participant_day_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_put_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_put_participant_day_status: {
         parameters: {
             query?: never;
@@ -21569,6 +22333,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_bulk_set_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupBulkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupBulkOut"];
                 };
             };
             /** @description Validation Error */
@@ -23632,6 +24432,37 @@ export interface operations {
             };
         };
     };
+    list_presets_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pricing_delete_rule: {
         parameters: {
             query?: {
@@ -24564,6 +25395,112 @@ export interface operations {
             };
         };
     };
+    staff_get_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_patch_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityCodePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_rotate_product_activity_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_product_approval_override: {
         parameters: {
             query?: never;
@@ -24983,112 +25920,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_get_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_patch_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TodayCodePatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_rotate_product_today_code: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -26751,6 +27582,119 @@ export interface operations {
                 "application/json": components["schemas"]["TagPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_today_messages: {
+        parameters: {
+            query: {
+                day: string;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_post_today_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TodayMessagePostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_today_message_dry_run: {
+        parameters: {
+            query: {
+                day: string;
+                type: "participants" | "unit" | "status" | "product_day" | "all_today";
+                participant_ids?: string[] | null;
+                unit_id?: string | null;
+                status_id?: string | null;
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

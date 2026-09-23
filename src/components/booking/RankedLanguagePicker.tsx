@@ -38,6 +38,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useVariant } from '@/lib/variant'
+import { browserLocale } from '@/lib/locale'
+import { reorderLanguageAriaLabel, tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { pickLocalized } from '@/lib/locale'
 import type { FlowFieldDef } from '@/api/flowTypes'
@@ -123,7 +125,7 @@ function LanguageRow({
         {...attributes}
         {...listeners}
         data-testid={`cf-lang-handle-${code}`}
-        aria-label={`Reorder ${label}`}
+        aria-label={reorderLanguageAriaLabel(label, browserLocale())}
         className="cursor-grab touch-none select-none text-muted-foreground hover:text-foreground"
       >
         <span aria-hidden>≡</span>
@@ -215,7 +217,7 @@ export function RankedLanguagePicker({
   return (
     <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
       <p className="text-xs text-muted-foreground">
-        Tick every language you speak, and drag your preferred one to the top.
+        {tr('tickEveryLanguageHelp', browserLocale())}
       </p>
       <DndContext
         sensors={sensors}

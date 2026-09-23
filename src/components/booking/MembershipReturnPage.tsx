@@ -6,6 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 
 /**
  * Stripe return page for the "become a member" checkout flow (landr-1kk.5).
@@ -33,21 +35,19 @@ interface Props {
 }
 
 export function MembershipReturnPage({ status }: Props) {
+  const locale = browserLocale()
   if (status === 'success') {
     return (
       <Card data-testid="membership-return-success">
         <CardHeader>
-          <CardTitle>You're on your way to becoming a member</CardTitle>
+          <CardTitle>{tr('onYourWayToMembershipTitle', locale)}</CardTitle>
           <CardDescription>
-            Your membership is being activated.
+            {tr('membershipBeingActivated', locale)}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            Thank you! We received your payment and your membership is being
-            set up now. You'll get a confirmation email as soon as it's
-            active — this is usually quick, but please don't refresh this
-            page waiting for it to change.
+            {tr('membershipActivatingBody', locale)}
           </p>
         </CardContent>
       </Card>
@@ -57,13 +57,12 @@ export function MembershipReturnPage({ status }: Props) {
   return (
     <Card data-testid="membership-return-cancelled">
       <CardHeader>
-        <CardTitle>Checkout cancelled</CardTitle>
-        <CardDescription>You have not been charged.</CardDescription>
+        <CardTitle>{tr('checkoutCancelledTitle', locale)}</CardTitle>
+        <CardDescription>{tr('membershipNotCharged', locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm">
-          You left checkout without completing your membership. No payment
-          was taken — you can try again any time.
+          {tr('membershipCancelledBody', locale)}
         </p>
         <Button
           type="button"
@@ -78,7 +77,7 @@ export function MembershipReturnPage({ status }: Props) {
           }}
           data-testid="membership-return-continue-btn"
         >
-          Continue browsing
+          {tr('continueBrowsing', locale)}
         </Button>
       </CardContent>
     </Card>

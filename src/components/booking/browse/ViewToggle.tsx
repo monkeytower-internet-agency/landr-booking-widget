@@ -8,6 +8,8 @@
  * active state. data-testids let the tests assert the active layout.
  */
 import { LayoutGrid, LayoutList } from 'lucide-react'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 import type { ViewMode } from './useViewMode'
@@ -17,24 +19,26 @@ interface Props {
   onChange: (mode: ViewMode) => void
 }
 
-const OPTIONS: { mode: ViewMode; label: string; Icon: typeof LayoutGrid }[] = [
-  { mode: 'grid', label: 'Grid view', Icon: LayoutGrid },
-  { mode: 'list', label: 'List view', Icon: LayoutList },
+const OPTIONS: { mode: ViewMode; labelKey: 'gridViewLabel' | 'listViewLabel'; Icon: typeof LayoutGrid }[] = [
+  { mode: 'grid', labelKey: 'gridViewLabel', Icon: LayoutGrid },
+  { mode: 'list', labelKey: 'listViewLabel', Icon: LayoutList },
 ]
 
 export function ViewToggle({ value, onChange }: Props) {
   const { tokens } = useVariant()
+  const locale = browserLocale()
   return (
     <div
       role="radiogroup"
-      aria-label="Catalogue layout"
+      aria-label={tr('catalogueLayoutAria', locale)}
       className={cn(
         'inline-flex items-center gap-0.5 border border-border bg-card p-0.5',
         tokens.cardRadius,
       )}
       data-testid="view-toggle"
     >
-      {OPTIONS.map(({ mode, label, Icon }) => {
+      {OPTIONS.map(({ mode, labelKey, Icon }) => {
+        const label = tr(labelKey, locale)
         const active = value === mode
         return (
           <button

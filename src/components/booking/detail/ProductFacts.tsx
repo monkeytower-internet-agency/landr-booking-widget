@@ -7,6 +7,7 @@
  */
 import { Clock, BedDouble, MapPin, Tag, Languages, type LucideIcon } from 'lucide-react'
 import type { Product } from '@/api/types'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 import { joinLanguageNames, languageFlag, languageName } from '../participantLanguages'
@@ -31,7 +32,7 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
     <ul
       className="flex flex-wrap gap-2"
       data-testid="product-facts"
-      aria-label="Product details"
+      aria-label={tr('productDetailsAria', locale)}
     >
       {facts.map((fact) => {
         const Icon = ICONS[fact.icon]
@@ -44,7 +45,7 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
             // announces itself as one natural sentence instead.
             aria-label={
               languages.length > 0
-                ? `Offered in ${joinLanguageNames(languages)}`
+                ? `${tr('offeredInPrefix', locale)} ${joinLanguageNames(languages, locale)}`
                 : undefined
             }
             className={cn(
@@ -72,7 +73,7 @@ export function ProductFacts({ product, locale }: { product: Product; locale: st
                   <span key={code} className="inline-flex items-center gap-x-1.5">
                     {i > 0 ? <span aria-hidden>{' · '}</span> : null}
                     <span data-testid="product-fact-language" className="whitespace-nowrap">
-                      <span aria-hidden>{languageFlag(code)}</span> {languageName(code)}
+                      <span aria-hidden>{languageFlag(code)}</span> {languageName(code, locale)}
                     </span>
                   </span>
                 ))}

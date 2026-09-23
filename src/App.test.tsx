@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
@@ -451,6 +451,148 @@ describe('App', () => {
 
   // landr-nils — operator-configurable copy around the embed: header
   // headline + description (above the widget) and a footer (below it).
+  // landr-tkgx8.1 — boot splash (index.html's #landr-boot) and the summary
+  // column sitting in a row with the step column, below the header.
+  describe('boot splash (landr-tkgx8.1)', () => {
+    function mountSplash() {
+      const boot = document.createElement('div')
+      boot.id = 'landr-boot'
+      const logo = document.createElement('img')
+      logo.id = 'landr-boot-logo'
+      logo.setAttribute('src', '/landr-mark.svg')
+      boot.appendChild(logo)
+      document.body.prepend(boot)
+      return logo
+    }
+    function deferred<T>() {
+      let resolve!: (value: T) => void
+      const promise = new Promise<T>((r) => {
+        resolve = r
+      })
+      return { promise, resolve }
+    }
+    const splash = () => document.getElementById('landr-boot')
+
+    beforeEach(() => {
+      window.localStorage.clear()
+    })
+    afterEach(() => {
+      splash()?.remove()
+      window.localStorage.clear()
+    })
+
+    it('stays up until the product list has loaded, then is removed', async () => {
+      mountSplash()
+      const products = deferred<Product[]>()
+      mocks.listProducts.mockReturnValue(products.promise)
+      render(<App />)
+      await waitFor(() => expect(mocks.listProductGroups).toHaveBeenCalled())
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      // Settings + groups settled, products still in flight.
+      await new Promise((r) => setTimeout(r, 0))
+      expect(splash()).not.toBeNull()
+      products.resolve([makeProduct({ name: 'Tandem Classic' })])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('shows the operator logo on the splash and caches it per token', async () => {
+      const logo = mountSplash()
+      const products = deferred<Product[]>()
+      mocks.listProducts.mockReturnValue(products.promise)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        name: 'Para42',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(logo.getAttribute('src')).toBe('https://example.com/logo.png'),
+      )
+      expect(window.localStorage.getItem(`landr:logo:${MOCK_TOKEN}`)).toBe(
+        'https://example.com/logo.png',
+      )
+      products.resolve([])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('clears the cached logo when the operator has none', async () => {
+      mountSplash()
+      window.localStorage.setItem(`landr:logo:${MOCK_TOKEN}`, 'https://old/logo.png')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+      })
+      render(<App />)
+      await waitFor(() => expect(splash()).toBeNull())
+      expect(window.localStorage.getItem(`landr:logo:${MOCK_TOKEN}`)).toBeNull()
+    })
+
+    it('?product= + start=dates waits for the date step availability', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=tandem-classic&start=dates`,
+      )
+      mountSplash()
+      const availability = deferred<AvailabilitySlot[]>()
+      mocks.getAvailability.mockReturnValue(availability.promise)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(splash()).not.toBeNull()
+      availability.resolve([])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('is removed straight away on the landing page', () => {
+      window.history.replaceState({}, '', '/')
+      mountSplash()
+      render(<App />)
+      expect(splash()).toBeNull()
+    })
+
+    it('puts the header above a row holding only the step column + sidebar', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=tandem-classic&start=dates`,
+      )
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      const sidebar = await screen.findByTestId('price-sidebar-desktop')
+      const row = screen.getByTestId('widget-step-row')
+      // The sidebar's top aligns with the step column, not the logo: both
+      // are direct children of the row; the header is outside it.
+      expect(sidebar.parentElement).toBe(row)
+      expect(screen.getByTestId('widget-step-column').parentElement).toBe(row)
+      expect(row.contains(screen.getByTestId('widget-logo'))).toBe(false)
+      expect(row.className).toContain('md:flex-row')
+      expect(row.parentElement?.className).not.toContain('md:flex-row')
+    })
+  })
+
   describe('operator embed text (landr-nils)', () => {
     it('renders the operator headline and description above the widget', async () => {
       mocks.getOperatorSettings.mockResolvedValue({
@@ -1591,13 +1733,29 @@ describe('App', () => {
       // (Double Room visible), NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
       await backPastLanguageStep()
-      // Explicit timeout: this hop re-mounts AccommodationStep and re-runs its
-      // hotel/room fetches behind a step transition, and it is the one
-      // assertion in this file that has been observed to time out on the 1s
-      // default under a cold, loaded run (landr-r6e5x.4). Nothing about the
-      // behaviour is slow — the default is just too tight for this step.
+      // landr-ykzuq: the REAL race, found by raising this wait's timeout and
+      // reading the failure it was actually hiding. This hop re-mounts
+      // AccommodationStep, which re-fetches hotels/rooms (landr-r6e5x.4's
+      // "too tight on a cold, loaded run" — true, hence the explicit
+      // timeout), AND the still-mounted PriceSidebar independently re-fetches
+      // its own price estimate and renders a line item with the SAME room
+      // name text (PriceSidebar.tsx's `li.label`). A bare
+      // screen.getByText('Double Room') is unambiguous only in the WINDOW
+      // before the sidebar's re-render lands — once both have settled (which
+      // happens more often, not less, the longer this waits) there are two
+      // matching elements and getByText throws "Found multiple elements",
+      // which waitFor keeps retrying against a query that can never resolve
+      // to exactly one match again, exhausting the timeout. Scoping into the
+      // room card by its stable per-product testid (added alongside this
+      // fix, see AccommodationStep.tsx) makes the query correct regardless
+      // of how many other places on the page also say "Double Room".
       await waitFor(
-        () => expect(screen.getByText('Double Room')).toBeInTheDocument(),
+        () =>
+          expect(
+            within(screen.getByTestId('room-card-room-double')).getByText(
+              'Double Room',
+            ),
+          ).toBeInTheDocument(),
         { timeout: 5000 },
       )
       // Sanity: we did not land on a pickup picker.
@@ -3063,6 +3221,151 @@ describe('App', () => {
 
   // landr (breadcrumb): the back affordance becomes a full clickable trail, and
   // jumping back to an earlier step restores its previously-entered state.
+  // landr-6eita.1: `?product=<slug>&start=dates` — a single-product embed
+  // whose host page already describes the product opens straight on the date
+  // picker. The product-detail step is skipped and nothing leads back to it.
+  describe('start=dates single-product embed (landr-6eita.1)', () => {
+    // The multi-step walk below is the slowest thing in this block; under a
+    // loaded full-suite run the default 1s waitFor budget occasionally ran out.
+    const SLOW_FLOW = { timeout: 5000 }
+
+    function mockOpenDay() {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      return iso
+    }
+
+    function mockGuidedDay(overrides: Partial<Product> = {}) {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-gd',
+          slug: 'guided-day',
+          name: 'Guided Day',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          bookable: true,
+          ...overrides,
+        }),
+      ])
+    }
+
+    it('opens on the date picker with no product-detail step and no Back', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('step-breadcrumb')).not.toBeInTheDocument()
+    })
+
+    it('starts the breadcrumb at Dates — no product crumb to jump back to', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay()
+      const iso = mockOpenDay()
+      render(<App />)
+      // The availability fetch settles after the picker mounts and the
+      // calendar re-renders around it, so a click can land on a day button
+      // that is replaced a moment later — retry until the pick sticks.
+      await waitFor(() => {
+        const openDay = screen
+          .getAllByRole('gridcell')
+          .map((cell) => cell.querySelector('button'))
+          .find((b): b is HTMLButtonElement => !!b && !b.disabled)
+        expect(openDay).toBeDefined()
+        fireEvent.click(openDay!)
+        expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      }, SLOW_FLOW)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }, SLOW_FLOW),
+      )
+
+      await waitFor(
+        () => expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+        SLOW_FLOW,
+      )
+      const breadcrumb = screen.getByTestId('step-breadcrumb')
+      const crumbs = Array.from(breadcrumb.querySelectorAll('li')).map(
+        (li) => li.textContent,
+      )
+      expect(crumbs).toEqual(['Dates', 'Participants'])
+      expect(breadcrumb).not.toHaveTextContent('Guided Day')
+
+      // Back from details lands on Dates, which again offers no Back.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(
+        () => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+        SLOW_FLOW,
+      )
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+    })
+
+    it('a sold-out product still shows "Fully booked"', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay({ bookable: false })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/Pick a date/i)).not.toBeInTheDocument()
+    })
+
+    it('is ignored without ?product= (catalogue → product-detail as usual)', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&start=dates`)
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() => screen.getByText('Guided Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Guided Day' }))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+    })
+
+    it('a product picked from the fallback catalogue (unresolved slug) keeps product-detail', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=no-such-slug&start=dates`,
+      )
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() => screen.getByText('Guided Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Guided Day' }))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      // The normal date step keeps its Back affordance.
+      expect(screen.getByTestId('step-back-button')).toBeInTheDocument()
+    })
+  })
+
   describe('breadcrumb navigation + date restore (landr)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))

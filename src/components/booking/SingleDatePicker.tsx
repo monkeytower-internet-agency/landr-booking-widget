@@ -3,7 +3,8 @@ import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import { singleDateGate, tr, type ForceReason } from '@/lib/strings'
+import { availableDaysForLabel, singleDateGate, tr, type ForceReason } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import {
   Card,
   CardContent,
@@ -23,10 +24,12 @@ import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   /**
    * Commits the picked date as a one-element selected_days array, matching
    * the BookingForm contract used by the days-range and fixed-window paths.
@@ -52,6 +55,11 @@ interface Props {
    * instead of empty. Empty/undefined on the first visit.
    */
   initialSelectedDays?: string[]
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 /**
@@ -67,13 +75,16 @@ export function SingleDatePicker({
   onConfirm,
   onLiveDaysChange,
   initialSelectedDays,
+  onLoaded,
 }: Props) {
   const staff = useStaffMode()
+  const locale = browserLocale()
   // landr-aoak.2: force-book is only offered when staff mode is active AND the
   // session carries the force_book power. Otherwise this is the normal picker.
   const canForce = staff.active && staff.powers.includes('force_book')
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed from the restored ISO day on back-nav re-entry.
   const [selected, setSelected] = useState<Date | null>(() =>
     initialSelectedDays && initialSelectedDays[0]
@@ -200,7 +211,7 @@ export function SingleDatePicker({
       <Card>
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Could not load availability.</CardTitle>
+          <CardTitle>{tr('couldNotLoadAvailability', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -211,14 +222,14 @@ export function SingleDatePicker({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pick a date</CardTitle>
-        <CardDescription>Available days for {product.name}.</CardDescription>
+        <CardTitle>{tr('pickADate', locale)}</CardTitle>
+        <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* landr-80ubl.2: one-next-action rule — the calendar owns the ring
             until a date is picked, then ContinueAction (active by default)
             takes over. */}
-        <NextAction active={selected === null} cue={tr('singleDatePickerCue')}>
+        <NextAction active={selected === null} cue={tr('singleDatePickerCue', locale)}>
           <Calendar
             mode="single"
             selected={selected ?? undefined}
@@ -249,7 +260,7 @@ export function SingleDatePicker({
                 className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground"
                 data-testid="single-date-selected"
               >
-                Selected: {isoDate(selected)}
+                {tr('selectedDateTemplate', locale).replace('{date}', isoDate(selected))}
               </p>
               {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
             </div>
@@ -257,7 +268,7 @@ export function SingleDatePicker({
         </NextAction>
         <ContinueAction
           ready={selected !== null}
-          reason={singleDateGate(selected !== null)}
+          reason={singleDateGate(selected !== null, locale)}
           reasonId="single-date-picker-gate"
           onContinue={() => {
             if (selected) {

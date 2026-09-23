@@ -33,7 +33,8 @@ import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
-import { pickLocalized } from '@/lib/locale'
+import { pickLocalized, browserLocale } from '@/lib/locale'
+import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
 import { findOtherLanguagesField, OTHER_LANGUAGES_FIELD_KEY } from './otherLanguages'
 import { getProductFlow } from '@/api/client'
 import type {
@@ -138,9 +139,10 @@ export interface CustomFormStepProps {
 function findFormInFlow(
   flow: ProductFlowResponse | null,
   formKey: string,
+  uiLocale?: string,
 ): { form: FlowFormDef | null; error: string | null } {
   if (!flow || !flow.modules) {
-    return { form: null, error: 'No form configuration found for this product.' }
+    return { form: null, error: tr('noFormConfigForProduct', uiLocale) }
   }
   let found: FlowFormDef | null = null
   for (const mod of flow.modules) {
@@ -150,7 +152,7 @@ function findFormInFlow(
     }
   }
   if (!found) {
-    return { form: null, error: 'Form definition not found.' }
+    return { form: null, error: tr('formDefinitionNotFound', uiLocale) }
   }
   return {
     form: {
@@ -286,6 +288,8 @@ interface FieldRendererProps {
   answers: AnswerMap
   error: string | null
   locale: string
+  /** landr-5aih0.17: widget-chrome locale (the "unsupported field type" fallback is a dev/config diagnostic, not operator content — it follows the customer's resolved locale like every other chrome string, not the English-pinned `locale` above). */
+  uiLocale?: string
   onChange: (key: string, value: string | string[]) => void
 }
 
@@ -294,6 +298,7 @@ function FieldRenderer({
   answers,
   error,
   locale,
+  uiLocale,
   onChange,
 }: FieldRendererProps) {
   const { tokens } = useVariant()
@@ -406,7 +411,7 @@ function FieldRenderer({
             data-testid={`cf-field-${field.key}`}
             className={inputClassName}
           >
-            <option value="">— select —</option>
+            <option value="">{tr('selectPlaceholder', browserLocale())}</option>
             {(field.options ?? []).map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {pickLocalized(opt.label, opt.label_localized, locale)}
@@ -514,7 +519,7 @@ function FieldRenderer({
       default:
         return (
           <p className="text-xs text-muted-foreground" data-testid={`cf-field-${field.key}`}>
-            (Unsupported field type: {field.field_type})
+            {unsupportedFieldTypeLabel(field.field_type, uiLocale)}
           </p>
         )
     }
@@ -573,6 +578,11 @@ export function CustomFormStep({
   // operator default_locale + localize-on-language-pick is a follow-up: the
   // public operator-settings RPC doesn't expose default_locale yet.)
   const locale = 'en'
+  // landr-5aih0.9: separate from the pinned English-only `locale` above — that
+  // one is for OPERATOR-authored form content (deliberately English-only, see
+  // the comment on it) whereas this widget CHROME follows the resolved
+  // customer locale like every other step.
+  const uiLocale = browserLocale()
 
   // landr-db45: `flow !== undefined` means the parent supplied the
   // already-resolved flow — derive the form def SYNCHRONOUSLY from it on
@@ -584,7 +594,7 @@ export function CustomFormStep({
   // change) — each step's form is picked out of the SAME already-fetched
   // flow object.
   const resolvedFromProp =
-    flow !== undefined ? findFormInFlow(flow, formKey) : null
+    flow !== undefined ? findFormInFlow(flow, formKey, uiLocale) : null
 
   // Fallback self-fetch path — used ONLY when the prop is genuinely absent
   // (older/standalone callers). Kept byte-for-bit equivalent to the
@@ -602,13 +612,13 @@ export function CustomFormStep({
       try {
         const fetchedFlow = await getProductFlow(operatorToken, productId)
         if (cancelled) return
-        const resolved = findFormInFlow(fetchedFlow, formKey)
+        const resolved = findFormInFlow(fetchedFlow, formKey, uiLocale)
         setFetchedFormDef(resolved.form)
         setFetchedError(resolved.error)
         setFetchLoading(false)
       } catch {
         if (!cancelled) {
-          setFetchedError('Could not load the form. Please go back and try again.')
+          setFetchedError(tr('couldNotLoadFormRetry', uiLocale))
           setFetchLoading(false)
         }
       }
@@ -616,7 +626,7 @@ export function CustomFormStep({
     return () => {
       cancelled = true
     }
-  }, [flow, operatorToken, productId, formKey])
+  }, [flow, operatorToken, productId, formKey, uiLocale])
 
   const formDef = resolvedFromProp ? resolvedFromProp.form : fetchedFormDef
   const fetchError = resolvedFromProp ? resolvedFromProp.error : fetchedError
@@ -742,19 +752,19 @@ export function CustomFormStep({
   const formTitle =
     formDef
       ? pickLocalized(formDef.name, formDef.name_localized, locale) || formDef.name
-      : 'Additional information'
+      : tr('additionalInformationTitle', uiLocale)
 
   return (
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
         <CardTitle>{formTitle}</CardTitle>
-        <CardDescription>{productName} · please complete the form below</CardDescription>
+        <CardDescription>{productFormSubtitle(productName, uiLocale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {loading ? (
           <p className="text-sm text-muted-foreground" data-testid="cf-loading">
-            Loading…
+            {tr('loadingEllipsis', uiLocale)}
           </p>
         ) : fetchError ? (
           <p className="text-sm text-destructive" data-testid="cf-fetch-error">
@@ -781,6 +791,7 @@ export function CustomFormStep({
                 answers={effectiveAnswers}
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
+                uiLocale={uiLocale}
                 onChange={handleChange}
               />
             )
@@ -799,8 +810,8 @@ export function CustomFormStep({
           ready={!loading && !fetchError && isFormComplete}
           reason={
             isFormComplete
-              ? 'Ready to continue.'
-              : 'Complete every required field to continue.'
+              ? tr('readyToContinue', uiLocale)
+              : tr('completeEveryRequiredField', uiLocale)
           }
           reasonId="cf-step-gate"
           onContinue={handleSubmit}

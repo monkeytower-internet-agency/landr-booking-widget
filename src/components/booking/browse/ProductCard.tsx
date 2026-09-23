@@ -18,6 +18,8 @@
  */
 import type { ReactNode } from 'react'
 import type { Product } from '@/api/types'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 import { ProductArt } from '@/components/booking/art/ProductArt'
@@ -60,7 +62,7 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
   const meta = productMetaChip(product, showDateModel, locale)
   const kind = productKindBadge(product, locale)
   // landr-pv2r1: guide-languages chip (null for any-language / unset).
-  const languages = productLanguagesChip(product)
+  const languages = productLanguagesChip(product, locale)
   const price = productPriceLabel(product)
   const isDraft = product.is_publicly_listed === false
 
@@ -110,7 +112,7 @@ export function ProductCard({ product, locale, showDateModel, onSelect }: Props)
             className="absolute left-2 top-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
             data-testid="draft-badge"
           >
-            Draft — preview
+            {tr('draftPreviewBadge', browserLocale())}
           </span>
         ) : null}
       </div>

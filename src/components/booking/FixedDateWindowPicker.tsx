@@ -3,7 +3,8 @@ import { CalendarRange, Check } from 'lucide-react'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { forceReasonsFor } from '@/components/booking/bookability'
-import { fixedDateWindowGate, tr, type ForceReason } from '@/lib/strings'
+import { fixedDateWindowGate, seatsLeftLabel, tr, upcomingWindowsForLabel, type ForceReason } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { expandWindowDays } from './expandWindowDays'
 import { formatWindowRangeLabel } from './dateLabel'
 import {
@@ -20,10 +21,12 @@ import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadg
 import { cn } from '@/lib/utils'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
-  onBack: () => void
+  /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
+  onBack?: () => void
   /**
    * The widget pipeline downstream of this picker (BookingForm + pickup) only
    * knows AvailabilitySlot. We synthesise a slot from the picked window where
@@ -56,6 +59,11 @@ interface Props {
    * first visit.
    */
   initialWindowId?: string
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
@@ -79,14 +87,17 @@ export function FixedDateWindowPicker({
   exposeSeats = true,
   onLiveDaysChange,
   initialWindowId,
+  onLoaded,
 }: Props) {
   const { tokens } = useVariant()
   const staff = useStaffMode()
+  const locale = browserLocale()
   // landr-aoak.2: force-book a FULL window only when staff mode is active AND
   // the session carries the force_book power. Otherwise normal behaviour.
   const canForce = staff.active && staff.powers.includes('force_book')
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(windows !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed from the restored window id on back-nav re-entry.
   const [selectedId, setSelectedId] = useState<string | null>(
     initialWindowId ?? null,
@@ -150,7 +161,7 @@ export function FixedDateWindowPicker({
       <Card>
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Could not load course windows.</CardTitle>
+          <CardTitle>{tr('couldNotLoadCourseWindows', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -161,21 +172,21 @@ export function FixedDateWindowPicker({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pick a course window</CardTitle>
+        <CardTitle>{tr('pickACourseWindow', locale)}</CardTitle>
         <CardDescription>
-          Upcoming {product.name} windows. Pick one to continue.
+          {upcomingWindowsForLabel(product.name, locale)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* landr-80ubl.2: one-next-action rule — the window list owns the
             ring until one is picked, then ContinueAction (active by
             default) takes over. */}
-        <NextAction active={!selectedWindow} cue={tr('fixedDateWindowCue')}>
+        <NextAction active={!selectedWindow} cue={tr('fixedDateWindowCue', locale)}>
         {windows === null ? (
-          <p className="text-sm text-muted-foreground">Loading windows…</p>
+          <p className="text-sm text-muted-foreground">{tr('loadingWindows', locale)}</p>
         ) : windows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No upcoming windows for this course. Please check back later.
+            {tr('noUpcomingWindows', locale)}
           </p>
         ) : (
           <ul className="flex flex-col gap-2.5">
@@ -263,7 +274,7 @@ export function FixedDateWindowPicker({
                     </span>
                     <span className="flex flex-1 items-center justify-between gap-3">
                       <span className="font-medium tabular-nums">
-                        {formatWindowRangeLabel(window.start_date, window.end_date)}
+                        {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
                       </span>
                       {blocked && canForce ? (
                         // landr-aoak.2/t869m.5: a blocked window in staff mode
@@ -280,12 +291,12 @@ export function FixedDateWindowPicker({
                           )}
                         >
                           {isFull
-                            ? 'Full'
+                            ? tr('fullBadge', locale)
                             : leadTimeBlocked
-                              ? 'Too late to book'
+                              ? tr('tooLateToBook', locale)
                               : exposeSeats
-                                ? `${available} seat${available === 1 ? '' : 's'} left`
-                                : 'Available'}
+                                ? seatsLeftLabel(available, locale)
+                                : tr('availableBadge', locale)}
                         </span>
                       )}
                     </span>
@@ -299,7 +310,7 @@ export function FixedDateWindowPicker({
 
         <ContinueAction
           ready={!!selectedWindow}
-          reason={fixedDateWindowGate(!!selectedWindow)}
+          reason={fixedDateWindowGate(!!selectedWindow, locale)}
           reasonId="fixed-date-window-picker-gate"
           onContinue={() => {
             if (selectedWindow) {

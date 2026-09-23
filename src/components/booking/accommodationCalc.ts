@@ -145,11 +145,21 @@ export interface RoomSelection {
  * Format a number as a currency amount. Falls back to bare number with
  * the currency suffix when Intl is unavailable or the currency code is
  * unrecognised — never throws.
+ *
+ * landr-5aih0.9: `locale` was previously always omitted (`undefined` →
+ * the browser's raw OS/UI locale via Intl.NumberFormat's own default),
+ * bypassing the widget's resolved customer_languages/whitelist locale.
+ * Threaded through now, same as formatMoney (priceSidebarHelpers.ts) —
+ * still optional so an un-migrated caller keeps its previous behaviour.
  */
-export function formatCurrency(amount: number, currency: string | null | undefined): string {
+export function formatCurrency(
+  amount: number,
+  currency: string | null | undefined,
+  locale?: string,
+): string {
   const ccy = currency ?? 'EUR'
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: ccy,
       maximumFractionDigits: 2,

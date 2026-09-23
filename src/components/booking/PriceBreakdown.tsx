@@ -20,6 +20,8 @@
  */
 import type { ReactNode } from 'react'
 import type { SavingLine } from '@/api/types'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { formatMoney } from './priceSidebarHelpers'
 
@@ -51,12 +53,14 @@ export function PriceBreakdown({
   savings,
   amountDue,
   currency,
-  totalLabel = 'Amount due',
+  totalLabel,
   totalClassName,
   testIdPrefix,
   className,
   details,
 }: PriceBreakdownProps) {
+  const locale = browserLocale()
+  const resolvedTotalLabel = totalLabel ?? tr('amountDueLabel', locale)
   const rows = savings ?? []
   const hasSavings = rows.length > 0 && Boolean(subtotalBeforeSavings)
 
@@ -68,9 +72,9 @@ export function PriceBreakdown({
             className="flex items-baseline justify-between text-sm"
             data-testid={`${testIdPrefix}-subtotal`}
           >
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">{tr('offerSubtotalLabel', locale)}</span>
             <span className="tabular-nums text-muted-foreground">
-              {formatMoney(subtotalBeforeSavings as string, currency)}
+              {formatMoney(subtotalBeforeSavings as string, currency, locale)}
             </span>
           </div>
           <ul className="space-y-1" data-testid={`${testIdPrefix}-savings`}>
@@ -82,7 +86,7 @@ export function PriceBreakdown({
               >
                 <span>− {saving.label}</span>
                 <span className="tabular-nums">
-                  −{formatMoney(saving.amount, currency)}
+                  −{formatMoney(saving.amount, currency, locale)}
                 </span>
               </li>
             ))}
@@ -97,9 +101,9 @@ export function PriceBreakdown({
         )}
         data-testid={`${testIdPrefix}-amount-due`}
       >
-        <span className="font-semibold">{totalLabel}</span>
+        <span className="font-semibold">{resolvedTotalLabel}</span>
         <span className="font-semibold tabular-nums">
-          {formatMoney(amountDue, currency)}
+          {formatMoney(amountDue, currency, locale)}
         </span>
       </div>
     </div>

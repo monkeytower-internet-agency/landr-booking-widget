@@ -1,3 +1,4 @@
+import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { OptionalReveal } from './OptionalReveal'
 import { Label } from '@/components/ui/label'
@@ -41,10 +42,11 @@ export function CustomerCommentField({
   onChange,
   collapsible = false,
 }: CustomerCommentFieldProps) {
+  const locale = browserLocale()
   const field = (
     <div className="flex flex-col gap-1" data-testid="customer-comment-section">
       <Label htmlFor="customer-comment" className="text-xs">
-        Anything we should know? (optional)
+        {tr('anythingWeShouldKnowLabel', locale)}
       </Label>
       <Textarea
         id="customer-comment"
@@ -54,11 +56,11 @@ export function CustomerCommentField({
         value={value}
         maxLength={MAX_COMMENT_LENGTH}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. a dietary need, an accessibility request, a special occasion…"
+        placeholder={tr('customerCommentPlaceholder', locale)}
       />
       <div className="flex items-start justify-between gap-2">
         <p id="customer-comment-hint" className="text-xs text-muted-foreground">
-          {tr('customerCommentHint')}
+          {tr('customerCommentHint', locale)}
         </p>
         <p
           id="customer-comment-counter"
@@ -73,7 +75,7 @@ export function CustomerCommentField({
   if (!collapsible) return field
   return (
     <OptionalReveal
-      thing={tr('customerCommentAdd')}
+      thing={tr('customerCommentAdd', locale)}
       hasValue={value !== ''}
       data-testid="customer-comment-reveal"
     >

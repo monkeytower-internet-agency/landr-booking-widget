@@ -80,10 +80,13 @@ The widget is loaded by Para42's WordPress site via the shortcode `[landr_bookin
 - `w` — opaque widget token (required; no token → generic landing page)
 - `group` — optional product-category slug; scopes the embed to that category and all its sub-categories
 - `product` — optional pre-selected product slug (wins over `group` when both are present). A single-product deep link ALWAYS renders that product; if it is sold out it shows a "Fully booked" state (no date picker, no Select CTA)
+- `start` — optional; `dates` opens a single-product embed (`product=` required, ignored otherwise) straight on the date picker. The product-detail (Overview) step is skipped and nothing links back to it — for host pages that already describe the product. A sold-out product still shows "Fully booked". (landr-6eita.1)
 - `preview_token` — optional operator preview token; surfaces draft products during operator preview
 - `show_sold_out` — optional; `true` (or `1`) makes the catalogue / category overview SHOW sold-out products as informational "Fully booked" cards (no Select CTA) instead of hiding them. Default off: sold-out products are hidden from the overview. (landr-7jgo)
 - `variant` — optional visual direction: `aurora` (default, brand-gradient immersive), `summit` (editorial / image-forward), or `alpine` (crisp classic, dense). Token-level theming applied across the whole flow. (landr-d8rg.3)
 - `preview` — optional; `1` (or `true`) enables a floating bottom-right **variant switcher** chip so a reviewer can flip aurora / summit / alpine live without editing the URL (it updates `?variant=` in place, no reload). A `preview_token` also enables the switcher. Customer-facing embeds omit both, so the switcher never ships to end users. (landr-d8rg.8)
+
+**Auto-height (landr-6eita.1).** When embedded (`window.parent !== window`) the widget posts `{ type: 'landr:resize', height }` (integer CSS px of its content, target `'*'`) to the parent whenever its height changes, so the host can size the iframe instead of the widget scrolling inside it. The parent must accept it only from its own landr iframe (`event.source`) and that iframe's `src` origin (`event.origin`); the WP plugin and the dashboard embed snippet do this. Implementation: `src/lib/autoHeight.ts`.
 
 ## Repo layout
 
@@ -94,3 +97,42 @@ src/
   App.tsx          entry — customer flow lands in landr-e10.2
 wp-plugin/         WordPress plugin (landr-e10.4)
 ```
+
+## Languages (landr-5aih0.9)
+
+Widget chrome (buttons, headings, validation messages, date-picker help — every
+string that isn't operator-authored content) is bundled in `src/lib/strings.ts`.
+`pickBundle(locale)` / `tr(key, locale)` resolve to the German bundle for any
+`de*` locale and to English for everything else; there is no i18n library — the
+bundle is the whole translation layer, following the pattern landr-ifcu
+established for the (then English-only) widget.
+
+- **Locale source**: the resolver in `src/lib/locale.ts` (`browserLocale()`) —
+  an invite's own `language` override, else the operator's `customer_languages`
+  whitelist (falling back to `default_locale`), else the raw browser locale.
+  Components call `browserLocale()` directly (no prop threading) and pass the
+  result into `tr()`/`pickBundle()`.
+- **Adding a locale**: extend the `Bundle` type and the `en`/`de` objects in
+  `src/lib/strings.ts`, then widen `pickBundle`'s locale-base switch. es/fr/it
+  are out of scope for landr-5aih0.9 (DE only, per the epic) — add later by
+  copying the `de` object as a starting point.
+- **Dates**: `src/components/booking/dateLabel.ts` formats every date/time
+  label via `Intl.DateTimeFormat`, threaded the resolved locale through.
+  Currency goes through `Intl.NumberFormat` in `priceSidebarHelpers.ts`
+  (`formatMoney`) and `accommodationCalc.ts` (`formatCurrency`), same pattern.
+- **Page-scoped exception**: `ApprovalReplyPage` (the hotel rooms-request
+  reply page) ships its own de/en/es bundle in `approvalReplyStrings.ts`
+  under a *different* locale rule — it follows the hotel's language (the
+  email it was sent in), not the customer's — predating this ticket
+  (landr-em0r.9) and left as-is.
+- **Regression guard**: `src/components/booking/noEnglishLiteral.test.ts`
+  scans the component tree for un-translated English chrome text. A handful
+  of surfaces are deliberately still English-only (staff-only UI, a few
+  drag-and-drop screen-reader announcements, an invite-only sub-flow) — see
+  that test's file header and its `ALLOWED_LITERALS` map for the exact list
+  and why.
+- **Operator-authored content is untouched**: product/category names,
+  custom-form field labels, stage labels, and after-booking HTML are always
+  operator-supplied over the wire (localized server-side / via
+  `pickLocalized`) — never hard-coded widget copy, so they never need an
+  entry in the bundle.

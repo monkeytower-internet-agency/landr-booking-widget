@@ -59,7 +59,19 @@ import {
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
-import { accommodationTooLateMessage } from '@/lib/strings'
+import {
+  accommodationTooLateMessage,
+  additionalAccommodationRequiredHint,
+  nightsWord,
+  occupancyOverbookWarning,
+  qtyAdjustAriaLabel,
+  sharedDoubleOthersTooLateMessage,
+  sharedDoubleReferenceFoundLabel,
+  sharedDoubleReferenceLinkedLabel,
+  sharedDoubleReferenceNotFoundMessage,
+  splitOnPlaceholder,
+  tr,
+} from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -1188,7 +1200,7 @@ export function AccommodationStep({
   // landr-80ubl.3: one-next-action rule — RoomAssignment wraps itself in
   // NextAction when this is non-null; once occupancy is complete the
   // highlight moves down to Continue instead (no cue).
-  const roomAssignmentCue = occupancy.complete ? null : 'assign everyone to a room'
+  const roomAssignmentCue = occupancy.complete ? null : tr('assignEveryoneToARoomCue', locale)
 
   // landr-395ks: shared-double allows a partly filled room on purpose (a
   // partner may take a double), but the room is charged whole — surface a
@@ -1492,7 +1504,7 @@ export function AccommodationStep({
   // additional rooms).
   const sharedDoubleOption = {
     value: 'shared-double' as const,
-    label: 'I am sharing a double room booked by someone else',
+    label: tr('sharedDoubleLabel', locale),
     hint: inviteMode
       ? 'Your bed is in the double room the person who invited you already booked. You are collected from the hotel.'
       : 'No room booked — the other guest holds the double room. You are collected from the hotel.',
@@ -1505,8 +1517,8 @@ export function AccommodationStep({
         ? [
             {
               value: 'guiding-only' as const,
-              label: 'Guiding only — I bring my own accommodation',
-              hint: 'No hotel booked through us — straight to pickup.',
+              label: tr('guidingOnlyLabel', locale),
+              hint: tr('guidingOnlyHint', locale),
             },
           ]
         : []),
@@ -1515,8 +1527,8 @@ export function AccommodationStep({
         : [
             {
               value: 'package' as const,
-              label: 'Book accommodation (package)',
-              hint: 'Pick a hotel and rooms for your stay.',
+              label: tr('bookAccommodationPackageLabel', locale),
+              hint: tr('bookAccommodationPackageHint', locale),
             },
             sharedDoubleOption,
           ]),
@@ -1531,12 +1543,12 @@ export function AccommodationStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Accommodation</CardTitle>
+        <CardTitle>{tr('accommodationTitle', locale)}</CardTitle>
         <CardDescription>
           {productName} ·{' '}
           {offering === 'mandatory'
-            ? 'Hotel stay required'
-            : 'Add a hotel stay (optional)'}
+            ? tr('hotelStayRequired', locale)
+            : tr('addHotelStayOptional', locale)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -1551,7 +1563,7 @@ export function AccommodationStep({
             className="text-sm text-muted-foreground"
             data-testid="accommodation-checking-notice"
           >
-            Checking accommodation availability for this date…
+            {tr('checkingAccommodationAvailability', locale)}
           </p>
         ) : null}
         {/* landr-t869m.2: "activity still bookable, hotel too late" —
@@ -1582,9 +1594,7 @@ export function AccommodationStep({
             data-testid="shared-double-too-late-others"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            Only you share the host&apos;s room; it&apos;s too late to book
-            rooms for other pilots ({sharedDoubleGuidingNames.join(', ')}) —
-            remove them or contact the operator.
+            {sharedDoubleOthersTooLateMessage(sharedDoubleGuidingNames.join(', '), locale)}
           </p>
         ) : null}
         {/* landr-ffyg.2: top-level accommodation mode choice. Shown only
@@ -1597,7 +1607,7 @@ export function AccommodationStep({
             data-testid="accommodation-mode"
           >
             <legend className="text-sm font-medium">
-              How would you like to handle accommodation?
+              {tr('howWouldYouLikeToHandleAccommodation', locale)}
             </legend>
             {modeOptions.map((opt) => {
               const checked = mode === opt.value
@@ -1644,15 +1654,22 @@ export function AccommodationStep({
         {showHotelContext ? (
           hotels.length === 1 ? (
             <p className="text-sm text-muted-foreground">
-              Staying at{' '}
-              <span className="font-medium text-foreground">
-                {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
-              </span>
-              .
+              {(() => {
+                const [before, after] = splitOnPlaceholder(tr('stayingAtTemplate', locale), 'hotel')
+                return (
+                  <>
+                    {before}
+                    <span className="font-medium text-foreground">
+                      {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
+                    </span>
+                    {after}
+                  </>
+                )
+              })()}
             </p>
           ) : (
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium">Choose your hotel</legend>
+              <legend className="text-sm font-medium">{tr('chooseYourHotel', locale)}</legend>
               {hotels.map((hotel) => {
                 const checked = selectedHotelId === hotel.location_id
                 const name = pickLocalized(hotel.name, hotel.name_localized, locale)
@@ -1691,7 +1708,7 @@ export function AccommodationStep({
 
         {needsHotel && hotels && hotels.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No hotels configured for this operator yet.
+            {tr('noHotelsConfigured', locale)}
           </p>
         ) : null}
 
@@ -1709,16 +1726,10 @@ export function AccommodationStep({
           >
             {inviteMode ? (
               <span data-testid="invite-room-booked-notice">
-                Your own room is already booked — you are sharing the double
-                room of the person who invited you, and you will be collected
-                from the hotel.
+                {tr('sharedDoubleInviteNotice', locale)}
               </span>
             ) : (
-              <>
-                You are sharing a double room with another guest. No room is
-                booked for you — the other guest holds the room — and you
-                will be collected from the hotel.
-              </>
+              <>{tr('sharedDoubleNormalNotice', locale)}</>
             )}
           </p>
         ) : null}
@@ -1734,8 +1745,7 @@ export function AccommodationStep({
             className="text-xs text-muted-foreground"
             data-testid="additional-accommodation-hint"
           >
-            Travelling with family or friends? Add them as companions in the
-            previous step and you can book additional rooms for them here.
+            {tr('travellingWithFamilyHint', locale)}
           </p>
         ) : null}
 
@@ -1752,7 +1762,7 @@ export function AccommodationStep({
               htmlFor="shared-double-reference-input"
               className="text-sm font-medium"
             >
-              Booking reference of the person who booked the room
+              {tr('sharedDoubleReferenceInputLabel', locale)}
             </label>
             <input
               id="shared-double-reference-input"
@@ -1773,15 +1783,16 @@ export function AccommodationStep({
                 starts editing an already-looked-up code again — the effect
                 deliberately does not reset state on every keystroke. */}
             {refInput.length === 8 && refLookup.status === 'loading' ? (
-              <p className="text-xs text-muted-foreground">Looking that up…</p>
+              <p className="text-xs text-muted-foreground">
+                {tr('sharedDoubleReferenceLookingUp', locale)}
+              </p>
             ) : null}
             {refInput.length === 8 && refLookup.status === 'not_found' ? (
               <p
                 className="text-xs text-muted-foreground"
                 data-testid="shared-double-reference-not-found"
               >
-                We couldn&rsquo;t find that reference for this operator —
-                double-check it, or just leave it blank and add it later.
+                {sharedDoubleReferenceNotFoundMessage(locale)}
               </p>
             ) : null}
             {refInput.length === 8 && refLookup.status === 'found' ? (
@@ -1790,9 +1801,11 @@ export function AccommodationStep({
                 data-testid="shared-double-reference-confirm"
               >
                 <p className="text-sm">
-                  Booking of {refLookup.result.masked_name} from{' '}
-                  {formatRelativeDate(refLookup.result.created_at)} — is that
-                  them?
+                  {sharedDoubleReferenceFoundLabel(
+                    refLookup.result.masked_name,
+                    formatRelativeDate(refLookup.result.created_at),
+                    locale,
+                  )}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -1801,7 +1814,7 @@ export function AccommodationStep({
                     onClick={confirmJoinRef}
                     data-testid="shared-double-reference-confirm-yes"
                   >
-                    Yes, link us
+                    {tr('sharedDoubleReferenceConfirmYes', locale)}
                   </Button>
                   <Button
                     type="button"
@@ -1810,7 +1823,7 @@ export function AccommodationStep({
                     onClick={declineJoinRef}
                     data-testid="shared-double-reference-confirm-no"
                   >
-                    No
+                    {tr('sharedDoubleReferenceConfirmNo', locale)}
                   </Button>
                 </div>
               </div>
@@ -1820,14 +1833,11 @@ export function AccommodationStep({
                 className="text-xs text-diff-added"
                 data-testid="shared-double-reference-linked"
               >
-                Linked to {refLookup.result.masked_name}&rsquo;s booking.
+                {sharedDoubleReferenceLinkedLabel(refLookup.result.masked_name, locale)}
               </p>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              It&rsquo;s nice if you have the code, totally fine if not — you
-              can add it later from your booking page. Easiest is to ask the
-              person who booked for their invite link, then everything is
-              prefilled.
+              {tr('sharedDoubleReferenceHelp', locale)}
             </p>
           </div>
         ) : null}
@@ -1843,26 +1853,28 @@ export function AccommodationStep({
             }
           >
             <legend className="text-sm font-medium">
-              {sharedDoubleRooms ? 'Additional accommodation' : 'Rooms'}
+              {sharedDoubleRooms ? tr('additionalAccommodationLegend', locale) : tr('roomsLegend', locale)}
             </legend>
             {sharedDoubleRooms ? (
               <p className="text-xs text-muted-foreground">
                 {sharedDoubleRoomsRequired
-                  ? `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${sharedDoubleGuidingNames.join(', ')} ${
-                      sharedDoubleGuidingNames.length === 1 ? 'needs' : 'need'
-                    } a room here.`
-                  : 'Optional — rooms for the people travelling with you. Your own bed is already covered by the shared double room.'}
+                  ? additionalAccommodationRequiredHint(
+                      sharedDoubleGuidingNames.join(', '),
+                      sharedDoubleGuidingNames.length,
+                      locale,
+                    )
+                  : tr('additionalAccommodationOptionalHint', locale)}
               </p>
             ) : null}
             {rooms === null && !roomsError ? (
-              <p className="text-sm text-muted-foreground">Loading rooms…</p>
+              <p className="text-sm text-muted-foreground">{tr('loadingRooms', locale)}</p>
             ) : null}
             {roomsError ? (
               <p className="text-sm text-destructive">{roomsError}</p>
             ) : null}
             {rooms && rooms.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No rooms configured for this hotel yet.
+                {tr('noRoomsConfigured', locale)}
               </p>
             ) : null}
             {rooms?.map((room) => {
@@ -1882,6 +1894,15 @@ export function AccommodationStep({
                 // sub-card so the room reads as a distinct, selectable block.
                 <div
                   key={room.product_id}
+                  // landr-ykzuq: stable per-room scope. PriceSidebar renders
+                  // its own line item with the SAME room name text once an
+                  // estimate resolves (a separate async path — see
+                  // PriceSidebar.tsx's `li.label`), so a bare
+                  // screen.getByText(roomName) is genuinely ambiguous once
+                  // both have rendered, not just slow. Tests scope into this
+                  // card by product id instead of querying room name text
+                  // page-wide.
+                  data-testid={`room-card-${room.product_id}`}
                   className={cn(
                     'flex flex-col gap-2 border border-border bg-surface-raised p-3',
                     tokens.optionCardRadius,
@@ -1893,12 +1914,12 @@ export function AccommodationStep({
                       <span className="text-sm font-medium">{roomName}</span>
                       {room.price_per_unit ? (
                         <span className="text-xs text-muted-foreground">
-                          {formatCurrency(Number(room.price_per_unit), room.currency)}{' '}
-                          / night
+                          {formatCurrency(Number(room.price_per_unit), room.currency, locale)}{' '}
+                          {tr('perNightSuffix', locale)}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">
-                          Price on request
+                          {tr('priceOnRequest', locale)}
                         </span>
                       )}
                     </div>
@@ -1913,7 +1934,7 @@ export function AccommodationStep({
                           className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                           disabled={qty <= 0}
                           onClick={() => bumpQty(room.product_id, -1)}
-                          aria-label={`Decrease ${roomName} quantity`}
+                          aria-label={qtyAdjustAriaLabel('decrease', roomName, locale)}
                         >
                           −
                         </Button>
@@ -1929,14 +1950,14 @@ export function AccommodationStep({
                           size="icon"
                           className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                           onClick={() => bumpQty(room.product_id, 1)}
-                          aria-label={`Increase ${roomName} quantity`}
+                          aria-label={qtyAdjustAriaLabel('increase', roomName, locale)}
                         >
                           +
                         </Button>
                       </div>
                       <span className="ml-1 w-20 text-right text-sm font-medium tabular-nums text-muted-foreground">
                         {subtotal > 0
-                          ? formatCurrency(subtotal, room.currency)
+                          ? formatCurrency(subtotal, room.currency, locale)
                           : '—'}
                       </span>
                     </div>
@@ -1969,7 +1990,7 @@ export function AccommodationStep({
                       // landr-yybu: room-linked add-ons are hard-capped at the
                       // room's occupancy (incl single-occupancy rooms → cap 1).
                       occupancyLimited
-                      heading="Add-ons"
+                      heading={tr('addonsTitle', locale)}
                     />
                   ) : null}
                 </div>
@@ -1987,7 +2008,7 @@ export function AccommodationStep({
             assigned — see the occupancy hint + canContinue above). */}
         {bookRooms && roomUnits.length > 0 && occupantCount > 0 ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
-            <legend className="text-sm font-medium">Room assignment</legend>
+            <legend className="text-sm font-medium">{tr('roomAssignmentLegend', locale)}</legend>
             {sharedDoubleRooms ? (
               // landr-zeg4u.4 / .5: everyone but the booker. RoomAssignment
               // works in a 0-based member space, so hand it a VIEW of the
@@ -2062,8 +2083,7 @@ export function AccommodationStep({
                 data-testid="child-age-hint"
                 className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
               >
-                Please enter the age for each child guest — the hotel needs it
-                to prepare the room.
+                {tr('pleaseEnterChildAgeHint', locale)}
               </p>
             ) : null}
           </fieldset>
@@ -2081,9 +2101,7 @@ export function AccommodationStep({
             data-testid="overbook-capacity-warning"
             className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           >
-            You have {occupantCount}{' '}
-            {occupantCount === 1 ? 'person' : 'people'} but only{' '}
-            {totalCapacity} {totalCapacity === 1 ? 'bed' : 'beds'} — sure?
+            {occupancyOverbookWarning(occupantCount, totalCapacity, locale)}
           </p>
         ) : null}
         {/* landr-yybu: bottom aggregate breakfast warning removed.
@@ -2101,16 +2119,15 @@ export function AccommodationStep({
               className="text-xs text-muted-foreground"
               data-testid="accommodation-stay-window"
             >
-              Stay: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
+              {tr('stayNightsLabel', locale)}: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
               {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'} ·{' '}
-              {nights} {nights === 1 ? 'night' : 'nights'}
+              {nights} {nightsWord(nights, locale)}
             </p>
             <p
               className="text-xs italic text-muted-foreground"
               data-testid="accommodation-payment-notice"
             >
-              Hotel is paid directly at check-in (cash / card) — not included
-              in your booking total.
+              {tr('hotelPaidAtCheckin', locale)}
             </p>
           </div>
         ) : null}
@@ -2125,7 +2142,7 @@ export function AccommodationStep({
 
         <ContinueAction
           ready={canContinue}
-          reason={canContinue ? 'Ready to continue.' : occupancyHint || 'Complete the steps above to continue.'}
+          reason={canContinue ? tr('readyToContinue', locale) : occupancyHint || tr('completeStepsAboveToContinue', locale)}
           reasonId="accommodation-step-gate"
           onContinue={handleContinue}
           data-testid="accommodation-step-submit"

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { ProductAddon } from '@/api/types'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
@@ -113,7 +114,7 @@ export function AddonsList({
         const qty = selection[addon.addon_product_id] ?? 0
         const addonName = pickLocalized(addon.name, addon.name_localized, locale)
         const deviation = isOverbooked(qty, expectedQty)
-        const requiredError = requiredAddonError(addon, qty)
+        const requiredError = requiredAddonError(addon, qty, locale)
         // landr-yybu: + disabled at the occupancy cap (room-linked add-ons)
         // OR the add-on's own max_qty, whichever binds first.
         const atMax =
@@ -135,7 +136,7 @@ export function AddonsList({
                   {addonName}
                   {addon.is_required ? (
                     <span className="ml-1 text-xs font-normal text-muted-foreground">
-                      (required)
+                      ({tr('requiredSuffix', locale)})
                     </span>
                   ) : null}
                 </span>
@@ -144,12 +145,13 @@ export function AddonsList({
                     {formatCurrency(
                       Number(addon.price_per_unit),
                       addon.currency,
+                      locale,
                     )}{' '}
-                    each
+                    {tr('eachSuffix', locale)}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">
-                    Price on request
+                    {tr('priceOnRequest', locale)}
                   </span>
                 )}
               </div>
@@ -163,7 +165,7 @@ export function AddonsList({
                   className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={qty <= 0}
                   onClick={() => bumpQty(addon, -1)}
-                  aria-label={`Decrease ${addonName} quantity`}
+                  aria-label={qtyAdjustAriaLabel('decrease', addonName, locale)}
                 >
                   −
                 </Button>
@@ -180,7 +182,7 @@ export function AddonsList({
                   className="tap-44 rounded-full bg-primary/10 text-foreground hover:bg-primary/20"
                   disabled={atMax}
                   onClick={() => bumpQty(addon, 1)}
-                  aria-label={`Increase ${addonName} quantity`}
+                  aria-label={qtyAdjustAriaLabel('increase', addonName, locale)}
                 >
                   +
                 </Button>
@@ -191,9 +193,7 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-overbook-${addon.addon_product_id}`}
               >
-                {roomQty > 1
-                  ? `More ${addonName.toLowerCase()} (${qty}) than these ${roomQty} rooms sleep (${expectedQty}) — bringing extras?`
-                  : `More ${addonName.toLowerCase()} (${qty}) than this room sleeps (${expectedQty}) — bringing extras?`}
+                {addonDeviationMessage('over', addonName, qty, expectedQty, roomQty, locale)}
               </p>
             ) : null}
             {deviation === 'under' ? (
@@ -201,9 +201,7 @@ export function AddonsList({
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
                 data-testid={`addon-underbook-${addon.addon_product_id}`}
               >
-                {roomQty > 1
-                  ? `Only ${qty} ${addonName.toLowerCase()} for ${roomQty} rooms (${expectedQty} guests) — one per room?`
-                  : `Only ${qty} ${addonName.toLowerCase()} for a room that sleeps ${expectedQty} — one per guest?`}
+                {addonDeviationMessage('under', addonName, qty, expectedQty, roomQty, locale)}
               </p>
             ) : null}
             {requiredError ? (
