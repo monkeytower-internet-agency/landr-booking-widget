@@ -41,6 +41,7 @@ import type { AddonSelection } from './addonsState'
 import { formatDayLabel } from './dateLabel'
 import { browserLocale } from '@/lib/locale'
 import { forNamesLine, hotelSpanLabel, qtyTimesUnits, tr } from '@/lib/strings'
+import { EMBEDDED_ATTR } from '@/lib/autoHeight'
 import { DayChips } from './DayChips'
 import { PriceBreakdown } from './PriceBreakdown'
 import { useBookingEstimate } from './useBookingEstimate'
@@ -489,6 +490,9 @@ export default function PriceSidebar(props: Props) {
   // locked so neither the page nor the toggle moves.
   useEffect(() => {
     if (!mobileOpen) return
+    // landr-tkgx8.3: embedded, the bar is in normal flow (not an overlay)
+    // and the auto-height document never scrolls — nothing to lock.
+    if (document.documentElement.hasAttribute(EMBEDDED_ATTR)) return
     const { body, documentElement } = document
     const bar = mobileBarRef.current
     // 0 on phones / overlay scrollbars. clientWidth is 0 without layout
@@ -588,12 +592,18 @@ export default function PriceSidebar(props: Props) {
           content, so Tab / a screen reader's next-item lands in the
           breakdown — and flex-col-reverse paints it at the bottom of the
           bottom-anchored container, so opening grows the bar upward above
-          it. */}
+          it.
+          landr-tkgx8.3: embedded, the iframe is as tall as the widget, so
+          `fixed bottom-0` means the bottom of the WHOLE widget — far below
+          whatever part of the host page the customer is looking at. There
+          the bar sits in normal flow under the step instead, and opens
+          downward (flex-col: toggle stays put, breakdown below it). */}
       <div
         ref={mobileBarRef}
         data-testid="price-sidebar-mobile"
         className={cn(
           'md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col-reverse overflow-hidden shadow-elev-3',
+          'embedded:static embedded:flex-col embedded:rounded-xl',
           // Open: the container itself takes the tint so the freshly grown
           // area never flashes the bar colour while the panel fades in.
           mobileOpen
@@ -673,7 +683,9 @@ export default function PriceSidebar(props: Props) {
           <div
             id="price-sidebar-mobile-panel"
             data-testid="price-sidebar-mobile-panel"
-            className="[--muted-foreground:var(--surface-tint-muted-foreground)] max-h-[60vh] overflow-y-auto overscroll-contain border-b border-b-primary/15 bg-surface-tint px-4 py-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
+            // landr-tkgx8.3: vh inside an auto-height iframe is the whole
+            // widget's height (and grows with the drawer) — cap in px there.
+            className="[--muted-foreground:var(--surface-tint-muted-foreground)] max-h-[60vh] embedded:max-h-[480px] overflow-y-auto overscroll-contain border-b border-b-primary/15 bg-surface-tint px-4 py-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-200 motion-reduce:animate-none"
           >
             <BookingOverviewBody
             {...visible}
@@ -688,7 +700,7 @@ export default function PriceSidebar(props: Props) {
           height grew (larger total + the optional "+ €X at hotel" sub-line),
           so the spacer reserves enough room that the fixed bar never overlaps
           the last step content at 360px. */}
-      <div aria-hidden className="md:hidden h-20" />
+      <div aria-hidden className="md:hidden h-20 embedded:hidden" />
     </>
   )
 }
