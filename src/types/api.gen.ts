@@ -767,28 +767,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/internal/stripe/webhook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stripe Webhook
-         * @description LEGACY app-level endpoint — verifies the app-level secret only.
-         *
-         *     Behaviour UNCHANGED by landr-1nwu.3 (platform / single-tenant back-compat).
-         */
-        post: operations["stripe_webhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/landr-staff/community-photos/{photo_id}/remove": {
         parameters: {
             query?: never;
@@ -2007,23 +1985,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/bookings/{booking_id}/calendar.ics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Booking Calendar Ics */
-        get: operations["get_booking_calendar_ics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
         parameters: {
             query?: never;
@@ -2053,6 +2014,35 @@ export interface paths {
         };
         /** Get Booking */
         get: operations["get_booking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/calendar.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Calendar Ics
+         * @description The whole booking as one .ics (landr-3vr5; token-scoped, landr-5aih0.4).
+         *
+         *     Timed + zoned VEVENTs for days with a known start (pickup time, else the
+         *     time-slot start), all-day otherwise; LOCATION/GEO = the meeting point.
+         *     See :mod:`app.services.booking_calendar_context`.
+         *
+         *     410 for a bare booking UUID: that was the pre-5aih0.4 link (the UUID was
+         *     the credential). It is never looked up, so the answer does not reveal
+         *     whether the booking exists. 401 for any other bad/expired token, 404 when
+         *     a valid token's booking no longer exists (or was cancelled).
+         */
+        get: operations["get_booking_calendar_ics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5441,8 +5431,8 @@ export interface paths {
          *     estate, or who hand landr a restricted key without webhook write access,
          *     still need it — and it is the recovery route when this fails.
          *
-         *     Applies ONLY to the per-operator endpoint. The legacy app-level
-         *     POST /api/internal/stripe/webhook and its app-level secret are untouched.
+         *     Registers the per-operator endpoint — the only Stripe webhook route
+         *     since landr-k9pji.4 removed the app-level one.
          */
         post: operations["connect_stripe_webhook_endpoint"];
         delete?: never;
@@ -11816,6 +11806,8 @@ export interface components {
             default_locale?: string | null;
             /** Default Tax Rate */
             default_tax_rate?: number | string | null;
+            /** Deposit Percent */
+            deposit_percent?: number | null;
             /** First Day Of Week */
             first_day_of_week?: number | null;
             /** Group Discount Threshold */
@@ -11838,6 +11830,8 @@ export interface components {
             name?: string | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Payment Mode */
+            payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Pending Booking Expiry Hours */
             pending_booking_expiry_hours?: number | null;
             /** Phone */
@@ -14206,6 +14200,8 @@ export interface components {
             next_steps?: string | null;
             /** Payment Link Sent */
             payment_link_sent?: boolean | null;
+            /** Payment Mode */
+            payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Semantic State */
             semantic_state: string;
             /** Share Secret */
@@ -16419,28 +16415,6 @@ export interface operations {
             };
         };
     };
-    stripe_webhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-    };
     remove_photo: {
         parameters: {
             query?: never;
@@ -17757,37 +17731,6 @@ export interface operations {
             };
         };
     };
-    get_booking_calendar_ics: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     public_send_booking_invite: {
         parameters: {
             query?: never;
@@ -17844,6 +17787,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicBookingOffer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_calendar_ics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

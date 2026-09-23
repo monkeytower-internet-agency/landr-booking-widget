@@ -51,7 +51,11 @@ vi.mock('@/api/client', async () => {
  */
 
 const MOCK_BOOKING_ID = '00000000-0000-0000-0000-0000000000bb'
-const MOCK_ICAL_URL = `https://api.dev.landr.de/api/public/bookings/${MOCK_BOOKING_ID}/calendar.ics`
+// landr-5aih0.4: the calendar link is token-scoped (signed booking token).
+const MOCK_ICAL_URL =
+  'https://api.dev.landr.de/api/public/bookings/000000000000000000000000000000bb.1900000000.sig/calendar.ics'
+// The 8-hex reference the widget derives when `summary` is absent.
+const MOCK_REFERENCE = '00000000'
 
 const MOCK_EVENT: BookingCalendarEvent = {
   title: 'Tandem Classic — Para42',
@@ -925,10 +929,22 @@ describe('Confirmation', () => {
     const icsLink = screen.getByRole('link', { name: /download .ics/i })
     expect(icsLink).toBeInTheDocument()
     expect(icsLink).toHaveAttribute('href', MOCK_ICAL_URL)
+    // landr-5aih0.4: the filename carries the reference, never the UUID.
     expect(icsLink).toHaveAttribute(
       'download',
-      `landr-booking-${MOCK_BOOKING_ID}.ics`,
+      `landr-booking-${MOCK_REFERENCE}.ics`,
     )
+    expect(icsLink.getAttribute('download')).not.toContain(MOCK_BOOKING_ID)
+  })
+
+  it('names the .ics download after summary.booking_reference when present', () => {
+    const response = baseResponse({
+      ical_url: MOCK_ICAL_URL,
+      summary: baseSummary({ booking_reference: 'AB12CD34' }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const icsLink = screen.getByRole('link', { name: /download .ics/i })
+    expect(icsLink).toHaveAttribute('download', 'landr-booking-AB12CD34.ics')
   })
 
   it('omits the calendar group when ical_url is missing', () => {
