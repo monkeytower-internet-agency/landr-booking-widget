@@ -322,6 +322,12 @@ type Bundle = {
   makeAnotherBookingLink: string
   bookingConfirmedInboxNote: string
   paymentLinkOnItsWay: string
+  // landr-k9pji.5 — payment_mode-aware confirmation copy (API landr-k9pji.4
+  // PR #848). paymentLinkOnItsWay above stays as the fallback for an older
+  // API deploy that predates response.payment_mode.
+  payOnSiteNote: string
+  bankTransferNote: string
+  paymentLinkForDepositOnItsWay: string
   awaitingOperatorConfirmation: string
   participantCountSingular: string
   participantCountPlural: string
@@ -399,6 +405,11 @@ type Bundle = {
   taxLabel: string
   amountDueLabel: string
   nothingDueNow: string
+  // landr-k9pji.5 — deposit_percent operators (API landr-k9pji.4): shown
+  // once POST /initiate reports an `amount` below the full balance.
+  depositLabelTemplate: string
+  depositRemainderNote: string
+  continueToStripeLabel: string
   yourShareOfThisBooking: string
   totalBookingValueLabel: string
   offerTotalLabel: string
@@ -823,6 +834,9 @@ const en: Bundle = {
   makeAnotherBookingLink: 'Make another booking',
   bookingConfirmedInboxNote: 'Your booking is confirmed — the details are in your inbox.',
   paymentLinkOnItsWay: 'A payment link is on its way.',
+  payOnSiteNote: 'Please pay on the day, at the meeting point.',
+  bankTransferNote: 'Bank details are in your confirmation email.',
+  paymentLinkForDepositOnItsWay: 'A payment link for your deposit is on its way.',
   awaitingOperatorConfirmation: 'Your booking is awaiting confirmation from the operator.',
   participantCountSingular: '{n} participant',
   participantCountPlural: '{n} participants',
@@ -902,6 +916,9 @@ const en: Bundle = {
   taxLabel: 'Tax',
   amountDueLabel: 'Amount due',
   nothingDueNow: 'Nothing due now',
+  depositLabelTemplate: 'Deposit ({n} %)',
+  depositRemainderNote: 'The rest is due later.',
+  continueToStripeLabel: 'Continue to payment',
   yourShareOfThisBooking: 'Your share of this booking',
   totalBookingValueLabel: 'Total booking value',
   offerTotalLabel: 'Total',
@@ -1322,6 +1339,9 @@ const de: Bundle = {
   makeAnotherBookingLink: 'Weitere Buchung vornehmen',
   bookingConfirmedInboxNote: 'Ihre Buchung ist bestätigt — die Details finden Sie in Ihrem Postfach.',
   paymentLinkOnItsWay: 'Ein Zahlungslink ist unterwegs.',
+  payOnSiteNote: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
+  bankTransferNote: 'Die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
+  paymentLinkForDepositOnItsWay: 'Ein Zahlungslink für Ihre Anzahlung ist unterwegs.',
   awaitingOperatorConfirmation: 'Ihre Buchung wartet auf die Bestätigung durch den Anbieter.',
   participantCountSingular: '{n} Teilnehmer',
   participantCountPlural: '{n} Teilnehmer',
@@ -1402,6 +1422,9 @@ const de: Bundle = {
   taxLabel: 'Steuer',
   amountDueLabel: 'Fälliger Betrag',
   nothingDueNow: 'Derzeit nichts fällig',
+  depositLabelTemplate: 'Anzahlung ({n} %)',
+  depositRemainderNote: 'Der Restbetrag ist später fällig.',
+  continueToStripeLabel: 'Weiter zur Zahlung',
   yourShareOfThisBooking: 'Ihr Anteil an dieser Buchung',
   totalBookingValueLabel: 'Gesamtwert der Buchung',
   offerTotalLabel: 'Gesamt',

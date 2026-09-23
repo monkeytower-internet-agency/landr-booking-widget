@@ -1227,6 +1227,65 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
   })
 
+  // ------------------------------------------------------------------
+  // landr-k9pji.5 — payment_mode-aware confirmation copy (API
+  // landr-k9pji.4). All three modes are auto_approved scenarios; the
+  // pre-existing payment_link_sent-only tests above cover the fallback
+  // when payment_mode is absent (older API deploy).
+  // ------------------------------------------------------------------
+
+  it('payment_mode=on_site: pay-on-site note, regardless of payment_link_sent', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'on_site',
+      payment_link_sent: false,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText(/please pay on the day, at the meeting point/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+  })
+
+  it('payment_mode=bank_transfer: bank-details-in-email note', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'bank_transfer',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText(/bank details are in your confirmation email/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+  })
+
+  it('payment_mode=online + payment_link_sent: deposit-flavoured payment-link line', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: true,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByTestId('confirmation-payment-mode-note'),
+    ).toHaveTextContent(/a payment link for your deposit is on its way/i)
+  })
+
+  it('payment_mode=online without payment_link_sent: no payment line at all', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: false,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-payment-mode-note')).not.toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+  })
+
   it('requires_general_approval: "Booking received" title, awaiting-confirmation copy, no raw state', () => {
     const response = baseResponse({ approval_outcome: 'requires_general_approval' })
     render(<Confirmation response={response} onRestart={vi.fn()} />)

@@ -513,6 +513,82 @@ describe('OfferPage', () => {
       expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
     })
 
+    // ── landr-k9pji.5: deposit_percent operators (API landr-k9pji.4) ───────
+    describe('deposit preview', () => {
+      it('pauses on this page and shows "Deposit (N %)" when the initiate amount is below balance_due', async () => {
+        mocks.getBookingByToken.mockResolvedValue(payOffer)
+        // payOffer.totals.balance_due = 1120.0; 336.0 is a 30% deposit.
+        mocks.initiatePayment.mockResolvedValue({ ...INITIATE_RESP, amount: 336.0 })
+
+        let navigatedTo = ''
+        Object.defineProperty(window.location, 'href', {
+          configurable: true,
+          set(v: string) {
+            navigatedTo = v
+          },
+          get() {
+            return `http://stub.invalid/pay/${TOKEN}`
+          },
+        })
+
+        render(<OfferPage token={TOKEN} mode="pay" />)
+        await waitFor(() =>
+          expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /^pay now$/i }))
+
+        await waitFor(() => {
+          expect(mocks.initiatePayment).toHaveBeenCalledOnce()
+        })
+        // No navigation yet — the customer must see the deposit line first.
+        expect(navigatedTo).toBe('')
+        expect(screen.getByTestId('offer-deposit-amount')).toHaveTextContent(/deposit \(30 %\)/i)
+        expect(screen.getByTestId('offer-deposit-amount-value')).toHaveTextContent(
+          formatCurrency(336.0, 'EUR'),
+        )
+        expect(screen.getByTestId('offer-deposit-remainder-note')).toBeInTheDocument()
+        // The original "Amount due" row still shows the FULL balance.
+        expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+          formatCurrency(1120.0, 'EUR'),
+        )
+
+        const continueBtn = screen.getByRole('button', { name: /continue to payment/i })
+        fireEvent.click(continueBtn)
+        expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+        // No second POST /initiate — the same checkout URL is reused.
+        expect(mocks.initiatePayment).toHaveBeenCalledOnce()
+      })
+
+      it('navigates straight to Stripe when the initiate amount is NOT below balance_due (no deposit configured)', async () => {
+        mocks.getBookingByToken.mockResolvedValue(payOffer)
+        mocks.initiatePayment.mockResolvedValue({ ...INITIATE_RESP, amount: 1120.0 })
+
+        let navigatedTo = ''
+        Object.defineProperty(window.location, 'href', {
+          configurable: true,
+          set(v: string) {
+            navigatedTo = v
+          },
+          get() {
+            return `http://stub.invalid/pay/${TOKEN}`
+          },
+        })
+
+        render(<OfferPage token={TOKEN} mode="pay" />)
+        await waitFor(() =>
+          expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /^pay now$/i }))
+
+        await waitFor(() => {
+          expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+        })
+        expect(screen.queryByTestId('offer-deposit-amount')).not.toBeInTheDocument()
+      })
+    })
+
     // ── landr-yimp: /pay must headline balance_due, not gross_total ────────
     it('headlines balance_due (not gross_total) and shows gross_total as a neutral secondary line', async () => {
       // Ticket's reference booking: email says "Amount due: 90.00 EUR",

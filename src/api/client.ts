@@ -801,6 +801,18 @@ export interface InitiatePaymentResponse {
   checkout_url: string
   payment_id: string | null
   stripe_payment_intent_id: string | null
+  /**
+   * landr-k9pji.5 (API, landr-k9pji.4 PR #848): the amount THIS checkout
+   * session actually charges — the operator's deposit_percent share of
+   * `totals.balance_due` when a deposit is configured, else equal to
+   * balance_due (full amount). OfferPage compares this against
+   * `totals.balance_due` to decide whether to render a "Deposit (N %)"
+   * line (N computed client-side as `amount / balance_due`). Optional so
+   * the widget tolerates an older API deploy; absent means "no deposit
+   * info available" — OfferPage falls back to today's (no deposit line)
+   * behaviour.
+   */
+  amount?: number
 }
 
 /**

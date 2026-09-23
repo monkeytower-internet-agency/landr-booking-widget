@@ -671,6 +671,34 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
 }
 
 /**
+ * landr-k9pji.5 — payment_mode-aware confirmation note, shown after
+ * bookingConfirmedInboxNote for an auto-approved booking. `payment_mode`
+ * is optional on the wire (an older API deploy predating landr-k9pji.4
+ * omits it) — that case falls through to today's payment_link_sent-gated
+ * "A payment link is on its way." copy, unchanged.
+ *
+ * The 'online' case keeps the same payment_link_sent gate (no line at all
+ * until the API actually sent a link) but says "for your deposit" —
+ * landr-k9pji.4 added the deposit_percent option, so a link on this rail
+ * may now be a partial charge rather than the full balance. Precisely
+ * distinguishing "full" vs "deposit" online payments in THIS copy is
+ * follow-up work (landr-k9pji.15); out of scope here.
+ */
+function paymentModeNote(response: SubmitBookingResponse, locale?: string): string | null {
+  const t = pickBundle(locale)
+  switch (response.payment_mode) {
+    case 'on_site':
+      return t.payOnSiteNote
+    case 'bank_transfer':
+      return t.bankTransferNote
+    case 'online':
+      return response.payment_link_sent ? t.paymentLinkForDepositOnItsWay : null
+    default:
+      return response.payment_link_sent ? t.paymentLinkOnItsWay : null
+  }
+}
+
+/**
  * Savings congrats card (landr-nva1a.4, step 4) — shown only when the API
  * returned a multi_day_savings block. Copy per the epic decision:
  * consecutive runs get "N days in a row"; non-consecutive total-days
@@ -1027,7 +1055,12 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           // outright — no "awaiting" language, no raw semantic_state.
           <p className="text-sm">
             {tr('bookingConfirmedInboxNote', locale)}
-            {response.payment_link_sent ? ` ${tr('paymentLinkOnItsWay', locale)}` : null}
+            {paymentModeNote(response, locale) ? (
+              <span data-testid="confirmation-payment-mode-note">
+                {' '}
+                {paymentModeNote(response, locale)}
+              </span>
+            ) : null}
           </p>
         ) : (
           // landr-5oox.6 (OD-7): every manual outcome (general approval,

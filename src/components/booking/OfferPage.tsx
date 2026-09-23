@@ -141,6 +141,18 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   })
   const [offer, setOffer] = useState<PublicBookingOffer | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // landr-k9pji.5 — set once POST /initiate comes back with `amount` strictly
+  // less than the balance being offered (a deposit_percent operator, API
+  // landr-k9pji.4). Rather than hard-navigate straight to Stripe (today's
+  // behaviour for a full charge), we pause on THIS page one extra click so
+  // the customer can see the "Deposit (N %)" line before being redirected —
+  // an older API deploy that omits `amount` never sets this, so the
+  // original one-click flow is unchanged for every operator without a
+  // deposit configured.
+  const [depositPreview, setDepositPreview] = useState<{
+    amount: number
+    checkoutUrl: string
+  } | null>(null)
 
   useEffect(() => {
     if (status !== 'loading') return
@@ -206,6 +218,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const onAcceptAndPay = async () => {
     setStatus('paying')
     setErrorMessage(null)
+    setDepositPreview(null)
     const base = _returnBase()
     try {
       const resp = await initiatePayment({
@@ -213,6 +226,19 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         return_url: `${base}?paid=1`,
         cancel_url: `${base}?paid=cancelled`,
       })
+      // landr-k9pji.5 — a deposit_percent operator (API landr-k9pji.4):
+      // `amount` is strictly less than what's actually owed. Pause here one
+      // extra click instead of navigating straight to Stripe, so the
+      // customer sees the "Deposit (N %)" line first. Scoped to mode="pay"
+      // per the ticket contract — the offer/"Accept & Pay" flow keeps
+      // today's one-click behaviour unchanged. The 0.005 slack guards
+      // against float noise making a full charge look like a deposit.
+      const remaining = mode === 'pay' && offer ? chargeRemaining(offer.totals) : null
+      if (resp.amount != null && remaining != null && resp.amount < remaining - 0.005) {
+        setDepositPreview({ amount: resp.amount, checkoutUrl: resp.checkout_url })
+        setStatus('ready')
+        return
+      }
       // Hard-navigate to Stripe Checkout. Deliberate imperative side effect
       // inside a click-triggered async handler (not render) — the React
       // Compiler's purity analysis over-flags this call-site (unrelated to
@@ -238,6 +264,16 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           : tr('somethingWentWrongRetry', locale),
       )
       setStatus('pay_error')
+    }
+  }
+
+  // landr-k9pji.5 — the checkout URL from the initiate call the customer
+  // already saw the deposit preview for; no second POST /initiate.
+  const onContinueToStripe = () => {
+    if (!depositPreview) return
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line react-hooks/immutability
+      window.location.href = depositPreview.checkoutUrl
     }
   }
 
@@ -581,6 +617,26 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         : formatCurrency(chargeAmount, currencyCode, locale)}
                     </td>
                   </tr>
+                  {/* landr-k9pji.5 — deposit_percent operators: `amount` from
+                      the initiate call the customer just previewed, below
+                      the full balance above it (which stays visible as the
+                      whole booking's due amount, unchanged). */}
+                  {depositPreview && (
+                    <tr data-testid="offer-deposit-amount">
+                      <td className="py-0.5 pr-4 text-muted-foreground">
+                        {tr('depositLabelTemplate', locale).replace(
+                          '{n}',
+                          String(Math.round((depositPreview.amount / chargeAmount) * 100)),
+                        )}
+                      </td>
+                      <td
+                        className="py-0.5 text-right"
+                        data-testid="offer-deposit-amount-value"
+                      >
+                        {formatCurrency(depositPreview.amount, currencyCode, locale)}
+                      </td>
+                    </tr>
+                  )}
                   {showOperatorGross && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
@@ -672,11 +728,27 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           )}
         </section>
 
+        {/* landr-k9pji.5 — only reachable once depositPreview is set (see
+            onAcceptAndPay); explains why the CTA below no longer says the
+            full "Amount due" figure. */}
+        {depositPreview && (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="offer-deposit-remainder-note"
+          >
+            {tr('depositRemainderNote', locale)}
+          </p>
+        )}
+
         {/* CTA */}
         <Button
           type="button"
           className="w-full sm:w-auto"
           onClick={() => {
+            if (depositPreview) {
+              onContinueToStripe()
+              return
+            }
             void onAcceptAndPay()
           }}
           disabled={busy || alreadySettled}
@@ -686,9 +758,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
             ? tr('nothingToPay', locale)
             : busy
               ? tr('redirectingToPaymentEllipsis', locale)
-              : mode === 'pay'
-                ? tr('payNowLabel', locale)
-                : tr('acceptAndPayLabel', locale)}
+              : depositPreview
+                ? tr('continueToStripeLabel', locale)
+                : mode === 'pay'
+                  ? tr('payNowLabel', locale)
+                  : tr('acceptAndPayLabel', locale)}
         </Button>
 
         <p className="text-xs text-muted-foreground">
