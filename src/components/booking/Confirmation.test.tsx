@@ -262,6 +262,98 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     )
   })
 
+  // landr-5aih0.2: the meeting-point block (address + Google Maps/Waze)
+  // renders under the plain "Pickup:" line when summary.meeting_point
+  // carries an address or a map link.
+  it('renders the meeting-point address + Google Maps/Waze buttons when summary.meeting_point is present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1',
+          name: 'Main Beach',
+          address: 'Playa de las Américas, 38660',
+          lat: '28.05',
+          lng: '-16.73',
+          google_maps_url: 'https://www.google.com/maps/search/?api=1&query=28.05,-16.73',
+          waze_url: 'https://waze.com/ul?ll=28.05,-16.73&navigate=yes',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const block = screen.getByTestId('confirmation-meeting-point')
+    expect(block).toHaveTextContent('Playa de las Américas, 38660')
+    expect(screen.getByRole('link', { name: /google maps/i })).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=28.05,-16.73',
+    )
+    expect(screen.getByRole('link', { name: /waze/i })).toHaveAttribute(
+      'href',
+      'https://waze.com/ul?ll=28.05,-16.73&navigate=yes',
+    )
+  })
+
+  // Waze needs coordinates (app/services/meeting_point.py: waze_url is ""
+  // without geo) — the button must not render when the API sent no url.
+  it('omits the Waze button when meeting_point.waze_url is empty (no geo)', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1',
+          name: 'Main Beach',
+          address: 'Playa de las Américas, 38660',
+          lat: '',
+          lng: '',
+          google_maps_url:
+            'https://www.google.com/maps/search/?api=1&query=Playa+de+las+Am%C3%A9ricas%2C+38660',
+          waze_url: '',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: /google maps/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /waze/i })).not.toBeInTheDocument()
+  })
+
+  // The API always sends meeting_point as an object (empty_block(), never
+  // null) when the booking has no pickup location — every field "". The
+  // widget must degrade to no block at all rather than an empty shell.
+  it('renders no meeting-point block when summary.meeting_point is the all-"" empty block', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        pickup_location: null,
+        pickup_locations: [],
+        meeting_point: {
+          id: '',
+          name: '',
+          address: '',
+          lat: '',
+          lng: '',
+          google_maps_url: '',
+          waze_url: '',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-meeting-point'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders no meeting-point block when summary.meeting_point is absent (older API deploy)', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-meeting-point'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
+      'Main Beach',
+    )
+  })
+
   it('renders the hotel/room block when summary.hotel is present', () => {
     const response = baseResponse({
       summary: baseSummary({

@@ -284,6 +284,15 @@ type Bundle = {
   pickupPrefix: string
   savingsConsecutiveTemplate: string
   savingsNonConsecutiveTemplate: string
+  /**
+   * landr-5aih0.2: meeting-point block (address + map deep links) under the
+   * pickup line — aria-labels only, same pattern as
+   * addToGoogleCalendarAria/addToOutlookCalendarAria above. The visible
+   * button text ("Google Maps"/"Waze") stays an untranslated brand name
+   * (see noEnglishLiteral.test.ts's ALLOWED_LITERALS for Confirmation.tsx).
+   */
+  meetingPointOpenInGoogleMapsAria: string
+  meetingPointOpenInWazeAria: string
 
   // ---- CancelPage ----
   bookingCancelledTitle: string
@@ -708,6 +717,8 @@ const en: Bundle = {
   pickupPrefix: 'Pickup:',
   savingsConsecutiveTemplate: '{days} {dayWord} in a row — you saved {amount}!',
   savingsNonConsecutiveTemplate: 'You saved {amount} by booking {days} {dayWord}!',
+  meetingPointOpenInGoogleMapsAria: 'Open in Google Maps',
+  meetingPointOpenInWazeAria: 'Open in Waze',
 
   bookingCancelledTitle: 'Booking cancelled',
   sorryToSeeYouGo: 'Sorry to see you go.',
@@ -1134,6 +1145,8 @@ const de: Bundle = {
   pickupPrefix: 'Abholung:',
   savingsConsecutiveTemplate: '{days} {dayWord} in Folge — Sie haben {amount} gespart!',
   savingsNonConsecutiveTemplate: 'Sie haben {amount} gespart, weil Sie {days} {dayWord} gebucht haben!',
+  meetingPointOpenInGoogleMapsAria: 'In Google Maps öffnen',
+  meetingPointOpenInWazeAria: 'In Waze öffnen',
 
   bookingCancelledTitle: 'Buchung storniert',
   sorryToSeeYouGo: 'Schade, dass Sie gehen.',
