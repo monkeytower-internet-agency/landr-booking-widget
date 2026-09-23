@@ -10,9 +10,12 @@ import {
   addAnyoneElseUpTo,
   companionContactRequiredMessage,
   companionOrdinalLabel,
+  copyFromBookerAriaLabel,
   maxCompanionsReachedMessage,
   otherParticipantsHeading,
   participantOrdinalLabel,
+  removeCompanionAriaLabel,
+  removeParticipantAriaLabel,
   tr,
 } from '@/lib/strings'
 import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
@@ -1084,7 +1087,7 @@ export function DetailsStep({
                   variant="ghost"
                   size="icon"
                   className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-                  aria-label={`Remove participant ${idx + 2}`}
+                  aria-label={removeParticipantAriaLabel(idx + 2, locale)}
                   data-testid={`remove-participant-${idx + 2}`}
                   onClick={() => removeParticipant(idx)}
                 >
@@ -1353,7 +1356,7 @@ export function DetailsStep({
                   variant="ghost"
                   size="icon"
                   className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-                  aria-label={`Remove companion ${idx + 1}`}
+                  aria-label={removeCompanionAriaLabel(idx + 1, locale)}
                   data-testid={`remove-companion-${idx}`}
                   onClick={() => removeCompanion(idx)}
                 >
@@ -1676,8 +1679,8 @@ function CopyFromBookerButton({
     <button
       type="button"
       className="flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-      aria-label={`Use your ${field}`}
-      title={`Use your ${field}`}
+      aria-label={copyFromBookerAriaLabel(field, browserLocale())}
+      title={copyFromBookerAriaLabel(field, browserLocale())}
       data-testid={testId}
       onClick={() => onCopy(source)}
     >

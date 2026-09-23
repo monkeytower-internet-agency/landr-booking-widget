@@ -34,7 +34,13 @@ import {
 import { HelpDisclosure } from './HelpDisclosure'
 import { NextAction } from './NextAction'
 import { browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import {
+  assignToRoomAriaLabel,
+  breakfastDragHintLabel,
+  ownerHasBreakfastLabel,
+  roomUnitAriaLabel,
+  tr,
+} from '@/lib/strings'
 
 /**
  * RoomAssignment (landr-gb2f.2) — assigns participant NAME chips to per-unit
@@ -351,7 +357,7 @@ function BreakfastChip({
       <span
         data-testid={`breakfast-chip-${memberIndex}`}
         data-breakfast-static="true"
-        aria-label={`${ownerLabel} has breakfast`}
+        aria-label={ownerHasBreakfastLabel(ownerLabel, browserLocale())}
         className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary select-none"
       >
         {face}
@@ -365,7 +371,7 @@ function BreakfastChip({
       {...listeners}
       {...attributes}
       data-testid={`breakfast-chip-${memberIndex}`}
-      aria-label={`${ownerLabel}'s breakfast — drag onto another guest to move it`}
+      aria-label={breakfastDragHintLabel(ownerLabel, browserLocale())}
       className={[
         'inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary select-none',
         'cursor-grab touch-none transition-transform hover:-translate-y-0.5',
@@ -534,7 +540,7 @@ function UnitDropZone({
       ref={setNodeRef}
       data-testid={`room-unit-${key}`}
       role="group"
-      aria-label={`${unit.roomName} — unit ${unit.unitIndex + 1}`}
+      aria-label={roomUnitAriaLabel(unit.roomName, unit.unitIndex + 1, browserLocale())}
       className={[
         // landr-3mo4: occupied/full units read as a settled well; an empty
         // unit keeps its dashed "drop here" affordance; an active drop-over
@@ -1049,7 +1055,7 @@ function UnassignedTray({
               {/* inline dropdown next to each unassigned chip for the most
                   direct keyboard/SR path */}
               <select
-                aria-label={`Assign ${participantLabel(participantNames, pIdx)} to a room`}
+                aria-label={assignToRoomAriaLabel(participantLabel(participantNames, pIdx), browserLocale())}
                 data-testid={`tray-select-${pIdx}`}
                 id={`${selectId}-${pIdx}`}
                 value=""

@@ -39,7 +39,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useVariant } from '@/lib/variant'
 import { browserLocale } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import { reorderLanguageAriaLabel, tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { pickLocalized } from '@/lib/locale'
 import type { FlowFieldDef } from '@/api/flowTypes'
@@ -125,7 +125,7 @@ function LanguageRow({
         {...attributes}
         {...listeners}
         data-testid={`cf-lang-handle-${code}`}
-        aria-label={`Reorder ${label}`}
+        aria-label={reorderLanguageAriaLabel(label, browserLocale())}
         className="cursor-grab touch-none select-none text-muted-foreground hover:text-foreground"
       >
         <span aria-hidden>≡</span>

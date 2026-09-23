@@ -30,12 +30,27 @@
  * text' : tr('key', locale)}`) to catch a literal hidden behind a condition
  * — the old regex could never see inside a `{}` at all.
  *
+ * landr-5aih0.27 closed one of landr-5aih0.17's two deferred gaps:
+ * `collectChildLiterals` now also follows a `TemplateExpression` (a
+ * template literal WITH `${}` substitutions, e.g. `aria-label={\`Remove
+ * ${x}\`}`) by concatenating its static spans (head + every span's
+ * trailing literal) and dropping the substitutions themselves — an
+ * interpolated name/count isn't itself chrome. Because
+ * `collectChildLiterals` is shared, this covers the shape both in JSX
+ * ATTRIBUTE position (the actual target here — see AddonsList,
+ * AccommodationStep, RoomAssignment, ParticipantLanguageBoard,
+ * RankedLanguagePicker, DetailsStep) and in JSX child position for free;
+ * child position had zero real instances in this tree at the time (a
+ * regression there is a welcome bonus catch, not a promise the same
+ * concatenation strategy is optimal for prose split across a template's
+ * spans). A static run needs >= 2 real words to count as translatable —
+ * see `hasTranslatableTemplateText`'s own comment for the known
+ * single-word gap that leaves.
+ *
  * Deliberately NOT covered (bounded scope, see landr-5aih0.17's ticket):
- * template-literal JSX attributes (`aria-label={\`Remove ${x}\`}`) and
  * strings that only reach the tree via a variable/prop rather than a
- * literal at the child/attribute site. Both exist elsewhere in this tree;
- * flagging them is a materially larger, separately-scoped follow-up (see
- * the ticket's handoff).
+ * literal at the child/attribute site. That's a materially larger,
+ * separately-scoped follow-up (see the ticket's handoff).
  *
  * This is NOT a claim that every string in the tree is translated —
  * several areas are deliberately deferred, each listed in ALLOWED_LITERALS
@@ -149,17 +164,48 @@ function collectFiles(): string[] {
 }
 
 /**
+ * landr-5aih0.27: a TemplateExpression's (template literal WITH `${}`
+ * substitutions) STATIC text — the head plus every span's trailing
+ * literal, joined with a space, substitutions dropped entirely. `` `Decrease
+ * ${addonName} quantity` `` → 'Decrease quantity'.
+ */
+function templateStaticText(node: ts.TemplateExpression): string {
+  const parts = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)]
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * landr-5aih0.27: a template literal's static text (post `${}`-stripping)
+ * needs at least 2 real words (2+ Latin-letter runs) to count as
+ * translatable prose — filters out the common one-word-static-run shape
+ * (`` `${x}px` ``, `` `btn-${variant}` ``) without a dedicated ignore
+ * list. Known gap, same shape as this file's other documented heuristics:
+ * a few of landr-5aih0.27's actual violations were a single static word
+ * (`` `Remove ${x}` ``, `` `Reorder ${label}` ``, `` `${x} speakers` ``,
+ * `` `${x} — unit ${y}` ``) and were translated by hand even though this
+ * threshold alone wouldn't have flagged them — see the ticket's handoff.
+ */
+function hasTranslatableTemplateText(text: string): boolean {
+  const words = text.match(/[A-Za-z]{2,}/g) ?? []
+  return words.length >= 2
+}
+
+/**
  * Follows a JSX child expression through ternary/logical-short-circuit
  * chains looking for a bare string literal — the `{cond ? 'Some text' :
- * tr('key', locale)}` shape. Deliberately does NOT recurse into call
- * expressions, template literals with substitutions, arrow functions,
- * object/array literals, etc. — those aren't a literal rendering directly,
- * and going further starts pulling in values that only reach the tree via
- * a variable (out of this guard's bounded scope, see the file header).
+ * tr('key', locale)}` shape, and now also a template literal with `${}`
+ * substitutions (landr-5aih0.27, see `templateStaticText`). Deliberately
+ * does NOT recurse into call expressions, arrow functions, object/array
+ * literals, etc. — those aren't a literal rendering directly, and going
+ * further starts pulling in values that only reach the tree via a
+ * variable (out of this guard's bounded scope, see the file header).
  */
 function collectChildLiterals(node: ts.Node, hits: string[]): void {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     if (node.text && looksTranslatable(node.text)) hits.push(node.text)
+  } else if (ts.isTemplateExpression(node)) {
+    const text = templateStaticText(node)
+    if (hasTranslatableTemplateText(text)) hits.push(text)
   } else if (ts.isConditionalExpression(node)) {
     collectChildLiterals(node.whenTrue, hits)
     collectChildLiterals(node.whenFalse, hits)
@@ -233,4 +279,50 @@ describe('no stray English literals in the booking component tree (landr-5aih0.9
       ).toEqual([])
     })
   }
+})
+
+describe('JSX-attribute template-literal scanning (landr-5aih0.27)', () => {
+  it('flags an untranslated English template-literal aria-label', () => {
+    const source = `
+      export function Widget({ addonName }: { addonName: string }) {
+        return <button aria-label={\`Decrease \${addonName} quantity\`}>−</button>
+      }
+    `
+    const hits = findLiterals(source, 'fixture.tsx')
+    expect(hits).toContain('Decrease quantity')
+  })
+
+  it('does not flag the same attribute once translated via a bundle-backed helper call', () => {
+    const source = `
+      export function Widget({ addonName, locale }: { addonName: string; locale?: string }) {
+        return <button aria-label={qtyAdjustAriaLabel('decrease', addonName, locale)}>−</button>
+      }
+    `
+    const hits = findLiterals(source, 'fixture.tsx')
+    expect(hits).toEqual([])
+  })
+
+  it('ignores a template-literal attribute whose static text is a single word', () => {
+    // Documents the known threshold gap `hasTranslatableTemplateText`
+    // describes — the guard doesn't need to catch this because the real
+    // instance was translated to a helper call regardless (see
+    // ParticipantLanguageBoard.tsx / RankedLanguagePicker.tsx).
+    const source = `
+      export function Widget({ label }: { label: string }) {
+        return <button aria-label={\`Reorder \${label}\`}>≡</button>
+      }
+    `
+    const hits = findLiterals(source, 'fixture.tsx')
+    expect(hits).toEqual([])
+  })
+
+  it('ignores a template-literal attribute with no static English words (an id/measurement, not prose)', () => {
+    const source = `
+      export function Widget({ id }: { id: string }) {
+        return <div aria-label={\`\${id}px\`} />
+      }
+    `
+    const hits = findLiterals(source, 'fixture.tsx')
+    expect(hits).toEqual([])
+  })
 })

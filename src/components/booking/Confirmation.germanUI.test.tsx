@@ -125,4 +125,93 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     ).toHaveTextContent('Google Maps')
     expect(screen.getByRole('link', { name: 'In Waze öffnen' })).toHaveTextContent('Waze')
   })
+
+  // landr-5aih0.27: review-gate follow-up on PR #327 — these four
+  // sub-components (InviteCard, GroupBlock, SharedDoubleHint,
+  // JoinErrorNotice) were already translated in #324, but had no German
+  // render test proving it.
+  it('renders InviteCard (per-companion invite) in German', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary(),
+      share_secret: 'sec-1',
+      invites: [
+        {
+          companion_id: 'c1',
+          name: 'Grace Hopper',
+          email: 'grace@example.com',
+          phone: null,
+          phone_digits: null,
+          invite_url: 'https://landr.de/i/abc',
+          whatsapp_url: null,
+          linked_booking_reference: null,
+          has_invite: true,
+        },
+      ],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText('Nächster Schritt: Senden Sie Ihrer Gruppe ihren Buchungslink'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Jede Person schließt ihre eigene Buchung über ihren Link ab.')).toBeInTheDocument()
+    expect(screen.getByText('Buchungslink senden an Grace Hopper')).toBeInTheDocument()
+    expect(screen.getByTestId('invite-email')).toHaveTextContent('E-Mail')
+    expect(screen.queryByText(/Next step: send your group/)).not.toBeInTheDocument()
+  })
+
+  it('renders GroupBlock ("booked together with") in German, excluding self', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary(),
+      group: {
+        group_id: 'g1',
+        label: 'Group',
+        members: [
+          { reference: 'REF-1', display_name: 'Ada Lovelace', is_self: false, is_host: true },
+          { reference: 'REF-2', display_name: 'Grace Hopper', is_self: true, is_host: false },
+        ],
+      },
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const groupBlock = screen.getByTestId('confirmation-group')
+    expect(groupBlock).toHaveTextContent('Gemeinsam gebucht mit')
+    expect(groupBlock).toHaveTextContent('Ada Lovelace (Ref. REF-1) — Gastgeber')
+    // Self (Grace) is excluded from THIS list entirely (not just
+    // untranslated) — she still appears elsewhere, in the plain
+    // participant summary, so the assertion is scoped to the group block.
+    expect(groupBlock).not.toHaveTextContent('Grace Hopper')
+    expect(groupBlock).not.toHaveTextContent('Booked together with')
+  })
+
+  it('renders JoinErrorNotice in German', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary(),
+      join_error: { error: 'unknown_reference' },
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText(
+        /Wir konnten keine Buchung mit dieser Referenz finden, daher wurde Ihre Buchung nicht damit verknüpft\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-join-error')).toHaveTextContent(
+      'Ihre Buchung selbst ist wie gewohnt bestätigt',
+    )
+    expect(screen.queryByText(/We couldn't find a booking/)).not.toBeInTheDocument()
+  })
+
+  it('renders SharedDoubleHint in German when no reference was ever entered', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} isSharedDouble />)
+
+    const hint = screen.getByTestId('confirmation-shared-double-hint')
+    expect(hint).toHaveTextContent('Teilen Sie sich ein Zimmer, das jemand anders gebucht hat?')
+    expect(hint).toHaveTextContent('Referenz auf Ihrer Buchungsseite hinzufügen.')
+    expect(hint).not.toHaveTextContent('Sharing a room booked by someone else?')
+  })
 })
