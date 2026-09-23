@@ -257,12 +257,21 @@ function CalendarDayButton({
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       aria-label={ariaLabel}
       className={cn(
-        "relative flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground dark:hover:text-accent-foreground [&>span]:text-xs [&>span]:opacity-70",
-        isPlainSelected && "bg-primary text-primary-foreground",
+        "relative flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/15 data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground [&>span]:text-xs [&>span]:opacity-70",
+        // landr-tkgx8.2: the ghost variant's grey `hover:bg-accent` (the
+        // widget theme only sets --primary, never --accent) painted over the
+        // selected day while the pointer still rested on it after the click.
+        // Unselected days hover in a light operator tint; selected / range
+        // endpoints keep the solid operator colour while hovered. These
+        // hover:* classes replace the ghost ones via tailwind-merge.
+        "hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/20 dark:hover:text-foreground",
+        "data-[range-end=true]:hover:bg-primary data-[range-end=true]:hover:text-primary-foreground data-[range-middle=true]:hover:bg-primary/15 data-[range-start=true]:hover:bg-primary data-[range-start=true]:hover:text-primary-foreground",
+        isPlainSelected &&
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary dark:hover:text-primary-foreground",
         diffAdded &&
-          "bg-diff-added-soft-bg text-diff-added hover:bg-diff-added-soft-bg/70",
+          "bg-diff-added-soft-bg text-diff-added hover:bg-diff-added-soft-bg/70 hover:text-diff-added",
         diffRemoved &&
-          "bg-destructive/10 text-destructive line-through hover:bg-destructive/15",
+          "bg-destructive/10 text-destructive line-through hover:bg-destructive/15 hover:text-destructive",
         defaultClassNames.day,
         className
       )}
