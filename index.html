@@ -35,13 +35,6 @@
         max-width: 160px;
         max-height: 56px;
         object-fit: contain;
-      }
-      #landr-boot-ring {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 3px solid rgba(128, 128, 128, 0.2);
-        border-top-color: rgba(128, 128, 128, 0.75);
         animation: landr-boot-spin 1.6s linear infinite;
       }
       @keyframes landr-boot-spin {
@@ -55,9 +48,6 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        #landr-boot-ring {
-          display: none;
-        }
         #landr-boot-logo {
           animation: landr-boot-pulse 2.4s ease-in-out infinite;
         }
@@ -65,7 +55,6 @@
     </style>
     <div id="landr-boot" role="status" aria-live="polite" aria-label="Loading">
       <img id="landr-boot-logo" src="/landr-mark.svg" alt="" />
-      <div id="landr-boot-ring"></div>
     </div>
     <script>
       ;(function () {
