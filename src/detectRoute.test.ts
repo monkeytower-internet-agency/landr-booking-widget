@@ -20,21 +20,33 @@ import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
  * landr-esd3: added /pay/{token} tests for the booking_payment_link route.
  */
 describe('detectRoute', () => {
-  it('returns cancel for /cancel/{uuid}', () => {
-    expect(
-      detectRoute('/cancel/11111111-1111-1111-1111-111111111111'),
-    ).toEqual({
+  // landr-5aih0.7: the cancel link carries the signed booking token
+  // `{booking_hex}.{expiry}.{base64url sig}`.
+  const CANCEL_TOKEN =
+    '11111111111111111111111111111111.1790000000.Ab_c-D12xyzXYZ0987654321abcdefABCDEF_-0'
+
+  it('returns cancel for /cancel/{signed token}', () => {
+    expect(detectRoute(`/cancel/${CANCEL_TOKEN}`)).toEqual({
       kind: 'cancel',
-      bookingId: '11111111-1111-1111-1111-111111111111',
+      token: CANCEL_TOKEN,
     })
   })
 
   it('returns cancel even with a trailing slash', () => {
+    expect(detectRoute(`/cancel/${CANCEL_TOKEN}/`)).toEqual({
+      kind: 'cancel',
+      token: CANCEL_TOKEN,
+    })
+  })
+
+  it('still routes an old /cancel/{uuid} link to the cancel page', () => {
+    // The page's preview call 401s and it shows the "link no longer valid"
+    // state instead of silently starting a new booking.
     expect(
-      detectRoute('/cancel/11111111-1111-1111-1111-111111111111/'),
+      detectRoute('/cancel/11111111-1111-1111-1111-111111111111'),
     ).toEqual({
       kind: 'cancel',
-      bookingId: '11111111-1111-1111-1111-111111111111',
+      token: '11111111-1111-1111-1111-111111111111',
     })
   })
 
@@ -74,10 +86,11 @@ describe('detectRoute', () => {
     expect(detectRoute('/cancel/')).toEqual({ kind: 'booking' })
   })
 
-  it('returns booking for /cancel/{garbage} (non-hex / non-uuid chars)', () => {
-    expect(detectRoute('/cancel/not-a-valid-uuid$$$')).toEqual({
+  it('returns booking for /cancel/{garbage} (characters no token has)', () => {
+    expect(detectRoute('/cancel/not-a-valid-token$$$')).toEqual({
       kind: 'booking',
     })
+    expect(detectRoute('/cancel/a/b')).toEqual({ kind: 'booking' })
   })
 
   it('returns booking for unrelated paths', () => {
@@ -183,12 +196,10 @@ describe('detectRoute', () => {
     expect(detectRoute('/paying')).toEqual({ kind: 'booking' })
   })
 
-  it('does not regress /cancel/{uuid} or /offer/{token} routing', () => {
-    expect(
-      detectRoute('/cancel/11111111-1111-1111-1111-111111111111'),
-    ).toEqual({
+  it('does not regress /cancel/{token} or /offer/{token} routing', () => {
+    expect(detectRoute('/cancel/abc.123.sig_-X')).toEqual({
       kind: 'cancel',
-      bookingId: '11111111-1111-1111-1111-111111111111',
+      token: 'abc.123.sig_-X',
     })
     expect(detectRoute('/offer/abc123XYZ-tok')).toEqual({
       kind: 'offer',

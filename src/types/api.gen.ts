@@ -2024,23 +2024,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/bookings/{booking_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cancel Booking Public */
-        post: operations["cancel_booking_public"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/public/bookings/{booking_id}/invites/{companion_id}/send": {
         parameters: {
             query?: never;
@@ -2104,6 +2087,53 @@ export interface paths {
         };
         /** Get Booking Hotel Calendar */
         get: operations["get_booking_hotel_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Booking Public
+         * @description Cancel the booking behind ``token`` (the widget calls this only after
+         *     the customer confirms). Inside the deadline: soft-delete, refund what was
+         *     paid (Stripe automatically, anything else flagged to the operator), email
+         *     customer + operator, bell the operator's team. 409
+         *     ``cancellation_deadline_passed`` after the deadline; idempotent 200 on an
+         *     already-cancelled booking; 401 bad token; 404 unknown booking.
+         */
+        post: operations["cancel_booking_public"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/bookings/{token}/cancel-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cancel Preview
+         * @description Whether the booking behind ``token`` can still be cancelled for free,
+         *     until when, what would be refunded, and whom to contact otherwise.
+         *     Read-only. 401 on a bad/expired token, 404 when the booking is gone.
+         */
+        get: operations["get_cancel_preview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2786,6 +2816,8 @@ export interface paths {
          *     user verifies their email (avoids email-enumeration oracle).
          *
          *     Error contract:
+         *       * 422 unknown_preset_key — preset_key is not in PRESET_KEYS (checked
+         *                           first, before Turnstile, so no token is burnt).
          *       * 403 captcha_*   — Turnstile failed / unavailable.
          *       * 429             — per-IP or global rate limit exceeded.
          *       * 503             — rate-limiter infra error (fail CLOSED).
@@ -3222,7 +3254,8 @@ export interface paths {
          *     Sets bookings.deleted_at + deletion_reason; the capacity trigger
          *     releases reserved seats automatically. The booking row remains
          *     for audit / history purposes (and stays visible via include_deleted
-         *     filters in future list endpoints).
+         *     filters in future list endpoints). With notify_customer (default true)
+         *     the customer is emailed a booking_cancelled notice (landr-5aih0.7).
          */
         delete: operations["cancel_booking"];
         options?: never;
@@ -4047,6 +4080,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-pickup/{day_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Day Pickup
+         * @description Set (or clear) one participant-day's pickup time and, optionally, its
+         *     per-day pickup location override.
+         *
+         *     Creates the state row when missing (status unset = "expected"), exactly
+         *     like the day-unit PATCH, and never touches the status, unit, note or the
+         *     needs_pickup position. Returns the manifest-shaped pickup (see
+         *     `DayPickupOut`). 404 booking outside this operator; 422 participant not
+         *     on the booking, both location kinds, or a location that is not this
+         *     operator's; 409 `day_in_past`.
+         */
+        put: operations["staff_put_participant_day_pickup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/participants/{participant_id}/day-status/{day_date}": {
         parameters: {
             query?: never;
@@ -4707,6 +4768,39 @@ export interface paths {
         get: operations["staff_day_manifest"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/day-pickup/{day_date}/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Day Pickup
+         * @description Apply one pickup payload to many participants of this operator on one
+         *     day — ONE transaction PER ROW (one RPC call each), never all-or-nothing:
+         *     a participant that fails (not this operator's, a location the RPC
+         *     refuses) is reported in its own result and every other row still lands.
+         *     Contrast `sort_day_units`, which is atomic on purpose (D9's lock).
+         *
+         *     Whole-request 422/409 only for what is true of EVERY row: a malformed
+         *     body, both location kinds at once, or `day_in_past`. Per-row
+         *     `status_code`/`error` mirror the single PUT's answer for that row
+         *     (404 `participant_not_found` for an id outside this operator — the
+         *     caller must not learn it exists).
+         *
+         *     Location-key presence has the single PUT's meaning: omit both to write
+         *     only the time and keep each participant's own location override.
+         */
+        post: operations["staff_bulk_set_participant_day_pickup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5730,6 +5824,29 @@ export interface paths {
          *     thing being competed for; this is the read-side guard on top of it.
          */
         post: operations["staff_decide_participant_unit_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Presets Endpoint
+         * @description Every preset ``POST /apply-preset`` accepts, in the order the wizard
+         *     shows them (solo pilot first, blank last). Static registry data; the
+         *     operator's current choice is ``onboarding_preset_key`` on
+         *     ``GET /api/staff/operators/{operator_id}``.
+         */
+        get: operations["list_presets_endpoint"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8776,6 +8893,11 @@ export interface components {
         };
         /** BookingCancelIn */
         BookingCancelIn: {
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
             /** Reason */
             reason: string;
         };
@@ -8863,6 +8985,7 @@ export interface components {
             hotel_total: string;
             /** Line Items */
             line_items?: components["schemas"]["EstimateLineItem"][];
+            meeting_point?: components["schemas"]["BookingSummaryPickup"] | null;
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
             /** Operator Name */
             operator_name: string;
@@ -8942,12 +9065,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** BookingSummaryPickup */
+        /**
+         * BookingSummaryPickup
+         * @description One pickup location of the booking summary — a meeting-point block
+         *     (landr-5aih0.1; was ``{id, name}``). See :class:`MeetingPointBlock`.
+         */
         BookingSummaryPickup: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
             /** Id */
             id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
             /** Name */
             name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
         } & {
             [key: string]: unknown;
         };
@@ -9035,6 +9187,8 @@ export interface components {
             } | null;
             /** Is Published */
             is_published?: boolean | null;
+            /** Meeting Point Location Id */
+            meeting_point_location_id?: string | null;
             /** Meeting Point Text */
             meeting_point_text?: string | null;
             /** Plan Detail */
@@ -9176,6 +9330,64 @@ export interface components {
          * @enum {string}
          */
         CampaignScope: "booking" | "subscription" | "any";
+        /** CancelOperatorContact */
+        CancelOperatorContact: {
+            /** Email */
+            email?: string | null;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
+         * CancelPreviewResponse
+         * @description GET /{token}/cancel-preview. ``deadline`` is ISO-8601 UTC;
+         *     ``timezone`` is the operator's IANA zone the page renders it in.
+         *     ``locale`` (de/en/es) is the language the booking's emails are sent in,
+         *     so the page can match the email the customer clicked from.
+         *     ``refund_status`` is the recorded outcome once ``already_cancelled``.
+         */
+        CancelPreviewResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Already Cancelled */
+            already_cancelled: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Reference */
+            booking_reference: string;
+            /** Deadline */
+            deadline?: string | null;
+            /** Locale */
+            locale: string;
+            operator: components["schemas"]["CancelOperatorContact"];
+            /** Policy Text */
+            policy_text?: string | null;
+            refund: components["schemas"]["CancelRefund"];
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
+            /** Timezone */
+            timezone: string;
+        };
+        /**
+         * CancelRefund
+         * @description What a cancellation returns to the customer and how.
+         *
+         *     ``method``: ``stripe_auto`` (back to the card automatically), ``manual``
+         *     (the operator refunds some or all of it by hand), ``none`` (nothing paid).
+         *     ``amount`` is a two-decimal string.
+         */
+        CancelRefund: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "stripe_auto" | "manual" | "none";
+        };
         /**
          * ChangelogEntryOut
          * @description Deliberately ``category``/``description`` ONLY.
@@ -9658,6 +9870,10 @@ export interface components {
             pickup_location_id?: string | null;
             /** Pickup Location Name */
             pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
             /** Pickup Note */
             pickup_note?: string | null;
             /** Pickup Time */
@@ -9695,6 +9911,134 @@ export interface components {
         DayMessagePostIn: {
             /** Body */
             body: string;
+        };
+        /**
+         * DayPickupBulkIn
+         * @description POST .../day-pickup/{day_date}/bulk body — the same pickup payload
+         *     applied to many participants of this operator on one day (the /today
+         *     sheet's "apply to everyone on this unit", the booking sheet's "pickup
+         *     time for all participants"). Participants may span bookings — a unit
+         *     does — so each id is resolved to its booking server-side.
+         */
+        DayPickupBulkIn: {
+            /** Participant Ids */
+            participant_ids: string[];
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
+        };
+        /** DayPickupBulkOut */
+        DayPickupBulkOut: {
+            /** Changed */
+            changed: number;
+            /** Failed */
+            failed: number;
+            /** Results */
+            results: components["schemas"]["DayPickupBulkResult"][];
+        };
+        /**
+         * DayPickupBulkResult
+         * @description One participant's outcome. `ok` false carries the same `error` token
+         *     and `status_code` the single-participant PUT would have answered.
+         */
+        DayPickupBulkResult: {
+            /** Error */
+            error?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Participant Id */
+            participant_id: string;
+            pickup?: components["schemas"]["DayPickupOut"] | null;
+            /** Status Code */
+            status_code: number;
+        };
+        /**
+         * DayPickupOut
+         * @description The participant-day's pickup, MANIFEST-SHAPED: the same field names
+         *     and the same baseline-vs-override resolution `DayManifestRow` uses
+         *     (`app/services/day_pickup.py::effective_pickup`), so a client can patch
+         *     the row it already holds straight from this response.
+         *
+         *     The effective `pickup_location_*` / `pickup_note` fields need the
+         *     participant's manifest row and are null when the participant is not on
+         *     that day's manifest (not booked that day, or the booking is not live);
+         *     `pickup_time` and the raw override are always the written values.
+         */
+        DayPickupOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Changed */
+            changed: boolean;
+            /** Day Date */
+            day_date: string;
+            /** Participant Id */
+            participant_id: string;
+            /** Pickup Location Color */
+            pickup_location_color?: string | null;
+            /** Pickup Location Icon */
+            pickup_location_icon?: string | null;
+            /** Pickup Location Id */
+            pickup_location_id?: string | null;
+            /** Pickup Location Name */
+            pickup_location_name?: string | null;
+            /** Pickup Location Override Id */
+            pickup_location_override_id?: string | null;
+            /** Pickup Location Text */
+            pickup_location_text?: string | null;
+            /** Pickup Note */
+            pickup_note?: string | null;
+            /** Pickup Time */
+            pickup_time?: string | null;
+        };
+        /**
+         * DayPickupPutIn
+         * @description PUT .../day-pickup/{day_date} body.
+         *
+         *     `pickup_time` is REQUIRED (no default) and `null` clears it — the same
+         *     required-nullable shape as `DayUnitPatchIn`, so an empty body or a typo'd
+         *     key is a 422 rather than a silent clear. Operator-local wall-clock
+         *     ("07:40"), never a UTC offset (Decision #57 — the column is `time`
+         *     without time zone).
+         *
+         *     The two location keys are OPTIONAL, and presence is what matters:
+         *       * OMITTED (both) — the participant-day's current location override is
+         *         left exactly as it is; only the time is written. This is how "set
+         *         the pickup time for everyone" avoids wiping one participant's own
+         *         per-day pickup point.
+         *       * PRESENT (either, `null` included) — the override is REPLACED by what
+         *         is supplied; both `null` clears it back to the participant's
+         *         baseline pickup (`booking_participants.pickup_location_id`).
+         *     At most one may be non-null (422 `pickup_location_not_both`, the table's
+         *     not-both CHECK). Blank text counts as null.
+         */
+        DayPickupPutIn: {
+            /**
+             * Pickup Location Id
+             * @description Per-day pickup location override (this operator's live location). Omit BOTH location keys to leave the current override untouched; send null to clear it.
+             */
+            pickup_location_id?: string | null;
+            /**
+             * Pickup Location Text
+             * @description Per-day pickup location override as free text (a place with no locations row). At most one of this and pickup_location_id.
+             */
+            pickup_location_text?: string | null;
+            /**
+             * Pickup Time
+             * @description Operator-local wall-clock "HH:MM" (no UTC offset — rejected 422 pickup_time_must_be_wall_clock). null clears the pickup time.
+             */
+            pickup_time: string | null;
         };
         /**
          * DayStatusPutIn
@@ -10901,6 +11245,8 @@ export interface components {
         };
         /** LocationIn */
         LocationIn: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -10924,6 +11270,8 @@ export interface components {
         };
         /** LocationPatch */
         LocationPatch: {
+            /** Address */
+            address?: string | null;
             /** Color */
             color?: string | null;
             /** Email */
@@ -11082,6 +11430,45 @@ export interface components {
             skipped_done: string[];
             /** Skipped Not Found */
             skipped_not_found: string[];
+        };
+        /**
+         * MeetingPointBlock
+         * @description A meeting-point block (landr-5aih0.1, ``app.services.meeting_point``):
+         *     one pickup location with its address, coordinates and the server-derived
+         *     Google Maps / Waze deep links. Every field is a string, "" when unknown.
+         */
+        MeetingPointBlock: {
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Google Maps Url
+             * @default
+             */
+            google_maps_url: string;
+            /** Id */
+            id: string;
+            /**
+             * Lat
+             * @default
+             */
+            lat: string;
+            /**
+             * Lng
+             * @default
+             */
+            lng: string;
+            /** Name */
+            name: string;
+            /**
+             * Waze Url
+             * @default
+             */
+            waze_url: string;
+        } & {
+            [key: string]: unknown;
         };
         /** MessagePostIn */
         MessagePostIn: {
@@ -11316,6 +11703,7 @@ export interface components {
             first_name?: string | null;
             /** Last Name */
             last_name?: string | null;
+            pickup_location?: components["schemas"]["MeetingPointBlock"] | null;
             /** Service Role Label */
             service_role_label?: string | null;
         } & {
@@ -11408,6 +11796,12 @@ export interface components {
          * @description Partial update payload — every field is optional.
          */
         OperatorPatch: {
+            /** Cancellation Notice Hours */
+            cancellation_notice_hours?: number | null;
+            /** Cancellation Policy Text */
+            cancellation_policy_text?: {
+                [key: string]: string;
+            } | null;
             /** City */
             city?: string | null;
             /** Country */
@@ -11943,6 +12337,23 @@ export interface components {
             subject_id: string;
             /** Subject Type */
             subject_type: string;
+        };
+        /**
+         * PresetOut
+         * @description One preset the onboarding wizard can offer.
+         */
+        PresetOut: {
+            /** Key */
+            key: string;
+            /**
+             * Persona
+             * @enum {string}
+             */
+            persona: "solo" | "company";
+            /** Tagline */
+            tagline: string;
+            /** Title */
+            title: string;
         };
         /**
          * PreviewMigrationsResponse
@@ -12555,7 +12966,11 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** PublicCancelResponse */
+        /**
+         * PublicCancelResponse
+         * @description POST /{token}/cancel. Same shape on the first cancel and on the
+         *     idempotent repeat (``message`` says which).
+         */
         PublicCancelResponse: {
             /** Booking Id */
             booking_id: string;
@@ -12563,6 +12978,8 @@ export interface components {
             message: string;
             /** Ok */
             ok: boolean;
+            /** Refund Status */
+            refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
@@ -13478,6 +13895,11 @@ export interface components {
          *
          *     Both field names and their marketing-site aliases are accepted (back-compat):
          *       name / operator_name, slug / operator_slug  (landr-oqrz.1)
+         *
+         *     `preset_key` (optional, landr-k9pji.2) pre-selects the onboarding preset,
+         *     e.g. `solo_pilot` from the website's solo landing CTA. Must be one of
+         *     `app/services/presets.py` PRESET_KEYS, else 422 `unknown_preset_key`.
+         *     Blank = not sent. Stored on the operator only; the wizard applies it.
          */
         SignupRequest: {
             /** Email */
@@ -13491,6 +13913,8 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /** Preset Key */
+            preset_key?: string | null;
             /** Slug */
             slug: string;
             /** Turnstile Token */
@@ -17364,37 +17788,6 @@ export interface operations {
             };
         };
     };
-    cancel_booking_public: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicCancelResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     public_send_booking_invite: {
         parameters: {
             query?: never;
@@ -17514,6 +17907,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_booking_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCancelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cancel_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -20478,6 +20933,44 @@ export interface operations {
             };
         };
     };
+    staff_put_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+                participant_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupPutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_put_participant_day_status: {
         parameters: {
             query?: never;
@@ -21866,6 +22359,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_bulk_set_participant_day_pickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                day_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayPickupBulkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayPickupBulkOut"];
                 };
             };
             /** @description Validation Error */
@@ -23916,6 +24445,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_presets_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetOut"][];
                 };
             };
             /** @description Validation Error */

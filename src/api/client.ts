@@ -498,34 +498,94 @@ export async function submitStaffBooking(
 }
 
 /**
- * Response shape from POST /api/public/bookings/{id}/cancel. The API
- * returns the same shape on both first-cancel and already-cancelled
- * (idempotent) paths so the widget doesn't need to branch on status.
+ * landr-5aih0.7 — customer self-cancel. Both calls are addressed by the
+ * SIGNED booking token from the email's cancel link (`/cancel/{token}`),
+ * never the bare booking UUID.
+ *
+ * `method`: `stripe_auto` (back to the card automatically), `manual` (the
+ * operator refunds some or all of it by hand), `none` (nothing was paid).
+ */
+export type CancelRefundMethod = 'stripe_auto' | 'manual' | 'none'
+
+/** bookings.cancellation_refund_status — what actually happened. */
+export type CancelRefundStatus =
+  | 'refunded'
+  | 'manual_refund_needed'
+  | 'not_applicable'
+
+export interface CancelPreviewRefund {
+  /** Two-decimal string, e.g. "75.00". */
+  amount: string
+  currency: string
+  method: CancelRefundMethod
+}
+
+export interface CancelPreviewOperator {
+  name: string
+  phone: string | null
+  email: string | null
+}
+
+/** GET /api/public/bookings/{token}/cancel-preview. Read-only. */
+export interface CancelPreview {
+  booking_id: string
+  booking_reference: string
+  allowed: boolean
+  already_cancelled: boolean
+  /** ISO-8601 UTC; render it in `timezone` (the operator's IANA zone). */
+  deadline: string | null
+  timezone: string
+  refund: CancelPreviewRefund
+  operator: CancelPreviewOperator
+  policy_text: string | null
+  /** de | en | es — the language the booking's emails are sent in. */
+  locale: string
+  refund_status: CancelRefundStatus | null
+}
+
+/**
+ * POST /api/public/bookings/{token}/cancel. Same shape on the first cancel
+ * and on the idempotent repeat (`message` says which). A 409 with
+ * `detail.error === 'cancellation_deadline_passed'` means the free
+ * cancellation window closed in the meantime.
  */
 export interface CancelBookingResponse {
   ok: boolean
   booking_id: string
   message: string
+  refund_status: CancelRefundStatus | null
 }
 
 /**
- * Customer one-click cancel (landr-sgnd). Backed by the public cancel
- * endpoint added in the API worker — auth is just the booking_id UUID
- * (v1 secrecy model, same as the iCal endpoint). Called from the
- * /cancel/{booking_id} confirm page after the customer clicks Yes.
- *
- * No mock fallback: this surface is reached only by following the
- * email link, which never lands in the demo/mocks flow. If
- * VITE_USE_MOCKS=1 we still hit the real API — there is no useful
- * mock for "cancel a booking that doesn't exist in mocks".
+ * Load the cancel page's facts (deadline, refund, operator contact) —
+ * READ ONLY, so an email-link prefetcher GETting the page is harmless.
+ * No mock fallback: this surface is only reached from an email link.
+ */
+export async function getCancelPreview(token: string): Promise<CancelPreview> {
+  return http<CancelPreview>(
+    `/api/public/bookings/${encodeURIComponent(token)}/cancel-preview`,
+  )
+}
+
+/**
+ * Cancel the booking behind `token`. Called ONLY from the confirm button
+ * on the /cancel/{token} page, never on mount (email prefetchers GET
+ * links — landr-sgnd). No mock fallback, same reasoning as above.
  */
 export async function cancelBooking(
-  bookingId: string,
+  token: string,
 ): Promise<CancelBookingResponse> {
   return http<CancelBookingResponse>(
-    `/api/public/bookings/${encodeURIComponent(bookingId)}/cancel`,
+    `/api/public/bookings/${encodeURIComponent(token)}/cancel`,
     { method: 'POST' },
   )
+}
+
+/** True for the POST's 409 "free cancellation window closed" answer. */
+export function isCancellationDeadlinePassed(err: unknown): boolean {
+  if (!(err instanceof HttpError) || err.status !== 409) return false
+  const detail = err.detail as { error?: unknown } | undefined
+  return detail?.error === 'cancellation_deadline_passed'
 }
 
 /**

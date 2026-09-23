@@ -218,7 +218,7 @@ function App() {
               pull-to-refresh, which would reload the iframe. */}
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-              <CancelPage bookingId={route.bookingId} />
+              <CancelPage token={route.token} />
             </div>
           </div>
         </StaffModeProvider>

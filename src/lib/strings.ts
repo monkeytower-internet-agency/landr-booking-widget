@@ -361,18 +361,9 @@ type Bundle = {
   tooManyEmailsRetry: string
   couldNotSendEmailGeneric: string
 
-  // ---- CancelPage ----
-  bookingCancelledTitle: string
-  sorryToSeeYouGo: string
-  yourBookingHasBeenCancelled: string
-  cancellationFailedTitle: string
-  cancelYourBookingTitle: string
-  cancelYourBookingBody: string
-  cancellingEllipsis: string
-  yesCancelBooking: string
-  noKeepBooking: string
-  couldNotCancelBooking: string
-  bookingIdPrefix: string
+  // CancelPage (landr-5aih0.7) speaks the booking EMAIL's language from its
+  // own page-scoped bundle, src/components/booking/cancelStrings.ts — same
+  // pattern as ApprovalReplyPage — so it has no keys here.
 
   // ---- OfferPage ----
   confirmingYourPayment: string
@@ -865,18 +856,6 @@ const en: Bundle = {
   tooManyEmailsRetry: 'Too many emails right now — try again in a few minutes.',
   couldNotSendEmailGeneric:
     'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
-
-  bookingCancelledTitle: 'Booking cancelled',
-  sorryToSeeYouGo: 'Sorry to see you go.',
-  yourBookingHasBeenCancelled: 'Your booking has been cancelled. You can close this window.',
-  cancellationFailedTitle: 'Cancellation failed',
-  cancelYourBookingTitle: 'Cancel your booking?',
-  cancelYourBookingBody: 'This will cancel your booking right away. You cannot undo this.',
-  cancellingEllipsis: 'Cancelling…',
-  yesCancelBooking: 'Yes, cancel booking',
-  noKeepBooking: 'No, keep booking',
-  couldNotCancelBooking: 'We could not cancel this booking. The link may be invalid or already used.',
-  bookingIdPrefix: 'Booking',
 
   confirmingYourPayment: 'Confirming your payment…',
   usuallyTakesAFewSeconds: 'This usually takes a few seconds.',
@@ -1377,18 +1356,6 @@ const de: Bundle = {
   tooManyEmailsRetry: 'Gerade zu viele E-Mails — versuchen Sie es in ein paar Minuten erneut.',
   couldNotSendEmailGeneric:
     'Diese E-Mail konnte nicht gesendet werden — bitte versuchen Sie es erneut, oder nutzen Sie WhatsApp / kopieren Sie den Link.',
-
-  bookingCancelledTitle: 'Buchung storniert',
-  sorryToSeeYouGo: 'Schade, dass Sie gehen.',
-  yourBookingHasBeenCancelled: 'Ihre Buchung wurde storniert. Sie können dieses Fenster schließen.',
-  cancellationFailedTitle: 'Stornierung fehlgeschlagen',
-  cancelYourBookingTitle: 'Buchung stornieren?',
-  cancelYourBookingBody: 'Dies storniert Ihre Buchung sofort. Das kann nicht rückgängig gemacht werden.',
-  cancellingEllipsis: 'Wird storniert…',
-  yesCancelBooking: 'Ja, Buchung stornieren',
-  noKeepBooking: 'Nein, Buchung behalten',
-  couldNotCancelBooking: 'Diese Buchung konnte nicht storniert werden. Der Link ist möglicherweise ungültig oder bereits verwendet.',
-  bookingIdPrefix: 'Buchung',
 
   confirmingYourPayment: 'Ihre Zahlung wird bestätigt…',
   usuallyTakesAFewSeconds: 'Das dauert normalerweise nur wenige Sekunden.',
