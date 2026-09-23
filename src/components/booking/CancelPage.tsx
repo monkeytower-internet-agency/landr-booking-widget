@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { browserLocale } from '@/lib/locale'
 import {
   fmtCancel,
   normalizeCancelLocale,
@@ -53,7 +54,8 @@ import {
  *                  'ready' WITHOUT calling the API
  *
  * Copy follows the booking email's language (preview.locale → de/en/es),
- * see cancelStrings.ts.
+ * see cancelStrings.ts; before the preview arrives (and for a dead link) it
+ * follows the browser locale, the widget-wide German UI tier (landr-5aih0.9).
  */
 
 type Status = 'loading' | 'invalid' | 'ready' | 'submitting' | 'success' | 'error'
@@ -161,7 +163,10 @@ export function CancelPage({ token }: Props) {
     }
   }, [token])
 
-  const locale = normalizeCancelLocale(preview?.locale)
+  // The booking email's language once the preview is in (the customer just
+  // clicked that email); the browser's until then, and for a dead link
+  // (landr-5aih0.9 German UI tier).
+  const locale = normalizeCancelLocale(preview?.locale ?? browserLocale())
   const t = pickCancelBundle(locale)
 
   const onYes = async () => {
