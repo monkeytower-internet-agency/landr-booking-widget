@@ -27,6 +27,7 @@ import {
 import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
@@ -65,6 +66,11 @@ interface Props {
   originalDays?: string[]
   /** The host's display name, for the diff summary + reset button copy. */
   originalDaysLabel?: string
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 // Stable empty reference for the availability prop while slots are still
@@ -85,9 +91,11 @@ export function MultiDayStep({
   initialSelectedDays,
   originalDays,
   originalDaysLabel,
+  onLoaded,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(slots !== null || error !== null, onLoaded)
   const [selectedDays, setSelectedDays] = useState<Date[]>(() =>
     (initialSelectedDays ?? []).map(dateFromIso),
   )

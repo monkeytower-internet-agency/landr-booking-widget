@@ -451,6 +451,148 @@ describe('App', () => {
 
   // landr-nils — operator-configurable copy around the embed: header
   // headline + description (above the widget) and a footer (below it).
+  // landr-tkgx8.1 — boot splash (index.html's #landr-boot) and the summary
+  // column sitting in a row with the step column, below the header.
+  describe('boot splash (landr-tkgx8.1)', () => {
+    function mountSplash() {
+      const boot = document.createElement('div')
+      boot.id = 'landr-boot'
+      const logo = document.createElement('img')
+      logo.id = 'landr-boot-logo'
+      logo.setAttribute('src', '/landr-mark.svg')
+      boot.appendChild(logo)
+      document.body.prepend(boot)
+      return logo
+    }
+    function deferred<T>() {
+      let resolve!: (value: T) => void
+      const promise = new Promise<T>((r) => {
+        resolve = r
+      })
+      return { promise, resolve }
+    }
+    const splash = () => document.getElementById('landr-boot')
+
+    beforeEach(() => {
+      window.localStorage.clear()
+    })
+    afterEach(() => {
+      splash()?.remove()
+      window.localStorage.clear()
+    })
+
+    it('stays up until the product list has loaded, then is removed', async () => {
+      mountSplash()
+      const products = deferred<Product[]>()
+      mocks.listProducts.mockReturnValue(products.promise)
+      render(<App />)
+      await waitFor(() => expect(mocks.listProductGroups).toHaveBeenCalled())
+      await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+      // Settings + groups settled, products still in flight.
+      await new Promise((r) => setTimeout(r, 0))
+      expect(splash()).not.toBeNull()
+      products.resolve([makeProduct({ name: 'Tandem Classic' })])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('shows the operator logo on the splash and caches it per token', async () => {
+      const logo = mountSplash()
+      const products = deferred<Product[]>()
+      mocks.listProducts.mockReturnValue(products.promise)
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        name: 'Para42',
+      })
+      render(<App />)
+      await waitFor(() =>
+        expect(logo.getAttribute('src')).toBe('https://example.com/logo.png'),
+      )
+      expect(window.localStorage.getItem(`landr:logo:${MOCK_TOKEN}`)).toBe(
+        'https://example.com/logo.png',
+      )
+      products.resolve([])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('clears the cached logo when the operator has none', async () => {
+      mountSplash()
+      window.localStorage.setItem(`landr:logo:${MOCK_TOKEN}`, 'https://old/logo.png')
+      mocks.listProducts.mockResolvedValue([])
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+      })
+      render(<App />)
+      await waitFor(() => expect(splash()).toBeNull())
+      expect(window.localStorage.getItem(`landr:logo:${MOCK_TOKEN}`)).toBeNull()
+    })
+
+    it('?product= + start=dates waits for the date step availability', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=tandem-classic&start=dates`,
+      )
+      mountSplash()
+      const availability = deferred<AvailabilitySlot[]>()
+      mocks.getAvailability.mockReturnValue(availability.promise)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      await waitFor(() => expect(mocks.getAvailability).toHaveBeenCalled())
+      await new Promise((r) => setTimeout(r, 0))
+      expect(splash()).not.toBeNull()
+      availability.resolve([])
+      await waitFor(() => expect(splash()).toBeNull())
+    })
+
+    it('is removed straight away on the landing page', () => {
+      window.history.replaceState({}, '', '/')
+      mountSplash()
+      render(<App />)
+      expect(splash()).toBeNull()
+    })
+
+    it('puts the header above a row holding only the step column + sidebar', async () => {
+      window.history.replaceState(
+        {},
+        '',
+        `/?w=${MOCK_TOKEN}&product=tandem-classic&start=dates`,
+      )
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: 'https://example.com/logo.png',
+        name: 'Para42',
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          slug: 'tandem-classic',
+          service_time_shape: 'single_date',
+          bookable: true,
+        }),
+      ])
+      render(<App />)
+      const sidebar = await screen.findByTestId('price-sidebar-desktop')
+      const row = screen.getByTestId('widget-step-row')
+      // The sidebar's top aligns with the step column, not the logo: both
+      // are direct children of the row; the header is outside it.
+      expect(sidebar.parentElement).toBe(row)
+      expect(screen.getByTestId('widget-step-column').parentElement).toBe(row)
+      expect(row.contains(screen.getByTestId('widget-logo'))).toBe(false)
+      expect(row.className).toContain('md:flex-row')
+      expect(row.parentElement?.className).not.toContain('md:flex-row')
+    })
+  })
+
   describe('operator embed text (landr-nils)', () => {
     it('renders the operator headline and description above the widget', async () => {
       mocks.getOperatorSettings.mockResolvedValue({

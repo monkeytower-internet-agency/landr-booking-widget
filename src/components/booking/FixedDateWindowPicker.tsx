@@ -21,6 +21,7 @@ import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadg
 import { cn } from '@/lib/utils'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
@@ -58,6 +59,11 @@ interface Props {
    * first visit.
    */
   initialWindowId?: string
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
@@ -81,6 +87,7 @@ export function FixedDateWindowPicker({
   exposeSeats = true,
   onLiveDaysChange,
   initialWindowId,
+  onLoaded,
 }: Props) {
   const { tokens } = useVariant()
   const staff = useStaffMode()
@@ -90,6 +97,7 @@ export function FixedDateWindowPicker({
   const canForce = staff.active && staff.powers.includes('force_book')
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(windows !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed from the restored window id on back-nav re-entry.
   const [selectedId, setSelectedId] = useState<string | null>(
     initialWindowId ?? null,

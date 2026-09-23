@@ -13,6 +13,81 @@
     <title>Book — LANDR</title>
   </head>
   <body>
+    <!-- landr-tkgx8.1: boot splash, painted before the bundle loads. Stays up
+         (and keeps #root hidden, so no default-theme flash) until the app has
+         the operator settings and the first step's data — src/lib/bootSplash.ts
+         removes it; the inline script's 8s timeout is the hard fallback. -->
+    <style>
+      #landr-boot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        min-height: 240px;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #landr-boot ~ #root {
+        display: none;
+      }
+      #landr-boot-logo {
+        max-width: 160px;
+        max-height: 56px;
+        object-fit: contain;
+      }
+      #landr-boot-ring {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 3px solid rgba(128, 128, 128, 0.2);
+        border-top-color: rgba(128, 128, 128, 0.75);
+        animation: landr-boot-spin 1.6s linear infinite;
+      }
+      @keyframes landr-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes landr-boot-pulse {
+        50% {
+          opacity: 0.45;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #landr-boot-ring {
+          display: none;
+        }
+        #landr-boot-logo {
+          animation: landr-boot-pulse 2.4s ease-in-out infinite;
+        }
+      }
+    </style>
+    <div id="landr-boot" role="status" aria-live="polite" aria-label="Loading">
+      <img id="landr-boot-logo" src="/landr-mark.svg" alt="" />
+      <div id="landr-boot-ring"></div>
+    </div>
+    <script>
+      ;(function () {
+        var boot = document.getElementById('landr-boot')
+        var logo = document.getElementById('landr-boot-logo')
+        // A cached/operator logo that fails to load falls back to the mark.
+        logo.onerror = function () {
+          logo.onerror = null
+          logo.src = '/landr-mark.svg'
+        }
+        try {
+          var token = new URLSearchParams(location.search).get('w')
+          var cached = token && localStorage.getItem('landr:logo:' + token)
+          if (cached) logo.src = cached
+        } catch (e) {
+          // Storage blocked (sandboxed iframe) — keep the Landr mark.
+        }
+        setTimeout(function () {
+          if (boot && boot.parentNode) boot.parentNode.removeChild(boot)
+        }, 8000)
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -127,6 +127,7 @@ import { loadTileFont } from '@/lib/tileFont'
 import type { TileFontKey } from '@/lib/tileFont'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
 import { StepTransition } from '@/components/booking/StepTransition'
+import { applyBootLogo, dismissBootSplash, isBootReady } from '@/lib/bootSplash'
 
 // landr-71kz.10: the hardcoded Para42 declarations constants
 // (OPERATORS_REQUIRING_DECLARATIONS / PARA42_DECLARATION_ITEMS /
@@ -206,6 +207,18 @@ function App() {
         : detectRoute(window.location.pathname),
     [],
   )
+  // landr-1kk.5: Stripe's membership-checkout return (see its branch below).
+  const memberParam =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('member')
+      : null
+  const isMemberReturn = memberParam === '1' || memberParam === 'cancelled'
+  // landr-tkgx8.1: only the booking flow holds the boot splash until its
+  // first step has data; every other page drops it on mount.
+  const holdsBootSplash = route.kind === 'booking' && !isMemberReturn
+  useEffect(() => {
+    if (!holdsBootSplash) dismissBootSplash()
+  }, [holdsBootSplash])
   if (route.kind === 'cancel') {
     return (
       <VariantProvider value={variantFromLocation()}>
@@ -282,11 +295,7 @@ function App() {
   // data just to show a redirect confirmation. Mirrors OfferPage's
   // `?paid=1` / `?paid=cancelled` pair exactly, just query-flagged
   // `member=` instead of `paid=` since this isn't a token-addressed page.
-  const memberParam =
-    typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('member')
-      : null
-  if (memberParam === '1' || memberParam === 'cancelled') {
+  if (isMemberReturn) {
     return (
       <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
@@ -832,6 +841,18 @@ function BookingFlowApp() {
   // to submit before the list arrives (extremely unlikely; the fetch
   // races multiple full-page paints' worth of UX).
   const [serviceRoles, setServiceRoles] = useState<ServiceRole[]>([])
+  // landr-tkgx8.1: boot-splash readiness — the settings fetch settled, and the
+  // first step's own fetch reported in via its onLoaded (see bootReady below).
+  const [settingsSettled, setSettingsSettled] = useState(false)
+  const [productListLoaded, setProductListLoaded] = useState(false)
+  const [expandedCatalogLoaded, setExpandedCatalogLoaded] = useState(false)
+  const [selectionLoaded, setSelectionLoaded] = useState(false)
+  const onProductListLoaded = useCallback(() => setProductListLoaded(true), [])
+  const onExpandedCatalogLoaded = useCallback(
+    () => setExpandedCatalogLoaded(true),
+    [],
+  )
+  const onSelectionLoaded = useCallback(() => setSelectionLoaded(true), [])
 
   // landr-p68d2 (epic decision D1, narrowing landr-r6e5x.4 / D3): the guide
   // languages offered for a given PRODUCT — `product.guide_languages`, else
@@ -891,6 +912,13 @@ function BookingFlowApp() {
         if (!cancelled) {
           setOperatorSettings(settings)
           setShowLanding(false)
+          // landr-tkgx8.1: operator logo on the boot splash (and cached for
+          // the next visit's first paint) — same visibility rule as the
+          // header logo, so a hidden logo is never flashed on boot.
+          applyBootLogo(
+            token,
+            settings.widget_show_logo !== false ? (settings.logo_url ?? null) : null,
+          )
           // landr-821d6.7: whitelist browserLocale() against this operator's
           // customer_languages (falling back to default_locale) — applies
           // globally to every browserLocale() call from here on, no prop
@@ -908,6 +936,7 @@ function BookingFlowApp() {
         // Any other error: keep the safe defaults — failing the settings
         // fetch must not block booking when the token is valid.
       }
+      if (!cancelled) setSettingsSettled(true)
     })()
     return () => {
       cancelled = true
@@ -1146,6 +1175,28 @@ function BookingFlowApp() {
   const opensOnDates = useCallback(
     (p: Product) => startAtDates && p.slug === product,
     [startAtDates, product],
+  )
+
+  // ProductList's fetch effect depends on these handlers, so they must be
+  // stable: an inline arrow re-ran (re-fetched) the product list on every
+  // App render — landr-tkgx8.1's boot-readiness state added one such render.
+  const onProductListSelect = useCallback(
+    (p: Product) => {
+      // Preselect path for ?product= deep link: ProductList calls
+      // onSelect immediately after resolving the product. In that
+      // case we also go to product-detail (not pick-selection),
+      // so the deep link shows the detail page first — unless the
+      // embed asked for start=dates (landr-6eita.1), which lands the
+      // deep-linked product straight on the date picker.
+      setStep(productEntryStep(p, opensOnDates(p)))
+    },
+    [opensOnDates],
+  )
+  // landr-7jgo: a deep-linked product that is sold out drops into the
+  // standalone "Fully booked" state instead of a picker with no dates.
+  const onProductListPreselectSoldOut = useCallback(
+    (p: Product) => setStep({ name: 'fully-booked', product: p }),
+    [],
   )
 
   /**
@@ -1516,6 +1567,32 @@ function BookingFlowApp() {
     [breadcrumbItems, navigateTo],
   )
 
+  // landr-tkgx8.1: drop the boot splash once the step the customer lands on
+  // has its data (one-shot — dismissBootSplash is idempotent and the splash
+  // never comes back). The landing page has nothing to wait for.
+  const bootReady =
+    showLanding ||
+    isBootReady({
+      settingsSettled,
+      inviteResolving: Boolean(invite) && inviteData === undefined,
+      stepName: step.name,
+      catalogMode: resolvedCatalogMode,
+      deepLink: Boolean(group || product),
+      groupsSettled: productGroups !== null,
+      productListLoaded,
+      expandedCatalogLoaded,
+      selectionNeedsData:
+        step.name === 'pick-selection' &&
+        step.product.product_kind === 'service' &&
+        ['time_slot', 'fixed_window', 'days_range', 'single_date'].includes(
+          step.product.service_time_shape ?? '',
+        ),
+      selectionLoaded,
+    })
+  useEffect(() => {
+    if (bootReady) dismissBootSplash()
+  }, [bootReady])
+
   // landr-il9f.2: no token or unknown token → show the generic landing page.
   if (showLanding) return <LandingPage />
 
@@ -1589,14 +1666,15 @@ function BookingFlowApp() {
       data-testid="widget-root"
     >
       {/*
-        Outer flex (md and up) puts the step content on the left and the
-        sticky PriceSidebar on the right. On mobile the sidebar renders
-        as a fixed bottom bar (handled inside PriceSidebar), so the main
-        column simply takes the full width. Wider max-w-5xl gives the
-        sidebar breathing room without squeezing the step content.
+        Full-width header + banners first, then the inner row: on md and up
+        it puts the step content on the left and the sticky PriceSidebar on
+        the right, so the sidebar's top lines up with the step column's top
+        rather than the operator logo's (landr-tkgx8.1). On mobile the
+        sidebar renders as a fixed bottom bar (handled inside PriceSidebar),
+        so the main column simply takes the full width. Wider max-w-5xl
+        gives the sidebar breathing room without squeezing the step content.
       */}
-      <div className="mx-auto flex max-w-5xl flex-col md:flex-row md:items-start gap-6 p-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
         {/*
           landr-yp8x / landr-nils — operator brand + intro header. The
           widget is embedded inside the operator's own page, so they own
@@ -1719,6 +1797,14 @@ function BookingFlowApp() {
           </div>
         ) : null}
 
+        <div
+          className="flex flex-col md:flex-row md:items-start gap-6"
+          data-testid="widget-step-row"
+        >
+        <div
+          className="flex min-w-0 flex-1 flex-col gap-6"
+          data-testid="widget-step-column"
+        >
         {/*
           landr-iyyf: brief loading state gating the pre-review transition.
           Visible for the short window (usually well under a second) between
@@ -1775,6 +1861,7 @@ function BookingFlowApp() {
               onSelect={(p) => {
                 setStep({ name: 'product-detail', product: p })
               }}
+              onLoaded={onExpandedCatalogLoaded}
             />
           ) : (
             <CategoryStep
@@ -1836,20 +1923,9 @@ function BookingFlowApp() {
             // landr-d8rg.4: card click → product-detail step (not directly
             // to pick-selection). The groups context is threaded through so
             // the detail page's Back button can return to the scoped list.
-            onSelect={(p) => {
-              // Preselect path for ?product= deep link: ProductList calls
-              // onSelect immediately after resolving the product. In that
-              // case we also go to product-detail (not pick-selection),
-              // so the deep link shows the detail page first — unless the
-              // embed asked for start=dates (landr-6eita.1), which lands the
-              // deep-linked product straight on the date picker.
-              setStep(productEntryStep(p, opensOnDates(p)))
-            }}
-            // landr-7jgo: a deep-linked product that is sold out drops into the
-            // standalone "Fully booked" state instead of a picker with no dates.
-            onPreselectSoldOut={(p) =>
-              setStep({ name: 'fully-booked', product: p })
-            }
+            onSelect={onProductListSelect}
+            onPreselectSoldOut={onProductListPreselectSoldOut}
+            onLoaded={onProductListLoaded}
           />
         ) : null}
 
@@ -1984,6 +2060,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'time_slot' ? (
           <AvailabilityPicker
             product={step.product}
+            onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
@@ -2001,6 +2078,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'fixed_window' ? (
           <FixedDateWindowPicker
             product={step.product}
+            onLoaded={onSelectionLoaded}
             exposeSeats={operatorSettings.expose_seats_to_customer}
             onBack={datePickerBack}
             // landr (breadcrumb): the committed window id rides on the restored
@@ -2030,6 +2108,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'days_range' ? (
           <MultiDayStep
             product={step.product}
+            onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior day selection on re-entry.
             // landr-otml0.3: on the FIRST visit via an invite link (no prior
@@ -2070,6 +2149,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'single_date' ? (
           <SingleDatePicker
             product={step.product}
+            onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
             initialSelectedDays={
@@ -2976,6 +3056,7 @@ function BookingFlowApp() {
             onUnPriceableChange={setEstimateUnPriceable}
           />
         ) : null}
+        </div>
       </div>
       {/*
         landr-nils — operator footer copy below the booking widget. No
