@@ -24,6 +24,7 @@ import { useStaffMode } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
+import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
@@ -54,6 +55,11 @@ interface Props {
    * instead of empty. Empty/undefined on the first visit.
    */
   initialSelectedDays?: string[]
+  /**
+   * landr-tkgx8.1: called once the initial fetch settles (data or error), so
+   * the boot splash can stay up until this step has something to show.
+   */
+  onLoaded?: () => void
 }
 
 /**
@@ -69,6 +75,7 @@ export function SingleDatePicker({
   onConfirm,
   onLiveDaysChange,
   initialSelectedDays,
+  onLoaded,
 }: Props) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -77,6 +84,7 @@ export function SingleDatePicker({
   const canForce = staff.active && staff.powers.includes('force_book')
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useReportLoaded(slots !== null || error !== null, onLoaded)
   // landr (breadcrumb): seed from the restored ISO day on back-nav re-entry.
   const [selected, setSelected] = useState<Date | null>(() =>
     initialSelectedDays && initialSelectedDays[0]
