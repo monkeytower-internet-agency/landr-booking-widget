@@ -17,6 +17,7 @@ import {
   languageFlag,
   productDisplayLanguages,
 } from '@/components/booking/participantLanguages'
+import { tr } from '@/lib/strings'
 
 /** landr-pv2r1: flags shown on the catalogue chip before collapsing to "+N". */
 export const LANGUAGE_CHIP_MAX_FLAGS = 5
@@ -32,13 +33,14 @@ export const LANGUAGE_CHIP_MAX_FLAGS = 5
  */
 export function productLanguagesChip(
   product: Product,
+  locale?: string,
 ): { flags: string[]; codes: string[]; label: string } | null {
   const codes = productDisplayLanguages(product.guide_languages)
   if (codes.length === 0) return null
   return {
     flags: codes.slice(0, LANGUAGE_CHIP_MAX_FLAGS).map(languageFlag),
     codes,
-    label: `Offered in ${joinLanguageNames(codes)}`,
+    label: `${tr('offeredInPrefix', locale)} ${joinLanguageNames(codes, locale)}`,
   }
 }
 

@@ -15,6 +15,8 @@ import { getFixedDateWindows } from '@/api/client'
 import type { FixedDateWindow, HotelOffering } from '@/api/types'
 import { isDayBookable } from '@/components/booking/bookability'
 import { formatWindowRangeLabel } from '@/components/booking/dateLabel'
+import { browserLocale } from '@/lib/locale'
+import { seatsLeftLabel, tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -38,6 +40,7 @@ export function FixedDateWindowChips({
   hotelOffering,
 }: Props) {
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
+  const locale = browserLocale()
 
   useEffect(() => {
     let cancelled = false
@@ -90,7 +93,7 @@ export function FixedDateWindowChips({
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs"
           >
             <span className="font-medium tabular-nums">
-              {formatWindowRangeLabel(window.start_date, window.end_date)}
+              {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
             </span>
             <span
               className={cn(
@@ -101,12 +104,12 @@ export function FixedDateWindowChips({
               )}
             >
               {isFull
-                ? 'Full'
+                ? tr('fullBadge', locale)
                 : leadTimeBlocked
-                  ? 'Too late to book'
+                  ? tr('tooLateToBook', locale)
                   : exposeSeats
-                    ? `${available} seat${available === 1 ? '' : 's'} left`
-                    : 'Available'}
+                    ? seatsLeftLabel(available, locale)
+                    : tr('availableBadge', locale)}
             </span>
           </span>
         )

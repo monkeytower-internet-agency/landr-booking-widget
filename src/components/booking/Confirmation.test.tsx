@@ -51,7 +51,11 @@ vi.mock('@/api/client', async () => {
  */
 
 const MOCK_BOOKING_ID = '00000000-0000-0000-0000-0000000000bb'
-const MOCK_ICAL_URL = `https://api.dev.landr.de/api/public/bookings/${MOCK_BOOKING_ID}/calendar.ics`
+// landr-5aih0.4: the calendar link is token-scoped (signed booking token).
+const MOCK_ICAL_URL =
+  'https://api.dev.landr.de/api/public/bookings/000000000000000000000000000000bb.1900000000.sig/calendar.ics'
+// The 8-hex reference the widget derives when `summary` is absent.
+const MOCK_REFERENCE = '00000000'
 
 const MOCK_EVENT: BookingCalendarEvent = {
   title: 'Tandem Classic — Para42',
@@ -257,6 +261,98 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
       'Ada Lovelace, Grace Hopper',
     )
+    expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
+      'Main Beach',
+    )
+  })
+
+  // landr-5aih0.2: the meeting-point block (address + Google Maps/Waze)
+  // renders under the plain "Pickup:" line when summary.meeting_point
+  // carries an address or a map link.
+  it('renders the meeting-point address + Google Maps/Waze buttons when summary.meeting_point is present', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1',
+          name: 'Main Beach',
+          address: 'Playa de las Américas, 38660',
+          lat: '28.05',
+          lng: '-16.73',
+          google_maps_url: 'https://www.google.com/maps/search/?api=1&query=28.05,-16.73',
+          waze_url: 'https://waze.com/ul?ll=28.05,-16.73&navigate=yes',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    const block = screen.getByTestId('confirmation-meeting-point')
+    expect(block).toHaveTextContent('Playa de las Américas, 38660')
+    expect(screen.getByRole('link', { name: /google maps/i })).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=28.05,-16.73',
+    )
+    expect(screen.getByRole('link', { name: /waze/i })).toHaveAttribute(
+      'href',
+      'https://waze.com/ul?ll=28.05,-16.73&navigate=yes',
+    )
+  })
+
+  // Waze needs coordinates (app/services/meeting_point.py: waze_url is ""
+  // without geo) — the button must not render when the API sent no url.
+  it('omits the Waze button when meeting_point.waze_url is empty (no geo)', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        meeting_point: {
+          id: 'pl-1',
+          name: 'Main Beach',
+          address: 'Playa de las Américas, 38660',
+          lat: '',
+          lng: '',
+          google_maps_url:
+            'https://www.google.com/maps/search/?api=1&query=Playa+de+las+Am%C3%A9ricas%2C+38660',
+          waze_url: '',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: /google maps/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /waze/i })).not.toBeInTheDocument()
+  })
+
+  // The API always sends meeting_point as an object (empty_block(), never
+  // null) when the booking has no pickup location — every field "". The
+  // widget must degrade to no block at all rather than an empty shell.
+  it('renders no meeting-point block when summary.meeting_point is the all-"" empty block', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        pickup_location: null,
+        pickup_locations: [],
+        meeting_point: {
+          id: '',
+          name: '',
+          address: '',
+          lat: '',
+          lng: '',
+          google_maps_url: '',
+          waze_url: '',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-meeting-point'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders no meeting-point block when summary.meeting_point is absent (older API deploy)', () => {
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.queryByTestId('confirmation-meeting-point'),
+    ).not.toBeInTheDocument()
     expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
       'Main Beach',
     )
@@ -833,10 +929,22 @@ describe('Confirmation', () => {
     const icsLink = screen.getByRole('link', { name: /download .ics/i })
     expect(icsLink).toBeInTheDocument()
     expect(icsLink).toHaveAttribute('href', MOCK_ICAL_URL)
+    // landr-5aih0.4: the filename carries the reference, never the UUID.
     expect(icsLink).toHaveAttribute(
       'download',
-      `landr-booking-${MOCK_BOOKING_ID}.ics`,
+      `landr-booking-${MOCK_REFERENCE}.ics`,
     )
+    expect(icsLink.getAttribute('download')).not.toContain(MOCK_BOOKING_ID)
+  })
+
+  it('names the .ics download after summary.booking_reference when present', () => {
+    const response = baseResponse({
+      ical_url: MOCK_ICAL_URL,
+      summary: baseSummary({ booking_reference: 'AB12CD34' }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const icsLink = screen.getByRole('link', { name: /download .ics/i })
+    expect(icsLink).toHaveAttribute('download', 'landr-booking-AB12CD34.ics')
   })
 
   it('omits the calendar group when ical_url is missing', () => {
@@ -1133,6 +1241,65 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
     expect(screen.queryByText(response.semantic_state)).not.toBeInTheDocument()
     expect(screen.queryByText(/capacity/i)).not.toBeInTheDocument()
+  })
+
+  // ------------------------------------------------------------------
+  // landr-k9pji.5 — payment_mode-aware confirmation copy (API
+  // landr-k9pji.4). All three modes are auto_approved scenarios; the
+  // pre-existing payment_link_sent-only tests above cover the fallback
+  // when payment_mode is absent (older API deploy).
+  // ------------------------------------------------------------------
+
+  it('payment_mode=on_site: pay-on-site note, regardless of payment_link_sent', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'on_site',
+      payment_link_sent: false,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText(/please pay on the day, at the meeting point/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+  })
+
+  it('payment_mode=bank_transfer: bank-details-in-email note', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'bank_transfer',
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByText(/bank details are in your confirmation email/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
+  })
+
+  it('payment_mode=online + payment_link_sent: deposit-flavoured payment-link line', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: true,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByTestId('confirmation-payment-mode-note'),
+    ).toHaveTextContent(/a payment link for your deposit is on its way/i)
+  })
+
+  it('payment_mode=online without payment_link_sent: no payment line at all', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: false,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-payment-mode-note')).not.toBeInTheDocument()
+    expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
   })
 
   it('requires_general_approval: "Booking received" title, awaiting-confirmation copy, no raw state', () => {

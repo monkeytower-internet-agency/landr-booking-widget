@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
@@ -1591,13 +1591,29 @@ describe('App', () => {
       // (Double Room visible), NOT the pickup picker.
       fireEvent.click(screen.getByTestId('step-back-button'))
       await backPastLanguageStep()
-      // Explicit timeout: this hop re-mounts AccommodationStep and re-runs its
-      // hotel/room fetches behind a step transition, and it is the one
-      // assertion in this file that has been observed to time out on the 1s
-      // default under a cold, loaded run (landr-r6e5x.4). Nothing about the
-      // behaviour is slow — the default is just too tight for this step.
+      // landr-ykzuq: the REAL race, found by raising this wait's timeout and
+      // reading the failure it was actually hiding. This hop re-mounts
+      // AccommodationStep, which re-fetches hotels/rooms (landr-r6e5x.4's
+      // "too tight on a cold, loaded run" — true, hence the explicit
+      // timeout), AND the still-mounted PriceSidebar independently re-fetches
+      // its own price estimate and renders a line item with the SAME room
+      // name text (PriceSidebar.tsx's `li.label`). A bare
+      // screen.getByText('Double Room') is unambiguous only in the WINDOW
+      // before the sidebar's re-render lands — once both have settled (which
+      // happens more often, not less, the longer this waits) there are two
+      // matching elements and getByText throws "Found multiple elements",
+      // which waitFor keeps retrying against a query that can never resolve
+      // to exactly one match again, exhausting the timeout. Scoping into the
+      // room card by its stable per-product testid (added alongside this
+      // fix, see AccommodationStep.tsx) makes the query correct regardless
+      // of how many other places on the page also say "Double Room".
       await waitFor(
-        () => expect(screen.getByText('Double Room')).toBeInTheDocument(),
+        () =>
+          expect(
+            within(screen.getByTestId('room-card-room-double')).getByText(
+              'Double Room',
+            ),
+          ).toBeInTheDocument(),
         { timeout: 5000 },
       )
       // Sanity: we did not land on a pickup picker.
@@ -3063,6 +3079,151 @@ describe('App', () => {
 
   // landr (breadcrumb): the back affordance becomes a full clickable trail, and
   // jumping back to an earlier step restores its previously-entered state.
+  // landr-6eita.1: `?product=<slug>&start=dates` — a single-product embed
+  // whose host page already describes the product opens straight on the date
+  // picker. The product-detail step is skipped and nothing leads back to it.
+  describe('start=dates single-product embed (landr-6eita.1)', () => {
+    // The multi-step walk below is the slowest thing in this block; under a
+    // loaded full-suite run the default 1s waitFor budget occasionally ran out.
+    const SLOW_FLOW = { timeout: 5000 }
+
+    function mockOpenDay() {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      return iso
+    }
+
+    function mockGuidedDay(overrides: Partial<Product> = {}) {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'p-gd',
+          slug: 'guided-day',
+          name: 'Guided Day',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          bookable: true,
+          ...overrides,
+        }),
+      ])
+    }
+
+    it('opens on the date picker with no product-detail step and no Back', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('step-breadcrumb')).not.toBeInTheDocument()
+    })
+
+    it('starts the breadcrumb at Dates — no product crumb to jump back to', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay()
+      const iso = mockOpenDay()
+      render(<App />)
+      // The availability fetch settles after the picker mounts and the
+      // calendar re-renders around it, so a click can land on a day button
+      // that is replaced a moment later — retry until the pick sticks.
+      await waitFor(() => {
+        const openDay = screen
+          .getAllByRole('gridcell')
+          .map((cell) => cell.querySelector('button'))
+          .find((b): b is HTMLButtonElement => !!b && !b.disabled)
+        expect(openDay).toBeDefined()
+        fireEvent.click(openDay!)
+        expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      }, SLOW_FLOW)
+      fireEvent.click(
+        await screen.findByRole('button', { name: /continue/i }, SLOW_FLOW),
+      )
+
+      await waitFor(
+        () => expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+        SLOW_FLOW,
+      )
+      const breadcrumb = screen.getByTestId('step-breadcrumb')
+      const crumbs = Array.from(breadcrumb.querySelectorAll('li')).map(
+        (li) => li.textContent,
+      )
+      expect(crumbs).toEqual(['Dates', 'Participants'])
+      expect(breadcrumb).not.toHaveTextContent('Guided Day')
+
+      // Back from details lands on Dates, which again offers no Back.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(
+        () => expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+        SLOW_FLOW,
+      )
+      expect(screen.getByTestId('single-date-selected')).toHaveTextContent(iso)
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('product-detail-step')).not.toBeInTheDocument()
+    })
+
+    it('a sold-out product still shows "Fully booked"', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=guided-day&start=dates`,
+      )
+      mockGuidedDay({ bookable: false })
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('fully-booked-badge')).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/Pick a date/i)).not.toBeInTheDocument()
+    })
+
+    it('is ignored without ?product= (catalogue → product-detail as usual)', async () => {
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&start=dates`)
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() => screen.getByText('Guided Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Guided Day' }))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+    })
+
+    it('a product picked from the fallback catalogue (unresolved slug) keeps product-detail', async () => {
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=no-such-slug&start=dates`,
+      )
+      mockGuidedDay()
+      render(<App />)
+      await waitFor(() => screen.getByText('Guided Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Guided Day' }))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('product-detail-book-cta'))
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      // The normal date step keeps its Back affordance.
+      expect(screen.getByTestId('step-back-button')).toBeInTheDocument()
+    })
+  })
+
   describe('breadcrumb navigation + date restore (landr)', () => {
     async function pickProduct(name: string) {
       await waitFor(() => screen.getByText(name))

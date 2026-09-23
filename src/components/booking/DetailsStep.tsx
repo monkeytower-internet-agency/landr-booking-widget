@@ -6,6 +6,15 @@ import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
 import { browserLocale } from '@/lib/locale'
 import { formatDayLabel } from '@/components/booking/dateLabel'
+import {
+  addAnyoneElseUpTo,
+  companionContactRequiredMessage,
+  companionOrdinalLabel,
+  maxCompanionsReachedMessage,
+  otherParticipantsHeading,
+  participantOrdinalLabel,
+  tr,
+} from '@/lib/strings'
 import { CustomerCommentField } from '@/components/booking/CustomerCommentField'
 import { Button } from '@/components/ui/button'
 import {
@@ -413,46 +422,49 @@ export function DetailsStep({
   // Replaces the top stepper's grow path. Appends one empty row (capped at
   // MAX_ADDITIONAL) and notifies the live sidebar. Existing rows' data is
   // untouched (preserves landr-nmed entered data for other rows).
+  //
+  // landr-ykzuq: notifyLive() calls the PARENT's onLiveParticipantsChange,
+  // which sets App.tsx's state. Each of these handlers used to call it from
+  // INSIDE the setX() updater function — React can invoke that updater
+  // eagerly (its state-update bail-out check) while DetailsStep is still
+  // rendering, which then trips "Cannot update a component (BookingFlowApp)
+  // while rendering a different component (DetailsStep)". Fixed by deriving
+  // `next` from the current closure value (accurate here — these are plain
+  // event handlers, not concurrent/batched updates), calling setX with the
+  // plain value, and only THEN calling notifyLive — after DetailsStep's own
+  // render has finished, from the event handler, same as before.
   const addParticipant = () => {
-    setAdditional((current) => {
-      if (current.length >= MAX_ADDITIONAL) return current
-      const next = [...current, emptyParticipant(defaultRoleCode)]
-      notifyLive(booker, next, companions)
-      return next
-    })
+    if (additional.length >= MAX_ADDITIONAL) return
+    const next = [...additional, emptyParticipant(defaultRoleCode)]
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-4uyu: remove a SPECIFIC additional participant by index (the per-card
   // × control), not just the last one as the stepper did. Splicing the chosen
   // index preserves the entered data of all the OTHER rows (landr-nmed).
   const removeParticipant = (idx: number) => {
-    setAdditional((current) => {
-      if (idx < 0 || idx >= current.length) return current
-      const next = current.slice(0, idx).concat(current.slice(idx + 1))
-      notifyLive(booker, next, companions)
-      return next
-    })
+    if (idx < 0 || idx >= additional.length) return
+    const next = additional.slice(0, idx).concat(additional.slice(idx + 1))
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
-    setCompanions((current) => {
-      if (current.length >= MAX_COMPANIONS) return current
-      const next = [...current, emptyCompanion()]
-      notifyLive(booker, additional, next)
-      return next
-    })
+    if (companions.length >= MAX_COMPANIONS) return
+    const next = [...companions, emptyCompanion()]
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   // landr-4uyu: remove a SPECIFIC companion by index (per-card × control),
   // preserving the other companion rows' data (landr-nmed).
   const removeCompanion = (idx: number) => {
-    setCompanions((current) => {
-      if (idx < 0 || idx >= current.length) return current
-      const next = current.slice(0, idx).concat(current.slice(idx + 1))
-      notifyLive(booker, additional, next)
-      return next
-    })
+    if (idx < 0 || idx >= companions.length) return
+    const next = companions.slice(0, idx).concat(companions.slice(idx + 1))
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   const updateCompanion = <K extends keyof CompanionDetails>(
@@ -460,22 +472,18 @@ export function DetailsStep({
     key: K,
     value: CompanionDetails[K],
   ) => {
-    setCompanions((prev) => {
-      const next = prev.slice()
-      const row = next[idx]
-      if (!row) return prev
-      next[idx] = { ...row, [key]: value }
-      notifyLive(booker, additional, next)
-      return next
-    })
+    const row = companions[idx]
+    if (!row) return
+    const next = companions.slice()
+    next[idx] = { ...row, [key]: value }
+    setCompanions(next)
+    notifyLive(booker, additional, next)
   }
 
   const updateBookerField = (key: keyof BookerDetails, value: string) => {
-    setBooker((prev) => {
-      const next = { ...prev, [key]: value }
-      notifyLive(next, additional, companions)
-      return next
-    })
+    const next = { ...booker, [key]: value }
+    setBooker(next)
+    notifyLive(next, additional, companions)
   }
 
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
@@ -530,14 +538,12 @@ export function DetailsStep({
     key: keyof ParticipantDetails,
     value: string,
   ) => {
-    setAdditional((prev) => {
-      const next = prev.slice()
-      const row = next[idx]
-      if (!row) return prev
-      next[idx] = { ...row, [key]: value }
-      notifyLive(booker, next, companions)
-      return next
-    })
+    const row = additional[idx]
+    if (!row) return
+    const next = additional.slice()
+    next[idx] = { ...row, [key]: value }
+    setAdditional(next)
+    notifyLive(booker, next, companions)
   }
 
   // landr-opi3: per-field "touched" tracking so an EMPTY REQUIRED field turns
@@ -762,12 +768,12 @@ export function DetailsStep({
 
   // A required text field is invalid once touched and still blank.
   const requiredError = (key: string, value: string): string | undefined =>
-    touched.has(key) && !value.trim() ? 'Required' : undefined
+    touched.has(key) && !value.trim() ? tr('required', locale) : undefined
   // The booker email additionally needs an '@' (mirrors detailsAreComplete).
   const emailError = (key: string, value: string): string | undefined => {
     if (!touched.has(key)) return undefined
-    if (!value.trim()) return 'Required'
-    if (!value.includes('@')) return 'Enter a valid email address'
+    if (!value.trim()) return tr('required', locale)
+    if (!value.includes('@')) return tr('enterValidEmail', locale)
     return undefined
   }
   // landr-1url: a phone additionally needs to look internationally-formatted
@@ -780,7 +786,7 @@ export function DetailsStep({
     required: boolean,
   ): string | undefined => {
     if (!touched.has(key)) return undefined
-    if (!value.trim()) return required ? 'Required' : undefined
+    if (!value.trim()) return required ? tr('required', locale) : undefined
     if (!isValidPhoneFormat(value)) {
       return 'Add your country code, e.g. +34 600 123 456'
     }
@@ -886,7 +892,7 @@ export function DetailsStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Participants</CardTitle>
+        <CardTitle>{tr('participantsTitle', locale)}</CardTitle>
         <CardDescription>
           {product.name} · {describeSelection(selection, locale)}
         </CardDescription>
@@ -910,15 +916,14 @@ export function DetailsStep({
             browser after this change (none available in this environment);
             the bulk-fill touch-detection above is the fallback that catches
             a mangled value either way, regardless of whether this helps. */}
-        <NextAction active={!bookerComplete} cue="enter your name, email and phone">
+        <NextAction active={!bookerComplete} cue={tr('enterYourNameEmailPhoneCue', locale)}>
         <fieldset className="flex flex-col gap-3">
-          <legend className="text-sm font-medium">Your contact details</legend>
+          <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
           <p className="text-xs text-muted-foreground">
-            You&rsquo;ll be listed as participant 1. Add more people below if
-            others are joining.
+            {tr('youWillBeListedAsParticipant1', locale)}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="First name" htmlFor="booker-first" error={bookerFirstV.error}>
+            <Field label={tr('firstNameLabel', locale)} htmlFor="booker-first" error={bookerFirstV.error}>
               <Input
                 id="booker-first"
                 name="booker_first_name"
@@ -928,7 +933,7 @@ export function DetailsStep({
                 {...bookerFirstV.inputProps}
               />
             </Field>
-            <Field label="Last name" htmlFor="booker-last" error={bookerLastV.error}>
+            <Field label={tr('lastNameLabel', locale)} htmlFor="booker-last" error={bookerLastV.error}>
               <Input
                 id="booker-last"
                 name="booker_last_name"
@@ -938,7 +943,7 @@ export function DetailsStep({
                 {...bookerLastV.inputProps}
               />
             </Field>
-            <Field label="Email" htmlFor="booker-email" error={bookerEmailV.error}>
+            <Field label={tr('emailLabel', locale)} htmlFor="booker-email" error={bookerEmailV.error}>
               <Input
                 id="booker-email"
                 name="booker_email"
@@ -956,7 +961,7 @@ export function DetailsStep({
                 }}
               />
             </Field>
-            <Field label="Phone" htmlFor="booker-phone" error={bookerPhoneV.error}>
+            <Field label={tr('phoneLabel', locale)} htmlFor="booker-phone" error={bookerPhoneV.error}>
               <Input
                 id="booker-phone"
                 name="booker_phone"
@@ -976,13 +981,13 @@ export function DetailsStep({
               />
               {/* landr-1url: nudge toward international format (no new dep). */}
               <p className="text-xs text-muted-foreground">
-                Include your country code
+                {tr('includeYourCountryCode', locale)}
               </p>
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
                 operator only has the single default role. */}
             {showRoleDropdown ? (
-              <Field label="Role" htmlFor="booker-role">
+              <Field label={tr('roleLabel', locale)} htmlFor="booker-role">
                 <RoleSelect
                   id="booker-role"
                   name="booker_role"
@@ -1013,8 +1018,7 @@ export function DetailsStep({
               data-testid="member-perk-otp-section"
             >
               <Label htmlFor="member-perk-otp" className="text-xs">
-                Member? Enter the 6-digit code we emailed you to apply your
-                member price.
+                {tr('memberPerkOtpLabel', locale)}
               </Label>
               <Input
                 id="member-perk-otp"
@@ -1030,8 +1034,7 @@ export function DetailsStep({
                 onChange={(e) => updateMemberPerkOtp(e.target.value)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Not a member, or don&rsquo;t have a code? Leave this blank —
-                it won&rsquo;t affect your booking.
+                {tr('notAMemberOrNoCode', locale)}
               </p>
             </div>
           ) : null}
@@ -1043,10 +1046,10 @@ export function DetailsStep({
             list of full participant rows instead of a single counter. */}
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
-            Other participants ({totalCount} total)
+            {otherParticipantsHeading(totalCount, locale)}
           </legend>
           <p className="text-xs text-muted-foreground">
-            Add anyone else taking part. You can add up to {MAX_ADDITIONAL} more.
+            {addAnyoneElseUpTo(MAX_ADDITIONAL, locale)}
           </p>
 
           {additional.map((row, idx) => {
@@ -1074,7 +1077,7 @@ export function DetailsStep({
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Participant {idx + 2}
+                  {participantOrdinalLabel(idx + 2, locale)}
                 </span>
                 <Button
                   type="button"
@@ -1088,7 +1091,7 @@ export function DetailsStep({
                   ×
                 </Button>
               </div>
-              <Field label="First name" htmlFor={`p-${idx}-first`} error={pFirstV.error}>
+              <Field label={tr('firstNameLabel', locale)} htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
                   name={`participant_${idx + 2}_first_name`}
@@ -1100,7 +1103,7 @@ export function DetailsStep({
                   {...pFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name" htmlFor={`p-${idx}-last`} error={pLastV.error}>
+              <Field label={tr('lastNameLabel', locale)} htmlFor={`p-${idx}-last`} error={pLastV.error}>
                 <Input
                   id={`p-${idx}-last`}
                   name={`participant_${idx + 2}_last_name`}
@@ -1113,7 +1116,7 @@ export function DetailsStep({
                 />
               </Field>
               <Field
-                label="Email (optional)"
+                label={`${tr('emailLabel', locale)} ${tr('optionalSuffix', locale)}`}
                 htmlFor={`p-${idx}-email`}
                 action={
                   <CopyFromBookerButton
@@ -1138,7 +1141,7 @@ export function DetailsStep({
               </Field>
               {/* landr-nkbi: phone is required for every participant. */}
               <Field
-                label="Phone"
+                label={tr('phoneLabel', locale)}
                 htmlFor={`p-${idx}-phone`}
                 error={pPhoneV.error}
                 action={
@@ -1170,11 +1173,11 @@ export function DetailsStep({
                 />
                 {/* landr-1url: nudge toward international format (no new dep). */}
                 <p className="text-xs text-muted-foreground">
-                  Include your country code
+                  {tr('includeYourCountryCode', locale)}
                 </p>
               </Field>
               {showRoleDropdown ? (
-                <Field label="Role" htmlFor={`p-${idx}-role`}>
+                <Field label={tr('roleLabel', locale)} htmlFor={`p-${idx}-role`}>
                   <RoleSelect
                     id={`p-${idx}-role`}
                     name={`participant_${idx + 2}_role`}
@@ -1209,10 +1212,10 @@ export function DetailsStep({
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                Maximum of {MAX_ADDITIONAL} additional participants reached
+                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(MAX_ADDITIONAL))}
               </p>
               <p className="text-xs text-muted-foreground">
-                Need a larger group or a custom booking?
+                {tr('needLargerGroupHint', locale)}
               </p>
               <div className="flex items-center justify-between gap-2">
                 <Button
@@ -1222,7 +1225,7 @@ export function DetailsStep({
                   onClick={() => setInquiryOpen(true)}
                   data-testid="group-inquiry-open"
                 >
-                  Request more
+                  {tr('requestMoreButton', locale)}
                 </Button>
                 {/* Secondary escape hatch — reachable without opening the modal.
                     When the operator has no contact_email, contactMailto is
@@ -1235,7 +1238,7 @@ export function DetailsStep({
                     className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                     data-testid="participants-contact-mailto"
                   >
-                    Or email us
+                    {tr('orEmailUs', locale)}
                   </a>
                 ) : null}
               </div>
@@ -1250,10 +1253,9 @@ export function DetailsStep({
                   data-testid="group-inquiry-modal"
                 >
                   <DialogHeader>
-                    <DialogTitle>Request a larger group</DialogTitle>
+                    <DialogTitle>{tr('requestLargerGroupLink', locale)}</DialogTitle>
                     <DialogDescription>
-                      Need a larger group or a custom booking? Send us
-                      the details and we&rsquo;ll be in touch.
+                      {tr('needLargerGroupDialogDescription', locale)}
                     </DialogDescription>
                   </DialogHeader>
                   {inquiryOpen ? (
@@ -1277,11 +1279,11 @@ export function DetailsStep({
               type="button"
               variant="ghost"
               className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-              aria-label="Add participant"
+              aria-label={tr('addParticipantAria', locale)}
               data-testid="add-participant"
               onClick={addParticipant}
             >
-              + Add participant
+              {tr('addParticipantButton', locale)}
             </Button>
           )}
         </fieldset>
@@ -1297,13 +1299,10 @@ export function DetailsStep({
           data-testid="companions-section"
         >
           <legend className="text-sm font-medium">
-            Others sharing your room
+            {tr('othersSharingYourRoom', locale)}
           </legend>
           <p className="text-xs text-muted-foreground">
-            Anyone else sharing your accommodation — partners, friends, family
-            members, or fellow activity participants who book and pay for their
-            own guiding separately. They&rsquo;re added to the hotel headcount
-            and room assignment, but not to this booking&rsquo;s activity or price.
+            {tr('companionsShareAccommodationExplainer', locale)}
           </p>
           {companions.map((row, idx) => {
             // landr-rxjo: both first and last name are required for companions.
@@ -1347,7 +1346,7 @@ export function DetailsStep({
                   specific guest can be removed; the other rows' data persists. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Guest {idx + 1}
+                  {companionOrdinalLabel(idx + 1, locale)}
                 </span>
                 <Button
                   type="button"
@@ -1368,19 +1367,18 @@ export function DetailsStep({
                   never affects this booking's price or participant count. */}
               <fieldset className="sm:col-span-2 flex flex-col gap-1">
                 <legend className="text-xs text-muted-foreground">
-                  How are they joining?
+                  {tr('howAreTheyJoining', locale)}
                 </legend>
                 <div className="flex flex-col gap-1">
                   {(
                     [
                       {
                         value: 'guest',
-                        label: 'Not doing the activity (partner / child / friend)',
+                        label: tr('companionKindGuestLabel', locale),
                       },
                       {
                         value: 'separate_guiding',
-                        label:
-                          'Joining the activity — booking their own guiding separately',
+                        label: tr('companionKindSeparateGuidingLabel', locale),
                       },
                     ] as const
                   ).map((opt) => (
@@ -1404,7 +1402,7 @@ export function DetailsStep({
                   ))}
                 </div>
               </fieldset>
-              <Field label="First name" htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
+              <Field label={tr('firstNameLabel', locale)} htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
                 <Input
                   id={`companion-${idx}-first`}
                   name={`companion_${idx + 1}_first_name`}
@@ -1416,7 +1414,7 @@ export function DetailsStep({
                   {...cFirstV.inputProps}
                 />
               </Field>
-              <Field label="Last name" htmlFor={`companion-${idx}-last`} error={cLastV.error}>
+              <Field label={tr('lastNameLabel', locale)} htmlFor={`companion-${idx}-last`} error={cLastV.error}>
                 <Input
                   id={`companion-${idx}-last`}
                   name={`companion_${idx + 1}_last_name`}
@@ -1434,11 +1432,11 @@ export function DetailsStep({
                   (per spec); the shared error renders once, below both. */}
               {contactRequired ? (
                 <p className="sm:col-span-2 text-xs text-muted-foreground">
-                  We&rsquo;ll use this to send them their own booking link.
+                  {tr('companionInviteHint', locale)}
                 </p>
               ) : null}
               <Field
-                label={contactRequired ? 'Email' : 'Email (optional)'}
+                label={contactRequired ? tr('emailLabel', locale) : `${tr('emailLabel', locale)} ${tr('optionalSuffix', locale)}`}
                 htmlFor={`companion-${idx}-email`}
                 action={
                   <CopyFromBookerButton
@@ -1469,7 +1467,7 @@ export function DetailsStep({
                 />
               </Field>
               <Field
-                label={contactRequired ? 'Phone' : 'Phone (optional)'}
+                label={contactRequired ? tr('phoneLabel', locale) : `${tr('phoneLabel', locale)} ${tr('optionalSuffix', locale)}`}
                 htmlFor={`companion-${idx}-phone`}
                 error={cPhoneV.error}
                 action={
@@ -1513,13 +1511,12 @@ export function DetailsStep({
                     className="text-xs text-destructive"
                     data-testid={`companion-${idx}-contact-error`}
                   >
-                    We need an email or phone number to send{' '}
-                    {row.first_name.trim() || 'them'} their booking link
+                    {companionContactRequiredMessage(row.first_name.trim(), locale)}
                   </p>
                 ) : null}
                 {/* landr-1url: nudge toward international format (no new dep). */}
                 <p className="text-xs text-muted-foreground">
-                  Include your country code
+                  {tr('includeYourCountryCode', locale)}
                 </p>
               </Field>
             </div>
@@ -1538,7 +1535,7 @@ export function DetailsStep({
               data-testid="companions-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                Maximum of {MAX_COMPANIONS} guests reached
+                {maxCompanionsReachedMessage(MAX_COMPANIONS, locale)}
               </p>
             </div>
           ) : (
@@ -1546,11 +1543,11 @@ export function DetailsStep({
               type="button"
               variant="ghost"
               className="tap-44 w-full justify-center rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-              aria-label="Add companion"
+              aria-label={tr('addCompanionAria', locale)}
               data-testid="add-companion"
               onClick={addCompanion}
             >
-              + Add guest
+              {tr('addGuestButton', locale)}
             </Button>
           )}
         </fieldset>
@@ -1579,7 +1576,7 @@ export function DetailsStep({
               data-testid="details-step-gate"
               className="min-w-0 flex-1 text-xs text-muted-foreground"
             >
-              {canContinue ? 'Ready to continue.' : 'Fill in every required field to continue.'}
+              {canContinue ? tr('readyToContinue', locale) : tr('fillInEveryRequiredField', locale)}
             </p>
             <Button
               type="button"
@@ -1587,7 +1584,7 @@ export function DetailsStep({
               onClick={handleContinue}
               data-testid="details-step-submit"
             >
-              Continue
+              {tr('continueLabel', locale)}
             </Button>
           </div>
         </NextAction>

@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, pickLocalized } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { AddonsList } from './AddonsList'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -141,21 +142,21 @@ export function ServiceAddonsStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Add-ons</CardTitle>
+        <CardTitle>{tr('addonsTitle', locale)}</CardTitle>
         <CardDescription>{productName}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {addons === null && !error ? (
-          <p className="text-sm text-muted-foreground">Loading add-ons…</p>
+          <p className="text-sm text-muted-foreground">{tr('loadingAddons', locale)}</p>
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {addons !== null && addons.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No add-ons available for this option.
+            {tr('noAddonsAvailable', locale)}
           </p>
         ) : null}
         {addons !== null && addons.length > 0 ? (
-          <NextAction active={unmetRequired} cue="pick your required add-ons">
+          <NextAction active={unmetRequired} cue={tr('pickRequiredAddonsCue', locale)}>
             <AddonsList
               addons={addons}
               selection={selection}
@@ -175,8 +176,8 @@ export function ServiceAddonsStep({
           ready={canContinue}
           reason={
             canContinue
-              ? 'Ready to continue.'
-              : 'Pick every required add-on to continue.'
+              ? tr('readyToContinue', locale)
+              : tr('pickRequiredAddonsToContinue', locale)
           }
           reasonId="addons-step-gate"
           onContinue={handleContinue}

@@ -20,6 +20,7 @@
  */
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { NextAction } from './NextAction'
@@ -48,12 +49,12 @@ export function ContinueAction({
   reasonClassName,
   onContinue,
   active = ready,
-  label = tr('continueLabel'),
+  label = tr('continueLabel', browserLocale()),
   'data-testid': testId,
   reasonTestId,
 }: ContinueActionProps) {
   return (
-    <NextAction active={active} cue={tr('continueCue')} className="mt-2">
+    <NextAction active={active} cue={tr('continueCue', browserLocale())} className="mt-2">
       <div className="flex items-center justify-end gap-3">
         <p
           id={reasonId}

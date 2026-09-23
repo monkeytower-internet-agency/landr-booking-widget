@@ -216,3 +216,39 @@ describe('SingleDatePicker — next action + zen (landr-80ubl.2)', () => {
     expect(screen.getByTestId('next-action-cue')).toHaveTextContent('Next: continue')
   })
 })
+
+// landr-k9pji.1 — a booking_mode='on_request' product's days come back from
+// the API as SYNTHESISED rows: availability_id === null, no times. The
+// picker never reads the id, so such a day must render enabled and commit
+// exactly like a real whole-day row.
+describe('SingleDatePicker with synthesised on-request days (landr-k9pji.1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('enables a null-id day and commits it as selected_days', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    mocks.getAvailability.mockResolvedValue(
+      makeAvailability([tomorrow]).map((s) => ({ ...s, availability_id: null })),
+    )
+    const onConfirm = vi.fn()
+    render(
+      <SingleDatePicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => dayButton(tomorrow))
+    expect(dayButton(tomorrow)).not.toBeDisabled()
+    fireEvent.click(dayButton(tomorrow))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)])
+  })
+})

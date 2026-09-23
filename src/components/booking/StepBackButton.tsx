@@ -1,10 +1,16 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/appStepMachine'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { useBreadcrumbNav } from './breadcrumbNav'
 
 interface Props {
-  onBack: () => void
+  /**
+   * Absent → no single back button (landr-6eita.1: a start=dates product's
+   * date step has nothing to go back to). A breadcrumb trail still renders.
+   */
+  onBack?: () => void
   /**
    * Accessible label; also used as the visible text. Defaults to "Back" but
    * callers can pass a more specific label (e.g. "Back to products" for the
@@ -25,16 +31,18 @@ interface Props {
  *    back" is exactly the previous crumb (and existing back-nav tests keep
  *    working unchanged).
  *  - Otherwise (isolated component tests, catalog / non-funnel steps), it falls
- *    back to the original single back button.
+ *    back to the original single back button — or renders nothing when there
+ *    is no `onBack` (landr-6eita.1: the first step of a start=dates embed).
  *
  * The ghost/small styling keeps the affordance light so it doesn't compete with
  * the step's title.
  */
-export function StepBackButton({ onBack, label = 'Back' }: Props) {
+export function StepBackButton({ onBack, label = tr('backLabel', browserLocale()) }: Props) {
   const nav = useBreadcrumbNav()
   if (nav && nav.items.length > 1) {
     return <StepBreadcrumb items={nav.items} onNavigate={nav.onNavigate} />
   }
+  if (!onBack) return null
   return (
     <div className="mb-2 px-6 pt-2">
       <Button
@@ -68,7 +76,7 @@ function StepBreadcrumb({
   const backIndex = items.length - 2
   return (
     <nav
-      aria-label="Booking steps"
+      aria-label={tr('bookingStepsAriaLabel', browserLocale())}
       data-testid="step-breadcrumb"
       className="mb-2 px-6 pt-2"
     >

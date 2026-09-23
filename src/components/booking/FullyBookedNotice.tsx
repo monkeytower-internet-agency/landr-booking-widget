@@ -6,6 +6,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 
 /**
  * landr-7jgo: informational "Fully booked" state for a product that has no
@@ -32,12 +34,16 @@ interface Props {
 // Exported (landr-872c) so the Categories layout's disabled category tiles
 // (CategoryTile/CategoryTileRow, via categoryCopy.ts) can reuse the exact
 // same "fully booked" copy instead of inventing a second set of strings for
-// the same concept at the category level.
+// the same concept at the category level. English-fallback constants kept
+// for callers outside a component render (categoryCopy.ts's offerCountLabel
+// is locale-agnostic pure data); the component itself resolves the live
+// locale via tr() below.
 export const FULLY_BOOKED_LABEL = 'Fully booked'
 export const FULLY_BOOKED_BLURB =
   'There are no upcoming dates available for this product right now. Please check back later.'
 
 export function FullyBookedNotice({ name, description, onBack, compact }: Props) {
+  const locale = browserLocale()
   return (
     <Card className={compact ? 'flex flex-col opacity-75' : 'flex flex-col'}>
       {onBack ? <StepBackButton onBack={onBack} /> : null}
@@ -48,13 +54,13 @@ export function FullyBookedNotice({ name, description, onBack, compact }: Props)
             className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground"
             data-testid="fully-booked-badge"
           >
-            {FULLY_BOOKED_LABEL}
+            {tr('fullyBookedLabel', locale)}
           </span>
         </div>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        {FULLY_BOOKED_BLURB}
+        {tr('fullyBookedBlurb', locale)}
       </CardContent>
     </Card>
   )

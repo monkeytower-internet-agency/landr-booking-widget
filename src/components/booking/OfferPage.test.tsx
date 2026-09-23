@@ -53,6 +53,14 @@ const OFFER = {
   ],
 }
 
+// landr-k9pji.5 review fix — this file mocks `initiatePayment` itself (the
+// already-coerced, consumer-facing shape — `InitiatePaymentResponse.amount`
+// is a real `number`), so its fixtures use numbers throughout, same as
+// below. The wire format (landr-api sends `amount` as a JSON STRING) and
+// the string→number coercion boundary are covered separately, at the
+// `initiatePayment()` unit level, in src/api/client.test.ts — mocking a
+// STRING here instead would test a shape OfferPage never actually receives
+// once client.ts does its job.
 const INITIATE_RESP = {
   checkout_url: 'https://checkout.stripe.com/pay/cs_test_abc',
   payment_id: 'pay-uuid',
@@ -511,6 +519,82 @@ describe('OfferPage', () => {
       expect(call.return_url).toContain('paid=1')
       expect(call.cancel_url).toContain('paid=cancelled')
       expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+    })
+
+    // ── landr-k9pji.5: deposit_percent operators (API landr-k9pji.4) ───────
+    describe('deposit preview', () => {
+      it('pauses on this page and shows "Deposit (N %)" when the initiate amount is below balance_due', async () => {
+        mocks.getBookingByToken.mockResolvedValue(payOffer)
+        // payOffer.totals.balance_due = 1120.0; 336.0 is a 30% deposit.
+        mocks.initiatePayment.mockResolvedValue({ ...INITIATE_RESP, amount: 336.0 })
+
+        let navigatedTo = ''
+        Object.defineProperty(window.location, 'href', {
+          configurable: true,
+          set(v: string) {
+            navigatedTo = v
+          },
+          get() {
+            return `http://stub.invalid/pay/${TOKEN}`
+          },
+        })
+
+        render(<OfferPage token={TOKEN} mode="pay" />)
+        await waitFor(() =>
+          expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /^pay now$/i }))
+
+        await waitFor(() => {
+          expect(mocks.initiatePayment).toHaveBeenCalledOnce()
+        })
+        // No navigation yet — the customer must see the deposit line first.
+        expect(navigatedTo).toBe('')
+        expect(screen.getByTestId('offer-deposit-amount')).toHaveTextContent(/deposit \(30 %\)/i)
+        expect(screen.getByTestId('offer-deposit-amount-value')).toHaveTextContent(
+          formatCurrency(336.0, 'EUR'),
+        )
+        expect(screen.getByTestId('offer-deposit-remainder-note')).toBeInTheDocument()
+        // The original "Amount due" row still shows the FULL balance.
+        expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+          formatCurrency(1120.0, 'EUR'),
+        )
+
+        const continueBtn = screen.getByRole('button', { name: /continue to payment/i })
+        fireEvent.click(continueBtn)
+        expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+        // No second POST /initiate — the same checkout URL is reused.
+        expect(mocks.initiatePayment).toHaveBeenCalledOnce()
+      })
+
+      it('navigates straight to Stripe when the initiate amount is NOT below balance_due (no deposit configured)', async () => {
+        mocks.getBookingByToken.mockResolvedValue(payOffer)
+        mocks.initiatePayment.mockResolvedValue({ ...INITIATE_RESP, amount: 1120.0 })
+
+        let navigatedTo = ''
+        Object.defineProperty(window.location, 'href', {
+          configurable: true,
+          set(v: string) {
+            navigatedTo = v
+          },
+          get() {
+            return `http://stub.invalid/pay/${TOKEN}`
+          },
+        })
+
+        render(<OfferPage token={TOKEN} mode="pay" />)
+        await waitFor(() =>
+          expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /^pay now$/i }))
+
+        await waitFor(() => {
+          expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+        })
+        expect(screen.queryByTestId('offer-deposit-amount')).not.toBeInTheDocument()
+      })
     })
 
     // ── landr-yimp: /pay must headline balance_due, not gross_total ────────

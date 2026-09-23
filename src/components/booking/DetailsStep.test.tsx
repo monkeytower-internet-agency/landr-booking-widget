@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -661,6 +662,37 @@ describe('DetailsStep — live participant updates (landr-gb2f.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
     // participant 2 first name left blank; booker first name also blank
     expect(onLive).toHaveBeenLastCalledWith(2, [], 0)
+  })
+
+  it('landr-ykzuq: adding a participant does not trigger a setState-during-render warning', () => {
+    // Regression test: onLiveParticipantsChange used to be invoked from
+    // INSIDE a setAdditional() updater function, so when the PARENT actually
+    // uses it to set its own state (as BookingFlowApp does — see App.tsx),
+    // React logs "Cannot update a component (...) while rendering a
+    // different component (DetailsStep)". A plain vi.fn() prop (the other
+    // tests in this file) never touches React state, so it can't reproduce
+    // that warning — this test wires onLiveParticipantsChange to a real
+    // parent setState via a thin wrapper, the way BookingFlowApp does.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Wrapper() {
+      const [, setLive] = useState(0)
+      return (
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+          onLiveParticipantsChange={(count) => setLive(count)}
+        />
+      )
+    }
+    render(<Wrapper />)
+    fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
+    const setStateWarning = errorSpy.mock.calls.some((args) =>
+      String(args[0]).includes('Cannot update a component'),
+    )
+    expect(setStateWarning).toBe(false)
+    errorSpy.mockRestore()
   })
 
   it('does not break when onLiveParticipantsChange is not provided (backward compat)', () => {
@@ -2037,7 +2069,7 @@ describe('DetailsStep — separate_guiding companion contact required (D11, land
     expect(row).not.toHaveTextContent(/email \(optional\)/i)
     expect(row).not.toHaveTextContent(/phone \(optional\)/i)
     expect(row).toHaveTextContent(
-      'We’ll use this to send them their own booking link.',
+      "We'll use this to send them their own booking link.",
     )
   })
 })

@@ -144,7 +144,7 @@ export function ExpandedCatalog({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>We could not load the products.</CardTitle>
+          <CardTitle>{tr('couldNotLoadProducts', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -155,7 +155,7 @@ export function ExpandedCatalog({
     return (
       <div className="flex flex-col gap-4" data-testid="expanded-catalog">
         <span className="sr-only" role="status">
-          Loading products…
+          {tr('loadingProducts', locale)}
         </span>
         <ProductSkeleton view={view} />
       </div>
@@ -183,8 +183,8 @@ export function ExpandedCatalog({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No products in this category.</CardTitle>
-          <CardDescription>Please check back later.</CardDescription>
+          <CardTitle>{tr('noProductsInCategory', locale)}</CardTitle>
+          <CardDescription>{tr('checkBackLater', locale)}</CardDescription>
         </CardHeader>
       </Card>
     )

@@ -28,6 +28,28 @@ function getFormatter(locale: string | undefined): Intl.DateTimeFormat {
   return fmt
 }
 
+const windowFormatterCache = new Map<string, Intl.DateTimeFormat>()
+
+/**
+ * Sibling cache for formatWindowDate's shape (day/month short/year, no
+ * weekday). Deliberately does NOT pin timeZone: 'UTC' like getFormatter
+ * above — formatWindowDate never did, and changing that now would shift
+ * which calendar day a fixed-date window's chip shows for viewers west of
+ * UTC, a behaviour change out of scope for landr-5aih0.9 (German UI only).
+ */
+function getWindowFormatter(locale: string | undefined): Intl.DateTimeFormat {
+  const key = locale ?? ''
+  const cached = windowFormatterCache.get(key)
+  if (cached) return cached
+  const fmt = new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  windowFormatterCache.set(key, fmt)
+  return fmt
+}
+
 /**
  * Format a single ISO date (YYYY-MM-DD) as 'Sat 23 Nov'.
  * Returns an empty string when the input is empty or unparseable
@@ -59,18 +81,22 @@ export function formatDayRange(
 }
 
 /**
- * Format a single ISO date (YYYY-MM-DD) as 'Aug 4, 2027' (viewer's Intl
- * locale, day/month short/year — no weekday). Used by the fixed-date-window
- * chip (the "Dates" tab picker, and the expanded-catalog card that mirrors
- * it) where a full year matters because windows can span into next year.
+ * Format a single ISO date (YYYY-MM-DD) as 'Aug 4, 2027' (day/month
+ * short/year — no weekday). Used by the fixed-date-window chip (the
+ * "Dates" tab picker, and the expanded-catalog card that mirrors it) where
+ * a full year matters because windows can span into next year.
+ *
+ * landr-5aih0.9: `locale` was previously always omitted (falling through to
+ * `toLocaleDateString(undefined, …)`, the browser's raw OS/UI locale) —
+ * that bypassed the widget's resolved customer_languages/whitelist locale
+ * entirely, so a German-configured operator's fixed-date-window chips could
+ * still render US-English month names. Threaded through like every other
+ * formatDayLabel/formatDayRange caller now; still optional so an un-migrated
+ * caller keeps its previous (raw browser locale) behaviour.
  */
-export function formatWindowDate(iso: string): string {
+export function formatWindowDate(iso: string, locale?: string): string {
   const d = new Date(`${iso}T00:00:00Z`)
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return getWindowFormatter(locale).format(d)
 }
 
 /**
@@ -80,7 +106,8 @@ export function formatWindowDate(iso: string): string {
 export function formatWindowRangeLabel(
   startDate: string,
   endDate: string,
+  locale?: string,
 ): string {
-  if (startDate === endDate) return formatWindowDate(startDate)
-  return `${formatWindowDate(startDate)} – ${formatWindowDate(endDate)}`
+  if (startDate === endDate) return formatWindowDate(startDate, locale)
+  return `${formatWindowDate(startDate, locale)} – ${formatWindowDate(endDate, locale)}`
 }

@@ -30,6 +30,17 @@ import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
 import { formatMoney, splitLineItems } from './priceSidebarHelpers'
+import {
+  bookedRefLabel,
+  bookedTogetherMemberLabel,
+  nextStepSendGroupLabel,
+  nightsWord,
+  participantCountLabel,
+  pickBundle,
+  plural,
+  sendBookingLinkToLabel,
+  tr,
+} from '@/lib/strings'
 
 interface Props {
   response: SubmitBookingResponse
@@ -83,7 +94,7 @@ function legacyExecCommandCopy(text: string): boolean {
 
 function CopyButton({
   value,
-  label = 'Copy link',
+  label,
   testId,
   size = 'sm',
 }: {
@@ -93,6 +104,8 @@ function CopyButton({
   /** landr-8sk6l: 'default' matches the invite card's full-size buttons. */
   size?: 'sm' | 'default'
 }) {
+  const locale = browserLocale()
+  const resolvedLabel = label ?? tr('copyLinkLabel', locale)
   const [status, setStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
   const manualInputRef = useRef<HTMLInputElement>(null)
 
@@ -132,7 +145,7 @@ function CopyButton({
           htmlFor={testId ? `${testId}-manual-input` : undefined}
           className="text-xs text-muted-foreground"
         >
-          Couldn't copy automatically — select and copy:
+          {tr('couldNotCopyAutomatically', locale)}
         </label>
         <input
           id={testId ? `${testId}-manual-input` : undefined}
@@ -159,12 +172,12 @@ function CopyButton({
       {status === 'copied' ? (
         <>
           <Check className="mr-1.5 size-3.5" aria-hidden="true" />
-          Copied
+          {tr('copiedLabel', locale)}
         </>
       ) : (
         <>
           <Copy className="mr-1.5 size-3.5" aria-hidden="true" />
-          {label}
+          {resolvedLabel}
         </>
       )}
     </Button>
@@ -194,26 +207,26 @@ function classifyInviteSendError(err: unknown): {
   message: string
   canRetry: boolean
 } {
+  const locale = browserLocale()
   if (err instanceof HttpError) {
     if (err.status === 404) {
       return {
-        message: "This link can't be emailed from here any more — copy it instead.",
+        message: tr('linkCannotBeEmailed', locale),
         canRetry: false,
       }
     }
     if (err.status === 422) {
-      return { message: 'That email address was rejected.', canRetry: false }
+      return { message: tr('emailAddressRejected', locale), canRetry: false }
     }
     if (err.status === 429) {
       return {
-        message: 'Too many emails right now — try again in a few minutes.',
+        message: tr('tooManyEmailsRetry', locale),
         canRetry: true,
       }
     }
   }
   return {
-    message:
-      'Could not send that email — please try again, or use WhatsApp / copy the link instead.',
+    message: tr('couldNotSendEmailGeneric', locale),
     canRetry: true,
   }
 }
@@ -253,6 +266,7 @@ function InviteCard({
   }
 
   const emailErrorMessage = emailError?.message ?? ''
+  const locale = browserLocale()
 
   if (invite.linked_booking_reference) {
     // Already joined — no more actions to offer, just confirm it happened.
@@ -266,7 +280,7 @@ function InviteCard({
           data-testid="invite-linked"
           className="font-medium text-emerald-700 dark:text-emerald-400"
         >
-          Booked ✓ (ref {invite.linked_booking_reference})
+          {bookedRefLabel(invite.linked_booking_reference, locale)}
         </span>
       </div>
     )
@@ -277,7 +291,7 @@ function InviteCard({
       data-testid="invite-card"
       className="space-y-2 rounded-lg border bg-surface-card p-3"
     >
-      <p className="text-sm font-semibold">Send booking link to {invite.name}</p>
+      <p className="text-sm font-semibold">{sendBookingLinkToLabel(invite.name, locale)}</p>
       <div className="flex flex-wrap gap-2">
         {invite.whatsapp_url ? (
           <Button asChild type="button">
@@ -306,23 +320,19 @@ function InviteCard({
             // native title explains why, instead of a silent no-op. Same
             // native-title pattern the dashboard's CopyLinkButton uses for
             // dependency-free tooltips (no Tooltip provider in this tree).
-            title={
-              !shareSecret
-                ? 'Email sending unavailable — copy the link instead'
-                : undefined
-            }
+            title={!shareSecret ? tr('emailUnavailableNotice', locale) : undefined}
             data-testid="invite-email"
           >
             <Mail className="mr-1.5 size-4" aria-hidden="true" />
             {emailState === 'sending'
-              ? 'Sending…'
+              ? tr('sendingEllipsis', locale)
               : emailState === 'sent'
-                ? 'Sent ✓'
+                ? tr('inviteEmailSentLabel', locale)
                 : emailState === 'failed'
                   ? canRetryEmail
-                    ? 'Retry email'
-                    : 'Email'
-                  : 'Email'}
+                    ? tr('retryEmailLabel', locale)
+                    : tr('emailLabelShort', locale)
+                  : tr('emailLabelShort', locale)}
           </Button>
         ) : null}
         <CopyButton value={invite.invite_url} testId="invite-copy" size="default" />
@@ -332,7 +342,7 @@ function InviteCard({
           className="text-xs text-muted-foreground"
           data-testid="invite-email-unavailable"
         >
-          Email sending unavailable — copy the link instead.
+          {tr('emailUnavailableNotice', locale)}
         </p>
       ) : null}
       {emailState === 'failed' ? (
@@ -357,6 +367,7 @@ function InviteCard({
 function GroupBlock({ group }: { group: GroupSummary }) {
   const others = group.members.filter((m) => !m.is_self)
   if (others.length === 0) return null
+  const locale = browserLocale()
   return (
     <div
       data-testid="confirmation-group"
@@ -364,13 +375,12 @@ function GroupBlock({ group }: { group: GroupSummary }) {
     >
       <h3 className="flex items-center gap-1.5 text-sm font-semibold">
         <Users className="size-4" aria-hidden="true" />
-        Booked together with
+        {tr('groupBookedTogetherWith', locale)}
       </h3>
       <ul className="space-y-1 text-sm text-muted-foreground">
         {others.map((member) => (
           <li key={member.reference}>
-            {member.display_name} (ref {member.reference})
-            {member.is_host ? ' — host' : ''}
+            {bookedTogetherMemberLabel(member.display_name, member.reference, member.is_host, locale)}
           </li>
         ))}
       </ul>
@@ -386,31 +396,31 @@ function GroupBlock({ group }: { group: GroupSummary }) {
  * guessing a URL.
  */
 function SharedDoubleHint({ customerPageUrl }: { customerPageUrl?: string | null }) {
+  const locale = browserLocale()
   return (
     <p
       data-testid="confirmation-shared-double-hint"
       className="text-sm text-muted-foreground"
     >
-      Sharing a room booked by someone else?{' '}
+      {tr('sharedDoubleHintQuestion', locale)}{' '}
       {customerPageUrl && isHttpUrl(customerPageUrl) ? (
         <a
           href={`${customerPageUrl}#join`}
           className="text-primary underline"
         >
-          Add their reference on your booking page
+          {tr('addReferenceLinkLabel', locale)}
         </a>
       ) : (
-        'Add their reference on your booking page.'
+        `${tr('addReferenceLinkLabel', locale)}.`
       )}
     </p>
   )
 }
 
-const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
-  unknown_reference:
-    "We couldn't find a booking with that reference, so your booking wasn't linked to theirs.",
-  same_booking: 'That reference points to your own booking, so there was nothing to link.',
-  join_failed: "We couldn't link your booking to that reference right now.",
+function joinErrorMessage(error: JoinError['error'], locale?: string): string {
+  if (error === 'unknown_reference') return tr('joinErrorUnknownReference', locale)
+  if (error === 'same_booking') return tr('joinErrorSameBooking', locale)
+  return tr('joinErrorJoinFailed', locale)
 }
 
 /**
@@ -419,14 +429,14 @@ const JOIN_ERROR_MESSAGE: Record<JoinError['error'], string> = {
  * is informational, not an error state for the page as a whole.
  */
 function JoinErrorNotice({ joinError }: { joinError: JoinError }) {
+  const locale = browserLocale()
   return (
     <div
       role="status"
       data-testid="confirmation-join-error"
       className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
     >
-      {JOIN_ERROR_MESSAGE[joinError.error]} Your booking itself is confirmed
-      as usual — you can still add the reference later on your booking page.
+      {joinErrorMessage(joinError.error, locale)} {tr('joinErrorFollowup', locale)}
     </div>
   )
 }
@@ -473,12 +483,14 @@ function resolveApprovalKind(
  * (`booking_id.replace("-", "")[:8].upper()` — see build_booking_summary /
  * public_lookup_booking_by_reference) when `summary` is absent. The raw
  * `booking_id` UUID must never be shown or fed to Copy/share on this
- * screen — it is a bearer credential elsewhere in this API (cancel, the
- * .ics download both accept it as their only credential), unlike the
+ * screen — it used to be a bearer credential in this API (cancel and the
+ * .ics download accepted it alone until landr-5aih0.7 / landr-5aih0.4
+ * moved both to signed tokens) and still identifies the booking, unlike the
  * reference, which is deliberately cheap/safe to hand to a stranger
  * (D2's masked-lookup design). This function is the one place that
  * boundary is enforced, so no caller can accidentally reach for
- * `response.booking_id` directly for display.
+ * `response.booking_id` directly for display — the .ics download filename
+ * below uses the reference too.
  */
 function deriveBookingReference(bookingId: string): string {
   return bookingId.replace(/-/g, '').slice(0, 8).toUpperCase()
@@ -522,12 +534,32 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
   // acceptable degradation, so the stay-window line below is the
   // fallback, not deleted outright.
   const hasPeriods = Boolean(summary.periods && summary.periods.length > 0)
+  // landr-5aih0.2: the meeting-point block (address + Google Maps/Waze deep
+  // links), derived server-side once (app/services/meeting_point.py) and
+  // carried on summary.meeting_point. The API always sends an object (the
+  // all-"" block when the booking has no pickup location) rather than null,
+  // but the type stays nullable for older-API rolling-deploy safety — either
+  // way, an empty/unusable block (no address, no map links) falls back to
+  // the plain pickup_location text above, unchanged.
+  const meetingPoint = summary.meeting_point
+  const meetingPointMapsUrl =
+    meetingPoint?.google_maps_url && isHttpUrl(meetingPoint.google_maps_url)
+      ? meetingPoint.google_maps_url
+      : null
+  const meetingPointWazeUrl =
+    meetingPoint?.waze_url && isHttpUrl(meetingPoint.waze_url)
+      ? meetingPoint.waze_url
+      : null
+  const meetingPointAddress = meetingPoint?.address || null
+  const hasMeetingPointDetail = Boolean(
+    meetingPointAddress || meetingPointMapsUrl || meetingPointWazeUrl,
+  )
   return (
     <div
       data-testid="confirmation-summary"
       className="space-y-3 rounded-lg border bg-surface-card p-4"
     >
-      <h3 className="text-sm font-semibold">Your booking</h3>
+      <h3 className="text-sm font-semibold">{tr('yourBookingTitle', locale)}</h3>
       <div className="space-y-2 text-sm">
         {summary.products.map((product) => (
           <div key={product.product_id}>
@@ -558,16 +590,48 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
           </p>
         ) : null}
         <p data-testid="confirmation-participants">
-          {summary.participant_count}{' '}
-          {summary.participant_count === 1 ? 'participant' : 'participants'}
+          {participantCountLabel(summary.participant_count, locale)}
           {hasParticipantNames
             ? ` — ${summary.participants.map((p) => p.name).join(', ')}`
             : ''}
         </p>
         {summary.pickup_location ? (
           <p data-testid="confirmation-pickup">
-            Pickup: {summary.pickup_location}
+            {tr('pickupPrefix', locale)} {summary.pickup_location}
           </p>
+        ) : null}
+        {hasMeetingPointDetail ? (
+          <div data-testid="confirmation-meeting-point" className="space-y-1.5">
+            {meetingPointAddress ? (
+              <p className="text-muted-foreground">{meetingPointAddress}</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {meetingPointMapsUrl ? (
+                <Button asChild type="button" variant="outline" size="sm">
+                  <a
+                    href={meetingPointMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={tr('meetingPointOpenInGoogleMapsAria', locale)}
+                  >
+                    Google Maps
+                  </a>
+                </Button>
+              ) : null}
+              {meetingPointWazeUrl ? (
+                <Button asChild type="button" variant="outline" size="sm">
+                  <a
+                    href={meetingPointWazeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={tr('meetingPointOpenInWazeAria', locale)}
+                  >
+                    Waze
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </div>
         ) : null}
         {summary.hotel ? (
           <div
@@ -579,7 +643,7 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
                 {formatDayLabel(summary.hotel.stay_window.check_in, locale)} →{' '}
                 {formatDayLabel(summary.hotel.stay_window.check_out, locale)},{' '}
                 {summary.hotel.stay_window.nights}{' '}
-                {summary.hotel.stay_window.nights === 1 ? 'night' : 'nights'}
+                {nightsWord(summary.hotel.stay_window.nights, locale)}
               </p>
             ) : null}
             <ul className="space-y-1">
@@ -609,6 +673,34 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
 }
 
 /**
+ * landr-k9pji.5 — payment_mode-aware confirmation note, shown after
+ * bookingConfirmedInboxNote for an auto-approved booking. `payment_mode`
+ * is optional on the wire (an older API deploy predating landr-k9pji.4
+ * omits it) — that case falls through to today's payment_link_sent-gated
+ * "A payment link is on its way." copy, unchanged.
+ *
+ * The 'online' case keeps the same payment_link_sent gate (no line at all
+ * until the API actually sent a link) but says "for your deposit" —
+ * landr-k9pji.4 added the deposit_percent option, so a link on this rail
+ * may now be a partial charge rather than the full balance. Precisely
+ * distinguishing "full" vs "deposit" online payments in THIS copy is
+ * follow-up work (landr-k9pji.15); out of scope here.
+ */
+function paymentModeNote(response: SubmitBookingResponse, locale?: string): string | null {
+  const t = pickBundle(locale)
+  switch (response.payment_mode) {
+    case 'on_site':
+      return t.payOnSiteNote
+    case 'bank_transfer':
+      return t.bankTransferNote
+    case 'online':
+      return response.payment_link_sent ? t.paymentLinkForDepositOnItsWay : null
+    default:
+      return response.payment_link_sent ? t.paymentLinkOnItsWay : null
+  }
+}
+
+/**
  * Savings congrats card (landr-nva1a.4, step 4) — shown only when the API
  * returned a multi_day_savings block. Copy per the epic decision:
  * consecutive runs get "N days in a row"; non-consecutive total-days
@@ -625,11 +717,15 @@ function SavingsCongratsCard({
   consecutive: boolean
   currency: string
 }) {
-  const amountLabel = formatMoney(amount, currency)
-  const dayNoun = days === 1 ? 'day' : 'days'
-  const message = consecutive
-    ? `${days} ${dayNoun} in a row — you saved ${amountLabel}!`
-    : `You saved ${amountLabel} by booking ${days} ${dayNoun}!`
+  const locale = browserLocale()
+  const amountLabel = formatMoney(amount, currency, locale)
+  const t = pickBundle(locale)
+  const dayNoun = plural(days, t.daySingular, t.dayPlural)
+  const template = consecutive ? t.savingsConsecutiveTemplate : t.savingsNonConsecutiveTemplate
+  const message = template
+    .replace('{days}', String(days))
+    .replace('{dayWord}', dayNoun)
+    .replace('{amount}', amountLabel)
   return (
     <div
       data-testid="confirmation-savings-congrats"
@@ -650,13 +746,14 @@ function SavingsCongratsCard({
  * convention as PriceSidebar.
  */
 function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
+  const locale = browserLocale()
   const { operator, hotel } = splitLineItems(summary.line_items)
   return (
     <div
       data-testid="confirmation-price-breakdown"
       className="space-y-3 rounded-lg border bg-surface-card p-4"
     >
-      <h3 className="text-sm font-semibold">Price breakdown</h3>
+      <h3 className="text-sm font-semibold">{tr('priceBreakdownTitle', locale)}</h3>
       {operator.length > 0 ? (
         <ul className="space-y-1 text-sm">
           {operator.map((li) => (
@@ -666,7 +763,7 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
             >
               <span>{li.label}</span>
               <span className="tabular-nums">
-                {formatMoney(li.line_total, summary.currency)}
+                {formatMoney(li.line_total, summary.currency, locale)}
               </span>
             </li>
           ))}
@@ -677,7 +774,7 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
         savings={summary.savings}
         amountDue={summary.amount_due}
         currency={summary.currency}
-        totalLabel="Amount due"
+        totalLabel={tr('amountDueLabel', locale)}
         totalClassName="border-t pt-2 text-base"
         testIdPrefix="confirmation"
       />
@@ -691,15 +788,15 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
               >
                 <span>{li.label}</span>
                 <span className="tabular-nums">
-                  {formatMoney(li.line_total, summary.currency)}
+                  {formatMoney(li.line_total, summary.currency, locale)}
                 </span>
               </li>
             ))}
           </ul>
           <div className="mt-2 flex items-baseline justify-between border-t border-amber-200 pt-2 font-medium dark:border-amber-900">
-            <span>At hotel · pay at check-in</span>
+            <span>{tr('atHotelPayAtCheckin', locale)}</span>
             <span className="tabular-nums">
-              {formatMoney(summary.hotel_total, summary.currency)}
+              {formatMoney(summary.hotel_total, summary.currency, locale)}
             </span>
           </div>
         </div>
@@ -771,6 +868,7 @@ function PostBookingSection({
 }
 
 export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
+  const locale = browserLocale()
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
    * the calendar_event block returned by the API alongside ical_url.
@@ -853,10 +951,10 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
         </div>
         <CardTitle data-testid="confirmation-title">
           {staff.active
-            ? 'Booking created'
+            ? tr('bookingCreated', locale)
             : approvalKind === 'auto'
-              ? 'Booking confirmed'
-              : 'Booking received'}
+              ? tr('bookingConfirmed', locale)
+              : tr('bookingReceived', locale)}
         </CardTitle>
         {/*
           landr-nva1a.4 review round: `summary.booking_reference` (same
@@ -867,7 +965,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           default text-sm, since the reference is a secondary detail now
           that the header carries the celebratory weight.
         */}
-        <CardDescription className="text-xs">Reference</CardDescription>
+        <CardDescription className="text-xs">{tr('referenceLabel', locale)}</CardDescription>
         {/*
           landr-otml0.4 (D5): reference prominence — large + monospace, with
           a copy button and the one-line invite hint. Previously this was a
@@ -884,13 +982,12 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           </span>
           <CopyButton
             value={referenceValue}
-            label="Copy"
+            label={tr('copyLabel', locale)}
             testId="confirmation-reference-copy"
           />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Share this with anyone booking their own guiding who wants to be
-          grouped with you.
+          {tr('shareReferenceHint', locale)}
         </p>
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
@@ -904,7 +1001,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             className="mt-1 text-sm text-muted-foreground"
             data-testid="confirmation-stage-label"
           >
-            Status: {resolveCustomerStageLabel(response.stage, browserLocale())}
+            {tr('statusLabel', locale)} {resolveCustomerStageLabel(response.stage, browserLocale())}
           </p>
         ) : null}
       </CardHeader>
@@ -933,8 +1030,8 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           >
             <p className="font-medium">
               {approvalKind === 'auto'
-                ? 'Your booking is confirmed — but we could not send the confirmation email.'
-                : 'We received your booking request, but we could not send the confirmation email.'}
+                ? tr('bookingConfirmedEmailFailed', locale)
+                : tr('confirmationEmailFailed', locale)}
             </p>
             <p className="mt-1">
               {/*
@@ -944,7 +1041,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                * iteration may surface operator_name here; for now we use the
                * safe generic fallback. See landr-y31z spec note.
                */}
-              Please contact the operator directly to confirm your booking details.
+              {tr('contactOperatorToConfirm', locale)}
             </p>
           </div>
         ) : staff.active ? (
@@ -959,8 +1056,13 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           // landr-5oox.6 (OD-7): auto-approved bookings are confirmed
           // outright — no "awaiting" language, no raw semantic_state.
           <p className="text-sm">
-            Your booking is confirmed — the details are in your inbox.
-            {response.payment_link_sent ? ' A payment link is on its way.' : null}
+            {tr('bookingConfirmedInboxNote', locale)}
+            {paymentModeNote(response, locale) ? (
+              <span data-testid="confirmation-payment-mode-note">
+                {' '}
+                {paymentModeNote(response, locale)}
+              </span>
+            ) : null}
           </p>
         ) : (
           // landr-5oox.6 (OD-7): every manual outcome (general approval,
@@ -970,9 +1072,9 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           // line (customers never see bus/seat/approval-policy logic).
           <p className="text-sm">
             {emailStatusKind === 'success'
-              ? 'A confirmation email has been sent with your booking details.'
-              : 'You will receive a confirmation email shortly with the next steps.'}{' '}
-            Your booking is awaiting confirmation from the operator.
+              ? tr('confirmationEmailSent', locale)
+              : tr('confirmationEmailPending', locale)}{' '}
+            {tr('awaitingOperatorConfirmation', locale)}
           </p>
         )}
 
@@ -995,10 +1097,10 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                   id="confirmation-invites-heading"
                   className="text-base font-semibold"
                 >
-                  Next step: send your group their booking {invites.length === 1 ? 'link' : 'links'}
+                  {nextStepSendGroupLabel(invites.length, locale)}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Each of them completes their own booking from their link.
+                  {tr('eachCompletesOwnBooking', locale)}
                 </p>
               </div>
             </div>
@@ -1062,6 +1164,11 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
           right-click / long-press save behaviour works everywhere.
           Google and Outlook open the provider's compose form in a new
           tab; the .ics link downloads the file.
+
+          landr-5aih0.4: ical_url is token-scoped
+          (/api/public/bookings/{token}/calendar.ics); the suggested
+          filename carries the booking reference, never the UUID (same
+          name the API's Content-Disposition uses).
          */}
         {response.ical_url ? (
           <div className="flex flex-wrap gap-2">
@@ -1071,7 +1178,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                   href={googleUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Add to Google Calendar"
+                  aria-label={tr('addToGoogleCalendarAria', locale)}
                 >
                   Google Calendar
                 </a>
@@ -1083,7 +1190,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
                   href={outlookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Add to Outlook Calendar"
+                  aria-label={tr('addToOutlookCalendarAria', locale)}
                 >
                   Outlook
                 </a>
@@ -1092,9 +1199,9 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             <Button asChild type="button" variant="outline">
               <a
                 href={response.ical_url}
-                download={`landr-booking-${response.booking_id}.ics`}
+                download={`landr-booking-${referenceValue}.ics`}
               >
-                Download .ics
+                {tr('downloadIcsButton', locale)}
               </a>
             </Button>
           </div>
@@ -1114,7 +1221,7 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             outline button competing with the calendar/CTA group above it. */}
         <div>
           <Button type="button" variant="link" size="sm" onClick={onRestart}>
-            Make another booking
+            {tr('makeAnotherBookingLink', locale)}
           </Button>
         </div>
       </CardContent>

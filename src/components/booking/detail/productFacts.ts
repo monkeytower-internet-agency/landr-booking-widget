@@ -29,6 +29,7 @@
  */
 import type { Product } from '@/api/types'
 import { pickLocalized } from '@/lib/locale'
+import { isGermanLocale, tr } from '@/lib/strings'
 import { languageName, productDisplayLanguages } from '../participantLanguages'
 
 /** Icon keys ProductFacts.tsx maps to lucide-react icons. */
@@ -60,6 +61,32 @@ function humaniseKind(kind: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
+/**
+ * landr-5aih0.9: best-effort German label for the platform-level product
+ * kinds this fallback chip can show (a product with no operator category
+ * yet — see the file header). Not exhaustive: `ProductKind` is a generated
+ * DB enum this module doesn't have a full list of, so an unknown kind
+ * fails open to the humanised English label rather than guessing — no
+ * regression versus the pre-landr-5aih0.9 behaviour.
+ */
+const KIND_LABEL_DE: Partial<Record<string, string>> = {
+  gift_card: 'Geschenkgutschein',
+  digital_good: 'Digitales Produkt',
+  physical_good: 'Physisches Produkt',
+  membership: 'Mitgliedschaft',
+  subscription: 'Abonnement',
+  hotel_room: 'Zimmer',
+  addon: 'Zusatzleistung',
+}
+
+function kindLabel(kind: string, locale: string): string {
+  if (isGermanLocale(locale)) {
+    const de = KIND_LABEL_DE[kind]
+    if (de) return de
+  }
+  return humaniseKind(kind)
+}
+
 export function deriveProductFacts(product: Product, locale: string): ProductFact[] {
   const facts: ProductFact[] = []
 
@@ -74,12 +101,12 @@ export function deriveProductFacts(product: Product, locale: string): ProductFac
   if (hotel && hotel !== 'none') {
     facts.push({
       icon: 'hotel',
-      label: hotel === 'mandatory' ? 'Hotel included' : 'Hotel optional',
+      label: hotel === 'mandatory' ? tr('hotelIncluded', locale) : tr('hotelOptional', locale),
     })
   }
 
   if (product.needs_pickup) {
-    facts.push({ icon: 'pickup', label: 'Pickup available' })
+    facts.push({ icon: 'pickup', label: tr('pickupAvailable', locale) })
   }
 
   const categoryLabel = product.category_name
@@ -88,14 +115,14 @@ export function deriveProductFacts(product: Product, locale: string): ProductFac
   if (categoryLabel) {
     facts.push({ icon: 'kind', label: categoryLabel })
   } else if (product.product_kind !== 'service') {
-    facts.push({ icon: 'kind', label: humaniseKind(product.product_kind) })
+    facts.push({ icon: 'kind', label: kindLabel(product.product_kind, locale) })
   }
 
   const languages = productDisplayLanguages(product.guide_languages)
   if (languages.length > 0) {
     facts.push({
       icon: 'languages',
-      label: languages.map(languageName).join(' · '),
+      label: languages.map((code) => languageName(code, locale)).join(' · '),
       languages,
     })
   }

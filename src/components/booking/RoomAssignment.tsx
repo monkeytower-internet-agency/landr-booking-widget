@@ -33,6 +33,8 @@ import {
 } from './accommodationCalc'
 import { HelpDisclosure } from './HelpDisclosure'
 import { NextAction } from './NextAction'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 
 /**
  * RoomAssignment (landr-gb2f.2) — assigns participant NAME chips to per-unit
@@ -198,7 +200,7 @@ function ChipInner({
       {label}
       {isGuest && !selected ? (
         <span className="rounded-sm bg-black/10 px-1 text-[10px] font-medium uppercase leading-tight tracking-wide">
-          guest
+          {tr('guestBadgeLabel', browserLocale())}
         </span>
       ) : null}
     </>
@@ -273,11 +275,12 @@ function OccupantAgeControl({
   const band = entry?.band ?? 'adult'
   const age = entry?.age ?? null
   const isChild = band === 'child'
+  const locale = browserLocale()
   return (
     <span className="flex items-center gap-1">
       <select
         data-testid={`age-band-select-${memberIndex}`}
-        aria-label="Age band"
+        aria-label={tr('ageBandAria', locale)}
         value={band}
         onChange={(e) => {
           const next = e.target.value as OccupantAgeBand
@@ -285,8 +288,8 @@ function OccupantAgeControl({
         }}
         className="rounded border border-border bg-surface-page px-1 py-0.5 text-xs"
       >
-        <option value="adult">Adult</option>
-        <option value="child">Child</option>
+        <option value="adult">{tr('adultOption', locale)}</option>
+        <option value="child">{tr('childOption', locale)}</option>
       </select>
       {isChild ? (
         <input
@@ -294,8 +297,8 @@ function OccupantAgeControl({
           min={0}
           max={17}
           data-testid={`child-age-input-${memberIndex}`}
-          aria-label="Child age"
-          placeholder="Age"
+          aria-label={tr('childAgeAria', locale)}
+          placeholder={tr('agePlaceholder', locale)}
           value={age === null ? '' : String(age)}
           onChange={(e) => {
             const raw = e.target.value
@@ -340,7 +343,7 @@ function BreakfastChip({
   const face = (
     <>
       <span aria-hidden>🥐</span>
-      <span>Breakfast</span>
+      <span>{tr('breakfastLabel', browserLocale())}</span>
     </>
   )
   if (isStatic) {
@@ -467,11 +470,11 @@ function OccupantRow({
         <button
           type="button"
           data-testid={`give-breakfast-${memberIndex}`}
-          aria-label={`Give breakfast to ${label}`}
+          aria-label={tr('giveBreakfastToTemplate', browserLocale()).replace('{name}', label)}
           onClick={() => onBreakfastAssign(memberIndex)}
           className="rounded-md border border-primary/40 px-2 py-0.5 text-xs text-primary hover:bg-primary/5"
         >
-          + breakfast
+          {tr('addBreakfastButton', browserLocale())}
         </button>
       ) : null}
     </div>
@@ -566,7 +569,7 @@ function UnitDropZone({
           one cluttered run of controls. Single-occupant units are unchanged. */}
       <div className="flex flex-col gap-2">
         {occupantIndices.length === 0 ? (
-          <span className="text-xs italic text-muted-foreground">Empty</span>
+          <span className="text-xs italic text-muted-foreground">{tr('emptyLabel', browserLocale())}</span>
         ) : (
           occupantIndices.map((pIdx, pos) => (
             <div
@@ -607,7 +610,7 @@ function UnitDropZone({
           data-testid={`assign-here-${key}`}
           className="self-start rounded-md border border-primary px-2 py-1 text-xs text-primary hover:bg-primary/5"
         >
-          {full ? 'Swap in here' : 'Place here'}
+          {full ? tr('swapInHereLabel', browserLocale()) : tr('placeHereLabel', browserLocale())}
         </button>
       ) : null}
     </div>
@@ -628,6 +631,7 @@ export function RoomAssignment({
   nextActionCue = null,
 }: Props) {
   const selectId = useId()
+  const locale = browserLocale()
   // tap-to-place: the currently "picked up" participant index (or null).
   const [selectedChip, setSelectedChip] = useState<number | null>(null)
   // landr-rc4l: the participant index currently being DRAGGED (or null).
@@ -823,14 +827,9 @@ export function RoomAssignment({
       onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col gap-3" data-testid="room-assignment">
-        <p className="text-sm font-medium">Who stays where?</p>
+        <p className="text-sm font-medium">{tr('whoStaysWhereTitle', locale)}</p>
         <HelpDisclosure data-testid="room-assignment-help">
-          <p>
-            Drag a name onto a room, or tap a name then tap a room. You can
-            also use the dropdown on each name. When a room has fewer
-            breakfasts than guests, drag the Breakfast chip onto whoever
-            gets it.
-          </p>
+          <p>{tr('roomAssignmentHelp', locale)}</p>
         </HelpDisclosure>
 
         <NextAction
@@ -888,7 +887,7 @@ export function RoomAssignment({
             units + Unassigned. */}
         <details className="rounded-md border border-border p-2">
           <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-            Assign with dropdowns instead
+            {tr('assignWithDropdownsInstead', locale)}
           </summary>
           <div className="mt-2 flex flex-col gap-2">
             {Array.from({ length: participantCount }, (_, pIdx) => {
@@ -905,7 +904,7 @@ export function RoomAssignment({
                     {participantLabel(participantNames, pIdx)}
                     {guestFlags[pIdx] ? (
                       <span className="ml-1 text-xs text-muted-foreground">
-                        (guest)
+                        {tr('guestSuffix', locale)}
                       </span>
                     ) : null}
                   </span>
@@ -923,7 +922,7 @@ export function RoomAssignment({
                     }}
                     className="rounded-md border border-border bg-background px-2 py-1 text-sm"
                   >
-                    <option value="">Unassigned</option>
+                    <option value="">{tr('unassignedOption', locale)}</option>
                     {units.map((u) => {
                       const k = roomUnitKey(u.roomProductId, u.unitIndex)
                       return (
@@ -978,7 +977,7 @@ export function RoomAssignment({
             className="inline-flex items-center gap-1 rounded-full border border-primary/60 bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-xl shadow-black/30"
           >
             <span aria-hidden>🥐</span>
-            <span>Breakfast</span>
+            <span>{tr('breakfastLabel', browserLocale())}</span>
           </div>
         ) : null}
         </DragOverlay>,
@@ -1030,12 +1029,12 @@ function UnassignedTray({
       ].join(' ')}
     >
       <span className="text-xs font-medium text-muted-foreground">
-        Unassigned ({unassignedIndices.length})
+        {tr('unassignedCountTemplate', browserLocale()).replace('{n}', String(unassignedIndices.length))}
       </span>
       <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
         {unassignedIndices.length === 0 ? (
           <span className="text-xs italic text-muted-foreground">
-            Everyone has a room.
+            {tr('everyoneHasARoom', browserLocale())}
           </span>
         ) : (
           unassignedIndices.map((pIdx) => (
@@ -1062,7 +1061,7 @@ function UnassignedTray({
                 }}
                 className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
               >
-                <option value="">→ room…</option>
+                <option value="">{tr('unassignedOption', browserLocale())}</option>
                 {units.map((u) => {
                   const k = roomUnitKey(u.roomProductId, u.unitIndex)
                   const occ = occupantsOfUnit(assignment, u).length
@@ -1070,7 +1069,7 @@ function UnassignedTray({
                   return (
                     <option key={k} value={k} disabled={full}>
                       {unitOptionLabel(u)}
-                      {full ? ' (full)' : ''}
+                      {full ? tr('roomFullSuffix', browserLocale()) : ''}
                     </option>
                   )
                 })}
@@ -1086,7 +1085,7 @@ function UnassignedTray({
           data-testid="unassign-here"
           className="self-start rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
-          Move selected here (unassign)
+          {tr('moveSelectedHereUnassign', browserLocale())}
         </button>
       ) : null}
     </div>

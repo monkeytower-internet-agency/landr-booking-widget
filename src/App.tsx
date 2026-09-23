@@ -86,6 +86,7 @@ import {
   type PerRoomAddons,
   type BookingDraft,
   buildBreadcrumb,
+  productEntryStep,
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
@@ -106,7 +107,7 @@ import {
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
-import { detectRoute, invitePathToken } from './detectRoute'
+import { detectRoute, invitePathToken, startsAtDates } from './detectRoute'
 import { LandingPage } from '@/components/booking/LandingPage'
 import { TierBadge } from '@/components/TierBadge'
 import {
@@ -146,6 +147,7 @@ function readQueryParams() {
       catalog: null as string | null,
       invite: null as string | null,
       contactPageToken: null as string | null,
+      startAtDates: false,
     }
   }
   const params = new URLSearchParams(window.location.search)
@@ -186,6 +188,10 @@ function readQueryParams() {
     // default — resolved by resolvedCatalogMode below, mirroring the
     // ?variant= precedence exactly (URL always wins).
     catalog: params.get('catalog'),
+    // landr-6eita.1: `?start=dates` (with `?product=` only) — the deep-linked
+    // product opens on the date picker; the product-detail step is skipped and
+    // no back link / crumb leads to it.
+    startAtDates: startsAtDates(window.location.search),
   }
 }
 
@@ -210,9 +216,9 @@ function App() {
           {/* landr-2mgl: overscroll-y-contain stops a stray swipe at the top
               of this scroll container from triggering the browser's
               pull-to-refresh, which would reload the iframe. */}
-          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
-              <CancelPage bookingId={route.bookingId} />
+              <CancelPage token={route.token} />
             </div>
           </div>
         </StaffModeProvider>
@@ -225,7 +231,7 @@ function App() {
       <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
           <TierBadge />
-          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <OfferPage token={route.token} />
             </div>
@@ -241,7 +247,7 @@ function App() {
       <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
           <TierBadge />
-          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <OfferPage token={route.token} mode="pay" />
             </div>
@@ -259,7 +265,7 @@ function App() {
       <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
           <TierBadge />
-          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
             </div>
@@ -285,7 +291,7 @@ function App() {
       <VariantProvider value={variantFromLocation()}>
         <StaffModeProvider>
           <TierBadge />
-          <div className="min-h-screen overscroll-y-contain bg-background text-foreground">
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <MembershipReturnPage
                 status={memberParam === '1' ? 'success' : 'cancelled'}
@@ -318,6 +324,7 @@ function BookingFlowApp() {
     catalog,
     invite,
     contactPageToken,
+    startAtDates,
   } = useMemo(() => readQueryParams(), [])
   // landr-5lrov: an invite link (`/i/<token>`) carries NO `?w=` — the widget
   // token comes back with the invite prefill and is adopted here, so every
@@ -1132,6 +1139,15 @@ function BookingFlowApp() {
     [clearLiveAccommodation, clearProductFlowCache],
   )
 
+  // landr-6eita.1: does this product open straight on Dates, with no way back
+  // to its product-detail step? Only the deep-linked product itself
+  // (`?product=`) under `?start=dates` — a card picked from the catalogue that
+  // an unresolved slug falls back to keeps the normal Overview → Dates flow.
+  const opensOnDates = useCallback(
+    (p: Product) => startAtDates && p.slug === product,
+    [startAtDates, product],
+  )
+
   /**
    * After date selection, hand off to the DetailsStep (landr-8c03,
    * replacing the count-only ParticipantsStep from landr-mbge). The
@@ -1485,8 +1501,16 @@ function BookingFlowApp() {
         'product' in step
           ? offeredLanguagesForProduct(step.product).length > 0
           : false,
+      // landr-6eita.1: no product-detail crumb for a start=dates product.
+      startAtDates: 'product' in step && opensOnDates(step.product),
     })
-  }, [step, activeFlow, bookingDraft.customFormAnswers, offeredLanguagesForProduct])
+  }, [
+    step,
+    activeFlow,
+    bookingDraft.customFormAnswers,
+    offeredLanguagesForProduct,
+    opensOnDates,
+  ])
   const breadcrumbNav = useMemo(
     () => ({ items: breadcrumbItems, onNavigate: navigateTo }),
     [breadcrumbItems, navigateTo],
@@ -1517,6 +1541,14 @@ function BookingFlowApp() {
   const isFirstStep =
     step.name === 'pick-product' || step.name === 'pick-category'
 
+  // landr-6eita.1: the date picker's Back returns to the catalogue, whose
+  // ?product= preselect lands on product-detail again. A start=dates product
+  // has neither to go back to, so its date step renders no Back at all.
+  const datePickerBack =
+    step.name === 'pick-selection' && opensOnDates(step.product)
+      ? undefined
+      : goToProductStep
+
   // landr-otml0.3 review fix (MINOR 4): without this, an invite link briefly
   // rendered the full product catalogue (a fetch + render cycle) before the
   // invite-resolution effect above swapped the step to pick-selection —
@@ -1528,7 +1560,7 @@ function BookingFlowApp() {
   if (invite && inviteData === undefined && step.name === 'pick-product') {
     return (
       <div
-        className="min-h-screen overscroll-y-contain bg-background text-foreground"
+        className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground"
         style={brandStyle}
         data-testid="widget-root"
       >
@@ -1552,7 +1584,7 @@ function BookingFlowApp() {
     // browser's pull-to-refresh — which would reload the iframe and (before
     // the sessionStorage restore below) wipe the customer's progress.
     <div
-      className="min-h-screen overscroll-y-contain bg-background text-foreground"
+      className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground"
       style={brandStyle}
       data-testid="widget-root"
     >
@@ -1808,8 +1840,10 @@ function BookingFlowApp() {
               // Preselect path for ?product= deep link: ProductList calls
               // onSelect immediately after resolving the product. In that
               // case we also go to product-detail (not pick-selection),
-              // so the deep link shows the detail page first.
-              setStep({ name: 'product-detail', product: p })
+              // so the deep link shows the detail page first — unless the
+              // embed asked for start=dates (landr-6eita.1), which lands the
+              // deep-linked product straight on the date picker.
+              setStep(productEntryStep(p, opensOnDates(p)))
             }}
             // landr-7jgo: a deep-linked product that is sold out drops into the
             // standalone "Fully booked" state instead of a picker with no dates.
@@ -1931,7 +1965,7 @@ function BookingFlowApp() {
         {step.name === 'pick-selection' &&
         step.product.product_kind !== 'service' &&
         step.product.product_kind !== 'subscription' ? (
-          <ShopComingSoonStub product={step.product} onBack={goToProductStep} />
+          <ShopComingSoonStub product={step.product} onBack={datePickerBack} />
         ) : null}
 
         {/* landr-1kk.5: "become a member" Stripe checkout for
@@ -1940,7 +1974,7 @@ function BookingFlowApp() {
         step.product.product_kind === 'subscription' ? (
           <MembershipCheckoutStep
             product={step.product}
-            onBack={goToProductStep}
+            onBack={datePickerBack}
             widgetToken={token!}
           />
         ) : null}
@@ -1951,7 +1985,7 @@ function BookingFlowApp() {
           <AvailabilityPicker
             product={step.product}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
-            onBack={goToProductStep}
+            onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
             initialSlot={
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
@@ -1968,12 +2002,12 @@ function BookingFlowApp() {
           <FixedDateWindowPicker
             product={step.product}
             exposeSeats={operatorSettings.expose_seats_to_customer}
-            onBack={goToProductStep}
+            onBack={datePickerBack}
             // landr (breadcrumb): the committed window id rides on the restored
             // slot's availability_id — re-select it on back-nav re-entry.
             initialWindowId={
               step.selection?.kind === 'slot'
-                ? step.selection.slot.availability_id
+                ? (step.selection.slot.availability_id ?? undefined)
                 : undefined
             }
             onConfirm={(_slot, window, forced, forcedReasons) => {
@@ -1996,7 +2030,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'days_range' ? (
           <MultiDayStep
             product={step.product}
-            onBack={goToProductStep}
+            onBack={datePickerBack}
             // landr (breadcrumb): restore the prior day selection on re-entry.
             // landr-otml0.3: on the FIRST visit via an invite link (no prior
             // selection yet), default to the host's dates instead of empty —
@@ -2036,7 +2070,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'single_date' ? (
           <SingleDatePicker
             product={step.product}
-            onBack={goToProductStep}
+            onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
             initialSelectedDays={
               step.selection?.kind === 'days'
