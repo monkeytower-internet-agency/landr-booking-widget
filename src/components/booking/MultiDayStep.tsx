@@ -16,7 +16,15 @@ import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { DayChips } from '@/components/booking/DayChips'
 import { isDayBookable } from '@/components/booking/bookability'
 import { availabilityWindow } from '@/components/booking/calendarStart'
-import { multiDayGate, tr } from '@/lib/strings'
+import {
+  availableDaysForLabel,
+  daysSelectedLabel,
+  hostDaysUnavailableMessage,
+  multiDayGate,
+  sameDaysAsHostForLabel,
+  tr,
+} from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 
@@ -89,6 +97,7 @@ export function MultiDayStep({
   // landr-t869m.5: which gate(s) that forced subset bypassed. Always []
   // alongside an empty forcedDays.
   const [forcedReasons, setForcedReasons] = useState<ForceReason[]>([])
+  const locale = browserLocale()
 
   const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
 
@@ -143,7 +152,7 @@ export function MultiDayStep({
       <Card>
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Could not load availability.</CardTitle>
+          <CardTitle>{tr('couldNotLoadAvailability', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -157,9 +166,9 @@ export function MultiDayStep({
       <Card data-testid="invite-dates-summary">
         <StepBackButton onBack={onBack} />
         <CardHeader>
-          <CardTitle>Your dates</CardTitle>
+          <CardTitle>{tr('yourDates', locale)}</CardTitle>
           <CardDescription>
-            The same days as {host} for {product.name}.
+            {sameDaysAsHostForLabel(host, product.name, locale)}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -169,9 +178,7 @@ export function MultiDayStep({
               className="text-sm text-destructive"
               data-testid="invite-dates-unavailable"
             >
-              {blocked === 1
-                ? `1 of ${host}'s days is no longer available — change your dates to continue.`
-                : `${blocked} of ${host}'s days are no longer available — change your dates to continue.`}
+              {hostDaysUnavailableMessage(blocked, host, locale)}
             </p>
           ) : null}
           <div className="flex flex-wrap items-start justify-end gap-2 pt-2">
@@ -180,20 +187,20 @@ export function MultiDayStep({
               variant="outline"
               onClick={() => setEditing(true)}
             >
-              Change dates
+              {tr('changeDates', locale)}
             </Button>
             <ContinueAction
               ready={slots !== null && blocked === 0}
               reason={
                 slots === null
-                  ? 'Loading availability…'
+                  ? tr('loadingAvailabilityEllipsis', locale)
                   : blocked > 0
-                    ? 'Change your dates to continue.'
-                    : "Ready to continue with the host's dates."
+                    ? tr('changeYourDatesToContinue', locale)
+                    : tr('readyToContinueWithHostsDates', locale)
               }
               reasonId="multi-day-step-invite-gate"
               onContinue={() => onConfirm([...originalDays].sort())}
-              label="Continue with these dates"
+              label={tr('continueWithTheseDates', locale)}
               data-testid="multi-day-step-invite-submit"
             />
           </div>
@@ -206,14 +213,14 @@ export function MultiDayStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Pick your dates</CardTitle>
-        <CardDescription>Available days for {product.name}.</CardDescription>
+        <CardTitle>{tr('pickYourDates', locale)}</CardTitle>
+        <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* landr-80ubl.2: one-next-action rule — the picker owns the ring
             until at least one day is picked, then ContinueAction (active by
             default) takes over. */}
-        <NextAction active={selectedDays.length === 0} cue={tr('multiDayPickerCue')}>
+        <NextAction active={selectedDays.length === 0} cue={tr('multiDayPickerCue', locale)}>
           <MultiDayPicker
             availability={slots ?? EMPTY_SLOTS}
             value={selectedDays}
@@ -232,15 +239,13 @@ export function MultiDayStep({
             // landr-3mo4: selection count surfaced as a tinted chip (committed
             // state), not muted helper text.
             <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-foreground">
-              {selectedDays.length === 1
-                ? `1 day selected`
-                : `${selectedDays.length} days selected`}
+              {daysSelectedLabel(selectedDays.length, locale)}
             </p>
           ) : null}
         </NextAction>
         <ContinueAction
           ready={selectedDays.length > 0}
-          reason={multiDayGate(selectedDays.length)}
+          reason={multiDayGate(selectedDays.length, locale)}
           reasonId="multi-day-step-gate"
           onContinue={() =>
             onConfirm(

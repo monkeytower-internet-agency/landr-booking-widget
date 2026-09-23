@@ -66,7 +66,7 @@ function BackLink({ onBack }: { onBack: () => void }) {
       onClick={onBack}
       data-testid="step-back-button"
     >
-      ← Back
+      {tr('backLinkArrow', browserLocale())}
     </button>
   )
 }
@@ -160,7 +160,7 @@ export function ProductDetailStep({
       {/* Desktop price + CTA — in-flow at the bottom of the content. */}
       <NextAction
         active
-        cue={tr('productDetailCue')}
+        cue={tr('productDetailCue', locale)}
         className="mt-2 hidden md:flex"
       >
         <div
@@ -184,7 +184,7 @@ export function ProductDetailStep({
             data-testid="product-detail-book-cta"
             className="px-8 font-semibold"
           >
-            Book now
+            {tr('bookNow', locale)}
           </Button>
         </div>
       </NextAction>
@@ -217,7 +217,7 @@ export function ProductDetailStep({
           data-testid="product-detail-book-cta-mobile"
           className="flex-1 font-semibold"
         >
-          Book now
+          {tr('bookNow', locale)}
         </Button>
       </div>
       {/* Spacer so the mobile fixed bar never covers the content above. */}

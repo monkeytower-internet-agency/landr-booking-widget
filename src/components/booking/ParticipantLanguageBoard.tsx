@@ -64,6 +64,8 @@ import {
   type ParticipantLanguageMap,
 } from './participantLanguages'
 import { NextAction } from './NextAction'
+import { browserLocale } from '@/lib/locale'
+import { languageStepGate, tr } from '@/lib/strings'
 
 /**
  * `pointerWithin` alone is wrong here even though the room board uses it:
@@ -147,7 +149,7 @@ function ChipInner({
       {label}
       {isGuest && !selected ? (
         <span className="rounded-sm bg-black/10 px-1 text-[10px] font-medium uppercase leading-tight tracking-wide">
-          guest
+          {tr('guestBadgeLabel', browserLocale())}
         </span>
       ) : null}
     </>
@@ -266,7 +268,7 @@ function LanguageColumn({
       <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
         {empty ? (
           <span className="text-xs italic text-muted-foreground">
-            Drop names here
+            {tr('dropNamesHere', browserLocale())}
           </span>
         ) : (
           memberIndices.map((idx) => (
@@ -290,7 +292,7 @@ function LanguageColumn({
           data-testid={`lang-place-here-${code}`}
           className="self-start rounded-md border border-primary px-2 py-1 text-xs text-primary hover:bg-primary/5"
         >
-          Place here
+          {tr('placeHereLabel', browserLocale())}
         </button>
       ) : null}
       {/* One-tap "the whole party speaks this". The common shape is a group
@@ -334,6 +336,7 @@ function UnassignedTray({
   onAssign: (memberIndex: number, code: string | null) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: UNASSIGNED_DROP_ID })
+  const locale = browserLocale()
   return (
     <div
       ref={setNodeRef}
@@ -346,7 +349,7 @@ function UnassignedTray({
       ].join(' ')}
     >
       <span className="text-xs font-medium text-muted-foreground">
-        Unassigned ({unassigned.length})
+        {tr('unassignedCountTemplate', locale).replace('{n}', String(unassigned.length))}
       </span>
       <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
         {unassigned.length === 0 ? (
@@ -354,7 +357,7 @@ function UnassignedTray({
             className="text-xs italic text-muted-foreground"
             data-testid="lang-everyone-assigned"
           >
-            Everyone has a language.
+            {languageStepGate([], locale)}
           </span>
         ) : (
           unassigned.map((idx) => (
@@ -372,7 +375,10 @@ function UnassignedTray({
                   left this control empty and useless exactly when it is most
                   needed. Picking one opens its column as a side effect. */}
               <select
-                aria-label={`Assign ${memberLabel(participantNames, idx)} to a language`}
+                aria-label={tr('assignToLanguageAriaTemplate', locale).replace(
+                  '{name}',
+                  memberLabel(participantNames, idx),
+                )}
                 data-testid={`lang-tray-select-${idx}`}
                 id={`${selectId}-${idx}`}
                 value=""
@@ -383,7 +389,7 @@ function UnassignedTray({
                 }}
                 className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
               >
-                <option value="">→ language…</option>
+                <option value="">{tr('languageDropdownPlaceholder', locale)}</option>
                 {offeredLanguages.map((code) => (
                   <option key={code} value={code}>
                     {languageName(code)}
@@ -470,6 +476,7 @@ export function ParticipantLanguageBoard({
   nextActionCue = null,
 }: Props) {
   const selectId = useId()
+  const locale = browserLocale()
   // tap-to-place: the currently "picked up" member index (or null).
   const [selectedChip, setSelectedChip] = useState<number | null>(null)
   // the member index currently being DRAGGED — drives the floating clone.
@@ -657,7 +664,7 @@ export function ParticipantLanguageBoard({
               data-testid="lang-add-row"
             >
               <span className="text-xs text-muted-foreground">
-                {openLanguages.length === 0 ? 'Languages:' : 'Add language:'}
+                {openLanguages.length === 0 ? tr('languagesColon', locale) : tr('addLanguageColon', locale)}
               </span>
               {closedLanguages.map((code) => (
                 <FlagDropChip
@@ -678,7 +685,7 @@ export function ParticipantLanguageBoard({
             mirroring the room board's "Assign with dropdowns instead". */}
         <details className="rounded-md border border-border p-2">
           <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-            Assign with dropdowns instead
+            {tr('assignWithDropdownsInstead', locale)}
           </summary>
           <div className="mt-2 flex flex-col gap-2">
             {Array.from({ length: partyCount }, (_, idx) => (
@@ -690,7 +697,7 @@ export function ParticipantLanguageBoard({
                   {memberLabel(participantNames, idx)}
                   {guestFlags[idx] ? (
                     <span className="ml-1 text-xs text-muted-foreground">
-                      (guest)
+                      {tr('guestSuffix', locale)}
                     </span>
                   ) : null}
                 </span>
@@ -703,7 +710,7 @@ export function ParticipantLanguageBoard({
                   }}
                   className="rounded-md border border-border bg-background px-2 py-1 text-sm"
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">{tr('unassignedOption', locale)}</option>
                   {/* Every OFFERED language, not just the open columns: this
                       path opens the column as a side effect (the parent adds
                       any assigned language to the visible set), so the

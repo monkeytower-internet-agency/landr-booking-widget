@@ -8,6 +8,7 @@ import type {
   EstimateAppliedRule,
   EstimateLineItem,
 } from '@/api/types'
+import { plural, tr } from '@/lib/strings'
 import type { RoomSelection } from './accommodationCalc'
 import type { AddonSelection } from './addonsState'
 
@@ -47,12 +48,19 @@ export function buildAddonLines(
  * totals as decimal strings to avoid float precision drift; the
  * sidebar converts them for display only. Falls back to "{amount} {ccy}"
  * when Intl.NumberFormat can't handle the currency code (never throws).
+ *
+ * landr-5aih0.9: `locale` was previously always omitted (`undefined` →
+ * Intl.NumberFormat's raw browser/OS locale), bypassing the widget's
+ * resolved customer_languages/whitelist locale entirely — a German
+ * customer's price breakdown could still render "€1,234.00" (US grouping)
+ * instead of "1.234,00 €". Threaded through now; still optional so an
+ * un-migrated caller keeps its previous behaviour.
  */
-export function formatMoney(amount: string, currency: string): string {
+export function formatMoney(amount: string, currency: string, locale?: string): string {
   const n = Number(amount)
   if (!Number.isFinite(n)) return `${amount} ${currency}`
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       maximumFractionDigits: 2,
@@ -124,12 +132,13 @@ export function isDiscountRule(kind: string): boolean {
 export function buildDiscountExplanation(
   rule: EstimateAppliedRule,
   currency: string,
+  locale?: string,
 ): string[] {
   switch (rule.kind) {
     case 'per_streak_tier':
-      return buildStreakTierExplanation(rule.detail, currency)
+      return buildStreakTierExplanation(rule.detail, currency, locale)
     case 'per_total_days_tier':
-      return buildTotalDaysTierExplanation(rule.detail, currency)
+      return buildTotalDaysTierExplanation(rule.detail, currency, locale)
     default:
       return []
   }
@@ -140,8 +149,8 @@ export function buildDiscountExplanation(
  * currency symbol + decimals match every other figure in the sidebar,
  * then appends the per-unit suffix the multi-day rates are quoted in.
  */
-function formatPerDay(amount: number, currency: string): string {
-  return `${formatMoney(amount.toFixed(2), currency)}/day`
+function formatPerDay(amount: number, currency: string, locale?: string): string {
+  return `${formatMoney(amount.toFixed(2), currency, locale)}${tr('perDaySuffix', locale)}`
 }
 
 /**
@@ -153,10 +162,15 @@ function withParticipantSuffix(
   line: string,
   perParticipant: boolean,
   participants: number | null,
+  locale?: string,
 ): string {
   if (!perParticipant || !participants || participants < 1) return line
-  const noun = participants === 1 ? 'participant' : 'participants'
-  return `${line} × ${participants} ${noun}`
+  const template = plural(
+    participants,
+    tr('participantSuffixSingular', locale),
+    tr('participantSuffixPlural', locale),
+  )
+  return `${line} ${template.replace('{n}', String(participants))}`
 }
 
 /**
@@ -171,6 +185,7 @@ function withParticipantSuffix(
 function buildStreakTierExplanation(
   detail: Record<string, unknown> | undefined,
   currency: string,
+  locale?: string,
 ): string[] {
   if (!detail) return []
   const streaks = detail.streaks
@@ -197,15 +212,18 @@ function buildStreakTierExplanation(
     const length = Number(entry[0])
     const perDay = Number(entry[1])
     if (!Number.isFinite(length) || !Number.isFinite(perDay)) continue
-    const base =
-      length === 1
-        ? `${length} day · ${formatPerDay(perDay, currency)}`
-        : `${length} consecutive days · ${formatPerDay(perDay, currency)}`
-    lines.push(withParticipantSuffix(base, perParticipant, participants))
+    const dayWord = length === 1 ? tr('daySingular', locale) : tr('consecutiveDayPlural', locale)
+    const base = `${length} ${dayWord} · ${formatPerDay(perDay, currency, locale)}`
+    lines.push(withParticipantSuffix(base, perParticipant, participants, locale))
     if (basePerDay !== null) {
       const saving = basePerDay - perDay
       if (Number.isFinite(saving) && saving > 0.005) {
-        lines.push(`saves ${formatPerDay(saving, currency)} vs standard rate`)
+        lines.push(
+          tr('savesVsStandardRate', locale).replace(
+            '{amount}',
+            formatPerDay(saving, currency, locale),
+          ),
+        )
       }
     }
   }
@@ -225,6 +243,7 @@ function buildStreakTierExplanation(
 function buildTotalDaysTierExplanation(
   detail: Record<string, unknown> | undefined,
   currency: string,
+  locale?: string,
 ): string[] {
   if (!detail) return []
   if (detail.matched === false) return []
@@ -246,9 +265,9 @@ function buildTotalDaysTierExplanation(
   const perParticipant = Boolean(detail.per_participant)
   const participants =
     typeof detail.participants === 'number' ? detail.participants : null
-  const dayNoun = days === 1 ? 'day' : 'days'
-  const base = `${days} ${dayNoun} · ${formatPerDay(perDay, currency)}`
-  const lines = [withParticipantSuffix(base, perParticipant, participants)]
+  const dayNoun = days === 1 ? tr('daySingular', locale) : tr('dayPlural', locale)
+  const base = `${days} ${dayNoun} · ${formatPerDay(perDay, currency, locale)}`
+  const lines = [withParticipantSuffix(base, perParticipant, participants, locale)]
   // landr-qj1g: append a savings line when the API returned a base_tier
   // (the short-stay bracket) that is more expensive than the applied rate.
   const baseTier =
@@ -259,7 +278,12 @@ function buildTotalDaysTierExplanation(
     const basePerDay = baseTier.amount_per_unit
     const saving = basePerDay - perDay
     if (Number.isFinite(saving) && saving > 0.005) {
-      lines.push(`saves ${formatPerDay(saving, currency)} vs standard rate`)
+      lines.push(
+        tr('savesVsStandardRate', locale).replace(
+          '{amount}',
+          formatPerDay(saving, currency, locale),
+        ),
+      )
     }
   }
   return lines

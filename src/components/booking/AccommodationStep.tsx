@@ -59,7 +59,7 @@ import {
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
-import { accommodationTooLateMessage } from '@/lib/strings'
+import { accommodationTooLateMessage, nightsWord, tr } from '@/lib/strings'
 import { StepBackButton } from './StepBackButton'
 
 /**
@@ -1188,7 +1188,7 @@ export function AccommodationStep({
   // landr-80ubl.3: one-next-action rule — RoomAssignment wraps itself in
   // NextAction when this is non-null; once occupancy is complete the
   // highlight moves down to Continue instead (no cue).
-  const roomAssignmentCue = occupancy.complete ? null : 'assign everyone to a room'
+  const roomAssignmentCue = occupancy.complete ? null : tr('assignEveryoneToARoomCue', locale)
 
   // landr-395ks: shared-double allows a partly filled room on purpose (a
   // partner may take a double), but the room is charged whole — surface a
@@ -1492,7 +1492,7 @@ export function AccommodationStep({
   // additional rooms).
   const sharedDoubleOption = {
     value: 'shared-double' as const,
-    label: 'I am sharing a double room booked by someone else',
+    label: tr('sharedDoubleLabel', locale),
     hint: inviteMode
       ? 'Your bed is in the double room the person who invited you already booked. You are collected from the hotel.'
       : 'No room booked — the other guest holds the double room. You are collected from the hotel.',
@@ -1505,8 +1505,8 @@ export function AccommodationStep({
         ? [
             {
               value: 'guiding-only' as const,
-              label: 'Guiding only — I bring my own accommodation',
-              hint: 'No hotel booked through us — straight to pickup.',
+              label: tr('guidingOnlyLabel', locale),
+              hint: tr('guidingOnlyHint', locale),
             },
           ]
         : []),
@@ -1515,8 +1515,8 @@ export function AccommodationStep({
         : [
             {
               value: 'package' as const,
-              label: 'Book accommodation (package)',
-              hint: 'Pick a hotel and rooms for your stay.',
+              label: tr('bookAccommodationPackageLabel', locale),
+              hint: tr('bookAccommodationPackageHint', locale),
             },
             sharedDoubleOption,
           ]),
@@ -1531,12 +1531,12 @@ export function AccommodationStep({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Accommodation</CardTitle>
+        <CardTitle>{tr('accommodationTitle', locale)}</CardTitle>
         <CardDescription>
           {productName} ·{' '}
           {offering === 'mandatory'
-            ? 'Hotel stay required'
-            : 'Add a hotel stay (optional)'}
+            ? tr('hotelStayRequired', locale)
+            : tr('addHotelStayOptional', locale)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -1551,7 +1551,7 @@ export function AccommodationStep({
             className="text-sm text-muted-foreground"
             data-testid="accommodation-checking-notice"
           >
-            Checking accommodation availability for this date…
+            {tr('checkingAccommodationAvailability', locale)}
           </p>
         ) : null}
         {/* landr-t869m.2: "activity still bookable, hotel too late" —
@@ -1597,7 +1597,7 @@ export function AccommodationStep({
             data-testid="accommodation-mode"
           >
             <legend className="text-sm font-medium">
-              How would you like to handle accommodation?
+              {tr('howWouldYouLikeToHandleAccommodation', locale)}
             </legend>
             {modeOptions.map((opt) => {
               const checked = mode === opt.value
@@ -1652,7 +1652,7 @@ export function AccommodationStep({
             </p>
           ) : (
             <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium">Choose your hotel</legend>
+              <legend className="text-sm font-medium">{tr('chooseYourHotel', locale)}</legend>
               {hotels.map((hotel) => {
                 const checked = selectedHotelId === hotel.location_id
                 const name = pickLocalized(hotel.name, hotel.name_localized, locale)
@@ -1691,7 +1691,7 @@ export function AccommodationStep({
 
         {needsHotel && hotels && hotels.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No hotels configured for this operator yet.
+            {tr('noHotelsConfigured', locale)}
           </p>
         ) : null}
 
@@ -1709,16 +1709,10 @@ export function AccommodationStep({
           >
             {inviteMode ? (
               <span data-testid="invite-room-booked-notice">
-                Your own room is already booked — you are sharing the double
-                room of the person who invited you, and you will be collected
-                from the hotel.
+                {tr('sharedDoubleInviteNotice', locale)}
               </span>
             ) : (
-              <>
-                You are sharing a double room with another guest. No room is
-                booked for you — the other guest holds the room — and you
-                will be collected from the hotel.
-              </>
+              <>{tr('sharedDoubleNormalNotice', locale)}</>
             )}
           </p>
         ) : null}
@@ -1734,8 +1728,7 @@ export function AccommodationStep({
             className="text-xs text-muted-foreground"
             data-testid="additional-accommodation-hint"
           >
-            Travelling with family or friends? Add them as companions in the
-            previous step and you can book additional rooms for them here.
+            {tr('travellingWithFamilyHint', locale)}
           </p>
         ) : null}
 
@@ -1843,7 +1836,7 @@ export function AccommodationStep({
             }
           >
             <legend className="text-sm font-medium">
-              {sharedDoubleRooms ? 'Additional accommodation' : 'Rooms'}
+              {sharedDoubleRooms ? tr('additionalAccommodationLegend', locale) : tr('roomsLegend', locale)}
             </legend>
             {sharedDoubleRooms ? (
               <p className="text-xs text-muted-foreground">
@@ -1855,14 +1848,14 @@ export function AccommodationStep({
               </p>
             ) : null}
             {rooms === null && !roomsError ? (
-              <p className="text-sm text-muted-foreground">Loading rooms…</p>
+              <p className="text-sm text-muted-foreground">{tr('loadingRooms', locale)}</p>
             ) : null}
             {roomsError ? (
               <p className="text-sm text-destructive">{roomsError}</p>
             ) : null}
             {rooms && rooms.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No rooms configured for this hotel yet.
+                {tr('noRoomsConfigured', locale)}
               </p>
             ) : null}
             {rooms?.map((room) => {
@@ -1902,12 +1895,12 @@ export function AccommodationStep({
                       <span className="text-sm font-medium">{roomName}</span>
                       {room.price_per_unit ? (
                         <span className="text-xs text-muted-foreground">
-                          {formatCurrency(Number(room.price_per_unit), room.currency)}{' '}
-                          / night
+                          {formatCurrency(Number(room.price_per_unit), room.currency, locale)}{' '}
+                          {tr('perNightSuffix', locale)}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">
-                          Price on request
+                          {tr('priceOnRequest', locale)}
                         </span>
                       )}
                     </div>
@@ -1945,7 +1938,7 @@ export function AccommodationStep({
                       </div>
                       <span className="ml-1 w-20 text-right text-sm font-medium tabular-nums text-muted-foreground">
                         {subtotal > 0
-                          ? formatCurrency(subtotal, room.currency)
+                          ? formatCurrency(subtotal, room.currency, locale)
                           : '—'}
                       </span>
                     </div>
@@ -1996,7 +1989,7 @@ export function AccommodationStep({
             assigned — see the occupancy hint + canContinue above). */}
         {bookRooms && roomUnits.length > 0 && occupantCount > 0 ? (
           <fieldset className="flex flex-col gap-3 border-t pt-3">
-            <legend className="text-sm font-medium">Room assignment</legend>
+            <legend className="text-sm font-medium">{tr('roomAssignmentLegend', locale)}</legend>
             {sharedDoubleRooms ? (
               // landr-zeg4u.4 / .5: everyone but the booker. RoomAssignment
               // works in a 0-based member space, so hand it a VIEW of the
@@ -2071,8 +2064,7 @@ export function AccommodationStep({
                 data-testid="child-age-hint"
                 className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
               >
-                Please enter the age for each child guest — the hotel needs it
-                to prepare the room.
+                {tr('pleaseEnterChildAgeHint', locale)}
               </p>
             ) : null}
           </fieldset>
@@ -2110,16 +2102,15 @@ export function AccommodationStep({
               className="text-xs text-muted-foreground"
               data-testid="accommodation-stay-window"
             >
-              Stay: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
+              {tr('stayNightsLabel', locale)}: {checkInIso ? formatDayLabel(checkInIso, locale) : '—'} →{' '}
               {checkOutIso ? formatDayLabel(checkOutIso, locale) : '—'} ·{' '}
-              {nights} {nights === 1 ? 'night' : 'nights'}
+              {nights} {nightsWord(nights, locale)}
             </p>
             <p
               className="text-xs italic text-muted-foreground"
               data-testid="accommodation-payment-notice"
             >
-              Hotel is paid directly at check-in (cash / card) — not included
-              in your booking total.
+              {tr('hotelPaidAtCheckin', locale)}
             </p>
           </div>
         ) : null}
@@ -2134,7 +2125,7 @@ export function AccommodationStep({
 
         <ContinueAction
           ready={canContinue}
-          reason={canContinue ? 'Ready to continue.' : occupancyHint || 'Complete the steps above to continue.'}
+          reason={canContinue ? tr('readyToContinue', locale) : occupancyHint || tr('completeStepsAboveToContinue', locale)}
           reasonId="accommodation-step-gate"
           onContinue={handleContinue}
           data-testid="accommodation-step-submit"

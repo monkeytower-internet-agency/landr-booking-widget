@@ -12,6 +12,7 @@
  *   </OptionalReveal>
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { browserLocale } from '@/lib/locale'
 import { optionalRevealLabel } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
@@ -63,7 +64,7 @@ export function OptionalReveal({
         <span aria-hidden className="mr-1">
           +
         </span>
-        {optionalRevealLabel(thing)}
+        {optionalRevealLabel(thing, browserLocale())}
       </button>
     )
   }

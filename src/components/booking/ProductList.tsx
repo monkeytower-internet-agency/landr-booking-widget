@@ -107,7 +107,7 @@ export function ProductList({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>We could not load the products.</CardTitle>
+          <CardTitle>{tr('couldNotLoadProducts', locale)}</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
@@ -119,7 +119,7 @@ export function ProductList({
     return (
       <div className="flex flex-col gap-4">
         <span className="sr-only" role="status">
-          Loading products…
+          {tr('loadingProducts', locale)}
         </span>
         <ProductSkeleton view={view} />
       </div>
@@ -153,8 +153,8 @@ export function ProductList({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>No products in this category.</CardTitle>
-          <CardDescription>Please check back later.</CardDescription>
+          <CardTitle>{tr('noProductsInCategory', locale)}</CardTitle>
+          <CardDescription>{tr('checkBackLater', locale)}</CardDescription>
         </CardHeader>
       </Card>
     )

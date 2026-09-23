@@ -43,6 +43,7 @@ import { StepBackButton } from '@/components/booking/StepBackButton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { languageStepCue, languageStepGate, tr } from '@/lib/strings'
+import { browserLocale } from '@/lib/locale'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { HelpDisclosure } from './HelpDisclosure'
@@ -134,6 +135,7 @@ export function LanguageStep({
   onConfirm,
 }: LanguageStepProps) {
   const partyCount = participantNames.length
+  const locale = browserLocale()
 
   const [rawAssignment, setRawAssignment] = useState<ParticipantLanguageMap>(() =>
     seedAssignment(offeredLanguages, partyCount, initialAssignment),
@@ -197,13 +199,13 @@ export function LanguageStep({
   const gateId = 'language-step-gate'
   // landr-80ubl.1: one next action per screen — the board while anyone is
   // unplaced, Continue (via ContinueAction) once everyone is.
-  const nextActionCue = complete ? null : languageStepCue(unassignedLabels, started)
+  const nextActionCue = complete ? null : languageStepCue(unassignedLabels, started, locale)
 
   return (
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Guide language</CardTitle>
+        <CardTitle>{tr('guideLanguageTitle', locale)}</CardTitle>
         <CardDescription>{productName}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -212,8 +214,8 @@ export function LanguageStep({
             "Assign with dropdowns instead" stays where it was (inside the
             board, already collapsed): it is the a11y fallback, not help copy. */}
         <HelpDisclosure data-testid="language-step-help">
-          <p>{tr('languageStepWhy')}</p>
-          <p>{tr('languageStepHowTo')}</p>
+          <p>{tr('languageStepWhy', locale)}</p>
+          <p>{tr('languageStepHowTo', locale)}</p>
         </HelpDisclosure>
 
         <ParticipantLanguageBoard
@@ -237,7 +239,7 @@ export function LanguageStep({
           >
             <div className="flex flex-col gap-1" data-testid="language-step-other-languages">
               <Label htmlFor="language-step-other-languages-input" className="text-xs">
-                {otherLanguages.label} (optional)
+                {otherLanguages.label} {tr('optionalSuffix', locale)}
               </Label>
               <Input
                 id="language-step-other-languages-input"
@@ -268,7 +270,7 @@ export function LanguageStep({
             red once they have started. */}
         <ContinueAction
           ready={complete}
-          reason={languageStepGate(unassignedLabels)}
+          reason={languageStepGate(unassignedLabels, locale)}
           reasonId={gateId}
           reasonTestId="language-step-gate"
           reasonClassName={!complete && started ? 'text-destructive' : undefined}

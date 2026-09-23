@@ -22,6 +22,8 @@
 import { useState } from 'react'
 import type { ProductImage } from '@/api/types'
 import { ProductArt } from '@/components/booking/art/ProductArt'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 
@@ -103,7 +105,7 @@ export function ProductGallery({ images, seed, name }: Props) {
         <div
           className="flex gap-2 overflow-x-auto pb-1"
           role="group"
-          aria-label="Product image thumbnails"
+          aria-label={tr('productImageThumbnailsAria', browserLocale())}
           data-testid="product-gallery-thumbs"
         >
           {images.map((img, i) => {
@@ -113,7 +115,7 @@ export function ProductGallery({ images, seed, name }: Props) {
                 key={`${img.thumb_url}-${i}`}
                 type="button"
                 onClick={() => setActiveIndex(i)}
-                aria-label={`Show image ${i + 1}${img.alt ? `: ${img.alt}` : ''}`}
+                aria-label={`${tr('showImageAria', browserLocale()).replace('{name}', String(i + 1))}${img.alt ? `: ${img.alt}` : ''}`}
                 aria-pressed={selected}
                 data-testid="product-gallery-thumb"
                 data-active={selected ? 'true' : 'false'}

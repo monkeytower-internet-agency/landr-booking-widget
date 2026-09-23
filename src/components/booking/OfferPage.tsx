@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 
 /**
@@ -126,6 +127,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // customer_languages/default_locale field to whitelist against) — flagged
   // in the ticket handoff as an API gap; browserLocale() stays raw here.
   configureCustomerLocale(null, null)
+  const locale = browserLocale()
   // Detect if Stripe redirected back to this page.
   const paidParam =
     typeof window !== 'undefined'
@@ -211,8 +213,15 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         return_url: `${base}?paid=1`,
         cancel_url: `${base}?paid=cancelled`,
       })
-      // Hard-navigate to Stripe Checkout.
+      // Hard-navigate to Stripe Checkout. Deliberate imperative side effect
+      // inside a click-triggered async handler (not render) — the React
+      // Compiler's purity analysis over-flags this call-site (unrelated to
+      // the German-UI changes in this file; see landr-5aih0.9's PR
+      // description) because it can't distinguish an event handler from
+      // render here. Same navigation pattern the 'cancelled' status button
+      // a few lines below uses inline, which the compiler does not flag.
       if (typeof window !== 'undefined') {
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = resp.checkout_url
       }
     } catch (err) {
@@ -225,8 +234,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       console.error('[landr] initiatePayment failed', err)
       setErrorMessage(
         err instanceof Error && err.message
-          ? 'We could not start the payment. Please try again or contact us.'
-          : 'Something went wrong. Please try again later.',
+          ? tr('couldNotStartPayment', locale)
+          : tr('somethingWentWrongRetry', locale),
       )
       setStatus('pay_error')
     }
@@ -237,12 +246,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-payment-verifying">
         <CardHeader>
-          <CardTitle>Confirming your payment…</CardTitle>
-          <CardDescription>This usually takes a few seconds.</CardDescription>
+          <CardTitle>{tr('confirmingYourPayment', locale)}</CardTitle>
+          <CardDescription>{tr('usuallyTakesAFewSeconds', locale)}</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Please wait while we confirm your payment with our records.
+            {tr('pleaseWaitConfirmingPayment', locale)}
           </p>
         </CardContent>
       </Card>
@@ -254,13 +263,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-paid">
         <CardHeader>
-          <CardTitle>Payment complete</CardTitle>
-          <CardDescription>Your booking is confirmed.</CardDescription>
+          <CardTitle>{tr('paymentComplete', locale)}</CardTitle>
+          <CardDescription>{tr('yourBookingIsConfirmed', locale)}</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            Thank you! We have received your payment and your booking is
-            confirmed. You will receive a confirmation email shortly.
+            {tr('paymentCompleteBody', locale)}
           </p>
         </CardContent>
       </Card>
@@ -275,17 +283,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-payment-pending">
         <CardHeader>
-          <CardTitle>Still confirming your payment</CardTitle>
+          <CardTitle>{tr('stillConfirmingYourPayment', locale)}</CardTitle>
           <CardDescription>
-            This is taking longer than usual.
+            {tr('takingLongerThanUsual', locale)}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            We have not been able to confirm your payment yet. This does not
-            necessarily mean anything is wrong — we will email you a
-            confirmation as soon as it is processed. If you do not hear from
-            us shortly, please contact us.
+            {tr('paymentPendingBody', locale)}
           </p>
         </CardContent>
       </Card>
@@ -299,13 +304,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-payment-unknown">
         <CardHeader>
-          <CardTitle>We could not check your payment status</CardTitle>
+          <CardTitle>{tr('couldNotCheckPaymentStatusTitle', locale)}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            We were unable to reach our records just now. If your payment
-            succeeded, you will receive a confirmation email shortly. If
-            you are not sure, please contact us.
+            {tr('paymentUnknownBody', locale)}
           </p>
         </CardContent>
       </Card>
@@ -317,13 +320,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-payment-cancelled">
         <CardHeader>
-          <CardTitle>Payment cancelled</CardTitle>
-          <CardDescription>Your booking has not been charged.</CardDescription>
+          <CardTitle>{tr('paymentCancelledTitle', locale)}</CardTitle>
+          <CardDescription>{tr('yourBookingHasNotBeenCharged', locale)}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm">
-            You left the payment page without completing payment. Your booking
-            is still reserved — click below to try again.
+            {tr('paymentCancelledBody', locale)}
           </p>
           <Button
             type="button"
@@ -334,7 +336,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               }
             }}
           >
-            Try again
+            {tr('tryAgain', locale)}
           </Button>
         </CardContent>
       </Card>
@@ -348,13 +350,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         <CardHeader>
           {/* landr-esd3 */}
           <CardTitle>
-            {mode === 'pay' ? 'Payment link not found' : 'Offer not found'}
+            {mode === 'pay' ? tr('paymentLinkNotFoundTitle', locale) : tr('offerNotFoundTitle', locale)}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            This offer link is invalid or has expired. Please contact the
-            operator for a fresh link.
+            {tr('offerLinkInvalidBody', locale)}
           </p>
         </CardContent>
       </Card>
@@ -366,18 +367,18 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-pay-error">
         <CardHeader>
-          <CardTitle>Payment failed to start</CardTitle>
+          <CardTitle>{tr('paymentFailedToStartTitle', locale)}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm">
-            {errorMessage ?? 'Something went wrong.'}
+            {errorMessage ?? tr('somethingWentWrong', locale)}
           </p>
           <Button
             type="button"
             variant="outline"
             onClick={() => setStatus('ready')}
           >
-            Try again
+            {tr('tryAgain', locale)}
           </Button>
         </CardContent>
       </Card>
@@ -389,10 +390,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     return (
       <Card data-testid="offer-loading">
         <CardHeader>
-          <CardTitle>Loading your offer…</CardTitle>
+          <CardTitle>{tr('loadingYourOffer', locale)}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Please wait.</p>
+          <p className="text-sm text-muted-foreground">{tr('pleaseWait', locale)}</p>
         </CardContent>
       </Card>
     )
@@ -483,19 +484,19 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         {/* landr-esd3: pay mode swaps the title/description copy only —
             everything below (totals table, CTA, initiatePayment) is shared. */}
         <CardTitle>
-          {mode === 'pay' ? 'Complete your payment' : 'Your custom offer'}
+          {mode === 'pay' ? tr('completeYourPayment', locale) : tr('yourCustomOffer', locale)}
         </CardTitle>
         <CardDescription>
           {mode === 'pay'
-            ? 'Your booking is confirmed. Pay the outstanding balance below to secure it.'
-            : 'Review the details below and click Accept & Pay to confirm your booking.'}
+            ? tr('payModeDescription', locale)
+            : tr('offerModeDescription', locale)}
         </CardDescription>
         {offer.stage ? (
           <p
             className="mt-1 text-sm text-muted-foreground"
             data-testid="offer-stage-label"
           >
-            Status: {resolveCustomerStageLabel(offer.stage, browserLocale())}
+            {tr('statusLabel', locale)} {resolveCustomerStageLabel(offer.stage, locale)}
           </p>
         ) : null}
       </CardHeader>
@@ -503,8 +504,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
         {/* Product lines */}
         {product_lines.length > 0 && (
-          <section aria-label="Products">
-            <h3 className="mb-1 text-sm font-semibold">What you're booking</h3>
+          <section aria-label={tr('productsAria', locale)}>
+            <h3 className="mb-1 text-sm font-semibold">{tr('whatYoureBooking', locale)}</h3>
             <ul className="flex flex-col gap-1 text-sm">
               {product_lines.map((pl) => (
                 <li key={pl.product_id} data-testid="offer-product-line">
@@ -527,8 +528,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
         {/* Participants */}
         {participants.length > 0 && (
-          <section aria-label="Participants">
-            <h3 className="mb-1 text-sm font-semibold">Participants</h3>
+          <section aria-label={tr('offerParticipantsTitle', locale)}>
+            <h3 className="mb-1 text-sm font-semibold">{tr('offerParticipantsTitle', locale)}</h3>
             <ul className="flex flex-col gap-0.5 text-sm">
               {participants.map((p, i) => (
                 <li key={i} data-testid="offer-participant">
@@ -546,21 +547,21 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         )}
 
         {/* Price breakdown */}
-        <section aria-label="Price breakdown">
-          <h3 className="mb-1 text-sm font-semibold">Price breakdown</h3>
+        <section aria-label={tr('offerPriceBreakdownTitle', locale)}>
+          <h3 className="mb-1 text-sm font-semibold">{tr('offerPriceBreakdownTitle', locale)}</h3>
           <table className="w-full max-w-xs text-sm">
             <tbody>
               <tr>
-                <td className="py-0.5 pr-4 text-muted-foreground">Subtotal</td>
+                <td className="py-0.5 pr-4 text-muted-foreground">{tr('offerSubtotalLabel', locale)}</td>
                 <td className="py-0.5 text-right" data-testid="offer-net-total">
-                  {formatCurrency(breakdownNet, currencyCode)}
+                  {formatCurrency(breakdownNet, currencyCode, locale)}
                 </td>
               </tr>
               {breakdownTax > 0 && (
                 <tr>
-                  <td className="py-0.5 pr-4 text-muted-foreground">Tax</td>
+                  <td className="py-0.5 pr-4 text-muted-foreground">{tr('taxLabel', locale)}</td>
                   <td className="py-0.5 text-right" data-testid="offer-tax-total">
-                    {formatCurrency(breakdownTax, currencyCode)}
+                    {formatCurrency(breakdownTax, currencyCode, locale)}
                   </td>
                 </tr>
               )}
@@ -570,20 +571,20 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       in pay mode — mirrors booking_payment_link_en's
                       "Amount due" row word-for-word. */}
                   <tr className="border-t">
-                    <td className="py-1 pr-4 font-semibold">Amount due</td>
+                    <td className="py-1 pr-4 font-semibold">{tr('amountDueLabel', locale)}</td>
                     <td
                       className="py-1 text-right font-semibold"
                       data-testid="offer-balance-due"
                     >
                       {alreadySettled
-                        ? 'Nothing due now'
-                        : formatCurrency(chargeAmount, currencyCode)}
+                        ? tr('nothingDueNow', locale)
+                        : formatCurrency(chargeAmount, currencyCode, locale)}
                     </td>
                   </tr>
                   {showOperatorGross && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
-                        Your share of this booking
+                        {tr('yourShareOfThisBooking', locale)}
                       </td>
                       <td
                         className="py-0.5 text-right text-muted-foreground"
@@ -592,6 +593,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         {formatCurrency(
                           operatorGross as number,
                           currencyCode,
+                          locale,
                         )}
                       </td>
                     </tr>
@@ -599,13 +601,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   {showTotalBookingValue && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
-                        Total booking value
+                        {tr('totalBookingValueLabel', locale)}
                       </td>
                       <td
                         className="py-0.5 text-right text-muted-foreground"
                         data-testid="offer-gross-total"
                       >
-                        {formatCurrency(totals.gross_total, currencyCode)}
+                        {formatCurrency(totals.gross_total, currencyCode, locale)}
                       </td>
                     </tr>
                   )}
@@ -613,24 +615,24 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               ) : (
                 <>
                   <tr className="border-t">
-                    <td className="py-1 pr-4 font-semibold">Total</td>
+                    <td className="py-1 pr-4 font-semibold">{tr('offerTotalLabel', locale)}</td>
                     <td
                       className="py-1 text-right font-semibold"
                       data-testid="offer-gross-total"
                     >
-                      {formatCurrency(totals.gross_total, currencyCode)}
+                      {formatCurrency(totals.gross_total, currencyCode, locale)}
                     </td>
                   </tr>
                   {totals.balance_due !== totals.gross_total && (
                     <tr>
                       <td className="py-0.5 pr-4 text-muted-foreground">
-                        Amount due now
+                        {tr('amountDueNowLabel', locale)}
                       </td>
                       <td
                         className="py-0.5 text-right"
                         data-testid="offer-balance-due"
                       >
-                        {formatCurrency(totals.balance_due, currencyCode)}
+                        {formatCurrency(totals.balance_due, currencyCode, locale)}
                       </td>
                     </tr>
                   )}
@@ -643,8 +645,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               className="mt-1 text-xs text-muted-foreground"
               data-testid="offer-total-booking-value-note"
             >
-              This is the full value of the booking — not the amount being
-              charged now.
+              {tr('totalBookingValueNote', locale)}
             </p>
           )}
           {/* landr-gkj0: with the per-line split available we can finally
@@ -658,15 +659,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
             >
               <div className="flex items-baseline justify-between gap-4 text-sm">
                 <span className="text-muted-foreground">
-                  Payable directly to the hotel on arrival
+                  {tr('payableDirectlyToHotel', locale)}
                 </span>
                 <span className="font-medium">
-                  {formatCurrency(hotelAmount, currencyCode)}
+                  {formatCurrency(hotelAmount, currencyCode, locale)}
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Your accommodation is settled with the hotel at check-in. It is
-                not part of the amount charged here.
+                {tr('hotelSettledAtCheckin', locale)}
               </p>
             </div>
           )}
@@ -683,12 +683,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           data-testid="offer-accept-pay-btn"
         >
           {alreadySettled
-            ? 'Nothing to pay'
+            ? tr('nothingToPay', locale)
             : busy
-              ? 'Redirecting to payment…'
+              ? tr('redirectingToPaymentEllipsis', locale)
               : mode === 'pay'
-                ? 'Pay now'
-                : 'Accept & Pay'}
+                ? tr('payNowLabel', locale)
+                : tr('acceptAndPayLabel', locale)}
         </Button>
 
         <p className="text-xs text-muted-foreground">
@@ -697,10 +697,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               // card payment is settled — at-hotel lines never enter
               // balance_due, so the booking as a whole can still have money
               // owed directly to the hotel. Don't claim "paid in full".
-              "There's nothing further to pay through this link right now."
+              tr('nothingFurtherToPay', locale)
             : mode === 'pay'
-              ? 'This payment link is personal. Do not share it.'
-              : 'This offer link is personal. Do not share it.'}
+              ? tr('paymentLinkPersonal', locale)
+              : tr('offerLinkPersonal', locale)}
         </p>
       </CardContent>
     </Card>

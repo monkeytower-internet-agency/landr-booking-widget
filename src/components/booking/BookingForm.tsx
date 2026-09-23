@@ -28,7 +28,7 @@ import type {
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
-import { forceBookReasonMessage, type ForceReason } from '@/lib/strings'
+import { additionalAccommodationHeading, forceBookReasonMessage, nightsWord, tr, type ForceReason } from '@/lib/strings'
 import {
   distinctAssignedLanguages,
   languageFlag,
@@ -733,7 +733,9 @@ export function BookingForm({
   const partyMemberLabels = disambiguatePartyLabels([
     ...participants.map((p) => ({ first: p.first_name, last: p.last_name })),
     ...companions.map((c) => ({ first: c.first_name, last: c.last_name })),
-  ]).map((label, i) => (label && label.trim() ? label : `Guest ${i + 1}`))
+  ]).map((label, i) =>
+    label && label.trim() ? label : tr('guestFallbackTemplate', locale).replace('{n}', String(i + 1)),
+  )
 
   // Derive the hotel check-in/check-out window when the booking
   // includes room line items (landr-vyaz). The widget intentionally
@@ -749,15 +751,7 @@ export function BookingForm({
     const assigned = Object.keys(roomAssignment ?? {}).map(Number)
     const hasCoPilots = assigned.some((i) => i >= 1 && i < participants.length)
     const hasCompanions = assigned.some((i) => i >= participants.length)
-    const who =
-      hasCoPilots && hasCompanions
-        ? 'your companions and co-pilots'
-        : hasCoPilots
-          ? 'your co-pilots'
-          : hasCompanions
-            ? 'your companions'
-            : null
-    return who ? `Additional accommodation (for ${who})` : 'Additional accommodation'
+    return additionalAccommodationHeading(hasCoPilots, hasCompanions, locale)
   })()
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
@@ -1241,7 +1235,7 @@ export function BookingForm({
     <Card>
       <StepBackButton onBack={onBack} />
       <CardHeader>
-        <CardTitle>Review your booking</CardTitle>
+        <CardTitle>{tr('reviewYourBookingTitle', locale)}</CardTitle>
         <CardDescription>
           {product.name} · {describeSelection(selection, locale)}
           {showTimezone ? ` · ${timezone}` : ''}
@@ -1257,20 +1251,20 @@ export function BookingForm({
             <div className="font-medium">
               {/* landr-zeg4u.5 / .6: in a shared double these rooms are not
                   the booker's — say whose they are. */}
-              {isSharedDouble ? `${sharedDoubleRoomsHeading}: ` : 'Hotel: '}
+              {isSharedDouble ? `${sharedDoubleRoomsHeading}: ` : `${tr('hotelPrefix', locale)} `}
               {formatDayRange(stay.checkInIso, stay.checkOutIso, locale)},{' '}
-              {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
+              {stay.nights} {nightsWord(stay.nights, locale)}
             </div>
             {isSharedDouble ? (
               <p
                 className="text-muted-foreground mt-1 text-xs"
                 data-testid="shared-double-own-bed-note"
               >
-                Your own bed is the shared double room booked by the host.
+                {tr('sharedDoubleOwnBedNote', locale)}
               </p>
             ) : null}
             <p className="text-muted-foreground mt-1 text-xs">
-              Paid directly to hotel — not included in your booking total.
+              {tr('paidDirectlyToHotel', locale)}
             </p>
           </div>
         ) : null}
@@ -1283,17 +1277,17 @@ export function BookingForm({
           data-testid="review-booker"
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
         >
-          <h3 className="mb-2 text-sm font-semibold">Your contact</h3>
+          <h3 className="mb-2 text-sm font-semibold">{tr('yourContactHeading', locale)}</h3>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Name</dt>
+            <dt className="text-muted-foreground">{tr('nameLabel', locale)}</dt>
             <dd>
               {booker.first_name} {booker.last_name}
             </dd>
-            <dt className="text-muted-foreground">Email</dt>
+            <dt className="text-muted-foreground">{tr('emailLabel', locale)}</dt>
             <dd className="break-all">{booker.email}</dd>
             {booker.phone ? (
               <>
-                <dt className="text-muted-foreground">Phone</dt>
+                <dt className="text-muted-foreground">{tr('phoneLabel', locale)}</dt>
                 <dd>{booker.phone}</dd>
               </>
             ) : null}
@@ -1377,14 +1371,14 @@ export function BookingForm({
                         className="ml-2 text-xs text-primary font-medium"
                         data-testid={`companion-kind-label-${idx}`}
                       >
-                        joining the activity (separate guiding)
+                        {tr('joiningActivitySeparateGuiding', locale)}
                       </span>
                     ) : (
                       <span
                         className="ml-2 text-xs text-muted-foreground"
                         data-testid={`companion-kind-label-${idx}`}
                       >
-                        not doing the activity
+                        {tr('notDoingActivity', locale)}
                       </span>
                     )}
                     {c.email ? (
@@ -1438,7 +1432,7 @@ export function BookingForm({
             data-testid="review-per-room-breakfast"
             className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
           >
-            <h3 className="mb-2 text-sm font-semibold">Room breakfast</h3>
+            <h3 className="mb-2 text-sm font-semibold">{tr('roomBreakfastHeading', locale)}</h3>
             <ol className="space-y-1 text-sm">
               {perRoomBreakfastRows.map((row, idx) => (
                 <li
@@ -1607,11 +1601,11 @@ export function BookingForm({
             unPriceable
               ? UN_PRICEABLE_MESSAGE
               : submitting
-                ? 'Submitting your booking…'
-                : 'Ready to confirm.'
+                ? tr('submittingYourBookingEllipsis', locale)
+                : tr('readyToConfirm', locale)
           }
           reasonId="review-step-gate"
-          label={submitting ? 'Submitting…' : 'Confirm booking'}
+          label={submitting ? tr('submittingEllipsis', locale) : tr('confirmBookingLabel', locale)}
           onContinue={() => void onConfirm()}
           data-testid="review-confirm-btn"
         />

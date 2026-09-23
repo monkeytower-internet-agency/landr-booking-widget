@@ -46,7 +46,7 @@ export function CategoryTileRow({
     group.description_localized,
     locale,
   )
-  const countLabel = offerCountLabel(group)
+  const countLabel = offerCountLabel(group, locale)
   const fullySoldOut = isCategoryFullySoldOut(group)
   const hasImage = Boolean(group.image_url)
   const h3Style = titleFontStyle ? { fontFamily: titleFontStyle } : undefined

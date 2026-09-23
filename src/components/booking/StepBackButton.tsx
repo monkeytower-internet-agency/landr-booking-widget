@@ -1,6 +1,8 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BreadcrumbItem } from '@/appStepMachine'
+import { browserLocale } from '@/lib/locale'
+import { tr } from '@/lib/strings'
 import { useBreadcrumbNav } from './breadcrumbNav'
 
 interface Props {
@@ -35,7 +37,7 @@ interface Props {
  * The ghost/small styling keeps the affordance light so it doesn't compete with
  * the step's title.
  */
-export function StepBackButton({ onBack, label = 'Back' }: Props) {
+export function StepBackButton({ onBack, label = tr('backLabel', browserLocale()) }: Props) {
   const nav = useBreadcrumbNav()
   if (nav && nav.items.length > 1) {
     return <StepBreadcrumb items={nav.items} onNavigate={nav.onNavigate} />
@@ -74,7 +76,7 @@ function StepBreadcrumb({
   const backIndex = items.length - 2
   return (
     <nav
-      aria-label="Booking steps"
+      aria-label={tr('bookingStepsAriaLabel', browserLocale())}
       data-testid="step-breadcrumb"
       className="mb-2 px-6 pt-2"
     >
