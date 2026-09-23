@@ -1938,6 +1938,30 @@ describe('DetailsStep — copy booker contact into a secondary field (landr-0utg
       screen.getByRole('button', { name: "Use your phone" }),
     ).toBeInTheDocument()
   })
+
+  // landr-5aih0.27: the "copy from booker" icon's aria-label/title were a
+  // raw template literal (`Use your ${field}`) with NO locale awareness at
+  // all before this ticket — it rendered the same English text regardless
+  // of browser locale.
+  it('translates the "copy from booker" aria-labels to German', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    try {
+      renderStep()
+      fillBooker()
+      fireEvent.click(screen.getByRole('button', { name: /Teilnehmer hinzufügen/i }))
+      expect(
+        screen.getByRole('button', { name: 'E-Mail übernehmen' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Telefon übernehmen' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /Use your/ }),
+      ).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 describe('DetailsStep — separate_guiding companion contact required (D11, landr-otml0.3)', () => {

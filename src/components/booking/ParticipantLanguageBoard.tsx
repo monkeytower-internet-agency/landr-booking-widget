@@ -65,7 +65,13 @@ import {
 } from './participantLanguages'
 import { NextAction } from './NextAction'
 import { browserLocale } from '@/lib/locale'
-import { everyoneSpeaksLabel, languageStepGate, tr } from '@/lib/strings'
+import {
+  everyoneSpeaksLabel,
+  languageSpeakersAriaLabel,
+  languageStepGate,
+  removeLanguageAriaLabel,
+  tr,
+} from '@/lib/strings'
 
 /**
  * `pointerWithin` alone is wrong here even though the room board uses it:
@@ -229,7 +235,7 @@ function LanguageColumn({
       ref={setNodeRef}
       data-testid={`lang-column-${code}`}
       role="group"
-      aria-label={`${languageName(code, browserLocale())} speakers`}
+      aria-label={languageSpeakersAriaLabel(languageName(code, browserLocale()), browserLocale())}
       className={[
         'flex flex-col gap-2 rounded-lg border p-3 transition-colors',
         isOver
@@ -257,7 +263,7 @@ function LanguageColumn({
               type="button"
               onClick={() => onCloseLanguage(code)}
               data-testid={`lang-remove-${code}`}
-              aria-label={`Remove ${languageName(code, browserLocale())}`}
+              aria-label={removeLanguageAriaLabel(languageName(code, browserLocale()), browserLocale())}
               className="rounded-md border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
             >
               ✕

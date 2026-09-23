@@ -223,3 +223,33 @@ describe('joinLanguageNames (landr-pv2r1)', () => {
     )
   })
 })
+
+// landr-5aih0.27 — review-gate follow-up on PR #327: languageName and
+// joinLanguageNames were already locale-aware (Intl.DisplayNames('de', ...)
+// with the LANGUAGE_NAMES_DE fallback table, and 'und' instead of 'and'),
+// but neither had a test actually passing locale='de'.
+describe('display — German UI (landr-5aih0.27)', () => {
+  it('languageName(code, "de") names the common codes in German and degrades to the bare code', () => {
+    expect(languageName('de', 'de')).toBe('Deutsch')
+    expect(languageName('en', 'de')).toBe('Englisch')
+    expect(languageName('es', 'de')).toBe('Spanisch')
+    expect(languageName('fr', 'de')).toBe('Französisch')
+    // An offered code neither Intl.DisplayNames nor the fallback table
+    // recognises still degrades to the bare (uppercased) code, same as the
+    // English path.
+    expect(languageName('zz', 'de')).toBe('ZZ')
+  })
+
+  it('joinLanguageNames joins German names with "und", not "and"', () => {
+    expect(joinLanguageNames([], 'de')).toBe('')
+    expect(joinLanguageNames(['en'], 'de')).toBe('Englisch')
+    expect(joinLanguageNames(['de', 'en'], 'de')).toBe('Deutsch und Englisch')
+    expect(joinLanguageNames(['en', 'es', 'de', 'fr'], 'de')).toBe(
+      'Englisch, Spanisch, Deutsch und Französisch',
+    )
+  })
+
+  it('a regional German tag (de-AT) resolves the same as bare "de"', () => {
+    expect(languageName('fr', 'de-AT')).toBe('Französisch')
+  })
+})

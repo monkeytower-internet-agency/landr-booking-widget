@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { ShopComingSoonStub } from './ShopComingSoonStub'
@@ -51,6 +51,39 @@ describe('ShopComingSoonStub (landr-y9k)', () => {
     const onBack = vi.fn()
     render(<ShopComingSoonStub product={makeProduct()} onBack={onBack} />)
     fireEvent.click(screen.getByRole('button', { name: /back/i }))
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+})
+
+// landr-5aih0.27 — review-gate follow-up on PR #324/#327: ShopComingSoonStub
+// was translated (KIND_LABEL_DE, shopComingSoonBodyTemplate,
+// backToProductsLabel) but had no German render test proving it.
+describe('ShopComingSoonStub — German UI (landr-5aih0.27)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('renders the body copy and Back button in German', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    const onBack = vi.fn()
+    render(
+      <ShopComingSoonStub
+        product={makeProduct({ product_kind: 'digital_good', name: 'PDF Guide' })}
+        onBack={onBack}
+      />,
+    )
+
+    expect(screen.getByText('PDF Guide')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Diese Art von Produkt (digitales Produkt) wird über unseren Shop verkauft, der in Kürze verfügbar ist. Bitte kontaktieren Sie den Anbieter direkt, um es in der Zwischenzeit zu bestellen.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Shop, which is coming soon/i)).not.toBeInTheDocument()
+
+    const backButton = screen.getByRole('button', { name: 'Zurück zu den Angeboten' })
+    expect(backButton).toBeInTheDocument()
+    fireEvent.click(backButton)
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 })
