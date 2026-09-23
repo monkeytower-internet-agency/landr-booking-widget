@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { isDayBookable } from '@/components/booking/bookability'
+import { slotKey } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -54,8 +55,10 @@ export function AvailabilityPicker({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() =>
     initialSlot ? dateFromIso(initialSlot.date) : undefined,
   )
+  // landr-k9pji.1: keyed by slotKey(), not availability_id — a synthesised
+  // on-request day has availability_id === null.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(
-    initialSlot ? initialSlot.availability_id : null,
+    initialSlot ? slotKey(initialSlot) : null,
   )
 
   const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
@@ -158,10 +161,10 @@ export function AvailabilityPicker({
               <div className="flex flex-wrap gap-2">
                 {slotsForSelectedDate.map((slot) => (
                   <Button
-                    key={slot.availability_id}
+                    key={slotKey(slot)}
                     type="button"
-                    variant={selectedSlotId === slot.availability_id ? 'default' : 'outline'}
-                    onClick={() => setSelectedSlotId(slot.availability_id)}
+                    variant={selectedSlotId === slotKey(slot) ? 'default' : 'outline'}
+                    onClick={() => setSelectedSlotId(slotKey(slot))}
                   >
                     {slot.start_time?.slice(0, 5) ?? 'Any time'}
                     {exposeSeatsToCustomer ? (
@@ -181,7 +184,7 @@ export function AvailabilityPicker({
           reasonId="availability-picker-gate"
           onContinue={() => {
             const slot = slotsForSelectedDate.find(
-              (s) => s.availability_id === selectedSlotId,
+              (s) => slotKey(s) === selectedSlotId,
             )
             if (slot) onConfirm(slot)
           }}

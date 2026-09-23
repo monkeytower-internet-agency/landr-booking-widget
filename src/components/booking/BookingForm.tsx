@@ -951,7 +951,10 @@ export function BookingForm({
           // the primary service line carries a single time slot — the
           // accommodationRooms/addons lines below span the whole stay and
           // have no one availability row to attach.
-          ...(selection.kind === 'slot'
+          // landr-k9pji.1: a synthesised on-request day has NO row
+          // (availability_id === null) — omit the key entirely; the RPC only
+          // validates product_availability_id when one is supplied.
+          ...(selection.kind === 'slot' && selection.slot.availability_id
             ? { product_availability_id: selection.slot.availability_id }
             : {}),
         },

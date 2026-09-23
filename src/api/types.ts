@@ -708,7 +708,14 @@ export interface ProductAddon {
 }
 
 export interface AvailabilitySlot {
-  availability_id: string
+  /**
+   * landr-k9pji.1: NULL on a SYNTHESISED day — a `booking_mode='on_request'`
+   * product's open whole-day row for a date with no real
+   * product_availability row (the API makes one per future day, today ..
+   * today+365). There is no row to point at, so key/select such a slot with
+   * `slotKey()` and submit it WITHOUT `product_availability_id`.
+   */
+  availability_id: string | null
   date: string
   start_time: string | null
   end_time: string | null
