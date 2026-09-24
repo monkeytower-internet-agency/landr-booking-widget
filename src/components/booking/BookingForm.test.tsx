@@ -1018,6 +1018,62 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     )
   })
 
+  // landr-k9pji.11: operator-setup gap — a product whose flow is missing the
+  // customer_declarations custom_form module (or whose ensureProductFlow
+  // fetch raced/failed) 422s declarations_required / form_responses_required
+  // with a message that tells the customer to go back and confirm
+  // declarations they were never shown. Must map to the clear, non-blaming
+  // setup-error message instead of the raw server text or the generic
+  // 422-detail dump (previously: an opaque/silent failure).
+  it.each(['declarations_required', 'form_responses_required'])(
+    'maps a 422 %s submit error to the operator-setup message',
+    async (errorCode) => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockRejectedValue(
+        new HttpError(
+          422,
+          'Unprocessable Entity',
+          JSON.stringify({
+            detail: {
+              error: errorCode,
+              missing: ['license_valid'],
+              message: 'All eligibility declarations must be confirmed before booking.',
+            },
+          }),
+        ),
+      )
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={[bookerAsParticipant(ADA_BOOKER)]}
+          pickupLocationId={null}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+        />,
+      )
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() =>
+        expect(screen.getByTestId('review-error')).toHaveTextContent(
+          "setup issue on the operator's side",
+        ),
+      )
+      // Not the raw server message (which tells the customer to "go back and
+      // confirm declarations" they were never shown a step for) and not the
+      // generic 422-detail dump.
+      expect(screen.getByTestId('review-error')).not.toHaveTextContent(
+        'All eligibility declarations must be confirmed',
+      )
+      expect(screen.getByTestId('review-error')).not.toHaveTextContent(
+        'license_valid',
+      )
+    },
+  )
+
   // landr-t869m.1/.2: the submit endpoint hard-rejects a booking that falls
   // inside the product's preparation window with 422
   // {"error":"lead_time_not_met",...}. The server already builds the
