@@ -1674,7 +1674,7 @@ function BookingFlowApp() {
         so the main column simply takes the full width. Wider max-w-5xl
         gives the sidebar breathing room without squeezing the step content.
       */}
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-2 sm:p-6">
         {/*
           landr-yp8x / landr-nils — operator brand + intro header. The
           widget is embedded inside the operator's own page, so they own
