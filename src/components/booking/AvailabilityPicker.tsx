@@ -142,7 +142,17 @@ export function AvailabilityPicker({
             for its own stage; ContinueAction (active by default) takes over
             once a time is picked. */}
         <NextAction active={!selectedDate} cue={tr('availabilityDateCue', locale)}>
+          {slots === null ? (
+            <p
+              role="status"
+              className="text-muted-foreground animate-pulse text-center text-sm"
+              data-testid="availability-loading"
+            >
+              {tr('loadingAvailabilityEllipsis', locale)}
+            </p>
+          ) : null}
           <Calendar
+            className={slots === null ? 'pointer-events-none opacity-40' : undefined}
             mode="single"
             selected={selectedDate}
             onSelect={(date) => {
