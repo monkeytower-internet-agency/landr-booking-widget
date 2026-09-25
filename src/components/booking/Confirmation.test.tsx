@@ -1277,17 +1277,36 @@ describe('Confirmation', () => {
     expect(screen.queryByText(/payment link/i)).not.toBeInTheDocument()
   })
 
-  it('payment_mode=online + payment_link_sent: deposit-flavoured payment-link line', () => {
+  it('payment_mode=online + payment_link_sent + deposit_percent set: deposit-flavoured payment-link line', () => {
     const response = baseResponse({
       approval_outcome: 'auto_approved',
       payment_mode: 'online',
       payment_link_sent: true,
+      deposit_percent: 30,
     })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
 
     expect(
       screen.getByTestId('confirmation-payment-mode-note'),
     ).toHaveTextContent(/a payment link for your deposit is on its way/i)
+  })
+
+  // landr-k9pji.15: review-gate fix — before this, EVERY 'online' operator
+  // got the deposit-flavoured line, even one charging the full balance
+  // (no deposit_percent configured at all).
+  it('payment_mode=online + payment_link_sent + no deposit_percent: plain payment-link line, not deposit-flavoured', () => {
+    const response = baseResponse({
+      approval_outcome: 'auto_approved',
+      payment_mode: 'online',
+      payment_link_sent: true,
+      deposit_percent: null,
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(
+      screen.getByTestId('confirmation-payment-mode-note'),
+    ).toHaveTextContent(/a payment link is on its way/i)
+    expect(screen.queryByText(/for your deposit/i)).not.toBeInTheDocument()
   })
 
   it('payment_mode=online without payment_link_sent: no payment line at all', () => {

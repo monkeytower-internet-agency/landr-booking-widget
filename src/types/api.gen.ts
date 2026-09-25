@@ -958,6 +958,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/promotions/local-worktree/{repo}/land-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Land Prompt
+         * @description Prompt text for 'Copy prompt' (landr-u3bfe) — the same instructions
+         *     'Hand to Claude' spawns a background session with (``land_prompt``,
+         *     kept DRY between the two), minus the background-session framing, for a
+         *     dirty/unpushed dev checkout ok wants to land from their own interactive
+         *     Claude CLI session instead. DEV/Trillian ONLY, same gate as the other
+         *     local-worktree endpoints.
+         */
+        get: operations["get_land_prompt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/local-worktree/{repo}/pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pull Local Worktree
+         * @description 'Pull' — fast-forward a clean, behind-only Trillian checkout to dev.
+         *
+         *     DEV/Trillian ONLY, same gate as the other local-worktree endpoints (404
+         *     ``local_worktree_disabled`` everywhere else). Unlike 'Hand to Claude' this
+         *     runs synchronously (a plain fast-forward needs no review) and returns the
+         *     refreshed row so the dashboard can update the cell without a re-fetch.
+         *
+         *     409 when the checkout is dirty, ahead of origin, already landing, or not
+         *     on dev; 502 (``pull_failed``) when ``git pull --ff-only`` itself fails.
+         */
+        post: operations["pull_local_worktree"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/promotions/preview-migrations": {
         parameters: {
             query?: never;
@@ -2231,6 +2284,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/briefings/{token}/push-subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push Subscribe
+         * @description Register this browser for Web Push updates about THIS booking
+         *     (landr-5aih0.6) — pickup time/location, conditions and meeting-point
+         *     changes, pushed by app/workers/booking_change_drain.py.
+         *
+         *     THE TOKEN IS THE AUTHORISATION, exactly as for the page itself: the same
+         *     liveness gate (published, unexpired, undeleted, booking not cancelled)
+         *     via ``_resolve_briefing_booking``; every failure is the same opaque 404.
+         *     The booking id is never returned.
+         *
+         *     Upserts on the plain UNIQUE (booking_id, endpoint) — re-subscribing the
+         *     same browser (permission re-grant, service-worker update, the page's
+         *     own re-register on load) updates in place instead of stacking rows that
+         *     would each get a push. Metered per IP and per token like ``/join``.
+         */
+        post: operations["public_briefing_push_subscribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/contact-page/{token}": {
         parameters: {
             query?: never;
@@ -2926,6 +3011,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/tickets/{token}.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ticket Png */
+        get: operations["public_ticket_png"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/tickets/{token}.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ticket Svg */
+        get: operations["public_ticket_svg"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/today/me": {
         parameters: {
             query?: never;
@@ -3399,6 +3518,31 @@ export interface paths {
          *     line's CURRENTLY stored ``selected_days``.
          */
         post: operations["reprice_booking_product_at_current_entitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Operator
+         * @description Create an additional FREE-tier operator owned by the caller.
+         *
+         *     Responses: 201 `{operator_id, slug}`; 422 `invalid_slug` /
+         *     `unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +
+         *     suggestions; 403 `not_a_member` (no `public.users` row); 429
+         *     `rate_limited` (5/user/day).
+         */
+        post: operations["create_operator"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4483,6 +4627,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/checkins/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan Ticket Checkin
+         * @description landr-5aih0.10 (c10): a guide scans a participant's QR ticket.
+         *
+         *     Verifies the ticket token (app.services.ticket_tokens — a SEPARATE
+         *     token family from booking_tokens, see that module's docstring), then
+         *     writes the participant PRESENT for the operator-local today via the
+         *     SAME atomic RPC the /today board's own status tap uses
+         *     (staff_put_participant_day_state — app.routers.staff_participant_day_state,
+         *     exactly like public_briefings_checkin._apply_day_state_side_write does
+         *     for the customer's own self-report path). ``p_set_by`` is this staff
+         *     user (unlike the customer path, which passes NULL) — a scan is a staff
+         *     action, has a real ``users.id``, and should show up as such on the
+         *     day-state row's provenance.
+         *
+         *     Every failure mode here is an opaque 404 EXCEPT the "not a trip day"
+         *     case, which is a 409 the scanning UI can render distinctly ("wrong
+         *     day" vs "this isn't a ticket") — same shape distinction the CONTRACT
+         *     calls out. A bad/expired/tampered token and a ticket whose participant
+         *     or booking no longer belongs to THIS operator collapse to the same
+         *     opaque 404 — a stranger scanning garbage, or another operator's ticket,
+         *     learns nothing about why it failed.
+         */
+        post: operations["staff_scan_ticket_checkin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/checkins/{checkin_id}": {
         parameters: {
             query?: never;
@@ -5472,7 +5655,17 @@ export interface paths {
         /** List Role Types */
         get: operations["list_role_types"];
         put?: never;
-        /** Create Role Type */
+        /**
+         * Create Role Type
+         * @description Add a location role type.
+         *
+         *     landr-k9pji.3: ``location_role_types_operator_code_key`` is a NON-partial
+         *     unique constraint, so a code whose row was soft-deleted could never be
+         *     re-created (the insert 500'd). Now: a live duplicate is 409
+         *     ``code_taken``; a soft-deleted one is resurrected with the body's values
+         *     — which is how an operator who deleted the baseline ``hotel`` type gets it
+         *     back when Settings -> Hotels points them here.
+         */
         post: operations["create_role_type"];
         delete?: never;
         options?: never;
@@ -6426,11 +6619,46 @@ export interface paths {
         /** List Provider Role Types */
         get: operations["list_provider_role_types"];
         put?: never;
-        post?: never;
+        /**
+         * Create Provider Role Type
+         * @description Add a provider role type. 409 ``code_taken`` when a live row already
+         *     owns ``code``; a soft-deleted row with that code is resurrected with the
+         *     body's values instead (the unique index is non-partial, so a plain insert
+         *     can never reuse it).
+         */
+        post: operations["create_provider_role_type"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/provider-role-types/{role_type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Provider Role Type
+         * @description Soft-delete (Decision #69). 409 ``role_type_in_use`` — with the
+         *     referencing ids under ``providers`` / ``assignments`` /
+         *     ``service_roles`` — while anything live still points at it.
+         */
+        delete: operations["delete_provider_role_type"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Provider Role Type
+         * @description Relabel / reorder / (de)activate. ``code`` is immutable. An explicit
+         *     null only means something for ``label_localized`` (clear it); on the
+         *     NOT NULL columns it is ignored rather than 500ing on the constraint.
+         */
+        patch: operations["patch_provider_role_type"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/providers": {
@@ -7875,6 +8103,34 @@ export interface paths {
         patch: operations["patch_tag"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/today/board-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List All Day Board Messages
+         * @description Every activity's day board for ``day``, merged, oldest first.
+         *
+         *     The Today board's Messages inbox (landr-hy6wd): participants post to
+         *     their own product's board, and on "All activities" staff must still see
+         *     those posts — per-product reads would hide them behind the switcher,
+         *     which is how participant replies went unseen. Each row carries
+         *     ``product_id`` so the client labels and filters by activity. Board posts
+         *     only (``scope='activity_day'``); addressed sends have their own history
+         *     at ``GET /today/messages``.
+         */
+        get: operations["staff_list_all_day_board_messages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/today/messages": {
         parameters: {
             query?: never;
@@ -9216,6 +9472,35 @@ export interface components {
             /** Welcome Note */
             welcome_note?: string | null;
         };
+        /** BriefingPushKeys */
+        BriefingPushKeys: {
+            /** Auth */
+            auth: string;
+            /** P256Dh */
+            p256dh: string;
+        };
+        /**
+         * BriefingPushSubscribeIn
+         * @description ``{subscription: PushSubscription.toJSON()}`` — the same wire shape as
+         *     ``POST /api/public/today/push-subscribe`` (public_today_messages.py).
+         *     Top-level model names are unique on purpose: a nested ``Subscription``
+         *     would collide with that router's and rename its OpenAPI schema.
+         */
+        BriefingPushSubscribeIn: {
+            subscription: components["schemas"]["BriefingPushSubscription"];
+        };
+        /**
+         * BriefingPushSubscription
+         * @description ``PushSubscription.toJSON()``. ``expirationTime`` is accepted and
+         *     ignored: browsers include it (usually ``null``).
+         */
+        BriefingPushSubscription: {
+            /** Endpoint */
+            endpoint: string;
+            /** Expirationtime */
+            expirationTime?: number | null;
+            keys: components["schemas"]["BriefingPushKeys"];
+        };
         /** BulkReminderIn */
         BulkReminderIn: {
             /** Booking Ids */
@@ -9537,6 +9822,31 @@ export interface components {
             role: "owner" | "admin" | "staff" | "field" | "finance" | "readonly";
             /** User Id */
             user_id: string;
+        };
+        /**
+         * CreateOperatorRequest
+         * @description POST /api/staff/operators body.
+         *
+         *     `name` is the new operator's display name. `slug` is the desired public
+         *     handle — same grammar as public signup (`app/services/operator_slugs.py`).
+         *     `preset_key` (optional) is stored on the new operator only — mirrors
+         *     `SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies
+         *     it, nothing is applied here.
+         */
+        CreateOperatorRequest: {
+            /** Name */
+            name: string;
+            /** Preset Key */
+            preset_key?: string | null;
+            /** Slug */
+            slug: string;
+        };
+        /** CreateOperatorResponse */
+        CreateOperatorResponse: {
+            /** Operator Id */
+            operator_id: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * CredentialUpsertIn
@@ -10872,6 +11182,43 @@ export interface components {
             /** Return Url */
             return_url: string;
         };
+        /**
+         * InitiatePaymentOut
+         * @description Response of POST /api/public/payments/initiate (landr-k9pji.15).
+         *
+         *     Before this the endpoint's ``response_model`` was an open ``dict``, so
+         *     ``openapi.json`` typed every field as ``{}`` (unknown) and the widget's
+         *     hand-written ``InitiatePaymentWireResponse``
+         *     (landr-booking-widget/src/api/client.ts) had to guess the wire shape from
+         *     reading this file rather than from the generated contract — exactly the
+         *     class of drift ``landr-k9pji.4``'s review flagged.
+         *
+         *     Money fields are ``str``, not ``Decimal``/``float``: FastAPI's default
+         *     JSON encoder already serialised ``Decimal`` as a string on the wire
+         *     (``str(charge_amount)`` etc., unchanged from before this model existed) —
+         *     this model documents that existing wire shape, it does not change it. A
+         *     numeric type here would be a silent behaviour change for every consumer
+         *     (landr-booking-widget's ``InitiatePaymentWireResponse`` already expects a
+         *     string and coerces it itself).
+         */
+        InitiatePaymentOut: {
+            /** Amount */
+            amount: string;
+            /** Balance Due */
+            balance_due: string;
+            /** Checkout Url */
+            checkout_url: string;
+            /** Currency */
+            currency: string;
+            /** Deposit */
+            deposit: boolean;
+            /** Deposit Percent */
+            deposit_percent: number | null;
+            /** Payment Id */
+            payment_id: string | null;
+            /** Stripe Payment Intent Id */
+            stripe_payment_intent_id: string | null;
+        };
         /** InsuranceCreateRequest */
         InsuranceCreateRequest: {
             /** Expiry Date */
@@ -11854,6 +12201,10 @@ export interface components {
             tax_id?: string | null;
             /** Tax Id Kind */
             tax_id_kind?: ("es_nif" | "es_cif" | "de_ust_idnr" | "uk_vat" | "fr_siren" | "generic_eu_vat" | "other") | null;
+            /** Terminology */
+            terminology?: {
+                [key: string]: components["schemas"]["TermPair"];
+            } | null;
             /** Theme */
             theme?: {
                 [key: string]: unknown;
@@ -12929,6 +13280,40 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /** ProviderRoleTypeIn */
+        ProviderRoleTypeIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** ProviderRoleTypePatch */
+        ProviderRoleTypePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /**
          * PublicBookingOffer
          * @description Full response of GET /api/public/bookings/{token}.
@@ -13607,6 +13992,14 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ScanIn
+         * @description POST body — the raw QR ticket token, as scanned or pasted.
+         */
+        ScanIn: {
+            /** Token */
+            token: string;
+        };
+        /**
          * ScopedMessagePostIn
          * @description One post at one of the three audience scopes.
          *
@@ -14184,6 +14577,8 @@ export interface components {
             confirmation_email_status?: string | null;
             /** Customer Page Url */
             customer_page_url?: string | null;
+            /** Deposit Percent */
+            deposit_percent?: number | null;
             /** Group */
             group?: {
                 [key: string]: unknown;
@@ -14424,6 +14819,24 @@ export interface components {
             operator_rate_pct: string;
             /** Override Key */
             override_key?: string | null;
+        };
+        /**
+         * TermPair
+         * @description landr-iqo7q.1 — one operators.terminology override: the singular
+         *     ('one') / plural ('many') word an operator wants shown instead of
+         *     Landr's own word for a core noun (e.g. performer -> "Guide" / "Guides").
+         *     Mirrors operators_terminology_shape / the public.is_valid_terminology()
+         *     helper (migration 20260923173000_operators_terminology.sql)
+         *     byte-for-byte: both values required, trimmed, 1..40 chars after trim,
+         *     no `<`/`>` (no HTML). extra="forbid" so a value shaped besides
+         *     {one, many} 422s here instead of silently dropping fields or reaching
+         *     the DB CHECK.
+         */
+        TermPair: {
+            /** Many */
+            many: string;
+            /** One */
+            one: string;
         };
         /**
          * TestEmailRequest
@@ -16613,6 +17026,72 @@ export interface operations {
             };
         };
     };
+    get_land_prompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_local_worktree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     preview_migrations: {
         parameters: {
             query: {
@@ -18096,6 +18575,43 @@ export interface operations {
             };
         };
     };
+    public_briefing_push_subscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BriefingPushSubscribeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_get_contact_page: {
         parameters: {
             query?: never;
@@ -18707,9 +19223,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["InitiatePaymentOut"];
                 };
             };
             /** @description Validation Error */
@@ -18944,6 +19458,68 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_ticket_png: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_ticket_svg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -19644,6 +20220,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_operator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOperatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateOperatorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21605,6 +22214,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_scan_ticket_checkin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -25973,6 +26619,117 @@ export interface operations {
             };
         };
     };
+    create_provider_role_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderRoleTypeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_provider_role_type: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                role_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_provider_role_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                role_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderRoleTypePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_providers: {
         parameters: {
             query?: never;
@@ -27592,6 +28349,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_all_day_board_messages: {
+        parameters: {
+            query: {
+                day: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */

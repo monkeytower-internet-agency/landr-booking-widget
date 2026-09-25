@@ -680,11 +680,11 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
  * "A payment link is on its way." copy, unchanged.
  *
  * The 'online' case keeps the same payment_link_sent gate (no line at all
- * until the API actually sent a link) but says "for your deposit" —
- * landr-k9pji.4 added the deposit_percent option, so a link on this rail
- * may now be a partial charge rather than the full balance. Precisely
- * distinguishing "full" vs "deposit" online payments in THIS copy is
- * follow-up work (landr-k9pji.15); out of scope here.
+ * until the API actually sent a link). landr-k9pji.15: now branches on
+ * `deposit_percent` (API, landr-k9pji.4 PR #848 review gate) to say "for
+ * your deposit" ONLY when the operator actually has a deposit configured —
+ * before this fix it said "for your deposit" for EVERY 'online' operator,
+ * including one charging the full balance.
  */
 function paymentModeNote(response: SubmitBookingResponse, locale?: string): string | null {
   const t = pickBundle(locale)
@@ -694,7 +694,10 @@ function paymentModeNote(response: SubmitBookingResponse, locale?: string): stri
     case 'bank_transfer':
       return t.bankTransferNote
     case 'online':
-      return response.payment_link_sent ? t.paymentLinkForDepositOnItsWay : null
+      if (!response.payment_link_sent) return null
+      return response.deposit_percent != null
+        ? t.paymentLinkForDepositOnItsWay
+        : t.paymentLinkOnItsWay
     default:
       return response.payment_link_sent ? t.paymentLinkOnItsWay : null
   }
