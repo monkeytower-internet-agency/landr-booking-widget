@@ -2044,6 +2044,75 @@
         "title": "BriefingPatchIn",
         "type": "object"
       },
+      "BriefingPushKeys": {
+        "additionalProperties": false,
+        "properties": {
+          "auth": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "BriefingPushKeys",
+        "type": "object"
+      },
+      "BriefingPushSubscribeIn": {
+        "additionalProperties": false,
+        "description": "``{subscription: PushSubscription.toJSON()}`` \u2014 the same wire shape as\n``POST /api/public/today/push-subscribe`` (public_today_messages.py).\nTop-level model names are unique on purpose: a nested ``Subscription``\nwould collide with that router's and rename its OpenAPI schema.",
+        "properties": {
+          "subscription": {
+            "$ref": "#/components/schemas/BriefingPushSubscription"
+          }
+        },
+        "required": [
+          "subscription"
+        ],
+        "title": "BriefingPushSubscribeIn",
+        "type": "object"
+      },
+      "BriefingPushSubscription": {
+        "additionalProperties": false,
+        "description": "``PushSubscription.toJSON()``. ``expirationTime`` is accepted and\nignored: browsers include it (usually ``null``).",
+        "properties": {
+          "endpoint": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "expirationTime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expirationtime"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/BriefingPushKeys"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "BriefingPushSubscription",
+        "type": "object"
+      },
       "BulkReminderIn": {
         "properties": {
           "booking_ids": {
@@ -2898,6 +2967,59 @@
           "role"
         ],
         "title": "CreateMembershipBody",
+        "type": "object"
+      },
+      "CreateOperatorRequest": {
+        "description": "POST /api/staff/operators body.\n\n`name` is the new operator's display name. `slug` is the desired public\nhandle \u2014 same grammar as public signup (`app/services/operator_slugs.py`).\n`preset_key` (optional) is stored on the new operator only \u2014 mirrors\n`SignupRequest.preset_key` (landr-k9pji.2); the onboarding wizard applies\nit, nothing is applied here.",
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "preset_key": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Key"
+          },
+          "slug": {
+            "maxLength": 30,
+            "minLength": 3,
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "CreateOperatorRequest",
+        "type": "object"
+      },
+      "CreateOperatorResponse": {
+        "properties": {
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operator_id",
+          "slug"
+        ],
+        "title": "CreateOperatorResponse",
         "type": "object"
       },
       "CredentialUpsertIn": {
@@ -6690,6 +6812,76 @@
         "title": "InitiatePaymentIn",
         "type": "object"
       },
+      "InitiatePaymentOut": {
+        "description": "Response of POST /api/public/payments/initiate (landr-k9pji.15).\n\nBefore this the endpoint's ``response_model`` was an open ``dict``, so\n``openapi.json`` typed every field as ``{}`` (unknown) and the widget's\nhand-written ``InitiatePaymentWireResponse``\n(landr-booking-widget/src/api/client.ts) had to guess the wire shape from\nreading this file rather than from the generated contract \u2014 exactly the\nclass of drift ``landr-k9pji.4``'s review flagged.\n\nMoney fields are ``str``, not ``Decimal``/``float``: FastAPI's default\nJSON encoder already serialised ``Decimal`` as a string on the wire\n(``str(charge_amount)`` etc., unchanged from before this model existed) \u2014\nthis model documents that existing wire shape, it does not change it. A\nnumeric type here would be a silent behaviour change for every consumer\n(landr-booking-widget's ``InitiatePaymentWireResponse`` already expects a\nstring and coerces it itself).",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "balance_due": {
+            "title": "Balance Due",
+            "type": "string"
+          },
+          "checkout_url": {
+            "title": "Checkout Url",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "deposit": {
+            "title": "Deposit",
+            "type": "boolean"
+          },
+          "deposit_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deposit Percent"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "stripe_payment_intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Payment Intent Id"
+          }
+        },
+        "required": [
+          "checkout_url",
+          "payment_id",
+          "stripe_payment_intent_id",
+          "amount",
+          "currency",
+          "deposit",
+          "deposit_percent",
+          "balance_due"
+        ],
+        "title": "InitiatePaymentOut",
+        "type": "object"
+      },
       "InsuranceCreateRequest": {
         "properties": {
           "expiry_date": {
@@ -9768,6 +9960,20 @@
               }
             ],
             "title": "Tax Id Kind"
+          },
+          "terminology": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/TermPair"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminology"
           },
           "theme": {
             "anyOf": [
@@ -13097,6 +13303,108 @@
         "title": "ProviderPatch",
         "type": "object"
       },
+      "ProviderRoleTypeIn": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "code": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "ProviderRoleTypeIn",
+        "type": "object"
+      },
+      "ProviderRoleTypePatch": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "ProviderRoleTypePatch",
+        "type": "object"
+      },
       "PublicBookingOffer": {
         "additionalProperties": true,
         "description": "Full response of GET /api/public/bookings/{token}.\n\nMirrors the public_get_booking_by_token RPC jsonb shape (migration\n20260512221007) plus the router-injected ``ical_url`` (landr-3vr5).\nMirrors the widget's ``PublicBookingOffer`` TypeScript interface\n(src/api/client.ts) \u2014 EXCEPT the widget's interface does not declare\n``ical_url`` even though the router has injected it since landr-3vr5;\nsee landr-y3oj.1 handoff for this divergence. ``extra=\"allow\"`` keeps\nthis forward-compatible with RPC columns not yet consumed here.",
@@ -14787,6 +15095,22 @@
         "title": "SavingLineOut",
         "type": "object"
       },
+      "ScanIn": {
+        "description": "POST body \u2014 the raw QR ticket token, as scanned or pasted.",
+        "properties": {
+          "token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ScanIn",
+        "type": "object"
+      },
       "ScopedMessagePostIn": {
         "additionalProperties": false,
         "description": "One post at one of the three audience scopes.\n\nThe per-scope required/forbidden fields mirror the DB's\n`day_messages_scope_shape` CHECK exactly, validated here so a bad\ncombination is a 422 naming the problem rather than a 500 carrying a\nconstraint name.",
@@ -16248,6 +16572,17 @@
             ],
             "title": "Customer Page Url"
           },
+          "deposit_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deposit Percent"
+          },
           "group": {
             "anyOf": [
               {
@@ -16860,6 +17195,26 @@
           "matched"
         ],
         "title": "TaxRateCheck",
+        "type": "object"
+      },
+      "TermPair": {
+        "additionalProperties": false,
+        "description": "landr-iqo7q.1 \u2014 one operators.terminology override: the singular\n('one') / plural ('many') word an operator wants shown instead of\nLandr's own word for a core noun (e.g. performer -> \"Guide\" / \"Guides\").\nMirrors operators_terminology_shape / the public.is_valid_terminology()\nhelper (migration 20260923173000_operators_terminology.sql)\nbyte-for-byte: both values required, trimmed, 1..40 chars after trim,\nno `<`/`>` (no HTML). extra=\"forbid\" so a value shaped besides\n{one, many} 422s here instead of silently dropping fields or reaching\nthe DB CHECK.",
+        "properties": {
+          "many": {
+            "title": "Many",
+            "type": "string"
+          },
+          "one": {
+            "title": "One",
+            "type": "string"
+          }
+        },
+        "required": [
+          "one",
+          "many"
+        ],
+        "title": "TermPair",
         "type": "object"
       },
       "TestEmailRequest": {
@@ -20926,6 +21281,106 @@
         ]
       }
     },
+    "/api/landr-staff/promotions/local-worktree/{repo}/land-prompt": {
+      "get": {
+        "description": "Prompt text for 'Copy prompt' (landr-u3bfe) \u2014 the same instructions\n'Hand to Claude' spawns a background session with (``land_prompt``,\nkept DRY between the two), minus the background-session framing, for a\ndirty/unpushed dev checkout ok wants to land from their own interactive\nClaude CLI session instead. DEV/Trillian ONLY, same gate as the other\nlocal-worktree endpoints.",
+        "operationId": "get_land_prompt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "title": "Repo",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Land Prompt",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Land Prompt",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/local-worktree/{repo}/pull": {
+      "post": {
+        "description": "'Pull' \u2014 fast-forward a clean, behind-only Trillian checkout to dev.\n\nDEV/Trillian ONLY, same gate as the other local-worktree endpoints (404\n``local_worktree_disabled`` everywhere else). Unlike 'Hand to Claude' this\nruns synchronously (a plain fast-forward needs no review) and returns the\nrefreshed row so the dashboard can update the cell without a re-fetch.\n\n409 when the checkout is dirty, ahead of origin, already landing, or not\non dev; 502 (``pull_failed``) when ``git pull --ff-only`` itself fails.",
+        "operationId": "pull_local_worktree",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "title": "Repo",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Pull Local Worktree",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pull Local Worktree",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
     "/api/landr-staff/promotions/preview-migrations": {
       "get": {
         "description": "List the migrations that would be applied to the target tier if a run of\n``kind`` were started right now.\n\nRead-only \u2014 no side effects, no DB writes. Used by the dashboard\npropose/promote dialogs (landr-a99u.14.6) to surface \"will apply N\nmigrations\" before the run is created. NOT a gate \u2014 informational only.\n\nErrors (mirrored back as 503/502 so the dashboard can render a warning\nrather than crash):\n\n- 503 ``migration_target_not_configured`` \u2014 the env var holding the target\n  tier's DB URL (``LANDR_STAGING_DB_URL`` / ``LANDR_PROD_DB_URL``,\n  provisioned via landr-a99u.14.5) is unset on the running api. The\n  promotion executor will surface the same gap as a hard error.\n- 502 ``migration_target_unreachable: <type>: <msg>`` \u2014 the connection\n  attempt against the target Supabase failed (auth, network, etc).",
@@ -23271,6 +23726,63 @@
         ]
       }
     },
+    "/api/public/briefings/{token}/push-subscribe": {
+      "post": {
+        "description": "Register this browser for Web Push updates about THIS booking\n(landr-5aih0.6) \u2014 pickup time/location, conditions and meeting-point\nchanges, pushed by app/workers/booking_change_drain.py.\n\nTHE TOKEN IS THE AUTHORISATION, exactly as for the page itself: the same\nliveness gate (published, unexpired, undeleted, booking not cancelled)\nvia ``_resolve_briefing_booking``; every failure is the same opaque 404.\nThe booking id is never returned.\n\nUpserts on the plain UNIQUE (booking_id, endpoint) \u2014 re-subscribing the\nsame browser (permission re-grant, service-worker update, the page's\nown re-register on load) updates in place instead of stacking rows that\nwould each get a push. Metered per IP and per token like ``/join``.",
+        "operationId": "public_briefing_push_subscribe",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BriefingPushSubscribeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Public Briefing Push Subscribe",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Push Subscribe",
+        "tags": [
+          "public-briefings"
+        ]
+      }
+    },
     "/api/public/contact-page/{token}": {
       "get": {
         "operationId": "public_get_contact_page",
@@ -24184,9 +24696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Initiate Payment",
-                  "type": "object"
+                  "$ref": "#/components/schemas/InitiatePaymentOut"
                 }
               }
             },
@@ -24545,6 +25055,86 @@
         "summary": "Initiate Subscription Checkout",
         "tags": [
           "public-subscriptions"
+        ]
+      }
+    },
+    "/api/public/tickets/{token}.png": {
+      "get": {
+        "operationId": "public_ticket_png",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ticket Png",
+        "tags": [
+          "public-tickets"
+        ]
+      }
+    },
+    "/api/public/tickets/{token}.svg": {
+      "get": {
+        "operationId": "public_ticket_svg",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ticket Svg",
+        "tags": [
+          "public-tickets"
         ]
       }
     },
@@ -25662,6 +26252,53 @@
         "summary": "Reprice Booking Product At Current Entitlement",
         "tags": [
           "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/operators": {
+      "post": {
+        "description": "Create an additional FREE-tier operator owned by the caller.\n\nResponses: 201 `{operator_id, slug}`; 422 `invalid_slug` /\n`unknown_preset_key` (+ suggestions on the former); 409 `slug_taken` +\nsuggestions; 403 `not_a_member` (no `public.users` row); 429\n`rate_limited` (5/user/day).",
+        "operationId": "create_operator",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOperatorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOperatorResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Operator",
+        "tags": [
+          "staff-operators-create"
         ]
       }
     },
@@ -29236,6 +29873,66 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/checkins/scan": {
+      "post": {
+        "description": "landr-5aih0.10 (c10): a guide scans a participant's QR ticket.\n\nVerifies the ticket token (app.services.ticket_tokens \u2014 a SEPARATE\ntoken family from booking_tokens, see that module's docstring), then\nwrites the participant PRESENT for the operator-local today via the\nSAME atomic RPC the /today board's own status tap uses\n(staff_put_participant_day_state \u2014 app.routers.staff_participant_day_state,\nexactly like public_briefings_checkin._apply_day_state_side_write does\nfor the customer's own self-report path). ``p_set_by`` is this staff\nuser (unlike the customer path, which passes NULL) \u2014 a scan is a staff\naction, has a real ``users.id``, and should show up as such on the\nday-state row's provenance.\n\nEvery failure mode here is an opaque 404 EXCEPT the \"not a trip day\"\ncase, which is a 409 the scanning UI can render distinctly (\"wrong\nday\" vs \"this isn't a ticket\") \u2014 same shape distinction the CONTRACT\ncalls out. A bad/expired/tampered token and a ticket whose participant\nor booking no longer belongs to THIS operator collapse to the same\nopaque 404 \u2014 a stranger scanning garbage, or another operator's ticket,\nlearns nothing about why it failed.",
+        "operationId": "staff_scan_ticket_checkin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Staff Scan Ticket Checkin",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Scan Ticket Checkin",
+        "tags": [
+          "staff-briefings"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/checkins/{checkin_id}": {
       "patch": {
         "description": "Operator sets retrieve_state / retrieve_note on one check-in.",
@@ -32575,6 +33272,7 @@
         ]
       },
       "post": {
+        "description": "Add a location role type.\n\nlandr-k9pji.3: ``location_role_types_operator_code_key`` is a NON-partial\nunique constraint, so a code whose row was soft-deleted could never be\nre-created (the insert 500'd). Now: a live duplicate is 409\n``code_taken``; a soft-deleted one is resurrected with the body's values\n\u2014 which is how an operator who deleted the baseline ``hotel`` type gets it\nback when Settings -> Hotels points them here.",
         "operationId": "create_role_type",
         "parameters": [
           {
@@ -37057,6 +37755,208 @@
         "tags": [
           "staff-providers"
         ]
+      },
+      "post": {
+        "description": "Add a provider role type. 409 ``code_taken`` when a live row already\nowns ``code``; a soft-deleted row with that code is resurrected with the\nbody's values instead (the unique index is non-partial, so a plain insert\ncan never reuse it).",
+        "operationId": "create_provider_role_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderRoleTypeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Provider Role Type",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Provider Role Type",
+        "tags": [
+          "staff-providers"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/provider-role-types/{role_type_id}": {
+      "delete": {
+        "description": "Soft-delete (Decision #69). 409 ``role_type_in_use`` \u2014 with the\nreferencing ids under ``providers`` / ``assignments`` /\n``service_roles`` \u2014 while anything live still points at it.",
+        "operationId": "delete_provider_role_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_type_id",
+            "required": true,
+            "schema": {
+              "title": "Role Type Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Delete Provider Role Type",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Provider Role Type",
+        "tags": [
+          "staff-providers"
+        ]
+      },
+      "patch": {
+        "description": "Relabel / reorder / (de)activate. ``code`` is immutable. An explicit\nnull only means something for ``label_localized`` (clear it); on the\nNOT NULL columns it is ignored rather than 500ing on the constraint.",
+        "operationId": "patch_provider_role_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_type_id",
+            "required": true,
+            "schema": {
+              "title": "Role Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderRoleTypePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Provider Role Type",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Provider Role Type",
+        "tags": [
+          "staff-providers"
+        ]
       }
     },
     "/api/staff/operators/{operator_id}/providers": {
@@ -40089,6 +40989,69 @@
         "summary": "Patch Tag",
         "tags": [
           "staff-tags"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/today/board-messages": {
+      "get": {
+        "description": "Every activity's day board for ``day``, merged, oldest first.\n\nThe Today board's Messages inbox (landr-hy6wd): participants post to\ntheir own product's board, and on \"All activities\" staff must still see\nthose posts \u2014 per-product reads would hide them behind the switcher,\nwhich is how participant replies went unseen. Each row carries\n``product_id`` so the client labels and filters by activity. Board posts\nonly (``scope='activity_day'``); addressed sends have their own history\nat ``GET /today/messages``.",
+        "operationId": "staff_list_all_day_board_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List All Day Board Messages",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List All Day Board Messages",
+        "tags": [
+          "staff-day-messages"
         ]
       }
     },

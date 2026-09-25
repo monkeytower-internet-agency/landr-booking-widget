@@ -1,3 +1,4 @@
+import type { components } from '@/types/api.gen'
 import type {
   ApprovalReplyRequestBody,
   ApprovalReplyResult,
@@ -852,23 +853,22 @@ export interface InitiatePaymentResponse {
 }
 
 /**
- * landr-k9pji.5 review fix — the RAW wire shape of POST
- * /api/public/payments/initiate. `amount` (and every other money field the
- * endpoint returns — `deposit`, `deposit_percent`, `balance_due`, none of
- * which the widget reads today) is a JSON STRING on the wire
- * (`app/routers/public_payments.py`: `"amount": str(charge_amount)`, not a
- * number) — confirmed against `origin/dev`. Coercing the RAW string wasn't
- * happening before this fix: `InitiatePaymentResponse.amount` was typed
- * `number` while the actual payload sent a string like `"336.00"`, so every
- * consumer (`<`, `/`, `formatCurrency`'s `.toFixed(2)` fallback path) was
- * one non-numeric response away from silently misbehaving or throwing.
+ * landr-k9pji.15 review fix — the RAW wire shape of POST
+ * /api/public/payments/initiate, sourced from the GENERATED contract
+ * instead of hand-guessed. Before this, `InitiatePaymentWireResponse` was a
+ * hand-written interface the widget had to guess from reading landr-api's
+ * router source — exactly the class of drift landr-k9pji.4's review
+ * flagged. The endpoint now has its own Pydantic response model
+ * (`InitiatePaymentOut`, landr-api `app/routers/public_payments.py`), so
+ * `openapi.json` types it precisely and this widget's `api.gen.ts` (`npm run
+ * gen:api-types`) picks it up automatically on the next regen — no more
+ * hand-maintained guess to drift. Money fields (`amount`, `balance_due`)
+ * stay JSON STRINGS on the wire (FastAPI's default `Decimal` encoder,
+ * unchanged from before this model existed) — `initiatePayment()` below
+ * still does the one string→number coercion so every other caller keeps
+ * working with a real number.
  */
-interface InitiatePaymentWireResponse {
-  checkout_url: string
-  payment_id: string | null
-  stripe_payment_intent_id: string | null
-  amount?: string
-}
+type InitiatePaymentWireResponse = components['schemas']['InitiatePaymentOut']
 
 /**
  * Kick off a Stripe Checkout session for the offer (landr-uvfg.4b).
