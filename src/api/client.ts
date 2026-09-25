@@ -1,3 +1,4 @@
+import type { components } from '@/types/api.gen'
 import type {
   ApprovalReplyRequestBody,
   ApprovalReplyResult,
@@ -589,6 +590,38 @@ export function isCancellationDeadlinePassed(err: unknown): boolean {
 }
 
 /**
+ * landr-k9pji.15: true for POST /api/public/payments/initiate's 409
+ * `detail.error === 'payment_mode_not_online'` — the operator switched
+ * `payment_mode` away from 'online' (Settings -> Payments) after this
+ * `/pay/{token}` or `/offer/{token}` link was sent (the token stays valid
+ * for 30 days). OfferPage uses this to show pay-on-site / bank-transfer
+ * instructions instead of the generic "payment failed to start" error.
+ */
+export function isPaymentModeNotOnline(err: unknown): boolean {
+  if (!(err instanceof HttpError) || err.status !== 409) return false
+  const detail = err.detail as { error?: unknown } | undefined
+  return detail?.error === 'payment_mode_not_online'
+}
+
+/**
+ * landr-k9pji.15: for the same 409 `isPaymentModeNotOnline` matches, pulls
+ * the operator's CURRENT mode out of `detail.reason`
+ * (`"payment_mode=<mode>"`, set by `public_payments.initiate_payment` —
+ * always 'bank_transfer' or 'on_site' here since the 409 fires precisely
+ * when mode is NOT 'online') so OfferPage can show mode-specific
+ * instructions instead of one generic message. Returns null if the reason
+ * is missing or unrecognised (an older/newer API build) — callers fall back
+ * to generic copy rather than guessing.
+ */
+export function paymentModeNotOnlineMode(err: unknown): 'bank_transfer' | 'on_site' | null {
+  if (!isPaymentModeNotOnline(err)) return null
+  const detail = (err as HttpError).detail as { reason?: unknown } | undefined
+  const reason = typeof detail?.reason === 'string' ? detail.reason : ''
+  const mode = reason.startsWith('payment_mode=') ? reason.slice('payment_mode='.length) : ''
+  return mode === 'bank_transfer' || mode === 'on_site' ? mode : null
+}
+
+/**
  * Live booking-price estimator for the PriceSidebar (landr-qez0).
  * Backed by POST /api/public/operators/{slug}/products/{id}/estimate
  * (landr-xbqh) — reuses the canonical compute_booking_price engine so
@@ -820,23 +853,22 @@ export interface InitiatePaymentResponse {
 }
 
 /**
- * landr-k9pji.5 review fix — the RAW wire shape of POST
- * /api/public/payments/initiate. `amount` (and every other money field the
- * endpoint returns — `deposit`, `deposit_percent`, `balance_due`, none of
- * which the widget reads today) is a JSON STRING on the wire
- * (`app/routers/public_payments.py`: `"amount": str(charge_amount)`, not a
- * number) — confirmed against `origin/dev`. Coercing the RAW string wasn't
- * happening before this fix: `InitiatePaymentResponse.amount` was typed
- * `number` while the actual payload sent a string like `"336.00"`, so every
- * consumer (`<`, `/`, `formatCurrency`'s `.toFixed(2)` fallback path) was
- * one non-numeric response away from silently misbehaving or throwing.
+ * landr-k9pji.15 review fix — the RAW wire shape of POST
+ * /api/public/payments/initiate, sourced from the GENERATED contract
+ * instead of hand-guessed. Before this, `InitiatePaymentWireResponse` was a
+ * hand-written interface the widget had to guess from reading landr-api's
+ * router source — exactly the class of drift landr-k9pji.4's review
+ * flagged. The endpoint now has its own Pydantic response model
+ * (`InitiatePaymentOut`, landr-api `app/routers/public_payments.py`), so
+ * `openapi.json` types it precisely and this widget's `api.gen.ts` (`npm run
+ * gen:api-types`) picks it up automatically on the next regen — no more
+ * hand-maintained guess to drift. Money fields (`amount`, `balance_due`)
+ * stay JSON STRINGS on the wire (FastAPI's default `Decimal` encoder,
+ * unchanged from before this model existed) — `initiatePayment()` below
+ * still does the one string→number coercion so every other caller keeps
+ * working with a real number.
  */
-interface InitiatePaymentWireResponse {
-  checkout_url: string
-  payment_id: string | null
-  stripe_payment_intent_id: string | null
-  amount?: string
-}
+type InitiatePaymentWireResponse = components['schemas']['InitiatePaymentOut']
 
 /**
  * Kick off a Stripe Checkout session for the offer (landr-uvfg.4b).

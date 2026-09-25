@@ -328,6 +328,15 @@ type Bundle = {
   payOnSiteNote: string
   bankTransferNote: string
   paymentLinkForDepositOnItsWay: string
+  // landr-k9pji.15 — OfferPage's /pay/{token} link is valid for 30 days;
+  // the operator may have switched payment_mode away from 'online' since it
+  // was sent (POST /initiate then 409s payment_mode_not_online). These
+  // replace the generic "payment failed to start" error with the actual
+  // instructions for how this booking is now paid.
+  payModeNotOnlineTitle: string
+  payModeNotOnlinePayOnSite: string
+  payModeNotOnlineBankTransfer: string
+  payModeNotOnlineGeneric: string
   awaitingOperatorConfirmation: string
   participantCountSingular: string
   participantCountPlural: string
@@ -854,6 +863,10 @@ const en: Bundle = {
   payOnSiteNote: 'Please pay on the day, at the meeting point.',
   bankTransferNote: 'Bank details are in your confirmation email.',
   paymentLinkForDepositOnItsWay: 'A payment link for your deposit is on its way.',
+  payModeNotOnlineTitle: 'This booking is no longer paid online',
+  payModeNotOnlinePayOnSite: 'Please pay on the day, at the meeting point.',
+  payModeNotOnlineBankTransfer: 'Please pay by bank transfer — details are in your confirmation email.',
+  payModeNotOnlineGeneric: 'Online payment is no longer available for this booking. Please contact the operator about how to pay.',
   awaitingOperatorConfirmation: 'Your booking is awaiting confirmation from the operator.',
   participantCountSingular: '{n} participant',
   participantCountPlural: '{n} participants',
@@ -1374,6 +1387,10 @@ const de: Bundle = {
   payOnSiteNote: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
   bankTransferNote: 'Die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
   paymentLinkForDepositOnItsWay: 'Ein Zahlungslink für Ihre Anzahlung ist unterwegs.',
+  payModeNotOnlineTitle: 'Diese Buchung wird nicht mehr online bezahlt',
+  payModeNotOnlinePayOnSite: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
+  payModeNotOnlineBankTransfer: 'Bitte zahlen Sie per Überweisung — die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
+  payModeNotOnlineGeneric: 'Für diese Buchung ist keine Online-Zahlung mehr möglich. Bitte wenden Sie sich an den Anbieter, wie Sie zahlen können.',
   awaitingOperatorConfirmation: 'Ihre Buchung wartet auf die Bestätigung durch den Anbieter.',
   participantCountSingular: '{n} Teilnehmer',
   participantCountPlural: '{n} Teilnehmer',

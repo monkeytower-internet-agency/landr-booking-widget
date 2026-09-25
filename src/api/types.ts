@@ -1207,6 +1207,16 @@ export interface SubmitBookingResponse {
    * falls back to today's payment_link_sent-based copy when absent.
    */
   payment_mode?: 'online' | 'bank_transfer' | 'on_site'
+  /**
+   * landr-k9pji.15 (API, landr-k9pji.4 PR #848 review): the operator's raw
+   * deposit_percent setting (1..100), or null/absent when no deposit is
+   * configured (the future online payment, if any, will ask for the full
+   * amount). Lets Confirmation's payment_mode note distinguish "for your
+   * deposit" from a plain "a payment link is on its way" instead of always
+   * assuming a deposit for every 'online' operator. Optional so the widget
+   * tolerates an older API deploy that predates the field.
+   */
+  deposit_percent?: number | null
   token?: string
   /**
    * Absolute URL to the per-booking iCal/.ics download (landr-3vr5).
