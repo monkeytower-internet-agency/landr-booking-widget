@@ -38,6 +38,21 @@
  *      the dedicated tests that already build and assert their exact shape
  *      (Confirmation.test.tsx, App.test.tsx).
  *
+ *      `confirmation_email_status` is the SAME gap, one level down: the
+ *      Python field really is `str | None` (`app/routers/public_bookings.py`
+ *      — no `Literal[...]`, unlike `payment_mode`, which the API DOES type
+ *      as a Literal and which this file's `_PaymentModeMatchesHandWritten`
+ *      check above holds to the exact union), so the generated schema
+ *      widens it to a bare `string` and `satisfies
+ *      Partial<components[...]>` below infers `genResponse
+ *      .confirmation_email_status` as `string`, not the literal `'sent'` it
+ *      is written as — `tsc -b` (this repo's actual `npm run typecheck`,
+ *      not a bare `tsc --noEmit`) then correctly refuses to narrow that
+ *      back to the hand-written union in the `Pick<>` assignment below.
+ *      Left OUT of that assignment for the same reason `join_error` is:
+ *      a real (Python-side) API tightening, not a widget contract to lock
+ *      here — `genResponse` still includes it so the wire shape is visible.
+ *
  * What this file proves, at COMPILE time (fails `tsc -b` / `npm run
  * typecheck` the moment `npm run gen:api-types` regenerates api.gen.ts from
  * a schema where one of these field names, primitive types or nullability
@@ -105,9 +120,12 @@ export const _responseMatches: Pick<
   | 'deposit_percent'
   | 'token'
   | 'ical_url'
-  | 'confirmation_email_status'
   | 'share_secret'
   | 'customer_page_url'
+  // confirmation_email_status deliberately excluded — see the file header's
+  // DECISION note 2 (Python-side str | None, not a Literal; the generated
+  // schema is correct, the hand-written literal union is a widget-side
+  // narrowing that has never been part of the wire contract).
 > = genResponse
 
 describe('widget hand-written SubmitBookingResponse vs generated schema (landr-k9pji.15)', () => {
