@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import {
   getBookingByToken,
   initiatePayment,
+  isPaymentModeNotOnline,
+  paymentModeNotOnlineMode,
   type OfferTotals,
   type PublicBookingOffer,
 } from '@/api/client'
@@ -65,6 +67,9 @@ import { formatCurrency } from './accommodationCalc'
  *   'cancelled'       — returned from Stripe with ?paid=cancelled
  *   'fetch_error'     — offer fetch failed (token invalid / expired)
  *   'pay_error'       — payment initiation failed
+ *   'pay_mode_not_online' — initiatePayment 409'd payment_mode_not_online:
+ *                        the operator switched away from 'online' (Settings
+ *                        -> Payments) since this link was sent (landr-k9pji.15)
  */
 
 type Status =
@@ -78,6 +83,7 @@ type Status =
   | 'cancelled'
   | 'fetch_error'
   | 'pay_error'
+  | 'pay_mode_not_online'
 
 // landr-6l7y: bounded poll for the ?paid=1 re-check. The first check is
 // immediate (attempt 0); these are the delays before each retry if the
@@ -141,6 +147,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   })
   const [offer, setOffer] = useState<PublicBookingOffer | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // landr-k9pji.15: the operator's mode from the 409 payment_mode_not_online
+  // body, so the 'pay_mode_not_online' card can show pay-on-site vs.
+  // bank-transfer instructions instead of one generic message.
+  const [notOnlineMode, setNotOnlineMode] = useState<'bank_transfer' | 'on_site' | null>(null)
   // landr-k9pji.5 — set once POST /initiate comes back with `amount` strictly
   // less than the balance being offered (a deposit_percent operator, API
   // landr-k9pji.4). Rather than hard-navigate straight to Stripe (today's
@@ -258,6 +268,16 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       // it verbatim: the console is developer-only, the customer still sees
       // the friendly copy below, and no secret is ever in this payload.
       console.error('[landr] initiatePayment failed', err)
+      // landr-k9pji.15: a /pay or /offer link stays valid 30 days — the
+      // operator may have switched payment_mode away from 'online' since it
+      // was sent. That is not a failure to retry, it's a stale-state
+      // conflict with its own instructions, so branch BEFORE the generic
+      // pay_error path below.
+      if (isPaymentModeNotOnline(err)) {
+        setNotOnlineMode(paymentModeNotOnlineMode(err))
+        setStatus('pay_mode_not_online')
+        return
+      }
       setErrorMessage(
         err instanceof Error && err.message
           ? tr('couldNotStartPayment', locale)
@@ -416,6 +436,27 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           >
             {tr('tryAgain', locale)}
           </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Payment mode switched away from 'online' since this link was sent ────
+  // landr-k9pji.15
+  if (status === 'pay_mode_not_online') {
+    const body =
+      notOnlineMode === 'bank_transfer'
+        ? tr('payModeNotOnlineBankTransfer', locale)
+        : notOnlineMode === 'on_site'
+          ? tr('payModeNotOnlinePayOnSite', locale)
+          : tr('payModeNotOnlineGeneric', locale)
+    return (
+      <Card data-testid="offer-pay-mode-not-online">
+        <CardHeader>
+          <CardTitle>{tr('payModeNotOnlineTitle', locale)}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm">{body}</p>
         </CardContent>
       </Card>
     )
