@@ -645,6 +645,17 @@ export interface Location {
    */
   address?: string | null
   geo?: { lat: number; lng: number } | null
+  /**
+   * landr-lmudr.12 — how this place is used: a subset of
+   * {pickup, dropoff, meeting_point, base} (landr-api `resources.place_roles`).
+   * Optional so a response from an API that predates it still type-checks —
+   * treated as "no roles" (never matches the pickup filter) when absent.
+   * `listPickupLocationsForOperator` filters on 'pickup' being a member;
+   * `getHotelsForOperator` is unaffected — it still filters on
+   * `role_type.code === 'hotel'`, orthogonal to place_roles (a hotel can
+   * carry 'pickup' too, e.g. Para42's Hotel Mirador).
+   */
+  place_roles?: string[] | null
 }
 
 /**
