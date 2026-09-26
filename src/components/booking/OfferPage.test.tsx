@@ -1,10 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { HttpError } from '@/api/client'
+
 import { formatCurrency } from './accommodationCalc'
 import { OfferPage } from './OfferPage'
 
 // ─── Mock API ────────────────────────────────────────────────────────────────
+// landr-k9pji.15: HttpError / isPaymentModeNotOnline / paymentModeNotOnlineMode
+// stay real (vi.importActual) so the 409 branch below is exercised through
+// the same helpers OfferPage itself uses, same pattern as CancelPage.test.tsx.
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     getBookingByToken: vi.fn<(token: string) => Promise<unknown>>(),
@@ -12,10 +17,14 @@ const { mocks } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/api/client', () => ({
-  getBookingByToken: mocks.getBookingByToken,
-  initiatePayment: mocks.initiatePayment,
-}))
+vi.mock('@/api/client', async () => {
+  const actual = await vi.importActual<typeof import('@/api/client')>('@/api/client')
+  return {
+    ...actual,
+    getBookingByToken: mocks.getBookingByToken,
+    initiatePayment: mocks.initiatePayment,
+  }
+})
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 const TOKEN = 'test-offer-token-abc123'
@@ -266,6 +275,51 @@ describe('OfferPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
     expect(screen.getByTestId('offer-ready')).toBeInTheDocument()
+  })
+
+  // landr-k9pji.15: a 30-day-old /pay or /offer link outlives the operator's
+  // payment_mode setting — this is a stale-state conflict, not a retryable
+  // failure, so it gets its own card with mode-specific instructions instead
+  // of the generic pay-error card above.
+  it('shows pay-on-site instructions when initiatePayment 409s payment_mode_not_online (on_site)', async () => {
+    mocks.getBookingByToken.mockResolvedValue(OFFER)
+    mocks.initiatePayment.mockRejectedValue(
+      new HttpError(409, 'Conflict', JSON.stringify({
+        detail: { error: 'payment_mode_not_online', reason: 'payment_mode=on_site' },
+      })),
+    )
+
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() =>
+      expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('offer-pay-mode-not-online')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/pay on the day, at the meeting point/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('offer-pay-error')).not.toBeInTheDocument()
+  })
+
+  it('shows bank-transfer instructions when initiatePayment 409s payment_mode_not_online (bank_transfer)', async () => {
+    mocks.getBookingByToken.mockResolvedValue(OFFER)
+    mocks.initiatePayment.mockRejectedValue(
+      new HttpError(409, 'Conflict', JSON.stringify({
+        detail: { error: 'payment_mode_not_online', reason: 'payment_mode=bank_transfer' },
+      })),
+    )
+
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() =>
+      expect(screen.getByTestId('offer-ready')).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('offer-pay-mode-not-online')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/pay by bank transfer/i)).toBeInTheDocument()
   })
 
   // ── landr-6l7y: ?paid=1 is a TRIGGER to re-check, never evidence ─────────

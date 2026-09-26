@@ -369,6 +369,23 @@ const SANITIZED_REJECTION_MESSAGE =
   'This booking could not be confirmed because one of your selections just changed (for example, a time slot became unavailable). Please go back, double-check your choices, and try again.'
 
 /**
+ * landr-k9pji.11: the submit endpoint 422s `declarations_required` /
+ * `form_responses_required` when the operator requires eligibility
+ * declarations (or a product's flow names a required custom form) but the
+ * widget sent no way to satisfy it — normally because the product's booking
+ * flow is missing the declarations step entirely (an operator-setup gap:
+ * see app/services/booking_submit.py::validate_legacy_declarations and
+ * ::assert_required_forms_satisfied_when_absent). Both raw server messages
+ * ("All eligibility declarations must be confirmed…" /  "…form_responses
+ * must be submitted…") tell the customer to go back and do something the UI
+ * never offered them — there was no declarations step to fill in. This is
+ * NOT the customer's mistake, so the message says so explicitly instead of
+ * dumping the raw 422 (previously: a silent/opaque failure, bd landr-k9pji.11).
+ */
+const DECLARATIONS_SETUP_ERROR_MESSAGE =
+  "This booking can't be completed because of a setup issue on the operator's side — a required step is missing from this product, not something you did wrong. Please contact the operator directly, or try again once they've fixed it."
+
+/**
  * Pretty-print a FastAPI 422 `detail` payload. Pydantic emits an array
  * of {loc, msg, type} entries — we surface up to the first few as
  * "field: message" lines so the user sees the actual contract issue
@@ -573,6 +590,17 @@ const formatHttpError = (
       return `${who} needs a room: only you share the host's room. Please go back to accommodation and book a room for them, or remove them from the booking.`
     }
     return "The extra rooms don't match the people staying in them. Please go back to accommodation and check who sleeps in each room."
+  }
+  // landr-k9pji.11: operator-setup gap — see DECLARATIONS_SETUP_ERROR_MESSAGE.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    ((err.detail as { error?: unknown }).error === 'declarations_required' ||
+      (err.detail as { error?: unknown }).error === 'form_responses_required')
+  ) {
+    return DECLARATIONS_SETUP_ERROR_MESSAGE
   }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
