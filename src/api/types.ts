@@ -724,7 +724,19 @@ export interface ProductAddon {
    * Absent / true = available.
    */
   available?: boolean
-  unavailable_reason?: 'sold_out' | null
+  /**
+   * landr-lmudr.19: 'unit_taken' = the add-on takes a WHOLE unit (exclusive
+   * use) and another group has the last one — same disabled row, its own copy.
+   */
+  unavailable_reason?: 'sold_out' | 'unit_taken' | null
+  /**
+   * landr-lmudr.32: how many of this add-on still fit on every chosen day —
+   * stock is counted by the add-on QUANTITY, not the party size. The stepper
+   * stops there; null/absent = nothing limits it.
+   */
+  stock_remaining?: number | null
+  /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
+  stock_unit_label?: string | null
 }
 
 export interface AvailabilitySlot {

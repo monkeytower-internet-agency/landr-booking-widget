@@ -12425,10 +12425,35 @@
             "title": "Sort Order",
             "type": "integer"
           },
+          "stock_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Remaining"
+          },
+          "stock_unit_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Unit Label"
+          },
           "unavailable_reason": {
             "anyOf": [
               {
-                "const": "sold_out",
+                "enum": [
+                  "sold_out",
+                  "unit_taken"
+                ],
                 "type": "string"
               },
               {
@@ -13775,6 +13800,165 @@
           }
         },
         "title": "ProductPatch",
+        "type": "object"
+      },
+      "ProductRequirementOut": {
+        "description": "A product-owned ``resource_requirements`` row (landr-lmudr.19).",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "enforcement": {
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Enforcement",
+            "type": "string"
+          },
+          "exclusive_use": {
+            "default": false,
+            "title": "Exclusive Use",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "ratio_per_participant": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio Per Participant"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "resource_type_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type Label"
+          },
+          "units_required_per_booking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Booking"
+          },
+          "units_required_per_participant": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Participant"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "resource_type_id",
+          "enforcement"
+        ],
+        "title": "ProductRequirementOut",
+        "type": "object"
+      },
+      "ProductRequirementPatch": {
+        "description": "Switch a row between per seat and exclusive use. Send\n``{\"exclusive_use\": true, \"units_required_per_booking\": 1,\n\"units_required_per_participant\": null}`` for one whole unit per booking,\n``{\"exclusive_use\": false, \"units_required_per_participant\": 1,\n\"units_required_per_booking\": null}`` for one seat per participant.",
+        "properties": {
+          "exclusive_use": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusive Use"
+          },
+          "units_required_per_booking": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Booking"
+          },
+          "units_required_per_participant": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units Required Per Participant"
+          }
+        },
+        "title": "ProductRequirementPatch",
         "type": "object"
       },
       "PromoteTicketIn": {
@@ -19330,6 +19514,264 @@
         "title": "StaffUnitReleaseIn",
         "type": "object"
       },
+      "StaffingDayOut": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "has_rules": {
+            "title": "Has Rules",
+            "type": "boolean"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/StaffingResourceOut"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "staff": {
+            "items": {
+              "$ref": "#/components/schemas/StaffingStaffOut"
+            },
+            "title": "Staff",
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "has_rules"
+        ],
+        "title": "StaffingDayOut",
+        "type": "object"
+      },
+      "StaffingNeedOut": {
+        "description": "One staffing rule applied to one resource on the day.",
+        "properties": {
+          "assigned_resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assigned Resource Ids",
+            "type": "array"
+          },
+          "candidate_resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Candidate Resource Ids",
+            "type": "array"
+          },
+          "enforcement": {
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Enforcement",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "integer"
+          },
+          "required_resource_type_id": {
+            "title": "Required Resource Type Id",
+            "type": "string"
+          },
+          "required_resource_type_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Resource Type Label"
+          },
+          "requirement_id": {
+            "title": "Requirement Id",
+            "type": "string"
+          },
+          "shortfall": {
+            "default": 0,
+            "title": "Shortfall",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "booking",
+                  "day",
+                  "default"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "unavailable_resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable Resource Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "required_resource_type_id",
+          "required",
+          "enforcement"
+        ],
+        "title": "StaffingNeedOut",
+        "type": "object"
+      },
+      "StaffingResourceOut": {
+        "description": "One resource of an owning kind in service on the day (Bus 1).",
+        "properties": {
+          "blocked": {
+            "default": false,
+            "title": "Blocked",
+            "type": "boolean"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "day_assignment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Day Assignment Ids",
+            "type": "array"
+          },
+          "needs": {
+            "items": {
+              "$ref": "#/components/schemas/StaffingNeedOut"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "resource_type_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type Label"
+          },
+          "shortfall": {
+            "default": 0,
+            "title": "Shortfall",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_type_id"
+        ],
+        "title": "StaffingResourceOut",
+        "type": "object"
+      },
+      "StaffingStaffOut": {
+        "description": "A staff resource of a required kind, as it stands on the day.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "assigned_to_resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assigned To Resource Ids",
+            "type": "array"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "double_booked": {
+            "default": false,
+            "title": "Double Booked",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_type_id",
+          "active",
+          "available"
+        ],
+        "title": "StaffingStaffOut",
+        "type": "object"
+      },
       "StagingActivityIn": {
         "description": "A cross-tier activity event for a relayed staging ticket.\n\nOne of ``source_ref`` (preferred \u2014 the stable staging ticket id the .1 relay\ncarried) or ``ticket_id`` (the prod tickets.id of the relayed row) MUST be\npresent. ``reporter_email`` is the staging reporter, matched BY EMAIL against\nprod public.users.",
         "properties": {
@@ -20387,6 +20829,230 @@
           "synced"
         ],
         "title": "TrelloSyncOut",
+        "type": "object"
+      },
+      "TypeRequirementIn": {
+        "description": "\"<this type> needs <quantity> <resource_type_id> per resource per day\".",
+        "properties": {
+          "enforcement": {
+            "default": "warn",
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Enforcement",
+            "type": "string"
+          },
+          "exclusive_use": {
+            "default": false,
+            "title": "Exclusive Use",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_type_id": {
+            "description": "The required kind (a staff-facet type)",
+            "title": "Resource Type Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type_id"
+        ],
+        "title": "TypeRequirementIn",
+        "type": "object"
+      },
+      "TypeRequirementOut": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "enforcement": {
+            "enum": [
+              "warn",
+              "block"
+            ],
+            "title": "Enforcement",
+            "type": "string"
+          },
+          "exclusive_use": {
+            "default": false,
+            "title": "Exclusive Use",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "owner_resource_type_id": {
+            "title": "Owner Resource Type Id",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "resource_type_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type Label"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "owner_resource_type_id",
+          "resource_type_id",
+          "enforcement"
+        ],
+        "title": "TypeRequirementOut",
+        "type": "object"
+      },
+      "TypeRequirementPatch": {
+        "properties": {
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "warn",
+                  "block"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "exclusive_use": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusive Use"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "title": "TypeRequirementPatch",
         "type": "object"
       },
       "UnavailabilityIn": {
@@ -28296,7 +28962,7 @@
             }
           },
           {
-            "description": "Guiding participants of the booking (stock verdict)",
+            "description": "Guiding participants of the booking \u2014 gates the stock verdict; the stock itself is counted by add-on quantity (landr-lmudr.32), see `stock_remaining`",
             "in": "query",
             "name": "participants",
             "required": false,
@@ -28311,7 +28977,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Guiding participants of the booking (stock verdict)",
+              "description": "Guiding participants of the booking \u2014 gates the stock verdict; the stock itself is counted by add-on quantity (landr-lmudr.32), see `stock_remaining`",
               "title": "Participants"
             }
           }
@@ -41537,6 +42203,143 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/products/{product_id}/resource-requirements": {
+      "get": {
+        "description": "Every resource requirement the product owns (block and warn, pinned\nor not), with ``exclusive_use``.",
+        "operationId": "list_product_requirements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductRequirementOut"
+                  },
+                  "title": "Response List Product Requirements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Requirements",
+        "tags": [
+          "staff-staffing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/resource-requirements/{requirement_id}": {
+      "patch": {
+        "description": "422 ``exclusive_requires_per_booking`` when the resulting row is\nexclusive but not per booking only; 422 ``requirement_quantity_required``\nwhen it would count nothing.",
+        "operationId": "patch_product_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductRequirementPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRequirementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Product Requirement",
+        "tags": [
+          "staff-staffing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/products/{product_id}/subscription-config": {
       "post": {
         "description": "Create the billing config for a product_kind='subscription' product.\n\n404 if the product isn't this operator's; 400 if it isn't\nproduct_kind='subscription' (the DB trigger would also reject this, but\nfail with a clean 400 rather than a raw trigger exception); 409 if a\nconfig already exists (1:1 with the product \u2014 use PATCH to edit it).",
@@ -44002,13 +44805,13 @@
             }
           },
           {
-            "description": "Clear place roles/map position when removing the place facet",
+            "description": "Clear place roles/map position when removing the place facet; remove the type's staffing requirements (Needs) when removing the capacity facet",
             "in": "query",
             "name": "force",
             "required": false,
             "schema": {
               "default": false,
-              "description": "Clear place roles/map position when removing the place facet",
+              "description": "Clear place roles/map position when removing the place facet; remove the type's staffing requirements (Needs) when removing the capacity facet",
               "title": "Force",
               "type": "boolean"
             }
@@ -44638,6 +45441,269 @@
         "summary": "Put Resource Type Rental",
         "tags": [
           "staff-resource-types"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/requirements": {
+      "get": {
+        "operationId": "list_type_requirements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TypeRequirementOut"
+                  },
+                  "title": "Response List Type Requirements",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Type Requirements",
+        "tags": [
+          "staff-staffing"
+        ]
+      },
+      "post": {
+        "description": "422 ``facet_required`` when this type has no ``capacity`` facet or the\nrequired kind no ``staff`` facet; 422 ``requirement_self``; 409\n``requirement_exists`` for a duplicate (same kind + pin).",
+        "operationId": "create_type_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeRequirementIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeRequirementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Type Requirement",
+        "tags": [
+          "staff-staffing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/requirements/{requirement_id}": {
+      "delete": {
+        "operationId": "delete_type_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Type Requirement",
+        "tags": [
+          "staff-staffing"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_type_requirement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeRequirementPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeRequirementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Type Requirement",
+        "tags": [
+          "staff-staffing"
         ]
       }
     },
@@ -47319,6 +48385,64 @@
         "summary": "Get Setup Checklist",
         "tags": [
           "staff-setup-checklist"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/staffing": {
+      "get": {
+        "description": "Who works what on ``date`` \u2014 the dashboard's Staffing strip.",
+        "operationId": "get_staffing_day",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffingDayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Staffing Day",
+        "tags": [
+          "staff-staffing"
         ]
       }
     },
