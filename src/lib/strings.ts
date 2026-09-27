@@ -1524,7 +1524,7 @@ const de: Bundle = {
   addonsTitle: 'Zusatzleistungen',
   loadingAddons: 'Zusatzleistungen werden geladen…',
   noAddonsAvailable: 'Für diese Option sind keine Zusatzleistungen verfügbar.',
-  addonSoldOut: 'Für deine Termine ausgebucht.',
+  addonSoldOut: 'Für Ihre Termine ausgebucht.',
   pickRequiredAddonsCue: 'erforderliche Zusatzleistungen wählen',
   pickRequiredAddonsToContinue: 'Wählen Sie alle erforderlichen Zusatzleistungen, um fortzufahren.',
   requiredSuffix: 'erforderlich',

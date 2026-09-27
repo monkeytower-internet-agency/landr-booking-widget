@@ -115,17 +115,6 @@ export function isOverbooked(
   return null
 }
 
-/**
- * Convert a selection map into the line-item array shape consumed by
- * the booking submit payload. Filters out entries with qty <= 0 so the
- * caller never sends an opt-out as a zero-qty line.
- *
- * landr-fxza.4: `addons` (the resolved catalogue, e.g. from getProductAddons)
- * is optional and defaults to `[]` for back-compat with existing callers;
- * when supplied, each output line's `productKind` is threaded through from
- * the matching ProductAddon row so BookingForm can discriminate room-tied
- * vs service-tied add-ons at submit time (see addons/BookingForm.tsx).
- */
 /** landr-lmudr.10: a stock-limited add-on with no room left on the booking's days. */
 export function isAddonSoldOut(addon: Pick<ProductAddon, 'available'>): boolean {
   return addon.available === false
@@ -147,6 +136,17 @@ export function withoutSoldOut(
   return next
 }
 
+/**
+ * Convert a selection map into the line-item array shape consumed by
+ * the booking submit payload. Filters out entries with qty <= 0 so the
+ * caller never sends an opt-out as a zero-qty line.
+ *
+ * landr-fxza.4: `addons` (the resolved catalogue, e.g. from getProductAddons)
+ * is optional and defaults to `[]` for back-compat with existing callers;
+ * when supplied, each output line's `productKind` is threaded through from
+ * the matching ProductAddon row so BookingForm can discriminate room-tied
+ * vs service-tied add-ons at submit time (see addons/BookingForm.tsx).
+ */
 export function selectionToLines(
   selection: Record<string, number>,
   addons: readonly Pick<ProductAddon, 'addon_product_id' | 'product_kind'>[] = [],

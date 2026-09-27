@@ -318,3 +318,24 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
     expect(resp.amount).toBeUndefined()
   })
 })
+
+describe('stockQueryAllowed (landr-lmudr.10 review fix G)', () => {
+  const days = (n: number) =>
+    Array.from({ length: n }, (_, i) => `2031-01-${String((i % 28) + 1).padStart(2, '0')}-${i}`)
+
+  it('asks for a stock verdict within the API caps only', () => {
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 3 })).toBe(true)
+    expect(client.stockQueryAllowed({ selectedDays: days(62), participants: 200 })).toBe(true)
+    // Above the caps the API would 422 and dead-end the step — leave it off.
+    expect(client.stockQueryAllowed({ selectedDays: days(63), participants: 1 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 201 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: [], participants: 1 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 0 })).toBe(false)
+    expect(client.stockQueryAllowed(undefined)).toBe(false)
+  })
+
+  it('counts distinct days against the cap', () => {
+    const repeated = Array.from({ length: 100 }, () => '2031-03-10')
+    expect(client.stockQueryAllowed({ selectedDays: repeated, participants: 1 })).toBe(true)
+  })
+})

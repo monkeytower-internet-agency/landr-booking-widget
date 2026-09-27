@@ -7152,6 +7152,16 @@ export interface paths {
          *
          *     Past period / unit-day-release rows are left untouched (history).
          *
+         *     landr-lmudr.10: a ``rentable`` pool's rental add-on is retired too
+         *     (``rentals.retire_rental_addon``). The RPC hard-deletes the add-on's stock
+         *     requirement through the compat view, so without this the add-on would
+         *     stay live and sell with no stock limit. 409 ``rental_has_future_bookings``
+         *     (checked BEFORE the RPC, nothing written) while upcoming bookings include
+         *     the add-on. The RPC is kept rather than delegating to
+         *     ``resource_catalog.delete_type``: that one refuses while the type has
+         *     resources, whereas this legacy route soft-deletes the units in the same
+         *     transaction — the behaviour ResourcePoolsEditor's "Delete pool" relies on.
+         *
          *     404 ``resource_pool_not_found`` for unknown / foreign / already-deleted
          *     pool ids (via :func:`_resolve_operator_pool`, and again from the RPC's
          *     own re-check for a pool deleted in the gap between the two — never 403,

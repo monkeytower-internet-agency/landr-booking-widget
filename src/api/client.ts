@@ -372,18 +372,39 @@ export async function getStaffFixedDateWindows(
   )
 }
 
+/** landr-api `_ADDON_STOCK_MAX_DAYS` / `_ADDON_STOCK_MAX_PARTICIPANTS`
+ * (app/routers/public_operators.py). */
+export const ADDON_STOCK_MAX_DAYS = 62
+export const ADDON_STOCK_MAX_PARTICIPANTS = 200
+
+/** Whether a stock verdict may be asked for (non-empty, within the API caps). */
+export function stockQueryAllowed(
+  stock?: { selectedDays: string[]; participants: number },
+): stock is { selectedDays: string[]; participants: number } {
+  if (!stock) return false
+  const days = new Set(stock.selectedDays).size
+  return (
+    days > 0 &&
+    days <= ADDON_STOCK_MAX_DAYS &&
+    stock.participants > 0 &&
+    stock.participants <= ADDON_STOCK_MAX_PARTICIPANTS
+  )
+}
+
 /**
  * Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
  * Backed by GET /api/public/products/{id}/addons → SECURITY DEFINER RPC
  * public_get_product_addons. Returns an empty array when the parent has
  * no add-ons configured (or is itself hidden) — the widget treats empty
  * as "no add-ons UI to render".
- */
-/**
+ *
  * landr-lmudr.10: pass `stock` (the booking's service days + guiding
  * participant count) to get a per-add-on stock verdict (`available` /
  * `unavailable_reason`) — a rental add-on whose stock is used up on those
  * days comes back `available: false`. Without it the list is date-free.
+ * Above the API's caps (ADDON_STOCK_MAX_DAYS / _PARTICIPANTS) the stock
+ * params are left off — the API would 422 and dead-end the step — so the
+ * add-ons render without a sold-out verdict.
  */
 export async function getProductAddons(
   productId: string,
@@ -391,8 +412,8 @@ export async function getProductAddons(
 ): Promise<ProductAddon[]> {
   if (mocksEnabled()) return mockProductAddons(productId)
   const qs = new URLSearchParams()
-  if (stock && stock.selectedDays.length > 0 && stock.participants > 0) {
-    for (const day of stock.selectedDays) qs.append('selected_days', day)
+  if (stockQueryAllowed(stock)) {
+    for (const day of new Set(stock.selectedDays)) qs.append('selected_days', day)
     qs.set('participants', String(stock.participants))
   }
   const query = qs.toString()
