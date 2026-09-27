@@ -679,6 +679,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/internal/release/express-chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Chain Relay
+         * @description Create AND approve a staging_to_main run for a dev express chain.
+         *
+         *     Auth: HMAC + nonce. 403 ``initiator_not_approver`` · 409
+         *     ``staging_signoff_pending`` / ``staging_to_main_in_flight`` /
+         *     ``no_changes`` / ``sha_not_on_staging`` · 200 ``relayed`` |
+         *     ``already_relayed`` (idempotent on source_run_id).
+         */
+        post: operations["express_chain_relay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/express-chain/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Chain Preflight
+         * @description Is a customer sign-off pending / staging→main in flight for these repos?
+         *
+         *     Auth: HMAC (see module docstring). 200 either way — ``ok: false`` carries
+         *     the blocking reason; the dev api turns it into its own 409.
+         */
+        post: operations["express_chain_preflight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/release/express-chain/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Express Chain Status
+         * @description Status of the staging_to_main run an express chain created. Auth: HMAC.
+         */
+        post: operations["express_chain_status"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/internal/release/signoff": {
         parameters: {
             query?: never;
@@ -885,6 +953,17 @@ export interface paths {
          *
          *     Tier gate (landr-7dya.21): only the DEV api may create dev_to_staging
          *     runs. Staging + prod 403 with ``wrong_tier_for_promotion``.
+         *
+         *     landr-cn46a.6 — ``express=true`` starts a "Ship to prod" chain (see
+         *     app/workers/express_chain.py): approver-only, and refused up front
+         *     (``_enforce_express_allowed``) while staging has a pending customer
+         *     sign-off or an in-flight staging→main for the repos that would ship.
+         *
+         *     landr-cn46a.22 — express levels ALL tiers: its candidate set is
+         *     ``repos_ahead_for_express`` (ahead on dev→staging OR staging→main), not
+         *     just ``repos_ahead``, so a repo already level dev==staging but behind
+         *     staging→main still ships (as a zero-ahead noop row the chain carries
+         *     through at its staging tip). Non-express dev→staging is unaffected.
          */
         post: operations["create_dev_to_staging"];
         delete?: never;
@@ -1182,6 +1261,11 @@ export interface paths {
          * @description Cancel one's own proposed staging→main run. Proposer only. proposed→cancelled.
          *
          *     Tier gate (landr-7dya.21): staging-only, same shape as ``approve``.
+         *
+         *     landr-cn46a.6: an express-approved run (approval_source='express_chain',
+         *     created ``queued`` with an execute_after hold) is cancellable by its
+         *     approver — the proposer of record — for as long as the executor has not
+         *     claimed it (queued→cancelled, same optimistic status guard).
          */
         post: operations["cancel"];
         delete?: never;
@@ -1996,6 +2080,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/approval-requests/{token}/decide/{answer}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decide Approval Request
+         * @description Record a hotel SYSTEM's yes/no via its machine decide URL.
+         *
+         *     ``token`` is the request's ``machine_token`` — never the emailed
+         *     ``public_token``. Records on GET **or** POST (module docstring: why a
+         *     mutating GET is safe here). yes → ``confirmed``, no → ``declined``, no
+         *     comment; the responder is the asked location (its name, the request's
+         *     email). Idempotent: repeating the current decision returns
+         *     ``already_recorded: true`` and notifies nobody. Unknown, malformed,
+         *     revoked/superseded and expired tokens all get the same opaque 404.
+         *     ``Accept: text/html`` gets a one-line HTML page instead of JSON, in case a
+         *     human opens the URL.
+         */
+        get: operations["public_decide_approval_request_get"];
+        put?: never;
+        /**
+         * Decide Approval Request
+         * @description Record a hotel SYSTEM's yes/no via its machine decide URL.
+         *
+         *     ``token`` is the request's ``machine_token`` — never the emailed
+         *     ``public_token``. Records on GET **or** POST (module docstring: why a
+         *     mutating GET is safe here). yes → ``confirmed``, no → ``declined``, no
+         *     comment; the responder is the asked location (its name, the request's
+         *     email). Idempotent: repeating the current decision returns
+         *     ``already_recorded: true`` and notifies nobody. Unknown, malformed,
+         *     revoked/superseded and expired tokens all get the same opaque 404.
+         *     ``Accept: text/html`` gets a one-line HTML page instead of JSON, in case a
+         *     human opens the URL.
+         */
+        post: operations["public_decide_approval_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/approval-requests/{token}/response": {
         parameters: {
             query?: never;
@@ -2310,6 +2438,67 @@ export interface paths {
          *     would each get a push. Metered per IP and per token like ``/join``.
          */
         post: operations["public_briefing_push_subscribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/reschedule-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Reschedule Request
+         * @description Ask the operator to move this booking to new dates.
+         *
+         *     409 ``request_pending`` while an earlier request is open; 422
+         *     ``dates_in_past`` / ``trip_finished`` / ``trip_in_progress`` / ``dates_unchanged`` /
+         *     ``reschedule_not_available`` / ``invalid_dates``.
+         */
+        post: operations["public_briefing_create_reschedule_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/reschedule-requests/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw Reschedule Request
+         * @description Withdraw this booking's pending request (409 once decided).
+         */
+        delete: operations["public_briefing_withdraw_reschedule_request"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/wallet/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Google Wallet Save Url */
+        get: operations["public_briefing_wallet_google"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3365,6 +3554,12 @@ export interface paths {
          *     for audit / history purposes (and stays visible via include_deleted
          *     filters in future list endpoints). With notify_customer (default true)
          *     the customer is emailed a booking_cancelled notice (landr-5aih0.7).
+         *
+         *     Unconditionally — regardless of notify_customer — also notifies any
+         *     still-pending approval requester that the booking is off, via
+         *     notify_pending_approval_requests_cancelled (landr-5aih0.24): that party
+         *     is not the customer, so it must not be gated behind the customer's own
+         *     notify flag.
          */
         delete: operations["cancel_booking"];
         options?: never;
@@ -3430,6 +3625,31 @@ export interface paths {
          *     every other state there — see that RPC's precedence comment).
          */
         post: operations["staff_reissue_approval_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/change-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Change Notifications
+         * @description The booking's automatic customer updates, most recent first.
+         *
+         *     Only DISPATCHED rows (a still-queued, not-yet-drained event is not a
+         *     notification yet). Capped at :data:`_MAX_NOTIFICATIONS` groups, scanning
+         *     at most :data:`_LIMIT` underlying event rows — a booking's live journey
+         *     is expected to have a handful of these, not hundreds.
+         */
+        get: operations["get_change_notifications"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4846,10 +5066,17 @@ export interface paths {
          *                     "title": "Hotel has no booking email",
          *                     "message": "'Grand Hotel' has no booking email ...",
          *                     "target_route": "/settings/hotels",
-         *                     "action_label": "Fix"
+         *                     "action_label": "Fix",
+         *                     "dismissible": true
          *                 }
          *             ]
          *         }
+         *
+         *     landr-07gzo.10: `dismissible` is False for issue kinds the operator
+         *     should keep seeing until fixed (currently pickup_point_missing_icon and
+         *     hotel_missing_icon_or_colour) — the dashboard must not offer a dismiss
+         *     control for those. True for every pre-existing check (unchanged
+         *     behaviour).
          *
          *     Empty list means the operator has no active misconfigurations.
          *     The dashboard renders nothing when issues is empty.
@@ -5382,7 +5609,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Hotel Places Autocomplete */
+        /**
+         * Hotel Places Autocomplete
+         * @deprecated
+         */
         get: operations["hotel_places_autocomplete"];
         put?: never;
         post?: never;
@@ -5399,7 +5629,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Hotel Places Details */
+        /**
+         * Hotel Places Details
+         * @deprecated
+         */
         get: operations["hotel_places_details"];
         put?: never;
         post?: never;
@@ -5418,12 +5651,7 @@ export interface paths {
         };
         /**
          * Hotel Places Search
-         * @description ENTER-to-search: return the top ~10 Places Text Search matches.
-         *
-         *     One billed Text Search call, region-biased to the operator's country, so a
-         *     small local hotel surfaces ahead of global same-name results. Each result
-         *     is fully hydrated (place_id + the normalized form fields) so picking one
-         *     needs no follow-up details call.
+         * @deprecated
          */
         get: operations["hotel_places_search"];
         put?: never;
@@ -5441,10 +5669,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Hotels */
+        /**
+         * List Hotels
+         * @deprecated
+         */
         get: operations["list_hotels"];
         put?: never;
-        /** Create Hotel */
+        /**
+         * Create Hotel
+         * @deprecated
+         */
         post: operations["create_hotel"];
         delete?: never;
         options?: never;
@@ -5462,11 +5696,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Hotel */
+        /**
+         * Delete Hotel
+         * @deprecated
+         */
         delete: operations["delete_hotel"];
         options?: never;
         head?: never;
-        /** Patch Hotel */
+        /**
+         * Patch Hotel
+         * @deprecated
+         */
         patch: operations["patch_hotel"];
         trace?: never;
     };
@@ -5652,11 +5892,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Role Types */
+        /**
+         * List Role Types
+         * @deprecated
+         */
         get: operations["list_role_types"];
         put?: never;
         /**
          * Create Role Type
+         * @deprecated
          * @description Add a location role type.
          *
          *     landr-k9pji.3: ``location_role_types_operator_code_key`` is a NON-partial
@@ -5683,11 +5927,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Role Type */
+        /**
+         * Delete Role Type
+         * @deprecated
+         */
         delete: operations["delete_role_type"];
         options?: never;
         head?: never;
-        /** Patch Role Type */
+        /**
+         * Patch Role Type
+         * @deprecated
+         */
         patch: operations["patch_role_type"];
         trace?: never;
     };
@@ -5698,10 +5948,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Locations */
+        /**
+         * List Locations
+         * @deprecated
+         */
         get: operations["list_locations"];
         put?: never;
-        /** Create Location */
+        /**
+         * Create Location
+         * @deprecated
+         */
         post: operations["create_location"];
         delete?: never;
         options?: never;
@@ -5719,12 +5975,69 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Location */
+        /**
+         * Delete Location
+         * @deprecated
+         */
         delete: operations["delete_location"];
         options?: never;
         head?: never;
-        /** Patch Location */
+        /**
+         * Patch Location
+         * @deprecated
+         */
         patch: operations["patch_location"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/locations/{location_id}/request-channel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Request Channel
+         * @deprecated
+         */
+        get: operations["get_request_channel"];
+        /**
+         * Put Request Channel
+         * @deprecated
+         */
+        put: operations["put_request_channel"];
+        post?: never;
+        /**
+         * Delete Request Channel
+         * @deprecated
+         */
+        delete: operations["delete_request_channel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/locations/{location_id}/request-channel/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Request Channel
+         * @deprecated
+         * @description Always 200 with the classified result — never the key, and no
+         *     response body except a 400's short excerpt (which here means "key OK",
+         *     so it is not echoed either).
+         */
+        post: operations["test_request_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/memberships": {
@@ -6616,11 +6929,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Provider Role Types */
+        /**
+         * List Provider Role Types
+         * @deprecated
+         */
         get: operations["list_provider_role_types"];
         put?: never;
         /**
          * Create Provider Role Type
+         * @deprecated
          * @description Add a provider role type. 409 ``code_taken`` when a live row already
          *     owns ``code``; a soft-deleted row with that code is resurrected with the
          *     body's values instead (the unique index is non-partial, so a plain insert
@@ -6645,6 +6962,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Provider Role Type
+         * @deprecated
          * @description Soft-delete (Decision #69). 409 ``role_type_in_use`` — with the
          *     referencing ids under ``providers`` / ``assignments`` /
          *     ``service_roles`` — while anything live still points at it.
@@ -6654,6 +6972,7 @@ export interface paths {
         head?: never;
         /**
          * Patch Provider Role Type
+         * @deprecated
          * @description Relabel / reorder / (de)activate. ``code`` is immutable. An explicit
          *     null only means something for ``label_localized`` (clear it); on the
          *     NOT NULL columns it is ignored rather than 500ing on the constraint.
@@ -6668,10 +6987,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Providers */
+        /**
+         * List Providers
+         * @deprecated
+         */
         get: operations["list_providers"];
         put?: never;
-        /** Create Provider */
+        /**
+         * Create Provider
+         * @deprecated
+         */
         post: operations["create_provider"];
         delete?: never;
         options?: never;
@@ -6689,12 +7014,52 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Provider */
+        /**
+         * Delete Provider
+         * @deprecated
+         */
         delete: operations["delete_provider"];
         options?: never;
         head?: never;
-        /** Patch Provider */
+        /**
+         * Patch Provider
+         * @deprecated
+         */
         patch: operations["patch_provider"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/reschedule-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reschedule Requests */
+        get: operations["list_reschedule_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/reschedule-requests/{request_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Reschedule Request */
+        post: operations["decide_reschedule_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/resource-pools": {
@@ -6708,6 +7073,7 @@ export interface paths {
         put?: never;
         /**
          * Create Resource Pool
+         * @deprecated
          * @description Create a pool, then ensure its ``capacity_threshold`` rule — atomically.
          *
          *     THE BUG THIS ROUTE EXISTS TO FIX (landr-k5fgy, root-caused 2026-09-11).
@@ -6766,6 +7132,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Resource Pool
+         * @deprecated
          * @description Soft-delete a pool (Pattern A + ``active = false``) — epic decision 1.
          *
          *     The re-check + all four writes happen inside ONE Postgres function call,
@@ -6799,6 +7166,7 @@ export interface paths {
         head?: never;
         /**
          * Patch Resource Pool
+         * @deprecated
          * @description Set the pool-level fallback policy (every day with no covering period).
          *
          *     Bounded by the same 0…active-unit-count rule as a period's
@@ -6841,6 +7209,7 @@ export interface paths {
         };
         /**
          * Get Approval Calendar
+         * @deprecated
          * @description One row per day in ``[from, to]`` (≤366 days).
          *
          *     Every policy/load number is the evaluator's own, computed with
@@ -7064,6 +7433,7 @@ export interface paths {
         get?: never;
         /**
          * Apply Approval Periods
+         * @deprecated
          * @description Set one policy across one or more date ranges, atomically.
          *
          *     The whole write is ``apply_resource_pool_approval_periods`` (migration
@@ -7123,6 +7493,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Approval Period
+         * @deprecated
          * @description Soft-delete one period (Pattern A + ``active = false``).
          *
          *     The days it covered fall back to the pool's ``default_released_units`` on
@@ -7178,6 +7549,7 @@ export interface paths {
         put?: never;
         /**
          * Impact Preview
+         * @deprecated
          * @description The future days that would go SHORT if this unit went away.
          *
          *     Backs the epic's warn-and-confirm dialog (D7 / landr-w9yk8.11): turning a
@@ -7253,6 +7625,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Unit Service Period
+         * @deprecated
          * @description Soft-delete one service period (Pattern A + ``active = false``).
          *
          *     Removing a unit's LAST period puts it back to "in service every day" — the
@@ -7280,6 +7653,7 @@ export interface paths {
         get?: never;
         /**
          * Apply Pool Season Plan
+         * @deprecated
          * @description Apply the Season planner's draft rows to every touched unit, atomically.
          *
          *     landr-e80s.30: follow-up to landr-e80s.25 (dashboard PR #531), whose
@@ -7332,6 +7706,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Resource Pool Unit
+         * @deprecated
          * @description Soft-delete one unit (Pattern A + ``active = false``) — the fix for
          *     epic decision 5 (landr-uy4jy).
          *
@@ -7547,6 +7922,7 @@ export interface paths {
         };
         /**
          * List Unit Service Periods
+         * @deprecated
          * @description One unit's complete service schedule.
          *
          *     Both kinds, in one list, ordered by kind then start_date — the editor
@@ -7559,6 +7935,7 @@ export interface paths {
         get: operations["list_unit_service_periods"];
         /**
          * Apply Unit Service Periods
+         * @deprecated
          * @description Replace one unit's whole service schedule, atomically.
          *
          *     The write is ``apply_resource_pool_unit_service_periods`` (migration
@@ -7609,6 +7986,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Unit Scoped Service Period
+         * @deprecated
          * @description Unit-scoped alias of :func:`delete_unit_service_period`.
          *
          *     Same soft-delete, additionally scoped to ``unit_id`` — the per-unit
@@ -7621,6 +7999,593 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Resource Types
+         * @description The operator's live types with ``resource_count`` (active resources).
+         *
+         *     ``shape=tree`` (default): top-level types, each with ``children`` —
+         *     exactly what the Settings › Resources sidebar renders (landr-lmudr.8).
+         *     ``shape=flat``: one list ordered by ``sort_order``. ``facet`` keeps only
+         *     types carrying it (a child whose parent is filtered out is promoted).
+         */
+        get: operations["list_resource_types"];
+        put?: never;
+        /** Create Resource Type */
+        post: operations["create_resource_type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/from-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Resource Type Templates
+         * @description Seed the named bundle/single template keys (landr-lmudr.7).
+         *     Idempotent — a type whose code already exists for the operator is left
+         *     untouched (never relabelled) and reported under ``skipped``; safe to
+         *     call twice. 422 ``unknown_template_key`` for a key neither the bundle
+         *     nor the single registry recognises.
+         */
+        post: operations["apply_resource_type_templates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reorder Resource Types */
+        post: operations["reorder_resource_types"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Resource Type Templates
+         * @description The "Add from template" catalogue (landr-lmudr.7): every bundle
+         *     (paragliding operator, solo pilot, paragliding school, kayak & rafting,
+         *     bus transfers, accommodation partners), then every standalone single —
+         *     the dashboard picker (landr-lmudr.8) renders bundles as one-click
+         *     starting shapes and singles as "add just this kind".
+         */
+        get: operations["list_resource_type_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resource Type */
+        get: operations["get_resource_type"];
+        put?: never;
+        post?: never;
+        /** Delete Resource Type */
+        delete: operations["delete_resource_type"];
+        options?: never;
+        head?: never;
+        /** Patch Resource Type */
+        patch: operations["patch_resource_type"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/approval-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Resource Type Approval Calendar
+         * @description Per-day auto-approval policy, release ladder and load (≤366 days).
+         *     Same response as ``GET /resource-pools/{id}/approval-calendar``.
+         */
+        get: operations["get_resource_type_approval_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/approval-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Resource Type Approval Periods
+         * @description Set one policy across date ranges atomically
+         *     (``apply_resource_pool_approval_periods``). Same contract as the
+         *     resource-pool route.
+         */
+        put: operations["put_resource_type_approval_periods"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/approval-periods/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Resource Type Approval Period */
+        delete: operations["delete_resource_type_approval_period"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/color": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Resource Type Color
+         * @description The panel's colour button (decision 19): one field, ``null`` clears.
+         */
+        patch: operations["set_resource_type_color"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/field-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Resource Type Field Schema
+         * @description Replace the custom-field list. Existing resources keep their stored
+         *     values; a later write of a resource validates against the new schema
+         *     (values that merely round-trip stay accepted).
+         */
+        put: operations["put_resource_type_field_schema"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/impact-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resource Type Impact Preview
+         * @description Future days that would go short if a resource left the fleet or went
+         *     out of service — the warn-and-confirm table before a removal.
+         */
+        post: operations["resource_type_impact_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/unavailability/fan-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fan Out Resource Type Unavailability
+         * @description Season planner for ANY type (the landr-e80s.30 fan-out, generalised):
+         *     each row's range becomes ``in_service`` on every resource it names,
+         *     trimming what was there; one transaction — a bad row or a resource of
+         *     another type writes nothing. A capacity type's dry run also returns
+         *     ``consequences`` (days that would go over capacity, with the bookings),
+         *     computed exactly as the resource-pool season planner does.
+         */
+        post: operations["fan_out_resource_type_unavailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Resources */
+        get: operations["list_resources"];
+        put?: never;
+        /** Create Resource */
+        post: operations["create_resource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/day-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Day Assignments
+         * @description Per-day staff overrides in ``[from, to]`` (≤366 days). Resolution
+         *     order for who works a resource on a day (decision 11): a booking's own
+         *     provider assignment ?? this override ?? the ``default_staff`` link.
+         */
+        get: operations["list_day_assignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/day-assignments/{assignment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Day Assignment */
+        delete: operations["delete_day_assignment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/places/details/{place_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Place Details */
+        get: operations["place_details"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/places/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Places
+         * @description ENTER-to-search: up to ~10 Google Places matches, region-biased to the
+         *     operator's country, each fully hydrated (name, address, phone, website,
+         *     maps_link, lat, lng, timezone) so picking one needs no second call.
+         *     ``{configured, results}``; 503 when no key is set, 502 when Google is
+         *     down, 429 ``places_rate_limited``. Queries under 3 characters cost nothing.
+         */
+        get: operations["search_places"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Resource */
+        get: operations["get_resource"];
+        put?: never;
+        post?: never;
+        /** Delete Resource */
+        delete: operations["delete_resource"];
+        options?: never;
+        head?: never;
+        /** Patch Resource */
+        patch: operations["patch_resource"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/day-assignments/{assignment_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Day Assignments
+         * @description Upsert: after the call exactly ``assigned_resource_ids`` (staff-facet
+         *     resources) work this resource on ``assignment_date``; ``[]`` clears the
+         *     override so the ``default_staff`` link applies again.
+         */
+        put: operations["put_day_assignments"];
+        post?: never;
+        /** Clear Day Assignments */
+        delete: operations["clear_day_assignments"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/external-partner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get External Partner
+         * @description The "External partner" section of a place (landr-lmudr.9): who the
+         *     partner is to landr, generically.
+         *
+         *     * ``products`` — live products whose accommodation offering is this place
+         *       (``products.hotel_location_id``, an allow-listed legacy identifier).
+         *     * ``booking_email`` — ``resources.email``, the address approval requests
+         *       go to (never ``attributes.contact_email``, which is the general contact).
+         *     * ``receives_approval_requests`` — whether today's approval pipeline
+         *       routes requests to this place: true exactly when ``products`` is
+         *       non-empty (landr-lmudr.22 — the routing predicate is "referenced as a
+         *       product's accommodation offering", not the place's own kind code; a
+         *       hotel-kind place no live product offers gets no requests, and a
+         *       non-hotel-kind place a product does offer gets them). Same predicate as
+         *       :func:`app.services.resource_catalog.accommodation_offering_products`.
+         *     * ``request_channel`` — the masked direct channel (never the key), or null.
+         */
+        get: operations["get_external_partner"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Links
+         * @description Both directions: rows where this resource is ``resource_id`` (the
+         *     places a bus serves, its default driver) and where it is
+         *     ``linked_resource_id`` (the buses this driver is default staff for).
+         */
+        get: operations["list_links"];
+        put?: never;
+        /**
+         * Add Link
+         * @description ``serves_place`` needs a place-facet target, ``default_staff`` a
+         *     staff-facet one (422 ``facet_required``); a duplicate is 409 ``link_exists``.
+         */
+        post: operations["add_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/links/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Links
+         * @description Replace this resource's OUTGOING links of ``kind`` with exactly
+         *     ``linked_resource_ids`` (checkbox semantics; ``[]`` = none — for
+         *     ``serves_place`` that means it serves no place, as before).
+         */
+        put: operations["put_links"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Link */
+        delete: operations["delete_link"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/request-channel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Resource Request Channel
+         * @description Same contract as ``GET /locations/{id}/request-channel`` (masked; the
+         *     key is never returned), except the not-a-partner rejection reports
+         *     ``not_an_accommodation_partner`` (landr-lmudr.22) instead of the legacy
+         *     alias's ``not_a_hotel_location``.
+         */
+        get: operations["get_resource_request_channel"];
+        /** Put Resource Request Channel */
+        put: operations["put_resource_request_channel"];
+        post?: never;
+        /** Delete Resource Request Channel */
+        delete: operations["delete_resource_request_channel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/request-channel/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Resource Request Channel */
+        post: operations["test_resource_request_channel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/unavailability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unavailability
+         * @description Live rows. Zero ``in_service`` rows = in service every day;
+         *     ``out_of_service`` rows always win (decision 13).
+         */
+        get: operations["list_unavailability"];
+        /**
+         * Put Unavailability
+         * @description Replace the whole schedule in one transaction: ranges merge per
+         *     (kind, reason), unchanged rows are kept, the rest soft-deleted. 422
+         *     ``resource_unavailability_invalid_ranges`` for inverted or conflicting
+         *     input; ``?dry_run=1`` returns the result without writing.
+         */
+        put: operations["put_unavailability"];
+        /** Add Unavailability */
+        post: operations["add_unavailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/unavailability/{period_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Unavailability */
+        delete: operations["delete_unavailability"];
+        options?: never;
+        head?: never;
+        /** Patch Unavailability */
+        patch: operations["patch_unavailability"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/saved-views": {
@@ -8634,6 +9599,29 @@ export interface components {
             period: string;
             /** Used */
             used: number;
+        };
+        /** AppliedTemplatesOut */
+        AppliedTemplatesOut: {
+            /**
+             * Created
+             * @description resource_types.code newly created by this call
+             */
+            created: string[];
+            /**
+             * Example Resources Created
+             * @default 0
+             */
+            example_resources_created: number;
+            /**
+             * Requirements Created
+             * @default 0
+             */
+            requirements_created: number;
+            /**
+             * Skipped
+             * @description resource_types.code already present for this operator (untouched)
+             */
+            skipped: string[];
         };
         /** ApplyPresetRequest */
         ApplyPresetRequest: {
@@ -9663,6 +10651,28 @@ export interface components {
              */
             method: "stripe_auto" | "manual" | "none";
         };
+        /** ChangeNotification */
+        ChangeNotification: {
+            /** Channels */
+            channels: string[];
+            /** Days */
+            days: string[];
+            /** Dispatched At */
+            dispatched_at: string;
+            /** Event Count */
+            event_count: number;
+            /** Kinds */
+            kinds: string[];
+            /** Outcome */
+            outcome: string;
+            /** Outcome Detail */
+            outcome_detail?: string | null;
+        };
+        /** ChangeNotificationsResponse */
+        ChangeNotificationsResponse: {
+            /** Notifications */
+            notifications: components["schemas"]["ChangeNotification"][];
+        };
         /**
          * ChangelogEntryOut
          * @description Deliberately ``category``/``description`` ONLY.
@@ -9780,6 +10790,14 @@ export interface components {
         ChecklistTemplateUpdate: {
             /** Items */
             items: components["schemas"]["ChecklistTemplateItem"][];
+        };
+        /** ColorIn */
+        ColorIn: {
+            /**
+             * Color
+             * @description #RRGGBB, or null to clear (a resource then inherits its type's color)
+             */
+            color: string | null;
         };
         /** CompanionIn */
         CompanionIn: {
@@ -10022,6 +11040,39 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** DayAssignmentOut */
+        DayAssignmentOut: {
+            /** Assigned Resource Id */
+            assigned_resource_id: string;
+            /** Assigned Resource Name */
+            assigned_resource_name?: string | null;
+            /**
+             * Assignment Date
+             * Format: date
+             */
+            assignment_date: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** DayAssignmentSetIn */
+        DayAssignmentSetIn: {
+            /** Assigned Resource Ids */
+            assigned_resource_ids?: string[];
+            /** Note */
+            note?: string | null;
+        };
         /** DayChangeLineDelta */
         DayChangeLineDelta: {
             /** Booking Product Id */
@@ -10176,8 +11227,12 @@ export interface components {
             pickup_location_text?: string | null;
             /** Pickup Note */
             pickup_note?: string | null;
+            /** Pickup Participant Address */
+            pickup_participant_address?: string | null;
             /** Pickup Time */
             pickup_time?: string | null;
+            /** Pickup Urgency */
+            pickup_urgency?: string | null;
             /** Product Id */
             product_id: string;
             /** Product Name */
@@ -10409,6 +11464,18 @@ export interface components {
         };
         /** DevToStagingIn */
         DevToStagingIn: {
+            /**
+             * Express
+             * @description landr-cn46a.6 — express 'Ship to prod': after the merges, wait for the staging deploys + staging health + schema gate, then have staging create AND approve staging→main on the caller's behalf. Release approvers only.
+             * @default false
+             */
+            express: boolean;
+            /**
+             * Force Without Api
+             * @description landr-cn46a.3 — override the requires_api guard: proceed even though a selected client component depends on pending API changes that aren't also selected on this hop.
+             * @default false
+             */
+            force_without_api: boolean;
             /** Notes */
             notes?: string | null;
             /**
@@ -10682,6 +11749,84 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** FanOutIn */
+        FanOutIn: {
+            /** Rows */
+            rows: components["schemas"]["FanOutRow"][];
+        };
+        /** FanOutOut */
+        FanOutOut: {
+            /**
+             * Consequences
+             * @description Capacity types, dry run only: days that would go over capacity
+             */
+            consequences?: {
+                [key: string]: unknown;
+            } | null;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Resources */
+            resources: components["schemas"]["FanOutResource"][];
+        };
+        /** FanOutResource */
+        FanOutResource: {
+            /** Always In Service */
+            always_in_service: boolean;
+            /** Periods */
+            periods: components["schemas"]["UnavailabilityOut"][];
+            /** Resource Id */
+            resource_id: string;
+        };
+        /** FanOutRow */
+        FanOutRow: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Resource Ids */
+            resource_ids: string[];
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** FieldSchemaIn */
+        FieldSchemaIn: {
+            /** Fields */
+            fields?: components["schemas"]["FieldSpec"][];
+        };
+        /**
+         * FieldSpec
+         * @description One custom field of a resource type.
+         */
+        FieldSpec: {
+            /**
+             * Key
+             * @description snake_case, unique per type
+             */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "textarea" | "number" | "bool" | "time" | "url" | "email" | "phone" | "select";
+            /** Label */
+            label?: string | null;
+            /**
+             * Options
+             * @description Choices; required and non-empty for kind=select
+             */
+            options?: string[] | null;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+        };
         /**
          * FixedDateWindow
          * @description One row returned by the public_get_product_fixed_date_windows RPC.
@@ -10863,6 +12008,20 @@ export interface components {
             };
             /** Form Key */
             form_key: string;
+        };
+        /** FromTemplateIn */
+        FromTemplateIn: {
+            /**
+             * Keys
+             * @description A mix of bundle and/or single template keys from GET .../templates
+             */
+            keys: string[];
+            /**
+             * With Examples
+             * @description Also seed each template's example resources
+             * @default true
+             */
+            with_examples: boolean;
         };
         /** GearCreateRequest */
         GearCreateRequest: {
@@ -11580,6 +12739,45 @@ export interface components {
             /** Ref */
             ref: string;
         };
+        /** LinkIn */
+        LinkIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "serves_place" | "default_staff";
+            /** Linked Resource Id */
+            linked_resource_id: string;
+        };
+        /** LinkOut */
+        LinkOut: {
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "serves_place" | "default_staff";
+            /** Linked Resource Id */
+            linked_resource_id: string;
+            /** Linked Resource Name */
+            linked_resource_name?: string | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** LinkSetIn */
+        LinkSetIn: {
+            /** Linked Resource Ids */
+            linked_resource_ids?: string[];
+        };
         /** LocationIn */
         LocationIn: {
             /** Address */
@@ -11656,6 +12854,24 @@ export interface components {
             label?: string | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /**
+         * MachineDecideResult
+         * @description `GET|POST .../{machine_token}/decide/{yes|no}` 200 body.
+         *
+         *     ``recorded`` is true whenever the decision is on record after the call —
+         *     freshly, or (``already_recorded``) because it already was.
+         */
+        MachineDecideResult: {
+            /** Already Recorded */
+            already_recorded: boolean;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "declined" | "confirmed_with_changes";
+            /** Recorded */
+            recorded: boolean;
         };
         /** ManifestProductRef */
         ManifestProductRef: {
@@ -11886,13 +13102,17 @@ export interface components {
          *
          *     Deliberately NOT a superset of the staff PUT: no `part_of_day` (an
          *     operator's am/pm split hint, not the participant's), no `pickup_address`
-         *     (free text a participant cannot be trusted to keep operator-meaningful),
-         *     no `note` — landr-pdtoe.4 gives participants a real message board, and a
-         *     freeform note squatting on the driver's own field would collide with it.
+         *     (free text a participant cannot be trusted to keep operator-meaningful —
+         *     `address` below is a SEPARATE, participant-owned column, see D8 and
+         *     landr-07gzo.3), no `note` — landr-pdtoe.4 gives participants a real
+         *     message board, and a freeform note squatting on the driver's own field
+         *     would collide with it.
          */
         MyStatusIn: {
             /** Accuracy M */
             accuracy_m?: number | null;
+            /** Address */
+            address?: string | null;
             /** Expected Back At */
             expected_back_at?: string | null;
             /** Fixed At */
@@ -11903,6 +13123,8 @@ export interface components {
             lng?: number | null;
             /** Status Id */
             status_id?: string | null;
+            /** Urgency */
+            urgency?: ("standard" | "emergency" | "medical_police") | null;
         };
         /** MyUnitRequestIn */
         MyUnitRequestIn: {
@@ -13243,6 +14465,11 @@ export interface components {
         };
         /** ProposeIn */
         ProposeIn: {
+            /**
+             * Force Without Api
+             * @default false
+             */
+            force_without_api: boolean;
             /** Notes */
             notes: string;
             /** Repos */
@@ -13359,6 +14586,30 @@ export interface components {
             ok: boolean;
             /** Refund Status */
             refund_status?: ("refunded" | "manual_refund_needed" | "not_applicable") | null;
+        };
+        /** PublicRescheduleRequestOut */
+        PublicRescheduleRequestOut: {
+            /**
+             * Awaiting Confirmation
+             * @default false
+             */
+            awaiting_confirmation: boolean;
+            /** Created At */
+            created_at?: string | null;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decision Note */
+            decision_note?: string | null;
+            /** Id */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Requested */
+            requested: {
+                [key: string]: unknown;
+            };
+            /** Status */
+            status: string;
         };
         /** PublicSubmitBookingIn */
         PublicSubmitBookingIn: {
@@ -13648,10 +14899,151 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ReorderIn */
+        ReorderIn: {
+            /** Ids */
+            ids: string[];
+        };
+        /** RequestChannelIn */
+        RequestChannelIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Api Key */
+            api_key?: string | null;
+            /** Endpoint Url */
+            endpoint_url: string;
+            /**
+             * Kind
+             * @default gastroflow
+             * @constant
+             */
+            kind: "gastroflow";
+        };
+        /** RequestChannelOut */
+        RequestChannelOut: {
+            /** Active */
+            active?: boolean | null;
+            /** Configured */
+            configured: boolean;
+            /** Endpoint Url */
+            endpoint_url?: string | null;
+            /** Key Last4 */
+            key_last4?: string | null;
+            /**
+             * Key Set
+             * @default false
+             */
+            key_set: boolean;
+            /** Kind */
+            kind?: string | null;
+            /** Last Delivered At */
+            last_delivered_at?: string | null;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Status */
+            last_status?: string | null;
+            /** Location Id */
+            location_id: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** RequestChannelTestIn */
+        RequestChannelTestIn: {
+            /** Api Key */
+            api_key?: string | null;
+            /** Endpoint Url */
+            endpoint_url?: string | null;
+        };
+        /** RequestChannelTestOut */
+        RequestChannelTestOut: {
+            /** Detail */
+            detail?: string | null;
+            /** Http Status */
+            http_status?: number | null;
+            /** Ok */
+            ok: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "key_rejected" | "unreachable" | "unexpected";
+        };
         /** RequestGoliveIn */
         RequestGoliveIn: {
             /** Notes */
             notes?: string | null;
+        };
+        /** RescheduleDecisionIn */
+        RescheduleDecisionIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "declined";
+            /** Note */
+            note?: string | null;
+        };
+        /** RescheduleDecisionOut */
+        RescheduleDecisionOut: {
+            /**
+             * Capacity Escalated
+             * @default false
+             */
+            capacity_escalated: boolean;
+            /**
+             * Customer Email
+             * @enum {string}
+             */
+            customer_email: "update_confirmation" | "reschedule_decision" | "none";
+            request: components["schemas"]["RescheduleRequestOut"];
+        };
+        /**
+         * RescheduleRequestIn
+         * @description Either ``selected_days`` or ``date_range_start`` + ``date_range_end``
+         *     (the page sends whichever its ``reschedule_shape`` asks for).
+         */
+        RescheduleRequestIn: {
+            /** Date Range End */
+            date_range_end?: string | null;
+            /** Date Range Start */
+            date_range_start?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /** RescheduleRequestOut */
+        RescheduleRequestOut: {
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decided By User Id */
+            decided_by_user_id?: string | null;
+            /** Decision Note */
+            decision_note?: string | null;
+            /** Id */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Requested */
+            requested: {
+                [key: string]: unknown;
+            };
+            /** Requested Days */
+            requested_days: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "declined" | "withdrawn";
         };
         /**
          * ResendEmailBody
@@ -13751,6 +15143,194 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** ResourceIn */
+        ResourceIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Address */
+            address?: string | null;
+            /**
+             * Attributes
+             * @description Values for the type's field_schema
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /** Capacity */
+            capacity?: number | null;
+            /** Capacity Min */
+            capacity_min?: number | null;
+            /** Color */
+            color?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /**
+             * Email
+             * @description Booking / approval-request address of a place (the old hotel email)
+             */
+            email?: string | null;
+            /**
+             * Geo
+             * @description {"lat": .., "lng": ..} (place facet)
+             */
+            geo?: {
+                [key: string]: unknown;
+            } | null;
+            /** Icon */
+            icon?: string | null;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Place Roles */
+            place_roles?: ("pickup" | "dropoff" | "meeting_point" | "base")[];
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** ResourceOut */
+        ResourceOut: {
+            /** Active */
+            active: boolean;
+            /** Address */
+            address?: string | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+            /** Capacity */
+            capacity?: number | null;
+            /** Capacity Min */
+            capacity_min?: number | null;
+            /**
+             * Child Count
+             * @default 0
+             */
+            child_count: number;
+            /** Color */
+            color?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Created At */
+            created_at: string;
+            /**
+             * Effective Capacity
+             * @description Seats this row stands for: capacity × quantity for a leaf, the sum over live active children for a parent; null = not seat-bookable
+             */
+            effective_capacity?: number | null;
+            /**
+             * Effective Color
+             * @description color ?? type color
+             */
+            effective_color?: string | null;
+            /**
+             * Effective Icon
+             * @description icon ?? type icon
+             */
+            effective_icon?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Facets
+             * @description The type's facets
+             */
+            facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Geo */
+            geo?: {
+                [key: string]: unknown;
+            } | null;
+            /** Icon */
+            icon?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Place Roles */
+            place_roles: ("pickup" | "dropoff" | "meeting_point" | "base")[];
+            /** Quantity */
+            quantity: number;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Type Code */
+            type_code?: string | null;
+            /** Type Label */
+            type_label?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * ResourcePatch
+         * @description Partial update; explicit null clears nullable columns. ``attributes``
+         *     replaces the stored object.
+         */
+        ResourcePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Address */
+            address?: string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            } | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Capacity Min */
+            capacity_min?: number | null;
+            /** Color */
+            color?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Geo */
+            geo?: {
+                [key: string]: unknown;
+            } | null;
+            /** Icon */
+            icon?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Place Roles */
+            place_roles?: ("pickup" | "dropoff" | "meeting_point" | "base")[] | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Resource Type Id */
+            resource_type_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /**
          * ResourcePoolCreateIn
          * @description ``POST .../resource-pools`` (landr-k5fgy.1) — the fields
@@ -13826,6 +15406,224 @@ export interface components {
             slot_label?: string | null;
             /** Slot Label Plural */
             slot_label_plural?: string | null;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
+        };
+        /** ResourceTypeIn */
+        ResourceTypeIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /**
+             * Default Released Units
+             * @default 1
+             */
+            default_released_units: number;
+            /** Facets */
+            facets?: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Field Schema */
+            field_schema?: components["schemas"]["FieldSpec"][];
+            /** Icon */
+            icon?: string | null;
+            /**
+             * Is Consumed Per Day
+             * @default true
+             */
+            is_consumed_per_day: boolean;
+            /** Kind Hint */
+            kind_hint?: ("transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat") | null;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Unit Label */
+            unit_label?: string | null;
+            /** Unit Label Plural */
+            unit_label_plural?: string | null;
+        };
+        /**
+         * ResourceTypeNode
+         * @description A top-level type with its child types (depth <= 2).
+         */
+        ResourceTypeNode: {
+            /** Active */
+            active: boolean;
+            /** Children */
+            children?: components["schemas"]["ResourceTypeOut"][];
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Default Released Units */
+            default_released_units: number;
+            /**
+             * Descendant Resource Count
+             * @description resource_count of this type plus all its children
+             * @default 0
+             */
+            descendant_resource_count: number;
+            /** Facets */
+            facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Field Schema */
+            field_schema: components["schemas"]["FieldSpec"][];
+            /** Icon */
+            icon?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Inactive Resource Count
+             * @default 0
+             */
+            inactive_resource_count: number;
+            /** Is Consumed Per Day */
+            is_consumed_per_day: boolean;
+            /** Kind Hint */
+            kind_hint?: ("transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat") | null;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Resource Count
+             * @description Live, active resources of exactly this type
+             */
+            resource_count: number;
+            /** Slot Label */
+            slot_label: string;
+            /** Slot Label Plural */
+            slot_label_plural: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit Label */
+            unit_label: string;
+            /** Unit Label Plural */
+            unit_label_plural: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ResourceTypeOut */
+        ResourceTypeOut: {
+            /** Active */
+            active: boolean;
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Default Released Units */
+            default_released_units: number;
+            /** Facets */
+            facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Field Schema */
+            field_schema: components["schemas"]["FieldSpec"][];
+            /** Icon */
+            icon?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Inactive Resource Count
+             * @default 0
+             */
+            inactive_resource_count: number;
+            /** Is Consumed Per Day */
+            is_consumed_per_day: boolean;
+            /** Kind Hint */
+            kind_hint?: ("transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat") | null;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Resource Count
+             * @description Live, active resources of exactly this type
+             */
+            resource_count: number;
+            /** Slot Label */
+            slot_label: string;
+            /** Slot Label Plural */
+            slot_label_plural: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Unit Label */
+            unit_label: string;
+            /** Unit Label Plural */
+            unit_label_plural: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * ResourceTypePatch
+         * @description Partial update. ``code`` is immutable. Explicit null clears
+         *     ``label_localized`` / ``parent_id`` / ``color`` / ``icon`` / ``kind_hint``
+         *     and is ignored on NOT NULL columns.
+         */
+        ResourceTypePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Color */
+            color?: string | null;
+            /** Default Released Units */
+            default_released_units?: number | null;
+            /** Facets */
+            facets?: ("place" | "capacity" | "staff" | "rentable")[] | null;
+            /** Field Schema */
+            field_schema?: components["schemas"]["FieldSpec"][] | null;
+            /** Icon */
+            icon?: string | null;
+            /** Is Consumed Per Day */
+            is_consumed_per_day?: boolean | null;
+            /** Kind Hint */
+            kind_hint?: ("transport_seat" | "staff_capacity" | "equipment_unit" | "physical_space" | "generic_seat") | null;
+            /** Label */
+            label?: string | null;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Slot Label */
+            slot_label?: string | null;
+            /** Slot Label Plural */
+            slot_label_plural?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
             /** Unit Label */
             unit_label?: string | null;
             /** Unit Label Plural */
@@ -14549,6 +16347,13 @@ export interface components {
             /** Outcome */
             outcome: string;
         };
+        /** StatusOut */
+        StatusOut: {
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
+        };
         /**
          * SubmitBookingResponse
          * @description Response of POST /api/public/bookings (booking submit).
@@ -14821,6 +16626,32 @@ export interface components {
             override_key?: string | null;
         };
         /**
+         * TemplateCatalogueEntryOut
+         * @description One pick in the "Add from template" catalogue — a bundle (a named
+         *     group of singles, e.g. 'kayak_rafting') or a standalone single
+         *     (e.g. 'accommodation').
+         */
+        TemplateCatalogueEntryOut: {
+            /** Description */
+            description: string;
+            /** Facets */
+            facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bundle" | "single";
+            /** Label */
+            label: string;
+            /**
+             * Template Keys
+             * @description Component single-template keys (bundles only)
+             */
+            template_keys?: string[];
+        };
+        /**
          * TermPair
          * @description landr-iqo7q.1 — one operators.terminology override: the singular
          *     ('one') / plural ('many') word an operator wants shown instead of
@@ -14919,6 +16750,88 @@ export interface components {
             synced: boolean;
             /** Trello Card Url */
             trello_card_url?: string | null;
+        };
+        /** UnavailabilityIn */
+        UnavailabilityIn: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Kind
+             * @default out_of_service
+             * @enum {string}
+             */
+            kind: "in_service" | "out_of_service";
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** UnavailabilityOut */
+        UnavailabilityOut: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /**
+             * Id
+             * @description null in a dry run for a row that would be created
+             */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "in_service" | "out_of_service";
+            /** Operator Id */
+            operator_id: string;
+            /** Reason */
+            reason?: string | null;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** UnavailabilityPatch */
+        UnavailabilityPatch: {
+            /** End Date */
+            end_date?: string | null;
+            /** Kind */
+            kind?: ("in_service" | "out_of_service") | null;
+            /** Reason */
+            reason?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+        };
+        /** UnavailabilitySetIn */
+        UnavailabilitySetIn: {
+            /** Periods */
+            periods?: components["schemas"]["UnavailabilityIn"][];
+        };
+        /** UnavailabilitySetOut */
+        UnavailabilitySetOut: {
+            /** Always In Service */
+            always_in_service: boolean;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Periods */
+            periods: components["schemas"]["UnavailabilityOut"][];
+            /** Resource Id */
+            resource_id: string;
         };
         /**
          * UnitDayStateIn
@@ -16721,6 +18634,72 @@ export interface operations {
             };
         };
     };
+    express_chain_relay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    express_chain_preflight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    express_chain_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     relay_signoff: {
         parameters: {
             query?: never;
@@ -18142,6 +20121,72 @@ export interface operations {
             };
         };
     };
+    public_decide_approval_request_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                answer: "yes" | "no";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineDecideResult"];
+                    "text/html": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_decide_approval_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                answer: "yes" | "no";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineDecideResult"];
+                    "text/html": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_record_approval_reply: {
         parameters: {
             query?: never;
@@ -18599,6 +20644,106 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_create_reschedule_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicRescheduleRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_withdraw_reschedule_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicRescheduleRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_wallet_google: {
+        parameters: {
+            query: {
+                participant: string;
+            };
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -20112,6 +22257,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReissueApprovalRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_change_notifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeNotificationsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -24359,6 +26535,140 @@ export interface operations {
             };
         };
     };
+    get_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                location_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                location_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestChannelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                location_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                location_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RequestChannelTestIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_membership: {
         parameters: {
             query?: never;
@@ -26186,6 +28496,8 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /** @description landr-k9pji.10: also include the on_request synthetic whole-day rows (id null, source='on_request') the public availability RPC already synthesises for booking_mode='on_request' products. Defaults to false so the Schedule page's day editor (ProductSlotSchedule/AvailabilityDayEditor) — which lets the operator CRUD real rows and has no concept of an unsaveable ghost row — keeps seeing exactly today's real-rows-only response. The booking-detail day pickers (BookingProductDatesField/MultiDayPicker) pass true. */
+                include_on_request?: boolean;
             };
             header?: never;
             path: {
@@ -26874,6 +29186,76 @@ export interface operations {
             };
         };
     };
+    list_reschedule_requests: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "approved" | "declined" | "withdrawn") | null;
+                booking_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RescheduleRequestOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_reschedule_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RescheduleDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_resource_pool: {
         parameters: {
             query?: never;
@@ -27459,6 +29841,1417 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resource_types: {
+        parameters: {
+            query?: {
+                facet?: ("place" | "capacity" | "staff" | "rentable") | null;
+                shape?: "tree" | "flat";
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeNode"][] | components["schemas"]["ResourceTypeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_resource_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceTypeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_resource_type_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FromTemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppliedTemplatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_resource_types: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resource_type_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateCatalogueEntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_type: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_resource_type: {
+        parameters: {
+            query?: {
+                /** @description Clear place roles/map position when removing the place facet */
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceTypePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_type_approval_calendar: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_resource_type_approval_periods: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalPeriodsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_type_approval_period: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_resource_type_color: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColorIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_resource_type_field_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldSchemaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resource_type_impact_preview: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImpactPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fan_out_resource_type_unavailability: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                /** @description dry run: consequence window start */
+                from?: string | null;
+                /** @description dry run: consequence window end */
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FanOutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FanOutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resources: {
+        parameters: {
+            query?: {
+                type_id?: string | null;
+                facet?: ("place" | "capacity" | "staff" | "rentable") | null;
+                /** @description role=pickup is the pickup-locations list */
+                role?: ("pickup" | "dropoff" | "meeting_point" | "base") | null;
+                /** @description a resource id, or 'none' for top-level rows */
+                parent_id?: string | null;
+                active?: boolean | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_day_assignments: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                resource_id?: string | null;
+                assigned_resource_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_day_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    place_details: {
+        parameters: {
+            query?: {
+                session_token?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                place_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_places: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourcePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_day_assignments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                assignment_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayAssignmentSetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_day_assignments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                assignment_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_external_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_links: {
+        parameters: {
+            query?: {
+                kind?: ("serves_place" | "default_staff") | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_links: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                kind: "serves_place" | "default_staff";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_resource_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestChannelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_resource_request_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RequestChannelTestIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestChannelTestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_unavailability: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnavailabilitySetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilitySetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnavailabilityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_unavailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+                period_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnavailabilityPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnavailabilityOut"];
                 };
             };
             /** @description Validation Error */
