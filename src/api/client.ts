@@ -285,6 +285,26 @@ export async function getHotelsForOperator(
 }
 
 /**
+ * Places usable for pickup: `place_roles` (landr-api `resources.place_roles`)
+ * contains 'pickup' (landr-lmudr.12). Used by PickupLocationPicker. Same
+ * client-side-filter pattern as `getHotelsForOperator` above, off the same
+ * shared `listLocations` call — the public locations RPC already returns
+ * place_roles and the catalogue is tiny, so a second RPC buys nothing.
+ *
+ * Replaces the previous behaviour of listing every location unfiltered
+ * (the widget never actually excluded hotels from the pickup step before
+ * this). A place can carry BOTH 'pickup' and be role_type.code === 'hotel'
+ * (Para42's Hotel Mirador) — it appears in both this list and
+ * `getHotelsForOperator`'s, independently.
+ */
+export async function listPickupLocationsForOperator(
+  operatorToken: string,
+): Promise<Location[]> {
+  const locations = await listLocations(operatorToken)
+  return locations.filter((loc) => (loc.place_roles ?? []).includes('pickup'))
+}
+
+/**
  * Hotel rooms (kind=hotel_room, hotel_location_id=hotelId) for a given
  * hotel under an operator (landr-vyaz). Filtered client-side off the
  * existing public_get_operator_products RPC — same rationale as

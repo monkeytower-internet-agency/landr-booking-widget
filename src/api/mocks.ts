@@ -277,6 +277,7 @@ export const mockLocations: Location[] = [
     name_localized: { en: 'Ölüdeniz Beach', de: 'Ölüdeniz Strand', tr: 'Ölüdeniz Plajı' },
     parent_id: null,
     role_type: { code: 'beach', label: 'Beach' },
+    place_roles: ['pickup'],
   },
   {
     location_id: 'aaaaaaaa-0000-0000-0000-000000000002',
@@ -284,6 +285,7 @@ export const mockLocations: Location[] = [
     name_localized: { en: 'Hisarönü Main Square', de: 'Hisarönü Hauptplatz', tr: 'Hisarönü Meydanı' },
     parent_id: null,
     role_type: { code: 'plaza', label: 'Plaza' },
+    place_roles: ['pickup'],
   },
   {
     location_id: 'aaaaaaaa-0000-0000-0000-000000000003',
@@ -291,6 +293,22 @@ export const mockLocations: Location[] = [
     name_localized: { en: 'Fethiye Harbour', de: 'Hafen Fethiye', tr: 'Fethiye Limanı' },
     parent_id: null,
     role_type: { code: 'hotel', label: 'Hotel' },
+    // A hotel that is ALSO a pickup point (Para42's real Hotel Mirador
+    // shape) — exercises both getHotelsForOperator's and
+    // listPickupLocationsForOperator's filters on the same mock row.
+    place_roles: ['pickup'],
+  },
+  {
+    // landr-lmudr.12: a place with NO pickup role — the negative case for
+    // listPickupLocationsForOperator's filter (client.test.ts). Kept out of
+    // both PickupLocationPicker and AccommodationStep in the local preview,
+    // same as an operator's private staging area would be.
+    location_id: 'aaaaaaaa-0000-0000-0000-000000000004',
+    name: 'Staff Storage Yard',
+    name_localized: null,
+    parent_id: null,
+    role_type: { code: 'storage', label: 'Storage' },
+    place_roles: [],
   },
 ]
 

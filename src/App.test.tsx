@@ -20,6 +20,9 @@ const { mocks } = vi.hoisted(() => ({
     >(),
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     listLocations: vi.fn(),
+    // landr-lmudr.12: PickupLocationPicker calls this (place_roles filter),
+    // not listLocations, directly.
+    listPickupLocationsForOperator: vi.fn(),
     submitBooking: vi.fn(),
     // landr-fn4i / landr-5krc: default {ok:true} so DetailsStep's email-blur
     // handler never hits the real (unconfigured-in-tests) network path.
@@ -55,6 +58,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getAvailability: mocks.getAvailability,
     getFixedDateWindows: mocks.getFixedDateWindows,
     listLocations: mocks.listLocations,
+    listPickupLocationsForOperator: mocks.listPickupLocationsForOperator,
     submitBooking: mocks.submitBooking,
     requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
@@ -204,6 +208,7 @@ describe('App', () => {
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
+    mocks.listPickupLocationsForOperator.mockResolvedValue([])
     // landr-87n9: safe hotel-flow + estimate defaults so any test that
     // mounts the PriceSidebar / AccommodationStep doesn't hit the real
     // client. Per-test overrides supply richer data where needed.
@@ -1396,7 +1401,8 @@ describe('App', () => {
 
   // landr-yf0n: same pattern as landr-b3g5 (DetailsStep) but for the
   // downstream steps. PickupLocationPicker is the easiest to exercise
-  // at the App level — the only extra mock it needs is listLocations,
+  // at the App level — the only extra mock it needs is
+  // listPickupLocationsForOperator (landr-lmudr.12; was listLocations),
   // already wired in the suite's beforeEach. The AccommodationStep +
   // ServiceAddonsStep paths require getHotelsForOperator /
   // getProductAddons mocks which the per-step tests already cover; this
@@ -1441,13 +1447,14 @@ describe('App', () => {
           status: 'open',
         },
       ])
-      mocks.listLocations.mockResolvedValue([
+      mocks.listPickupLocationsForOperator.mockResolvedValue([
         {
           location_id: 'loc-a',
           name: 'Main Square',
           name_localized: null,
           parent_id: null,
           role_type: { code: 'pickup', label: 'Pickup' },
+          place_roles: ['pickup'],
         },
         {
           location_id: 'loc-b',
@@ -1455,6 +1462,7 @@ describe('App', () => {
           name_localized: null,
           parent_id: null,
           role_type: { code: 'pickup', label: 'Pickup' },
+          place_roles: ['pickup'],
         },
       ])
 

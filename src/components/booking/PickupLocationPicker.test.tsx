@@ -6,12 +6,12 @@ import { PickupLocationPicker } from './PickupLocationPicker'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    listLocations: vi.fn<(slug: string) => Promise<Location[]>>(),
+    listPickupLocationsForOperator: vi.fn<(slug: string) => Promise<Location[]>>(),
   },
 }))
 
 vi.mock('@/api/client', () => ({
-  listLocations: mocks.listLocations,
+  listPickupLocationsForOperator: mocks.listPickupLocationsForOperator,
 }))
 
 function makeLocation(id: string, name: string): Location {
@@ -21,6 +21,7 @@ function makeLocation(id: string, name: string): Location {
     name_localized: null,
     parent_id: null,
     role_type: { code: 'pickup', label: 'Pickup' },
+    place_roles: ['pickup'],
   }
 }
 
@@ -30,7 +31,7 @@ describe('PickupLocationPicker', () => {
   })
 
   it('renders fetched pickup locations and emits onConfirm with the picked id', async () => {
-    mocks.listLocations.mockResolvedValue([
+    mocks.listPickupLocationsForOperator.mockResolvedValue([
       makeLocation('loc-a', 'Main Square'),
       makeLocation('loc-b', 'Beach Parking'),
     ])
@@ -65,7 +66,7 @@ describe('PickupLocationPicker', () => {
   // already selected — Continue stays enabled without a second click.
 
   it('restores the prior pickup choice from initialLocationId on back-nav re-entry', async () => {
-    mocks.listLocations.mockResolvedValue([
+    mocks.listPickupLocationsForOperator.mockResolvedValue([
       makeLocation('loc-a', 'Main Square'),
       makeLocation('loc-b', 'Beach Parking'),
     ])
@@ -97,7 +98,7 @@ describe('PickupLocationPicker', () => {
   })
 
   it('treats initialLocationId=null as no prior selection (Continue stays disabled)', async () => {
-    mocks.listLocations.mockResolvedValue([makeLocation('loc-a', 'Main Square')])
+    mocks.listPickupLocationsForOperator.mockResolvedValue([makeLocation('loc-a', 'Main Square')])
 
     render(
       <PickupLocationPicker

@@ -1,7 +1,32 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import * as client from './client'
 import type { StaffSubmitBody, SubmitBookingBody } from './types'
-import { MOCK_PREVIEW_TOKEN } from './mocks'
+import { MOCK_PREVIEW_TOKEN, mockLocations } from './mocks'
+
+describe('listPickupLocationsForOperator (landr-lmudr.12)', () => {
+  it('lists exactly the role=pickup places for the demo operator', async () => {
+    const pickups = await client.listPickupLocationsForOperator('para42')
+    const expectedIds = mockLocations
+      .filter((loc) => loc.place_roles?.includes('pickup'))
+      .map((loc) => loc.location_id)
+      .sort()
+    expect(pickups.map((loc) => loc.location_id).sort()).toEqual(expectedIds)
+    // The demo dataset's non-pickup place (Staff Storage Yard) is excluded.
+    expect(pickups.some((loc) => loc.name === 'Staff Storage Yard')).toBe(false)
+    // A hotel that is ALSO a pickup point still appears here — orthogonal
+    // to getHotelsForOperator's own role_type.code === 'hotel' filter.
+    expect(pickups.some((loc) => loc.role_type?.code === 'hotel')).toBe(true)
+  })
+
+  it('still lists every hotel regardless of pickup role (getHotelsForOperator unaffected)', async () => {
+    const hotels = await client.getHotelsForOperator('para42')
+    const expectedIds = mockLocations
+      .filter((loc) => loc.role_type?.code === 'hotel')
+      .map((loc) => loc.location_id)
+      .sort()
+    expect(hotels.map((loc) => loc.location_id).sort()).toEqual(expectedIds)
+  })
+})
 
 describe('listProducts with mocks', () => {
   afterEach(() => {
