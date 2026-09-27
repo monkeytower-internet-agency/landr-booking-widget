@@ -4,9 +4,11 @@ import type { ProductAddon } from '@/api/types'
 import {
   clampAddonQty,
   defaultAddonQty,
+  isAddonSoldOut,
   isOverbooked,
   requiredAddonError,
   selectionToLines,
+  withoutSoldOut,
 } from './addonsState'
 
 function makeAddon(overrides: Partial<ProductAddon> = {}): ProductAddon {
@@ -193,5 +195,24 @@ describe('addonsState (landr-cip6)', () => {
       expect(lines).toEqual([{ productId: 'unknown_addon', quantity: 3 }])
       expect(lines[0]).not.toHaveProperty('productKind')
     })
+  })
+})
+
+// landr-lmudr.10 — sold-out (stock-limited) add-ons.
+describe('withoutSoldOut / isAddonSoldOut (landr-lmudr.10)', () => {
+  it('only available === false is sold out', () => {
+    expect(isAddonSoldOut({ available: false })).toBe(true)
+    expect(isAddonSoldOut({ available: true })).toBe(false)
+    expect(isAddonSoldOut({})).toBe(false)
+  })
+
+  it('drops sold-out picks and keeps the object when nothing goes', () => {
+    const addons = [
+      { addon_product_id: 'vest', available: false },
+      { addon_product_id: 'video', available: true },
+    ]
+    expect(withoutSoldOut({ vest: 2, video: 1 }, addons)).toEqual({ video: 1 })
+    const same = { video: 1 }
+    expect(withoutSoldOut(same, addons)).toBe(same)
   })
 })

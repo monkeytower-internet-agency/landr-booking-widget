@@ -6,7 +6,12 @@ import { ServiceAddonsStep } from './ServiceAddonsStep'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    getProductAddons: vi.fn<(productId: string) => Promise<ProductAddon[]>>(),
+    getProductAddons: vi.fn<
+      (
+        productId: string,
+        stock?: { selectedDays: string[]; participants: number },
+      ) => Promise<ProductAddon[]>
+    >(),
   },
 }))
 
@@ -292,5 +297,86 @@ describe('ServiceAddonsStep (landr-cip6)', () => {
     expect(field).toHaveValue('already typed on an earlier step')
     fireEvent.change(field, { target: { value: 'a dietary need' } })
     expect(onCustomerCommentChange).toHaveBeenCalledWith('a dietary need')
+  })
+
+  // landr-lmudr.10 — a stock-limited (rentable-facet) add-on: fetched with
+  // the booking's days + party size; sold out => disabled with its reason.
+  describe('stock-limited add-ons (landr-lmudr.10)', () => {
+    it('asks for the stock verdict with the booking days + party size', async () => {
+      mocks.getProductAddons.mockResolvedValue([makeAddon({ addon_product_id: 'vest-1', name: 'Vest rental' })])
+      render(
+        <ServiceAddonsStep
+          product={makeProduct()}
+          selectedDays={['2031-03-10', '2031-03-11']}
+          participantCount={3}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      )
+      await waitFor(() => expect(screen.getByText('Vest rental')).toBeInTheDocument())
+      expect(mocks.getProductAddons).toHaveBeenCalledWith('service-1', {
+        selectedDays: ['2031-03-10', '2031-03-11'],
+        participants: 3,
+      })
+    })
+
+    it('without days it keeps the date-free fetch', async () => {
+      mocks.getProductAddons.mockResolvedValue([])
+      render(<ServiceAddonsStep product={makeProduct()} onBack={vi.fn()} onConfirm={vi.fn()} />)
+      await waitFor(() => expect(mocks.getProductAddons).toHaveBeenCalledWith('service-1', undefined))
+    })
+
+    it('renders a sold-out rental disabled with its reason, next to an available add-on', async () => {
+      mocks.getProductAddons.mockResolvedValue([
+        makeAddon({
+          product_addon_id: 'pa-vest',
+          addon_product_id: 'vest-1',
+          name: 'Vest rental',
+          price_per_unit: 5,
+          max_qty: 4,
+          available: false,
+          unavailable_reason: 'sold_out',
+        }),
+        makeAddon({ product_addon_id: 'pa-video', addon_product_id: 'video-1', name: 'Video Package' }),
+      ])
+      const onConfirm = vi.fn()
+      render(
+        <ServiceAddonsStep
+          product={makeProduct()}
+          selectedDays={['2031-03-10']}
+          participantCount={31}
+          onBack={vi.fn()}
+          onConfirm={onConfirm}
+        />,
+      )
+      await waitFor(() => expect(screen.getByText('Vest rental')).toBeInTheDocument())
+      expect(screen.getByTestId('addon-sold-out-vest-1')).toHaveTextContent('Sold out for your dates.')
+      expect(screen.getByRole('button', { name: /Increase Vest rental/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /Increase Video Package/i })).not.toBeDisabled()
+      expect(screen.queryByTestId('addon-sold-out-video-1')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      expect(onConfirm).toHaveBeenCalledWith([])
+    })
+
+    it('drops a restored pick that has sold out since', async () => {
+      mocks.getProductAddons.mockResolvedValue([
+        makeAddon({ addon_product_id: 'vest-1', name: 'Vest rental', available: false, unavailable_reason: 'sold_out' }),
+      ])
+      const onConfirm = vi.fn()
+      render(
+        <ServiceAddonsStep
+          product={makeProduct()}
+          initialAddons={[{ productId: 'vest-1', quantity: 2 }]}
+          selectedDays={['2031-03-10']}
+          participantCount={2}
+          onBack={vi.fn()}
+          onConfirm={onConfirm}
+        />,
+      )
+      await waitFor(() => expect(screen.getByTestId('addon-sold-out-vest-1')).toBeInTheDocument())
+      fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+      expect(onConfirm).toHaveBeenCalledWith([])
+    })
   })
 })

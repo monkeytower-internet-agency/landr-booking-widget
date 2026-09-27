@@ -462,6 +462,8 @@ type Bundle = {
   addonsTitle: string
   loadingAddons: string
   noAddonsAvailable: string
+  /** landr-lmudr.10: a stock-limited add-on with no room left on the chosen dates. */
+  addonSoldOut: string
   pickRequiredAddonsCue: string
   pickRequiredAddonsToContinue: string
   requiredSuffix: string
@@ -995,6 +997,7 @@ const en: Bundle = {
   addonsTitle: 'Add-ons',
   loadingAddons: 'Loading add-ons…',
   noAddonsAvailable: 'No add-ons available for this option.',
+  addonSoldOut: 'Sold out for your dates.',
   pickRequiredAddonsCue: 'pick your required add-ons',
   pickRequiredAddonsToContinue: 'Pick every required add-on to continue.',
   requiredSuffix: 'required',
@@ -1521,6 +1524,7 @@ const de: Bundle = {
   addonsTitle: 'Zusatzleistungen',
   loadingAddons: 'Zusatzleistungen werden geladen…',
   noAddonsAvailable: 'Für diese Option sind keine Zusatzleistungen verfügbar.',
+  addonSoldOut: 'Für deine Termine ausgebucht.',
   pickRequiredAddonsCue: 'erforderliche Zusatzleistungen wählen',
   pickRequiredAddonsToContinue: 'Wählen Sie alle erforderlichen Zusatzleistungen, um fortzufahren.',
   requiredSuffix: 'erforderlich',

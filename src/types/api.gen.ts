@@ -5065,7 +5065,7 @@ export interface paths {
          *                     "severity": "error",
          *                     "title": "Hotel has no booking email",
          *                     "message": "'Grand Hotel' has no booking email ...",
-         *                     "target_route": "/settings/hotels",
+         *                     "target_route": "/settings/resources/hotel",
          *                     "action_label": "Fix",
          *                     "dismissible": true
          *                 }
@@ -8228,6 +8228,42 @@ export interface paths {
          *     out of service — the warn-and-confirm table before a removal.
          */
         post: operations["resource_type_impact_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/rental": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Resource Type Rental
+         * @description The Rental section (rentable facet, landr-lmudr.10): the add-on
+         *     product selling this type, its price, deposit (information only), max
+         *     per booking, how stock is counted and the products offering it.
+         *     ``product_id`` is null until the section was saved once.
+         */
+        get: operations["get_resource_type_rental"];
+        /**
+         * Put Resource Type Rental
+         * @description Create or update the ONE add-on product selling this rentable type
+         *     (``products.is_addon_only``), its price (a ``per_day_base`` rule), its
+         *     stock requirement (``block``; per booking when ``max_per_booking`` is 1,
+         *     else per participant) and — when ``parent_product_ids`` is sent — the
+         *     service products it is offered under (``product_addons``). Idempotent.
+         *     422 ``facet_required`` unless the type is ``rentable``; 422
+         *     ``parent_invalid`` for a parent that is not a bookable service product
+         *     (rental add-ons are booking-level, never attached to a room). Removing
+         *     the facet (PATCH) retires the product — 409 ``rental_has_future_bookings``
+         *     while upcoming bookings use it.
+         */
+        put: operations["put_resource_type_rental"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -14025,6 +14061,11 @@ export interface components {
         ProductAddon: {
             /** Addon Product Id */
             addon_product_id: string;
+            /**
+             * Available
+             * @default true
+             */
+            available: boolean;
             /** Currency */
             currency?: string | null;
             /** Is Required */
@@ -14047,6 +14088,8 @@ export interface components {
             product_kind: string;
             /** Sort Order */
             sort_order: number;
+            /** Unavailable Reason */
+            unavailable_reason?: "sold_out" | null;
         } & {
             [key: string]: unknown;
         };
@@ -14898,6 +14941,91 @@ export interface components {
             values?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * RentalIn
+         * @description The Rental section of a ``rentable`` type: syncs ONE add-on product,
+         *     its price, its stock requirement and the products it is offered under.
+         */
+        RentalIn: {
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /**
+             * Deposit
+             * @description Information only — stored on the product, never charged
+             */
+            deposit?: number | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Max Per Booking
+             * @description Add-on max quantity; 1 = one unit per booking, else one per participant
+             */
+            max_per_booking?: number | null;
+            /**
+             * Parent Product Ids
+             * @description Service products offering the add-on (replaces the set); null keeps it
+             */
+            parent_product_ids?: string[] | null;
+            /**
+             * Price
+             * @description Per unit per day (a per_day_base rule)
+             */
+            price: number;
+            /**
+             * Title
+             * @description Add-on product name, e.g. 'Vest rental'
+             */
+            title: string;
+        };
+        /** RentalOut */
+        RentalOut: {
+            /** Active */
+            active?: boolean | null;
+            /** Currency */
+            currency?: string | null;
+            /** Deposit */
+            deposit?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Max Per Booking */
+            max_per_booking?: number | null;
+            /** Parents */
+            parents?: components["schemas"]["RentalParentOut"][];
+            /** Price */
+            price?: number | null;
+            /**
+             * Product Id
+             * @description The add-on product; null until synced
+             */
+            product_id?: string | null;
+            /**
+             * Rentable
+             * @description The type carries the rentable facet
+             */
+            rentable: boolean;
+            /** Requirement Basis */
+            requirement_basis?: ("per_booking" | "per_participant") | null;
+            /** Requirement Id */
+            requirement_id?: string | null;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** RentalParentOut */
+        RentalParentOut: {
+            /** Max Qty */
+            max_qty?: number | null;
+            /** Name */
+            name?: string | null;
+            /** Product Addon Id */
+            product_addon_id: string;
+            /** Product Id */
+            product_id: string;
         };
         /** ReorderIn */
         ReorderIn: {
@@ -16632,6 +16760,11 @@ export interface components {
          *     (e.g. 'accommodation').
          */
         TemplateCatalogueEntryOut: {
+            /**
+             * Adopts Code
+             * @description landr-lmudr.29: the baseline resource_types.code (e.g. 'hotel', 'pickup') this SINGLE template adopts in place instead of creating its own row (see ResourceTypeTemplate.adopts_baseline_code). None for a template that creates its own code, and always None for a bundle — a bundle is a group of singles, not one adoption.
+             */
+            adopts_code?: string | null;
             /** Description */
             description: string;
             /** Facets */
@@ -21384,7 +21517,12 @@ export interface operations {
     };
     get_product_addons: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description landr-lmudr.10: the booking's service days (repeat the param); with `participants`, each add-on carries a stock verdict */
+                selected_days?: string[] | null;
+                /** @description Guiding participants of the booking (stock verdict) */
+                participants?: number | null;
+            };
             header?: never;
             path: {
                 product_id: string;
@@ -30341,6 +30479,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_resource_type_rental: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_resource_type_rental: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RentalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentalOut"];
                 };
             };
             /** @description Validation Error */

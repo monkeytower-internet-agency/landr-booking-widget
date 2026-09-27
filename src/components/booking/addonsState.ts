@@ -126,6 +126,27 @@ export function isOverbooked(
  * the matching ProductAddon row so BookingForm can discriminate room-tied
  * vs service-tied add-ons at submit time (see addons/BookingForm.tsx).
  */
+/** landr-lmudr.10: a stock-limited add-on with no room left on the booking's days. */
+export function isAddonSoldOut(addon: Pick<ProductAddon, 'available'>): boolean {
+  return addon.available === false
+}
+
+/**
+ * landr-lmudr.10: drop sold-out add-ons from a selection (a pick restored on
+ * back-navigation may have sold out since). Returns the same object when
+ * nothing had to go, so callers can skip a state update.
+ */
+export function withoutSoldOut(
+  selection: Record<string, number>,
+  addons: readonly Pick<ProductAddon, 'addon_product_id' | 'available'>[],
+): Record<string, number> {
+  const soldOut = addons.filter(isAddonSoldOut).map((a) => a.addon_product_id)
+  if (!soldOut.some((id) => id in selection)) return selection
+  const next = { ...selection }
+  for (const id of soldOut) delete next[id]
+  return next
+}
+
 export function selectionToLines(
   selection: Record<string, number>,
   addons: readonly Pick<ProductAddon, 'addon_product_id' | 'product_kind'>[] = [],

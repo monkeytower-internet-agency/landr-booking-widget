@@ -379,12 +379,25 @@ export async function getStaffFixedDateWindows(
  * no add-ons configured (or is itself hidden) — the widget treats empty
  * as "no add-ons UI to render".
  */
+/**
+ * landr-lmudr.10: pass `stock` (the booking's service days + guiding
+ * participant count) to get a per-add-on stock verdict (`available` /
+ * `unavailable_reason`) — a rental add-on whose stock is used up on those
+ * days comes back `available: false`. Without it the list is date-free.
+ */
 export async function getProductAddons(
   productId: string,
+  stock?: { selectedDays: string[]; participants: number },
 ): Promise<ProductAddon[]> {
   if (mocksEnabled()) return mockProductAddons(productId)
+  const qs = new URLSearchParams()
+  if (stock && stock.selectedDays.length > 0 && stock.participants > 0) {
+    for (const day of stock.selectedDays) qs.append('selected_days', day)
+    qs.set('participants', String(stock.participants))
+  }
+  const query = qs.toString()
   return http<ProductAddon[]>(
-    `/api/public/products/${encodeURIComponent(productId)}/addons`,
+    `/api/public/products/${encodeURIComponent(productId)}/addons${query ? `?${query}` : ''}`,
   )
 }
 

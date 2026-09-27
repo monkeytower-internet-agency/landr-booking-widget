@@ -716,6 +716,15 @@ export interface ProductAddon {
    * special-case the slug/name (e.g. 'breakfast') instead of this field.
    */
   product_kind: ProductKind
+  /**
+   * landr-lmudr.10: stock verdict, present when the add-ons were fetched
+   * WITH the booking's days + party size (getProductAddons' `stock`). false
+   * (reason 'sold_out') = the add-on sells a stock-limited resource (the
+   * rentable facet) with no room left on those days — rendered disabled.
+   * Absent / true = available.
+   */
+  available?: boolean
+  unavailable_reason?: 'sold_out' | null
 }
 
 export interface AvailabilitySlot {
