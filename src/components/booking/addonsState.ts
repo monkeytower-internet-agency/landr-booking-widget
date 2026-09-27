@@ -145,8 +145,9 @@ export function isAddonSoldOut(
 }
 
 /**
- * landr-lmudr.19: the line under a disabled add-on — "the whole raft is
- * reserved for another group" for a whole-unit add-on, else "sold out".
+ * landr-lmudr.19: the line under a disabled add-on — "Raft: fully reserved
+ * for another group" for a whole-unit add-on, else "sold out". The unit word
+ * is the operator's own, as written (no re-casing).
  */
 export function addonUnavailableMessage(
   addon: Pick<ProductAddon, 'unavailable_reason' | 'stock_unit_label'>,
@@ -155,7 +156,7 @@ export function addonUnavailableMessage(
   if (addon.unavailable_reason === 'unit_taken') {
     const unit = addon.stock_unit_label?.trim()
     return unit
-      ? tr('addonUnitTakenTemplate', locale).replace('{unit}', unit.toLowerCase())
+      ? tr('addonUnitTakenTemplate', locale).replace('{unit}', unit)
       : tr('addonUnitTaken', locale)
   }
   return tr('addonSoldOut', locale)

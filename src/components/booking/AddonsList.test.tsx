@@ -542,7 +542,7 @@ describe('AddonsList stock (landr-lmudr.32 / .19)', () => {
     })
     render(<AddonsList addons={[addon]} selection={{}} onChange={vi.fn()} expectedQty={1} />)
     expect(screen.getByTestId('addon-sold-out-raft')).toHaveTextContent(
-      'The whole raft is reserved for another group on your dates.',
+      'Raft: fully reserved for another group on your dates.',
     )
     expect(screen.getByRole('button', { name: /Increase/ })).toBeDisabled()
   })

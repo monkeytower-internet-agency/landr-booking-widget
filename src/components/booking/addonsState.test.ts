@@ -254,7 +254,14 @@ describe('stock by quantity (landr-lmudr.32) + unit_taken (landr-lmudr.19)', () 
   it('names the whole unit when another group has it', () => {
     expect(
       addonUnavailableMessage({ unavailable_reason: 'unit_taken', stock_unit_label: 'Raft' }),
-    ).toBe('The whole raft is reserved for another group on your dates.')
+    ).toBe('Raft: fully reserved for another group on your dates.')
+    // German nouns keep their case: never lowercased.
+    expect(
+      addonUnavailableMessage(
+        { unavailable_reason: 'unit_taken', stock_unit_label: 'Floß' },
+        'de',
+      ),
+    ).toBe('Floß: an Ihren Terminen komplett für eine andere Gruppe reserviert.')
     expect(addonUnavailableMessage({ unavailable_reason: 'unit_taken' })).toBe(
       'Reserved for another group on your dates.',
     )
