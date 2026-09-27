@@ -12349,6 +12349,11 @@
             "title": "Addon Product Id",
             "type": "string"
           },
+          "available": {
+            "default": true,
+            "title": "Available",
+            "type": "boolean"
+          },
           "currency": {
             "anyOf": [
               {
@@ -12419,6 +12424,18 @@
           "sort_order": {
             "title": "Sort Order",
             "type": "integer"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "const": "sold_out",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
           }
         },
         "required": [
@@ -15149,6 +15166,274 @@
           "template_id"
         ],
         "title": "RenderIn",
+        "type": "object"
+      },
+      "RentalIn": {
+        "description": "The Rental section of a ``rentable`` type: syncs ONE add-on product,\nits price, its stock requirement and the products it is offered under.",
+        "properties": {
+          "currency": {
+            "default": "EUR",
+            "maxLength": 3,
+            "minLength": 3,
+            "pattern": "^[A-Za-z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "deposit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Information only \u2014 stored on the product, never charged",
+            "title": "Deposit"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "max_per_booking": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Add-on max quantity; 1 = one unit per booking, else one per participant",
+            "title": "Max Per Booking"
+          },
+          "parent_product_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Service products offering the add-on (replaces the set); null keeps it",
+            "title": "Parent Product Ids"
+          },
+          "price": {
+            "description": "Per unit per day (a per_day_base rule)",
+            "minimum": 0.0,
+            "title": "Price",
+            "type": "number"
+          },
+          "title": {
+            "description": "Add-on product name, e.g. 'Vest rental'",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "price"
+        ],
+        "title": "RentalIn",
+        "type": "object"
+      },
+      "RentalOut": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "deposit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deposit"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "max_per_booking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Booking"
+          },
+          "parents": {
+            "items": {
+              "$ref": "#/components/schemas/RentalParentOut"
+            },
+            "title": "Parents",
+            "type": "array"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The add-on product; null until synced",
+            "title": "Product Id"
+          },
+          "rentable": {
+            "description": "The type carries the rentable facet",
+            "title": "Rentable",
+            "type": "boolean"
+          },
+          "requirement_basis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "per_booking",
+                  "per_participant"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement Basis"
+          },
+          "requirement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement Id"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "resource_type_id",
+          "rentable"
+        ],
+        "title": "RentalOut",
+        "type": "object"
+      },
+      "RentalParentOut": {
+        "properties": {
+          "max_qty": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Qty"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "product_addon_id": {
+            "title": "Product Addon Id",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_addon_id",
+          "product_id"
+        ],
+        "title": "RentalParentOut",
         "type": "object"
       },
       "ReorderIn": {
@@ -19839,6 +20124,18 @@
       "TemplateCatalogueEntryOut": {
         "description": "One pick in the \"Add from template\" catalogue \u2014 a bundle (a named\ngroup of singles, e.g. 'kayak_rafting') or a standalone single\n(e.g. 'accommodation').",
         "properties": {
+          "adopts_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-lmudr.29: the baseline resource_types.code (e.g. 'hotel', 'pickup') this SINGLE template adopts in place instead of creating its own row (see ResourceTypeTemplate.adopts_baseline_code). None for a template that creates its own code, and always None for a bundle \u2014 a bundle is a group of singles, not one adoption.",
+            "title": "Adopts Code"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -27975,6 +28272,48 @@
               "title": "Product Id",
               "type": "string"
             }
+          },
+          {
+            "description": "landr-lmudr.10: the booking's service days (repeat the param); with `participants`, each add-on carries a stock verdict",
+            "in": "query",
+            "name": "selected_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "landr-lmudr.10: the booking's service days (repeat the param); with `participants`, each add-on carries a stock verdict",
+              "title": "Selected Days"
+            }
+          },
+          {
+            "description": "Guiding participants of the booking (stock verdict)",
+            "in": "query",
+            "name": "participants",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Guiding participants of the booking (stock verdict)",
+              "title": "Participants"
+            }
           }
         ],
         "responses": {
@@ -34126,7 +34465,7 @@
     },
     "/api/staff/operators/{operator_id}/config-health": {
       "get": {
-        "description": "Return all active config issues for the operator.\n\nResponse shape::\n\n    {\n        \"issues\": [\n            {\n                \"id\": \"hotel_missing_email\",\n                \"severity\": \"error\",\n                \"title\": \"Hotel has no booking email\",\n                \"message\": \"'Grand Hotel' has no booking email ...\",\n                \"target_route\": \"/settings/hotels\",\n                \"action_label\": \"Fix\",\n                \"dismissible\": true\n            }\n        ]\n    }\n\nlandr-07gzo.10: `dismissible` is False for issue kinds the operator\nshould keep seeing until fixed (currently pickup_point_missing_icon and\nhotel_missing_icon_or_colour) \u2014 the dashboard must not offer a dismiss\ncontrol for those. True for every pre-existing check (unchanged\nbehaviour).\n\nEmpty list means the operator has no active misconfigurations.\nThe dashboard renders nothing when issues is empty.",
+        "description": "Return all active config issues for the operator.\n\nResponse shape::\n\n    {\n        \"issues\": [\n            {\n                \"id\": \"hotel_missing_email\",\n                \"severity\": \"error\",\n                \"title\": \"Hotel has no booking email\",\n                \"message\": \"'Grand Hotel' has no booking email ...\",\n                \"target_route\": \"/settings/resources/hotel\",\n                \"action_label\": \"Fix\",\n                \"dismissible\": true\n            }\n        ]\n    }\n\nlandr-07gzo.10: `dismissible` is False for issue kinds the operator\nshould keep seeing until fixed (currently pickup_point_missing_icon and\nhotel_missing_icon_or_colour) \u2014 the dashboard must not offer a dismiss\ncontrol for those. True for every pre-existing check (unchanged\nbehaviour).\n\nEmpty list means the operator has no active misconfigurations.\nThe dashboard renders nothing when issues is empty.",
         "operationId": "get_config_health",
         "parameters": [
           {
@@ -42001,7 +42340,7 @@
     "/api/staff/operators/{operator_id}/resource-pools/{pool_id}": {
       "delete": {
         "deprecated": true,
-        "description": "Soft-delete a pool (Pattern A + ``active = false``) \u2014 epic decision 1.\n\nThe re-check + all four writes happen inside ONE Postgres function call,\n``delete_resource_pool()`` (migration 20260911130000): it locks the pool\nrow, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME\npredicate the preview above uses \u2014 one definition, so preview and delete\ncan never disagree), and \u2014 only if clear \u2014 auto-unlinks\n``product_resource_requirements`` (epic decision 2; ``ON DELETE\nRESTRICT`` never actually fires here since this is a soft-delete UPDATE,\nnot a hard DELETE \u2014 the unlink is the decided behaviour, not a\nconstraint workaround), soft-deletes the pool's units, retires its\n``capacity_threshold`` approval_rules row(s), and soft-deletes the pool\nitself \u2014 all in one transaction, so a booking made after the dialog\nopened still blocks the write and nothing can observe only SOME of the\nfour writes having landed (review gate finding, api#689: four separate\nservice-role REST calls could not guarantee that).\n\nPast period / unit-day-release rows are left untouched (history).\n\n404 ``resource_pool_not_found`` for unknown / foreign / already-deleted\npool ids (via :func:`_resolve_operator_pool`, and again from the RPC's\nown re-check for a pool deleted in the gap between the two \u2014 never 403,\nsame no-cross-tenant-existence-oracle rule every resolver in this file\nfollows). 409 ``resource_pool_has_upcoming_bookings`` carries the same\n``blocking_bookings`` shape the preview does \u2014 recomputed (rare: only\nreached on a genuine race, since the resolve above already checked) so\nthe response is never bare of the list the dashboard renders.",
+        "description": "Soft-delete a pool (Pattern A + ``active = false``) \u2014 epic decision 1.\n\nThe re-check + all four writes happen inside ONE Postgres function call,\n``delete_resource_pool()`` (migration 20260911130000): it locks the pool\nrow, re-runs ``resource_pool_delete_blocking_booking_ids`` (the SAME\npredicate the preview above uses \u2014 one definition, so preview and delete\ncan never disagree), and \u2014 only if clear \u2014 auto-unlinks\n``product_resource_requirements`` (epic decision 2; ``ON DELETE\nRESTRICT`` never actually fires here since this is a soft-delete UPDATE,\nnot a hard DELETE \u2014 the unlink is the decided behaviour, not a\nconstraint workaround), soft-deletes the pool's units, retires its\n``capacity_threshold`` approval_rules row(s), and soft-deletes the pool\nitself \u2014 all in one transaction, so a booking made after the dialog\nopened still blocks the write and nothing can observe only SOME of the\nfour writes having landed (review gate finding, api#689: four separate\nservice-role REST calls could not guarantee that).\n\nPast period / unit-day-release rows are left untouched (history).\n\nlandr-lmudr.10: a ``rentable`` pool's rental add-on is retired too\n(``rentals.retire_rental_addon``). The RPC hard-deletes the add-on's stock\nrequirement through the compat view, so without this the add-on would\nstay live and sell with no stock limit. 409 ``rental_has_future_bookings``\n(checked BEFORE the RPC, nothing written) while upcoming bookings include\nthe add-on. The RPC is kept rather than delegating to\n``resource_catalog.delete_type``: that one refuses while the type has\nresources, whereas this legacy route soft-deletes the units in the same\ntransaction \u2014 the behaviour ResourcePoolsEditor's \"Delete pool\" relies on.\n\n404 ``resource_pool_not_found`` for unknown / foreign / already-deleted\npool ids (via :func:`_resolve_operator_pool`, and again from the RPC's\nown re-check for a pool deleted in the gap between the two \u2014 never 403,\nsame no-cross-tenant-existence-oracle rule every resolver in this file\nfollows). 409 ``resource_pool_has_upcoming_bookings`` carries the same\n``blocking_bookings`` shape the preview does \u2014 recomputed (rare: only\nreached on a genuine race, since the resolve above already checked) so\nthe response is never bare of the list the dashboard renders.",
         "operationId": "delete_resource_pool",
         "parameters": [
           {
@@ -44175,6 +44514,128 @@
           }
         ],
         "summary": "Resource Type Impact Preview",
+        "tags": [
+          "staff-resource-types"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/rental": {
+      "get": {
+        "description": "The Rental section (rentable facet, landr-lmudr.10): the add-on\nproduct selling this type, its price, deposit (information only), max\nper booking, how stock is counted and the products offering it.\n``product_id`` is null until the section was saved once.",
+        "operationId": "get_resource_type_rental",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Resource Type Rental",
+        "tags": [
+          "staff-resource-types"
+        ]
+      },
+      "put": {
+        "description": "Create or update the ONE add-on product selling this rentable type\n(``products.is_addon_only``), its price (a ``per_day_base`` rule), its\nstock requirement (``block``; per booking when ``max_per_booking`` is 1,\nelse per participant) and \u2014 when ``parent_product_ids`` is sent \u2014 the\nservice products it is offered under (``product_addons``). Idempotent.\n422 ``facet_required`` unless the type is ``rentable``; 422\n``parent_invalid`` for a parent that is not a bookable service product\n(rental add-ons are booking-level, never attached to a room). Removing\nthe facet (PATCH) retires the product \u2014 409 ``rental_has_future_bookings``\nwhile upcoming bookings use it.",
+        "operationId": "put_resource_type_rental",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RentalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RentalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Resource Type Rental",
         "tags": [
           "staff-resource-types"
         ]

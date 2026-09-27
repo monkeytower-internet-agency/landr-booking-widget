@@ -2397,6 +2397,14 @@ function BookingFlowApp() {
         {step.name === 'pick-service-addons' ? (
           <ServiceAddonsStep
             product={step.product}
+            // landr-lmudr.10: the booking's service days + guiding party
+            // size, so a stock-limited (rental) add-on shows sold out.
+            selectedDays={
+              step.selection.kind === 'slot'
+                ? [step.selection.slot.date]
+                : step.selection.selectedDays
+            }
+            participantCount={step.participants.length}
             // landr-yf0n: thread prior add-on selections back so the
             // step re-mounts with the customer's choices restored
             // instead of resetting to the min_qty seed.

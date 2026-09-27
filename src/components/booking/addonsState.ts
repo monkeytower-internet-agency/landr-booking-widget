@@ -115,6 +115,27 @@ export function isOverbooked(
   return null
 }
 
+/** landr-lmudr.10: a stock-limited add-on with no room left on the booking's days. */
+export function isAddonSoldOut(addon: Pick<ProductAddon, 'available'>): boolean {
+  return addon.available === false
+}
+
+/**
+ * landr-lmudr.10: drop sold-out add-ons from a selection (a pick restored on
+ * back-navigation may have sold out since). Returns the same object when
+ * nothing had to go, so callers can skip a state update.
+ */
+export function withoutSoldOut(
+  selection: Record<string, number>,
+  addons: readonly Pick<ProductAddon, 'addon_product_id' | 'available'>[],
+): Record<string, number> {
+  const soldOut = addons.filter(isAddonSoldOut).map((a) => a.addon_product_id)
+  if (!soldOut.some((id) => id in selection)) return selection
+  const next = { ...selection }
+  for (const id of soldOut) delete next[id]
+  return next
+}
+
 /**
  * Convert a selection map into the line-item array shape consumed by
  * the booking submit payload. Filters out entries with qty <= 0 so the
