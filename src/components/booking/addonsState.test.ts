@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ProductAddon } from '@/api/types'
 import {
+  addonUnavailableMessage,
   clampAddonQty,
   defaultAddonQty,
   isAddonSoldOut,
@@ -214,5 +215,51 @@ describe('withoutSoldOut / isAddonSoldOut (landr-lmudr.10)', () => {
     expect(withoutSoldOut({ vest: 2, video: 1 }, addons)).toEqual({ video: 1 })
     const same = { video: 1 }
     expect(withoutSoldOut(same, addons)).toBe(same)
+  })
+})
+
+// landr-lmudr.32 — stock is counted by add-on quantity; landr-lmudr.19 —
+// a whole-unit add-on reads "reserved for another group".
+describe('stock by quantity (landr-lmudr.32) + unit_taken (landr-lmudr.19)', () => {
+  it('sold out only when the quantity is more than the stock left', () => {
+    // A party of 5 asking for 2 vests with 3 left is NOT sold out.
+    const vests = { available: true, stock_remaining: 3 }
+    expect(isAddonSoldOut(vests, 2)).toBe(false)
+    expect(isAddonSoldOut(vests, 3)).toBe(false)
+    expect(isAddonSoldOut(vests, 4)).toBe(true)
+    expect(isAddonSoldOut({ available: true, stock_remaining: null }, 99)).toBe(false)
+  })
+
+  it('the stepper never goes past the stock left', () => {
+    const vests = makeAddon({ max_qty: 4, stock_remaining: 3 })
+    expect(clampAddonQty(vests, 4)).toBe(3)
+    expect(clampAddonQty(makeAddon({ max_qty: 2, stock_remaining: 3 }), 3)).toBe(2)
+    expect(clampAddonQty(makeAddon({ stock_remaining: 1 }), 2, 5)).toBe(1)
+  })
+
+  it('a restored pick above the stock left is trimmed, a 0 stock one dropped', () => {
+    const addons = [
+      { addon_product_id: 'vest', available: true, stock_remaining: 2 },
+      { addon_product_id: 'kayak', available: true, stock_remaining: 0 },
+      { addon_product_id: 'video', available: true },
+    ]
+    expect(withoutSoldOut({ vest: 3, kayak: 1, video: 1 }, addons)).toEqual({
+      vest: 2,
+      video: 1,
+    })
+    const fine = { vest: 2, video: 1 }
+    expect(withoutSoldOut(fine, addons)).toBe(fine)
+  })
+
+  it('names the whole unit when another group has it', () => {
+    expect(
+      addonUnavailableMessage({ unavailable_reason: 'unit_taken', stock_unit_label: 'Raft' }),
+    ).toBe('The whole raft is reserved for another group on your dates.')
+    expect(addonUnavailableMessage({ unavailable_reason: 'unit_taken' })).toBe(
+      'Reserved for another group on your dates.',
+    )
+    expect(addonUnavailableMessage({ unavailable_reason: 'sold_out' })).toBe(
+      'Sold out for your dates.',
+    )
   })
 })

@@ -6897,6 +6897,49 @@ export interface paths {
         patch: operations["patch_window"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/products/{product_id}/resource-requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Requirements
+         * @description Every resource requirement the product owns (block and warn, pinned
+         *     or not), with ``exclusive_use``.
+         */
+        get: operations["list_product_requirements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/resource-requirements/{requirement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Product Requirement
+         * @description 422 ``exclusive_requires_per_booking`` when the resulting row is
+         *     exclusive but not per booking only; 422 ``requirement_quantity_required``
+         *     when it would count nothing.
+         */
+        patch: operations["patch_product_requirement"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/products/{product_id}/subscription-config": {
         parameters: {
             query?: never;
@@ -8280,6 +8323,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Type Requirements */
+        get: operations["list_type_requirements"];
+        put?: never;
+        /**
+         * Create Type Requirement
+         * @description 422 ``facet_required`` when this type has no ``capacity`` facet or the
+         *     required kind no ``staff`` facet; 422 ``requirement_self``; 409
+         *     ``requirement_exists`` for a duplicate (same kind + pin).
+         */
+        post: operations["create_type_requirement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/requirements/{requirement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Type Requirement */
+        delete: operations["delete_type_requirement"];
+        options?: never;
+        head?: never;
+        /** Patch Type Requirement */
+        patch: operations["patch_type_requirement"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-types/{type_id}/unavailability/fan-out": {
         parameters: {
             query?: never;
@@ -8868,6 +8952,26 @@ export interface paths {
          *     completed steps too.
          */
         get: operations["get_setup_checklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/staffing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Staffing Day
+         * @description Who works what on ``date`` — the dashboard's Staffing strip.
+         */
+        get: operations["get_staffing_day"];
         put?: never;
         post?: never;
         delete?: never;
@@ -14098,8 +14202,12 @@ export interface components {
             product_kind: string;
             /** Sort Order */
             sort_order: number;
+            /** Stock Remaining */
+            stock_remaining?: number | null;
+            /** Stock Unit Label */
+            stock_unit_label?: string | null;
             /** Unavailable Reason */
-            unavailable_reason?: "sold_out" | null;
+            unavailable_reason?: ("sold_out" | "unit_taken") | null;
         } & {
             [key: string]: unknown;
         };
@@ -14487,6 +14595,58 @@ export interface components {
             } | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /**
+         * ProductRequirementOut
+         * @description A product-owned ``resource_requirements`` row (landr-lmudr.19).
+         */
+        ProductRequirementOut: {
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Enforcement
+             * @enum {string}
+             */
+            enforcement: "warn" | "block";
+            /**
+             * Exclusive Use
+             * @default false
+             */
+            exclusive_use: boolean;
+            /** Id */
+            id: string;
+            /** Product Id */
+            product_id: string;
+            /** Ratio Per Participant */
+            ratio_per_participant?: number | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Resource Type Label */
+            resource_type_label?: string | null;
+            /** Units Required Per Booking */
+            units_required_per_booking?: number | null;
+            /** Units Required Per Participant */
+            units_required_per_participant?: number | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * ProductRequirementPatch
+         * @description Switch a row between per seat and exclusive use. Send
+         *     ``{"exclusive_use": true, "units_required_per_booking": 1,
+         *     "units_required_per_participant": null}`` for one whole unit per booking,
+         *     ``{"exclusive_use": false, "units_required_per_participant": 1,
+         *     "units_required_per_booking": null}`` for one seat per participant.
+         */
+        ProductRequirementPatch: {
+            /** Exclusive Use */
+            exclusive_use?: boolean | null;
+            /** Units Required Per Booking */
+            units_required_per_booking?: number | null;
+            /** Units Required Per Participant */
+            units_required_per_participant?: number | null;
         };
         /**
          * PromoteTicketIn
@@ -16450,6 +16610,107 @@ export interface components {
             /** Unit Id */
             unit_id?: string | null;
         };
+        /** StaffingDayOut */
+        StaffingDayOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Has Rules */
+            has_rules: boolean;
+            /** Resources */
+            resources?: components["schemas"]["StaffingResourceOut"][];
+            /** Staff */
+            staff?: components["schemas"]["StaffingStaffOut"][];
+        };
+        /**
+         * StaffingNeedOut
+         * @description One staffing rule applied to one resource on the day.
+         */
+        StaffingNeedOut: {
+            /** Assigned Resource Ids */
+            assigned_resource_ids?: string[];
+            /** Candidate Resource Ids */
+            candidate_resource_ids?: string[];
+            /**
+             * Enforcement
+             * @enum {string}
+             */
+            enforcement: "warn" | "block";
+            /** Required */
+            required: number;
+            /** Required Resource Type Id */
+            required_resource_type_id: string;
+            /** Required Resource Type Label */
+            required_resource_type_label?: string | null;
+            /** Requirement Id */
+            requirement_id: string;
+            /**
+             * Shortfall
+             * @default 0
+             */
+            shortfall: number;
+            /** Source */
+            source?: ("booking" | "day" | "default") | null;
+            /** Unavailable Resource Ids */
+            unavailable_resource_ids?: string[];
+        };
+        /**
+         * StaffingResourceOut
+         * @description One resource of an owning kind in service on the day (Bus 1).
+         */
+        StaffingResourceOut: {
+            /**
+             * Blocked
+             * @default false
+             */
+            blocked: boolean;
+            /** Color */
+            color?: string | null;
+            /** Day Assignment Ids */
+            day_assignment_ids?: string[];
+            /** Needs */
+            needs?: components["schemas"]["StaffingNeedOut"][];
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name?: string | null;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Resource Type Label */
+            resource_type_label?: string | null;
+            /**
+             * Shortfall
+             * @default 0
+             */
+            shortfall: number;
+        };
+        /**
+         * StaffingStaffOut
+         * @description A staff resource of a required kind, as it stands on the day.
+         */
+        StaffingStaffOut: {
+            /** Active */
+            active: boolean;
+            /** Assigned To Resource Ids */
+            assigned_to_resource_ids?: string[];
+            /** Available */
+            available: boolean;
+            /**
+             * Double Booked
+             * @default false
+             */
+            double_booked: boolean;
+            /** Name */
+            name?: string | null;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
+        };
         /**
          * StagingActivityIn
          * @description A cross-tier activity event for a relayed staging ticket.
@@ -16893,6 +17154,84 @@ export interface components {
             synced: boolean;
             /** Trello Card Url */
             trello_card_url?: string | null;
+        };
+        /**
+         * TypeRequirementIn
+         * @description "<this type> needs <quantity> <resource_type_id> per resource per day".
+         */
+        TypeRequirementIn: {
+            /**
+             * Enforcement
+             * @default warn
+             * @enum {string}
+             */
+            enforcement: "warn" | "block";
+            /**
+             * Exclusive Use
+             * @default false
+             */
+            exclusive_use: boolean;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Resource Id */
+            resource_id?: string | null;
+            /**
+             * Resource Type Id
+             * @description The required kind (a staff-facet type)
+             */
+            resource_type_id: string;
+        };
+        /** TypeRequirementOut */
+        TypeRequirementOut: {
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Enforcement
+             * @enum {string}
+             */
+            enforcement: "warn" | "block";
+            /**
+             * Exclusive Use
+             * @default false
+             */
+            exclusive_use: boolean;
+            /** Id */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+            /** Owner Resource Type Id */
+            owner_resource_type_id: string;
+            /** Quantity */
+            quantity?: number | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Resource Type Label */
+            resource_type_label?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** TypeRequirementPatch */
+        TypeRequirementPatch: {
+            /** Enforcement */
+            enforcement?: ("warn" | "block") | null;
+            /** Exclusive Use */
+            exclusive_use?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+            /** Quantity */
+            quantity?: number | null;
         };
         /** UnavailabilityIn */
         UnavailabilityIn: {
@@ -21530,7 +21869,7 @@ export interface operations {
             query?: {
                 /** @description landr-lmudr.10: the booking's service days (repeat the param); with `participants`, each add-on carries a stock verdict */
                 selected_days?: string[] | null;
-                /** @description Guiding participants of the booking (stock verdict) */
+                /** @description Guiding participants of the booking — gates the stock verdict; the stock itself is counted by add-on quantity (landr-lmudr.32), see `stock_remaining` */
                 participants?: number | null;
             };
             header?: never;
@@ -29008,6 +29347,75 @@ export interface operations {
             };
         };
     };
+    list_product_requirements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRequirementOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_product_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+                requirement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequirementPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRequirementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_subscription_config: {
         parameters: {
             query?: never;
@@ -30241,7 +30649,7 @@ export interface operations {
     patch_resource_type: {
         parameters: {
             query?: {
-                /** @description Clear place roles/map position when removing the place facet */
+                /** @description Clear place roles/map position when removing the place facet; remove the type's staffing requirements (Needs) when removing the capacity facet */
                 force?: boolean;
             };
             header?: never;
@@ -30557,6 +30965,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RentalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_type_requirements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TypeRequirementOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_type_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TypeRequirementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TypeRequirementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_type_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+                requirement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_type_requirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+                requirement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TypeRequirementPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TypeRequirementOut"];
                 };
             };
             /** @description Validation Error */
@@ -31932,6 +32478,39 @@ export interface operations {
                             [key: string]: unknown;
                         }[];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_staffing_day: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffingDayOut"];
                 };
             };
             /** @description Validation Error */

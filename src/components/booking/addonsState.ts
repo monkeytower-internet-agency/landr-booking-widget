@@ -63,11 +63,26 @@ export function clampAddonQty(
 ): number {
   const floor = 0
   const maxQtyCeiling = addon.max_qty ?? Number.POSITIVE_INFINITY
+  // landr-lmudr.32: never more than the stock left on the chosen days.
+  const stockCeiling = addonStockCeiling(addon)
   const ceiling =
     occupancyCap !== undefined
-      ? Math.min(maxQtyCeiling, occupancyCap)
-      : maxQtyCeiling
+      ? Math.min(maxQtyCeiling, occupancyCap, stockCeiling)
+      : Math.min(maxQtyCeiling, stockCeiling)
   return Math.min(ceiling, Math.max(floor, qty))
+}
+
+/**
+ * landr-lmudr.32: the most of this add-on the stock still allows —
+ * `stock_remaining` from the API's stock verdict, or no limit when the
+ * add-ons were fetched without one.
+ */
+export function addonStockCeiling(
+  addon: Pick<ProductAddon, 'stock_remaining'>,
+): number {
+  return typeof addon.stock_remaining === 'number'
+    ? Math.max(0, addon.stock_remaining)
+    : Number.POSITIVE_INFINITY
 }
 
 /**
@@ -115,9 +130,35 @@ export function isOverbooked(
   return null
 }
 
-/** landr-lmudr.10: a stock-limited add-on with no room left on the booking's days. */
-export function isAddonSoldOut(addon: Pick<ProductAddon, 'available'>): boolean {
-  return addon.available === false
+/**
+ * landr-lmudr.10: a stock-limited add-on with no room left on the booking's
+ * days. landr-lmudr.32: with a quantity, sold out only when that quantity is
+ * more than the stock left — a party of 5 asking for 2 vests with 3 left is
+ * not sold out.
+ */
+export function isAddonSoldOut(
+  addon: Pick<ProductAddon, 'available' | 'stock_remaining'>,
+  quantity?: number,
+): boolean {
+  if (addon.available === false) return true
+  return quantity !== undefined && quantity > addonStockCeiling(addon)
+}
+
+/**
+ * landr-lmudr.19: the line under a disabled add-on — "the whole raft is
+ * reserved for another group" for a whole-unit add-on, else "sold out".
+ */
+export function addonUnavailableMessage(
+  addon: Pick<ProductAddon, 'unavailable_reason' | 'stock_unit_label'>,
+  locale?: string,
+): string {
+  if (addon.unavailable_reason === 'unit_taken') {
+    const unit = addon.stock_unit_label?.trim()
+    return unit
+      ? tr('addonUnitTakenTemplate', locale).replace('{unit}', unit.toLowerCase())
+      : tr('addonUnitTaken', locale)
+  }
+  return tr('addonSoldOut', locale)
 }
 
 /**
@@ -127,13 +168,29 @@ export function isAddonSoldOut(addon: Pick<ProductAddon, 'available'>): boolean 
  */
 export function withoutSoldOut(
   selection: Record<string, number>,
-  addons: readonly Pick<ProductAddon, 'addon_product_id' | 'available'>[],
+  addons: readonly Pick<
+    ProductAddon,
+    'addon_product_id' | 'available' | 'stock_remaining'
+  >[],
 ): Record<string, number> {
-  const soldOut = addons.filter(isAddonSoldOut).map((a) => a.addon_product_id)
-  if (!soldOut.some((id) => id in selection)) return selection
-  const next = { ...selection }
-  for (const id of soldOut) delete next[id]
-  return next
+  let next: Record<string, number> | null = null
+  for (const a of addons) {
+    const id = a.addon_product_id
+    if (!(id in selection)) continue
+    if (isAddonSoldOut(a)) {
+      next ??= { ...selection }
+      delete next[id]
+      continue
+    }
+    // landr-lmudr.32: a restored pick above the stock left is trimmed to it.
+    const ceiling = addonStockCeiling(a)
+    if (selection[id] > ceiling) {
+      next ??= { ...selection }
+      if (ceiling > 0) next[id] = ceiling
+      else delete next[id]
+    }
+  }
+  return next ?? selection
 }
 
 /**

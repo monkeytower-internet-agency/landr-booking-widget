@@ -464,6 +464,12 @@ type Bundle = {
   noAddonsAvailable: string
   /** landr-lmudr.10: a stock-limited add-on with no room left on the chosen dates. */
   addonSoldOut: string
+  /** landr-lmudr.19: a whole-unit add-on whose last unit another group has. */
+  addonUnitTaken: string
+  /** Same, with the operator's own word for the unit — `{unit}` = "raft". */
+  addonUnitTakenTemplate: string
+  /** landr-lmudr.32: the stepper reached the stock left — `{n}` = how many. */
+  addonStockLeftTemplate: string
   pickRequiredAddonsCue: string
   pickRequiredAddonsToContinue: string
   requiredSuffix: string
@@ -998,6 +1004,9 @@ const en: Bundle = {
   loadingAddons: 'Loading add-ons…',
   noAddonsAvailable: 'No add-ons available for this option.',
   addonSoldOut: 'Sold out for your dates.',
+  addonUnitTaken: 'Reserved for another group on your dates.',
+  addonUnitTakenTemplate: 'The whole {unit} is reserved for another group on your dates.',
+  addonStockLeftTemplate: 'Only {n} left for your dates.',
   pickRequiredAddonsCue: 'pick your required add-ons',
   pickRequiredAddonsToContinue: 'Pick every required add-on to continue.',
   requiredSuffix: 'required',
@@ -1525,6 +1534,9 @@ const de: Bundle = {
   loadingAddons: 'Zusatzleistungen werden geladen…',
   noAddonsAvailable: 'Für diese Option sind keine Zusatzleistungen verfügbar.',
   addonSoldOut: 'Für Ihre Termine ausgebucht.',
+  addonUnitTaken: 'An Ihren Terminen für eine andere Gruppe reserviert.',
+  addonUnitTakenTemplate: 'An Ihren Terminen ist die ganze Einheit ({unit}) für eine andere Gruppe reserviert.',
+  addonStockLeftTemplate: 'Nur noch {n} für Ihre Termine verfügbar.',
   pickRequiredAddonsCue: 'erforderliche Zusatzleistungen wählen',
   pickRequiredAddonsToContinue: 'Wählen Sie alle erforderlichen Zusatzleistungen, um fortzufahren.',
   requiredSuffix: 'erforderlich',

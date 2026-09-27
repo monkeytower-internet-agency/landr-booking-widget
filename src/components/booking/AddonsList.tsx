@@ -5,6 +5,8 @@ import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
+  addonStockCeiling,
+  addonUnavailableMessage,
   isAddonSoldOut,
   isOverbooked,
   requiredAddonError,
@@ -120,8 +122,13 @@ export function AddonsList({
         // OR the add-on's own max_qty, whichever binds first.
         // landr-lmudr.10: a sold-out (stock-limited) add-on can't be added.
         const soldOut = isAddonSoldOut(addon)
+        // landr-lmudr.32: stock is counted by quantity — the stepper stops
+        // at what is left on the chosen days.
+        const stockCeiling = addonStockCeiling(addon)
+        const atStock = !soldOut && Number.isFinite(stockCeiling) && qty >= stockCeiling
         const atMax =
           soldOut ||
+          atStock ||
           (occupancyCap !== undefined && qty >= occupancyCap) ||
           (addon.max_qty !== null && qty >= addon.max_qty)
 
@@ -197,7 +204,15 @@ export function AddonsList({
                 className="text-xs text-muted-foreground"
                 data-testid={`addon-sold-out-${addon.addon_product_id}`}
               >
-                {tr('addonSoldOut', locale)}
+                {addonUnavailableMessage(addon, locale)}
+              </p>
+            ) : null}
+            {atStock && qty > 0 && (addon.max_qty === null || stockCeiling < addon.max_qty) ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid={`addon-stock-left-${addon.addon_product_id}`}
+              >
+                {tr('addonStockLeftTemplate', locale).replace('{n}', String(stockCeiling))}
               </p>
             ) : null}
             {deviation === 'over' ? (
