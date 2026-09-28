@@ -7263,209 +7263,8 @@ export interface paths {
         /**
          * Get Approval Calendar
          * @deprecated
-         * @description One row per day in ``[from, to]`` (≤366 days).
-         *
-         *     Every policy/load number is the evaluator's own, computed with
-         *     ``capacity.resolve_release_per_day`` + ``_load_breakdown_per_day`` +
-         *     ``_unit_service_per_day`` + ``_released_capacity`` — the same calls
-         *     ``evaluate_capacity`` makes for a booking, for a date range instead of for
-         *     one product.
-         *
-         *     Per-day fields:
-         *
-         *     ``mode`` / ``released_units_policy``
-         *         The resolved policy: a covering period, else the pool default
-         *         (``ask_per_unit`` at 0, else ``units_released``). ``released_units_policy``
-         *         is ``n`` AFTER the clamp to the active unit count.
-         *     ``released_units`` / ``released_cap`` / ``released_unit_ids``
-         *         The released SET and its summed capacity — what actually
-         *         auto-approves. landr-c6cpm.2: never earned by approved load, and NOT
-         *         necessarily a prefix of the ladder — ``released_unit_ids`` is the
-         *         authoritative answer, the two numbers are derived from it. Resolved
-         *         along AUTO HOLD > PERIOD > POOL DEFAULT (landr-uy4jy.2): the covering
-         *         period's set, or the pool default, MINUS the units an auto-lock is
-         *         holding for that date. There is no operator layer above the period any
-         *         more — an operator's per-day answer IS a one-day period.
-         *     ``total_cap`` / ``total_load`` / ``gate_load`` / ``pending_hold``
-         *         Seats: all units combined; seats held by live bookings; the part of
-         *         that the operator has already said yes to; and the difference — seats
-         *         held by requests still at the gate.
-         *     ``pending_count`` / ``staff_count``
-         *         Head-counts (see :func:`_booking_counts_per_day`).
-         *     ``bookable``
-         *         Whether any product on this pool is on sale that day. Policy never
-         *         moves this (OD-1) — the UI draws the two bands independently so
-         *         "bookable + ask me for each unit" is visibly different from "not
-         *         bookable".
-         *     ``units_in_service`` / ``units_in_service_ids``
-         *         How many of the pool's active units actually run on this day, and which
-         *         (landr-e80s.1) — resolved from ``resource_pool_unit_service_periods``'s
-         *         two kinds: in service = (no ``in_service`` rows OR covered by one) AND
-         *         covered by no ``out_of_service`` row. A unit with no service periods is
-         *         in service every day, so on a pool that never adopts schedules this is
-         *         always the full active roster and ``total_cap`` is unchanged.
-         *         ``total_cap``/``released_cap``/the release ladder are computed over
-         *         THESE units only. The units that are NOT running are never dropped from
-         *         the payload — they appear in ``units`` below with
-         *         ``service_state: "out_of_service"``.
-         *     ``over_capacity_bookings``
-         *         Non-empty only when the day's load exceeds the capacity that is in
-         *         service: ``{booking_id, booking_ref, date, seats, awaiting_approval}``
-         *         for each booking that no longer fits, oldest-booked first
-         *         (:func:`_over_capacity_bookings`). Taking a unit out of service on a
-         *         day that already carries bookings must be visible, not silent — this is
-         *         the list the operator has to act on.
-         *     ``units``
-         *         EVERY active unit of the pool, in release order — never only the ones
-         *         running — as ``{id, name, capacity, load, state, released_by,
-         *         service_state, out_of_service_reason}``.
-         *
-         *         ``service_state`` is the SCHEDULE answer: ``in_service`` or
-         *         ``out_of_service``, with ``out_of_service_reason`` carrying the
-         *         covering ``out_of_service`` row's reason when there is one (``null``
-         *         when the unit is simply outside its season — nobody wrote a reason,
-         *         because nothing broke). That is what draws "Unit 2 out of service
-         *         12-19 Dec (gearbox)".
-         *
-         *         ``state`` is the LADDER answer, and only in-service units have one:
-         *         ``load`` fills them in ``sort_order``, which is how the release ladder
-         *         reads them, and ``state`` is ``full`` when the unit has no seats left,
-         *         else ``released`` (inside the released prefix) or ``needs_ok``. A unit
-         *         that is not running that day carries ``load: 0``,
-         *         ``released_by: null`` and ``state: "out_of_service"`` — it holds its
-         *         place in the roster but takes no load and no release state.
-         *
-         *         ``released_by`` is ``policy`` for every released unit and ``null``
-         *         for a unit that is not released — so a ``full`` unit with
-         *         ``released_by = null`` reads correctly as "full of requests that are
-         *         still waiting for you", not "auto-approving". On an ``ask_every_time``
-         *         day NO unit is ever released — every unit is ``needs_ok`` or ``full``,
-         *         ``released_by`` always ``null``.
-         *
-         *         The value ``day_override`` is no longer produced (landr-uy4jy.2):
-         *         opening a unit for one date is a one-day PERIOD now, so every release
-         *         comes from policy. The value is left in the vocabulary rather than
-         *         deleted because the dashboard still branches on it and a period-shaped
-         *         release is genuinely ``policy``; nothing renders differently.
-         *
-         *         landr-c6cpm.2 RETIRED the value ``approval``: approved load no longer
-         *         releases the unit it sits on, so no unit is ever released "by an
-         *         approval" again. The value is gone rather than kept-and-unused, so a
-         *         consumer branching on it fails loudly instead of silently rendering a
-         *         state the API can no longer produce.
-         *
-         *         ``release_state`` (landr-c6cpm.2) is the COLOUR axis, kept separate
-         *         from ``state`` (the ladder/occupancy axis) so neither has to carry the
-         *         other's meaning: ``open`` (the rules release it — emerald),
-         *         ``ask`` (the rules do not; nobody shut it — violet),
-         *         ``closed`` (an AUTO-LOCK — a ``resource_pool_unit_day_releases`` row
-         *         with ``released = false`` and ``hold_source = 'auto'`` — shut it for
-         *         this date, slate), or ``out_of_service``. landr-uy4jy.2 narrowed
-         *         ``closed`` to the auto-lock: an operator holding a unit is now the
-         *         unit's ABSENCE from the day's period set, which is ``ask``. ``occupancy_state`` is the FILL axis in the three
-         *         buckets the icons draw: ``empty`` / ``partial`` / ``full``. A closed
-         *         unit carrying approved passengers is a legal, meaningful glyph —
-         *         "closed" gates NEW bookings only and is orthogonal to occupancy.
-         *
-         *         ``held`` / ``hold_source`` / ``hold_reason`` / ``hold_detail``
-         *         (landr-c6cpm.2) describe a DELIBERATE hold, which is NOT the same as
-         *         "not released": every unit past the release ladder is closed to new
-         *         bookings, but only the auto-lock shuts one on purpose.
-         *         ``hold_source`` is therefore always ``auto`` now (landr-uy4jy.2) —
-         *         an operator's "Ask me" is a period, not a hold — and the field stays
-         *         because the vocabulary is the dashboard's and a second source could
-         *         return.
-         *
-         *         ``hold_detail`` is the auto-lock's reason as NUMBERS,
-         *         ``{requested_slots, remaining_slots}``, and deliberately NOT a
-         *         sentence: the sentence an operator reads ("a 6-person request exceeds
-         *         the 3 remaining seats") contains a noun that belongs to one operator's
-         *         pool and not the next one's, and slot vocabulary is per-operator
-         *         (``resource_pools.slot_label``). The dashboard composes the copy;
-         *         this endpoint ships the facts. ``hold_reason`` remains free text a
-         *         HUMAN typed, and is the fallback when there is no structured detail.
-         *         See :func:`_hold_fields`.
-         *     ``kind``
-         *         Day-level echo of ``evaluate_capacity``'s ``by_day[day].kind``, same
-         *         vocabulary: ``manual_all`` on an ``ask_every_time`` day (mode alone
-         *         decides it); else ``shortage`` when ``total_load > total_cap``; else
-         *         ``opens`` when the load already on the books LANDS ON a unit that is
-         *         not released (the next unit is waiting to open); else ``null``. D5
-         *         draws the day pill from this rather than re-deriving it from the unit
-         *         list. landr-c6cpm.2 made that middle test positional rather than
-         *         ``total_load > released_cap`` — see the inline comment for why a sum
-         *         cannot answer it once the released set can have holes.
-         *     ``participants_total`` / ``units_needed`` / ``units_needed_basis`` /
-         *     ``units_available`` / ``shortage`` (landr-w9yk8.4)
-         *         Supply vs demand in WHOLE UNITS — "do I have enough buses tomorrow",
-         *         the question the day header turns red on. ``participants_total`` is
-         *         the guiding head-count (a PEOPLE number, not the pool's load — a
-         *         1-guide-per-6-paddlers pool has 12 participants and a load of 2);
-         *         ``units_needed`` is the number of DISTINCT units the day board has
-         *         participants assigned to, or, when nobody has assigned anybody yet,
-         *         the units the day's load occupies walking the fleet ladder by each
-         *         unit's own capacity (``units_needed_basis`` says which);
-         *         ``units_available`` is in fleet AND in service, regardless of release,
-         *         because a bus that needs the operator's OK still drives; and
-         *         ``shortage`` is ``max(0, needed - available)``.
-         *     ``participants_by_state`` / ``total_load_by_state`` / ``units[].load_by_state``
-         *         (landr-3c71t.1) The SAME totals as ``participants_total`` /
-         *         ``total_load`` / each unit's own ``load``, split into
-         *         ``{pending, confirmed, finalised}`` — the ``LIVE_SEMANTIC_STATES`` a
-         *         booking can be in while still holding a seat (cancelled/no_show are
-         *         already excluded upstream and never appear here). Purely additive:
-         *         the three totals are unchanged and remain the full sum across all
-         *         three states. Summing a ``units[].load_by_state`` dict reproduces
-         *         that unit's own ``load`` exactly; summing every unit's value for one
-         *         state does NOT necessarily reproduce ``total_load_by_state`` for
-         *         that state on a ``shortage`` day, for the same reason
-         *         ``sum(units[].load) <= total_load`` already can — load past the
-         *         in-service ladder's capacity is not attributed to any unit.
-         *
-         *         ``shortage`` is NOT the same red as ``kind == "shortage"``: this one
-         *         counts units and asks whether any vehicle is missing, that one counts
-         *         seats and asks whether the people fit. A day can be either without
-         *         being the other. See ``app/services/pool_day_supply.py``.
-         *
-         *     ``participants_by_stage`` / ``total_load_by_stage`` / ``units[].load_by_stage``
-         *         (landr-3c71t.4) The SAME totals again, this time split by the
-         *         booking's ``current_stage_code`` instead of semantic state — a finer
-         *         partition, since several operator-enabled stages can share one
-         *         semantic state (e.g. two different "pending" stages). A booking with
-         *         no stage buckets under the literal sentinel key ``"__other__"``,
-         *         which must match ``landr-dashboard``'s ``OTHER_STAGE_CODE``
-         *         (``src/lib/booking-stages.ts``) exactly — the two repos share no
-         *         code, so the string literal itself is the contract.
-         *
-         *         Unlike the state split, this one is **unbounded cardinality**: one
-         *         key per operator-enabled stage, not a fixed 3-tuple. To keep the
-         *         payload from growing with the operator's whole stage catalogue on a
-         *         quiet day, a stage with zero count on a given day/unit simply has no
-         *         key — never a zero-valued entry. Otherwise identical semantics to
-         *         the state split: purely additive (the plain totals are unchanged),
-         *         and summing a ``units[].load_by_stage`` dict reproduces that unit's
-         *         own ``load`` exactly, with the same shortage-day caveat about
-         *         ``total_load_by_stage`` as ``total_load_by_state`` above.
-         *
-         *     ``units[].day_state`` / ``units[].reason`` / ``units[].approval``
-         *         (landr-w9yk8.4) The epic's COLLAPSED per-unit model, additive next to
-         *         the three legacy axes: one status (``available`` / ``not_available``),
-         *         one approval axis (``auto`` / ``ask``), and a ``reason``
-         *         (``out_of_service`` / ``closed_period`` / ``not_released`` / null)
-         *         that is only ever the cause icon, never a third state. The key is
-         *         ``day_state`` and not ``state`` on purpose — ``state`` above is the
-         *         legacy ladder axis the shipped dashboard still reads, and it is
-         *         deleted by the dashboard tickets, not by this one.
-         *
-         *     ``period_id``
-         *         The covering period row, or ``null`` where the pool default applies.
-         *         Since landr-uy4jy.2 this is the WHOLE operator story for the day: a
-         *         day the operator answered by hand has a period covering exactly it.
-         *
-         *     ``periods`` carries the full period rows overlapping the span so the
-         *     Periods tab and the Calendar tab can be rendered from one request, and
-         *     ``pool`` / ``units`` carry the roster (``resource_kind`` picks the glyph,
-         *     ``default_released_units`` seeds the default control).
+         * @description Deprecated alias of ``GET /resource-types/{type_id}/approval-calendar``
+         *     — see :func:`app.services.approval_calendar.get_approval_calendar`.
          */
         get: operations["get_approval_calendar"];
         put?: never;
@@ -7487,44 +7286,8 @@ export interface paths {
         /**
          * Apply Approval Periods
          * @deprecated
-         * @description Set one policy across one or more date ranges, atomically.
-         *
-         *     The whole write is ``apply_resource_pool_approval_periods`` (migration
-         *     20260903010000, actor param 20260903040000, per-unit release set
-         *     20260905222010): one transaction that trims/splits neighbouring periods,
-         *     merges identical adjacent ones, soft-deletes what it replaces (stamping
-         *     ``deleted_by_user_id = membership.user_id``) and ensures the pool's
-         *     ``capacity_threshold`` rule (OD-2). A bad range anywhere in the body means
-         *     NOTHING is written — validation runs before the first write and the
-         *     transaction rolls back regardless.
-         *
-         *     ONE TRANSACTION IS NOT AN OPTIMISATION HERE (landr-c6cpm.9). A period's
-         *     header and its ``resource_pool_approval_period_units`` rows are checked
-         *     against each other by a DEFERRABLE INITIALLY DEFERRED trigger, so they must
-         *     COMMIT together; two PostgREST calls each commit on their own and the first
-         *     one is rejected. That is why the release set is an argument to the RPC and
-         *     not a second endpoint.
-         *
-         *     Each returned period carries ``released_unit_ids`` — the units it releases,
-         *     by id. The legacy derived-count mirror ``released_units`` was dropped from
-         *     the table and this response by landr-c6cpm.13 (its last reader,
-         *     capacity.py, moved to the child rows in landr-c6cpm.2); a non-contiguous
-         *     set was never expressible as a count, so read the ids.
-         *
-         *     ``?dry_run=1`` returns exactly the rows the real call would produce
-         *     (``id`` populated for the rows that would survive untouched, ``null`` for
-         *     the ones that would be created) and writes nothing at all — no period, no
-         *     rule, no audit row. That is what the edit sheet's preview line is built
-         *     from.
-         *
-         *     ``replace_period_id`` (landr-zb9gk.1) is the id of the period this PUT is
-         *     EDITING, so a shrink is not the no-op it would otherwise be: the RPC
-         *     excludes that period from the neighbours it carves fragments out of, then
-         *     soft-deletes it outright before writing the new ranges, rather than
-         *     letting its untouched days survive as an identical-policy fragment that
-         *     would immediately merge back onto the request. A syntactically invalid id
-         *     is a 404 here (mirroring :func:`delete_approval_period`); an id that does
-         *     not resolve to an active period of this pool is a 404 from the RPC itself.
+         * @description Deprecated alias of ``PUT /resource-types/{type_id}/approval-periods``
+         *     — see :func:`app.services.approval_calendar.apply_approval_periods`.
          */
         put: operations["apply_approval_periods"];
         post?: never;
@@ -7547,16 +7310,8 @@ export interface paths {
         /**
          * Delete Approval Period
          * @deprecated
-         * @description Soft-delete one period (Pattern A + ``active = false``).
-         *
-         *     The days it covered fall back to the pool's ``default_released_units`` on
-         *     the very next read — there is no gap state and nothing to backfill. Both
-         *     flags are set for the same reason the units editor sets both: the
-         *     non-overlap guard and the evaluator each filter on one of them, and a row
-         *     that is "deleted" must be out of both sets.
-         *
-         *     Deliberately NOT a hard delete: the audit trail for "who took the peak
-         *     season policy off, and when" is the whole point of Pattern A.
+         * @description Deprecated alias of ``DELETE /resource-types/{type_id}/approval-periods/{period_id}``
+         *     — see :func:`app.services.approval_calendar.delete_approval_period`.
          */
         delete: operations["delete_approval_period"];
         options?: never;
@@ -7603,61 +7358,8 @@ export interface paths {
         /**
          * Impact Preview
          * @deprecated
-         * @description The future days that would go SHORT if this unit went away.
-         *
-         *     Backs the epic's warn-and-confirm dialog (D7 / landr-w9yk8.11): turning a
-         *     unit's In-fleet switch off, or scheduling it out of service, opens a table
-         *     of the days that would then have fewer units than they need, and a
-         *     "Deactivate anyway" button. The epic is explicit that this NEVER blocks —
-         *     the bus may really be broken — so this endpoint informs and returns; it
-         *     has no opinion and no veto.
-         *
-         *     **Read-only.** Nothing is written, whatever the answer, and the unit is in
-         *     exactly the state it was before. That is why the change travels in the
-         *     body instead of the endpoint being a ``dry_run`` flag on the real write:
-         *     the operator asks this question BEFORE deciding, often without ever making
-         *     the change.
-         *
-         *     Body::
-         *
-         *         {"unit_id": "…", "change": "not_in_fleet"}
-         *         {"unit_id": "…", "change": {"out_of_service": {"start_date": "…",
-         *                                                        "end_date": "…"}}}
-         *
-         *     Returns ``days``: one row per FUTURE day whose ``shortage_after`` is
-         *     positive, each ``{date, participants_total, units_needed,
-         *     units_available_before, units_available_after, shortage_before,
-         *     shortage_after, newly}``. Days that are FINE after the change are absent;
-         *     days that are short are all present, INCLUDING ones that were already
-         *     short before it and are no worse for it, with ``newly: false``.
-         *
-         *     That inclusion is deliberate, not an oversight (landr-w9yk8.17 confirmed
-         *     the filter is ``shortage_after > 0`` and nothing more). The D7 dialog asks
-         *     "if I do this, what does my next year look like" — an operator about to
-         *     take a bus off the road needs the whole list of days they will be short,
-         *     not only the increment this one action adds. ``newly`` is what separates
-         *     the two, so the dialog can lead with "3 new, 1 already short" without the
-         *     API having to guess which framing it wants.
-         *
-         *     ``units_needed`` is computed against TODAY's fleet and does not move with
-         *     the change — demand is a property of the bookings, and a bus breaking does
-         *     not make fewer people show up. Computing it against the post-change fleet
-         *     is the tempting mistake that makes every preview come back empty: the
-         *     ladder would shrink in step with the supply and the shortage would cancel
-         *     itself out. See ``app/services/pool_day_supply.py``.
-         *
-         *     The window is the operator's today … +365 days, overridable with
-         *     ``from``/``to`` (at most ``MAX_CALENDAR_DAYS``) — bounded for the same
-         *     reason :func:`_consequence_window` documents, and starting at the
-         *     OPERATOR's today rather than the server's so an operator west of UTC does
-         *     not lose the day they are standing in.
-         *
-         *     Today is a FLOOR, not just a default (``clamp_to_today=True``): a ``from``
-         *     in the past is lifted to today rather than honoured, and a window that
-         *     ends before today returns no days at all. A unit leaving service cannot
-         *     un-take a booking that already happened, so a past day in this response
-         *     would be a row the operator can do nothing about. Before landr-w9yk8.17
-         *     that was a promise this docstring made and the query string could break.
+         * @description Deprecated alias of ``POST /resource-types/{type_id}/impact-preview``
+         *     — see :func:`app.services.approval_calendar.impact_preview`.
          */
         post: operations["impact_preview"];
         delete?: never;
@@ -7844,121 +7546,17 @@ export interface paths {
         get?: never;
         /**
          * Put Unit Day State
-         * @description Set ONE unit's state on ONE day — the /calendar popover's whole write.
-         *
-         *     The epic (D4) moves per-day editing off the Settings › Calendar tab and
-         *     onto the calendar itself: click a bus icon on a day, pick Auto-approve /
-         *     Ask me / Not available. Date RANGES stay in the pool tab; this endpoint is
-         *     the single-day surface, and it deliberately cannot express a range.
-         *
-         *     Which table each answer lands in is not arbitrary — it is the epic's
-         *     three axes, kept apart:
-         *
-         *     ``auto`` / ``ask``
-         *         The APPROVAL axis. Since landr-uy4jy.2 this is a PERIOD SPLIT, not a
-         *         second layer on top of one: the day's resulting release set — the
-         *         covering period's set (or the pool default), plus or minus this unit —
-         *         is written as a one-day period through
-         *         ``apply_resource_pool_approval_periods``. The RPC carves the day out
-         *         of its neighbour, keeps the leftover fragments and merges identical
-         *         adjacent days back together, so answering the same way on three
-         *         consecutive days leaves ONE three-day period.
-         *
-         *         It used to write a ``resource_pool_unit_day_releases`` override that
-         *         OUTRANKED the period (DAY OVERRIDE > PERIOD > POOL DEFAULT).
-         *         landr-zb9gk decided to keep those two layers; ok tried it on the live
-         *         calendar and reversed it — "mentally, no one can grasp it". A day the
-         *         operator changed is now visible in the periods table, which is the
-         *         only place their intent lives.
-         *
-         *         On an ``ask_every_time`` day, ``auto`` on one unit therefore ends that
-         *         mode for that date: ``ask_every_time`` is POOL-WIDE and does not
-         *         decompose into a per-unit set, so "auto-approve this bus today" cannot
-         *         be expressed inside it. Before, the override was written and then
-         *         silently swallowed by the evaluator; now the answer takes effect.
-         *     ``not_available``
-         *         The SERVICE axis. Writes a one-day ``out_of_service`` row onto the
-         *         unit's schedule, through the same atomic replace-set RPC the schedule
-         *         editor uses. Availability is a fact about the world; folding it into
-         *         the release override would make "broken" and "not auto-approved" the
-         *         same bit, which is the exact confusion this epic exists to undo.
-         *
-         *     Setting ``auto`` or ``ask`` also makes the day AVAILABLE again: a one-day
-         *     outage covering the date is removed, and a longer one is split around it
-         *     (:func:`_schedule_without_day`). Undoing "Not available" from the same
-         *     popover that set it is the whole point — the operator does not know, and
-         *     must not need to know, that one of the two answers lives in a different
-         *     table.
-         *
-         *     A day the unit cannot run for the OTHER reason — it is scheduled and this
-         *     date is outside every season — is a 422 ``day_outside_service_season``
-         *     rather than a silent no-op or an invented season. A season is a range, and
-         *     ranges are the pool tab's job; guessing one here would quietly hand the
-         *     operator a schedule they never wrote.
-         *
-         *     The day's approval rule survives ``not_available``: it is not cleared,
-         *     because a unit that is out of service is simply not in play that day, and
-         *     the operator's approval preference should still be there when the unit
-         *     comes back. Resetting the day to the pool default is
-         *     :func:`delete_unit_day_state`.
-         *
-         *     ``auto`` also LIFTS an auto-lock on that (unit, date). The lock is a
-         *     transient hold taken while a request that spills past the unit is pending
-         *     (``capacity.py``, "Auto-lock"); an operator saying "this unit
-         *     auto-approves today" has decided the question the lock was holding open,
-         *     and leaving it would make the answer do nothing visible. ``ask`` leaves
-         *     any lock alone — it agrees with it.
-         *
-         *     RESPONSE SHAPE IS UNCHANGED apart from one added key. ``day_release`` is
-         *     still there and is now always ``null`` for ``auto``/``ask`` (no override
-         *     row is written any more); ``periods`` carries the resulting period rows
-         *     for the affected span, so the calendar can refresh the periods list from
-         *     the same response. Nothing was renamed: ``landr-dashboard``'s
-         *     ``putUnitDayState`` keeps working untouched.
+         * @deprecated
+         * @description Deprecated alias of ``PUT /resources/{resource_id}/day-state`` — see
+         *     :func:`app.services.approval_calendar.put_unit_day_state`.
          */
         put: operations["put_unit_day_state"];
         post?: never;
         /**
          * Delete Unit Day State
-         * @description Reset the day to the pool default — the counterpart to ``auto``/``ask``.
-         *
-         *     Those two PIN a day; this un-pins it. Without it a single click would pin
-         *     a day for good, and an operator who opened one bus for one Tuesday in
-         *     March would find that Tuesday ignoring the season they set in April, with
-         *     no way back from the surface that made it.
-         *
-         *     Since landr-uy4jy.2 that is ``apply_resource_pool_approval_periods`` with
-         *     ``p_clear``: the date is carved out of whatever period covers it, the
-         *     leftover fragments are kept and merged as always, and NOTHING is written
-         *     back for the date itself, so it falls through to
-         *     ``resource_pools.default_released_units``. `p_clear` exists because the
-         *     obvious alternative does not work — re-PUTting the neighbour's own policy
-         *     over the day merges straight back into it and changes nothing, which is
-         *     the landr-zb9gk no-op.
-         *
-         *     IT RESETS THE WHOLE DAY, not just this unit. The rule for a date is one
-         *     period covering the pool, so "reset this day to the default" cannot mean
-         *     one unit — and the alternative (rewriting the day's set with only this
-         *     unit dropped back to its default value) is not a reset, it is another
-         *     edit. The path keeps ``{unit_id}`` because it is the popover's own
-         *     endpoint and the unit is what the operator clicked.
-         *
-         *     It also clears any AUTO-LOCK on this (unit, date). That row is the one
-         *     thing still living in ``resource_pool_unit_day_releases``, it is the only
-         *     way an operator can lift a lock from the calendar, and a "reset" that left
-         *     the day visibly locked would not be one. Hard delete, not a soft one: the
-         *     table has no soft-delete columns by design (landr-c6cpm.1), the audit
-         *     trigger keeps the history, and a "deleted" row would have to be excluded
-         *     by every reader of a table whose whole job is a one-row-per-key lookup.
-         *
-         *     Does NOT touch the service schedule: "this day is not pinned" and "this
-         *     unit is out of service that day" are different statements, and removing an
-         *     outage is :func:`put_unit_day_state` with ``auto``/``ask``, or the
-         *     schedule editor.
-         *
-         *     Idempotent — resetting a day that is already at the pool default and
-         *     carries no lock returns ``removed: false`` and 200, because the caller's
-         *     intent ("nothing pinned on this day") is satisfied either way.
+         * @deprecated
+         * @description Deprecated alias of ``DELETE /resources/{resource_id}/day-state`` — see
+         *     :func:`app.services.approval_calendar.delete_unit_day_state`.
          */
         delete: operations["delete_unit_day_state"];
         options?: never;
@@ -8067,6 +7665,9 @@ export interface paths {
          *
          *     ``shape=tree`` (default): top-level types, each with ``children`` —
          *     exactly what the Settings › Resources sidebar renders (landr-lmudr.8).
+         *     landr-lmudr.35: tree nodes also carry ``in_service_today`` and
+         *     ``needs_count`` (the overview cards); ``shape=flat`` skips that cost and
+         *     returns them as null.
          *     ``shape=flat``: one list ordered by ``sort_order``. ``facet`` keeps only
          *     types carrying it (a child whose parent is filtered out is promoted).
          */
@@ -8095,7 +7696,9 @@ export interface paths {
          *     Idempotent — a type whose code already exists for the operator is left
          *     untouched (never relabelled) and reported under ``skipped``; safe to
          *     call twice. 422 ``unknown_template_key`` for a key neither the bundle
-         *     nor the single registry recognises.
+         *     nor the single registry recognises; 403 ``template_not_in_tier`` (with
+         *     the disabled ``keys``) when the operator's plan does not include one
+         *     (landr-lmudr.35 — nothing is applied then).
          */
         post: operations["apply_resource_type_templates"];
         delete?: never;
@@ -8135,6 +7738,11 @@ export interface paths {
          *     bus transfers, accommodation partners), then every standalone single —
          *     the dashboard picker (landr-lmudr.8) renders bundles as one-click
          *     starting shapes and singles as "add just this kind".
+         *
+         *     landr-lmudr.35: EVERY entry is listed, each with ``enabled`` — whether
+         *     the operator's plan includes it (tier-map key ``feature_key`` =
+         *     ``template:<key>``) — and, when locked, ``lowest_tier`` for the upgrade
+         *     hint.
          */
         get: operations["list_resource_type_templates"];
         put?: never;
@@ -8242,6 +7850,29 @@ export interface paths {
          * @description The panel's colour button (decision 19): one field, ``null`` clears.
          */
         patch: operations["set_resource_type_color"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate Resource Type
+         * @description landr-lmudr.35: copy a type — same facets, terms, custom fields,
+         *     colour, icon, kind hint, parent and approval default; ``code`` =
+         *     ``<code>-copy`` (``-copy-2`` … when taken; never a baseline code),
+         *     label "<label> (copy)"; NO resources are copied.
+         */
+        post: operations["duplicate_resource_type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/resource-types/{type_id}/field-schema": {
@@ -8524,6 +8155,40 @@ export interface paths {
         post?: never;
         /** Clear Day Assignments */
         delete: operations["clear_day_assignments"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resources/{resource_id}/day-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Resource Day State
+         * @description Set ONE capacity resource's state on ONE day — the /calendar popover's
+         *     Auto-approve / Ask me / Not available. Same body and response as the
+         *     deprecated ``PUT /resource-pools/{pool_id}/units/{unit_id}/day-state``
+         *     (which now delegates to the same service function), except that the
+         *     resource is named ``resource_id`` in the response:
+         *     ``auto``/``ask`` write a one-day approval period for the resource's type,
+         *     ``not_available`` a one-day ``out_of_service`` row on its schedule. See
+         *     :func:`app.services.approval_calendar.put_unit_day_state`.
+         */
+        put: operations["put_resource_day_state"];
+        post?: never;
+        /**
+         * Delete Resource Day State
+         * @description Reset ``?date=`` to the type's default (clears the covering period for
+         *     that day and any auto-lock on this resource). Same response as the
+         *     deprecated ``DELETE /resource-pools/{pool_id}/units/{unit_id}/day-state``.
+         *     See :func:`app.services.approval_calendar.delete_unit_day_state`.
+         */
+        delete: operations["delete_resource_day_state"];
         options?: never;
         head?: never;
         patch?: never;
@@ -15441,6 +15106,28 @@ export interface components {
             /** Code */
             code: string;
         };
+        /**
+         * ResourceDayStateIn
+         * @description ``PUT /resources/{id}/day-state`` — one capacity resource, one day, one
+         *     answer: ``auto`` (Auto-approve), ``ask`` (Ask me) or ``not_available``.
+         *     ``reason`` is the operator's own words (whitespace-only = none).
+         *     landr-lmudr.33: the unified successor of the pool route's
+         *     ``UnitDayStateIn`` — same fields, unified vocabulary.
+         */
+        ResourceDayStateIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "auto" | "ask" | "not_available";
+        };
         /** ResourceIn */
         ResourceIn: {
             /**
@@ -15792,6 +15479,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * In Service Today
+             * @description landr-lmudr.35: live ACTIVE resources of exactly this type in service on the operator's local today (seasons / out-of-service ranges applied). Null when not computed (GET ?shape=flat)
+             */
+            in_service_today?: number | null;
+            /**
              * Inactive Resource Count
              * @default 0
              */
@@ -15806,6 +15498,11 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Needs Count
+             * @description landr-lmudr.35: staffing rules this type owns (the type page's Needs). Null when not computed (GET ?shape=flat)
+             */
+            needs_count?: number | null;
             /** Operator Id */
             operator_id: string;
             /** Parent Id */
@@ -15849,6 +15546,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * In Service Today
+             * @description landr-lmudr.35: live ACTIVE resources of exactly this type in service on the operator's local today (seasons / out-of-service ranges applied). Null when not computed (GET ?shape=flat)
+             */
+            in_service_today?: number | null;
+            /**
              * Inactive Resource Count
              * @default 0
              */
@@ -15863,6 +15565,11 @@ export interface components {
             label_localized?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Needs Count
+             * @description landr-lmudr.35: staffing rules this type owns (the type page's Needs). Null when not computed (GET ?shape=flat)
+             */
+            needs_count?: number | null;
             /** Operator Id */
             operator_id: string;
             /** Parent Id */
@@ -17038,8 +16745,18 @@ export interface components {
             adopts_code?: string | null;
             /** Description */
             description: string;
+            /**
+             * Enabled
+             * @description landr-lmudr.35: the entry is in this operator's plan. A disabled entry is still listed (the gallery shows it locked); POST from-template 403s template_not_in_tier for it
+             */
+            enabled: boolean;
             /** Facets */
             facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /**
+             * Feature Key
+             * @description landr-lmudr.35: the tier-map key gating this entry, 'template:<key>' (features / package_features / operator_features)
+             */
+            feature_key: string;
             /** Key */
             key: string;
             /**
@@ -17049,6 +16766,11 @@ export interface components {
             kind: "bundle" | "single";
             /** Label */
             label: string;
+            /**
+             * Lowest Tier
+             * @description landr-lmudr.35: for a DISABLED entry, the name of the cheapest active plan that includes it ('Pro'); None when enabled or no plan includes it
+             */
+            lowest_tier?: string | null;
             /**
              * Template Keys
              * @description Component single-template keys (bundles only)
@@ -30833,6 +30555,38 @@ export interface operations {
             };
         };
     };
+    duplicate_resource_type: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     put_resource_type_field_schema: {
         parameters: {
             query?: never;
@@ -31530,6 +31284,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DayAssignmentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_resource_day_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceDayStateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_resource_day_state: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
