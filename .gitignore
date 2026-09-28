@@ -35,3 +35,10 @@ wp-plugin/*.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Agent worktrees — untracked nested worktrees under .claude/worktrees/
+# show up as permanent "uncommitted" noise in git status and the release
+# matrix's dirty-checkout check. landr-api already ignores these
+# (.gitignore:85).
+.claude/worktrees/
+.worktrees/
