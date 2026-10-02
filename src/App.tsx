@@ -58,6 +58,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
+import { tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -1915,6 +1916,11 @@ function BookingFlowApp() {
             // (deep-link case); pickedGroupSlug handles the in-app navigation.
             productGroup={group ?? pickedGroupSlug ?? undefined}
             preselectSlug={product ?? undefined}
+            // landr-wwoap: a start=dates deep link lands on the date list,
+            // so say so while the catalogue fetch resolves the product.
+            preselectLoadingLabel={
+              startAtDates ? tr('loadingWindows', browserLocale()) : undefined
+            }
             // landr-7jgo: per-embed opt-in to show sold-out products as
             // "Fully booked" cards in the overview. Default false (hidden).
             // Ignored when a single-product deep link is in play (the deep

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Check } from 'lucide-react'
+import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { forceReasonsFor } from '@/components/booking/bookability'
@@ -183,7 +184,7 @@ export function FixedDateWindowPicker({
             default) takes over. */}
         <NextAction active={!selectedWindow} cue={tr('fixedDateWindowCue', locale)}>
         {windows === null ? (
-          <p className="text-sm text-muted-foreground">{tr('loadingWindows', locale)}</p>
+          <ProductSkeleton view="list" count={3} label={tr('loadingWindows', locale)} />
         ) : windows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {tr('noUpcomingWindows', locale)}
