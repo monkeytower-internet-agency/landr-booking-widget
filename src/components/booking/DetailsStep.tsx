@@ -295,8 +295,15 @@ export function DetailsStep({
   })
   // landr-87n9.3: non-guiding companions ("Others joining the activity").
   // Restored from initialCompanions on Back-restore, else empty.
+  // landr-lu41h: no-accommodation products have no room to share — every
+  // companion is a guest paying for themselves ('separate_guiding').
+  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
-    (initialCompanions ?? []).map(withMemberId),
+    (initialCompanions ?? []).map((c) =>
+      withMemberId(
+        noAccommodation ? { ...c, companion_kind: 'separate_guiding' } : c,
+      ),
+    ),
   )
 
   // landr-fn4i / landr-5krc: optional member-perk code. Seeded from
@@ -456,7 +463,10 @@ export function DetailsStep({
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
     if (companions.length >= MAX_COMPANIONS) return
-    const next = [...companions, emptyCompanion()]
+    const next = [
+      ...companions,
+      emptyCompanion(noAccommodation ? 'separate_guiding' : 'guest'),
+    ]
     setCompanions(next)
     notifyLive(booker, additional, next)
   }
@@ -855,7 +865,14 @@ export function DetailsStep({
       focusFirstInvalid()
       return
     }
-    onConfirm(booker, participantsForValidation, companions, comment.trim())
+    onConfirm(
+      booker,
+      participantsForValidation,
+      noAccommodation
+        ? companions.map((c) => ({ ...c, companion_kind: 'separate_guiding' as const }))
+        : companions,
+      comment.trim(),
+    )
   }
 
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
@@ -1051,6 +1068,11 @@ export function DetailsStep({
           <legend className="text-sm font-medium">
             {otherParticipantsHeading(totalCount, locale)}
           </legend>
+          {noAccommodation ? (
+            <p className="text-xs text-muted-foreground">
+              {tr('participantsYouPayForHint', locale)}
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             {addAnyoneElseUpTo(MAX_ADDITIONAL, locale)}
           </p>
@@ -1302,10 +1324,18 @@ export function DetailsStep({
           data-testid="companions-section"
         >
           <legend className="text-sm font-medium">
-            {tr('othersSharingYourRoom', locale)}
+            {tr(
+              noAccommodation ? 'guestsPayingForThemselves' : 'othersSharingYourRoom',
+              locale,
+            )}
           </legend>
           <p className="text-xs text-muted-foreground">
-            {tr('companionsShareAccommodationExplainer', locale)}
+            {tr(
+              noAccommodation
+                ? 'guestsPayingForThemselvesExplainer'
+                : 'companionsShareAccommodationExplainer',
+              locale,
+            )}
           </p>
           {companions.map((row, idx) => {
             // landr-rxjo: both first and last name are required for companions.
@@ -1368,6 +1398,7 @@ export function DetailsStep({
                   booking" (separate_guiding). Default guest. The kind is
                   purely informational for the operator / rooming list; it
                   never affects this booking's price or participant count. */}
+              {!noAccommodation ? (
               <fieldset className="sm:col-span-2 flex flex-col gap-1">
                 <legend className="text-xs text-muted-foreground">
                   {tr('howAreTheyJoining', locale)}
@@ -1405,6 +1436,7 @@ export function DetailsStep({
                   ))}
                 </div>
               </fieldset>
+              ) : null}
               <Field label={tr('firstNameLabel', locale)} htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
                 <Input
                   id={`companion-${idx}-first`}

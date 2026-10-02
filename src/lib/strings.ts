@@ -291,6 +291,9 @@ type Bundle = {
   youWillBeListedAsParticipant1: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
+  participantsYouPayForHint: string
+  guestsPayingForThemselves: string
+  guestsPayingForThemselvesExplainer: string
   guestFallbackTemplate: string
   readyToConfirm: string
   submittingYourBookingEllipsis: string
@@ -837,6 +840,10 @@ const en: Bundle = {
     "You'll be listed as participant 1. Add more people below if others are joining.",
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
+  participantsYouPayForHint: "People you're booking and paying for.",
+  guestsPayingForThemselves: 'Guests paying for themselves',
+  guestsPayingForThemselvesExplainer:
+    "Joining the activity but booking and paying for their own spot. We'll send them a link to complete their booking — they're not added to your price.",
   companionsShareAccommodationExplainer:
     'Anyone else sharing your accommodation — partners, friends, family members, or fellow activity ' +
     "participants who book and pay for their own guiding separately. They're added to the hotel headcount " +
@@ -1368,6 +1375,10 @@ const de: Bundle = {
     'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
   notAMemberOrNoCode:
     'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
+  participantsYouPayForHint: 'Personen, die Sie buchen und bezahlen.',
+  guestsPayingForThemselves: 'Gäste, die selbst bezahlen',
+  guestsPayingForThemselvesExplainer:
+    'Nehmen an der Aktivität teil, buchen und bezahlen aber ihren eigenen Platz. Wir senden ihnen einen Link, um ihre Buchung abzuschließen — sie werden Ihrem Preis nicht hinzugefügt.',
   companionsShareAccommodationExplainer:
     'Alle weiteren Personen, die sich Ihre Unterkunft teilen — Partner/innen, Freunde, Familienmitglieder ' +
     'oder andere Aktivitätsteilnehmende, die ihr Guiding separat buchen und bezahlen. Sie werden zur ' +
