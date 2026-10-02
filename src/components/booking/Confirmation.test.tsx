@@ -1806,4 +1806,37 @@ describe('Confirmation — landr-otml0.4 CopyButton fallback chain', () => {
     const manualInput = screen.getByTestId('invite-copy-manual') as HTMLInputElement
     expect(manualInput).toHaveValue(baseInvite().invite_url)
   })
+
+  it('says until when an invitee seat is held (landr-f987a.4)', () => {
+    const expires = new Date(Date.now() + 3 * 24 * 3_600_000).toISOString()
+    const response = baseResponse({
+      share_secret: 'secret-abc',
+      invites: [{ ...baseInvite(), seat_hold_expires_at: expires, seat_hold_hours: 72 }],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    expect(screen.getByTestId('invite-hold-line')).toHaveTextContent(
+      /When you booked, seats for Thomas Klein were still free\. Held for 72 hours, until /,
+    )
+  })
+
+  it('says seats are not held when the hold is off', () => {
+    const response = baseResponse({
+      share_secret: 'secret-abc',
+      invites: [{ ...baseInvite(), seat_hold_expires_at: null, seat_hold_hours: 0 }],
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    expect(screen.getByTestId('invite-hold-line')).toHaveTextContent(
+      'Seats for Thomas Klein are not held',
+    )
+  })
+
+  it('shows no hold line when the API predates the field', () => {
+    render(
+      <Confirmation
+        response={baseResponse({ share_secret: 's', invites: [baseInvite()] })}
+        onRestart={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('invite-hold-line')).not.toBeInTheDocument()
+  })
 })

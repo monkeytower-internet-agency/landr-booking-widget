@@ -244,6 +244,8 @@ export interface Product {
    * (shop) kinds are always reported bookable by the API.
    */
   bookable?: boolean
+  /** landr-f987a.3 (hand-written contract): hours an invitee's seat is held (0 = off). */
+  invite_hold_hours?: number
   /**
    * landr-d8rg, epic contract D: public URL of the product's primary
    * thumbnail image (first entry of images[] sorted by sort_order).
@@ -1138,6 +1140,13 @@ export interface InviteSummary {
   /** The reference of the booking this companion has already linked, if any. */
   linked_booking_reference: string | null
   has_invite: boolean
+  /**
+   * landr-f987a.3 (API, unmerged contract — hand-written): ISO tz-aware
+   * deadline of this invitee's seat hold; null/absent when nothing is held.
+   */
+  seat_hold_expires_at?: string | null
+  /** landr-f987a.3: the hold length in hours at submit time (0 = off). */
+  seat_hold_hours?: number | null
 }
 
 /**
@@ -1368,6 +1377,9 @@ export interface InvitePrefill {
   host_display_name: string
   host_reference: string
   language: string | null
+  /** landr-f987a.3 (hand-written contract): the invitee's seat-hold deadline, null when none. */
+  seat_hold_expires_at?: string | null
+  seat_hold_hours?: number | null
 }
 
 /**

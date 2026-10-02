@@ -176,3 +176,51 @@ describe('MultiDayStep — selection that became unavailable', () => {
     expect(cont).not.toBeDisabled()
   })
 })
+
+describe('MultiDayStep — party size incl. invitees (landr-f987a.4)', () => {
+  it('blocks Continue naming the day when the party no longer fits', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 1), slot(OPEN_B, 5)])
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={2}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('multi-day-step-submit')).toBeDisabled(),
+    )
+    expect(screen.getByText(/Only 1 seat left on .* — you need 2\./)).toBeInTheDocument()
+  })
+
+  it('does not block when everyone fits', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 2), slot(OPEN_B, 5)])
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={2}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled(),
+    )
+  })
+
+  it('sends the invite token with the availability call', async () => {
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        originalDays={[OPEN_A]}
+        originalDaysLabel="Ada"
+        initialSelectedDays={[OPEN_A]}
+        inviteToken="tok-123"
+      />,
+    )
+    await waitFor(() => expect(getAvailability).toHaveBeenCalled())
+    expect(vi.mocked(getAvailability).mock.calls.at(-1)?.[3]).toBe('tok-123')
+  })
+})

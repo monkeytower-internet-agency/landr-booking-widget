@@ -109,6 +109,18 @@ type Bundle = {
   changeYourDatesToContinue: string
   dayNoLongerAvailableReason: string
   capacityExceededMessage: string
+  seatsShortOne: string
+  seatsShortOther: string
+  seatsShortNone: string
+  holdHeldOne: string
+  holdUntilOnly: string
+  holdHeldOther: string
+  holdNotHeld: string
+  holdTonight: string
+  holdToday: string
+  holdTomorrow: string
+  inviteHoldActive: string
+  inviteHoldEnded: string
   readyToContinueWithHostsDates: string
   continueWithTheseDates: string
   changeDates: string
@@ -651,6 +663,22 @@ const en: Bundle = {
   dayNoLongerAvailableReason: '{date} is no longer available — remove it to continue.',
   capacityExceededMessage:
     'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
+  seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
+  seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
+  seatsShortNone: 'No seats left on {day} — you need {need}.',
+  holdUntilOnly:
+    'When you booked, seats for {name} were still free. Held until {when}.',
+  holdHeldOne:
+    'When you booked, seats for {name} were still free. Held for 1 hour, until {when}.',
+  holdHeldOther:
+    'When you booked, seats for {name} were still free. Held for {n} hours, until {when}.',
+  holdNotHeld: 'Seats for {name} are not held — they can book while seats last.',
+  holdTonight: 'tonight',
+  holdToday: 'today at {time}',
+  holdTomorrow: 'tomorrow at {time}',
+  inviteHoldActive: 'Your seat is held until {when}.',
+  inviteHoldEnded:
+    'The hold on your seat has ended — you can still book while seats last.',
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
@@ -1182,6 +1210,23 @@ const de: Bundle = {
   dayNoLongerAvailableReason: '{date} ist nicht mehr verfügbar — entfernen Sie den Termin, um fortzufahren.',
   capacityExceededMessage:
     'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
+  seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
+  seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
+  seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
+  holdUntilOnly:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
+  holdHeldOne:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für 1 Stunde, bis {when}.',
+  holdHeldOther:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für {n} Stunden, bis {when}.',
+  holdNotHeld:
+    'Für {name} sind keine Plätze reserviert — die Buchung ist möglich, solange Plätze frei sind.',
+  holdTonight: 'heute Abend',
+  holdToday: 'heute um {time}',
+  holdTomorrow: 'morgen um {time}',
+  inviteHoldActive: 'Ihr Platz ist reserviert bis {when}.',
+  inviteHoldEnded:
+    'Die Reservierung Ihres Platzes ist abgelaufen — Sie können weiterhin buchen, solange Plätze frei sind.',
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
@@ -1720,6 +1765,53 @@ export function hostDaysUnavailableMessage(blocked: number, host: string, locale
 /** MultiDayStep gate reason naming a selected day that is no longer bookable. */
 export function dayNoLongerAvailableReason(dateLabel: string, locale?: string): string {
   return pickBundle(locale).dayNoLongerAvailableReason.replace('{date}', dateLabel)
+}
+
+/** Host party no longer fits a selected day (landr-f987a.4). */
+export function seatsShortMessage(
+  dayLabel: string,
+  left: number,
+  need: number,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const template =
+    left <= 0 ? t.seatsShortNone : plural(left, t.seatsShortOne, t.seatsShortOther)
+  return template
+    .replace('{day}', dayLabel)
+    .replace('{n}', String(left))
+    .replace('{need}', String(need))
+}
+
+/** Confirmation: per-invitee hold line (landr-f987a.4). */
+export function holdHeldLabel(
+  name: string,
+  hours: number | null | undefined,
+  when: string,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  if (!hours) return t.holdUntilOnly.replace('{name}', name).replace('{when}', when)
+  return plural(hours, t.holdHeldOne, t.holdHeldOther)
+    .replace('{name}', name)
+    .replace('{n}', String(hours))
+    .replace('{when}', when)
+}
+
+export function holdNotHeldLabel(name: string, locale?: string): string {
+  return fillName(pickBundle(locale).holdNotHeld, name)
+}
+
+/** Invite landing: live hold / ended hold line. */
+export function inviteHoldLabel(when: string | null, locale?: string): string {
+  const t = pickBundle(locale)
+  return when === null ? t.inviteHoldEnded : t.inviteHoldActive.replace('{when}', when)
+}
+
+/** Relative hint templates for a hold deadline ("tonight", "tomorrow at {time}"). */
+export function holdRelativeTemplates(locale?: string) {
+  const t = pickBundle(locale)
+  return { tonight: t.holdTonight, today: t.holdToday, tomorrow: t.holdTomorrow }
 }
 
 /** "1 day selected" / "N days selected" chip (MultiDayStep). */

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
+import { HttpError, getAvailability, submitBooking, submitStaffBooking } from '@/api/client'
+import { seatsNeeded, shortDays } from '@/lib/seatHold'
 import type {
   AvailabilitySlot,
   Companion,
@@ -32,6 +33,7 @@ import {
   additionalAccommodationHeading,
   forceBookReasonMessage,
   nightsWord,
+  seatsShortMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -970,6 +972,39 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+      // landr-f987a.4: party-size check before submit — the host's guiding
+      // participants + invited companions must all fit on every selected day.
+      // Best effort: a failed availability read never blocks the submit (the
+      // API re-checks and answers capacity_exceeded).
+      const need = seatsNeeded(participants.length, companions)
+      const hasInvitees = companions.some((c) => c.companion_kind === 'separate_guiding')
+      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+        try {
+          const sorted = [...selectedDaysForSubmit].sort()
+          const slots = await getAvailability(
+            product.product_id,
+            sorted[0],
+            sorted[sorted.length - 1],
+            inviteToken,
+          )
+          const short = shortDays(slots, sorted, need)
+          if (short.length > 0) {
+            setServerError(
+              seatsShortMessage(
+                formatDayLabel(short[0].date, locale),
+                short[0].left,
+                short[0].need,
+                locale,
+              ),
+            )
+            setCapacityExceeded(true)
+            setSubmitting(false)
+            return
+          }
+        } catch {
+          /* fall through to the real submit */
+        }
+      }
       // Hotel-room lines book the night window (check-in → check-out
       // exclusive) — distinct from the service's selected_days. Empty
       // when the customer chose no rooms or picked a slot-style service.

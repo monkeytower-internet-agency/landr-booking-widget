@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
-import { HttpError, submitBooking } from '@/api/client'
+import { HttpError, getAvailability, submitBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -13,6 +13,7 @@ vi.mock('@/api/client', async (importOriginal) => {
   return {
     ...actual,
     submitBooking: vi.fn(),
+    getAvailability: vi.fn(),
   }
 })
 
@@ -1013,6 +1014,51 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
   // customer looked at goes stale before Confirm. Must read the same
   // customer-facing copy PriceSidebar shows pre-emptively, not a raw dump
   // of the detail object (which carries no useful info for a customer).
+  it('blocks submit when host + invitee no longer fit a day (landr-f987a.4)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    vi.mocked(getAvailability).mockResolvedValueOnce([
+      { date: '2024-11-23', available_seats: 5 },
+      { date: '2024-11-24', available_seats: 1 },
+      { date: '2024-11-25', available_seats: 5 },
+    ] as never)
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Matt',
+            last_name: '',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        inviteToken={undefined}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /Only 1 seat left on .*24.* — you need 2\./,
+      ),
+    )
+    expect(submitMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
   it('maps a 422 un_priceable submit error to the shared customer-facing message', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(
