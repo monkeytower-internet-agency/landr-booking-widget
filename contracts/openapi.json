@@ -767,9 +767,16 @@
         "description": "One day the editor wants bookable at a given seat count.\n\nNo start_time/end_time: the batch is defined for whole-day shapes only\n(`BATCH_DAY_SHAPES`), which carry `start_time IS NULL` \u2014 that is also what\nmakes `(product_id, date, start_time)` a stable upsert key here.",
         "properties": {
           "capacity": {
-            "minimum": 0.0,
-            "title": "Capacity",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
           },
           "date": {
             "format": "date",
@@ -778,8 +785,7 @@
           }
         },
         "required": [
-          "date",
-          "capacity"
+          "date"
         ],
         "title": "AvailabilityBatchUpsert",
         "type": "object"
@@ -971,6 +977,16 @@
               }
             ],
             "title": "End Time"
+          },
+          "seat_limit_source": {
+            "default": "product",
+            "enum": [
+              "product",
+              "resources",
+              "none"
+            ],
+            "title": "Seat Limit Source",
+            "type": "string"
           },
           "start_time": {
             "anyOf": [
@@ -7210,6 +7226,318 @@
         "title": "HotelPatch",
         "type": "object"
       },
+      "HotfixCandidate": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "on_staging": {
+            "default": false,
+            "title": "On Staging",
+            "type": "boolean"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "sha",
+          "number",
+          "title"
+        ],
+        "title": "HotfixCandidate",
+        "type": "object"
+      },
+      "HotfixCandidateRepo": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "label",
+          "candidates"
+        ],
+        "title": "HotfixCandidateRepo",
+        "type": "object"
+      },
+      "HotfixCandidatesResponse": {
+        "description": "landr-g1d40 \u2014 merged dev PRs (dev first-parent line, newest first) that\nstaging does not have yet, per deployable repo.",
+        "properties": {
+          "repos": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixCandidateRepo"
+            },
+            "title": "Repos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repos"
+        ],
+        "title": "HotfixCandidatesResponse",
+        "type": "object"
+      },
+      "HotfixMigrationsPreview": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "picked": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Picked",
+            "type": "array"
+          },
+          "touched": {
+            "title": "Touched",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "touched",
+          "picked",
+          "pending"
+        ],
+        "title": "HotfixMigrationsPreview",
+        "type": "object"
+      },
+      "HotfixPickCommit": {
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          }
+        },
+        "title": "HotfixPickCommit",
+        "type": "object"
+      },
+      "HotfixPickIn": {
+        "description": "One picked, already-merged dev commit (landr-g1d40).",
+        "properties": {
+          "repo": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Repo",
+            "type": "string"
+          },
+          "sha": {
+            "pattern": "^[0-9a-f]{7,40}$",
+            "title": "Sha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "sha"
+        ],
+        "title": "HotfixPickIn",
+        "type": "object"
+      },
+      "HotfixPickPreview": {
+        "properties": {
+          "commits": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickCommit"
+            },
+            "title": "Commits",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "migrations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Migrations",
+            "type": "array"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha",
+          "title",
+          "commits",
+          "files",
+          "migrations"
+        ],
+        "title": "HotfixPickPreview",
+        "type": "object"
+      },
+      "HotfixPreviewResponse": {
+        "description": "landr-g1d40 \u2014 what a code hotfix with these picks would do, per repo in\napply order (the P\u2192C diff of each pick is exactly what gets cherry-picked).",
+        "properties": {
+          "migrations": {
+            "$ref": "#/components/schemas/HotfixMigrationsPreview"
+          },
+          "repos": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixRepoPreview"
+            },
+            "title": "Repos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "repos",
+          "migrations"
+        ],
+        "title": "HotfixPreviewResponse",
+        "type": "object"
+      },
+      "HotfixRepoPreview": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickPreview"
+            },
+            "title": "Picks",
+            "type": "array"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "label",
+          "picks"
+        ],
+        "title": "HotfixRepoPreview",
+        "type": "object"
+      },
       "ImpactPreviewIn": {
         "description": "``POST .../impact-preview`` \u2014 \"what would this change break?\"\n\n``change`` is either the literal ``\"not_in_fleet\"`` (the unit leaves the\nfleet entirely, every day) or an ``out_of_service`` window. Both are\nHYPOTHETICAL: this endpoint writes nothing and the unit is untouched\nwhatever the answer.\n\nThe two shapes are one field rather than two endpoints because the\ndashboard asks the same question from the same dialog \u2014 \"show me the days\nthis hurts\" \u2014 and the only difference is which days the unit disappears\non.",
         "properties": {
@@ -7595,6 +7923,28 @@
               }
             ],
             "title": "Product Id"
+          },
+          "seat_hold_expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat Hold Expires At"
+          },
+          "seat_hold_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat Hold Hours"
           },
           "widget_token": {
             "default": "",
@@ -12097,6 +12447,17 @@
           "pending_count": {
             "title": "Pending Count",
             "type": "integer"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
           }
         },
         "required": [
@@ -13092,6 +13453,21 @@
             ],
             "title": "Category Id"
           },
+          "day_capacity_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "product",
+                  "resources"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Capacity Source"
+          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -13185,6 +13561,19 @@
             "default": false,
             "title": "Includes Breakfast",
             "type": "boolean"
+          },
+          "invite_hold_hours": {
+            "anyOf": [
+              {
+                "maximum": 720.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Hold Hours"
           },
           "is_addon_only": {
             "default": false,
@@ -13496,6 +13885,21 @@
             ],
             "title": "Category Id"
           },
+          "day_capacity_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "product",
+                  "resources"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Capacity Source"
+          },
           "default_pricing_scheme_id": {
             "anyOf": [
               {
@@ -13595,6 +13999,19 @@
               }
             ],
             "title": "Includes Breakfast"
+          },
+          "invite_hold_hours": {
+            "anyOf": [
+              {
+                "maximum": 720.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Hold Hours"
           },
           "is_addon_only": {
             "anyOf": [
@@ -16426,6 +16843,22 @@
             ],
             "title": "Icon"
           },
+          "label_type_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-lmudr.40: the EXTRA resource types this resource is labelled with (never the home resource_type_id, never a group)",
+            "title": "Label Type Ids"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -16458,6 +16891,7 @@
             "title": "Parent Id"
           },
           "place_roles": {
+            "description": "DEPRECATED (landr-lmudr.40) \u2014 translated into labels on the reserved place types (pickup, dropoff, meeting_point, base; created when missing). Ignored when label_type_ids is sent",
             "items": {
               "enum": [
                 "pickup",
@@ -16491,6 +16925,66 @@
           "name"
         ],
         "title": "ResourceIn",
+        "type": "object"
+      },
+      "ResourceLabelOut": {
+        "description": "One extra resource type a resource is labelled with (landr-lmudr.40).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "facets": {
+            "items": {
+              "enum": [
+                "place",
+                "capacity",
+                "staff",
+                "rentable"
+              ],
+              "type": "string"
+            },
+            "title": "Facets",
+            "type": "array"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "label",
+          "facets"
+        ],
+        "title": "ResourceLabelOut",
         "type": "object"
       },
       "ResourceOut": {
@@ -16616,7 +17110,7 @@
             "title": "Email"
           },
           "facets": {
-            "description": "The type's facets",
+            "description": "Union of the home type's and the labels' facets, home first (landr-lmudr.40)",
             "items": {
               "enum": [
                 "place",
@@ -16656,6 +17150,14 @@
             "title": "Id",
             "type": "string"
           },
+          "labels": {
+            "description": "landr-lmudr.40: extra resource-type labels, type sort order (never the home type)",
+            "items": {
+              "$ref": "#/components/schemas/ResourceLabelOut"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -16690,6 +17192,7 @@
             "title": "Parent Id"
           },
           "place_roles": {
+            "description": "DERIVED (landr-lmudr.40): (home type code \u222a label type codes) \u2229 {pickup, dropoff, meeting_point, base}. Removed in phase 3b",
             "items": {
               "enum": [
                 "pickup",
@@ -16880,6 +17383,22 @@
             ],
             "title": "Icon"
           },
+          "label_type_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-lmudr.40: REPLACES the extra labels ([] = none); null/absent keeps them",
+            "title": "Label Type Ids"
+          },
           "name": {
             "anyOf": [
               {
@@ -16936,6 +17455,7 @@
                 "type": "null"
               }
             ],
+            "description": "DEPRECATED (landr-lmudr.40) \u2014 replaces only the reserved place-role labels. Ignored when label_type_ids is sent",
             "title": "Place Roles"
           },
           "quantity": {
@@ -17386,7 +17906,7 @@
           },
           "descendant_resource_count": {
             "default": 0,
-            "description": "resource_count of this type plus all its children",
+            "description": "Distinct live, active resources of this type or any child type, home or label (landr-lmudr.40)",
             "title": "Descendant Resource Count",
             "type": "integer"
           },
@@ -17482,6 +18002,12 @@
             ],
             "title": "Label Localized"
           },
+          "labelled_resource_count": {
+            "default": 0,
+            "description": "landr-lmudr.40: live, active resources carrying this type as an extra LABEL (their home is another type)",
+            "title": "Labelled Resource Count",
+            "type": "integer"
+          },
           "needs_count": {
             "anyOf": [
               {
@@ -17510,7 +18036,7 @@
             "title": "Parent Id"
           },
           "resource_count": {
-            "description": "Live, active resources of exactly this type",
+            "description": "Live, active resources whose HOME is exactly this type",
             "title": "Resource Count",
             "type": "integer"
           },
@@ -17682,6 +18208,12 @@
             ],
             "title": "Label Localized"
           },
+          "labelled_resource_count": {
+            "default": 0,
+            "description": "landr-lmudr.40: live, active resources carrying this type as an extra LABEL (their home is another type)",
+            "title": "Labelled Resource Count",
+            "type": "integer"
+          },
           "needs_count": {
             "anyOf": [
               {
@@ -17710,7 +18242,7 @@
             "title": "Parent Id"
           },
           "resource_count": {
-            "description": "Live, active resources of exactly this type",
+            "description": "Live, active resources whose HOME is exactly this type",
             "title": "Resource Count",
             "type": "integer"
           },
@@ -18285,6 +18817,72 @@
         "title": "ScanIn",
         "type": "object"
       },
+      "ScheduleOut": {
+        "properties": {
+          "from": {
+            "format": "date",
+            "title": "From",
+            "type": "string"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleResourceOut"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "to": {
+            "format": "date",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_type_id",
+          "from",
+          "to",
+          "resources"
+        ],
+        "title": "ScheduleOut",
+        "type": "object"
+      },
+      "ScheduleResourceOut": {
+        "properties": {
+          "in_service_days": {
+            "description": "Count of in-service days inside the window",
+            "title": "In Service Days",
+            "type": "integer"
+          },
+          "ranges": {
+            "description": "Rows overlapping the window",
+            "items": {
+              "$ref": "#/components/schemas/UnavailabilityOut"
+            },
+            "title": "Ranges",
+            "type": "array"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_name": {
+            "title": "Resource Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_name",
+          "ranges",
+          "in_service_days"
+        ],
+        "title": "ScheduleResourceOut",
+        "type": "object"
+      },
       "ScopedMessagePostIn": {
         "additionalProperties": false,
         "description": "One post at one of the three audience scopes.\n\nThe per-scope required/forbidden fields mirror the DB's\n`day_messages_scope_shape` CHECK exactly, validated here so a bad\ncombination is a 422 naming the problem rather than a 500 carrying a\nconstraint name.",
@@ -18344,6 +18942,70 @@
           "body"
         ],
         "title": "ScopedMessagePostIn",
+        "type": "object"
+      },
+      "SeasonIn": {
+        "description": "``PUT /resource-types/{id}/season`` \u2014 the Schedule tab's \"Set season\"\nbulk action: one ``in_service`` range for every active resource of the\ntype, or just ``resource_ids`` when the operator narrowed the picker.",
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "resource_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Subset of the type's resources; omitted = every active resource of the type",
+            "title": "Resource Ids"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "SeasonIn",
+        "type": "object"
+      },
+      "SeasonOut": {
+        "properties": {
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "resource_type_id": {
+            "title": "Resource Type Id",
+            "type": "string"
+          },
+          "resources": {
+            "description": "The affected resources and their resulting schedule",
+            "items": {
+              "$ref": "#/components/schemas/FanOutResource"
+            },
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dry_run",
+          "resource_type_id",
+          "resources"
+        ],
+        "title": "SeasonOut",
         "type": "object"
       },
       "SeasonPlanIn": {
@@ -19951,6 +20613,84 @@
           "outcome"
         ],
         "title": "StagingActivityOut",
+        "type": "object"
+      },
+      "StagingHotfixCodeIn": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Picks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "title": "StagingHotfixCodeIn",
+        "type": "object"
+      },
+      "StagingHotfixIn": {
+        "properties": {
+          "expected_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-f0v2m.1 \u2014 the staging SHA the preview showed; 409 staging_moved if the staging branch has moved since.",
+            "title": "Expected Ref"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "StagingHotfixIn",
+        "type": "object"
+      },
+      "StagingHotfixPreviewIn": {
+        "properties": {
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/HotfixPickIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Picks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "title": "StagingHotfixPreviewIn",
         "type": "object"
       },
       "StatusOut": {
@@ -25430,7 +26170,7 @@
     },
     "/api/landr-staff/promotions/preview-migrations": {
       "get": {
-        "description": "List the migrations that would be applied to the target tier if a run of\n``kind`` were started right now.\n\nRead-only \u2014 no side effects, no DB writes. Used by the dashboard\npropose/promote dialogs (landr-a99u.14.6) to surface \"will apply N\nmigrations\" before the run is created. NOT a gate \u2014 informational only.\n\nErrors (mirrored back as 503/502 so the dashboard can render a warning\nrather than crash):\n\n- 503 ``migration_target_not_configured`` \u2014 the env var holding the target\n  tier's DB URL (``LANDR_STAGING_DB_URL`` / ``LANDR_PROD_DB_URL``,\n  provisioned via landr-a99u.14.5) is unset on the running api. The\n  promotion executor will surface the same gap as a hard error.\n- 502 ``migration_target_unreachable: <type>: <msg>`` \u2014 the connection\n  attempt against the target Supabase failed (auth, network, etc).",
+        "description": "List the migrations that would be applied to the target tier if a run of\n``kind`` were started right now.\n\nRead-only \u2014 no side effects, no DB writes. Used by the dashboard\npropose/promote dialogs (landr-a99u.14.6) to surface \"will apply N\nmigrations\" before the run is created. NOT a gate \u2014 informational only.\n\nErrors (mirrored back as 503/502 so the dashboard can render a warning\nrather than crash):\n\n- 503 ``migration_target_not_configured`` \u2014 the env var holding the target\n  tier's DB URL (``LANDR_STAGING_DB_URL`` / ``LANDR_PROD_DB_URL``,\n  provisioned via landr-a99u.14.5) is unset on the running api. The\n  promotion executor will surface the same gap as a hard error.\n- 502 ``migration_target_unreachable: <type>: <msg>`` \u2014 the connection\n  attempt against the target Supabase failed (auth, network, etc).\n\nlandr-f0v2m.1 \u2014 ``kind=staging_hotfix`` lists the landr-api ``staging``\nbranch tip's migrations via GitHub (never this api's own on-disk tree,\nwhich is dev) and returns that tip as ``ref``. GitHub failures surface as\nthe same 502 ``migration_target_unreachable``; an unset token as 503\n``promotion_not_configured``.",
         "operationId": "preview_migrations",
         "parameters": [
           {
@@ -25440,7 +26180,8 @@
             "schema": {
               "enum": [
                 "dev_to_staging",
-                "staging_to_main"
+                "staging_to_main",
+                "staging_hotfix"
               ],
               "title": "Kind",
               "type": "string"
@@ -25475,6 +26216,178 @@
           }
         ],
         "summary": "Preview Migrations",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/staging-hotfix": {
+      "post": {
+        "description": "Staging hotfix (landr-f0v2m.1). Promoter|approver. Creates a queued run\nthat applies the landr-api ``staging`` branch tip's migrations to the\nSTAGING database \u2014 no code merge, no deploy, no version/changelog/tag.\n\nFor an urgent data fix merged onto ``staging`` while ``dev`` is not\nreleasable. Same auth and tier as dev\u2192staging (the dev api owns the\nstaging DB URL). The staging SHA is pinned now; ``expected_ref`` (from the\npreview) 409s ``staging_moved`` if the branch moved after review, and a\ntip with nothing pending 409s ``no_pending_migrations``.",
+        "operationId": "create_staging_hotfix",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingHotfixIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Staging Hotfix",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Staging Hotfix",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/staging-hotfix/candidates": {
+      "get": {
+        "description": "Merged dev PRs that staging lacks, per deployable repo (landr-g1d40).\nPromoter|approver. A repo whose read fails carries ``error`` instead of\nfailing the whole list.",
+        "operationId": "list_staging_hotfix_candidates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotfixCandidatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Staging Hotfix Candidates",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/staging-hotfix/code": {
+      "post": {
+        "description": "Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.\n\nCreates a queued run that cherry-picks the picked (merged) dev commits\nonto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges\nit into ``staging`` \u2014 a conflict fails the run with nothing merged \u2014 and,\nif the landr-api picks touched supabase/migrations, applies them to the\nstaging DB pinned to the new staging SHA. No version/changelog/tag.",
+        "operationId": "create_staging_hotfix_code",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingHotfixCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Staging Hotfix Code",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Staging Hotfix Code",
+        "tags": [
+          "landr-staff-promotions"
+        ]
+      }
+    },
+    "/api/landr-staff/promotions/staging-hotfix/preview": {
+      "post": {
+        "description": "What a code hotfix with these picks would cherry-pick (per repo, apply\norder: commits + files) and which migrations would reach the staging DB\n(landr-g1d40). Read-only. 422 on a bad pick set.",
+        "operationId": "preview_staging_hotfix",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StagingHotfixPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotfixPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Staging Hotfix",
         "tags": [
           "landr-staff-promotions"
         ]
@@ -29124,6 +30037,7 @@
     },
     "/api/public/products/{product_id}/availability": {
       "get": {
+        "description": "Per-day availability. landr-f987a.3: with ``invite=<token>`` naming a\nlive invite seat hold, the invitee's held seat counts as available on the\nhost's days. An unknown / expired / claimed token is plain availability\n\u2014 no error, nothing revealed beyond what the invite prefill shows.",
         "operationId": "get_product_availability",
         "parameters": [
           {
@@ -29153,6 +30067,23 @@
               "format": "date",
               "title": "To",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "invite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invite"
             }
           }
         ],
@@ -45874,6 +46805,150 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/schedule": {
+      "get": {
+        "description": "The Schedule tab's calendar: every active resource of the type with\nits live in_service / out_of_service ranges overlapping the window plus\nan ``in_service_days`` count (\u2264366 days per call, same ceiling as the\napproval calendar and day assignments).",
+        "operationId": "get_resource_type_schedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Resource Type Schedule",
+        "tags": [
+          "staff-resource-types"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/season": {
+      "put": {
+        "description": "The Schedule tab's \"Set season\" bulk action: one ``in_service`` range\nfor every active resource of the type, or just ``resource_ids`` when the\noperator narrowed the picker \u2014 a thin single-range wrapper over the same\natomic fan-out the Season planner uses (``unavailability/fan-out``\nabove). Replaces each resource's overlapping ``in_service`` ranges;\n``out_of_service`` rows are untouched. 422 ``invalid_date_range`` if\n``end`` < ``start``; 404 for a foreign type or a foreign resource id.",
+        "operationId": "set_resource_type_season",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "title": "Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeasonIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Resource Type Season",
+        "tags": [
+          "staff-resource-types"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/resource-types/{type_id}/unavailability/fan-out": {
       "post": {
         "description": "Season planner for ANY type (the landr-e80s.30 fan-out, generalised):\neach row's range becomes ``in_service`` on every resource it names,\ntrimming what was there; one transaction \u2014 a bad row or a resource of\nanother type writes nothing. A capacity type's dry run also returns\n``consequences`` (days that would go over capacity, with the bookings),\ncomputed exactly as the resource-pool season planner does.",
@@ -46096,6 +47171,23 @@
                 }
               ],
               "title": "Active"
+            }
+          },
+          {
+            "description": "landr-lmudr.40: how type_id/facet match \u2014 'home' (the home type only: use it for capacity, approvals, schedule and rental stock), 'label' (extra labels only) or 'any' (either; default)",
+            "in": "query",
+            "name": "membership",
+            "required": false,
+            "schema": {
+              "default": "any",
+              "description": "landr-lmudr.40: how type_id/facet match \u2014 'home' (the home type only: use it for capacity, approvals, schedule and rental stock), 'label' (extra labels only) or 'any' (either; default)",
+              "enum": [
+                "home",
+                "label",
+                "any"
+              ],
+              "title": "Membership",
+              "type": "string"
             }
           }
         ],

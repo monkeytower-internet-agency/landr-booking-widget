@@ -40,7 +40,11 @@ import {
   plural,
   sendBookingLinkToLabel,
   tr,
+  holdHeldLabel,
+  holdNotHeldLabel,
+  holdRequestedLabel,
 } from '@/lib/strings'
+import { formatHoldDeadline } from '@/lib/seatHold'
 
 interface Props {
   response: SubmitBookingResponse
@@ -267,6 +271,18 @@ function InviteCard({
 
   const emailErrorMessage = emailError?.message ?? ''
   const locale = browserLocale()
+  // landr-f987a.4: what was held for this invitee at booking time. Absent
+  // fields (older API) → no line at all.
+  const holdLine = (() => {
+    if (invite.seat_hold_expires_at) {
+      const when = formatHoldDeadline(invite.seat_hold_expires_at, locale)
+      return invite.seats_were_free === false
+        ? holdRequestedLabel(invite.name, invite.seat_hold_hours, when, locale)
+        : holdHeldLabel(invite.name, invite.seat_hold_hours, when, locale)
+    }
+    // null expiry = not live; "not held" only when the operator holds nothing.
+    return invite.seat_hold_hours === 0 ? holdNotHeldLabel(invite.name, locale) : null
+  })()
 
   if (invite.linked_booking_reference) {
     // Already joined — no more actions to offer, just confirm it happened.
@@ -292,6 +308,11 @@ function InviteCard({
       className="space-y-2 rounded-lg border bg-surface-card p-3"
     >
       <p className="text-sm font-semibold">{sendBookingLinkToLabel(invite.name, locale)}</p>
+      {holdLine ? (
+        <p className="text-sm text-muted-foreground" data-testid="invite-hold-line">
+          {holdLine}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {invite.whatsapp_url ? (
           <Button asChild type="button">

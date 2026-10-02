@@ -117,6 +117,8 @@ import {
   overrideBookingLocale,
   pickLocalized,
 } from '@/lib/locale'
+import { seatsNeeded } from '@/lib/seatHold'
+import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -1770,6 +1772,10 @@ function BookingFlowApp() {
               booking (ref {inviteData.host_reference}). Dates and hotel are
               prefilled — change anything that differs for you.
             </span>
+            <InviteHoldNote
+              expiresAt={inviteData.seat_hold_expires_at}
+              hours={inviteData.seat_hold_hours}
+            />
           </div>
         ) : null}
 
@@ -2066,6 +2072,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'time_slot' ? (
           <AvailabilityPicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={datePickerBack}
@@ -2135,6 +2142,18 @@ function BookingFlowApp() {
                 : undefined
             }
             originalDaysLabel={inviteData?.host_display_name}
+            // landr-f987a.4: invitee's token (live hold counts as available)
+            // and the host party's seat need once known (Back nav from details).
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            seatsNeeded={
+              bookingDraft.participants && bookingDraft.participants.length > 0
+                ? seatsNeeded(
+                    bookingDraft.participants.length,
+                    bookingDraft.companions,
+                    step.product.invite_hold_hours,
+                  )
+                : undefined
+            }
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -2155,6 +2174,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'single_date' ? (
           <SingleDatePicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.

@@ -179,9 +179,16 @@ export async function getAvailability(
   productId: string,
   fromIso: string,
   toIso: string,
+  /**
+   * landr-f987a.4: invite token — with a live seat hold the API counts the
+   * held seat as available on the host's days. Invalid/expired → plain
+   * availability, so it is always safe to send.
+   */
+  inviteToken?: string,
 ): Promise<AvailabilitySlot[]> {
   if (mocksEnabled()) return mockAvailability(productId)
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
+  if (inviteToken) qs.set('invite', inviteToken)
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
   )

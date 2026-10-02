@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
+import { HttpError, getAvailability, submitBooking, submitStaffBooking } from '@/api/client'
+import { seatsNeeded, shortDays } from '@/lib/seatHold'
 import type {
   AvailabilitySlot,
   Companion,
@@ -32,6 +33,7 @@ import {
   additionalAccommodationHeading,
   forceBookReasonMessage,
   nightsWord,
+  seatsShortMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -519,6 +521,16 @@ const isCapacityExceeded = (err: HttpError): boolean =>
   !Array.isArray(err.detail) &&
   (err.detail as { error?: unknown }).error === 'capacity_exceeded'
 
+/** landr-f987a.3: `days: [{date, seats_short}]` on a capacity_exceeded 422. */
+const readShortDay = (err: HttpError): { date: string; seats_short: number } | null => {
+  const days = (err.detail as { days?: unknown }).days
+  if (!Array.isArray(days) || days.length === 0) return null
+  const d = days[0] as { date?: unknown; seats_short?: unknown }
+  return typeof d.date === 'string' && typeof d.seats_short === 'number'
+    ? { date: d.date, seats_short: d.seats_short }
+    : null
+}
+
 const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
@@ -970,6 +982,41 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+      // landr-f987a.4: party-size check before submit — the host's guiding
+      // participants + invited companions must all fit on every selected day.
+      // Best effort: a failed availability read never blocks the submit (the
+      // API re-checks and answers capacity_exceeded).
+      const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+      const hasInvitees =
+        product.invite_hold_hours !== 0 &&
+        companions.some((c) => c.companion_kind === 'separate_guiding')
+      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+        try {
+          const sorted = [...selectedDaysForSubmit].sort()
+          const slots = await getAvailability(
+            product.product_id,
+            sorted[0],
+            sorted[sorted.length - 1],
+            inviteToken,
+          )
+          const short = shortDays(slots, sorted, need)
+          if (short.length > 0) {
+            setServerError(
+              seatsShortMessage(
+                formatDayLabel(short[0].date, locale),
+                short[0].left,
+                short[0].need,
+                locale,
+              ),
+            )
+            setCapacityExceeded(true)
+            setSubmitting(false)
+            return
+          }
+        } catch {
+          /* fall through to the real submit */
+        }
+      }
       // Hotel-room lines book the night window (check-in → check-out
       // exclusive) — distinct from the service's selected_days. Empty
       // when the customer chose no rooms or picked a slot-style service.
@@ -1276,6 +1323,19 @@ export function BookingForm({
           formatHttpError(err, partyMemberLabels, participants.length),
         )
         setCapacityExceeded(isCapacityExceeded(err))
+        // landr-f987a.4: the 422 names the first short day — say which one.
+        const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
+        if (shortDay) {
+          const needNow = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+          setServerError(
+            seatsShortMessage(
+              formatDayLabel(shortDay.date, locale),
+              Math.max(0, needNow - shortDay.seats_short),
+              needNow,
+              locale,
+            ),
+          )
+        }
         // landr-otml0.3 review fix (MINOR 6): navigate the customer straight
         // back to the exact companion row instead of leaving them to find it
         // from a text message alone. Fires in addition to setServerError
