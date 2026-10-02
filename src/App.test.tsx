@@ -2522,6 +2522,10 @@ describe('App', () => {
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'A1B2C3D4',
       )
+      // The host's booking carries a hotel, so the banner names it (landr-2jsaf).
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'Dates and hotel are prefilled',
+      )
       // "Change dates" opens the calendar on the host's first day's month —
       // not today's (landr-l38a4).
       fireEvent.click(screen.getByRole('button', { name: /Change dates/i }))
@@ -2657,6 +2661,14 @@ describe('App', () => {
       await waitFor(() => {
         expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-declarations')
       })
+      // landr-2jsaf: this host booking has no hotel — the banner must not
+      // claim one was prefilled.
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+          'Dates are prefilled',
+        )
+      })
+      expect(screen.getByTestId('invite-banner')).not.toHaveTextContent(/hotel/i)
 
       // Dates → pick a date → Continue.
       await waitFor(() =>
