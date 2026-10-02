@@ -648,7 +648,7 @@ const en: Bundle = {
   yourDates: 'Your dates',
   loadingAvailabilityEllipsis: 'Loading availability…',
   changeYourDatesToContinue: 'Change your dates to continue.',
-  dayNoLongerAvailableReason: '{date} is fully booked — remove it to continue.',
+  dayNoLongerAvailableReason: '{date} is no longer available — remove it to continue.',
   capacityExceededMessage:
     'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
@@ -1179,7 +1179,7 @@ const de: Bundle = {
   yourDates: 'Ihre Termine',
   loadingAvailabilityEllipsis: 'Verfügbarkeit wird geladen…',
   changeYourDatesToContinue: 'Ändern Sie Ihre Termine, um fortzufahren.',
-  dayNoLongerAvailableReason: '{date} ist ausgebucht — entfernen Sie den Termin, um fortzufahren.',
+  dayNoLongerAvailableReason: '{date} ist nicht mehr verfügbar — entfernen Sie den Termin, um fortzufahren.',
   capacityExceededMessage:
     'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',

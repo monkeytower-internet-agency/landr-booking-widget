@@ -971,11 +971,6 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(btn).not.toBeDisabled()
   })
 
-  // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
-  // with 422 {"error":"un_priceable",...} — reachable if the estimate the
-  // customer looked at goes stale before Confirm. Must read the same
-  // customer-facing copy PriceSidebar shows pre-emptively, not a raw dump
-  // of the detail object (which carries no useful info for a customer).
   it('maps a 422 capacity_exceeded to localized text with a Change dates action (landr-f987a.1)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(
@@ -1013,6 +1008,11 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(onChangeDates).toHaveBeenCalled()
   })
 
+  // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
+  // with 422 {"error":"un_priceable",...} — reachable if the estimate the
+  // customer looked at goes stale before Confirm. Must read the same
+  // customer-facing copy PriceSidebar shows pre-emptively, not a raw dump
+  // of the detail object (which carries no useful info for a customer).
   it('maps a 422 un_priceable submit error to the shared customer-facing message', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(

@@ -162,18 +162,31 @@ export function MultiDayStep({
   }, [canForce, bookableSet, selectedDays])
 
   // "Change dates": drop every host day that is no longer bookable so the
-  // calendar opens on a selection the customer can actually submit.
+  // calendar opens on a selection the customer can actually submit. When
+  // availability has not loaded yet the drop is deferred (dropPending) and
+  // runs the moment it does (landr-f987a.7).
+  const [dropPending, setDropPending] = useState(false)
+  const dropUnbookable = (bookable: Set<string>) => {
+    const kept = selectedDays.filter((d) => bookable.has(isoDate(d)))
+    const dropped = selectedDays.length - kept.length
+    if (dropped > 0) {
+      setSelectedDays(kept)
+      setDroppedOnEdit(dropped)
+    }
+  }
   const startEditing = () => {
-    if (!canForce && bookableSet !== null) {
-      const kept = selectedDays.filter((d) => bookableSet.has(isoDate(d)))
-      const dropped = selectedDays.length - kept.length
-      if (dropped > 0) {
-        setSelectedDays(kept)
-        setDroppedOnEdit(dropped)
-      }
+    if (!canForce) {
+      if (bookableSet !== null) dropUnbookable(bookableSet)
+      else setDropPending(true)
     }
     setEditing(true)
   }
+  useEffect(() => {
+    if (!dropPending || bookableSet === null) return
+    setDropPending(false)
+    dropUnbookable(bookableSet)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropPending, bookableSet])
 
   useEffect(() => {
     let cancelled = false
@@ -271,6 +284,9 @@ export function MultiDayStep({
             default) takes over. */}
         <NextAction active={selectedDays.length === 0} cue={tr('multiDayPickerCue', locale)}>
           <MultiDayPicker
+            // initialDroppedCount is read once on mount; a late drop (availability
+            // arrived after "Change dates") remounts so the notice shows.
+            key={droppedOnEdit ?? 0}
             availability={slots ?? EMPTY_SLOTS}
             value={selectedDays}
             onChange={setSelectedDays}

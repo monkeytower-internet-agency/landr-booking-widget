@@ -3,7 +3,7 @@
  * is fully booked, and never sees operator-override chrome. Staff force-book
  * behaviour stays covered by MultiDayPicker.staff.test.tsx.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, Product } from '@/api/types'
@@ -56,10 +56,12 @@ beforeEach(() => {
 describe('MultiDayStep — invite with a now-full host day', () => {
   it('Change dates drops the full day, shows the notice, and Continue works', async () => {
     const onConfirm = vi.fn()
+    const onLiveDaysChange = vi.fn()
     render(
       <MultiDayStep
         product={PRODUCT}
         onConfirm={onConfirm}
+        onLiveDaysChange={onLiveDaysChange}
         originalDays={[FULL, OPEN_A]}
         originalDaysLabel="Ada"
         initialSelectedDays={[FULL, OPEN_A]}
@@ -69,6 +71,8 @@ describe('MultiDayStep — invite with a now-full host day', () => {
       expect(screen.getByTestId('invite-dates-unavailable')).toBeInTheDocument(),
     )
     fireEvent.click(screen.getByRole('button', { name: /change dates/i }))
+    // Price sidebar contract: the dropped day no longer feeds the live estimate.
+    expect(onLiveDaysChange).toHaveBeenLastCalledWith([OPEN_A])
 
     expect(screen.getByText('1 day selected')).toBeInTheDocument()
     expect(screen.getByTestId('multi-day-reset-dropped-notice')).toBeInTheDocument()
@@ -91,15 +95,42 @@ describe('MultiDayStep — invite with a now-full host day', () => {
     )
     await waitFor(() => screen.getByTestId('invite-dates-unavailable'))
     fireEvent.click(screen.getByRole('button', { name: /change dates/i }))
-    const full = document.querySelector<HTMLButtonElement>(
-      `button[data-day*="${FULL.slice(8, 10)}"]`,
-    )
-    // Disabled by the calendar for non-staff sessions.
+    // Disabled by the calendar for non-staff sessions; select by full ISO date.
     const buttons = Array.from(
       document.querySelectorAll<HTMLButtonElement>('button[data-day]'),
     ).filter((b) => b.dataset.day && isoDate(new Date(b.dataset.day)) === FULL)
-    expect(full).not.toBeNull()
+    expect(buttons.length).toBeGreaterThan(0)
     expect(buttons.every((b) => b.disabled)).toBe(true)
+  })
+})
+
+describe('MultiDayStep — Change dates before availability loads (landr-f987a.7)', () => {
+  it('drops the full day once availability arrives and shows the notice', async () => {
+    let resolve!: (v: AvailabilitySlot[]) => void
+    vi.mocked(getAvailability).mockReturnValueOnce(
+      new Promise<AvailabilitySlot[]>((r) => {
+        resolve = r
+      }),
+    )
+    const onLiveDaysChange = vi.fn()
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        onLiveDaysChange={onLiveDaysChange}
+        originalDays={[FULL, OPEN_A]}
+        originalDaysLabel="Ada"
+        initialSelectedDays={[FULL, OPEN_A]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /change dates/i }))
+    expect(screen.getByText('2 days selected')).toBeInTheDocument()
+    await act(async () => {
+      resolve([slot(FULL, 0), slot(OPEN_A, 5), slot(OPEN_B, 5)])
+    })
+    await waitFor(() => expect(screen.getByText('1 day selected')).toBeInTheDocument())
+    expect(screen.getByTestId('multi-day-reset-dropped-notice')).toBeInTheDocument()
+    expect(onLiveDaysChange).toHaveBeenLastCalledWith([OPEN_A])
   })
 })
 
@@ -116,7 +147,7 @@ describe('MultiDayStep — selection that became unavailable', () => {
     await waitFor(() =>
       expect(screen.getByTestId('multi-day-step-submit')).toBeDisabled(),
     )
-    expect(screen.getByText(/fully booked — remove it to continue/i)).toBeInTheDocument()
+    expect(screen.getByText(/no longer available — remove it to continue/i)).toBeInTheDocument()
     expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
   })
 
