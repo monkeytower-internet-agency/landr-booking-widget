@@ -11126,6 +11126,8 @@ export interface components {
             date?: string | null;
             /** From */
             from?: string | null;
+            /** Held Seats */
+            held_seats?: components["schemas"]["HeldSeatRow"][];
             /** Rows */
             rows: components["schemas"]["DayManifestRow"][];
             /** To */
@@ -12121,6 +12123,32 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HeldSeatRow
+         * @description One invite seat held on one day (landr-f987a.11).
+         *
+         *     A held seat is a participant row of the HOST booking
+         *     (`companion_kind = 'separate_guiding'`, not yet linked, hold not expired
+         *     — `seat_hold.holds_seat`, the Python face of SQL
+         *     `participant_holds_seat`). It counts on every day of the host booking's
+         *     product lines, so it is listed once per (seat, day). It is NOT a
+         *     `DayManifestRow`: the invitee is not on the guided roster yet, and an old
+         *     client iterating `rows` must never see one.
+         */
+        HeldSeatRow: {
+            /** Booking Id */
+            booking_id: string;
+            /** Booking Participant Id */
+            booking_participant_id: string;
+            /** Booking Ref */
+            booking_ref: string;
+            /** Day Date */
+            day_date: string;
+            /** Name */
+            name: string;
+            /** Seat Hold Expires At */
+            seat_hold_expires_at: string;
         };
         /** HostnameBranding */
         HostnameBranding: {

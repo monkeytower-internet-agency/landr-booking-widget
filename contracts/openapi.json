@@ -3923,6 +3923,13 @@
             ],
             "title": "From"
           },
+          "held_seats": {
+            "items": {
+              "$ref": "#/components/schemas/HeldSeatRow"
+            },
+            "title": "Held Seats",
+            "type": "array"
+          },
           "rows": {
             "items": {
               "$ref": "#/components/schemas/DayManifestRow"
@@ -6743,6 +6750,45 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeldSeatRow": {
+        "description": "One invite seat held on one day (landr-f987a.11).\n\nA held seat is a participant row of the HOST booking\n(`companion_kind = 'separate_guiding'`, not yet linked, hold not expired\n\u2014 `seat_hold.holds_seat`, the Python face of SQL\n`participant_holds_seat`). It counts on every day of the host booking's\nproduct lines, so it is listed once per (seat, day). It is NOT a\n`DayManifestRow`: the invitee is not on the guided roster yet, and an old\nclient iterating `rows` must never see one.",
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "booking_participant_id": {
+            "title": "Booking Participant Id",
+            "type": "string"
+          },
+          "booking_ref": {
+            "title": "Booking Ref",
+            "type": "string"
+          },
+          "day_date": {
+            "title": "Day Date",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "seat_hold_expires_at": {
+            "title": "Seat Hold Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_id",
+          "booking_ref",
+          "booking_participant_id",
+          "day_date",
+          "name",
+          "seat_hold_expires_at"
+        ],
+        "title": "HeldSeatRow",
         "type": "object"
       },
       "HostnameBranding": {
