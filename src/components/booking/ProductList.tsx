@@ -31,6 +31,12 @@ interface Props {
   productGroup?: string
   preselectSlug?: string
   /**
+   * landr-wwoap: visible status text while a preselectSlug deep link
+   * resolves — names the step the customer lands on next (e.g. "Loading
+   * available dates…" under start=dates). Defaults to "Loading…".
+   */
+  preselectLoadingLabel?: string
+  /**
    * landr-7jgo: when true, sold-out (non-bookable) products are SHOWN in the
    * catalogue overview as informational "Fully booked" cards (no Select CTA)
    * rather than hidden. Default false: sold-out products are hidden entirely.
@@ -58,6 +64,7 @@ export function ProductList({
   previewToken,
   productGroup,
   preselectSlug,
+  preselectLoadingLabel,
   showSoldOut = false,
   onSelect,
   onPreselectSoldOut,
@@ -124,14 +131,20 @@ export function ProductList({
 
   if (!products) {
     // Skeletons matching the active layout while the (unchanged) fetch runs.
-    return (
-      <div className="flex flex-col gap-4">
-        <span className="sr-only" role="status">
-          {tr('loadingProducts', locale)}
-        </span>
-        <ProductSkeleton view={view} />
-      </div>
-    )
+    // landr-wwoap: a ?product= deep link never shows the catalogue — it jumps
+    // to its product as soon as the list resolves — so a grid of catalogue
+    // cards is the wrong silhouette. Show list rows plus the label of where
+    // the customer is actually headed (the date list under start=dates).
+    if (preselectSlug) {
+      return (
+        <ProductSkeleton
+          view="list"
+          count={3}
+          label={preselectLoadingLabel ?? tr('loadingEllipsis', locale)}
+        />
+      )
+    }
+    return <ProductSkeleton view={view} label={tr('loadingProducts', locale)} />
   }
 
   // landr-7jgo: split bookable vs sold-out. Bookable products always show.

@@ -499,3 +499,39 @@ describe('ProductList — next action + zen (landr-80ubl.2)', () => {
     )
   })
 })
+
+describe('ProductList — visible loading state (landr-wwoap)', () => {
+  beforeEach(() => {
+    mocks.showDateModelDetail.mockReturnValue(false)
+    // Never resolves: keeps the list in its loading state.
+    mocks.listProducts.mockReturnValue(new Promise<Product[]>(() => {}))
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows a visible "Loading products…" label over the catalogue skeleton', () => {
+    render(<ProductList operatorToken="tok" onSelect={vi.fn()} />)
+    const label = screen.getByTestId('loading-label')
+    expect(label).toHaveTextContent('Loading products…')
+    expect(label).not.toHaveClass('sr-only')
+  })
+
+  it('renders list rows with the caller label while a deep link resolves', () => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid')
+    render(
+      <ProductList
+        operatorToken="tok"
+        preselectSlug="low-air-timers"
+        preselectLoadingLabel="Loading available dates…"
+        onSelect={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('loading-label')).toHaveTextContent(
+      'Loading available dates…',
+    )
+    expect(screen.getByTestId('product-skeleton')).toHaveClass('flex-col')
+    window.localStorage.removeItem(VIEW_MODE_STORAGE_KEY)
+  })
+})

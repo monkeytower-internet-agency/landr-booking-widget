@@ -632,7 +632,7 @@ const en: Bundle = {
 
   pickACourseWindow: 'Pick a course window',
   couldNotLoadCourseWindows: 'Could not load course windows.',
-  loadingWindows: 'Loading windows…',
+  loadingWindows: 'Loading available dates…',
   noUpcomingWindows: 'No upcoming windows for this course. Please check back later.',
   upcomingWindowsFor: 'Upcoming {name} windows. Pick one to continue.',
   fullBadge: 'Full',
@@ -1159,7 +1159,7 @@ const de: Bundle = {
 
   pickACourseWindow: 'Zeitraum wählen',
   couldNotLoadCourseWindows: 'Zeiträume konnten nicht geladen werden.',
-  loadingWindows: 'Zeiträume werden geladen…',
+  loadingWindows: 'Verfügbare Termine werden geladen…',
   noUpcomingWindows: 'Keine bevorstehenden Termine für diesen Kurs. Bitte schauen Sie später wieder vorbei.',
   upcomingWindowsFor: 'Bevorstehende Termine für {name}. Wählen Sie einen aus, um fortzufahren.',
   fullBadge: 'Ausgebucht',

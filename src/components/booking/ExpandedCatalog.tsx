@@ -161,11 +161,8 @@ export function ExpandedCatalog({
 
   if (!products) {
     return (
-      <div className="flex flex-col gap-4" data-testid="expanded-catalog">
-        <span className="sr-only" role="status">
-          {tr('loadingProducts', locale)}
-        </span>
-        <ProductSkeleton view={view} />
+      <div data-testid="expanded-catalog">
+        <ProductSkeleton view={view} label={tr('loadingProducts', locale)} />
       </div>
     )
   }
