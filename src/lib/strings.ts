@@ -126,6 +126,9 @@ type Bundle = {
   continueWithTheseDates: string
   changeDates: string
   sameDaysAsHostFor: string
+  /** Invite banner (App.tsx) — {host}, {ref}. Hotel variant only when the invite prefills a hotel (landr-2jsaf). */
+  inviteBannerDatesAndHotel: string
+  inviteBannerDatesOnly: string
   hostDayUnavailableOne: string
   hostDaysUnavailableOther: string
 
@@ -686,6 +689,10 @@ const en: Bundle = {
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
   sameDaysAsHostFor: 'The same days as {host} for {product}.',
+  inviteBannerDatesAndHotel:
+    'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
+  inviteBannerDatesOnly:
+    'You’re joining {host}’s booking (ref {ref}). Dates are prefilled — change anything that differs for you.',
   hostDayUnavailableOne:
     "1 of {host}'s days is no longer available — change your dates to continue.",
   hostDaysUnavailableOther:
@@ -1236,6 +1243,10 @@ const de: Bundle = {
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
   sameDaysAsHostFor: 'Die gleichen Termine wie {host} für {product}.',
+  inviteBannerDatesAndHotel:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
+  inviteBannerDatesOnly:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
   hostDayUnavailableOne:
     '1 der Termine von {host} ist nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
   hostDaysUnavailableOther:
@@ -1758,6 +1769,21 @@ export function seatsLeftLabel(available: number, locale?: string): string {
 /** MultiDayStep invite-summary subtitle: "The same days as {host} for {product}." */
 export function sameDaysAsHostForLabel(host: string, product: string, locale?: string): string {
   return tr('sameDaysAsHostFor', locale).replace('{host}', host).replace('{product}', product)
+}
+
+/**
+ * Invite banner sentence. Names the hotel only when the invite actually
+ * prefills one (landr-2jsaf) — a booking without a hotel must not claim it.
+ */
+export function inviteBannerMessage(
+  host: string,
+  reference: string,
+  hasHotel: boolean,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const template = hasHotel ? t.inviteBannerDatesAndHotel : t.inviteBannerDatesOnly
+  return template.replace('{host}', host).replace('{ref}', reference)
 }
 
 /** MultiDayStep invite-summary blocked-days notice. */

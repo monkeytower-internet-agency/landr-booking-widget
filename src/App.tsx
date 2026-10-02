@@ -58,7 +58,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
-import { tr } from '@/lib/strings'
+import { inviteBannerMessage, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -1768,9 +1768,12 @@ function BookingFlowApp() {
             role="status"
           >
             <span>
-              You&rsquo;re joining {inviteData.host_display_name}&rsquo;s
-              booking (ref {inviteData.host_reference}). Dates and hotel are
-              prefilled — change anything that differs for you.
+              {inviteBannerMessage(
+                inviteData.host_display_name,
+                inviteData.host_reference,
+                inviteData.hotel_location_id !== null,
+                browserLocale(),
+              )}
             </span>
             <InviteHoldNote
               expiresAt={inviteData.seat_hold_expires_at}
