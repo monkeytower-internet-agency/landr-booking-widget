@@ -113,6 +113,7 @@ type Bundle = {
   seatsShortOther: string
   seatsShortNone: string
   holdHeldOne: string
+  holdRequested: string
   holdUntilOnly: string
   holdHeldOther: string
   holdNotHeld: string
@@ -668,6 +669,8 @@ const en: Bundle = {
   seatsShortNone: 'No seats left on {day} — you need {need}.',
   holdUntilOnly:
     'When you booked, seats for {name} were still free. Held until {when}.',
+  holdRequested:
+    'Seats for {name} are requested and held for {n} hours, until {when}. The operator still has to confirm that everyone fits.',
   holdHeldOne:
     'When you booked, seats for {name} were still free. Held for 1 hour, until {when}.',
   holdHeldOther:
@@ -1215,6 +1218,8 @@ const de: Bundle = {
   seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
   holdUntilOnly:
     'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
+  holdRequested:
+    'Plätze für {name} sind angefragt und {n} Stunden reserviert, bis {when}. Der Anbieter muss noch bestätigen, dass alle Platz haben.',
   holdHeldOne:
     'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für 1 Stunde, bis {when}.',
   holdHeldOther:
@@ -1794,6 +1799,20 @@ export function holdHeldLabel(
   if (!hours) return t.holdUntilOnly.replace('{name}', name).replace('{when}', when)
   return plural(hours, t.holdHeldOne, t.holdHeldOther)
     .replace('{name}', name)
+    .replace('{n}', String(hours))
+    .replace('{when}', when)
+}
+
+export function holdRequestedLabel(
+  name: string,
+  hours: number | null | undefined,
+  when: string,
+  locale?: string,
+): string {
+  // Hours unknown → fall back to the deadline-only wording.
+  if (!hours) return holdHeldLabel(name, hours, when, locale)
+  return pickBundle(locale)
+    .holdRequested.replace('{name}', name)
     .replace('{n}', String(hours))
     .replace('{when}', when)
 }

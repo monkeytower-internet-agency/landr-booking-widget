@@ -42,6 +42,7 @@ import {
   tr,
   holdHeldLabel,
   holdNotHeldLabel,
+  holdRequestedLabel,
 } from '@/lib/strings'
 import { formatHoldDeadline } from '@/lib/seatHold'
 
@@ -274,17 +275,13 @@ function InviteCard({
   // fields (older API) → no line at all.
   const holdLine = (() => {
     if (invite.seat_hold_expires_at) {
-      return holdHeldLabel(
-        invite.name,
-        invite.seat_hold_hours,
-        formatHoldDeadline(invite.seat_hold_expires_at, locale),
-        locale,
-      )
+      const when = formatHoldDeadline(invite.seat_hold_expires_at, locale)
+      return invite.seats_were_free === false
+        ? holdRequestedLabel(invite.name, invite.seat_hold_hours, when, locale)
+        : holdHeldLabel(invite.name, invite.seat_hold_hours, when, locale)
     }
-    if (invite.seat_hold_hours === 0 || invite.seat_hold_expires_at === null) {
-      return holdNotHeldLabel(invite.name, locale)
-    }
-    return null
+    // null expiry = not live; "not held" only when the operator holds nothing.
+    return invite.seat_hold_hours === 0 ? holdNotHeldLabel(invite.name, locale) : null
   })()
 
   if (invite.linked_booking_reference) {

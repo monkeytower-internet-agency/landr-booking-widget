@@ -521,6 +521,16 @@ const isCapacityExceeded = (err: HttpError): boolean =>
   !Array.isArray(err.detail) &&
   (err.detail as { error?: unknown }).error === 'capacity_exceeded'
 
+/** landr-f987a.3: `days: [{date, seats_short}]` on a capacity_exceeded 422. */
+const readShortDay = (err: HttpError): { date: string; seats_short: number } | null => {
+  const days = (err.detail as { days?: unknown }).days
+  if (!Array.isArray(days) || days.length === 0) return null
+  const d = days[0] as { date?: unknown; seats_short?: unknown }
+  return typeof d.date === 'string' && typeof d.seats_short === 'number'
+    ? { date: d.date, seats_short: d.seats_short }
+    : null
+}
+
 const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
@@ -976,8 +986,10 @@ export function BookingForm({
       // participants + invited companions must all fit on every selected day.
       // Best effort: a failed availability read never blocks the submit (the
       // API re-checks and answers capacity_exceeded).
-      const need = seatsNeeded(participants.length, companions)
-      const hasInvitees = companions.some((c) => c.companion_kind === 'separate_guiding')
+      const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+      const hasInvitees =
+        product.invite_hold_hours !== 0 &&
+        companions.some((c) => c.companion_kind === 'separate_guiding')
       if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
         try {
           const sorted = [...selectedDaysForSubmit].sort()
@@ -1311,6 +1323,19 @@ export function BookingForm({
           formatHttpError(err, partyMemberLabels, participants.length),
         )
         setCapacityExceeded(isCapacityExceeded(err))
+        // landr-f987a.4: the 422 names the first short day — say which one.
+        const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
+        if (shortDay) {
+          const needNow = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+          setServerError(
+            seatsShortMessage(
+              formatDayLabel(shortDay.date, locale),
+              Math.max(0, needNow - shortDay.seats_short),
+              needNow,
+              locale,
+            ),
+          )
+        }
         // landr-otml0.3 review fix (MINOR 6): navigate the customer straight
         // back to the exact companion row instead of leaving them to find it
         // from a text message alone. Fires in addition to setServerError

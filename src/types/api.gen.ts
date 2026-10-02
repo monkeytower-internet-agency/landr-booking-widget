@@ -1115,10 +1115,114 @@ export interface paths {
          *       promotion executor will surface the same gap as a hard error.
          *     - 502 ``migration_target_unreachable: <type>: <msg>`` — the connection
          *       attempt against the target Supabase failed (auth, network, etc).
+         *
+         *     landr-f0v2m.1 — ``kind=staging_hotfix`` lists the landr-api ``staging``
+         *     branch tip's migrations via GitHub (never this api's own on-disk tree,
+         *     which is dev) and returns that tip as ``ref``. GitHub failures surface as
+         *     the same 502 ``migration_target_unreachable``; an unset token as 503
+         *     ``promotion_not_configured``.
          */
         get: operations["preview_migrations"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/staging-hotfix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Staging Hotfix
+         * @description Staging hotfix (landr-f0v2m.1). Promoter|approver. Creates a queued run
+         *     that applies the landr-api ``staging`` branch tip's migrations to the
+         *     STAGING database — no code merge, no deploy, no version/changelog/tag.
+         *
+         *     For an urgent data fix merged onto ``staging`` while ``dev`` is not
+         *     releasable. Same auth and tier as dev→staging (the dev api owns the
+         *     staging DB URL). The staging SHA is pinned now; ``expected_ref`` (from the
+         *     preview) 409s ``staging_moved`` if the branch moved after review, and a
+         *     tip with nothing pending 409s ``no_pending_migrations``.
+         */
+        post: operations["create_staging_hotfix"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/staging-hotfix/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Staging Hotfix Candidates
+         * @description Merged dev PRs that staging lacks, per deployable repo (landr-g1d40).
+         *     Promoter|approver. A repo whose read fails carries ``error`` instead of
+         *     failing the whole list.
+         */
+        get: operations["list_staging_hotfix_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/staging-hotfix/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Staging Hotfix Code
+         * @description Hotfix to staging (landr-g1d40). Promoter|approver, dev api only.
+         *
+         *     Creates a queued run that cherry-picks the picked (merged) dev commits
+         *     onto ``hotfix/<run-id>`` off each repo's staging tip (pinned now), merges
+         *     it into ``staging`` — a conflict fails the run with nothing merged — and,
+         *     if the landr-api picks touched supabase/migrations, applies them to the
+         *     staging DB pinned to the new staging SHA. No version/changelog/tag.
+         */
+        post: operations["create_staging_hotfix_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/landr-staff/promotions/staging-hotfix/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Staging Hotfix
+         * @description What a code hotfix with these picks would cherry-pick (per repo, apply
+         *     order: commits + files) and which migrations would reach the staging DB
+         *     (landr-g1d40). Read-only. 422 on a bad pick set.
+         */
+        post: operations["preview_staging_hotfix"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3023,7 +3127,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Product Availability */
+        /**
+         * Get Product Availability
+         * @description Per-day availability. landr-f987a.3: with ``invite=<token>`` naming a
+         *     live invite seat hold, the invitee's held seat counts as available on the
+         *     host's days. An unknown / expired / claimed token is plain availability
+         *     — no error, nothing revealed beyond what the invite prefill shows.
+         */
         get: operations["get_product_availability"];
         put?: never;
         post?: never;
@@ -7995,6 +8105,55 @@ export interface paths {
         patch: operations["patch_type_requirement"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Resource Type Schedule
+         * @description The Schedule tab's calendar: every active resource of the type with
+         *     its live in_service / out_of_service ranges overlapping the window plus
+         *     an ``in_service_days`` count (≤366 days per call, same ceiling as the
+         *     approval calendar and day assignments).
+         */
+        get: operations["get_resource_type_schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/resource-types/{type_id}/season": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Resource Type Season
+         * @description The Schedule tab's "Set season" bulk action: one ``in_service`` range
+         *     for every active resource of the type, or just ``resource_ids`` when the
+         *     operator narrowed the picker — a thin single-range wrapper over the same
+         *     atomic fan-out the Season planner uses (``unavailability/fan-out``
+         *     above). Replaces each resource's overlapping ``in_service`` ranges;
+         *     ``out_of_service`` rows are untouched. 422 ``invalid_date_range`` if
+         *     ``end`` < ``start``; 404 for a foreign type or a foreign resource id.
+         */
+        put: operations["set_resource_type_season"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/resource-types/{type_id}/unavailability/fan-out": {
         parameters: {
             query?: never;
@@ -9753,7 +9912,7 @@ export interface components {
          */
         AvailabilityBatchUpsert: {
             /** Capacity */
-            capacity: number;
+            capacity?: number | null;
             /**
              * Date
              * Format: date
@@ -9835,6 +9994,12 @@ export interface components {
             date: string;
             /** End Time */
             end_time?: string | null;
+            /**
+             * Seat Limit Source
+             * @default product
+             * @enum {string}
+             */
+            seat_limit_source: "product" | "resources" | "none";
             /** Start Time */
             start_time?: string | null;
             /** Status */
@@ -12101,6 +12266,108 @@ export interface components {
             /** Website */
             website?: string | null;
         };
+        /** HotfixCandidate */
+        HotfixCandidate: {
+            /** Author */
+            author?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Number */
+            number: number;
+            /**
+             * On Staging
+             * @default false
+             */
+            on_staging: boolean;
+            /** Sha */
+            sha: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** HotfixCandidateRepo */
+        HotfixCandidateRepo: {
+            /** Candidates */
+            candidates: components["schemas"]["HotfixCandidate"][];
+            /** Error */
+            error?: string | null;
+            /** Label */
+            label: string;
+            /** Repo */
+            repo: string;
+        };
+        /**
+         * HotfixCandidatesResponse
+         * @description landr-g1d40 — merged dev PRs (dev first-parent line, newest first) that
+         *     staging does not have yet, per deployable repo.
+         */
+        HotfixCandidatesResponse: {
+            /** Repos */
+            repos: components["schemas"]["HotfixCandidateRepo"][];
+        };
+        /** HotfixMigrationsPreview */
+        HotfixMigrationsPreview: {
+            /** Error */
+            error?: string | null;
+            /** Pending */
+            pending: string[] | null;
+            /** Picked */
+            picked: string[];
+            /** Touched */
+            touched: boolean;
+        };
+        /** HotfixPickCommit */
+        HotfixPickCommit: {
+            /** Message */
+            message?: string | null;
+            /** Sha */
+            sha?: string | null;
+        };
+        /**
+         * HotfixPickIn
+         * @description One picked, already-merged dev commit (landr-g1d40).
+         */
+        HotfixPickIn: {
+            /** Repo */
+            repo: string;
+            /** Sha */
+            sha: string;
+        };
+        /** HotfixPickPreview */
+        HotfixPickPreview: {
+            /** Commits */
+            commits: components["schemas"]["HotfixPickCommit"][];
+            /** Files */
+            files: string[];
+            /** Migrations */
+            migrations: string[];
+            /** Number */
+            number?: number | null;
+            /** Sha */
+            sha: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * HotfixPreviewResponse
+         * @description landr-g1d40 — what a code hotfix with these picks would do, per repo in
+         *     apply order (the P→C diff of each pick is exactly what gets cherry-picked).
+         */
+        HotfixPreviewResponse: {
+            migrations: components["schemas"]["HotfixMigrationsPreview"];
+            /** Repos */
+            repos: components["schemas"]["HotfixRepoPreview"][];
+        };
+        /** HotfixRepoPreview */
+        HotfixRepoPreview: {
+            /** Label */
+            label: string;
+            /** Picks */
+            picks: components["schemas"]["HotfixPickPreview"][];
+            /** Repo */
+            repo: string;
+        };
         /**
          * ImpactPreviewIn
          * @description ``POST .../impact-preview`` — "what would this change break?"
@@ -12290,6 +12557,10 @@ export interface components {
             operator_id: string;
             /** Product Id */
             product_id?: string | null;
+            /** Seat Hold Expires At */
+            seat_hold_expires_at?: string | null;
+            /** Seat Hold Hours */
+            seat_hold_hours?: number | null;
             /**
              * Widget Token
              * @default
@@ -13750,6 +14021,8 @@ export interface components {
             files: string[];
             /** Pending Count */
             pending_count: number;
+            /** Ref */
+            ref?: string | null;
         };
         /** PriceOverrideIn */
         PriceOverrideIn: {
@@ -14083,6 +14356,8 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Day Capacity Source */
+            day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -14104,6 +14379,8 @@ export interface components {
              * @default false
              */
             includes_breakfast: boolean;
+            /** Invite Hold Hours */
+            invite_hold_hours?: number | null;
             /**
              * Is Addon Only
              * @default false
@@ -14206,6 +14483,8 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Day Capacity Source */
+            day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
             default_pricing_scheme_id?: string | null;
             /** Description */
@@ -14224,6 +14503,8 @@ export interface components {
             hotel_offering?: ("none" | "optional" | "mandatory") | null;
             /** Includes Breakfast */
             includes_breakfast?: boolean | null;
+            /** Invite Hold Hours */
+            invite_hold_hours?: number | null;
             /** Is Addon Only */
             is_addon_only?: boolean | null;
             /** Is Contiguous */
@@ -15166,6 +15447,11 @@ export interface components {
             } | null;
             /** Icon */
             icon?: string | null;
+            /**
+             * Label Type Ids
+             * @description landr-lmudr.40: the EXTRA resource types this resource is labelled with (never the home resource_type_id, never a group)
+             */
+            label_type_ids?: string[] | null;
             /** Name */
             name: string;
             /** Name Localized */
@@ -15174,7 +15460,10 @@ export interface components {
             } | null;
             /** Parent Id */
             parent_id?: string | null;
-            /** Place Roles */
+            /**
+             * Place Roles
+             * @description DEPRECATED (landr-lmudr.40) — translated into labels on the reserved place types (pickup, dropoff, meeting_point, base; created when missing). Ignored when label_type_ids is sent
+             */
             place_roles?: ("pickup" | "dropoff" | "meeting_point" | "base")[];
             /**
              * Quantity
@@ -15188,6 +15477,24 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+        };
+        /**
+         * ResourceLabelOut
+         * @description One extra resource type a resource is labelled with (landr-lmudr.40).
+         */
+        ResourceLabelOut: {
+            /** Code */
+            code: string;
+            /** Color */
+            color?: string | null;
+            /** Facets */
+            facets: ("place" | "capacity" | "staff" | "rentable")[];
+            /** Icon */
+            icon?: string | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
         };
         /** ResourceOut */
         ResourceOut: {
@@ -15233,7 +15540,7 @@ export interface components {
             email?: string | null;
             /**
              * Facets
-             * @description The type's facets
+             * @description Union of the home type's and the labels' facets, home first (landr-lmudr.40)
              */
             facets: ("place" | "capacity" | "staff" | "rentable")[];
             /** Geo */
@@ -15244,6 +15551,11 @@ export interface components {
             icon?: string | null;
             /** Id */
             id: string;
+            /**
+             * Labels
+             * @description landr-lmudr.40: extra resource-type labels, type sort order (never the home type)
+             */
+            labels?: components["schemas"]["ResourceLabelOut"][];
             /** Name */
             name: string;
             /** Name Localized */
@@ -15254,7 +15566,10 @@ export interface components {
             operator_id: string;
             /** Parent Id */
             parent_id?: string | null;
-            /** Place Roles */
+            /**
+             * Place Roles
+             * @description DERIVED (landr-lmudr.40): (home type code ∪ label type codes) ∩ {pickup, dropoff, meeting_point, base}. Removed in phase 3b
+             */
             place_roles: ("pickup" | "dropoff" | "meeting_point" | "base")[];
             /** Quantity */
             quantity: number;
@@ -15299,6 +15614,11 @@ export interface components {
             } | null;
             /** Icon */
             icon?: string | null;
+            /**
+             * Label Type Ids
+             * @description landr-lmudr.40: REPLACES the extra labels ([] = none); null/absent keeps them
+             */
+            label_type_ids?: string[] | null;
             /** Name */
             name?: string | null;
             /** Name Localized */
@@ -15307,7 +15627,10 @@ export interface components {
             } | null;
             /** Parent Id */
             parent_id?: string | null;
-            /** Place Roles */
+            /**
+             * Place Roles
+             * @description DEPRECATED (landr-lmudr.40) — replaces only the reserved place-role labels. Ignored when label_type_ids is sent
+             */
             place_roles?: ("pickup" | "dropoff" | "meeting_point" | "base")[] | null;
             /** Quantity */
             quantity?: number | null;
@@ -15466,7 +15789,7 @@ export interface components {
             default_released_units: number;
             /**
              * Descendant Resource Count
-             * @description resource_count of this type plus all its children
+             * @description Distinct live, active resources of this type or any child type, home or label (landr-lmudr.40)
              * @default 0
              */
             descendant_resource_count: number;
@@ -15499,6 +15822,12 @@ export interface components {
                 [key: string]: string;
             } | null;
             /**
+             * Labelled Resource Count
+             * @description landr-lmudr.40: live, active resources carrying this type as an extra LABEL (their home is another type)
+             * @default 0
+             */
+            labelled_resource_count: number;
+            /**
              * Needs Count
              * @description landr-lmudr.35: staffing rules this type owns (the type page's Needs). Null when not computed (GET ?shape=flat)
              */
@@ -15509,7 +15838,7 @@ export interface components {
             parent_id?: string | null;
             /**
              * Resource Count
-             * @description Live, active resources of exactly this type
+             * @description Live, active resources whose HOME is exactly this type
              */
             resource_count: number;
             /** Slot Label */
@@ -15566,6 +15895,12 @@ export interface components {
                 [key: string]: string;
             } | null;
             /**
+             * Labelled Resource Count
+             * @description landr-lmudr.40: live, active resources carrying this type as an extra LABEL (their home is another type)
+             * @default 0
+             */
+            labelled_resource_count: number;
+            /**
              * Needs Count
              * @description landr-lmudr.35: staffing rules this type owns (the type page's Needs). Null when not computed (GET ?shape=flat)
              */
@@ -15576,7 +15911,7 @@ export interface components {
             parent_id?: string | null;
             /**
              * Resource Count
-             * @description Live, active resources of exactly this type
+             * @description Live, active resources whose HOME is exactly this type
              */
             resource_count: number;
             /** Slot Label */
@@ -15802,6 +16137,40 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /**
+             * From
+             * Format: date
+             */
+            from: string;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /** Resources */
+            resources: components["schemas"]["ScheduleResourceOut"][];
+            /**
+             * To
+             * Format: date
+             */
+            to: string;
+        };
+        /** ScheduleResourceOut */
+        ScheduleResourceOut: {
+            /**
+             * In Service Days
+             * @description Count of in-service days inside the window
+             */
+            in_service_days: number;
+            /**
+             * Ranges
+             * @description Rows overlapping the window
+             */
+            ranges: components["schemas"]["UnavailabilityOut"][];
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name: string;
+        };
         /**
          * ScopedMessagePostIn
          * @description One post at one of the three audience scopes.
@@ -15825,6 +16194,41 @@ export interface components {
              * @enum {string}
              */
             scope: "activity_day" | "booking" | "operator";
+        };
+        /**
+         * SeasonIn
+         * @description ``PUT /resource-types/{id}/season`` — the Schedule tab's "Set season"
+         *     bulk action: one ``in_service`` range for every active resource of the
+         *     type, or just ``resource_ids`` when the operator narrowed the picker.
+         */
+        SeasonIn: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Resource Ids
+             * @description Subset of the type's resources; omitted = every active resource of the type
+             */
+            resource_ids?: string[] | null;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+        };
+        /** SeasonOut */
+        SeasonOut: {
+            /** Dry Run */
+            dry_run: boolean;
+            /** Resource Type Id */
+            resource_type_id: string;
+            /**
+             * Resources
+             * @description The affected resources and their resulting schedule
+             */
+            resources: components["schemas"]["FanOutResource"][];
         };
         /**
          * SeasonPlanIn
@@ -16452,6 +16856,28 @@ export interface components {
             matched_user_id?: string | null;
             /** Outcome */
             outcome: string;
+        };
+        /** StagingHotfixCodeIn */
+        StagingHotfixCodeIn: {
+            /** Notes */
+            notes?: string | null;
+            /** Picks */
+            picks: components["schemas"]["HotfixPickIn"][];
+        };
+        /** StagingHotfixIn */
+        StagingHotfixIn: {
+            /**
+             * Expected Ref
+             * @description landr-f0v2m.1 — the staging SHA the preview showed; 409 staging_moved if the staging branch has moved since.
+             */
+            expected_ref?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** StagingHotfixPreviewIn */
+        StagingHotfixPreviewIn: {
+            /** Picks */
+            picks: components["schemas"]["HotfixPickIn"][];
         };
         /** StatusOut */
         StatusOut: {
@@ -19278,7 +19704,7 @@ export interface operations {
     preview_migrations: {
         parameters: {
             query: {
-                kind: "dev_to_staging" | "staging_to_main";
+                kind: "dev_to_staging" | "staging_to_main" | "staging_hotfix";
             };
             header?: never;
             path?: never;
@@ -19293,6 +19719,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewMigrationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_staging_hotfix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staging_hotfix_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotfixCandidatesResponse"];
+                };
+            };
+        };
+    };
+    create_staging_hotfix_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_staging_hotfix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagingHotfixPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotfixPreviewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21627,6 +22176,7 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                invite?: string | null;
             };
             header?: never;
             path: {
@@ -30870,6 +31420,77 @@ export interface operations {
             };
         };
     };
+    get_resource_type_schedule: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_resource_type_season: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     fan_out_resource_type_unavailability: {
         parameters: {
             query?: {
@@ -30922,6 +31543,8 @@ export interface operations {
                 /** @description a resource id, or 'none' for top-level rows */
                 parent_id?: string | null;
                 active?: boolean | null;
+                /** @description landr-lmudr.40: how type_id/facet match — 'home' (the home type only: use it for capacity, approvals, schedule and rental stock), 'label' (extra labels only) or 'any' (either; default) */
+                membership?: "home" | "label" | "any";
             };
             header?: never;
             path: {

@@ -11,7 +11,10 @@ import { holdRelativeTemplates } from '@/lib/strings'
 export function seatsNeeded(
   participantCount: number,
   companions: readonly Pick<CompanionDetails, 'companion_kind'>[] = [],
+  /** Product's invite_hold_hours: 0 = nothing held for invitees, absent = on. */
+  inviteHoldHours?: number | null,
 ): number {
+  if (inviteHoldHours === 0) return participantCount
   const invitees = companions.filter((c) => c.companion_kind === 'separate_guiding').length
   return participantCount + invitees
 }

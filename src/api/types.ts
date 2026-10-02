@@ -244,7 +244,7 @@ export interface Product {
    * (shop) kinds are always reported bookable by the API.
    */
   bookable?: boolean
-  /** landr-f987a.3 (hand-written contract): hours an invitee's seat is held (0 = off). */
+  /** Next API PR (public product payload, not yet generated): hours an invitee's seat is held (0 = off, absent = on). */
   invite_hold_hours?: number
   /**
    * landr-d8rg, epic contract D: public URL of the product's primary
@@ -1141,12 +1141,16 @@ export interface InviteSummary {
   linked_booking_reference: string | null
   has_invite: boolean
   /**
-   * landr-f987a.3 (API, unmerged contract — hand-written): ISO tz-aware
-   * deadline of this invitee's seat hold; null/absent when nothing is held.
+   * landr-f987a.3: ISO tz-aware deadline; null unless the hold is LIVE.
+   * seat_hold_hours: 0 = operator holds no seats, null = unknown.
    */
   seat_hold_expires_at?: string | null
-  /** landr-f987a.3: the hold length in hours at submit time (0 = off). */
   seat_hold_hours?: number | null
+  /**
+   * Next API PR (names fixed, not yet generated): false = the seats were NOT
+   * free when the host booked (requested only). Absent → treat as true.
+   */
+  seats_were_free?: boolean
 }
 
 /**
@@ -1377,9 +1381,11 @@ export interface InvitePrefill {
   host_display_name: string
   host_reference: string
   language: string | null
-  /** landr-f987a.3 (hand-written contract): the invitee's seat-hold deadline, null when none. */
-  seat_hold_expires_at?: string | null
-  seat_hold_hours?: number | null
+  /** landr-f987a.3 — same semantics as InviteSummary (live-only deadline, hours 0/null). */
+  seat_hold_expires_at?: components['schemas']['InvitePrefillOut']['seat_hold_expires_at']
+  seat_hold_hours?: components['schemas']['InvitePrefillOut']['seat_hold_hours']
+  /** Next API PR: see InviteSummary.seats_were_free. */
+  seats_were_free?: boolean
 }
 
 /**

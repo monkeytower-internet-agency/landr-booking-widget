@@ -27,6 +27,8 @@ import { useReportLoaded } from '@/lib/bootSplash'
 
 interface Props {
   product: Product
+  /** landr-f987a.4: invite token — a live seat hold counts as available. */
+  inviteToken?: string
   /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
   onBack?: () => void
   onConfirm: (slot: AvailabilitySlot) => void
@@ -56,6 +58,7 @@ export function AvailabilityPicker({
   exposeSeatsToCustomer = false,
   initialSlot,
   onLoaded,
+  inviteToken,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +80,7 @@ export function AvailabilityPicker({
     let cancelled = false
     void (async () => {
       try {
-        const data = await getAvailability(product.product_id, fromIso, toIso)
+        const data = await getAvailability(product.product_id, fromIso, toIso, inviteToken)
         if (!cancelled) setSlots(data)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
@@ -86,7 +89,7 @@ export function AvailabilityPicker({
     return () => {
       cancelled = true
     }
-  }, [product.product_id, fromIso, toIso])
+  }, [product.product_id, fromIso, toIso, inviteToken])
 
   const availableDates = useMemo(() => {
     if (!slots) return new Set<string>()

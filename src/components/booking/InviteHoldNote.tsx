@@ -9,17 +9,22 @@ import { inviteHoldLabel } from '@/lib/strings'
  */
 export function InviteHoldNote({
   expiresAt,
+  hours,
   now,
 }: {
   expiresAt: string | null | undefined
+  /** seat_hold_hours: 0 = never held, null/absent = unknown. */
+  hours?: number | null
   now?: Date
 }) {
-  if (!expiresAt) return null
   const locale = browserLocale()
   const live = holdIsLive(expiresAt, now)
+  // The API reports expires=null once expired/claimed; the ended text only
+  // makes sense when a hold demonstrably existed (hours > 0).
+  if (!live && !(hours && hours > 0)) return null
   return (
     <span data-testid="invite-hold" data-hold={live ? 'live' : 'ended'}>
-      {inviteHoldLabel(live ? formatHoldDeadline(expiresAt, locale, now) : null, locale)}
+      {inviteHoldLabel(live ? formatHoldDeadline(expiresAt as string, locale, now) : null, locale)}
     </span>
   )
 }
