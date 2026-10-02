@@ -5070,6 +5070,9 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
       setField('companion_1_last_name', 'Jones')
+      // landr-lu41h: hotel_offering 'none' → the guest pays for themselves
+      // (separate_guiding), so a contact channel is required.
+      setField('companion_1_email', 'kay@example.com')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>
