@@ -107,6 +107,8 @@ type Bundle = {
   yourDates: string
   loadingAvailabilityEllipsis: string
   changeYourDatesToContinue: string
+  dayNoLongerAvailableReason: string
+  capacityExceededMessage: string
   readyToContinueWithHostsDates: string
   continueWithTheseDates: string
   changeDates: string
@@ -643,6 +645,9 @@ const en: Bundle = {
   yourDates: 'Your dates',
   loadingAvailabilityEllipsis: 'Loading availability…',
   changeYourDatesToContinue: 'Change your dates to continue.',
+  dayNoLongerAvailableReason: '{date} is fully booked — remove it to continue.',
+  capacityExceededMessage:
+    'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
@@ -1167,6 +1172,9 @@ const de: Bundle = {
   yourDates: 'Ihre Termine',
   loadingAvailabilityEllipsis: 'Verfügbarkeit wird geladen…',
   changeYourDatesToContinue: 'Ändern Sie Ihre Termine, um fortzufahren.',
+  dayNoLongerAvailableReason: '{date} ist ausgebucht — entfernen Sie den Termin, um fortzufahren.',
+  capacityExceededMessage:
+    'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
@@ -1696,6 +1704,11 @@ export function hostDaysUnavailableMessage(blocked: number, host: string, locale
   const t = pickBundle(locale)
   const template = plural(blocked, t.hostDayUnavailableOne, t.hostDaysUnavailableOther)
   return template.replace('{host}', host).replace('{n}', String(blocked))
+}
+
+/** MultiDayStep gate reason naming a selected day that is no longer bookable. */
+export function dayNoLongerAvailableReason(dateLabel: string, locale?: string): string {
+  return pickBundle(locale).dayNoLongerAvailableReason.replace('{date}', dateLabel)
 }
 
 /** "1 day selected" / "N days selected" chip (MultiDayStep). */

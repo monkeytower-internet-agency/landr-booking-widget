@@ -976,6 +976,43 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
   // customer looked at goes stale before Confirm. Must read the same
   // customer-facing copy PriceSidebar shows pre-emptively, not a raw dump
   // of the detail object (which carries no useful info for a customer).
+  it('maps a 422 capacity_exceeded to localized text with a Change dates action (landr-f987a.1)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: { error: 'capacity_exceeded', message: 'Not enough capacity on 2026-10-18' },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/not enough space left/i),
+    )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).not.toMatch(/422|detail|\{/)
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
   it('maps a 422 un_priceable submit error to the shared customer-facing message', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(

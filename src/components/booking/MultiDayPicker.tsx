@@ -84,6 +84,12 @@ interface MultiDayPickerProps {
    * otherwise.
    */
   originalValueLabel?: string
+  /**
+   * landr-f987a.1: seeds the "N of <host>'s days are no longer available"
+   * notice when the caller already dropped unavailable host days (invite
+   * "Change dates"). Cleared on the first edit like a Reset notice.
+   */
+  initialDroppedCount?: number
 }
 
 
@@ -134,6 +140,7 @@ export function MultiDayPicker({
   onForcedDaysChange,
   originalValue,
   originalValueLabel,
+  initialDroppedCount,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -175,7 +182,7 @@ export function MultiDayPicker({
   // has happened yet (or the customer has edited the selection since —
   // cleared inside applyClick below), so the notice never lingers stale.
   const [resetDroppedCount, setResetDroppedCount] = useState<number | null>(
-    null,
+    initialDroppedCount ?? null,
   )
 
   const valueSet = useMemo(() => new Set(value.map(isoDate)), [value])
@@ -191,9 +198,14 @@ export function MultiDayPicker({
 
   // landr-aoak.2: the force-booked subset of the current selection — selected
   // days that have zero availability. Empty for every normal selection.
+  // landr-f987a.1: [] unless canForce — a customer (invite) session never
+  // force-books, so it must never carry or render operator-override state.
   const forcedDays = useMemo(
-    () => value.map(isoDate).filter((iso) => !availableSet.has(iso)).sort(),
-    [value, availableSet],
+    () =>
+      canForce
+        ? value.map(isoDate).filter((iso) => !availableSet.has(iso)).sort()
+        : [],
+    [value, availableSet, canForce],
   )
 
   // landr-t869m.5: the UNION of gate(s) bypassed across every forced day —
