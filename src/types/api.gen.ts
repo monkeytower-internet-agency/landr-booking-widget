@@ -12562,6 +12562,11 @@ export interface components {
             /** Seat Hold Hours */
             seat_hold_hours?: number | null;
             /**
+             * Seats Were Free
+             * @default true
+             */
+            seats_were_free: boolean;
+            /**
              * Widget Token
              * @default
              */
@@ -13591,6 +13596,11 @@ export interface components {
             guide_languages?: string[] | null;
             /** Images */
             images?: components["schemas"]["ProductImage"][];
+            /**
+             * Invite Hold Hours
+             * @default 24
+             */
+            invite_hold_hours: number;
             /** Name */
             name: string;
             /** Next Window End */

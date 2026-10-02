@@ -244,8 +244,8 @@ export interface Product {
    * (shop) kinds are always reported bookable by the API.
    */
   bookable?: boolean
-  /** Next API PR (public product payload, not yet generated): hours an invitee's seat is held (0 = off, absent = on). */
-  invite_hold_hours?: number
+  /** landr-f987a.10: hours an invitee's seat is held (0 = off). Optional only for older API deploys: absent = on. */
+  invite_hold_hours?: components['schemas']['OperatorProduct']['invite_hold_hours']
   /**
    * landr-d8rg, epic contract D: public URL of the product's primary
    * thumbnail image (first entry of images[] sorted by sort_order).
@@ -1147,10 +1147,11 @@ export interface InviteSummary {
   seat_hold_expires_at?: string | null
   seat_hold_hours?: number | null
   /**
-   * Next API PR (names fixed, not yet generated): false = the seats were NOT
-   * free when the host booked (requested only). Absent → treat as true.
+   * landr-f987a.10: false = the seats were NOT free when the host booked
+   * (requested only). Type from the generated InvitePrefillOut; optional only
+   * for older API deploys (absent → treat as true).
    */
-  seats_were_free?: boolean
+  seats_were_free?: components['schemas']['InvitePrefillOut']['seats_were_free']
 }
 
 /**
@@ -1384,8 +1385,7 @@ export interface InvitePrefill {
   /** landr-f987a.3 — same semantics as InviteSummary (live-only deadline, hours 0/null). */
   seat_hold_expires_at?: components['schemas']['InvitePrefillOut']['seat_hold_expires_at']
   seat_hold_hours?: components['schemas']['InvitePrefillOut']['seat_hold_hours']
-  /** Next API PR: see InviteSummary.seats_were_free. */
-  seats_were_free?: boolean
+  seats_were_free?: components['schemas']['InvitePrefillOut']['seats_were_free']
 }
 
 /**
