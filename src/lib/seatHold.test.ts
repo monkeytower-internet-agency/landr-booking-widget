@@ -16,6 +16,15 @@ describe('seatsNeeded', () => {
   })
 })
 
+describe('seatsNeeded with invite_hold_hours', () => {
+  const inv = [{ companion_kind: 'separate_guiding' as const }]
+  it('skips invitees when nothing is held (0), counts them when on or absent', () => {
+    expect(seatsNeeded(1, inv, 0)).toBe(1)
+    expect(seatsNeeded(1, inv, 24)).toBe(2)
+    expect(seatsNeeded(1, inv, undefined)).toBe(2)
+  })
+})
+
 describe('shortDays', () => {
   it('lists days that cannot take the party, sorted, with seats left', () => {
     const slots = [slot('2026-10-18', 3), slot('2026-10-17', 1), slot('2026-10-19', 0)]

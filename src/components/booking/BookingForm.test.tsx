@@ -1054,6 +1054,48 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(onChangeDates).toHaveBeenCalled()
   })
 
+  it('does not count invitees when invite_hold_hours is 0 (landr-f987a.6)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+    vi.mocked(getAvailability).mockClear()
+    vi.mocked(getAvailability).mockResolvedValueOnce([
+      { date: '2024-11-23', available_seats: 5 },
+      { date: '2024-11-24', available_seats: 1 },
+      { date: '2024-11-25', available_seats: 5 },
+    ] as never)
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{ ...makeServiceProduct('days_range'), invite_hold_hours: 0 }}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Matt',
+            last_name: '',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        inviteToken={undefined}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalled())
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
+    expect(vi.mocked(getAvailability)).not.toHaveBeenCalled()
+  })
+
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking
   // with 422 {"error":"un_priceable",...} — reachable if the estimate the
   // customer looked at goes stale before Confirm. Must read the same
