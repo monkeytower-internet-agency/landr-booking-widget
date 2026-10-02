@@ -2945,6 +2945,9 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            onChangeDates={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator
