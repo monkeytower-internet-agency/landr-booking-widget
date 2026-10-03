@@ -187,6 +187,45 @@
         "title": "ApiBudget",
         "type": "object"
       },
+      "AppliedRuleDetail": {
+        "properties": {
+          "partitions": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonPartition"
+            },
+            "title": "Partitions",
+            "type": "array"
+          }
+        },
+        "title": "AppliedRuleDetail",
+        "type": "object"
+      },
+      "AppliedRuleSeason": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedRuleDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AppliedRuleSeason",
+        "type": "object"
+      },
       "AppliedTemplatesOut": {
         "properties": {
           "created": {
@@ -13547,8 +13586,22 @@
       },
       "PricingBreakdownLineItem": {
         "additionalProperties": true,
-        "description": "One priced line \u2014 mirrors ``EstimateLineItem``'s wire shape (see\n``app/routers/public_operators.py``) minus the live-estimate-only\n``applied_rules`` trace.",
+        "description": "One priced line \u2014 mirrors ``EstimateLineItem``'s wire shape (see\n``app/routers/public_operators.py``) with only the season slice of the\n``applied_rules`` trace.",
         "properties": {
+          "applied_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AppliedRuleSeason"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Rules"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -13568,6 +13621,16 @@
           "qty": {
             "title": "Qty",
             "type": "integer"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "unit_price": {
             "title": "Unit Price",
@@ -21069,6 +21132,29 @@
         "title": "SeasonOut",
         "type": "object"
       },
+      "SeasonPartition": {
+        "properties": {
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SeasonPartition",
+        "type": "object"
+      },
       "SeasonPlanIn": {
         "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
         "properties": {
@@ -21116,6 +21202,31 @@
           "unit_ids"
         ],
         "title": "SeasonPlanRow",
+        "type": "object"
+      },
+      "SeasonRef": {
+        "description": "Season / own period that priced a line (landr-z59hw.1 trace).",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SeasonRef",
         "type": "object"
       },
       "SendMessageRequest": {
