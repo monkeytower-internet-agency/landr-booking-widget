@@ -9869,6 +9869,16 @@ export interface components {
             /** Used */
             used: number;
         };
+        /** AppliedRuleDetail */
+        AppliedRuleDetail: {
+            /** Partitions */
+            partitions?: components["schemas"]["SeasonPartition"][];
+        };
+        /** AppliedRuleSeason */
+        AppliedRuleSeason: {
+            detail?: components["schemas"]["AppliedRuleDetail"] | null;
+            season?: components["schemas"]["SeasonRef"] | null;
+        };
         /** AppliedTemplatesOut */
         AppliedTemplatesOut: {
             /**
@@ -14730,10 +14740,12 @@ export interface components {
         /**
          * PricingBreakdownLineItem
          * @description One priced line — mirrors ``EstimateLineItem``'s wire shape (see
-         *     ``app/routers/public_operators.py``) minus the live-estimate-only
+         *     ``app/routers/public_operators.py``) with only the season slice of the
          *     ``applied_rules`` trace.
          */
         PricingBreakdownLineItem: {
+            /** Applied Rules */
+            applied_rules?: components["schemas"]["AppliedRuleSeason"][] | null;
             /** Label */
             label: string;
             /** Line Total */
@@ -14744,6 +14756,7 @@ export interface components {
             product_id: string;
             /** Qty */
             qty: number;
+            season?: components["schemas"]["SeasonRef"] | null;
             /** Unit Price */
             unit_price: string;
             /** Units */
@@ -17345,6 +17358,12 @@ export interface components {
              */
             resources: components["schemas"]["FanOutResource"][];
         };
+        /** SeasonPartition */
+        SeasonPartition: {
+            /** Days */
+            days?: string[];
+            season?: components["schemas"]["SeasonRef"] | null;
+        };
         /**
          * SeasonPlanIn
          * @description ``PUT .../units/service-periods`` — the Season planner's whole draft,
@@ -17393,6 +17412,16 @@ export interface components {
             start_date: string;
             /** Unit Ids */
             unit_ids: string[];
+        };
+        /**
+         * SeasonRef
+         * @description Season / own period that priced a line (landr-z59hw.1 trace).
+         */
+        SeasonRef: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
         };
         /** SendMessageRequest */
         SendMessageRequest: {
