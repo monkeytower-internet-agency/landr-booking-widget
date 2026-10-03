@@ -3035,7 +3035,15 @@ function BookingFlowApp() {
           <>
             <Confirmation
               response={step.response}
-              onRestart={goToProductStep}
+              onRestart={() => {
+                // landr-wsttv: "Make another booking" after an invite booking
+                // is a fresh booking, not a second use of the invite — drop the
+                // invite so its banner, prefilled dates and invite_token do not
+                // ride along. (goToProductStep itself keeps it: "← All
+                // categories" mid-invite must not lose the invite.)
+                setInviteData(null)
+                goToProductStep()
+              }}
               isSharedDouble={step.isSharedDouble}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR

@@ -2741,6 +2741,16 @@ describe('App', () => {
         null,
         expect.anything(),
       )
+
+      // landr-wsttv: "Make another booking" starts a fresh booking — the
+      // invite banner (and the invite itself) must not come back.
+      fireEvent.click(
+        await screen.findByRole('button', { name: /make another booking/i }),
+      )
+      await waitFor(() =>
+        expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
     })
 
     it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
