@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import type { ForceReason } from '@/lib/strings'
+import { useStaffMode } from '@/lib/staffMode'
+import { formatDayLabel } from '@/components/booking/dateLabel'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -18,7 +20,9 @@ import { isDayBookable } from '@/components/booking/bookability'
 import { availabilityWindow } from '@/components/booking/calendarStart'
 import {
   availableDaysForLabel,
+  dayNoLongerAvailableReason,
   daysSelectedLabel,
+  seatsShortMessage,
   hostDaysUnavailableMessage,
   multiDayGate,
   sameDaysAsHostForLabel,
@@ -28,6 +32,7 @@ import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
+import { shortDays } from '@/lib/seatHold'
 
 interface Props {
   product: Product
@@ -71,6 +76,17 @@ interface Props {
    * the boot splash can stay up until this step has something to show.
    */
   onLoaded?: () => void
+  /**
+   * landr-f987a.4: the raw `?invite=<token>`; sent to the availability call so
+   * days covered by the invitee's live seat hold read as available.
+   */
+  inviteToken?: string
+  /**
+   * landr-f987a.4: seats the host's party needs on every day (guiding
+   * participants + invited separate_guiding companions) once known (e.g. after
+   * Back from the details step). Absent/1 → no party-size check here.
+   */
+  seatsNeeded?: number
 }
 
 // Stable empty reference for the availability prop while slots are still
@@ -92,6 +108,8 @@ export function MultiDayStep({
   originalDays,
   originalDaysLabel,
   onLoaded,
+  inviteToken,
+  seatsNeeded,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -106,6 +124,12 @@ export function MultiDayStep({
   // alongside an empty forcedDays.
   const [forcedReasons, setForcedReasons] = useState<ForceReason[]>([])
   const locale = browserLocale()
+  // landr-f987a.1: only a staff session with force_book may keep/pick a day
+  // with no availability; a customer (invite) session never can.
+  const staff = useStaffMode()
+  const canForce = staff.active && staff.powers.includes('force_book')
+  // How many host days "Change dates" dropped as no longer bookable.
+  const [droppedOnEdit, setDroppedOnEdit] = useState<number | undefined>(undefined)
 
   const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
 
@@ -122,23 +146,74 @@ export function MultiDayStep({
   // Host days that can no longer be booked (sold out / lead time passed).
   // "Continue with these dates" would 422, so the summary blocks it and
   // points at "Change dates". Empty until availability has loaded.
+  const bookableSet = useMemo(
+    () =>
+      slots === null
+        ? null
+        : new Set(
+            slots
+              .filter(
+                (s) =>
+                  s.available_seats > 0 && isDayBookable(s, product.hotel_offering),
+              )
+              .map((s) => s.date),
+          ),
+    [slots, product.hotel_offering],
+  )
   const unavailableOriginalDays = useMemo(() => {
-    if (!originalDays || slots === null) return []
-    const bookable = new Set(
-      slots
-        .filter(
-          (s) => s.available_seats > 0 && isDayBookable(s, product.hotel_offering),
-        )
-        .map((s) => s.date),
-    )
-    return originalDays.filter((iso) => !bookable.has(iso))
-  }, [originalDays, slots, product.hotel_offering])
+    if (!originalDays || bookableSet === null) return []
+    return originalDays.filter((iso) => !bookableSet.has(iso))
+  }, [originalDays, bookableSet])
+
+  // landr-f987a.1: selected days a customer can no longer book (sold out, lead
+  // time passed, or became unavailable after selection / Back nav). Staff with
+  // force_book may keep them, so this is [] for them.
+  const blockedSelectedDays = useMemo(() => {
+    if (canForce || bookableSet === null) return []
+    return selectedDays
+      .map(isoDate)
+      .filter((iso) => !bookableSet.has(iso))
+      .sort()
+  }, [canForce, bookableSet, selectedDays])
+
+  // landr-f987a.4: selected days that cannot take the whole party (host +
+  // invited companions). Staff with force_book may still push past it.
+  const shortSelectedDays = useMemo(() => {
+    if (canForce || slots === null || !seatsNeeded) return []
+    return shortDays(slots, selectedDays.map(isoDate), seatsNeeded)
+  }, [canForce, slots, seatsNeeded, selectedDays])
+
+  // "Change dates": drop every host day that is no longer bookable so the
+  // calendar opens on a selection the customer can actually submit. When
+  // availability has not loaded yet the drop is deferred (dropPending) and
+  // runs the moment it does (landr-f987a.7).
+  const [dropPending, setDropPending] = useState(false)
+  const dropUnbookable = (bookable: Set<string>) => {
+    const kept = selectedDays.filter((d) => bookable.has(isoDate(d)))
+    const dropped = selectedDays.length - kept.length
+    if (dropped > 0) {
+      setSelectedDays(kept)
+      setDroppedOnEdit(dropped)
+    }
+  }
+  const startEditing = () => {
+    if (!canForce) {
+      if (bookableSet !== null) dropUnbookable(bookableSet)
+      else setDropPending(true)
+    }
+    setEditing(true)
+  }
+  // Adjust-state-during-render: availability arrived after "Change dates".
+  if (dropPending && bookableSet !== null) {
+    setDropPending(false)
+    dropUnbookable(bookableSet)
+  }
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
-        const data = await getAvailability(product.product_id, fromIso, toIso)
+        const data = await getAvailability(product.product_id, fromIso, toIso, inviteToken)
         if (!cancelled) setSlots(data)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
@@ -147,7 +222,7 @@ export function MultiDayStep({
     return () => {
       cancelled = true
     }
-  }, [product.product_id, fromIso, toIso])
+  }, [product.product_id, fromIso, toIso, inviteToken])
 
   // Propagate live day selection up to App.tsx so PriceSidebar can show
   // a live price estimate before the user presses Continue (landr-w7pi).
@@ -193,7 +268,7 @@ export function MultiDayStep({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setEditing(true)}
+              onClick={startEditing}
             >
               {tr('changeDates', locale)}
             </Button>
@@ -230,6 +305,9 @@ export function MultiDayStep({
             default) takes over. */}
         <NextAction active={selectedDays.length === 0} cue={tr('multiDayPickerCue', locale)}>
           <MultiDayPicker
+            // initialDroppedCount is read once on mount; a late drop (availability
+            // arrived after "Change dates") remounts so the notice shows.
+            key={droppedOnEdit ?? 0}
             availability={slots ?? EMPTY_SLOTS}
             value={selectedDays}
             onChange={setSelectedDays}
@@ -242,6 +320,7 @@ export function MultiDayStep({
             hotelOffering={product.hotel_offering}
             originalValue={originalDays?.map(dateFromIso)}
             originalValueLabel={originalDaysLabel}
+            initialDroppedCount={droppedOnEdit}
           />
           {selectedDays.length > 0 ? (
             // landr-3mo4: selection count surfaced as a tinted chip (committed
@@ -252,8 +331,26 @@ export function MultiDayStep({
           ) : null}
         </NextAction>
         <ContinueAction
-          ready={selectedDays.length > 0}
-          reason={multiDayGate(selectedDays.length, locale)}
+          ready={
+            selectedDays.length > 0 &&
+            blockedSelectedDays.length === 0 &&
+            shortSelectedDays.length === 0
+          }
+          reason={
+            blockedSelectedDays.length > 0
+              ? dayNoLongerAvailableReason(
+                  formatDayLabel(blockedSelectedDays[0], locale),
+                  locale,
+                )
+              : shortSelectedDays.length > 0
+                ? seatsShortMessage(
+                    formatDayLabel(shortSelectedDays[0].date, locale),
+                    shortSelectedDays[0].left,
+                    shortSelectedDays[0].need,
+                    locale,
+                  )
+                : multiDayGate(selectedDays.length, locale)
+          }
           reasonId="multi-day-step-gate"
           onContinue={() =>
             onConfirm(

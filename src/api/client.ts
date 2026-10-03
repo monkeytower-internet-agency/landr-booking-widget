@@ -179,9 +179,16 @@ export async function getAvailability(
   productId: string,
   fromIso: string,
   toIso: string,
+  /**
+   * landr-f987a.4: invite token — with a live seat hold the API counts the
+   * held seat as available on the host's days. Invalid/expired → plain
+   * availability, so it is always safe to send.
+   */
+  inviteToken?: string,
 ): Promise<AvailabilitySlot[]> {
   if (mocksEnabled()) return mockAvailability(productId)
   const qs = new URLSearchParams({ from: fromIso, to: toIso })
+  if (inviteToken) qs.set('invite', inviteToken)
   return http<AvailabilitySlot[]>(
     `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
   )
@@ -285,6 +292,26 @@ export async function getHotelsForOperator(
 }
 
 /**
+ * Places usable for pickup: `place_roles` (landr-api `resources.place_roles`)
+ * contains 'pickup' (landr-lmudr.12). Used by PickupLocationPicker. Same
+ * client-side-filter pattern as `getHotelsForOperator` above, off the same
+ * shared `listLocations` call — the public locations RPC already returns
+ * place_roles and the catalogue is tiny, so a second RPC buys nothing.
+ *
+ * Replaces the previous behaviour of listing every location unfiltered
+ * (the widget never actually excluded hotels from the pickup step before
+ * this). A place can carry BOTH 'pickup' and be role_type.code === 'hotel'
+ * (Para42's Hotel Mirador) — it appears in both this list and
+ * `getHotelsForOperator`'s, independently.
+ */
+export async function listPickupLocationsForOperator(
+  operatorToken: string,
+): Promise<Location[]> {
+  const locations = await listLocations(operatorToken)
+  return locations.filter((loc) => (loc.place_roles ?? []).includes('pickup'))
+}
+
+/**
  * Hotel rooms (kind=hotel_room, hotel_location_id=hotelId) for a given
  * hotel under an operator (landr-vyaz). Filtered client-side off the
  * existing public_get_operator_products RPC — same rationale as
@@ -352,19 +379,53 @@ export async function getStaffFixedDateWindows(
   )
 }
 
+/** landr-api `_ADDON_STOCK_MAX_DAYS` / `_ADDON_STOCK_MAX_PARTICIPANTS`
+ * (app/routers/public_operators.py). */
+export const ADDON_STOCK_MAX_DAYS = 62
+export const ADDON_STOCK_MAX_PARTICIPANTS = 200
+
+/** Whether a stock verdict may be asked for (non-empty, within the API caps). */
+export function stockQueryAllowed(
+  stock?: { selectedDays: string[]; participants: number },
+): stock is { selectedDays: string[]; participants: number } {
+  if (!stock) return false
+  const days = new Set(stock.selectedDays).size
+  return (
+    days > 0 &&
+    days <= ADDON_STOCK_MAX_DAYS &&
+    stock.participants > 0 &&
+    stock.participants <= ADDON_STOCK_MAX_PARTICIPANTS
+  )
+}
+
 /**
  * Add-ons configured for a parent product (landr-cip6 / epic landr-ie8g).
  * Backed by GET /api/public/products/{id}/addons → SECURITY DEFINER RPC
  * public_get_product_addons. Returns an empty array when the parent has
  * no add-ons configured (or is itself hidden) — the widget treats empty
  * as "no add-ons UI to render".
+ *
+ * landr-lmudr.10: pass `stock` (the booking's service days + guiding
+ * participant count) to get a per-add-on stock verdict (`available` /
+ * `unavailable_reason`) — a rental add-on whose stock is used up on those
+ * days comes back `available: false`. Without it the list is date-free.
+ * Above the API's caps (ADDON_STOCK_MAX_DAYS / _PARTICIPANTS) the stock
+ * params are left off — the API would 422 and dead-end the step — so the
+ * add-ons render without a sold-out verdict.
  */
 export async function getProductAddons(
   productId: string,
+  stock?: { selectedDays: string[]; participants: number },
 ): Promise<ProductAddon[]> {
   if (mocksEnabled()) return mockProductAddons(productId)
+  const qs = new URLSearchParams()
+  if (stockQueryAllowed(stock)) {
+    for (const day of new Set(stock.selectedDays)) qs.append('selected_days', day)
+    qs.set('participants', String(stock.participants))
+  }
+  const query = qs.toString()
   return http<ProductAddon[]>(
-    `/api/public/products/${encodeURIComponent(productId)}/addons`,
+    `/api/public/products/${encodeURIComponent(productId)}/addons${query ? `?${query}` : ''}`,
   )
 }
 

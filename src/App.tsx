@@ -58,6 +58,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
+import { inviteBannerMessage, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -116,6 +117,8 @@ import {
   overrideBookingLocale,
   pickLocalized,
 } from '@/lib/locale'
+import { seatsNeeded } from '@/lib/seatHold'
+import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -1765,10 +1768,17 @@ function BookingFlowApp() {
             role="status"
           >
             <span>
-              You&rsquo;re joining {inviteData.host_display_name}&rsquo;s
-              booking (ref {inviteData.host_reference}). Dates and hotel are
-              prefilled — change anything that differs for you.
+              {inviteBannerMessage(
+                inviteData.host_display_name,
+                inviteData.host_reference,
+                inviteData.hotel_location_id !== null,
+                browserLocale(),
+              )}
             </span>
+            <InviteHoldNote
+              expiresAt={inviteData.seat_hold_expires_at}
+              hours={inviteData.seat_hold_hours}
+            />
           </div>
         ) : null}
 
@@ -1915,6 +1925,11 @@ function BookingFlowApp() {
             // (deep-link case); pickedGroupSlug handles the in-app navigation.
             productGroup={group ?? pickedGroupSlug ?? undefined}
             preselectSlug={product ?? undefined}
+            // landr-wwoap: a start=dates deep link lands on the date list,
+            // so say so while the catalogue fetch resolves the product.
+            preselectLoadingLabel={
+              startAtDates ? tr('loadingWindows', browserLocale()) : undefined
+            }
             // landr-7jgo: per-embed opt-in to show sold-out products as
             // "Fully booked" cards in the overview. Default false (hidden).
             // Ignored when a single-product deep link is in play (the deep
@@ -2060,6 +2075,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'time_slot' ? (
           <AvailabilityPicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={datePickerBack}
@@ -2129,6 +2145,18 @@ function BookingFlowApp() {
                 : undefined
             }
             originalDaysLabel={inviteData?.host_display_name}
+            // landr-f987a.4: invitee's token (live hold counts as available)
+            // and the host party's seat need once known (Back nav from details).
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            seatsNeeded={
+              bookingDraft.participants && bookingDraft.participants.length > 0
+                ? seatsNeeded(
+                    bookingDraft.participants.length,
+                    bookingDraft.companions,
+                    step.product.invite_hold_hours,
+                  )
+                : undefined
+            }
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -2149,6 +2177,7 @@ function BookingFlowApp() {
         step.product.service_time_shape === 'single_date' ? (
           <SingleDatePicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
@@ -2397,6 +2426,14 @@ function BookingFlowApp() {
         {step.name === 'pick-service-addons' ? (
           <ServiceAddonsStep
             product={step.product}
+            // landr-lmudr.10: the booking's service days + guiding party
+            // size, so a stock-limited (rental) add-on shows sold out.
+            selectedDays={
+              step.selection.kind === 'slot'
+                ? [step.selection.slot.date]
+                : step.selection.selectedDays
+            }
+            participantCount={step.participants.length}
             // landr-yf0n: thread prior add-on selections back so the
             // step re-mounts with the customer's choices restored
             // instead of resetting to the min_qty seed.
@@ -2937,6 +2974,9 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            onChangeDates={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator
@@ -2995,7 +3035,15 @@ function BookingFlowApp() {
           <>
             <Confirmation
               response={step.response}
-              onRestart={goToProductStep}
+              onRestart={() => {
+                // landr-wsttv: "Make another booking" after an invite booking
+                // is a fresh booking, not a second use of the invite — drop the
+                // invite so its banner, prefilled dates and invite_token do not
+                // ride along. (goToProductStep itself keeps it: "← All
+                // categories" mid-invite must not lose the invite.)
+                setInviteData(null)
+                goToProductStep()
+              }}
               isSharedDouble={step.isSharedDouble}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR

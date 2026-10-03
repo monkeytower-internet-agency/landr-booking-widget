@@ -512,3 +512,38 @@ describe('AddonsList — German UI (landr-5aih0.27)', () => {
     expect(screen.queryByRole('button', { name: /Decrease|Increase/ })).not.toBeInTheDocument()
   })
 })
+
+// landr-lmudr.32 / .19 — stock by quantity, whole-unit wording.
+describe('AddonsList stock (landr-lmudr.32 / .19)', () => {
+  it('stops the stepper at the stock left and says how many remain', () => {
+    const addon = makeAddon({
+      addon_product_id: 'vest',
+      name: 'Vest rental',
+      max_qty: 4,
+      available: true,
+      stock_remaining: 2,
+    })
+    render(<AddonsList addons={[addon]} selection={{ vest: 2 }} onChange={vi.fn()} expectedQty={1} />)
+    expect(screen.getByRole('button', { name: /Increase/ })).toBeDisabled()
+    expect(screen.getByTestId('addon-stock-left-vest')).toHaveTextContent(
+      'Only 2 left for your dates.',
+    )
+    expect(screen.queryByTestId('addon-sold-out-vest')).toBeNull()
+  })
+
+  it('a taken whole unit reads "reserved for another group"', () => {
+    const addon = makeAddon({
+      addon_product_id: 'raft',
+      name: 'Private raft',
+      available: false,
+      unavailable_reason: 'unit_taken',
+      stock_unit_label: 'Raft',
+      stock_remaining: 0,
+    })
+    render(<AddonsList addons={[addon]} selection={{}} onChange={vi.fn()} expectedQty={1} />)
+    expect(screen.getByTestId('addon-sold-out-raft')).toHaveTextContent(
+      'Raft: fully reserved for another group on your dates.',
+    )
+    expect(screen.getByRole('button', { name: /Increase/ })).toBeDisabled()
+  })
+})

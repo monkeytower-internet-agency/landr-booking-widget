@@ -135,14 +135,16 @@ export function emptyBooker(): BookerDetails {
 }
 
 /** Empty companion scaffold for a freshly-added "Others joining" row. */
-export function emptyCompanion(): CompanionDetails {
+export function emptyCompanion(
+  kind: CompanionDetails['companion_kind'] = 'guest',
+): CompanionDetails {
   return {
     id: newMemberId(),
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
-    companion_kind: 'guest',
+    companion_kind: kind,
   }
 }
 

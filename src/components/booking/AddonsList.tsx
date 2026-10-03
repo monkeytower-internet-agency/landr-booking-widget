@@ -5,6 +5,9 @@ import { addonDeviationMessage, qtyAdjustAriaLabel, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import {
   clampAddonQty,
+  addonStockCeiling,
+  addonUnavailableMessage,
+  isAddonSoldOut,
   isOverbooked,
   requiredAddonError,
 } from './addonsState'
@@ -117,7 +120,15 @@ export function AddonsList({
         const requiredError = requiredAddonError(addon, qty, locale)
         // landr-yybu: + disabled at the occupancy cap (room-linked add-ons)
         // OR the add-on's own max_qty, whichever binds first.
+        // landr-lmudr.10: a sold-out (stock-limited) add-on can't be added.
+        const soldOut = isAddonSoldOut(addon)
+        // landr-lmudr.32: stock is counted by quantity — the stepper stops
+        // at what is left on the chosen days.
+        const stockCeiling = addonStockCeiling(addon)
+        const atStock = !soldOut && Number.isFinite(stockCeiling) && qty >= stockCeiling
         const atMax =
+          soldOut ||
+          atStock ||
           (occupancyCap !== undefined && qty >= occupancyCap) ||
           (addon.max_qty !== null && qty >= addon.max_qty)
 
@@ -188,6 +199,22 @@ export function AddonsList({
                 </Button>
               </div>
             </div>
+            {soldOut ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid={`addon-sold-out-${addon.addon_product_id}`}
+              >
+                {addonUnavailableMessage(addon, locale)}
+              </p>
+            ) : null}
+            {atStock && qty > 0 && (addon.max_qty === null || stockCeiling < addon.max_qty) ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid={`addon-stock-left-${addon.addon_product_id}`}
+              >
+                {tr('addonStockLeftTemplate', locale).replace('{n}', String(stockCeiling))}
+              </p>
+            ) : null}
             {deviation === 'over' ? (
               <p
                 className="rounded-sm border border-orange-300 bg-orange-50 px-2 py-1 text-xs text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-100"
