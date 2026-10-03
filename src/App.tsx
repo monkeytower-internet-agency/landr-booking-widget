@@ -2102,13 +2102,17 @@ function BookingFlowApp() {
             initialWindowId={
               step.selection?.kind === 'slot'
                 ? (step.selection.slot.availability_id ?? undefined)
-                : undefined
+                : step.selection?.kind === 'days'
+                  ? step.selection.fixedDateWindowId
+                  : undefined
             }
             onConfirm={(_slot, window, forced, forcedReasons) => {
               const days = expandWindowDays(window)
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays: days,
+                // landr-my6fc.7: remember WHICH course window (windows may overlap).
+                fixedDateWindowId: window.id,
                 // landr-aoak.2/t869m.5: a force-booked blocked window marks
                 // ALL its days as forced (so the submit adapter raises
                 // ignore_capacity) and carries WHICH gate(s) it bypassed.
