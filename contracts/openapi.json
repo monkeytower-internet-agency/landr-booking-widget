@@ -2215,6 +2215,145 @@
         "title": "BriefingPushSubscription",
         "type": "object"
       },
+      "BulkAdjustIn": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "op": {
+            "$ref": "#/components/schemas/BulkAdjustOpIn"
+          },
+          "preview_token": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Token"
+          },
+          "product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product_ids",
+          "columns",
+          "op"
+        ],
+        "title": "BulkAdjustIn",
+        "type": "object"
+      },
+      "BulkAdjustOpIn": {
+        "properties": {
+          "percent": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": -100.0,
+                "maximum": 1000.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "round_mode": {
+            "default": "nearest",
+            "enum": [
+              "nearest",
+              "up"
+            ],
+            "title": "Round Mode",
+            "type": "string"
+          },
+          "round_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round To"
+          }
+        },
+        "title": "BulkAdjustOpIn",
+        "type": "object"
+      },
+      "BulkAdjustOut": {
+        "properties": {
+          "changed_amount_count": {
+            "default": 0,
+            "title": "Changed Amount Count",
+            "type": "integer"
+          },
+          "changed_list_count": {
+            "default": 0,
+            "title": "Changed List Count",
+            "type": "integer"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListChangeOut"
+            },
+            "title": "Lists",
+            "type": "array"
+          },
+          "preview_token": {
+            "title": "Preview Token",
+            "type": "string"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListSkippedOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dry_run",
+          "preview_token"
+        ],
+        "title": "BulkAdjustOut",
+        "type": "object"
+      },
       "BulkReminderIn": {
         "properties": {
           "booking_ids": {
@@ -12607,6 +12746,267 @@
         "title": "PreviewMigrationsResponse",
         "type": "object"
       },
+      "PriceAmountChangeOut": {
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "rule_index": {
+            "title": "Rule Index",
+            "type": "integer"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "threshold_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Max"
+          },
+          "threshold_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Min"
+          },
+          "tier_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier Index"
+          }
+        },
+        "required": [
+          "rule_index",
+          "rule_kind",
+          "field",
+          "before",
+          "after",
+          "changed"
+        ],
+        "title": "PriceAmountChangeOut",
+        "type": "object"
+      },
+      "PriceCellOut": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceHeadlineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule_count": {
+            "default": 0,
+            "title": "Rule Count",
+            "type": "integer"
+          },
+          "scheme_id": {
+            "title": "Scheme Id",
+            "type": "string"
+          },
+          "simple": {
+            "title": "Simple",
+            "type": "boolean"
+          },
+          "tree": {
+            "$ref": "#/components/schemas/PriceListOut"
+          }
+        },
+        "required": [
+          "scheme_id",
+          "simple",
+          "tree"
+        ],
+        "title": "PriceCellOut",
+        "type": "object"
+      },
+      "PriceCellPatchIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "maximum": 9999999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "season_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
+          }
+        },
+        "required": [
+          "product_id",
+          "amount"
+        ],
+        "title": "PriceCellPatchIn",
+        "type": "object"
+      },
+      "PriceCellPatchOut": {
+        "properties": {
+          "cell": {
+            "$ref": "#/components/schemas/PriceCellOut"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "column",
+          "cell"
+        ],
+        "title": "PriceCellPatchOut",
+        "type": "object"
+      },
+      "PriceHeadlineOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "from": {
+            "title": "From",
+            "type": "boolean"
+          },
+          "per_participant": {
+            "default": false,
+            "title": "Per Participant",
+            "type": "boolean"
+          },
+          "unit": {
+            "enum": [
+              "per_person",
+              "per_day",
+              "total"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "unit",
+          "from"
+        ],
+        "title": "PriceHeadlineOut",
+        "type": "object"
+      },
+      "PriceListChangeOut": {
+        "properties": {
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/PriceAmountChangeOut"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "season_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Name"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "column",
+          "changed"
+        ],
+        "title": "PriceListChangeOut",
+        "type": "object"
+      },
       "PriceListIn": {
         "description": "One price list (a pricing scheme tree). ``name`` defaults to the\nproduct's name (standard) or \"<product> \u2014 <season>\" (period). Extra keys\n(ids, timestamps \u2014 e.g. a tree sent back as GET returned it) are ignored.",
         "properties": {
@@ -12747,6 +13147,49 @@
           "currency"
         ],
         "title": "PriceListOut",
+        "type": "object"
+      },
+      "PriceListSkippedOut": {
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "no_price",
+              "standard_used"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "season_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Name"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "column",
+          "reason"
+        ],
+        "title": "PriceListSkippedOut",
         "type": "object"
       },
       "PriceOverrideIn": {
@@ -12954,6 +13397,152 @@
           "threshold_min"
         ],
         "title": "PriceTierOut",
+        "type": "object"
+      },
+      "PricesCategoryOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricesCategoryOut",
+        "type": "object"
+      },
+      "PricesMatrixOut": {
+        "properties": {
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PricesProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/PricingSeasonRefOut"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "title": "PricesMatrixOut",
+        "type": "object"
+      },
+      "PricesOwnPeriodOut": {
+        "properties": {
+          "cell": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceCellOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "season": {
+            "$ref": "#/components/schemas/PricingSeasonRefOut"
+          }
+        },
+        "required": [
+          "season"
+        ],
+        "title": "PricesOwnPeriodOut",
+        "type": "object"
+      },
+      "PricesProductOut": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PricesCategoryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cells": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PriceCellOut"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Cells",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_publicly_listed": {
+            "default": false,
+            "title": "Is Publicly Listed",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "own_periods": {
+            "items": {
+              "$ref": "#/components/schemas/PricesOwnPeriodOut"
+            },
+            "title": "Own Periods",
+            "type": "array"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricesProductOut",
         "type": "object"
       },
       "PricingBreakdownLineItem": {
@@ -19716,6 +20305,425 @@
           "generated_at"
         ],
         "title": "RevenueOverview",
+        "type": "object"
+      },
+      "RollForwardConditionShiftOut": {
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "rule_index": {
+            "title": "Rule Index",
+            "type": "integer"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_index",
+          "rule_kind",
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "RollForwardConditionShiftOut",
+        "type": "object"
+      },
+      "RollForwardConflictOut": {
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "RollForwardConflictOut",
+        "type": "object"
+      },
+      "RollForwardEasterOut": {
+        "properties": {
+          "from_date": {
+            "format": "date",
+            "title": "From Date",
+            "type": "string"
+          },
+          "shift_days": {
+            "title": "Shift Days",
+            "type": "integer"
+          },
+          "to_date": {
+            "format": "date",
+            "title": "To Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_date",
+          "to_date",
+          "shift_days"
+        ],
+        "title": "RollForwardEasterOut",
+        "type": "object"
+      },
+      "RollForwardIn": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "from_year": {
+            "maximum": 2200.0,
+            "minimum": 2000.0,
+            "title": "From Year",
+            "type": "integer"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": -100.0,
+                "maximum": 1000.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "preview_token": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Token"
+          },
+          "round_mode": {
+            "default": "nearest",
+            "enum": [
+              "nearest",
+              "up"
+            ],
+            "title": "Round Mode",
+            "type": "string"
+          },
+          "round_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round To"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          },
+          "season_overrides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RollForwardOverrideIn"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Season Overrides",
+            "type": "object"
+          },
+          "to_year": {
+            "maximum": 2200.0,
+            "minimum": 2000.0,
+            "title": "To Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_year",
+          "to_year"
+        ],
+        "title": "RollForwardIn",
+        "type": "object"
+      },
+      "RollForwardOut": {
+        "properties": {
+          "can_apply": {
+            "title": "Can Apply",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "easter": {
+            "$ref": "#/components/schemas/RollForwardEasterOut"
+          },
+          "from_year": {
+            "title": "From Year",
+            "type": "integer"
+          },
+          "preview_token": {
+            "title": "Preview Token",
+            "type": "string"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardPriceOut"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardSeasonOut"
+            },
+            "title": "Seasons",
+            "type": "array"
+          },
+          "to_year": {
+            "title": "To Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_year",
+          "to_year",
+          "dry_run",
+          "can_apply",
+          "preview_token",
+          "easter"
+        ],
+        "title": "RollForwardOut",
+        "type": "object"
+      },
+      "RollForwardOverrideIn": {
+        "description": "Per source season: dates and/or a name instead of the suggestion.\nDates come as a pair (both or neither).",
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "title": "RollForwardOverrideIn",
+        "type": "object"
+      },
+      "RollForwardPriceOut": {
+        "properties": {
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/PriceAmountChangeOut"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "conditions_shifted": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardConditionShiftOut"
+            },
+            "title": "Conditions Shifted",
+            "type": "array"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "source_season_id": {
+            "title": "Source Season Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "source_season_id"
+        ],
+        "title": "RollForwardPriceOut",
+        "type": "object"
+      },
+      "RollForwardSeasonOut": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardConflictOut"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "date_rule": {
+            "enum": [
+              "easter",
+              "same_day",
+              "override"
+            ],
+            "title": "Date Rule",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "name_overridden": {
+            "default": false,
+            "title": "Name Overridden",
+            "type": "boolean"
+          },
+          "price_count": {
+            "default": 0,
+            "title": "Price Count",
+            "type": "integer"
+          },
+          "source_ends_on": {
+            "format": "date",
+            "title": "Source Ends On",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "source_season_id": {
+            "title": "Source Season Id",
+            "type": "string"
+          },
+          "source_starts_on": {
+            "format": "date",
+            "title": "Source Starts On",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_season_id",
+          "source_name",
+          "source_starts_on",
+          "source_ends_on",
+          "name",
+          "starts_on",
+          "ends_on",
+          "date_rule"
+        ],
+        "title": "RollForwardSeasonOut",
         "type": "object"
       },
       "SavedViewIn": {
@@ -42050,6 +43058,170 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/prices": {
+      "get": {
+        "description": "The Prices page: one row per product (ordered by sort_order, then\nname), one column for the standard price and one per shared season.\n\nA cell is ``{scheme_id, simple, headline, rule_count, tree}`` or null\n(no price: for \"standard\" the product is not priced, for a season the\nstandard price applies). ``simple`` cells can be edited in place with\nPATCH /prices/cell. Own periods are listed per product. Loaded in a\nfixed number of queries whatever the number of products.",
+        "operationId": "prices_matrix_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricesMatrixOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Prices Matrix",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/prices/bulk-adjust": {
+      "post": {
+        "description": "Raise / lower / round every AMOUNT in the chosen cells: rule amounts\n(per_day_base, fixed_total, time_of_day_surcharge, manual_override) and\ntier amounts. Discounts (percentage_discount, flat_discount) and inactive\nrules stay untouched. ``op.percent`` first (cents, half-up), then\n``op.round_to`` (0.5 / 1 / 5 / 10; ``round_mode`` nearest or up).\n\nReturns before/after for every amount of every list. ``dry_run=true``\n(the default) writes nothing; ``dry_run=false`` writes every changed\nlist in ONE transaction and returns the same diff. A season without a\nprice for a product is skipped (``standard_used``). 409\n``prices_changed`` when a list was edited elsewhere meanwhile.",
+        "operationId": "prices_bulk_adjust",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAdjustIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkAdjustOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Adjust Prices",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/prices/cell": {
+      "patch": {
+        "description": "Set the one amount of a SIMPLE cell. ``season_id`` null = the\nstandard price. A season cell without a price is created as a copy of\nthe product's standard price with the new amount (the standard must be\nsimple then). 422 ``not_simple`` when the list has several amounts or\nrules that set the price \u2014 edit it in the product's Price tab;\n``no_price`` when the product has no standard price yet.",
+        "operationId": "prices_cell_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceCellPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceCellPatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Price Cell",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
       "delete": {
         "operationId": "pricing_delete_rule",
@@ -51256,6 +52428,64 @@
           }
         ],
         "summary": "Create Season",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/seasons/roll-forward": {
+      "post": {
+        "description": "Copy the shared seasons that start in ``from_year`` to ``to_year``,\nwith every product's price for them (optionally raised by ``percent``\nand rounded like bulk-adjust). Own periods are not copied.\n\nSuggested dates: a season containing Easter Sunday of ``from_year``\nmoves with Easter; every other season keeps its month and day.\n``season_overrides`` replaces the suggestion per source season. A \"2027\"\nin a season name becomes \"2028\".\n\n``dry_run=true`` (the default) returns the proposal, each season's\noverlaps with existing seasons (or with another proposed one) in\n``conflicts`` and ``can_apply``. ``dry_run=false`` writes it all in ONE\ntransaction and returns the same proposal \u2014 or 409 ``season_overlap``\nwhen a proposed season overlaps, 422 ``nothing_to_roll`` when there is\nnothing to copy, 409 ``prices_changed`` when a source price was edited\nmeanwhile.",
+        "operationId": "pricing_seasons_roll_forward",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollForwardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollForwardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Roll Forward Seasons",
         "tags": [
           "staff-product-pricing"
         ]
