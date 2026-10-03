@@ -6498,6 +6498,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prices Matrix
+         * @description The Prices page: one row per product (ordered by sort_order, then
+         *     name), one column for the standard price and one per shared season.
+         *
+         *     A cell is ``{scheme_id, simple, headline, rule_count, tree}`` or null
+         *     (no price: for "standard" the product is not priced, for a season the
+         *     standard price applies). ``simple`` cells can be edited in place with
+         *     PATCH /prices/cell. Own periods are listed per product. Loaded in a
+         *     fixed number of queries whatever the number of products.
+         */
+        get: operations["prices_matrix_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/prices/bulk-adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Adjust Prices
+         * @description Raise / lower / round every AMOUNT in the chosen cells: rule amounts
+         *     (per_day_base, fixed_total, time_of_day_surcharge, manual_override) and
+         *     tier amounts. Discounts (percentage_discount, flat_discount) and inactive
+         *     rules stay untouched. ``op.percent`` first (cents, half-up), then
+         *     ``op.round_to`` (0.5 / 1 / 5 / 10; ``round_mode`` nearest or up).
+         *
+         *     Returns before/after for every amount of every list. ``dry_run=true``
+         *     (the default) writes nothing; ``dry_run=false`` writes every changed
+         *     list in ONE transaction and returns the same diff. A season without a
+         *     price for a product is skipped (``standard_used``). 409
+         *     ``prices_changed`` when a list was edited elsewhere meanwhile.
+         */
+        post: operations["prices_bulk_adjust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/prices/cell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Price Cell
+         * @description Set the one amount of a SIMPLE cell. ``season_id`` null = the
+         *     standard price. A season cell without a price is created as a copy of
+         *     the product's standard price with the new amount (the standard must be
+         *     simple then). 422 ``not_simple`` when the list has several amounts or
+         *     rules that set the price — edit it in the product's Price tab;
+         *     ``no_price`` when the product has no standard price yet.
+         */
+        patch: operations["prices_cell_patch"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
         parameters: {
             query?: never;
@@ -8836,6 +8918,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/seasons/roll-forward": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll Forward Seasons
+         * @description Copy the shared seasons that start in ``from_year`` to ``to_year``,
+         *     with every product's price for them (optionally raised by ``percent``
+         *     and rounded like bulk-adjust). Own periods are not copied.
+         *
+         *     Suggested dates: a season containing Easter Sunday of ``from_year``
+         *     moves with Easter; every other season keeps its month and day.
+         *     ``season_overrides`` replaces the suggestion per source season. A "2027"
+         *     in a season name becomes "2028".
+         *
+         *     ``dry_run=true`` (the default) returns the proposal, each season's
+         *     overlaps with existing seasons (or with another proposed one) in
+         *     ``conflicts`` and ``can_apply``. ``dry_run=false`` writes it all in ONE
+         *     transaction and returns the same proposal — or 409 ``season_overlap``
+         *     when a proposed season overlaps, 422 ``nothing_to_roll`` when there is
+         *     nothing to copy, 409 ``prices_changed`` when a source price was edited
+         *     meanwhile.
+         */
+        post: operations["pricing_seasons_roll_forward"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/seasons/{season_id}": {
         parameters: {
             query?: never;
@@ -10667,6 +10784,55 @@ export interface components {
             /** Expirationtime */
             expirationTime?: number | null;
             keys: components["schemas"]["BriefingPushKeys"];
+        };
+        /** BulkAdjustIn */
+        BulkAdjustIn: {
+            /** Columns */
+            columns: string[];
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            op: components["schemas"]["BulkAdjustOpIn"];
+            /** Preview Token */
+            preview_token?: string | null;
+            /** Product Ids */
+            product_ids: string[];
+        };
+        /** BulkAdjustOpIn */
+        BulkAdjustOpIn: {
+            /** Percent */
+            percent?: number | string | null;
+            /**
+             * Round Mode
+             * @default nearest
+             * @enum {string}
+             */
+            round_mode: "nearest" | "up";
+            /** Round To */
+            round_to?: number | string | null;
+        };
+        /** BulkAdjustOut */
+        BulkAdjustOut: {
+            /**
+             * Changed Amount Count
+             * @default 0
+             */
+            changed_amount_count: number;
+            /**
+             * Changed List Count
+             * @default 0
+             */
+            changed_list_count: number;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Lists */
+            lists?: components["schemas"]["PriceListChangeOut"][];
+            /** Preview Token */
+            preview_token: string;
+            /** Skipped */
+            skipped?: components["schemas"]["PriceListSkippedOut"][];
         };
         /** BulkReminderIn */
         BulkReminderIn: {
@@ -14269,6 +14435,95 @@ export interface components {
             /** Ref */
             ref?: string | null;
         };
+        /** PriceAmountChangeOut */
+        PriceAmountChangeOut: {
+            /** After */
+            after: string;
+            /** Before */
+            before: string;
+            /** Changed */
+            changed: boolean;
+            /** Field */
+            field: string;
+            /** Rule Index */
+            rule_index: number;
+            /** Rule Kind */
+            rule_kind: string;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Threshold Max */
+            threshold_max?: number | null;
+            /** Threshold Min */
+            threshold_min?: number | null;
+            /** Tier Index */
+            tier_index?: number | null;
+        };
+        /** PriceCellOut */
+        PriceCellOut: {
+            headline?: components["schemas"]["PriceHeadlineOut"] | null;
+            /**
+             * Rule Count
+             * @default 0
+             */
+            rule_count: number;
+            /** Scheme Id */
+            scheme_id: string;
+            /** Simple */
+            simple: boolean;
+            tree: components["schemas"]["PriceListOut"];
+        };
+        /** PriceCellPatchIn */
+        PriceCellPatchIn: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Season Id */
+            season_id?: string | null;
+        };
+        /** PriceCellPatchOut */
+        PriceCellPatchOut: {
+            cell: components["schemas"]["PriceCellOut"];
+            /** Column */
+            column: string;
+            /** Product Id */
+            product_id: string;
+        };
+        /** PriceHeadlineOut */
+        PriceHeadlineOut: {
+            /** Amount */
+            amount: string;
+            /** From */
+            from: boolean;
+            /**
+             * Per Participant
+             * @default false
+             */
+            per_participant: boolean;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "per_person" | "per_day" | "total";
+        };
+        /** PriceListChangeOut */
+        PriceListChangeOut: {
+            /** Amounts */
+            amounts?: components["schemas"]["PriceAmountChangeOut"][];
+            /** Changed */
+            changed: boolean;
+            /** Column */
+            column: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Season Name */
+            season_name?: string | null;
+        };
         /**
          * PriceListIn
          * @description One price list (a pricing scheme tree). ``name`` defaults to the
@@ -14339,6 +14594,22 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** PriceListSkippedOut */
+        PriceListSkippedOut: {
+            /** Column */
+            column: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "no_price" | "standard_used";
+            /** Season Name */
+            season_name?: string | null;
+        };
         /** PriceOverrideIn */
         PriceOverrideIn: {
             /** Override Gross Total */
@@ -14403,6 +14674,58 @@ export interface components {
             threshold_min: number;
         } & {
             [key: string]: unknown;
+        };
+        /** PricesCategoryOut */
+        PricesCategoryOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PricesMatrixOut */
+        PricesMatrixOut: {
+            /** Products */
+            products?: components["schemas"]["PricesProductOut"][];
+            /** Seasons */
+            seasons?: components["schemas"]["PricingSeasonRefOut"][];
+        };
+        /** PricesOwnPeriodOut */
+        PricesOwnPeriodOut: {
+            cell?: components["schemas"]["PriceCellOut"] | null;
+            season: components["schemas"]["PricingSeasonRefOut"];
+        };
+        /** PricesProductOut */
+        PricesProductOut: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            category?: components["schemas"]["PricesCategoryOut"] | null;
+            /** Cells */
+            cells?: {
+                [key: string]: components["schemas"]["PriceCellOut"] | null;
+            };
+            /** Id */
+            id: string;
+            /**
+             * Is Publicly Listed
+             * @default false
+             */
+            is_publicly_listed: boolean;
+            /** Name */
+            name: string;
+            /** Own Periods */
+            own_periods?: components["schemas"]["PricesOwnPeriodOut"][];
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
         };
         /**
          * PricingBreakdownLineItem
@@ -16688,6 +17011,175 @@ export interface components {
             projected_total: number;
             /** Realized Total */
             realized_total: number;
+        };
+        /** RollForwardConditionShiftOut */
+        RollForwardConditionShiftOut: {
+            /** After */
+            after: string;
+            /** Before */
+            before: string;
+            /** Field */
+            field: string;
+            /** Rule Index */
+            rule_index: number;
+            /** Rule Kind */
+            rule_kind: string;
+        };
+        /** RollForwardConflictOut */
+        RollForwardConflictOut: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /** RollForwardEasterOut */
+        RollForwardEasterOut: {
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /** Shift Days */
+            shift_days: number;
+            /**
+             * To Date
+             * Format: date
+             */
+            to_date: string;
+        };
+        /** RollForwardIn */
+        RollForwardIn: {
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /** From Year */
+            from_year: number;
+            /** Percent */
+            percent?: number | string | null;
+            /** Preview Token */
+            preview_token?: string | null;
+            /**
+             * Round Mode
+             * @default nearest
+             * @enum {string}
+             */
+            round_mode: "nearest" | "up";
+            /** Round To */
+            round_to?: number | string | null;
+            /** Season Ids */
+            season_ids?: string[] | null;
+            /** Season Overrides */
+            season_overrides?: {
+                [key: string]: components["schemas"]["RollForwardOverrideIn"];
+            };
+            /** To Year */
+            to_year: number;
+        };
+        /** RollForwardOut */
+        RollForwardOut: {
+            /** Can Apply */
+            can_apply: boolean;
+            /** Dry Run */
+            dry_run: boolean;
+            easter: components["schemas"]["RollForwardEasterOut"];
+            /** From Year */
+            from_year: number;
+            /** Preview Token */
+            preview_token: string;
+            /** Prices */
+            prices?: components["schemas"]["RollForwardPriceOut"][];
+            /** Seasons */
+            seasons?: components["schemas"]["RollForwardSeasonOut"][];
+            /** To Year */
+            to_year: number;
+        };
+        /**
+         * RollForwardOverrideIn
+         * @description Per source season: dates and/or a name instead of the suggestion.
+         *     Dates come as a pair (both or neither).
+         */
+        RollForwardOverrideIn: {
+            /** Ends On */
+            ends_on?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Starts On */
+            starts_on?: string | null;
+        };
+        /** RollForwardPriceOut */
+        RollForwardPriceOut: {
+            /** Amounts */
+            amounts?: components["schemas"]["PriceAmountChangeOut"][];
+            /** Conditions Shifted */
+            conditions_shifted?: components["schemas"]["RollForwardConditionShiftOut"][];
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Source Season Id */
+            source_season_id: string;
+        };
+        /** RollForwardSeasonOut */
+        RollForwardSeasonOut: {
+            /** Conflicts */
+            conflicts?: components["schemas"]["RollForwardConflictOut"][];
+            /**
+             * Date Rule
+             * @enum {string}
+             */
+            date_rule: "easter" | "same_day" | "override";
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Name Overridden
+             * @default false
+             */
+            name_overridden: boolean;
+            /**
+             * Price Count
+             * @default 0
+             */
+            price_count: number;
+            /**
+             * Source Ends On
+             * Format: date
+             */
+            source_ends_on: string;
+            /** Source Name */
+            source_name: string;
+            /** Source Season Id */
+            source_season_id: string;
+            /**
+             * Source Starts On
+             * Format: date
+             */
+            source_starts_on: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
         };
         /**
          * SavedViewIn
@@ -28910,6 +29402,107 @@ export interface operations {
             };
         };
     };
+    prices_matrix_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesMatrixOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prices_bulk_adjust: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAdjustIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkAdjustOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prices_cell_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceCellPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceCellPatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pricing_delete_rule: {
         parameters: {
             query?: {
@@ -33688,6 +34281,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PricingSeasonOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_seasons_roll_forward: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollForwardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RollForwardOut"];
                 };
             };
             /** @description Validation Error */
