@@ -5217,6 +5217,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contacts/booking-overlaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contact Booking Overlaps */
+        get: operations["contact_booking_overlaps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contacts/booking-overlaps/staff-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contact Booking Overlaps Staff Session
+         * @description Widget (staff_session) twin of the JWT route above. The operator used
+         *     for the lookup is the VERIFIED session's, never a client-supplied one; a
+         *     session for another operator than the path is a 403.
+         */
+        get: operations["contact_booking_overlaps_staff_session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
         parameters: {
             query?: never;
@@ -10143,6 +10182,27 @@ export interface components {
             id: string;
             /** Operator Id */
             operator_id: string;
+        };
+        /** BookingOverlap */
+        BookingOverlap: {
+            /** Booking Id */
+            booking_id: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Reference */
+            reference: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /** Status */
+            status: string;
         };
         /** BookingPatch */
         BookingPatch: {
@@ -25811,6 +25871,81 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contact_booking_overlaps: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+                email?: string | null;
+                contact_id?: string | null;
+                exclude_booking_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOverlap"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contact_booking_overlaps_staff_session: {
+        parameters: {
+            query: {
+                staff_session: string;
+                start: string;
+                end: string;
+                email?: string | null;
+                contact_id?: string | null;
+                exclude_booking_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOverlap"][];
                 };
             };
             /** @description Validation Error */
