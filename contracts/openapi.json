@@ -5929,6 +5929,17 @@
             "title": "Id",
             "type": "string"
           },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "start_date": {
             "format": "date",
             "title": "Start Date",
@@ -7957,6 +7968,17 @@
             },
             "title": "Dates",
             "type": "array"
+          },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
           },
           "host_display_name": {
             "default": "",
@@ -15319,6 +15341,18 @@
             "format": "date",
             "title": "Date",
             "type": "string"
+          },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
           },
           "product_id": {
             "title": "Product Id",
@@ -23075,6 +23109,17 @@
             "title": "End Date",
             "type": "string"
           },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "start_date": {
             "format": "date",
             "title": "Start Date",
@@ -23125,6 +23170,17 @@
               }
             ],
             "title": "End Date"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "start_date": {
             "anyOf": [
