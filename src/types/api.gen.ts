@@ -14551,6 +14551,8 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /** Fixed Date Window Id */
+            fixed_date_window_id?: string | null;
             /** Product Availability Id */
             product_availability_id?: string | null;
             /** Product Id */

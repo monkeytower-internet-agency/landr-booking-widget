@@ -13861,6 +13861,18 @@
             ],
             "title": "Date Range Start"
           },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
+          },
           "product_availability_id": {
             "anyOf": [
               {
