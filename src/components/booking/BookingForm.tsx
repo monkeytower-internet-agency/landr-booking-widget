@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   HttpError,
   getAvailability,
@@ -735,6 +735,30 @@ const describeSelection = (
  * sticks to the WHAT (dates / who / where) and leaves the HOW MUCH to
  * the sidebar.
  */
+/**
+ * landr-my6fc.7: the API returns one row per booking LINE, so one booking can
+ * appear several times. Collapse to one entry per booking_id: span =
+ * min(start)..max(end), product names joined.
+ */
+function groupOverlaps(rows: BookingOverlap[]): BookingOverlap[] {
+  const byId = new Map<string, BookingOverlap>()
+  for (const r of rows) {
+    const prev = byId.get(r.booking_id)
+    if (!prev) {
+      byId.set(r.booking_id, { ...r })
+      continue
+    }
+    const names = [prev.product_name, r.product_name].filter((n): n is string => !!n)
+    byId.set(r.booking_id, {
+      ...prev,
+      start: r.start < prev.start ? r.start : prev.start,
+      end: r.end > prev.end ? r.end : prev.end,
+      product_name: [...new Set(names.flatMap((n) => n.split(', ')))].join(', ') || null,
+    })
+  }
+  return [...byId.values()]
+}
+
 export function BookingForm({
   widgetToken,
   previewToken,
@@ -824,29 +848,29 @@ export function BookingForm({
     key: string
     rows: BookingOverlap[]
   } | null>(null)
+  const overlapLookupRef = useRef<{ key: string; p: Promise<BookingOverlap[]> } | null>(null)
   useEffect(() => {
     if (!overlapKey || !staff.operatorId || !staff.token || !overlapStart || !overlapEnd) return
     let cancelled = false
-    void getStaffBookingOverlaps(
+    // Advisory only — a failed lookup resolves to [] and never blocks.
+    const p = getStaffBookingOverlaps(
       staff.operatorId,
       staff.token,
       overlapEmail,
       overlapStart,
       overlapEnd,
-    )
-      .then((rows) => {
-        if (!cancelled) setOverlapResult({ key: overlapKey, rows })
-      })
-      .catch(() => {
-        // Advisory only — a failed lookup must never block the booking.
-        if (!cancelled) setOverlapResult({ key: overlapKey, rows: [] })
-      })
+    ).catch((): BookingOverlap[] => [])
+    overlapLookupRef.current = { key: overlapKey, p }
+    void p.then((rows) => {
+      if (!cancelled) setOverlapResult({ key: overlapKey, rows })
+    })
     return () => {
       cancelled = true
     }
   }, [overlapKey, staff.operatorId, staff.token, overlapEmail, overlapStart, overlapEnd])
-  const overlaps: BookingOverlap[] =
-    overlapKey && overlapResult?.key === overlapKey ? overlapResult.rows : []
+  const overlaps: BookingOverlap[] = groupOverlaps(
+    overlapKey && overlapResult?.key === overlapKey ? overlapResult.rows : [],
+  )
 
   // landr-r6e5x.4: whole-party display labels in the unified index space
   // (participants first, companions after) — the same order the API's typed
@@ -1039,6 +1063,23 @@ export function BookingForm({
       return
     }
     setSubmitting(true)
+    // landr-my6fc.7: staff mode — if the overlap lookup is still in flight, give
+    // it a short window so "Book anyway" is not skipped. Timeout/error proceeds.
+    if (overlapKey && overlapResult?.key !== overlapKey && overlapLookupRef.current?.key === overlapKey) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const rows = await Promise.race([
+        overlapLookupRef.current.p,
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 3000)
+        }),
+      ])
+      clearTimeout(timer)
+      if (rows && rows.length > 0) {
+        setOverlapResult({ key: overlapKey, rows })
+        setSubmitting(false)
+        return
+      }
+    }
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays

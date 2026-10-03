@@ -200,4 +200,55 @@ describe('BookingForm — overlap warning + window id', () => {
     const body = vi.mocked(submitBooking).mock.calls[0]![0]
     expect(body.products[0]).not.toHaveProperty('fixed_date_window_id')
   })
+
+  it('groups multi-line bookings into one entry (min start..max end)', async () => {
+    vi.mocked(getStaffBookingOverlaps).mockResolvedValue([
+      { ...OVERLAP, product_name: 'Thermal course', start: '2026-10-03', end: '2026-10-05' },
+      { ...OVERLAP, product_name: 'Hotel', start: '2026-10-04', end: '2026-10-10' },
+    ])
+    renderForm(DAYS, true)
+    await screen.findByTestId('review-overlap-warning')
+    const items = screen.getAllByTestId('review-overlap-item')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toHaveTextContent(/Thermal course, Hotel/)
+  })
+
+  it('staff: submit waits for an in-flight lookup and shows Book anyway instead of submitting', async () => {
+    let resolve!: (r: (typeof OVERLAP)[]) => void
+    vi.mocked(getStaffBookingOverlaps).mockReturnValue(
+      new Promise((r) => {
+        resolve = r
+      }),
+    )
+    renderForm(DAYS, true)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await act(async () => {
+      resolve([OVERLAP])
+    })
+    expect(await screen.findByTestId('review-overlap-warning')).toBeInTheDocument()
+    expect(submitStaffBooking).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Book anyway/i }))
+    })
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+  })
+
+  it('staff: a lookup that never returns times out (3s) and the booking proceeds', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(getStaffBookingOverlaps).mockReturnValue(new Promise(() => {}))
+      renderForm(DAYS, true)
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3100)
+      })
+      expect(submitStaffBooking).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
