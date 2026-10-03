@@ -67,6 +67,14 @@ interface Props {
   onLoaded?: () => void
 }
 
+function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
+  return [...list].sort(
+    (a, b) =>
+      a.start_date.localeCompare(b.start_date) ||
+      a.end_date.localeCompare(b.end_date),
+  )
+}
+
 function windowToSlot(window: FixedDateWindow): AvailabilitySlot {
   const available = Math.max(0, window.capacity - window.capacity_reserved)
   return {
@@ -122,7 +130,9 @@ export function FixedDateWindowPicker({
                 staff.token,
               )
             : await getFixedDateWindows(product.product_id)
-        if (!cancelled) setWindows(data)
+        // landr-my6fc.5: windows may overlap (distinct start dates) — list them
+        // in a stable chronological order so chained courses read naturally.
+        if (!cancelled) setWindows(sortWindows(data))
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
       }
