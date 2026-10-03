@@ -6605,6 +6605,31 @@ export interface paths {
         patch: operations["pricing_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/pricing/simulate-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate Draft
+         * @description Price an UNSAVED price draft for an example booking with the real
+         *     engine — what the price editor's live example calls. Nothing is saved
+         *     and no voucher or membership perk applies. Works for products that are
+         *     not saved yet, not public or not active. Same response shape as the
+         *     public estimate (one line item), plus ``engine_warnings`` (the raw
+         *     engine messages, staff-only).
+         */
+        post: operations["pricing_simulate_draft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/product-categories": {
         parameters: {
             query?: never;
@@ -7044,6 +7069,63 @@ export interface paths {
         head?: never;
         /** Patch Window */
         patch: operations["patch_window"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Pricing
+         * @description A product's whole price: the standard price list and every season /
+         *     own-period price list it has (periods ordered by start date). A season
+         *     without a price for this product is absent — it means the standard
+         *     price. ``standard`` is null when the product is not priced.
+         */
+        get: operations["product_pricing_get"];
+        /**
+         * Put Product Pricing
+         * @description Replace the standard price and/or the full set of period prices in
+         *     one transaction — all of it is saved, or none of it. Omit ``standard`` /
+         *     ``periods`` to leave that part unchanged. Returns the saved price (same
+         *     shape as GET). 409 when a new own period overlaps another own period of
+         *     this product; 422 for an invalid price list.
+         */
+        put: operations["product_pricing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/products/{product_id}/pricing/copy-from/{source_product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy Product Pricing
+         * @description Copy another product's price into this one (one transaction). The
+         *     standard price is always replaced by a copy of the source's. With
+         *     ``include_periods=true`` this product's period prices are replaced by
+         *     copies of the source's too: a shared season keeps the same season, an
+         *     own period becomes a new own period of this product with the same name
+         *     and dates. Copies are independent — editing one never changes the
+         *     other.
+         */
+        post: operations["product_pricing_copy_from"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/products/{product_id}/resource-requirements": {
@@ -8723,6 +8805,63 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Seasons
+         * @description Live seasons, ordered by start date. Without ``product_id``: every
+         *     shared season and every product's own periods. With ``product_id``: the
+         *     shared seasons plus that product's own periods. ``price_count`` = live
+         *     products with a price for the season.
+         */
+        get: operations["pricing_seasons_list"];
+        put?: never;
+        /**
+         * Create Season
+         * @description Create a shared season (no ``product_id``) or an own period of one
+         *     product. 409 when the dates overlap another season of the same kind
+         *     (shared seasons of this operator, or this product's own periods).
+         */
+        post: operations["pricing_seasons_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/seasons/{season_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Season
+         * @description Delete a season. ``dry_run=true`` only reports which products have a
+         *     price for it. A real delete removes those prices too (the products fall
+         *     back to their standard price for those dates) in one transaction.
+         *     Bookings already made keep their stored price.
+         */
+        delete: operations["pricing_seasons_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Season
+         * @description Rename or move a season. Its prices stay attached; bookings already
+         *     made keep their stored price. 409 on overlap (see POST).
+         */
+        patch: operations["pricing_seasons_patch"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/service-roles": {
@@ -11705,6 +11844,10 @@ export interface components {
             kind: string;
             /** Rule Id */
             rule_id: string;
+            /** Season */
+            season?: {
+                [key: string]: unknown;
+            } | null;
             /** Skipped */
             skipped?: boolean | null;
             /** Skipped Reason */
@@ -14126,6 +14269,76 @@ export interface components {
             /** Ref */
             ref?: string | null;
         };
+        /**
+         * PriceListIn
+         * @description One price list (a pricing scheme tree). ``name`` defaults to the
+         *     product's name (standard) or "<product> — <season>" (period). Extra keys
+         *     (ids, timestamps — e.g. a tree sent back as GET returned it) are ignored.
+         */
+        PriceListIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Allow Day Deselection
+             * @default true
+             */
+            allow_day_deselection: boolean;
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Notes */
+            notes?: string | null;
+            /** Rules */
+            rules?: components["schemas"]["app__routers__staff_pricing__RuleIn"][];
+        };
+        /**
+         * PriceListOut
+         * @description A price-list tree, exactly what ``_bundle_scheme_tree`` returns.
+         */
+        PriceListOut: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Allow Day Deselection
+             * @default true
+             */
+            allow_day_deselection: boolean;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Notes */
+            notes?: string | null;
+            /** Rules */
+            rules?: components["schemas"]["PriceRuleOut"][];
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** PriceOverrideIn */
         PriceOverrideIn: {
             /** Override Gross Total */
@@ -14147,6 +14360,49 @@ export interface components {
             override_gross_total: string | null;
             /** Override Reason */
             override_reason: string | null;
+        };
+        /** PriceRuleOut */
+        PriceRuleOut: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Conditions */
+            conditions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Rule Kind */
+            rule_kind: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Tiers */
+            tiers?: components["schemas"]["PriceTierOut"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PriceTierOut */
+        PriceTierOut: {
+            /** Amount Per Unit */
+            amount_per_unit?: number | null;
+            /** Amount Total */
+            amount_total?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Id */
+            id: string;
+            /** Threshold Max */
+            threshold_max?: number | null;
+            /** Threshold Min */
+            threshold_min: number;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * PricingBreakdownLineItem
@@ -14205,6 +14461,228 @@ export interface components {
             subtotal_before_savings?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** PricingDraftListIn */
+        PricingDraftListIn: {
+            /**
+             * Allow Day Deselection
+             * @default true
+             */
+            allow_day_deselection: boolean;
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /** Rules */
+            rules?: components["schemas"]["PricingDraftRuleIn"][];
+        };
+        /** PricingDraftPeriodIn */
+        PricingDraftPeriodIn: {
+            price: components["schemas"]["PricingDraftListIn"];
+            season: components["schemas"]["PricingDraftSeasonIn"];
+        };
+        /** PricingDraftRuleIn */
+        PricingDraftRuleIn: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Conditions */
+            conditions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Rule Kind
+             * @enum {string}
+             */
+            rule_kind: "per_day_base" | "per_streak_tier" | "per_total_days_tier" | "per_participant_tier" | "fixed_total" | "percentage_discount" | "flat_discount" | "time_of_day_surcharge" | "manual_override";
+            /** Sort Order */
+            sort_order: number;
+            /** Tiers */
+            tiers?: components["schemas"]["app__routers__staff_pricing__TierIn"][];
+        };
+        /**
+         * PricingDraftSeasonIn
+         * @description A season / own period as the editor holds it (may be unsaved).
+         */
+        PricingDraftSeasonIn: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Id */
+            id?: string | null;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Shared
+             * @default true
+             */
+            shared: boolean;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /**
+         * PricingOwnPeriodIn
+         * @description A NEW own period of this product (a season only this product uses).
+         */
+        PricingOwnPeriodIn: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /** PricingProductOut */
+        PricingProductOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+        };
+        /** PricingSeasonDeleteOut */
+        PricingSeasonDeleteOut: {
+            /** Deleted */
+            deleted: boolean;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Product Count */
+            product_count: number;
+            /** Products */
+            products?: components["schemas"]["PricingSeasonProductOut"][];
+            /** Season Id */
+            season_id: string;
+        };
+        /**
+         * PricingSeasonIn
+         * @description POST …/seasons. ``product_id`` set = an own period of that product.
+         */
+        PricingSeasonIn: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Product Id */
+            product_id?: string | null;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /** PricingSeasonOut */
+        PricingSeasonOut: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Operator Id */
+            operator_id: string;
+            /**
+             * Price Count
+             * @default 0
+             */
+            price_count: number;
+            /** Product Id */
+            product_id?: string | null;
+            /** Shared */
+            shared: boolean;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PricingSeasonPatch */
+        PricingSeasonPatch: {
+            /** Ends On */
+            ends_on?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Starts On */
+            starts_on?: string | null;
+        };
+        /** PricingSeasonProductOut */
+        PricingSeasonProductOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PricingSeasonRefOut */
+        PricingSeasonRefOut: {
+            /**
+             * Ends On
+             * Format: date
+             */
+            ends_on: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: string;
+            } | null;
+            /** Shared */
+            shared: boolean;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
         };
         /**
          * ProductAddon
@@ -14645,6 +15123,45 @@ export interface components {
             } | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /**
+         * ProductPeriodPriceIn
+         * @description A period price: EITHER ``season_id`` (a shared season, or an existing
+         *     own period of this product) OR ``own_period`` (create a new own period).
+         */
+        ProductPeriodPriceIn: {
+            own_period?: components["schemas"]["PricingOwnPeriodIn"] | null;
+            price: components["schemas"]["PriceListIn"];
+            /** Season Id */
+            season_id?: string | null;
+        };
+        /** ProductPeriodPriceOut */
+        ProductPeriodPriceOut: {
+            price: components["schemas"]["PriceListOut"];
+            season: components["schemas"]["PricingSeasonRefOut"];
+        };
+        /**
+         * ProductPricingIn
+         * @description Body of PUT …/products/{id}/pricing.
+         *
+         *     * ``standard`` key ABSENT = leave the standard price unchanged; an object
+         *       = replace it; explicit ``null`` = remove it (the product is then not
+         *       priced; refused while period prices remain).
+         *     * ``periods`` absent or null = leave the period prices unchanged; a list =
+         *       the COMPLETE set afterwards (a current period price not listed is
+         *       removed — back to standard — and an own period goes with it).
+         */
+        ProductPricingIn: {
+            /** Periods */
+            periods?: components["schemas"]["ProductPeriodPriceIn"][] | null;
+            standard?: components["schemas"]["PriceListIn"] | null;
+        };
+        /** ProductPricingOut */
+        ProductPricingOut: {
+            /** Periods */
+            periods?: components["schemas"]["ProductPeriodPriceOut"][];
+            product: components["schemas"]["PricingProductOut"];
+            standard?: components["schemas"]["PriceListOut"] | null;
         };
         /**
          * ProductRequirementOut
@@ -16619,6 +17136,36 @@ export interface components {
             slug: string;
             /** Turnstile Token */
             turnstile_token?: string | null;
+        };
+        /**
+         * SimulateDraftIn
+         * @description Body of POST …/pricing/simulate-draft.
+         *
+         *     ``selected_days`` go to the engine unchanged: for a ``hotel_room``
+         *     product they ARE the night list (check-in inclusive, check-out
+         *     exclusive — the engine convention), NOT the widget's raw activity days.
+         *     ``service_time_shape`` / ``product_kind`` default to the saved product's
+         *     when ``product_id`` is given.
+         */
+        SimulateDraftIn: {
+            /** Locale */
+            locale?: string | null;
+            /**
+             * Participant Count
+             * @default 1
+             */
+            participant_count: number;
+            /** Periods */
+            periods?: components["schemas"]["PricingDraftPeriodIn"][];
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Kind */
+            product_kind?: string | null;
+            /** Selected Days */
+            selected_days?: string[];
+            /** Service Time Shape */
+            service_time_shape?: string | null;
+            standard?: components["schemas"]["PricingDraftListIn"] | null;
         };
         /** SiteFlyabilityResponse */
         SiteFlyabilityResponse: {
@@ -28765,6 +29312,41 @@ export interface operations {
             };
         };
     };
+    pricing_simulate_draft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulateDraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstimateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_product_categories: {
         parameters: {
             query?: never;
@@ -29791,6 +30373,109 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_pricing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductPricingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_pricing_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductPricingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductPricingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_pricing_copy_from: {
+        parameters: {
+            query?: {
+                include_periods?: boolean;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                product_id: string;
+                source_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductPricingOut"];
                 };
             };
             /** @description Validation Error */
@@ -32935,6 +33620,145 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_seasons_list: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSeasonOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_seasons_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingSeasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSeasonOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_seasons_delete: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+                season_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSeasonDeleteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_seasons_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                season_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingSeasonPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSeasonOut"];
                 };
             };
             /** @description Validation Error */
