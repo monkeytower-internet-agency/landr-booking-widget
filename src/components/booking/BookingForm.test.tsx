@@ -1009,6 +1009,45 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(onChangeDates).toHaveBeenCalled()
   })
 
+  it('maps a 422 fixed_date_window_ambiguous to a pick-a-course message with an action (landr-my6fc.11)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'fixed_date_window_ambiguous',
+            message: 'More than one course date starts on this day',
+            lines: [{ line_index: 0, product_id: 'p', date: '2024-11-23', candidates: [] }],
+          },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/pick the course you want/i),
+    )
+    expect(screen.getByTestId('review-error').textContent ?? '').not.toMatch(/422|detail|\{/)
+    fireEvent.click(screen.getByTestId('review-pick-course'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
   it('blocks submit when host + invitee no longer fit a day (landr-f987a.4)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockClear()

@@ -49,6 +49,8 @@ export type ServiceTimeShape =
 
 export interface FixedDateWindow {
   id: string
+  /** landr-my6fc.9: optional operator-given course name (e.g. "Bus 1"). */
+  label?: string | null
   start_date: string
   end_date: string
   capacity: number

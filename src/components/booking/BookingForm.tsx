@@ -535,6 +535,14 @@ const isCapacityExceeded = (err: HttpError): boolean =>
   !Array.isArray(err.detail) &&
   (err.detail as { error?: unknown }).error === 'capacity_exceeded'
 
+/** landr-my6fc.11: several course windows share the start day and none was named. */
+const isFixedDateWindowAmbiguous = (err: HttpError): boolean =>
+  err.status === 422 &&
+  err.detail !== null &&
+  typeof err.detail === 'object' &&
+  !Array.isArray(err.detail) &&
+  (err.detail as { error?: unknown }).error === 'fixed_date_window_ambiguous'
+
 /** landr-f987a.3: `days: [{date, seats_short}]` on a capacity_exceeded 422. */
 const readShortDay = (err: HttpError): { date: string; seats_short: number } | null => {
   const days = (err.detail as { days?: unknown }).days
@@ -645,6 +653,9 @@ const formatHttpError = (
   // copy only — never the raw `422 : {"detail":...}` dump.
   if (isCapacityExceeded(err)) {
     return tr('capacityExceededMessage', browserLocale())
+  }
+  if (isFixedDateWindowAmbiguous(err)) {
+    return tr('fixedDateWindowAmbiguousMessage', browserLocale())
   }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
@@ -794,6 +805,7 @@ export function BookingForm({
 }: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [capacityExceeded, setCapacityExceeded] = useState(false)
+  const [windowAmbiguous, setWindowAmbiguous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
   const timezone = browserTimezone()
@@ -1055,6 +1067,7 @@ export function BookingForm({
   const onConfirm = async () => {
     setServerError(null)
     setCapacityExceeded(false)
+    setWindowAmbiguous(false)
     // landr-zenj.1: belt-and-braces — the Confirm button below is already
     // disabled while unPriceable, but a disabled control shouldn't be the
     // ONLY thing standing between the customer and a doomed submit.
@@ -1428,6 +1441,7 @@ export function BookingForm({
           formatHttpError(err, partyMemberLabels, participants.length),
         )
         setCapacityExceeded(isCapacityExceeded(err))
+        setWindowAmbiguous(isFixedDateWindowAmbiguous(err))
         // landr-f987a.4: the 422 names the first short day — say which one.
         const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
         if (shortDay) {
@@ -1848,6 +1862,17 @@ export function BookingForm({
                 data-testid="review-change-dates"
               >
                 {tr('changeDates', locale)}
+              </Button>
+            ) : null}
+            {windowAmbiguous ? (
+              // landr-my6fc.11: back to the course picker to name the course.
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onChangeDates ?? onBack}
+                data-testid="review-pick-course"
+              >
+                {tr('pickCourse', locale)}
               </Button>
             ) : null}
           </div>
