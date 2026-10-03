@@ -2104,7 +2104,12 @@ function BookingFlowApp() {
                 ? (step.selection.slot.availability_id ?? undefined)
                 : step.selection?.kind === 'days'
                   ? step.selection.fixedDateWindowId
-                  : undefined
+                  : // landr-my6fc.11: first visit via an invite link →
+                    // preselect the host's course window.
+                    inviteData &&
+                      inviteData.product_id === step.product.product_id
+                    ? (inviteData.fixed_date_window_id ?? undefined)
+                    : undefined
             }
             onConfirm={(_slot, window, forced, forcedReasons) => {
               const days = expandWindowDays(window)

@@ -125,6 +125,9 @@ type Bundle = {
   readyToContinueWithHostsDates: string
   continueWithTheseDates: string
   changeDates: string
+  pickCourse: string
+  courseFallbackName: string
+  fixedDateWindowAmbiguousMessage: string
   sameDaysAsHostFor: string
   /** Invite banner (App.tsx) — {host}, {ref}. Hotel variant only when the invite prefills a hotel (landr-2jsaf). */
   inviteBannerDatesAndHotel: string
@@ -688,6 +691,10 @@ const en: Bundle = {
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
+  pickCourse: 'Pick a course',
+  courseFallbackName: 'Course {n}',
+  fixedDateWindowAmbiguousMessage:
+    'More than one course starts on this day. Please go back and pick the course you want.',
   sameDaysAsHostFor: 'The same days as {host} for {product}.',
   inviteBannerDatesAndHotel:
     'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
@@ -1242,6 +1249,10 @@ const de: Bundle = {
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
+  pickCourse: 'Kurs wählen',
+  courseFallbackName: 'Kurs {n}',
+  fixedDateWindowAmbiguousMessage:
+    'An diesem Tag beginnt mehr als ein Kurs. Bitte gehen Sie zurück und wählen Sie den gewünschten Kurs.',
   sameDaysAsHostFor: 'Die gleichen Termine wie {host} für {product}.',
   inviteBannerDatesAndHotel:
     'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',

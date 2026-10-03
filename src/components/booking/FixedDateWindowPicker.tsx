@@ -71,7 +71,34 @@ function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
   return [...list].sort(
     (a, b) =>
       a.start_date.localeCompare(b.start_date) ||
+      (a.label ?? '').localeCompare(b.label ?? '') ||
       a.end_date.localeCompare(b.end_date),
+  )
+}
+
+/**
+ * landr-my6fc.11: the name shown on a card. The operator's label when set;
+ * otherwise, when several unlabeled windows have identical dates, a
+ * "Course n" fallback by list order so the customer can still tell them
+ * apart. A lone unlabeled window shows no name.
+ */
+function windowDisplayName(
+  list: FixedDateWindow[],
+  window: FixedDateWindow,
+  locale: string,
+): string | null {
+  const label = window.label?.trim()
+  if (label) return label
+  const twins = list.filter(
+    (w) =>
+      !w.label?.trim() &&
+      w.start_date === window.start_date &&
+      w.end_date === window.end_date,
+  )
+  if (twins.length < 2) return null
+  return tr('courseFallbackName', locale).replace(
+    '{n}',
+    String(twins.findIndex((w) => w.id === window.id) + 1),
   )
 }
 
@@ -202,6 +229,7 @@ export function FixedDateWindowPicker({
         ) : (
           <ul className="flex flex-col gap-2.5">
             {windows.map((window) => {
+              const displayName = windowDisplayName(windows, window, locale)
               const available = Math.max(
                 0,
                 window.capacity - window.capacity_reserved,
@@ -284,8 +312,18 @@ export function FixedDateWindowPicker({
                       )}
                     </span>
                     <span className="flex flex-1 items-center justify-between gap-3">
-                      <span className="font-medium tabular-nums">
-                        {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
+                      <span className="flex flex-col">
+                        {displayName ? (
+                          <span
+                            className="font-semibold"
+                            data-testid={`fixed-date-window-name-${window.id}`}
+                          >
+                            {displayName}
+                          </span>
+                        ) : null}
+                        <span className="font-medium tabular-nums">
+                          {formatWindowRangeLabel(window.start_date, window.end_date, locale)}
+                        </span>
                       </span>
                       {blocked && canForce ? (
                         // landr-aoak.2/t869m.5: a blocked window in staff mode
