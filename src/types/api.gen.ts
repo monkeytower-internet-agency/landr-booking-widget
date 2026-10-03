@@ -11893,6 +11893,8 @@ export interface components {
             end_date: string;
             /** Id */
             id: string;
+            /** Label */
+            label?: string | null;
             /**
              * Start Date
              * Format: date
@@ -12612,6 +12614,8 @@ export interface components {
         InvitePrefillOut: {
             /** Dates */
             dates?: string[];
+            /** Fixed Date Window Id */
+            fixed_date_window_id?: string | null;
             /**
              * Host Display Name
              * @default
@@ -14972,6 +14976,8 @@ export interface components {
              * Format: date
              */
             date: string;
+            /** Fixed Date Window Id */
+            fixed_date_window_id?: string | null;
             /** Product Id */
             product_id: string;
         };
@@ -18093,6 +18099,8 @@ export interface components {
              * Format: date
              */
             end_date: string;
+            /** Label */
+            label?: string | null;
             /**
              * Start Date
              * Format: date
@@ -18107,6 +18115,8 @@ export interface components {
             capacity?: number | null;
             /** End Date */
             end_date?: string | null;
+            /** Label */
+            label?: string | null;
             /** Start Date */
             start_date?: string | null;
         };
