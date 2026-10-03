@@ -379,6 +379,46 @@ export async function getStaffFixedDateWindows(
   )
 }
 
+/**
+ * landr-my6fc.7: a customer booking that overlaps the dates being booked.
+ * Mirrors landr-api BookingOverlap (landr-api#941).
+ */
+export interface BookingOverlap {
+  booking_id: string
+  reference: string
+  product_name?: string | null
+  start: string
+  end: string
+  status: string
+}
+
+/**
+ * landr-my6fc.7: STAFF MODE ONLY. Does this contact already hold a booking
+ * overlapping [start, end] (inclusive; cancelled excluded)? Backed by
+ * GET /api/staff/operators/{operator_id}/contacts/booking-overlaps/staff-session
+ * with the signed staff_session as a query param (same as
+ * getStaffFixedDateWindows). Never call this outside staff mode — public
+ * customers must not be able to probe other bookings (privacy).
+ */
+export async function getStaffBookingOverlaps(
+  operatorId: string,
+  staffSessionToken: string,
+  email: string,
+  start: string,
+  end: string,
+): Promise<BookingOverlap[]> {
+  if (mocksEnabled()) return []
+  const qs = new URLSearchParams({
+    staff_session: staffSessionToken,
+    email,
+    start,
+    end,
+  })
+  return http<BookingOverlap[]>(
+    `/api/staff/operators/${encodeURIComponent(operatorId)}/contacts/booking-overlaps/staff-session?${qs}`,
+  )
+}
+
 /** landr-api `_ADDON_STOCK_MAX_DAYS` / `_ADDON_STOCK_MAX_PARTICIPANTS`
  * (app/routers/public_operators.py). */
 export const ADDON_STOCK_MAX_DAYS = 62

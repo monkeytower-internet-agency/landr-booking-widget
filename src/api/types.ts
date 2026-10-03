@@ -983,6 +983,12 @@ export interface ProductLine {
    * — landr-ax1c on the API persists this verbatim when present.
    */
   product_availability_id?: string | null
+  /**
+   * landr-my6fc.7 / landr-api#943: the chosen fixed-date course window. Only the
+   * primary line of a fixed_window product sets it (overlapping windows make the
+   * date range alone ambiguous). Omitted for every other product.
+   */
+  fixed_date_window_id?: string | null
 }
 
 export interface SubmitBookingBody {
