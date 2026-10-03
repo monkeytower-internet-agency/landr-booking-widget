@@ -541,7 +541,9 @@ const isFixedDateWindowAmbiguous = (err: HttpError): boolean =>
   err.detail !== null &&
   typeof err.detail === 'object' &&
   !Array.isArray(err.detail) &&
-  (err.detail as { error?: unknown }).error === 'fixed_date_window_ambiguous'
+  ['fixed_date_window_ambiguous', 'fixed_date_window_invalid'].includes(
+    String((err.detail as { error?: unknown }).error),
+  )
 
 /** landr-f987a.3: `days: [{date, seats_short}]` on a capacity_exceeded 422. */
 const readShortDay = (err: HttpError): { date: string; seats_short: number } | null => {
@@ -685,6 +687,12 @@ const formatHttpError = (
       return SANITIZED_REJECTION_MESSAGE
     }
     return `Booking rejected (${err.status}): ${err.detail}`
+  }
+  // Object detail with no dedicated mapping: never show the raw JSON body.
+  if (err.detail && typeof err.detail === 'object' && !Array.isArray(err.detail)) {
+    const msg = (err.detail as { message?: unknown }).message
+    if (typeof msg === 'string' && msg.trim() && !UUID_PATTERN.test(msg)) return msg
+    return SANITIZED_REJECTION_MESSAGE
   }
   return err.message
 }

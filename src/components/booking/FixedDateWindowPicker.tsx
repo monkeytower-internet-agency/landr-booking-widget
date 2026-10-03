@@ -71,8 +71,8 @@ function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
   return [...list].sort(
     (a, b) =>
       a.start_date.localeCompare(b.start_date) ||
-      a.end_date.localeCompare(b.end_date) ||
-      (a.label ?? '').localeCompare(b.label ?? ''),
+      (a.label ?? '').localeCompare(b.label ?? '') ||
+      a.end_date.localeCompare(b.end_date),
   )
 }
 
