@@ -299,6 +299,17 @@ describe('FixedDateWindowPicker', () => {
     expect(screen.queryByTestId('fixed-date-window-name-w-3')).toBeNull()
   })
 
+  it('landr-my6fc.11: initialWindowId (invite host window) preselects the right same-start card', async () => {
+    const a: FixedDateWindow = { id: 'w-a', label: 'Bus 1', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    const b: FixedDateWindow = { id: 'w-b', label: 'Bus 2', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    mocks.getFixedDateWindows.mockResolvedValue([a, b])
+    const onConfirm = vi.fn()
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={onConfirm} initialWindowId="w-b" />)
+    await waitFor(() => expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1))
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm.mock.calls[0][1]).toBe(b)
+  })
+
   it('expandWindowDays covers inclusive range', () => {
     const days = expandWindowDays({
       id: 'w',

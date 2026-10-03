@@ -1383,6 +1383,11 @@ export interface InvitePrefill {
    */
   product_id: string | null
   dates: string[]
+  /**
+   * landr-my6fc.11: the host's fixed-date course window, so an invitee joins
+   * the host's tour. Optional for rolling deploy / non-course products.
+   */
+  fixed_date_window_id?: string | null
   hotel_location_id: string | null
   is_shared_double: boolean
   invitee_first_name: string
