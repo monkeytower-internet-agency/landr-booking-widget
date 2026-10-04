@@ -9526,6 +9526,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/upgrade-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Open Upgrade Request */
+        get: operations["get_open_upgrade_request"];
+        put?: never;
+        /** Create Upgrade Request */
+        post: operations["create_upgrade_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/vouchers": {
         parameters: {
             query?: never;
@@ -18901,6 +18919,31 @@ export interface components {
             } | null;
             /** Role */
             role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
+        };
+        /** UpgradeRequestIn */
+        UpgradeRequestIn: {
+            /** Message */
+            message?: string | null;
+            /** Package Slug */
+            package_slug: string;
+        };
+        /** UpgradeRequestOut */
+        UpgradeRequestOut: {
+            /**
+             * Already Requested
+             * @default false
+             */
+            already_requested: boolean;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Message */
+            message?: string | null;
+            /** Package Slug */
+            package_slug: string;
+            /** Status */
+            status: string;
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
@@ -35566,6 +35609,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_open_upgrade_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_upgrade_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpgradeRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"];
                 };
             };
             /** @description Validation Error */

@@ -24959,6 +24959,77 @@
         "title": "UpdateMembershipBody",
         "type": "object"
       },
+      "UpgradeRequestIn": {
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "package_slug": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Package Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "package_slug"
+        ],
+        "title": "UpgradeRequestIn",
+        "type": "object"
+      },
+      "UpgradeRequestOut": {
+        "properties": {
+          "already_requested": {
+            "default": false,
+            "title": "Already Requested",
+            "type": "boolean"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "package_slug": {
+            "title": "Package Slug",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "package_slug",
+          "status",
+          "created_at"
+        ],
+        "title": "UpgradeRequestOut",
+        "type": "object"
+      },
       "UploadPhotoRequest": {
         "properties": {
           "bucket_id": {
@@ -55033,6 +55104,116 @@
         "summary": "Restore Trash",
         "tags": [
           "staff-trash"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/upgrade-request": {
+      "get": {
+        "operationId": "get_open_upgrade_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/UpgradeRequestOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Open Upgrade Request"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Open Upgrade Request",
+        "tags": [
+          "staff-operator-upgrade-request"
+        ]
+      },
+      "post": {
+        "operationId": "create_upgrade_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradeRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Upgrade Request",
+        "tags": [
+          "staff-operator-upgrade-request"
         ]
       }
     },
