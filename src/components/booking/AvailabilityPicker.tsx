@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
-import { isDayBookable } from '@/components/booking/bookability'
+import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
+import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import { useStaffMode } from '@/lib/staffMode'
 import { hasFixedStartTimes, slotKey } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,7 +21,14 @@ import {
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
-import { availabilityGate, availableDaysForLabel, seatsCountLabel, timesOnLabel, tr } from '@/lib/strings'
+import {
+  availabilityGate,
+  availableDaysForLabel,
+  seatsCountLabel,
+  timesOnLabel,
+  tr,
+  type ForceReason,
+} from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
@@ -31,7 +40,18 @@ interface Props {
   inviteToken?: string
   /** Absent → no Back affordance (landr-6eita.1: start=dates entry). */
   onBack?: () => void
-  onConfirm: (slot: AvailabilitySlot) => void
+  /**
+   * landr-xtkae.2: in staff mode (force_book power) on a fixed-times product,
+   * a full or lead-time-closed time can be picked on the customer's behalf —
+   * `forced` is then true and `forcedReasons` names the gate(s) bypassed
+   * (mirrors SingleDatePicker). Both are omitted on every normal pick, so the
+   * customer path calls onConfirm(slot) with exactly one argument.
+   */
+  onConfirm: (
+    slot: AvailabilitySlot,
+    forced?: boolean,
+    forcedReasons?: ForceReason[],
+  ) => void
   /**
    * landr-e10.9: when false (default), hides the numeric remaining-seat
    * badge on each slot button. Operators opt in per-tenant via
@@ -60,6 +80,7 @@ export function AvailabilityPicker({
   onLoaded,
   inviteToken,
 }: Props) {
+  const staff = useStaffMode()
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   useReportLoaded(slots !== null || error !== null, onLoaded)
@@ -91,16 +112,28 @@ export function AvailabilityPicker({
     }
   }, [product.product_id, fromIso, toIso, inviteToken])
 
+  // landr-xtkae.2: staff force-book (same rule as SingleDatePicker: staff mode
+  // AND the force_book power). Offered only on fixed-times products, which were
+  // routed here from SingleDatePicker — every other product keeps exactly the
+  // behaviour it had in this picker before.
+  const fixedTimes = hasFixedStartTimes(product)
+  const canForce = fixedTimes && staff.active && staff.powers.includes('force_book')
+  const slotIsPickable = (s: AvailabilitySlot): boolean =>
+    s.available_seats > 0 && isDayBookable(s, product.hotel_offering)
+
   const availableDates = useMemo(() => {
     if (!slots) return new Set<string>()
     return new Set(
       slots
+        // Staff can open any day that has times, even a full / closed one.
         .filter(
-          (s) => s.available_seats > 0 && isDayBookable(s, product.hotel_offering),
+          (s) =>
+            canForce ||
+            (s.available_seats > 0 && isDayBookable(s, product.hotel_offering)),
         )
         .map((s) => s.date),
     )
-  }, [slots, product.hotel_offering])
+  }, [slots, product.hotel_offering, canForce])
 
   // landr-l38a4: open on the restored pick, else the first bookable day.
   const [month, setMonth] = useStartMonth(
@@ -113,7 +146,6 @@ export function AvailabilityPicker({
   // the operator published, so a FULL (or lead-time-closed) time stays visible
   // but disabled — hiding it would make "the 11:00 flight" vanish with no
   // explanation. Past slots never arrive (the API omits started slots).
-  const fixedTimes = hasFixedStartTimes(product)
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
     const key = isoDate(selectedDate)
@@ -124,8 +156,24 @@ export function AvailabilityPicker({
           (s.available_seats > 0 && isDayBookable(s, product.hotel_offering))),
     )
   }, [slots, selectedDate, product.hotel_offering, fixedTimes])
-  const slotIsPickable = (s: AvailabilitySlot): boolean =>
-    s.available_seats > 0 && isDayBookable(s, product.hotel_offering)
+
+  // The slot Continue would commit — ONE lookup shared by `ready`, the gate
+  // line and onContinue, so the button is never enabled while it would do
+  // nothing (e.g. a restored time that has filled up meanwhile). Staff can
+  // commit an unpickable time (force-book).
+  const selectedSlot = useMemo(
+    () =>
+      slotsForSelectedDate.find(
+        (s) => slotKey(s) === selectedSlotId && (canForce || slotIsPickable(s)),
+      ),
+    // slotIsPickable closes over product.hotel_offering only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering],
+  )
+  const selectedForceReasons: ForceReason[] =
+    selectedSlot && canForce && !slotIsPickable(selectedSlot)
+      ? forceReasonsFor(selectedSlot.available_seats > 0, selectedSlot, product.hotel_offering)
+      : []
 
   if (error) {
     return (
@@ -194,9 +242,21 @@ export function AvailabilityPicker({
                     key={slotKey(slot)}
                     type="button"
                     variant={selectedSlotId === slotKey(slot) ? 'default' : 'outline'}
-                    disabled={!slotIsPickable(slot)}
+                    // Staff keep full / closed times selectable (force-book).
+                    disabled={!canForce && !slotIsPickable(slot)}
                     data-testid={fixedTimes ? 'start-time-option' : undefined}
-                    onClick={() => setSelectedSlotId(slotKey(slot))}
+                    onClick={() => {
+                      if (
+                        canForce &&
+                        !slotIsPickable(slot) &&
+                        !window.confirm(
+                          'Force-book this full / blocked time on behalf of the customer?',
+                        )
+                      ) {
+                        return
+                      }
+                      setSelectedSlotId(slotKey(slot))
+                    }}
                   >
                     {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
                     {!slotIsPickable(slot) ? (
@@ -214,15 +274,20 @@ export function AvailabilityPicker({
             )}
           </NextAction>
         ) : null}
+        {selectedForceReasons.length > 0 ? <OperatorOverrideBadge /> : null}
         <ContinueAction
-          ready={!!selectedSlotId}
-          reason={availabilityGate(!!selectedDate, !!selectedSlotId, locale)}
+          ready={!!selectedSlot}
+          reason={availabilityGate(!!selectedDate, !!selectedSlot, locale)}
           reasonId="availability-picker-gate"
           onContinue={() => {
-            const slot = slotsForSelectedDate.find(
-              (s) => slotKey(s) === selectedSlotId && slotIsPickable(s),
-            )
-            if (slot) onConfirm(slot)
+            if (!selectedSlot) return
+            // Pass the force markers ONLY for a force-booked time, so the
+            // normal path calls onConfirm(slot) with exactly one argument.
+            if (selectedForceReasons.length > 0) {
+              onConfirm(selectedSlot, true, selectedForceReasons)
+            } else {
+              onConfirm(selectedSlot)
+            }
           }}
           data-testid="availability-picker-submit"
         />

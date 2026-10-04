@@ -29,7 +29,7 @@ import {
 import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
-import { toHHMM } from './slotKey'
+import { hasFixedStartTimes, toHHMM } from './slotKey'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -951,7 +951,10 @@ export function BookingForm({
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
     : null
-  const showTimezone = product.service_time_shape === 'time_slot'
+  // landr-xtkae.2: route on the data — a single_date product with fixed start
+  // times shows a clock time too.
+  const showTimezone =
+    product.service_time_shape === 'time_slot' || hasFixedStartTimes(product)
 
   // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
   // breakdown for the review. Only rendered when we have rooms AND a

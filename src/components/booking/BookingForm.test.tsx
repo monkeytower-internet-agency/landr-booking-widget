@@ -303,6 +303,40 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     expect(desc.textContent).toMatch(/·.*·/) // name · date · tz
   })
 
+  it('shows the timezone for a single_date product with fixed start times (landr-xtkae.2)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{
+          ...makeServiceProduct('time_slot'),
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+        }}
+        selection={{
+          kind: 'slot',
+          slot: {
+            availability_id: null,
+            date: '2024-11-23',
+            start_time: '11:00:00',
+            end_time: null,
+            capacity: 2,
+            capacity_reserved: 0,
+            available_seats: 2,
+            status: 'open',
+          },
+        }}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const desc = screen.getByText(/Guided day/)
+    // name · date · 11:00 · timezone
+    expect(desc.textContent?.match(/·/g)?.length).toBe(3)
+  })
+
   it('hides the timezone for non-time_slot products', () => {
     render(
       <BookingForm

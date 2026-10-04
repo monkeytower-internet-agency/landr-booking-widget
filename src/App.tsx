@@ -2089,8 +2089,14 @@ function BookingFlowApp() {
             initialSlot={
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
             }
-            onConfirm={(slot) =>
-              afterSelection(step.product, { kind: 'slot', slot })
+            onConfirm={(slot, forced, forcedReasons) =>
+              afterSelection(step.product, {
+                kind: 'slot',
+                slot,
+                // landr-xtkae.2: staff force-booked a full / closed start time
+                // — carried so the submit raises ignore_capacity.
+                ...(forced ? { forced: true, forcedReasons } : {}),
+              })
             }
           />
         ) : null}
