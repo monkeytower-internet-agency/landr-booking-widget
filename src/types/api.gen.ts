@@ -10489,12 +10489,19 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /**
+             * Force Slot Time
+             * @default false
+             */
+            force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */
             selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** BookingSessionOut */
         BookingSessionOut: {
@@ -15881,6 +15888,8 @@ export interface components {
             fixed_date_window_id?: string | null;
             /** Product Id */
             product_id: string;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** QuickCreateOut */
         QuickCreateOut: {

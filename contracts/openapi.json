@@ -1495,6 +1495,11 @@
             ],
             "title": "Date Range Start"
           },
+          "force_slot_time": {
+            "default": false,
+            "title": "Force Slot Time",
+            "type": "boolean"
+          },
           "forced_days": {
             "anyOf": [
               {
@@ -1537,6 +1542,18 @@
               }
             ],
             "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "title": "BookingProductPatch",
@@ -15527,7 +15544,7 @@
           "slot_start_time": {
             "anyOf": [
               {
-                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
                 "type": "string"
               },
               {
@@ -17115,6 +17132,18 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "required": [
