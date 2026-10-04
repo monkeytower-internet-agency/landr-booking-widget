@@ -590,6 +590,17 @@
           "booking": {
             "$ref": "#/components/schemas/ApprovalRequestBooking"
           },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
           "can_respond": {
             "title": "Can Respond",
             "type": "boolean"
