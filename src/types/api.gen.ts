@@ -14251,6 +14251,11 @@ export interface components {
             offer_account_link: boolean;
             /** Primary Color */
             primary_color?: string | null;
+            /**
+             * Remove Powered By
+             * @default true
+             */
+            remove_powered_by: boolean;
             /** Slug */
             slug: string;
             /** Theme */
