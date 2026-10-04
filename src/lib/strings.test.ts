@@ -46,6 +46,14 @@ describe('strings (pickBundle/tr locale resolution, landr-5aih0.9)', () => {
   })
 })
 
+describe('poweredByLandr (landr-xtkae.10)', () => {
+  it('ships in every language the widget ships (en, de)', () => {
+    expect(tr('poweredByLandr', 'en')).toBe('Powered by LANDR')
+    expect(tr('poweredByLandr', 'de-DE')).toBe('Bereitgestellt von LANDR')
+    expect(tr('poweredByLandr')).toBe('Powered by LANDR')
+  })
+})
+
 describe('plural', () => {
   it('picks the singular form only for exactly 1', () => {
     expect(plural(1, 'one', 'other')).toBe('one')
