@@ -3766,6 +3766,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/partner-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Partner Requests */
+        get: operations["staff_list_partner_requests"];
+        put?: never;
+        /**
+         * Ask Partner
+         * @description Ask one partner to confirm this booking (email with the reply link).
+         *
+         *     409 ``booking_cancelled`` for a cancelled booking · 404
+         *     ``partner_not_found`` when the id is not a live, active partner of this
+         *     operator (unknown, another tenant's, a meeting point — one answer, no
+         *     probe) · 403 ``feature_disabled`` when the partner's feature is off ·
+         *     422 ``partner_has_no_email`` · 502 ``partner_request_failed`` when the
+         *     ask could not be minted.
+         */
+        post: operations["staff_ask_partner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
         parameters: {
             query?: never;
@@ -5869,6 +5897,12 @@ export interface paths {
         /**
          * Get Or Create Operator Ical Token
          * @description Return the current token + URL, auto-creating on first access.
+         *
+         *     landr-xtkae.15: Calendar feed is a paid section. Without it the read
+         *     stays open (the dashboard renders the page inert) but nothing is minted
+         *     (operators on the tier ladder only — custom packages are unchanged):
+         *     ``{"url": null, "token": null}`` — and the public feed refuses any old
+         *     token anyway (public_operator_ical).
          */
         get: operations["get_or_create_operator_ical_token"];
         put?: never;
@@ -9908,6 +9942,12 @@ export interface components {
             preset_key: string;
             /** Product Family */
             product_family?: ("activity" | "course") | null;
+            /** Slot Capacity */
+            slot_capacity?: number | null;
+            /** Start Times */
+            start_times?: string[] | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
         };
         /**
          * ApprovalPeriodRange
@@ -10170,6 +10210,21 @@ export interface components {
         ApproveIn: {
             /** Notes */
             notes?: string | null;
+        };
+        /** AskPartnerIn */
+        AskPartnerIn: {
+            /** Note */
+            note?: string | null;
+            /** Partner Id */
+            partner_id: string;
+        };
+        /** AskPartnerOut */
+        AskPartnerOut: {
+            /** Created */
+            created: boolean;
+            /** Outbound Email Id */
+            outbound_email_id?: string | null;
+            request: components["schemas"]["PartnerRequestOut"];
         };
         /** AssignmentIn */
         AssignmentIn: {
@@ -10483,12 +10538,19 @@ export interface components {
             date_range_end?: string | null;
             /** Date Range Start */
             date_range_start?: string | null;
+            /**
+             * Force Slot Time
+             * @default false
+             */
+            force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */
             selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** BookingSessionOut */
         BookingSessionOut: {
@@ -11288,6 +11350,11 @@ export interface components {
             group_threshold?: number | null;
             /** Lines */
             lines?: components["schemas"]["CustomOfferLineIn"][];
+            /**
+             * Prices Include Tax
+             * @default true
+             */
+            prices_include_tax: boolean;
             /** Tax Rate */
             tax_rate?: number | string | null;
         };
@@ -11361,6 +11428,13 @@ export interface components {
             net_total: string;
             /** Paying Count */
             paying_count: number;
+            /**
+             * Prices Include Tax
+             * @default true
+             */
+            prices_include_tax: boolean;
+            /** Regular Unit Price */
+            regular_unit_price?: string | null;
             /** Tax Total */
             tax_total: string;
         };
@@ -14014,6 +14088,8 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Images */
@@ -14307,6 +14383,53 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** PartnerOut */
+        PartnerOut: {
+            /** Email */
+            email?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "person" | "hotel";
+        };
+        /** PartnerRequestOut */
+        PartnerRequestOut: {
+            /** Answer Comment */
+            answer_comment?: string | null;
+            /** Answered At */
+            answered_at?: string | null;
+            /** Id */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Partner Email */
+            partner_email: string;
+            /** Partner Id */
+            partner_id: string;
+            /** Partner Name */
+            partner_name: string;
+            /** Requested At */
+            requested_at?: string | null;
+            /** Responder Name */
+            responder_name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "declined" | "confirmed_with_changes";
+        };
+        /** PartnerRequestsOut */
+        PartnerRequestsOut: {
+            /** Partners */
+            partners: components["schemas"]["PartnerOut"][];
+            /** Requests */
+            requests: components["schemas"]["PartnerRequestOut"][];
         };
         /**
          * PatchMoscowIn
@@ -15283,6 +15406,10 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
@@ -15366,6 +15493,11 @@ export interface components {
             short_description_localized?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Slot Capacity
+             * @default 2
+             */
+            slot_capacity: number;
             /** Slug */
             slug: string;
             /**
@@ -15393,6 +15525,8 @@ export interface components {
             quantity: number;
             /** Selected Days */
             selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** ProductPatch */
         ProductPatch: {
@@ -15412,6 +15546,10 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
@@ -15468,6 +15606,8 @@ export interface components {
             short_description_localized?: {
                 [key: string]: string;
             } | null;
+            /** Slot Capacity */
+            slot_capacity?: number | null;
             /** Sort Order */
             sort_order?: number | null;
         };
@@ -15844,6 +15984,8 @@ export interface components {
             fixed_date_window_id?: string | null;
             /** Product Id */
             product_id: string;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** QuickCreateOut */
         QuickCreateOut: {
@@ -24236,6 +24378,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeNotificationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_partner_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerRequestsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_ask_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskPartnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskPartnerOut"];
                 };
             };
             /** @description Validation Error */

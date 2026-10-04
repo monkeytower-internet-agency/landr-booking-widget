@@ -887,6 +887,25 @@ describe('App', () => {
       })
     })
 
+    // landr-xtkae.2: route on the data — a single_date product that carries
+    // fixed daily start times gets the day-then-time AvailabilityPicker.
+    it('single_date + daily_start_times → AvailabilityPicker (not SingleDatePicker)', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem Timed',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Tandem Timed')
+      await waitFor(() => {
+        expect(mocks.getAvailability).toHaveBeenCalled()
+        expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
+      })
+    })
+
     it('product_kind=digital_good → ShopComingSoonStub', async () => {
       mocks.listProducts.mockResolvedValue([
         makeProduct({

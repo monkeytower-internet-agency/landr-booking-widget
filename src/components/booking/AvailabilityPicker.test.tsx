@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { AvailabilityPicker } from './AvailabilityPicker'
-import { slotKey } from './slotKey'
+import { hasFixedStartTimes, slotKey, toHHMM } from './slotKey'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -163,5 +163,145 @@ describe('AvailabilityPicker with a synthesised on-request slot (landr-k9pji.1)'
     expect(cont).not.toBeDisabled()
     fireEvent.click(cont)
     expect(onConfirm).toHaveBeenCalledWith(slot)
+  })
+})
+
+// landr-xtkae.2 — fixed daily start times. The API synthesises one row per
+// start time per day (availability_id null for all of them); full or
+// lead-time-closed times stay visible but disabled, and the picked slot is
+// handed to onConfirm intact (BookingForm trims it to HH:MM on submit).
+describe('slotKey / helpers for fixed start times (landr-xtkae.2)', () => {
+  it('keys synthesised timed slots by date AND start time', () => {
+    expect(
+      slotKey({ availability_id: null, date: '2026-05-16', start_time: '11:00:00' }),
+    ).toBe('day:2026-05-16@11:00:00')
+    expect(
+      slotKey({ availability_id: null, date: '2026-05-16', start_time: '09:00:00' }),
+    ).not.toBe(
+      slotKey({ availability_id: null, date: '2026-05-16', start_time: '11:00:00' }),
+    )
+    // A whole-day synthesised row keeps its old key.
+    expect(
+      slotKey({ availability_id: null, date: '2026-05-16', start_time: null }),
+    ).toBe('day:2026-05-16')
+  })
+
+  it('hasFixedStartTimes routes on non-empty data and toHHMM trims seconds', () => {
+    expect(hasFixedStartTimes({ daily_start_times: ['09:00'] })).toBe(true)
+    expect(hasFixedStartTimes({ daily_start_times: [] })).toBe(false)
+    expect(hasFixedStartTimes({ daily_start_times: null })).toBe(false)
+    expect(hasFixedStartTimes({})).toBe(false)
+    expect(toHHMM('11:00:00')).toBe('11:00')
+    expect(toHHMM('11:00')).toBe('11:00')
+    expect(toHHMM(null)).toBeNull()
+  })
+})
+
+describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const timed = (
+    date: Date,
+    start: string,
+    over: Partial<AvailabilitySlot> = {},
+  ): AvailabilitySlot => ({
+    ...synthetic(date),
+    start_time: start,
+    capacity: 2,
+    available_seats: 2,
+    ...over,
+  })
+  const timedProduct = (): Product => ({
+    ...makeProduct(),
+    daily_start_times: ['09:00', '11:00', '13:00'],
+  })
+
+  it('shows the day then its times; full and closed times are disabled', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const slots = [
+      timed(tomorrow, '09:00:00'),
+      timed(tomorrow, '11:00:00', { available_seats: 0, capacity_reserved: 2 }),
+      timed(tomorrow, '13:00:00', { activity_bookable: false }),
+    ]
+    mocks.getAvailability.mockResolvedValue(slots)
+    const onConfirm = vi.fn()
+
+    render(
+      <AvailabilityPicker
+        product={timedProduct()}
+        onBack={() => {}}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => dayButton(tomorrow))
+    fireEvent.click(dayButton(tomorrow))
+
+    const options = screen.getAllByTestId('start-time-option')
+    expect(options).toHaveLength(3)
+    expect(options[0]).toHaveTextContent('09:00')
+    expect(options[0]).not.toBeDisabled()
+    expect(options[1]).toHaveTextContent('11:00')
+    expect(options[1]).toBeDisabled()
+    expect(options[1]).toHaveTextContent(/Full/)
+    expect(options[2]).toHaveTextContent('13:00')
+    expect(options[2]).toBeDisabled()
+    expect(options[2]).toHaveTextContent(/Too late to book/)
+    // No "any time" fallback on a timed product.
+    expect(screen.queryByRole('button', { name: /Any time/ })).toBeNull()
+
+    const cont = screen.getByTestId('availability-picker-submit')
+    expect(cont).toBeDisabled()
+    fireEvent.click(options[0])
+    expect(cont).not.toBeDisabled()
+    fireEvent.click(cont)
+    expect(onConfirm).toHaveBeenCalledWith(slots[0])
+  })
+
+  it('disables a day whose every time is full', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dayAfter = new Date()
+    dayAfter.setDate(dayAfter.getDate() + 2)
+    mocks.getAvailability.mockResolvedValue([
+      timed(tomorrow, '09:00:00', { available_seats: 0 }),
+      timed(dayAfter, '09:00:00'),
+    ])
+    render(
+      <AvailabilityPicker
+        product={timedProduct()}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => dayButton(tomorrow))
+    expect(dayButton(tomorrow)).toBeDisabled()
+    expect(dayButton(dayAfter)).not.toBeDisabled()
+  })
+
+  it('restores the picked time on back-nav (initialSlot)', async () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const slots = [timed(tomorrow, '09:00:00'), timed(tomorrow, '11:00:00')]
+    mocks.getAvailability.mockResolvedValue(slots)
+    const onConfirm = vi.fn()
+    render(
+      <AvailabilityPicker
+        product={timedProduct()}
+        onBack={() => {}}
+        onConfirm={onConfirm}
+        initialSlot={slots[1]}
+      />,
+    )
+    await waitFor(() => expect(screen.getAllByTestId('start-time-option')).toHaveLength(2))
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm).toHaveBeenCalledWith(slots[1])
   })
 })

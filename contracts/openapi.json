@@ -283,6 +283,47 @@
               }
             ],
             "title": "Product Family"
+          },
+          "slot_capacity": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 9999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Capacity"
+          },
+          "start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Times"
+          },
+          "weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekdays"
           }
         },
         "required": [
@@ -742,6 +783,61 @@
           }
         },
         "title": "ApproveIn",
+        "type": "object"
+      },
+      "AskPartnerIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "partner_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Partner Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "partner_id"
+        ],
+        "title": "AskPartnerIn",
+        "type": "object"
+      },
+      "AskPartnerOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "outbound_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbound Email Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/PartnerRequestOut"
+          }
+        },
+        "required": [
+          "created",
+          "request"
+        ],
+        "title": "AskPartnerOut",
         "type": "object"
       },
       "AssignmentIn": {
@@ -1454,6 +1550,11 @@
             ],
             "title": "Date Range Start"
           },
+          "force_slot_time": {
+            "default": false,
+            "title": "Force Slot Time",
+            "type": "boolean"
+          },
           "forced_days": {
             "anyOf": [
               {
@@ -1496,6 +1597,18 @@
               }
             ],
             "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "title": "BookingProductPatch",
@@ -3529,6 +3642,11 @@
             "title": "Lines",
             "type": "array"
           },
+          "prices_include_tax": {
+            "default": true,
+            "title": "Prices Include Tax",
+            "type": "boolean"
+          },
           "tax_rate": {
             "anyOf": [
               {
@@ -3760,6 +3878,23 @@
           "paying_count": {
             "title": "Paying Count",
             "type": "integer"
+          },
+          "prices_include_tax": {
+            "default": true,
+            "title": "Prices Include Tax",
+            "type": "boolean"
+          },
+          "regular_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Unit Price"
           },
           "tax_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -11679,6 +11814,20 @@
             ],
             "title": "Category Name Localized"
           },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
           "guide_languages": {
             "anyOf": [
               {
@@ -12472,6 +12621,162 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
+        "type": "object"
+      },
+      "PartnerOut": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "person",
+              "hotel"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "PartnerOut",
+        "type": "object"
+      },
+      "PartnerRequestOut": {
+        "properties": {
+          "answer_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Comment"
+          },
+          "answered_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "partner_email": {
+            "title": "Partner Email",
+            "type": "string"
+          },
+          "partner_id": {
+            "title": "Partner Id",
+            "type": "string"
+          },
+          "partner_name": {
+            "title": "Partner Name",
+            "type": "string"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "responder_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responder Name"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "confirmed",
+              "declined",
+              "confirmed_with_changes"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "partner_id",
+          "partner_name",
+          "partner_email",
+          "status"
+        ],
+        "title": "PartnerRequestOut",
+        "type": "object"
+      },
+      "PartnerRequestsOut": {
+        "properties": {
+          "partners": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerOut"
+            },
+            "title": "Partners",
+            "type": "array"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerRequestOut"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "partners",
+          "requests"
+        ],
+        "title": "PartnerRequestsOut",
         "type": "object"
       },
       "PatchMoscowIn": {
@@ -15063,6 +15368,34 @@
             ],
             "title": "Category Id"
           },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "daily_start_weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Weekdays"
+          },
           "day_capacity_source": {
             "anyOf": [
               {
@@ -15322,6 +15655,13 @@
             ],
             "title": "Short Description Localized"
           },
+          "slot_capacity": {
+            "default": 2,
+            "exclusiveMaximum": 9999.0,
+            "minimum": 1.0,
+            "title": "Slot Capacity",
+            "type": "integer"
+          },
           "slug": {
             "maxLength": 64,
             "minLength": 1,
@@ -15411,6 +15751,18 @@
               }
             ],
             "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "required": [
@@ -15507,6 +15859,34 @@
               }
             ],
             "title": "Category Id"
+          },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "daily_start_weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Weekdays"
           },
           "day_capacity_source": {
             "anyOf": [
@@ -15827,6 +16207,19 @@
               }
             ],
             "title": "Short Description Localized"
+          },
+          "slot_capacity": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 9999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Capacity"
           },
           "sort_order": {
             "anyOf": [
@@ -16950,6 +17343,18 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:00)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "required": [
@@ -33715,6 +34120,109 @@
         ]
       }
     },
+    "/api/staff/bookings/{booking_id}/partner-requests": {
+      "get": {
+        "operationId": "staff_list_partner_requests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerRequestsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Partner Requests",
+        "tags": [
+          "staff-bookings-partner-requests"
+        ]
+      },
+      "post": {
+        "description": "Ask one partner to confirm this booking (email with the reply link).\n\n409 ``booking_cancelled`` for a cancelled booking \u00b7 404\n``partner_not_found`` when the id is not a live, active partner of this\noperator (unknown, another tenant's, a meeting point \u2014 one answer, no\nprobe) \u00b7 403 ``feature_disabled`` when the partner's feature is off \u00b7\n422 ``partner_has_no_email`` \u00b7 502 ``partner_request_failed`` when the\nask could not be minted.",
+        "operationId": "staff_ask_partner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskPartnerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskPartnerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ask Partner",
+        "tags": [
+          "staff-bookings-partner-requests"
+        ]
+      }
+    },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
       "patch": {
         "description": "Edit a booking line item.\n\nIf selected_days or date_range changes, re-runs the pricing engine\nand updates computed_price_breakdown + rolls up booking totals.\n\nA ``quantity`` edit does NOT re-run the engine (the stored breakdown is\nper-unit, so it does not move) but DOES roll the booking totals up:\nsince landr-hgol the totals are SUM(per-unit \u00d7 quantity), so changing a\nquantity changes the booking's money and leaving the roll-up out would\nstrand ``bookings.gross_total`` at the old headcount.",
@@ -40709,7 +41217,7 @@
     },
     "/api/staff/operators/{operator_id}/ical-token": {
       "get": {
-        "description": "Return the current token + URL, auto-creating on first access.",
+        "description": "Return the current token + URL, auto-creating on first access.\n\nlandr-xtkae.15: Calendar feed is a paid section. Without it the read\nstays open (the dashboard renders the page inert) but nothing is minted\n(operators on the tier ladder only \u2014 custom packages are unchanged):\n``{\"url\": null, \"token\": null}`` \u2014 and the public feed refuses any old\ntoken anyway (public_operator_ical).",
         "operationId": "get_or_create_operator_ical_token",
         "parameters": [
           {

@@ -190,6 +190,14 @@ export interface Product {
    */
   hotel_offering?: HotelOffering
   /**
+   * landr-xtkae.1/.2: the product's live fixed daily start times, "HH:MM"
+   * ascending, or null/absent when the operator confirms the time themselves.
+   * NON-NULL means the widget shows the day-then-time picker
+   * (AvailabilityPicker) whatever `service_time_shape` is — route on this,
+   * not on the shape. Optional only for the rolling-deploy window.
+   */
+  daily_start_times?: string[] | null
+  /**
    * For product_kind='hotel_room' only: the locations.id row representing
    * the hotel that owns this room. Always non-null on hotel_room rows
    * (DB CHECK products_hotel_room_requires_hotel_location). Null on all
@@ -991,6 +999,13 @@ export interface ProductLine {
    * date range alone ambiguous). Omitted for every other product.
    */
   fixed_date_window_id?: string | null
+  /**
+   * landr-xtkae.1: "HH:MM" start of the picked slot on a fixed-daily-times
+   * product (the API's availability rows carry "HH:MM:SS" — trim before
+   * sending). Required by the API for a synthesised slot; such a slot has no
+   * `product_availability_id`.
+   */
+  slot_start_time?: string | null
 }
 
 export interface SubmitBookingBody {
