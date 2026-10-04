@@ -3766,6 +3766,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/partner-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Partner Requests */
+        get: operations["staff_list_partner_requests"];
+        put?: never;
+        /**
+         * Ask Partner
+         * @description Ask one partner to confirm this booking (email with the reply link).
+         *
+         *     409 ``booking_cancelled`` for a cancelled booking · 404
+         *     ``partner_not_found`` when the id is not a live, active partner of this
+         *     operator (unknown, another tenant's, a meeting point — one answer, no
+         *     probe) · 403 ``feature_disabled`` when the partner's feature is off ·
+         *     422 ``partner_has_no_email`` · 502 ``partner_request_failed`` when the
+         *     ask could not be minted.
+         */
+        post: operations["staff_ask_partner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
         parameters: {
             query?: never;
@@ -10177,6 +10205,21 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** AskPartnerIn */
+        AskPartnerIn: {
+            /** Note */
+            note?: string | null;
+            /** Partner Id */
+            partner_id: string;
+        };
+        /** AskPartnerOut */
+        AskPartnerOut: {
+            /** Created */
+            created: boolean;
+            /** Outbound Email Id */
+            outbound_email_id?: string | null;
+            request: components["schemas"]["PartnerRequestOut"];
+        };
         /** AssignmentIn */
         AssignmentIn: {
             /**
@@ -14334,6 +14377,53 @@ export interface components {
             room_unit_index?: number | null;
             /** Service Role Code */
             service_role_code: string;
+        };
+        /** PartnerOut */
+        PartnerOut: {
+            /** Email */
+            email?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "person" | "hotel";
+        };
+        /** PartnerRequestOut */
+        PartnerRequestOut: {
+            /** Answer Comment */
+            answer_comment?: string | null;
+            /** Answered At */
+            answered_at?: string | null;
+            /** Id */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /** Partner Email */
+            partner_email: string;
+            /** Partner Id */
+            partner_id: string;
+            /** Partner Name */
+            partner_name: string;
+            /** Requested At */
+            requested_at?: string | null;
+            /** Responder Name */
+            responder_name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "declined" | "confirmed_with_changes";
+        };
+        /** PartnerRequestsOut */
+        PartnerRequestsOut: {
+            /** Partners */
+            partners: components["schemas"]["PartnerOut"][];
+            /** Requests */
+            requests: components["schemas"]["PartnerRequestOut"][];
         };
         /**
          * PatchMoscowIn
@@ -24282,6 +24372,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeNotificationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_partner_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerRequestsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_ask_partner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskPartnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskPartnerOut"];
                 };
             };
             /** @description Validation Error */
