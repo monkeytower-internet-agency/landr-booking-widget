@@ -95,6 +95,9 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
     'Leave blank to use the calculated total. When set, this gross total replaces the computed price for this booking.',
     'Override price (operator)',
     '[placeholder] Reason for the override (required when set)',
+    // landr-my6fc.7: staff-only overlap warning (overlaps only load in staff mode).
+    'Already booked',
+    'Book anyway',
   ],
   // landr-aoak.2 [S3]: staff force-book summary — only rendered when the
   // staff selection includes a force-booked day (past a gate a normal

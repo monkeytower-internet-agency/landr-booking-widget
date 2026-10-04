@@ -187,6 +187,45 @@
         "title": "ApiBudget",
         "type": "object"
       },
+      "AppliedRuleDetail": {
+        "properties": {
+          "partitions": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonPartition"
+            },
+            "title": "Partitions",
+            "type": "array"
+          }
+        },
+        "title": "AppliedRuleDetail",
+        "type": "object"
+      },
+      "AppliedRuleSeason": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppliedRuleDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AppliedRuleSeason",
+        "type": "object"
+      },
       "AppliedTemplatesOut": {
         "properties": {
           "created": {
@@ -1311,6 +1350,52 @@
         "title": "BookingNoteOut",
         "type": "object"
       },
+      "BookingOverlap": {
+        "properties": {
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_id",
+          "reference",
+          "start",
+          "end",
+          "status"
+        ],
+        "title": "BookingOverlap",
+        "type": "object"
+      },
       "BookingPatch": {
         "properties": {
           "customer_contact_id": {
@@ -2167,6 +2252,145 @@
           "keys"
         ],
         "title": "BriefingPushSubscription",
+        "type": "object"
+      },
+      "BulkAdjustIn": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "op": {
+            "$ref": "#/components/schemas/BulkAdjustOpIn"
+          },
+          "preview_token": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Token"
+          },
+          "product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Product Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product_ids",
+          "columns",
+          "op"
+        ],
+        "title": "BulkAdjustIn",
+        "type": "object"
+      },
+      "BulkAdjustOpIn": {
+        "properties": {
+          "percent": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": -100.0,
+                "maximum": 1000.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "round_mode": {
+            "default": "nearest",
+            "enum": [
+              "nearest",
+              "up"
+            ],
+            "title": "Round Mode",
+            "type": "string"
+          },
+          "round_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round To"
+          }
+        },
+        "title": "BulkAdjustOpIn",
+        "type": "object"
+      },
+      "BulkAdjustOut": {
+        "properties": {
+          "changed_amount_count": {
+            "default": 0,
+            "title": "Changed Amount Count",
+            "type": "integer"
+          },
+          "changed_list_count": {
+            "default": 0,
+            "title": "Changed List Count",
+            "type": "integer"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListChangeOut"
+            },
+            "title": "Lists",
+            "type": "array"
+          },
+          "preview_token": {
+            "title": "Preview Token",
+            "type": "string"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/PriceListSkippedOut"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dry_run",
+          "preview_token"
+        ],
+        "title": "BulkAdjustOut",
         "type": "object"
       },
       "BulkReminderIn": {
@@ -5423,6 +5647,18 @@
             "title": "Rule Id",
             "type": "string"
           },
+          "season": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
           "skipped": {
             "anyOf": [
               {
@@ -5882,6 +6118,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "start_date": {
             "format": "date",
@@ -7911,6 +8158,17 @@
             },
             "title": "Dates",
             "type": "array"
+          },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
           },
           "host_display_name": {
             "default": "",
@@ -12527,6 +12785,452 @@
         "title": "PreviewMigrationsResponse",
         "type": "object"
       },
+      "PriceAmountChangeOut": {
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "rule_index": {
+            "title": "Rule Index",
+            "type": "integer"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "threshold_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Max"
+          },
+          "threshold_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Min"
+          },
+          "tier_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier Index"
+          }
+        },
+        "required": [
+          "rule_index",
+          "rule_kind",
+          "field",
+          "before",
+          "after",
+          "changed"
+        ],
+        "title": "PriceAmountChangeOut",
+        "type": "object"
+      },
+      "PriceCellOut": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceHeadlineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule_count": {
+            "default": 0,
+            "title": "Rule Count",
+            "type": "integer"
+          },
+          "scheme_id": {
+            "title": "Scheme Id",
+            "type": "string"
+          },
+          "simple": {
+            "title": "Simple",
+            "type": "boolean"
+          },
+          "tree": {
+            "$ref": "#/components/schemas/PriceListOut"
+          }
+        },
+        "required": [
+          "scheme_id",
+          "simple",
+          "tree"
+        ],
+        "title": "PriceCellOut",
+        "type": "object"
+      },
+      "PriceCellPatchIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "maximum": 9999999999.99,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "season_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
+          }
+        },
+        "required": [
+          "product_id",
+          "amount"
+        ],
+        "title": "PriceCellPatchIn",
+        "type": "object"
+      },
+      "PriceCellPatchOut": {
+        "properties": {
+          "cell": {
+            "$ref": "#/components/schemas/PriceCellOut"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "column",
+          "cell"
+        ],
+        "title": "PriceCellPatchOut",
+        "type": "object"
+      },
+      "PriceHeadlineOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "from": {
+            "title": "From",
+            "type": "boolean"
+          },
+          "per_participant": {
+            "default": false,
+            "title": "Per Participant",
+            "type": "boolean"
+          },
+          "unit": {
+            "enum": [
+              "per_person",
+              "per_day",
+              "total"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "unit",
+          "from"
+        ],
+        "title": "PriceHeadlineOut",
+        "type": "object"
+      },
+      "PriceListChangeOut": {
+        "properties": {
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/PriceAmountChangeOut"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "season_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Name"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "column",
+          "changed"
+        ],
+        "title": "PriceListChangeOut",
+        "type": "object"
+      },
+      "PriceListIn": {
+        "description": "One price list (a pricing scheme tree). ``name`` defaults to the\nproduct's name (standard) or \"<product> \u2014 <season>\" (period). Extra keys\n(ids, timestamps \u2014 e.g. a tree sent back as GET returned it) are ignored.",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "allow_day_deselection": {
+            "default": true,
+            "title": "Allow Day Deselection",
+            "type": "boolean"
+          },
+          "currency": {
+            "default": "EUR",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/app__routers__staff_pricing__RuleIn"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "PriceListIn",
+        "type": "object"
+      },
+      "PriceListOut": {
+        "additionalProperties": true,
+        "description": "A price-list tree, exactly what ``_bundle_scheme_tree`` returns.",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "allow_day_deselection": {
+            "default": true,
+            "title": "Allow Day Deselection",
+            "type": "boolean"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/PriceRuleOut"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "currency"
+        ],
+        "title": "PriceListOut",
+        "type": "object"
+      },
+      "PriceListSkippedOut": {
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "no_price",
+              "standard_used"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "season_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Name"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "column",
+          "reason"
+        ],
+        "title": "PriceListSkippedOut",
+        "type": "object"
+      },
       "PriceOverrideIn": {
         "properties": {
           "override_gross_total": {
@@ -12618,10 +13322,286 @@
         "title": "PriceOverrideOut",
         "type": "object"
       },
+      "PriceRuleOut": {
+        "additionalProperties": true,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/PriceTierOut"
+            },
+            "title": "Tiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "rule_kind",
+          "sort_order"
+        ],
+        "title": "PriceRuleOut",
+        "type": "object"
+      },
+      "PriceTierOut": {
+        "additionalProperties": true,
+        "properties": {
+          "amount_per_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Per Unit"
+          },
+          "amount_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Total"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "threshold_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Max"
+          },
+          "threshold_min": {
+            "title": "Threshold Min",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "threshold_min"
+        ],
+        "title": "PriceTierOut",
+        "type": "object"
+      },
+      "PricesCategoryOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricesCategoryOut",
+        "type": "object"
+      },
+      "PricesMatrixOut": {
+        "properties": {
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PricesProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/PricingSeasonRefOut"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "title": "PricesMatrixOut",
+        "type": "object"
+      },
+      "PricesOwnPeriodOut": {
+        "properties": {
+          "cell": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceCellOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "season": {
+            "$ref": "#/components/schemas/PricingSeasonRefOut"
+          }
+        },
+        "required": [
+          "season"
+        ],
+        "title": "PricesOwnPeriodOut",
+        "type": "object"
+      },
+      "PricesProductOut": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PricesCategoryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cells": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PriceCellOut"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Cells",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_publicly_listed": {
+            "default": false,
+            "title": "Is Publicly Listed",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "own_periods": {
+            "items": {
+              "$ref": "#/components/schemas/PricesOwnPeriodOut"
+            },
+            "title": "Own Periods",
+            "type": "array"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricesProductOut",
+        "type": "object"
+      },
       "PricingBreakdownLineItem": {
         "additionalProperties": true,
-        "description": "One priced line \u2014 mirrors ``EstimateLineItem``'s wire shape (see\n``app/routers/public_operators.py``) minus the live-estimate-only\n``applied_rules`` trace.",
+        "description": "One priced line \u2014 mirrors ``EstimateLineItem``'s wire shape (see\n``app/routers/public_operators.py``) with only the season slice of the\n``applied_rules`` trace.",
         "properties": {
+          "applied_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AppliedRuleSeason"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Rules"
+          },
           "label": {
             "title": "Label",
             "type": "string"
@@ -12641,6 +13621,16 @@
           "qty": {
             "title": "Qty",
             "type": "integer"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "unit_price": {
             "title": "Unit Price",
@@ -12760,6 +13750,524 @@
           "has_hotel"
         ],
         "title": "PricingBreakdownResponse",
+        "type": "object"
+      },
+      "PricingDraftListIn": {
+        "properties": {
+          "allow_day_deselection": {
+            "default": true,
+            "title": "Allow Day Deselection",
+            "type": "boolean"
+          },
+          "currency": {
+            "default": "EUR",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/PricingDraftRuleIn"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "PricingDraftListIn",
+        "type": "object"
+      },
+      "PricingDraftPeriodIn": {
+        "properties": {
+          "price": {
+            "$ref": "#/components/schemas/PricingDraftListIn"
+          },
+          "season": {
+            "$ref": "#/components/schemas/PricingDraftSeasonIn"
+          }
+        },
+        "required": [
+          "season",
+          "price"
+        ],
+        "title": "PricingDraftPeriodIn",
+        "type": "object"
+      },
+      "PricingDraftRuleIn": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "rule_kind": {
+            "enum": [
+              "per_day_base",
+              "per_streak_tier",
+              "per_total_days_tier",
+              "per_participant_tier",
+              "fixed_total",
+              "percentage_discount",
+              "flat_discount",
+              "time_of_day_surcharge",
+              "manual_override"
+            ],
+            "title": "Rule Kind",
+            "type": "string"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/app__routers__staff_pricing__TierIn"
+            },
+            "title": "Tiers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_kind",
+          "sort_order"
+        ],
+        "title": "PricingDraftRuleIn",
+        "type": "object"
+      },
+      "PricingDraftSeasonIn": {
+        "description": "A season / own period as the editor holds it (may be unsaved).",
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "shared": {
+            "default": true,
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "PricingDraftSeasonIn",
+        "type": "object"
+      },
+      "PricingOwnPeriodIn": {
+        "description": "A NEW own period of this product (a season only this product uses).",
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "PricingOwnPeriodIn",
+        "type": "object"
+      },
+      "PricingProductOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricingProductOut",
+        "type": "object"
+      },
+      "PricingSeasonDeleteOut": {
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "product_count": {
+            "title": "Product Count",
+            "type": "integer"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PricingSeasonProductOut"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "season_id": {
+            "title": "Season Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "season_id",
+          "dry_run",
+          "deleted",
+          "product_count"
+        ],
+        "title": "PricingSeasonDeleteOut",
+        "type": "object"
+      },
+      "PricingSeasonIn": {
+        "description": "POST \u2026/seasons. ``product_id`` set = an own period of that product.",
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "PricingSeasonIn",
+        "type": "object"
+      },
+      "PricingSeasonOut": {
+        "additionalProperties": true,
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          },
+          "price_count": {
+            "default": 0,
+            "title": "Price Count",
+            "type": "integer"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "name",
+          "starts_on",
+          "ends_on",
+          "shared"
+        ],
+        "title": "PricingSeasonOut",
+        "type": "object"
+      },
+      "PricingSeasonPatch": {
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "title": "PricingSeasonPatch",
+        "type": "object"
+      },
+      "PricingSeasonProductOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PricingSeasonProductOut",
+        "type": "object"
+      },
+      "PricingSeasonRefOut": {
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "starts_on",
+          "ends_on",
+          "shared"
+        ],
+        "title": "PricingSeasonRefOut",
         "type": "object"
       },
       "ProductAddon": {
@@ -13815,6 +15323,18 @@
             ],
             "title": "Date Range Start"
           },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
+          },
           "product_availability_id": {
             "anyOf": [
               {
@@ -14279,6 +15799,117 @@
           }
         },
         "title": "ProductPatch",
+        "type": "object"
+      },
+      "ProductPeriodPriceIn": {
+        "description": "A period price: EITHER ``season_id`` (a shared season, or an existing\nown period of this product) OR ``own_period`` (create a new own period).",
+        "properties": {
+          "own_period": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PricingOwnPeriodIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/PriceListIn"
+          },
+          "season_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Id"
+          }
+        },
+        "required": [
+          "price"
+        ],
+        "title": "ProductPeriodPriceIn",
+        "type": "object"
+      },
+      "ProductPeriodPriceOut": {
+        "properties": {
+          "price": {
+            "$ref": "#/components/schemas/PriceListOut"
+          },
+          "season": {
+            "$ref": "#/components/schemas/PricingSeasonRefOut"
+          }
+        },
+        "required": [
+          "season",
+          "price"
+        ],
+        "title": "ProductPeriodPriceOut",
+        "type": "object"
+      },
+      "ProductPricingIn": {
+        "description": "Body of PUT \u2026/products/{id}/pricing.\n\n* ``standard`` key ABSENT = leave the standard price unchanged; an object\n  = replace it; explicit ``null`` = remove it (the product is then not\n  priced; refused while period prices remain).\n* ``periods`` absent or null = leave the period prices unchanged; a list =\n  the COMPLETE set afterwards (a current period price not listed is\n  removed \u2014 back to standard \u2014 and an own period goes with it).",
+        "properties": {
+          "periods": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProductPeriodPriceIn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periods"
+          },
+          "standard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceListIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ProductPricingIn",
+        "type": "object"
+      },
+      "ProductPricingOut": {
+        "properties": {
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/ProductPeriodPriceOut"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "product": {
+            "$ref": "#/components/schemas/PricingProductOut"
+          },
+          "standard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceListOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "product"
+        ],
+        "title": "ProductPricingOut",
         "type": "object"
       },
       "ProductRequirementOut": {
@@ -15261,6 +16892,18 @@
             "format": "date",
             "title": "Date",
             "type": "string"
+          },
+          "fixed_date_window_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Date Window Id"
           },
           "product_id": {
             "title": "Product Id",
@@ -18727,6 +20370,425 @@
         "title": "RevenueOverview",
         "type": "object"
       },
+      "RollForwardConditionShiftOut": {
+        "properties": {
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "rule_index": {
+            "title": "Rule Index",
+            "type": "integer"
+          },
+          "rule_kind": {
+            "title": "Rule Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_index",
+          "rule_kind",
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "RollForwardConditionShiftOut",
+        "type": "object"
+      },
+      "RollForwardConflictOut": {
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "starts_on",
+          "ends_on"
+        ],
+        "title": "RollForwardConflictOut",
+        "type": "object"
+      },
+      "RollForwardEasterOut": {
+        "properties": {
+          "from_date": {
+            "format": "date",
+            "title": "From Date",
+            "type": "string"
+          },
+          "shift_days": {
+            "title": "Shift Days",
+            "type": "integer"
+          },
+          "to_date": {
+            "format": "date",
+            "title": "To Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_date",
+          "to_date",
+          "shift_days"
+        ],
+        "title": "RollForwardEasterOut",
+        "type": "object"
+      },
+      "RollForwardIn": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "from_year": {
+            "maximum": 2200.0,
+            "minimum": 2000.0,
+            "title": "From Year",
+            "type": "integer"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": -100.0,
+                "maximum": 1000.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "preview_token": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Token"
+          },
+          "round_mode": {
+            "default": "nearest",
+            "enum": [
+              "nearest",
+              "up"
+            ],
+            "title": "Round Mode",
+            "type": "string"
+          },
+          "round_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round To"
+          },
+          "season_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season Ids"
+          },
+          "season_overrides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RollForwardOverrideIn"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Season Overrides",
+            "type": "object"
+          },
+          "to_year": {
+            "maximum": 2200.0,
+            "minimum": 2000.0,
+            "title": "To Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_year",
+          "to_year"
+        ],
+        "title": "RollForwardIn",
+        "type": "object"
+      },
+      "RollForwardOut": {
+        "properties": {
+          "can_apply": {
+            "title": "Can Apply",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "easter": {
+            "$ref": "#/components/schemas/RollForwardEasterOut"
+          },
+          "from_year": {
+            "title": "From Year",
+            "type": "integer"
+          },
+          "preview_token": {
+            "title": "Preview Token",
+            "type": "string"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardPriceOut"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardSeasonOut"
+            },
+            "title": "Seasons",
+            "type": "array"
+          },
+          "to_year": {
+            "title": "To Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_year",
+          "to_year",
+          "dry_run",
+          "can_apply",
+          "preview_token",
+          "easter"
+        ],
+        "title": "RollForwardOut",
+        "type": "object"
+      },
+      "RollForwardOverrideIn": {
+        "description": "Per source season: dates and/or a name instead of the suggestion.\nDates come as a pair (both or neither).",
+        "properties": {
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts On"
+          }
+        },
+        "title": "RollForwardOverrideIn",
+        "type": "object"
+      },
+      "RollForwardPriceOut": {
+        "properties": {
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/PriceAmountChangeOut"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "conditions_shifted": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardConditionShiftOut"
+            },
+            "title": "Conditions Shifted",
+            "type": "array"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "source_season_id": {
+            "title": "Source Season Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "source_season_id"
+        ],
+        "title": "RollForwardPriceOut",
+        "type": "object"
+      },
+      "RollForwardSeasonOut": {
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/RollForwardConflictOut"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "date_rule": {
+            "enum": [
+              "easter",
+              "same_day",
+              "override"
+            ],
+            "title": "Date Rule",
+            "type": "string"
+          },
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "name_overridden": {
+            "default": false,
+            "title": "Name Overridden",
+            "type": "boolean"
+          },
+          "price_count": {
+            "default": 0,
+            "title": "Price Count",
+            "type": "integer"
+          },
+          "source_ends_on": {
+            "format": "date",
+            "title": "Source Ends On",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "source_season_id": {
+            "title": "Source Season Id",
+            "type": "string"
+          },
+          "source_starts_on": {
+            "format": "date",
+            "title": "Source Starts On",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_season_id",
+          "source_name",
+          "source_starts_on",
+          "source_ends_on",
+          "name",
+          "starts_on",
+          "ends_on",
+          "date_rule"
+        ],
+        "title": "RollForwardSeasonOut",
+        "type": "object"
+      },
       "SavedViewIn": {
         "description": "Create payload. creator_user_id is server-stamped from the JWT.",
         "properties": {
@@ -19070,6 +21132,29 @@
         "title": "SeasonOut",
         "type": "object"
       },
+      "SeasonPartition": {
+        "properties": {
+          "days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SeasonPartition",
+        "type": "object"
+      },
       "SeasonPlanIn": {
         "description": "``PUT .../units/service-periods`` \u2014 the Season planner's whole draft,\napplied to every touched unit in ONE transaction (landr-e80s.30, follow-up\nto landr-e80s.25's client-side, non-atomic ``Promise.allSettled`` fan-out\nover N per-unit PUTs).\n\nEach row OVERWRITES the days it covers on every unit it names: an\nexisting period (either kind) that only partially overlaps a row is\ntrimmed to its non-overlapping remainder, one entirely inside the row's\nrange is replaced outright, and the row's own range becomes a new\n``in_service`` period. Rows are applied in array order, so a LATER row\nwins over an EARLIER one on the same unit where their ranges overlap \u2014\nsame \"last write wins\" contract\n``landr-dashboard/src/lib/seasonPlanner.ts``'s ``computeSeasonPlannerPlans``\ndocuments. See ``apply_resource_pool_season_plan``'s migration for the\nfull algorithm; it is a straight port of that module's\n``computeSeasonPlannerPlans``/``trimPeriod``.",
         "properties": {
@@ -19117,6 +21202,31 @@
           "unit_ids"
         ],
         "title": "SeasonPlanRow",
+        "type": "object"
+      },
+      "SeasonRef": {
+        "description": "Season / own period that priced a line (landr-z59hw.1 trace).",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SeasonRef",
         "type": "object"
       },
       "SendMessageRequest": {
@@ -19699,6 +21809,90 @@
           "slug"
         ],
         "title": "SignupRequest",
+        "type": "object"
+      },
+      "SimulateDraftIn": {
+        "description": "Body of POST \u2026/pricing/simulate-draft.\n\n``selected_days`` go to the engine unchanged: for a ``hotel_room``\nproduct they ARE the night list (check-in inclusive, check-out\nexclusive \u2014 the engine convention), NOT the widget's raw activity days.\n``service_time_shape`` / ``product_kind`` default to the saved product's\nwhen ``product_id`` is given.",
+        "properties": {
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "participant_count": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Participant Count",
+            "type": "integer"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/PricingDraftPeriodIn"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "product_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Kind"
+          },
+          "selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Selected Days",
+            "type": "array"
+          },
+          "service_time_shape": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Time Shape"
+          },
+          "standard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PricingDraftListIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SimulateDraftIn",
         "type": "object"
       },
       "SiteFlyabilityResponse": {
@@ -23017,6 +25211,17 @@
             "title": "End Date",
             "type": "string"
           },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "start_date": {
             "format": "date",
             "title": "Start Date",
@@ -23067,6 +25272,17 @@
               }
             ],
             "title": "End Date"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "start_date": {
             "anyOf": [
@@ -36367,6 +38583,255 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/contacts/booking-overlaps": {
+      "get": {
+        "operationId": "contact_booking_overlaps",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 320,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contact Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_booking_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookingOverlap"
+                  },
+                  "title": "Response Contact Booking Overlaps",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Contact Booking Overlaps",
+        "tags": [
+          "staff-contact-booking-overlaps"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contacts/booking-overlaps/staff-session": {
+      "get": {
+        "description": "Widget (staff_session) twin of the JWT route above. The operator used\nfor the lookup is the VERIFIED session's, never a client-supplied one; a\nsession for another operator than the path is a 403.",
+        "operationId": "contact_booking_overlaps_staff_session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "staff_session",
+            "required": true,
+            "schema": {
+              "title": "Staff Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 320,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contact Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_booking_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BookingOverlap"
+                  },
+                  "title": "Response Contact Booking Overlaps Staff Session",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Contact Booking Overlaps Staff Session",
+        "tags": [
+          "staff-contact-booking-overlaps"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
       "get": {
         "description": "Metadata only \u2014 never the plaintext, which is not recoverable once\nhashed. The dashboard uses this to decide whether to show \"copy link\"\n(existing token, plaintext already shown once) vs. \"create link\".",
@@ -40704,6 +43169,170 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/prices": {
+      "get": {
+        "description": "The Prices page: one row per product (ordered by sort_order, then\nname), one column for the standard price and one per shared season.\n\nA cell is ``{scheme_id, simple, headline, rule_count, tree}`` or null\n(no price: for \"standard\" the product is not priced, for a season the\nstandard price applies). ``simple`` cells can be edited in place with\nPATCH /prices/cell. Own periods are listed per product. Loaded in a\nfixed number of queries whatever the number of products.",
+        "operationId": "prices_matrix_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricesMatrixOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Prices Matrix",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/prices/bulk-adjust": {
+      "post": {
+        "description": "Raise / lower / round every AMOUNT in the chosen cells: rule amounts\n(per_day_base, fixed_total, time_of_day_surcharge, manual_override) and\ntier amounts. Discounts (percentage_discount, flat_discount) and inactive\nrules stay untouched. ``op.percent`` first (cents, half-up), then\n``op.round_to`` (0.5 / 1 / 5 / 10; ``round_mode`` nearest or up).\n\nReturns before/after for every amount of every list. ``dry_run=true``\n(the default) writes nothing; ``dry_run=false`` writes every changed\nlist in ONE transaction and returns the same diff. A season without a\nprice for a product is skipped (``standard_used``). 409\n``prices_changed`` when a list was edited elsewhere meanwhile.",
+        "operationId": "prices_bulk_adjust",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAdjustIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkAdjustOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Adjust Prices",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/prices/cell": {
+      "patch": {
+        "description": "Set the one amount of a SIMPLE cell. ``season_id`` null = the\nstandard price. A season cell without a price is created as a copy of\nthe product's standard price with the new amount (the standard must be\nsimple then). 422 ``not_simple`` when the list has several amounts or\nrules that set the price \u2014 edit it in the product's Price tab;\n``no_price`` when the product has no standard price yet.",
+        "operationId": "prices_cell_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceCellPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceCellPatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Price Cell",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/pricing-rules/{rule_id}": {
       "delete": {
         "operationId": "pricing_delete_rule",
@@ -41428,6 +44057,64 @@
         "summary": "Patch Tier",
         "tags": [
           "staff-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/pricing/simulate-draft": {
+      "post": {
+        "description": "Price an UNSAVED price draft for an example booking with the real\nengine \u2014 what the price editor's live example calls. Nothing is saved\nand no voucher or membership perk applies. Works for products that are\nnot saved yet, not public or not active. Same response shape as the\npublic estimate (one line item), plus ``engine_warnings`` (the raw\nengine messages, staff-only).",
+        "operationId": "pricing_simulate_draft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateDraftIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Simulate Draft",
+        "tags": [
+          "staff-product-pricing"
         ]
       }
     },
@@ -43301,6 +45988,204 @@
         "summary": "Patch Window",
         "tags": [
           "staff-fixed-date-windows"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/pricing": {
+      "get": {
+        "description": "A product's whole price: the standard price list and every season /\nown-period price list it has (periods ordered by start date). A season\nwithout a price for this product is absent \u2014 it means the standard\nprice. ``standard`` is null when the product is not priced.",
+        "operationId": "product_pricing_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Product Pricing",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      },
+      "put": {
+        "description": "Replace the standard price and/or the full set of period prices in\none transaction \u2014 all of it is saved, or none of it. Omit ``standard`` /\n``periods`` to leave that part unchanged. Returns the saved price (same\nshape as GET). 409 when a new own period overlaps another own period of\nthis product; 422 for an invalid price list.",
+        "operationId": "product_pricing_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductPricingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Product Pricing",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/products/{product_id}/pricing/copy-from/{source_product_id}": {
+      "post": {
+        "description": "Copy another product's price into this one (one transaction). The\nstandard price is always replaced by a copy of the source's. With\n``include_periods=true`` this product's period prices are replaced by\ncopies of the source's too: a shared season keeps the same season, an\nown period becomes a new own period of this product with the same name\nand dates. Copies are independent \u2014 editing one never changes the\nother.",
+        "operationId": "product_pricing_copy_from",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_product_id",
+            "required": true,
+            "schema": {
+              "title": "Source Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_periods",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Periods",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Copy Product Pricing",
+        "tags": [
+          "staff-product-pricing"
         ]
       }
     },
@@ -49531,6 +52416,338 @@
         "summary": "Set View User State",
         "tags": [
           "staff-saved-views"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/seasons": {
+      "get": {
+        "description": "Live seasons, ordered by start date. Without ``product_id``: every\nshared season and every product's own periods. With ``product_id``: the\nshared seasons plus that product's own periods. ``price_count`` = live\nproducts with a price for the season.",
+        "operationId": "pricing_seasons_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PricingSeasonOut"
+                  },
+                  "title": "Response Pricing Seasons List",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Seasons",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      },
+      "post": {
+        "description": "Create a shared season (no ``product_id``) or an own period of one\nproduct. 409 when the dates overlap another season of the same kind\n(shared seasons of this operator, or this product's own periods).",
+        "operationId": "pricing_seasons_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingSeasonIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSeasonOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Season",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/seasons/roll-forward": {
+      "post": {
+        "description": "Copy the shared seasons that start in ``from_year`` to ``to_year``,\nwith every product's price for them (optionally raised by ``percent``\nand rounded like bulk-adjust). Own periods are not copied.\n\nSuggested dates: a season containing Easter Sunday of ``from_year``\nmoves with Easter; every other season keeps its month and day.\n``season_overrides`` replaces the suggestion per source season. A \"2027\"\nin a season name becomes \"2028\".\n\n``dry_run=true`` (the default) returns the proposal, each season's\noverlaps with existing seasons (or with another proposed one) in\n``conflicts`` and ``can_apply``. ``dry_run=false`` writes it all in ONE\ntransaction and returns the same proposal \u2014 or 409 ``season_overlap``\nwhen a proposed season overlaps, 422 ``nothing_to_roll`` when there is\nnothing to copy, 409 ``prices_changed`` when a source price was edited\nmeanwhile.",
+        "operationId": "pricing_seasons_roll_forward",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollForwardIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollForwardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Roll Forward Seasons",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/seasons/{season_id}": {
+      "delete": {
+        "description": "Delete a season. ``dry_run=true`` only reports which products have a\nprice for it. A real delete removes those prices too (the products fall\nback to their standard price for those dates) in one transaction.\nBookings already made keep their stored price.",
+        "operationId": "pricing_seasons_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSeasonDeleteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Season",
+        "tags": [
+          "staff-product-pricing"
+        ]
+      },
+      "patch": {
+        "description": "Rename or move a season. Its prices stay attached; bookings already\nmade keep their stored price. 409 on overlap (see POST).",
+        "operationId": "pricing_seasons_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "season_id",
+            "required": true,
+            "schema": {
+              "title": "Season Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingSeasonPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingSeasonOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Season",
+        "tags": [
+          "staff-product-pricing"
         ]
       }
     },
