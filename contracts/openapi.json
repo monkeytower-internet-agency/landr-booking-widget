@@ -3570,6 +3570,11 @@
             "title": "Lines",
             "type": "array"
           },
+          "prices_include_tax": {
+            "default": true,
+            "title": "Prices Include Tax",
+            "type": "boolean"
+          },
           "tax_rate": {
             "anyOf": [
               {
@@ -3801,6 +3806,11 @@
           "paying_count": {
             "title": "Paying Count",
             "type": "integer"
+          },
+          "prices_include_tax": {
+            "default": true,
+            "title": "Prices Include Tax",
+            "type": "boolean"
           },
           "regular_unit_price": {
             "anyOf": [
