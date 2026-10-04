@@ -11367,6 +11367,8 @@ export interface components {
             net_total: string;
             /** Paying Count */
             paying_count: number;
+            /** Regular Unit Price */
+            regular_unit_price?: string | null;
             /** Tax Total */
             tax_total: string;
         };
