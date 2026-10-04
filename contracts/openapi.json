@@ -268,6 +268,21 @@
             "minLength": 1,
             "title": "Preset Key",
             "type": "string"
+          },
+          "product_family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "activity",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Family"
           }
         },
         "required": [
@@ -5271,7 +5286,7 @@
         "type": "object"
       },
       "DomainEligibility": {
-        "description": "Response of GET /api/operator/email-sender/eligibility.\n\nFields:\n  domain:   the domain that was classified (normalised lowercase).\n  path:     'auto' when Landr will configure DNS automatically;\n            'manual' when the operator must publish records themselves.\n  provider: 'cloudflare' | 'autodns' | 'manual'  \u2014 detected DNS provider.\n  in_pool:  True/False when the autoDNS pool probe was called; None otherwise.",
+        "description": "Response of GET /api/operator/email-sender/eligibility.\n\nFields:\n  domain:   the domain that was classified (normalised lowercase).\n  path:     'auto' when Landr will configure DNS automatically;\n            'manual' when the operator must publish records themselves.\n  provider: 'cloudflare' | 'autodns' | 'manual'  \u2014 detected DNS provider.\n  in_pool:  True/False when the autoDNS pool probe was called; None otherwise.\n  registered_with_us: True when the domain is in our InterNetX registrar\n            portfolio (any nameservers), False when not, None if unknown.",
         "properties": {
           "domain": {
             "title": "Domain",
@@ -5298,6 +5313,18 @@
             "description": "cloudflare | autodns | manual.",
             "title": "Provider",
             "type": "string"
+          },
+          "registered_with_us": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Registered in our InterNetX registrar portfolio, independent of nameservers (True/False; None if unknown or creds unset).",
+            "title": "Registered With Us"
           }
         },
         "required": [
@@ -11180,6 +11207,21 @@
               }
             ],
             "title": "Primary Color"
+          },
+          "product_family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "activity",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Family"
           },
           "public_contact_email": {
             "anyOf": [
