@@ -529,6 +529,8 @@ type Bundle = {
   draftPreviewBadge: string
   shopComingSoonBodyTemplate: string
   landingPageTitle: string
+  /** landr-xtkae.10: "powered by LANDR" credit line under the widget (plans without branding.remove_powered_by). */
+  poweredByLandr: string
 
   // ---- priceSidebarHelpers: discount explanation lines ----
   perDaySuffix: string
@@ -1102,6 +1104,7 @@ const en: Bundle = {
   shopComingSoonBodyTemplate:
     'This {kind} is sold in our Shop, which is coming soon. Please contact the operator directly to order it in the meantime.',
   landingPageTitle: 'This is the booking-widget host for Landr',
+  poweredByLandr: 'Powered by LANDR',
 
   perDaySuffix: '/day',
   daySingular: 'day',
@@ -1671,6 +1674,7 @@ const de: Bundle = {
   shopComingSoonBodyTemplate:
     'Diese Art von Produkt ({kind}) wird über unseren Shop verkauft, der in Kürze verfügbar ist. Bitte kontaktieren Sie den Anbieter direkt, um es in der Zwischenzeit zu bestellen.',
   landingPageTitle: 'Dies ist die Host-Seite für das Landr-Buchungswidget.',
+  poweredByLandr: 'Bereitgestellt von LANDR',
 
   perDaySuffix: '/Tag',
   daySingular: 'Tag',
