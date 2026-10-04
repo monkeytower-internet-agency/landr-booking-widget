@@ -12174,6 +12174,11 @@
             ],
             "title": "Primary Color"
           },
+          "remove_powered_by": {
+            "default": true,
+            "title": "Remove Powered By",
+            "type": "boolean"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
