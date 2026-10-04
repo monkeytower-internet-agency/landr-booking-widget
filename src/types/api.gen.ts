@@ -5897,6 +5897,12 @@ export interface paths {
         /**
          * Get Or Create Operator Ical Token
          * @description Return the current token + URL, auto-creating on first access.
+         *
+         *     landr-xtkae.15: Calendar feed is a paid section. Without it the read
+         *     stays open (the dashboard renders the page inert) but nothing is minted
+         *     (operators on the tier ladder only — custom packages are unchanged):
+         *     ``{"url": null, "token": null}`` — and the public feed refuses any old
+         *     token anyway (public_operator_ical).
          */
         get: operations["get_or_create_operator_ical_token"];
         put?: never;
