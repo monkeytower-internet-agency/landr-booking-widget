@@ -11872,6 +11872,8 @@ export interface components {
          *                 'manual' when the operator must publish records themselves.
          *       provider: 'cloudflare' | 'autodns' | 'manual'  — detected DNS provider.
          *       in_pool:  True/False when the autoDNS pool probe was called; None otherwise.
+         *       registered_with_us: True when the domain is in our InterNetX registrar
+         *                 portfolio (any nameservers), False when not, None if unknown.
          */
         DomainEligibility: {
             /** Domain */
@@ -11891,6 +11893,11 @@ export interface components {
              * @description cloudflare | autodns | manual.
              */
             provider: string;
+            /**
+             * Registered With Us
+             * @description Registered in our InterNetX registrar portfolio, independent of nameservers (True/False; None if unknown or creds unset).
+             */
+            registered_with_us?: boolean | null;
         };
         /** EmailCollisionOut */
         EmailCollisionOut: {
