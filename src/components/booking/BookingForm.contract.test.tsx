@@ -855,6 +855,56 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(products[0]).not.toHaveProperty('product_availability_id')
   })
 
+  // landr-xtkae.2: a synthesised fixed-time slot has no availability row; the
+  // API identifies it by date + slot_start_time ("HH:MM", NOT the "HH:MM:SS"
+  // availability returns).
+  it('sends slot_start_time as HH:MM for a synthesised fixed-time slot and no product_availability_id', async () => {
+    const TIMED_SELECTION: BookingSelection = {
+      kind: 'slot',
+      slot: {
+        availability_id: null,
+        date: '2026-06-11',
+        start_time: '11:00:00',
+        end_time: null,
+        capacity: 2,
+        capacity_reserved: 0,
+        available_seats: 2,
+        status: 'open',
+      },
+    }
+
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={TIMED_SELECTION}
+        booker={BOOKER}
+        participants={[{ ...BOOKER, service_role_code: '' }]}
+        pickupLocationId={null}
+        accommodationRooms={[{ productId: 'room-deluxe', quantity: 1 }]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    const products = body.products as Array<Record<string, unknown>>
+    expect(products[0]).toMatchObject({
+      product_id: 'svc-main',
+      selected_days: ['2026-06-11'],
+      slot_start_time: '11:00',
+    })
+    expect(products[0]).not.toHaveProperty('product_availability_id')
+    // Only the primary line carries the slot.
+    expect(products[1]).not.toHaveProperty('slot_start_time')
+  })
+
   it('omits product_availability_id for a days-range selection (no single slot to attach)', async () => {
     render(
       <BookingForm

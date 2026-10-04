@@ -29,6 +29,7 @@ import {
 import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
+import { toHHMM } from './slotKey'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -535,6 +536,18 @@ const isCapacityExceeded = (err: HttpError): boolean =>
   !Array.isArray(err.detail) &&
   (err.detail as { error?: unknown }).error === 'capacity_exceeded'
 
+/**
+ * landr-xtkae.2: the picked fixed start time is gone (operator edited the
+ * list, the slot started meanwhile, weekday no longer offered). Same recovery
+ * as a full slot: back to the picker, which re-fetches.
+ */
+const isSlotStartTimeInvalid = (err: HttpError): boolean =>
+  err.status === 422 &&
+  err.detail !== null &&
+  typeof err.detail === 'object' &&
+  !Array.isArray(err.detail) &&
+  (err.detail as { error?: unknown }).error === 'slot_start_time_invalid'
+
 /** landr-my6fc.11: several course windows share the start day and none was named. */
 const isFixedDateWindowAmbiguous = (err: HttpError): boolean =>
   err.status === 422 &&
@@ -559,6 +572,7 @@ const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
   participantCount: number = 0,
+  timedSlot: boolean = false,
 ): string => {
   // landr-r6e5x.4: the typed per-participant-language rejections come first —
   // they are actionable ("go back and assign X") in a way the generic 422
@@ -654,7 +668,14 @@ const formatHttpError = (
   // landr-f987a.1: a day filled up between selection and Confirm. Localized
   // copy only — never the raw `422 : {"detail":...}` dump.
   if (isCapacityExceeded(err)) {
-    return tr('capacityExceededMessage', browserLocale())
+    return tr(
+      timedSlot ? 'slotCapacityExceededMessage' : 'capacityExceededMessage',
+      browserLocale(),
+    )
+  }
+  // landr-xtkae.2: friendly retry for a stale/invalid fixed start time.
+  if (isSlotStartTimeInvalid(err)) {
+    return tr('slotStartTimeInvalidMessage', browserLocale())
   }
   if (isFixedDateWindowAmbiguous(err)) {
     return tr('fixedDateWindowAmbiguousMessage', browserLocale())
@@ -1179,6 +1200,14 @@ export function BookingForm({
           ...(selection.kind === 'slot' && selection.slot.availability_id
             ? { product_availability_id: selection.slot.availability_id }
             : {}),
+          // landr-xtkae.2: a synthesised fixed-time slot has no availability
+          // row — the API identifies it by date + start time instead. The
+          // availability read returns "HH:MM:SS"; the contract takes "HH:MM".
+          ...(selection.kind === 'slot' &&
+          !selection.slot.availability_id &&
+          selection.slot.start_time
+            ? { slot_start_time: toHHMM(selection.slot.start_time) }
+            : {}),
           // landr-my6fc.7: overlapping course windows — say WHICH one.
           ...(selection.kind === 'days' && selection.fixedDateWindowId
             ? { fixed_date_window_id: selection.fixedDateWindowId }
@@ -1445,10 +1474,13 @@ export function BookingForm({
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
+        const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
         setServerError(
-          formatHttpError(err, partyMemberLabels, participants.length),
+          formatHttpError(err, partyMemberLabels, participants.length, timedSlot),
         )
-        setCapacityExceeded(isCapacityExceeded(err))
+        // A stale start time recovers the same way as a full day/slot: the
+        // "change" button returns to the picker, which re-fetches availability.
+        setCapacityExceeded(isCapacityExceeded(err) || isSlotStartTimeInvalid(err))
         setWindowAmbiguous(isFixedDateWindowAmbiguous(err))
         // landr-f987a.4: the 422 names the first short day — say which one.
         const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
@@ -1456,7 +1488,10 @@ export function BookingForm({
           const needNow = seatsNeeded(participants.length, companions, product.invite_hold_hours)
           setServerError(
             seatsShortMessage(
-              formatDayLabel(shortDay.date, locale),
+              // landr-xtkae.2: capacity is per slot — name the start time too.
+              timedSlot && selection.kind === 'slot' && selection.slot.start_time
+                ? `${formatDayLabel(shortDay.date, locale)} · ${selection.slot.start_time.slice(0, 5)}`
+                : formatDayLabel(shortDay.date, locale),
               Math.max(0, needNow - shortDay.seats_short),
               needNow,
               locale,

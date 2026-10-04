@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { isDayBookable } from '@/components/booking/bookability'
-import { slotKey } from '@/components/booking/slotKey'
+import { hasFixedStartTimes, slotKey } from '@/components/booking/slotKey'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -109,16 +109,23 @@ export function AvailabilityPicker({
   )
   const nothingBefore = useNothingBeforeNotice(availableDates)
 
+  // landr-xtkae.2: on a fixed-daily-times product the day's times are a menu
+  // the operator published, so a FULL (or lead-time-closed) time stays visible
+  // but disabled — hiding it would make "the 11:00 flight" vanish with no
+  // explanation. Past slots never arrive (the API omits started slots).
+  const fixedTimes = hasFixedStartTimes(product)
   const slotsForSelectedDate = useMemo(() => {
     if (!slots || !selectedDate) return []
     const key = isoDate(selectedDate)
     return slots.filter(
       (s) =>
         s.date === key &&
-        s.available_seats > 0 &&
-        isDayBookable(s, product.hotel_offering),
+        (fixedTimes ||
+          (s.available_seats > 0 && isDayBookable(s, product.hotel_offering))),
     )
-  }, [slots, selectedDate, product.hotel_offering])
+  }, [slots, selectedDate, product.hotel_offering, fixedTimes])
+  const slotIsPickable = (s: AvailabilitySlot): boolean =>
+    s.available_seats > 0 && isDayBookable(s, product.hotel_offering)
 
   if (error) {
     return (
@@ -187,10 +194,16 @@ export function AvailabilityPicker({
                     key={slotKey(slot)}
                     type="button"
                     variant={selectedSlotId === slotKey(slot) ? 'default' : 'outline'}
+                    disabled={!slotIsPickable(slot)}
+                    data-testid={fixedTimes ? 'start-time-option' : undefined}
                     onClick={() => setSelectedSlotId(slotKey(slot))}
                   >
                     {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
-                    {exposeSeatsToCustomer ? (
+                    {!slotIsPickable(slot) ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {slot.available_seats > 0 ? tr('tooLateToBook', locale) : tr('fullBadge', locale)}
+                      </span>
+                    ) : exposeSeatsToCustomer ? (
                       <span className="ml-2 text-xs text-muted-foreground">
                         {seatsCountLabel(slot.available_seats, locale)}
                       </span>
@@ -207,7 +220,7 @@ export function AvailabilityPicker({
           reasonId="availability-picker-gate"
           onContinue={() => {
             const slot = slotsForSelectedDate.find(
-              (s) => slotKey(s) === selectedSlotId,
+              (s) => slotKey(s) === selectedSlotId && slotIsPickable(s),
             )
             if (slot) onConfirm(slot)
           }}

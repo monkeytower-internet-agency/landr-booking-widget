@@ -14,6 +14,7 @@ import type {
 } from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
+import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import {
   BookingForm,
   type BookingSelection,
@@ -2072,7 +2073,12 @@ function BookingFlowApp() {
 
         {step.name === 'pick-selection' &&
         step.product.product_kind === 'service' &&
-        step.product.service_time_shape === 'time_slot' ? (
+        // landr-xtkae.2: a product with fixed daily start times gets the
+        // day-then-time picker whatever its shape (the solo flight is
+        // single_date) — route on the data, not the shape.
+        (step.product.service_time_shape === 'time_slot' ||
+          (hasFixedStartTimes(step.product) &&
+            step.product.service_time_shape === 'single_date')) ? (
           <AvailabilityPicker
             product={step.product}
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
@@ -2183,7 +2189,8 @@ function BookingFlowApp() {
 
         {step.name === 'pick-selection' &&
         step.product.product_kind === 'service' &&
-        step.product.service_time_shape === 'single_date' ? (
+        step.product.service_time_shape === 'single_date' &&
+        !hasFixedStartTimes(step.product) ? (
           <SingleDatePicker
             product={step.product}
             inviteToken={inviteData ? (invite ?? undefined) : undefined}

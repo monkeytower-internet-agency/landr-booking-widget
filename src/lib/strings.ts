@@ -109,6 +109,8 @@ type Bundle = {
   changeYourDatesToContinue: string
   dayNoLongerAvailableReason: string
   capacityExceededMessage: string
+  slotCapacityExceededMessage: string
+  slotStartTimeInvalidMessage: string
   seatsShortOne: string
   seatsShortOther: string
   seatsShortNone: string
@@ -670,6 +672,10 @@ const en: Bundle = {
   dayNoLongerAvailableReason: '{date} is no longer available — remove it to continue.',
   capacityExceededMessage:
     'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
+  slotCapacityExceededMessage:
+    'Sorry, there is not enough space left at that start time. Please pick another time and try again.',
+  slotStartTimeInvalidMessage:
+    'Sorry, that start time is no longer available. Please pick another time and try again.',
   seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
   seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
   seatsShortNone: 'No seats left on {day} — you need {need}.',
@@ -1227,6 +1233,10 @@ const de: Bundle = {
   dayNoLongerAvailableReason: '{date} ist nicht mehr verfügbar — entfernen Sie den Termin, um fortzufahren.',
   capacityExceededMessage:
     'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
+  slotCapacityExceededMessage:
+    'Leider ist zu dieser Startzeit nicht mehr genug Platz frei. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
+  slotStartTimeInvalidMessage:
+    'Leider ist diese Startzeit nicht mehr verfügbar. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
   seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
   seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
   seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
