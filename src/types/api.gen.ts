@@ -11294,6 +11294,11 @@ export interface components {
             group_threshold?: number | null;
             /** Lines */
             lines?: components["schemas"]["CustomOfferLineIn"][];
+            /**
+             * Prices Include Tax
+             * @default true
+             */
+            prices_include_tax: boolean;
             /** Tax Rate */
             tax_rate?: number | string | null;
         };
@@ -11367,6 +11372,11 @@ export interface components {
             net_total: string;
             /** Paying Count */
             paying_count: number;
+            /**
+             * Prices Include Tax
+             * @default true
+             */
+            prices_include_tax: boolean;
             /** Regular Unit Price */
             regular_unit_price?: string | null;
             /** Tax Total */
