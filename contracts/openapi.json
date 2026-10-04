@@ -41217,7 +41217,7 @@
     },
     "/api/staff/operators/{operator_id}/ical-token": {
       "get": {
-        "description": "Return the current token + URL, auto-creating on first access.",
+        "description": "Return the current token + URL, auto-creating on first access.\n\nlandr-xtkae.15: Calendar feed is a paid section. Without it the read\nstays open (the dashboard renders the page inert) but nothing is minted\n(operators on the tier ladder only \u2014 custom packages are unchanged):\n``{\"url\": null, \"token\": null}`` \u2014 and the public feed refuses any old\ntoken anyway (public_operator_ical).",
         "operationId": "get_or_create_operator_ical_token",
         "parameters": [
           {
