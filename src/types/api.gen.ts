@@ -35670,8 +35670,17 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description An equivalent request is already open: the existing row (``already_requested: true``); no second mail. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"];
+                };
+            };
+            /** @description Request recorded and Landr notified. */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
