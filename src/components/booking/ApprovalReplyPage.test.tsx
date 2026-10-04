@@ -356,4 +356,82 @@ describe('ApprovalReplyPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ES' }))
     expect(screen.getByText(/Solicitud de habitaciones/)).toBeInTheDocument()
   })
+
+  // ── landr-xtkae.16: branch-aware wording ────────────────────────────────
+  describe('branch-aware wording', () => {
+    const HOTELISH = /room|hotel|check-in|check-out|nights|zimmer|habitaci|anreise|abreise|noches|n[aä]chte/i
+
+    it("a 'partner' ask renders generic wording in English (no rooms/hotel/nights)", async () => {
+      mocks.getApprovalRequest.mockResolvedValue(
+        openContext({ branch: 'partner', responder: { location_name: 'Juan (driver)' } }),
+      )
+      render(<ApprovalReplyPage token={TOKEN} intent="yes" />)
+      await waitFor(() => screen.getByTestId('reply-form'))
+
+      const form = screen.getByTestId('reply-form')
+      expect(screen.getByText(/Booking request/)).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: 'Yes, confirmed' })).toBeInTheDocument()
+      expect(screen.getByText('Juan (driver)')).toBeInTheDocument()
+      expect(form.textContent ?? '').not.toMatch(HOTELISH)
+      // The room list is a hotel concept even if the payload carries lines.
+      expect(screen.queryByText(/Double room/)).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ['de', /Buchungsanfrage/, 'Ja, bestätigt'],
+      ['es', /Solicitud de reserva/, 'Sí, confirmado'],
+    ])('a partner ask is generic in %s too', async (locale, title, yes) => {
+      mocks.getApprovalRequest.mockResolvedValue(
+        openContext({
+          branch: 'partner',
+          locale,
+          responder: { location_name: 'Juan (driver)' },
+        }),
+      )
+      render(<ApprovalReplyPage token={TOKEN} intent="yes" />)
+      await waitFor(() => screen.getByTestId('reply-form'))
+
+      expect(screen.getByText(title)).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: yes })).toBeInTheDocument()
+      expect(screen.getByTestId('reply-form').textContent ?? '').not.toMatch(HOTELISH)
+    })
+
+    it('a partner ask still submits YES / NO / CHANGES through the same flow', async () => {
+      mocks.getApprovalRequest.mockResolvedValue(openContext({ branch: 'partner' }))
+      mocks.submitApprovalReply.mockResolvedValue(successResult('declined'))
+      render(<ApprovalReplyPage token={TOKEN} intent="yes" />)
+      await waitFor(() => screen.getByTestId('reply-form'))
+
+      fireEvent.click(screen.getByRole('radio', { name: /can't take this booking/i }))
+      fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
+      await waitFor(() => expect(mocks.submitApprovalReply).toHaveBeenCalledOnce())
+      const [, body] = mocks.submitApprovalReply.mock.calls[0] as [string, { decision: string }]
+      expect(body.decision).toBe('declined')
+    })
+
+    it('a cancelled partner ask does not say rooms', async () => {
+      mocks.getApprovalRequest.mockResolvedValue(
+        openContext({ branch: 'partner', state: 'closed_cancelled', can_respond: false }),
+      )
+      render(<ApprovalReplyPage token={TOKEN} />)
+      await waitFor(() => screen.getByTestId('reply-closed-cancelled'))
+      expect(screen.getByTestId('reply-closed-cancelled').textContent ?? '').not.toMatch(HOTELISH)
+    })
+
+    it.each([
+      ['hotel branch', { branch: 'secondary' }],
+      ['missing branch (API predates the field)', {}],
+      ['null branch', { branch: null }],
+    ])('%s keeps the unchanged hotel wording', async (_name, overrides) => {
+      mocks.getApprovalRequest.mockResolvedValue(openContext(overrides))
+      render(<ApprovalReplyPage token={TOKEN} intent="yes" />)
+      await waitFor(() => screen.getByTestId('reply-form'))
+
+      expect(screen.getByText(/Rooms request/)).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: /rooms confirmed/i })).toBeInTheDocument()
+      expect(screen.getByText(/Double room/)).toBeInTheDocument()
+      expect(screen.getByText('Nights')).toBeInTheDocument()
+      expect(screen.getByText('Hotel Alpina')).toBeInTheDocument()
+    })
+  })
 })
