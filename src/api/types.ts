@@ -1842,6 +1842,13 @@ export interface ApprovalRequestContext {
   locale: string
   request_ref: string
   confirm_nonce: string
+  /**
+   * Which ask this is (landr-xtkae.16): 'partner' = the manual "Ask partner"
+   * request, which may go to a driver — the page then drops hotel/rooms
+   * wording. Optional/nullable: an API that predates the field omits it, and
+   * the page then behaves as a hotel request.
+   */
+  branch?: string | null
   operator: ApprovalRequestOperator
   responder: ApprovalRequestResponder
   booking: ApprovalRequestBooking

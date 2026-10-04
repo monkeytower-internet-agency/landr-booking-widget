@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { widgetThemeStyle } from '@/lib/widgetTheme'
 import {
   fmt,
+  isPartnerBranch,
   normalizeReplyLocale,
   pickReplyBundle,
   REPLY_LOCALES,
@@ -183,7 +184,8 @@ export function ApprovalReplyPage({ token, intent }: Props) {
   }, [token, loadAttempt])
 
   const locale = normalizeReplyLocale(langOverride ?? context?.locale ?? 'en')
-  const t = pickReplyBundle(locale)
+  const t = pickReplyBundle(locale, context?.branch)
+  const isPartner = isPartnerBranch(context?.branch)
 
   const onConfirm = async () => {
     if (!context) return
@@ -427,15 +429,19 @@ export function ApprovalReplyPage({ token, intent }: Props) {
           <dd>{formatDate(booking.check_in, locale)}</dd>
           <dt className="text-muted-foreground">{t.checkOutLabel}</dt>
           <dd>{formatDate(booking.check_out, locale)}</dd>
-          <dt className="text-muted-foreground">{t.nightsLabel}</dt>
-          <dd>{booking.nights}</dd>
+          {!isPartner && (
+            <>
+              <dt className="text-muted-foreground">{t.nightsLabel}</dt>
+              <dd>{booking.nights}</dd>
+            </>
+          )}
           <dt className="text-muted-foreground">{t.guestsLabel}</dt>
           <dd>{booking.guests_count}</dd>
           <dt className="text-muted-foreground">{t.hotelLabel}</dt>
           <dd>{responder.location_name}</dd>
         </dl>
 
-        {booking.room_lines.length > 0 && (
+        {!isPartner && booking.room_lines.length > 0 && (
           <div>
             <p className="mb-1 text-sm font-semibold">{t.roomsLabel}</p>
             <ul className="flex flex-col gap-0.5 text-sm">
