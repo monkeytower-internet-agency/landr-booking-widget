@@ -202,6 +202,44 @@ describe('BookingForm — staff mode', () => {
     expect(screen.getByTestId('review-error')).toHaveTextContent(/reason/i)
   })
 
+  // landr-xtkae.2: the staff submit spreads the public body, so a synthesised
+  // fixed-time slot reaches the staff endpoint with slot_start_time (HH:MM)
+  // and no product_availability_id; a force-booked full time raises
+  // ignore_capacity.
+  it.each([
+    ['a normal timed pick', undefined, false],
+    ['a force-booked full time', { forced: true, forcedReasons: ['capacity' as const] }, true],
+  ])('staff submit carries slot_start_time as HH:MM for %s', async (_label, force, ignore) => {
+    renderForm(
+      {
+        kind: 'slot',
+        slot: {
+          availability_id: null,
+          date: '2026-02-03',
+          start_time: '11:00:00',
+          end_time: null,
+          capacity: 2,
+          capacity_reserved: 2,
+          available_seats: 0,
+          status: 'open',
+        },
+        ...(force ?? {}),
+      },
+      true,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+    const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [string, StaffSubmitBody]
+    expect(body.products[0]).toMatchObject({
+      selected_days: ['2026-02-03'],
+      slot_start_time: '11:00',
+    })
+    expect(body.products[0]).not.toHaveProperty('product_availability_id')
+    expect(body.ignore_capacity === true).toBe(ignore)
+  })
+
   it('raises ignore_capacity on the STAFF endpoint for a forced selection', async () => {
     renderForm(FORCED_DAYS, true)
     expect(screen.getByTestId('review-forced')).toBeInTheDocument()

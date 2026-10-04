@@ -303,6 +303,40 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     expect(desc.textContent).toMatch(/·.*·/) // name · date · tz
   })
 
+  it('shows the timezone for a single_date product with fixed start times (landr-xtkae.2)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{
+          ...makeServiceProduct('time_slot'),
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+        }}
+        selection={{
+          kind: 'slot',
+          slot: {
+            availability_id: null,
+            date: '2024-11-23',
+            start_time: '11:00:00',
+            end_time: null,
+            capacity: 2,
+            capacity_reserved: 0,
+            available_seats: 2,
+            status: 'open',
+          },
+        }}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const desc = screen.getByText(/Guided day/)
+    // name · date · 11:00 · timezone
+    expect(desc.textContent?.match(/·/g)?.length).toBe(3)
+  })
+
   it('hides the timezone for non-time_slot products', () => {
     render(
       <BookingForm
@@ -1007,6 +1041,97 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(text).not.toMatch(/422|detail|\{/)
     fireEvent.click(screen.getByTestId('review-change-dates'))
     expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  const TIMED_SLOT_SELECTION: BookingSelection = {
+    kind: 'slot',
+    slot: {
+      availability_id: null,
+      date: '2026-10-18',
+      start_time: '11:00:00',
+      end_time: null,
+      capacity: 2,
+      capacity_reserved: 0,
+      available_seats: 2,
+      status: 'open',
+    },
+  }
+
+  it('maps a 422 slot_start_time_invalid to a friendly pick-another-time message with a retry action (landr-xtkae.2)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'slot_start_time_invalid',
+            reason: 'not_offered',
+            message: 'slot_start_time 11:00 is not offered',
+          },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('time_slot')}
+        selection={TIMED_SLOT_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /start time is no longer available.*pick another time/i,
+      ),
+    )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).not.toMatch(/422|detail|\{|slot_start_time/)
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  it('names the start time when a per-slot capacity_exceeded comes back (landr-xtkae.2)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'capacity_exceeded',
+            message: 'Not enough capacity',
+            days: [{ date: '2026-10-18', seats_short: 1 }],
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('time_slot')}
+        selection={TIMED_SLOT_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/11:00/),
+    )
+    expect(screen.getByTestId('review-change-dates')).toBeInTheDocument()
   })
 
   it('maps a 422 fixed_date_window_ambiguous to a pick-a-course message with an action (landr-my6fc.11)', async () => {
