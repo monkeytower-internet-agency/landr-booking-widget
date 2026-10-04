@@ -9908,6 +9908,12 @@ export interface components {
             preset_key: string;
             /** Product Family */
             product_family?: ("activity" | "course") | null;
+            /** Slot Capacity */
+            slot_capacity?: number | null;
+            /** Start Times */
+            start_times?: string[] | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
         };
         /**
          * ApprovalPeriodRange
@@ -14014,6 +14020,8 @@ export interface components {
             category_name_localized?: {
                 [key: string]: string;
             } | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
             /** Guide Languages */
             guide_languages?: string[] | null;
             /** Images */
@@ -15283,6 +15291,10 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
@@ -15366,6 +15378,11 @@ export interface components {
             short_description_localized?: {
                 [key: string]: string;
             } | null;
+            /**
+             * Slot Capacity
+             * @default 2
+             */
+            slot_capacity: number;
             /** Slug */
             slug: string;
             /**
@@ -15393,6 +15410,8 @@ export interface components {
             quantity: number;
             /** Selected Days */
             selected_days?: string[] | null;
+            /** Slot Start Time */
+            slot_start_time?: string | null;
         };
         /** ProductPatch */
         ProductPatch: {
@@ -15412,6 +15431,10 @@ export interface components {
             capacity_per_unit?: number | null;
             /** Category Id */
             category_id?: string | null;
+            /** Daily Start Times */
+            daily_start_times?: string[] | null;
+            /** Daily Start Weekdays */
+            daily_start_weekdays?: number[] | null;
             /** Day Capacity Source */
             day_capacity_source?: ("product" | "resources") | null;
             /** Default Pricing Scheme Id */
@@ -15468,6 +15491,8 @@ export interface components {
             short_description_localized?: {
                 [key: string]: string;
             } | null;
+            /** Slot Capacity */
+            slot_capacity?: number | null;
             /** Sort Order */
             sort_order?: number | null;
         };

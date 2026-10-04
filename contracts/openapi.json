@@ -283,6 +283,47 @@
               }
             ],
             "title": "Product Family"
+          },
+          "slot_capacity": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 9999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Capacity"
+          },
+          "start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Times"
+          },
+          "weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekdays"
           }
         },
         "required": [
@@ -11679,6 +11720,20 @@
             ],
             "title": "Category Name Localized"
           },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
           "guide_languages": {
             "anyOf": [
               {
@@ -15063,6 +15118,34 @@
             ],
             "title": "Category Id"
           },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "daily_start_weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Weekdays"
+          },
           "day_capacity_source": {
             "anyOf": [
               {
@@ -15322,6 +15405,13 @@
             ],
             "title": "Short Description Localized"
           },
+          "slot_capacity": {
+            "default": 2,
+            "exclusiveMaximum": 9999.0,
+            "minimum": 1.0,
+            "title": "Slot Capacity",
+            "type": "integer"
+          },
           "slug": {
             "maxLength": 64,
             "minLength": 1,
@@ -15411,6 +15501,18 @@
               }
             ],
             "title": "Selected Days"
+          },
+          "slot_start_time": {
+            "anyOf": [
+              {
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Start Time"
           }
         },
         "required": [
@@ -15507,6 +15609,34 @@
               }
             ],
             "title": "Category Id"
+          },
+          "daily_start_times": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Times"
+          },
+          "daily_start_weekdays": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start Weekdays"
           },
           "day_capacity_source": {
             "anyOf": [
@@ -15827,6 +15957,19 @@
               }
             ],
             "title": "Short Description Localized"
+          },
+          "slot_capacity": {
+            "anyOf": [
+              {
+                "exclusiveMaximum": 9999.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Capacity"
           },
           "sort_order": {
             "anyOf": [
