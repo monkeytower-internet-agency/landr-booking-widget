@@ -268,6 +268,21 @@
             "minLength": 1,
             "title": "Preset Key",
             "type": "string"
+          },
+          "product_family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "activity",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Family"
           }
         },
         "required": [
@@ -11192,6 +11207,21 @@
               }
             ],
             "title": "Primary Color"
+          },
+          "product_family": {
+            "anyOf": [
+              {
+                "enum": [
+                  "activity",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Family"
           },
           "public_contact_email": {
             "anyOf": [
