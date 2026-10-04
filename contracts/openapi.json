@@ -55204,7 +55204,17 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "An equivalent request is already open: the existing row (``already_requested: true``); no second mail."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradeRequestOut"
+                }
+              }
+            },
+            "description": "Request recorded and Landr notified."
           },
           "422": {
             "content": {
