@@ -9906,6 +9906,8 @@ export interface components {
         ApplyPresetRequest: {
             /** Preset Key */
             preset_key: string;
+            /** Product Family */
+            product_family?: ("activity" | "course") | null;
         };
         /**
          * ApprovalPeriodRange
@@ -13918,6 +13920,8 @@ export interface components {
             postal_code?: string | null;
             /** Primary Color */
             primary_color?: string | null;
+            /** Product Family */
+            product_family?: ("activity" | "course") | null;
             /** Public Contact Email */
             public_contact_email?: string | null;
             /** Region */
