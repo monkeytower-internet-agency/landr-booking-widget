@@ -1,5 +1,14 @@
-import { useState } from 'react'
-import { HttpError, submitBooking, submitStaffBooking } from '@/api/client'
+import { useEffect, useRef, useState } from 'react'
+import {
+  HttpError,
+  getAvailability,
+  getStaffBookingOverlaps,
+  submitBooking,
+  submitStaffBooking,
+  type BookingOverlap,
+} from '@/api/client'
+import { formatWindowRangeLabel } from './dateLabel'
+import { seatsNeeded, shortDays } from '@/lib/seatHold'
 import type {
   AvailabilitySlot,
   Companion,
@@ -20,6 +29,7 @@ import {
 import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
+import { hasFixedStartTimes, toHHMM } from './slotKey'
 import type {
   BookerDetails,
   CompanionDetails,
@@ -32,6 +42,7 @@ import {
   additionalAccommodationHeading,
   forceBookReasonMessage,
   nightsWord,
+  seatsShortMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -66,6 +77,12 @@ export type BookingSelection =
       kind: 'days'
       selectedDays: string[]
       /**
+       * landr-my6fc.7: id of the fixed-date course window these days were
+       * expanded from (FixedDateWindowPicker). Sent as
+       * products[0].fixed_date_window_id; absent for every other picker.
+       */
+      fixedDateWindowId?: string
+      /**
        * landr-aoak.2 [S3]: the subset of selectedDays the operator force-booked
        * past zero availability (blocked / sold-out days). Empty / undefined for
        * normal customer selections. Drives the submit adapter's force flag.
@@ -86,6 +103,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
+import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
 import {
@@ -323,6 +341,11 @@ interface Props {
    * text message instead of being navigated there directly.
    */
   onCompanionContactRequired?: (companionIndex: number) => void
+  /**
+   * landr-f987a.1: jump back to the dates step (re-fetches availability) —
+   * offered after a capacity_exceeded 422. Falls back to onBack.
+   */
+  onChangeDates?: () => void
   onBack: () => void
   onConfirmed: (response: SubmitBookingResponse, email: string) => void
 }
@@ -506,10 +529,50 @@ function languageErrorMessage(
     : 'Assign every participant to a language.'
 }
 
+const isCapacityExceeded = (err: HttpError): boolean =>
+  err.status === 422 &&
+  err.detail !== null &&
+  typeof err.detail === 'object' &&
+  !Array.isArray(err.detail) &&
+  (err.detail as { error?: unknown }).error === 'capacity_exceeded'
+
+/**
+ * landr-xtkae.2: the picked fixed start time is gone (operator edited the
+ * list, the slot started meanwhile, weekday no longer offered). Same recovery
+ * as a full slot: back to the picker, which re-fetches.
+ */
+const isSlotStartTimeInvalid = (err: HttpError): boolean =>
+  err.status === 422 &&
+  err.detail !== null &&
+  typeof err.detail === 'object' &&
+  !Array.isArray(err.detail) &&
+  (err.detail as { error?: unknown }).error === 'slot_start_time_invalid'
+
+/** landr-my6fc.11: several course windows share the start day and none was named. */
+const isFixedDateWindowAmbiguous = (err: HttpError): boolean =>
+  err.status === 422 &&
+  err.detail !== null &&
+  typeof err.detail === 'object' &&
+  !Array.isArray(err.detail) &&
+  ['fixed_date_window_ambiguous', 'fixed_date_window_invalid'].includes(
+    String((err.detail as { error?: unknown }).error),
+  )
+
+/** landr-f987a.3: `days: [{date, seats_short}]` on a capacity_exceeded 422. */
+const readShortDay = (err: HttpError): { date: string; seats_short: number } | null => {
+  const days = (err.detail as { days?: unknown }).days
+  if (!Array.isArray(days) || days.length === 0) return null
+  const d = days[0] as { date?: unknown; seats_short?: unknown }
+  return typeof d.date === 'string' && typeof d.seats_short === 'number'
+    ? { date: d.date, seats_short: d.seats_short }
+    : null
+}
+
 const formatHttpError = (
   err: HttpError,
   memberLabels: string[] = [],
   participantCount: number = 0,
+  timedSlot: boolean = false,
 ): string => {
   // landr-r6e5x.4: the typed per-participant-language rejections come first —
   // they are actionable ("go back and assign X") in a way the generic 422
@@ -602,6 +665,21 @@ const formatHttpError = (
   ) {
     return DECLARATIONS_SETUP_ERROR_MESSAGE
   }
+  // landr-f987a.1: a day filled up between selection and Confirm. Localized
+  // copy only — never the raw `422 : {"detail":...}` dump.
+  if (isCapacityExceeded(err)) {
+    return tr(
+      timedSlot ? 'slotCapacityExceededMessage' : 'capacityExceededMessage',
+      browserLocale(),
+    )
+  }
+  // landr-xtkae.2: friendly retry for a stale/invalid fixed start time.
+  if (isSlotStartTimeInvalid(err)) {
+    return tr('slotStartTimeInvalidMessage', browserLocale())
+  }
+  if (isFixedDateWindowAmbiguous(err)) {
+    return tr('fixedDateWindowAmbiguousMessage', browserLocale())
+  }
   if (err.status === 422 && Array.isArray(err.detail)) {
     const lines = err.detail
       .slice(0, 4)
@@ -630,6 +708,12 @@ const formatHttpError = (
       return SANITIZED_REJECTION_MESSAGE
     }
     return `Booking rejected (${err.status}): ${err.detail}`
+  }
+  // Object detail with no dedicated mapping: never show the raw JSON body.
+  if (err.detail && typeof err.detail === 'object' && !Array.isArray(err.detail)) {
+    const msg = (err.detail as { message?: unknown }).message
+    if (typeof msg === 'string' && msg.trim() && !UUID_PATTERN.test(msg)) return msg
+    return SANITIZED_REJECTION_MESSAGE
   }
   return err.message
 }
@@ -691,6 +775,30 @@ const describeSelection = (
  * sticks to the WHAT (dates / who / where) and leaves the HOW MUCH to
  * the sidebar.
  */
+/**
+ * landr-my6fc.7: the API returns one row per booking LINE, so one booking can
+ * appear several times. Collapse to one entry per booking_id: span =
+ * min(start)..max(end), product names joined.
+ */
+function groupOverlaps(rows: BookingOverlap[]): BookingOverlap[] {
+  const byId = new Map<string, BookingOverlap>()
+  for (const r of rows) {
+    const prev = byId.get(r.booking_id)
+    if (!prev) {
+      byId.set(r.booking_id, { ...r })
+      continue
+    }
+    const names = [prev.product_name, r.product_name].filter((n): n is string => !!n)
+    byId.set(r.booking_id, {
+      ...prev,
+      start: r.start < prev.start ? r.start : prev.start,
+      end: r.end > prev.end ? r.end : prev.end,
+      product_name: [...new Set(names.flatMap((n) => n.split(', ')))].join(', ') || null,
+    })
+  }
+  return [...byId.values()]
+}
+
 export function BookingForm({
   widgetToken,
   previewToken,
@@ -721,9 +829,12 @@ export function BookingForm({
   unPriceable = false,
   onCompanionContactRequired,
   onBack,
+  onChangeDates,
   onConfirmed,
 }: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const [capacityExceeded, setCapacityExceeded] = useState(false)
+  const [windowAmbiguous, setWindowAmbiguous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const locale = browserLocale()
   const timezone = browserTimezone()
@@ -741,16 +852,66 @@ export function BookingForm({
   // landr-aoak.2: did the operator force-book past capacity? Derived from the
   // forced markers the pickers attached to the selection. Always false for a
   // normal customer selection (no forced fields present).
+  // landr-f987a.1: customer sessions never see operator-override chrome, even
+  // if a stale selection somehow carries forced markers.
+  const canForce = staff.active && staff.powers.includes('force_book')
   const forced =
-    selection.kind === 'slot'
+    canForce &&
+    (selection.kind === 'slot'
       ? selection.forced === true
-      : (selection.forcedDays?.length ?? 0) > 0
+      : (selection.forcedDays?.length ?? 0) > 0)
   const forcedDays =
-    selection.kind === 'days' ? (selection.forcedDays ?? []) : []
+    canForce && selection.kind === 'days' ? (selection.forcedDays ?? []) : []
   // landr-t869m.5: WHICH gate(s) the force-book bypassed — empty/undefined
   // (any caller that predates this ticket) falls back to the pre-existing
   // capacity-flavoured copy inside forceBookReasonMessage itself.
   const forcedReasons: ForceReason[] = selection.forcedReasons ?? []
+
+  // landr-my6fc.7: staff-only, NON-BLOCKING warning when the customer already
+  // holds a booking on overlapping dates. Public mode never calls the endpoint
+  // (privacy): the effect bails unless a staff session is active.
+  const overlapDays =
+    selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+  const overlapStart = overlapDays.length ? [...overlapDays].sort()[0] : null
+  const overlapEnd = overlapDays.length ? [...overlapDays].sort()[overlapDays.length - 1] : null
+  const overlapEmail = booker.email.trim()
+  const overlapEligible =
+    staff.active &&
+    !!staff.operatorId &&
+    !!staff.token &&
+    !!overlapEmail &&
+    !!overlapStart &&
+    !!overlapEnd
+  const overlapKey = overlapEligible
+    ? `${staff.operatorId}|${overlapEmail}|${overlapStart}|${overlapEnd}`
+    : null
+  const [overlapResult, setOverlapResult] = useState<{
+    key: string
+    rows: BookingOverlap[]
+  } | null>(null)
+  const overlapLookupRef = useRef<{ key: string; p: Promise<BookingOverlap[]> } | null>(null)
+  useEffect(() => {
+    if (!overlapKey || !staff.operatorId || !staff.token || !overlapStart || !overlapEnd) return
+    let cancelled = false
+    // Advisory only — a failed lookup resolves to [] and never blocks.
+    const p = getStaffBookingOverlaps(
+      staff.operatorId,
+      staff.token,
+      overlapEmail,
+      overlapStart,
+      overlapEnd,
+    ).catch((): BookingOverlap[] => [])
+    overlapLookupRef.current = { key: overlapKey, p }
+    void p.then((rows) => {
+      if (!cancelled) setOverlapResult({ key: overlapKey, rows })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [overlapKey, staff.operatorId, staff.token, overlapEmail, overlapStart, overlapEnd])
+  const overlaps: BookingOverlap[] = groupOverlaps(
+    overlapKey && overlapResult?.key === overlapKey ? overlapResult.rows : [],
+  )
 
   // landr-r6e5x.4: whole-party display labels in the unified index space
   // (participants first, companions after) — the same order the API's typed
@@ -790,7 +951,10 @@ export function BookingForm({
   const stay = hasRooms
     ? deriveStayWindow(selectedDays, product.accommodation_checkin_offset_days)
     : null
-  const showTimezone = product.service_time_shape === 'time_slot'
+  // landr-xtkae.2: route on the data — a single_date product with fixed start
+  // times shows a clock time too.
+  const showTimezone =
+    product.service_time_shape === 'time_slot' || hasFixedStartTimes(product)
 
   // landr-gb2f.4 / gb2f.5 / landr-a4fy: build the per-room-unit breakfast
   // breakdown for the review. Only rendered when we have rooms AND a
@@ -934,6 +1098,8 @@ export function BookingForm({
 
   const onConfirm = async () => {
     setServerError(null)
+    setCapacityExceeded(false)
+    setWindowAmbiguous(false)
     // landr-zenj.1: belt-and-braces — the Confirm button below is already
     // disabled while unPriceable, but a disabled control shouldn't be the
     // ONLY thing standing between the customer and a doomed submit.
@@ -942,9 +1108,61 @@ export function BookingForm({
       return
     }
     setSubmitting(true)
+    // landr-my6fc.7: staff mode — if the overlap lookup is still in flight, give
+    // it a short window so "Book anyway" is not skipped. Timeout/error proceeds.
+    if (overlapKey && overlapResult?.key !== overlapKey && overlapLookupRef.current?.key === overlapKey) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const rows = await Promise.race([
+        overlapLookupRef.current.p,
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 3000)
+        }),
+      ])
+      clearTimeout(timer)
+      if (rows && rows.length > 0) {
+        setOverlapResult({ key: overlapKey, rows })
+        setSubmitting(false)
+        return
+      }
+    }
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
+      // landr-f987a.4: party-size check before submit — the host's guiding
+      // participants + invited companions must all fit on every selected day.
+      // Best effort: a failed availability read never blocks the submit (the
+      // API re-checks and answers capacity_exceeded).
+      const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+      const hasInvitees =
+        product.invite_hold_hours !== 0 &&
+        companions.some((c) => c.companion_kind === 'separate_guiding')
+      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+        try {
+          const sorted = [...selectedDaysForSubmit].sort()
+          const slots = await getAvailability(
+            product.product_id,
+            sorted[0],
+            sorted[sorted.length - 1],
+            inviteToken,
+          )
+          const short = shortDays(slots, sorted, need)
+          if (short.length > 0) {
+            setServerError(
+              seatsShortMessage(
+                formatDayLabel(short[0].date, locale),
+                short[0].left,
+                short[0].need,
+                locale,
+              ),
+            )
+            setCapacityExceeded(true)
+            setSubmitting(false)
+            return
+          }
+        } catch {
+          /* fall through to the real submit */
+        }
+      }
       // Hotel-room lines book the night window (check-in → check-out
       // exclusive) — distinct from the service's selected_days. Empty
       // when the customer chose no rooms or picked a slot-style service.
@@ -984,6 +1202,18 @@ export function BookingForm({
           // validates product_availability_id when one is supplied.
           ...(selection.kind === 'slot' && selection.slot.availability_id
             ? { product_availability_id: selection.slot.availability_id }
+            : {}),
+          // landr-xtkae.2: a synthesised fixed-time slot has no availability
+          // row — the API identifies it by date + start time instead. The
+          // availability read returns "HH:MM:SS"; the contract takes "HH:MM".
+          ...(selection.kind === 'slot' &&
+          !selection.slot.availability_id &&
+          selection.slot.start_time
+            ? { slot_start_time: toHHMM(selection.slot.start_time) }
+            : {}),
+          // landr-my6fc.7: overlapping course windows — say WHICH one.
+          ...(selection.kind === 'days' && selection.fixedDateWindowId
+            ? { fixed_date_window_id: selection.fixedDateWindowId }
             : {}),
         },
         ...(accommodationRooms ?? []).map<ProductLine>((room) => ({
@@ -1247,9 +1477,30 @@ export function BookingForm({
       onConfirmed(result, booker.email)
     } catch (err) {
       if (err instanceof HttpError) {
+        const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
         setServerError(
-          formatHttpError(err, partyMemberLabels, participants.length),
+          formatHttpError(err, partyMemberLabels, participants.length, timedSlot),
         )
+        // A stale start time recovers the same way as a full day/slot: the
+        // "change" button returns to the picker, which re-fetches availability.
+        setCapacityExceeded(isCapacityExceeded(err) || isSlotStartTimeInvalid(err))
+        setWindowAmbiguous(isFixedDateWindowAmbiguous(err))
+        // landr-f987a.4: the 422 names the first short day — say which one.
+        const shortDay = isCapacityExceeded(err) ? readShortDay(err) : null
+        if (shortDay) {
+          const needNow = seatsNeeded(participants.length, companions, product.invite_hold_hours)
+          setServerError(
+            seatsShortMessage(
+              // landr-xtkae.2: capacity is per slot — name the start time too.
+              timedSlot && selection.kind === 'slot' && selection.slot.start_time
+                ? `${formatDayLabel(shortDay.date, locale)} · ${selection.slot.start_time.slice(0, 5)}`
+                : formatDayLabel(shortDay.date, locale),
+              Math.max(0, needNow - shortDay.seats_short),
+              needNow,
+              locale,
+            ),
+          )
+        }
         // landr-otml0.3 review fix (MINOR 6): navigate the customer straight
         // back to the exact companion row instead of leaving them to find it
         // from a text message alone. Fires in addition to setServerError
@@ -1562,6 +1813,27 @@ export function BookingForm({
           </section>
         ) : null}
 
+        {/* landr-my6fc.7: staff-only overlap warning. Never blocks — the Confirm
+            button turns into an explicit "Book anyway". */}
+        {overlaps.length > 0 ? (
+          <section
+            data-testid="review-overlap-warning"
+            className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm dark:border-amber-600 dark:bg-amber-950/40"
+          >
+            <p className="mb-1 font-medium text-amber-900 dark:text-amber-100">
+              Already booked
+            </p>
+            <ul className="list-disc pl-5 text-amber-900 dark:text-amber-100">
+              {overlaps.map((o) => (
+                <li key={o.booking_id} data-testid="review-overlap-item">
+                  {o.product_name ? `${o.product_name} ` : ''}
+                  {formatWindowRangeLabel(o.start, o.end, locale)} ({o.reference})
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {/* landr-aoak.2 [S3].3: operator price-override (staff mode only).
             Sets override_gross_total + override_reason via the submit adapter.
             Hidden entirely for normal customers. */}
@@ -1622,9 +1894,34 @@ export function BookingForm({
         ) : null}
 
         {serverError ? (
-          <p className="text-sm text-destructive" data-testid="review-error">
-            {serverError}
-          </p>
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-destructive" data-testid="review-error">
+              {serverError}
+            </p>
+            {capacityExceeded ? (
+              // landr-f987a.1: back to the dates step, which re-fetches
+              // availability on mount, so the full day shows as unavailable.
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onChangeDates ?? onBack}
+                data-testid="review-change-dates"
+              >
+                {tr('changeDates', locale)}
+              </Button>
+            ) : null}
+            {windowAmbiguous ? (
+              // landr-my6fc.11: back to the course picker to name the course.
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onChangeDates ?? onBack}
+                data-testid="review-pick-course"
+              >
+                {tr('pickCourse', locale)}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
@@ -1640,12 +1937,20 @@ export function BookingForm({
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
-              : submitting
+              : overlaps.length > 0 && !submitting
+                ? 'This customer already has a booking on these dates. You can still book.'
+                : submitting
                 ? tr('submittingYourBookingEllipsis', locale)
                 : tr('readyToConfirm', locale)
           }
           reasonId="review-step-gate"
-          label={submitting ? tr('submittingEllipsis', locale) : tr('confirmBookingLabel', locale)}
+          label={
+            submitting
+              ? tr('submittingEllipsis', locale)
+              : overlaps.length > 0
+                ? 'Book anyway'
+                : tr('confirmBookingLabel', locale)
+          }
           onContinue={() => void onConfirm()}
           data-testid="review-confirm-btn"
         />

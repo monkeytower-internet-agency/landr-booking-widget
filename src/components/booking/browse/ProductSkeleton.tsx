@@ -3,9 +3,12 @@
  * grid-card and list-row silhouettes so the layout doesn't jump when the
  * real products arrive. Variant-aware radius/shadow via tokens.
  *
- * Decorative only — the whole block is aria-hidden and the live region with
- * "Loading products…" sits alongside it in ProductList for screen readers.
+ * The placeholder rows themselves are decorative (aria-hidden); `label` is the
+ * one VISIBLE + announced status line above them (landr-wwoap: on a slow
+ * connection the bare grey cards read as an empty table, so the text has to
+ * be seen, not just read out).
  */
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useVariant } from '@/lib/variant'
 
@@ -51,25 +54,43 @@ function ListSkeletonRow() {
   )
 }
 
-export function ProductSkeleton({ view }: { view: 'grid' | 'list' }) {
-  const items = Array.from({ length: PLACEHOLDER_COUNT })
+export function ProductSkeleton({
+  view,
+  label,
+  count = PLACEHOLDER_COUNT,
+}: {
+  view: 'grid' | 'list'
+  label: string
+  count?: number
+}) {
+  const items = Array.from({ length: count })
   return (
-    <div
-      aria-hidden="true"
-      data-testid="product-skeleton"
-      className={
-        view === 'grid'
-          ? 'grid gap-4 sm:grid-cols-2'
-          : 'flex flex-col gap-3'
-      }
-    >
-      {items.map((_, i) =>
-        view === 'grid' ? (
-          <GridSkeletonCard key={i} />
-        ) : (
-          <ListSkeletonRow key={i} />
-        ),
-      )}
+    <div className="flex flex-col gap-4">
+      <p
+        role="status"
+        data-testid="loading-label"
+        className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
+      >
+        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        {label}
+      </p>
+      <div
+        aria-hidden="true"
+        data-testid="product-skeleton"
+        className={
+          view === 'grid'
+            ? 'grid gap-4 sm:grid-cols-2'
+            : 'flex flex-col gap-3'
+        }
+      >
+        {items.map((_, i) =>
+          view === 'grid' ? (
+            <GridSkeletonCard key={i} />
+          ) : (
+            <ListSkeletonRow key={i} />
+          ),
+        )}
+      </div>
     </div>
   )
 }

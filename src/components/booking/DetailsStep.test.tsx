@@ -51,7 +51,9 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     sport_subcategory_codes: [],
     location_ids: [],
     needs_pickup: false,
-    hotel_offering: 'none',
+    // landr-lu41h: default 'optional' keeps the room-sharing companion UI
+    // under test; none-mode has its own describe block.
+    hotel_offering: 'optional',
     ...overrides,
   }
 }
@@ -2158,5 +2160,86 @@ describe('DetailsStep — companion_contact_required navigate-back focus (MINOR 
     expect(
       screen.queryByTestId('companion-0-contact-error'),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('DetailsStep no-accommodation products (landr-lu41h)', () => {
+  const renderNone = (onConfirm = vi.fn()) =>
+    render(
+      <DetailsStep
+        product={makeProduct({ hotel_offering: 'none' })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+
+  it('shows "Guests paying for themselves", no room wording and no kind radio', () => {
+    renderNone()
+    const section = screen.getByTestId('companions-section')
+    expect(section).toHaveTextContent('Guests paying for themselves')
+    expect(section).not.toHaveTextContent(/sharing your room/i)
+    expect(screen.getByText("People you're booking and paying for.")).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(screen.queryByText(/how are they joining/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('companion-kind-0-guest')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('companion-kind-0-separate_guiding')).not.toBeInTheDocument()
+  })
+
+  it('submits an added guest as separate_guiding with contact required', () => {
+    const onConfirm = vi.fn()
+    renderNone(onConfirm)
+    fillBooker()
+    fireEvent.click(screen.getByTestId('add-companion'))
+    fireEvent.change(byName('companion_1_first_name'), { target: { value: 'Mia' } })
+    fireEvent.change(byName('companion_1_last_name'), { target: { value: 'Berg' } })
+    const cont = screen.getByRole('button', { name: /continue/i })
+    fireEvent.click(cont)
+    expect(onConfirm).not.toHaveBeenCalled()
+    fireEvent.change(byName('companion_1_email'), { target: { value: 'mia@example.com' } })
+    fireEvent.click(cont)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][2][0]).toMatchObject({
+      first_name: 'Mia',
+      companion_kind: 'separate_guiding',
+    })
+  })
+
+  it('coerces restored guest-kind companions to separate_guiding', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct({ hotel_offering: 'none' })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+        initialBooker={{ first_name: 'Ada', last_name: 'L', email: 'ada@example.com', phone: '+34600000000' }}
+        initialCompanions={[
+          { id: 'c1', first_name: 'Mia', last_name: 'Berg', email: 'm@example.com', phone: '', companion_kind: 'guest' },
+        ]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0]?.[2][0].companion_kind).toBe('separate_guiding')
+  })
+
+  it('has German copy', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    try {
+      renderNone()
+      expect(screen.getByTestId('companions-section')).toHaveTextContent('Gäste, die selbst bezahlen')
+      expect(screen.getByText('Personen, die Sie buchen und bezahlen.')).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps the room wording and kind radio for optional hotel_offering', () => {
+    render(
+      <DetailsStep product={makeProduct({ hotel_offering: 'optional' })} selection={DAYS_SELECTION} onBack={vi.fn()} onConfirm={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(screen.getByTestId('companions-section')).toHaveTextContent(/others sharing your room/i)
+    expect(screen.getByTestId('companion-kind-0-guest')).toBeInTheDocument()
   })
 })

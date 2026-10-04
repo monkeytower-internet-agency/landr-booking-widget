@@ -17,8 +17,10 @@ import { NextAction } from './NextAction'
 import { StepBackButton } from './StepBackButton'
 import {
   defaultAddonQty,
+  isAddonSoldOut,
   requiredAddonError,
   selectionToLines,
+  withoutSoldOut,
   type AddonSelection,
 } from './addonsState'
 
@@ -52,6 +54,14 @@ interface Props {
    */
   initialAddons?: AddonSelection[]
   /**
+   * landr-lmudr.10: the booking's service days + guiding participant count.
+   * When given, the add-ons are fetched with a stock verdict and a sold-out
+   * (stock-limited) add-on renders disabled with its reason. Optional so a
+   * caller without them keeps the date-free list.
+   */
+  selectedDays?: string[]
+  participantCount?: number
+  /**
    * landr-n6ii3: current value of the "Anything we should know?" comment,
    * read straight off App.tsx's bookingDraft.customerComment — this step
    * doesn't own the value, it just renders CustomerCommentField and
@@ -67,6 +77,8 @@ interface Props {
 export function ServiceAddonsStep({
   product,
   initialAddons,
+  selectedDays,
+  participantCount,
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
@@ -84,11 +96,19 @@ export function ServiceAddonsStep({
     return seed
   })
 
+  // A stable key so a re-render with an equal day list doesn't refetch.
+  const daysKey = (selectedDays ?? []).join(',')
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
-        const list = await getProductAddons(product.product_id)
+        const days = daysKey ? daysKey.split(',') : []
+        const list = await getProductAddons(
+          product.product_id,
+          days.length > 0 && participantCount
+            ? { selectedDays: days, participants: participantCount }
+            : undefined,
+        )
         if (cancelled) return
         setAddons(list)
         // Seed required add-ons at their min_qty so the customer sees
@@ -99,8 +119,10 @@ export function ServiceAddonsStep({
         // min_qty defaults; just fill in any required add-on the
         // initialAddons map doesn't already cover.
         setSelection((prev) => {
-          const next = { ...prev }
+          // landr-lmudr.10: a restored pick that has sold out since goes.
+          const next = { ...withoutSoldOut(prev, list) }
           for (const a of list) {
+            if (isAddonSoldOut(a)) continue
             if (next[a.addon_product_id] !== undefined) continue
             const q = defaultAddonQty(a)
             if (q > 0) next[a.addon_product_id] = q
@@ -115,7 +137,7 @@ export function ServiceAddonsStep({
     return () => {
       cancelled = true
     }
-  }, [product.product_id])
+  }, [product.product_id, daysKey, participantCount])
 
   const unmetRequired = useMemo(() => {
     if (!addons) return false

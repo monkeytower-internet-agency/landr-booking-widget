@@ -20,6 +20,9 @@ const { mocks } = vi.hoisted(() => ({
     >(),
     getFixedDateWindows: vi.fn<(id: string) => Promise<FixedDateWindow[]>>(),
     listLocations: vi.fn(),
+    // landr-lmudr.12: PickupLocationPicker calls this (place_roles filter),
+    // not listLocations, directly.
+    listPickupLocationsForOperator: vi.fn(),
     submitBooking: vi.fn(),
     // landr-fn4i / landr-5krc: default {ok:true} so DetailsStep's email-blur
     // handler never hits the real (unconfigured-in-tests) network path.
@@ -55,6 +58,7 @@ vi.mock('@/api/client', async (importOriginal) => {
     getAvailability: mocks.getAvailability,
     getFixedDateWindows: mocks.getFixedDateWindows,
     listLocations: mocks.listLocations,
+    listPickupLocationsForOperator: mocks.listPickupLocationsForOperator,
     submitBooking: mocks.submitBooking,
     requestSubscriptionPerkOtp: mocks.requestSubscriptionPerkOtp,
     getHotelsForOperator: mocks.getHotelsForOperator,
@@ -204,6 +208,7 @@ describe('App', () => {
     mocks.getAvailability.mockResolvedValue([])
     mocks.getFixedDateWindows.mockResolvedValue([])
     mocks.listLocations.mockResolvedValue([])
+    mocks.listPickupLocationsForOperator.mockResolvedValue([])
     // landr-87n9: safe hotel-flow + estimate defaults so any test that
     // mounts the PriceSidebar / AccommodationStep doesn't hit the real
     // client. Per-test overrides supply richer data where needed.
@@ -882,6 +887,25 @@ describe('App', () => {
       })
     })
 
+    // landr-xtkae.2: route on the data — a single_date product that carries
+    // fixed daily start times gets the day-then-time AvailabilityPicker.
+    it('single_date + daily_start_times → AvailabilityPicker (not SingleDatePicker)', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+          name: 'Tandem Timed',
+        }),
+      ])
+      render(<App />)
+      await pickProduct('Tandem Timed')
+      await waitFor(() => {
+        expect(mocks.getAvailability).toHaveBeenCalled()
+        expect(screen.getByTestId('availability-picker-submit')).toBeInTheDocument()
+      })
+    })
+
     it('product_kind=digital_good → ShopComingSoonStub', async () => {
       mocks.listProducts.mockResolvedValue([
         makeProduct({
@@ -1396,7 +1420,8 @@ describe('App', () => {
 
   // landr-yf0n: same pattern as landr-b3g5 (DetailsStep) but for the
   // downstream steps. PickupLocationPicker is the easiest to exercise
-  // at the App level — the only extra mock it needs is listLocations,
+  // at the App level — the only extra mock it needs is
+  // listPickupLocationsForOperator (landr-lmudr.12; was listLocations),
   // already wired in the suite's beforeEach. The AccommodationStep +
   // ServiceAddonsStep paths require getHotelsForOperator /
   // getProductAddons mocks which the per-step tests already cover; this
@@ -1441,13 +1466,14 @@ describe('App', () => {
           status: 'open',
         },
       ])
-      mocks.listLocations.mockResolvedValue([
+      mocks.listPickupLocationsForOperator.mockResolvedValue([
         {
           location_id: 'loc-a',
           name: 'Main Square',
           name_localized: null,
           parent_id: null,
           role_type: { code: 'pickup', label: 'Pickup' },
+          place_roles: ['pickup'],
         },
         {
           location_id: 'loc-b',
@@ -1455,6 +1481,7 @@ describe('App', () => {
           name_localized: null,
           parent_id: null,
           role_type: { code: 'pickup', label: 'Pickup' },
+          place_roles: ['pickup'],
         },
       ])
 
@@ -2514,6 +2541,10 @@ describe('App', () => {
       expect(screen.getByTestId('invite-banner')).toHaveTextContent(
         'A1B2C3D4',
       )
+      // The host's booking carries a hotel, so the banner names it (landr-2jsaf).
+      expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+        'Dates and hotel are prefilled',
+      )
       // "Change dates" opens the calendar on the host's first day's month —
       // not today's (landr-l38a4).
       fireEvent.click(screen.getByRole('button', { name: /Change dates/i }))
@@ -2649,6 +2680,14 @@ describe('App', () => {
       await waitFor(() => {
         expect(mocks.getInvitePrefill).toHaveBeenCalledWith('tok-declarations')
       })
+      // landr-2jsaf: this host booking has no hotel — the banner must not
+      // claim one was prefilled.
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+          'Dates are prefilled',
+        )
+      })
+      expect(screen.getByTestId('invite-banner')).not.toHaveTextContent(/hotel/i)
 
       // Dates → pick a date → Continue.
       await waitFor(() =>
@@ -2721,6 +2760,16 @@ describe('App', () => {
         null,
         expect.anything(),
       )
+
+      // landr-wsttv: "Make another booking" starts a fresh booking — the
+      // invite banner (and the invite itself) must not come back.
+      fireEvent.click(
+        await screen.findByRole('button', { name: /make another booking/i }),
+      )
+      await waitFor(() =>
+        expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
     })
 
     it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
@@ -5062,6 +5111,9 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
       setField('companion_1_last_name', 'Jones')
+      // landr-lu41h: hotel_offering 'none' → the guest pays for themselves
+      // (separate_guiding), so a contact channel is required.
+      setField('companion_1_email', 'kay@example.com')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       await waitFor(() =>

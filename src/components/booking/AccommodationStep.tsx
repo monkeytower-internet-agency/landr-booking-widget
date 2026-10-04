@@ -55,7 +55,11 @@ import { CustomerCommentField } from './CustomerCommentField'
 import { RoomAssignment } from './RoomAssignment'
 import {
   clampAddonQty,
+  defaultAddonQty,
+  isAddonSoldOut,
   requiredAddonError,
+  selectionToLines,
+  withoutSoldOut,
   type AddonSelection,
 } from './addonsState'
 import { formatDayLabel } from './dateLabel'
@@ -832,6 +836,131 @@ export function AccommodationStep({
   //   addonSelection is the output being written (not a trigger); the
   //   effect must re-run only when the catalogue arrives.
 
+  // landr-lmudr.30: SERVICE-level add-ons (the parent product's own
+  // product_addons, e.g. a rental — landr-lmudr.10). Previously this step
+  // only ever fetched add-ons per ROOM product (addonsByRoom above); a
+  // service-level add-on attached directly to the hotel-offering product
+  // itself was never fetched or rendered, so it was unreachable for any
+  // customer who went through the accommodation flow. Fetched once per
+  // product/day/party-size change, independent of the hotel/room state
+  // above — mirrors ServiceAddonsStep's own fetch exactly (including the
+  // stock-verdict params from landr-lmudr.10) since this renders the same
+  // catalogue for a product that happens to also offer a hotel stay.
+  const [serviceAddons, setServiceAddons] = useState<ProductAddon[] | null>(
+    null,
+  )
+  // Seeded synchronously from `initialAddons` (the flattened confirm-time
+  // list, which may mix room + service lines) MINUS whatever
+  // `initialPerRoomAddons` already claims for a room — the exact per-room
+  // map is the authoritative record of which ids are room-tied. Absent that
+  // map (no prior per-room restore data), every flattened id is treated as a
+  // service-addon candidate; the roomAddonProductIds filter below (derived
+  // from the resolved room catalogue) is the second, catalogue-accurate line
+  // of defence against a stray room-tied id leaking in here.
+  const [serviceAddonSelection, setServiceAddonSelection] = useState<
+    Record<string, number>
+  >(() => {
+    if (!initialAddons || initialAddons.length === 0) return {}
+    const roomClaimedIds = new Set<string>()
+    if (initialPerRoomAddons) {
+      for (const qtys of Object.values(initialPerRoomAddons)) {
+        for (const id of Object.keys(qtys)) roomClaimedIds.add(id)
+      }
+    }
+    const seed: Record<string, number> = {}
+    for (const line of initialAddons) {
+      if (line.quantity <= 0) continue
+      if (roomClaimedIds.has(line.productId)) continue
+      seed[line.productId] = line.quantity
+    }
+    return seed
+  })
+
+  const serviceAddonDaysKey = selectedDays.join(',')
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const list = await getProductAddons(
+          product.product_id,
+          serviceAddonDaysKey && participantCount
+            ? { selectedDays: serviceAddonDaysKey.split(','), participants: participantCount }
+            : undefined,
+        )
+        if (cancelled) return
+        setServiceAddons(list)
+        // Same required-defaults + sold-out-prune merge as ServiceAddonsStep:
+        // fill in required add-ons at min_qty, drop a restored pick that has
+        // since sold out, and never clobber a value the customer (or the
+        // restore above) already set.
+        setServiceAddonSelection((prev) => {
+          const next = { ...withoutSoldOut(prev, list) }
+          for (const a of list) {
+            if (isAddonSoldOut(a)) continue
+            if (next[a.addon_product_id] !== undefined) continue
+            const q = defaultAddonQty(a)
+            if (q > 0) next[a.addon_product_id] = q
+          }
+          return next
+        })
+      } catch {
+        // Silent, matching this component's own per-room addon fetch
+        // failure handling (the step stays fully bookable without the
+        // service-addon section rather than blocking on a network blip).
+        if (!cancelled) setServiceAddons([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [product.product_id, serviceAddonDaysKey, participantCount])
+
+  // landr-lmudr.30: never show (or re-submit) a service-level add-on that is
+  // already attached to one of the rooms above — the contract is "parent
+  // product's add-ons EXCLUDING room add-ons already shown". Room + service
+  // add-ons are normally disjoint catalogues (product_addons is keyed to a
+  // single owner product), so this is a defensive de-dupe rather than the
+  // common case.
+  const roomAddonProductIds = useMemo(
+    () =>
+      new Set(
+        Object.values(addonsByRoom).flatMap((list) =>
+          list.map((a) => a.addon_product_id),
+        ),
+      ),
+    [addonsByRoom],
+  )
+  const visibleServiceAddons = useMemo(
+    () =>
+      (serviceAddons ?? []).filter(
+        (a) => !roomAddonProductIds.has(a.addon_product_id),
+      ),
+    [serviceAddons, roomAddonProductIds],
+  )
+  const serviceAddonCatalogueReady = serviceAddons !== null
+  const unmetRequiredServiceAddon = useMemo(() => {
+    for (const a of visibleServiceAddons) {
+      const qty = serviceAddonSelection[a.addon_product_id] ?? 0
+      if (requiredAddonError(a, qty) !== null) return true
+    }
+    return false
+  }, [visibleServiceAddons, serviceAddonSelection])
+  // The AddonSelection[] lines this step contributes for the service-level
+  // add-ons, filtered the same way visibleServiceAddons is (drops a
+  // room-claimed id so it is never double-submitted).
+  const serviceAddonLines = useMemo(
+    () =>
+      selectionToLines(
+        Object.fromEntries(
+          Object.entries(serviceAddonSelection).filter(
+            ([id]) => !roomAddonProductIds.has(id),
+          ),
+        ),
+        visibleServiceAddons,
+      ),
+    [serviceAddonSelection, roomAddonProductIds, visibleServiceAddons],
+  )
+
   // landr-87n9.2: fire the live-lift callback with the latest flattened
   // room + add-on lines so App.tsx can feed the PriceSidebar while the
   // customer is still picking. Called from the event handlers below (NOT an
@@ -853,6 +982,11 @@ export function AccommodationStep({
     nextMode: AccommodationMode,
     nextSelection: Record<string, number>,
     nextAddonSelection: Record<string, Record<string, number>>,
+    // landr-lmudr.30: the service-level (booking-wide) add-on lines to fold
+    // in. Defaults to the currently committed selection so the existing
+    // room/hotel-change call sites pick these up automatically without
+    // having to pass them explicitly.
+    nextServiceAddonLines: AddonSelection[] = serviceAddonLines,
   ) => {
     if (!onLiveAccommodationChange) return
     // landr-zeg4u.4 / .5: shared-double books rooms for everyone but the
@@ -863,17 +997,16 @@ export function AccommodationStep({
         (companionCount > 0 || sharedDoubleRoomsRequired) &&
         !accommodationTooLate)
     if (!nextBooksRooms) {
-      onLiveAccommodationChange([], [])
+      onLiveAccommodationChange([], nextServiceAddonLines)
       return
     }
     const rooms: RoomSelection[] = Object.entries(nextSelection)
       .filter(([, qty]) => qty > 0)
       .map(([productId, quantity]) => ({ productId, quantity }))
-    const addonLines = flattenPerRoomAddons(
-      nextAddonSelection,
-      nextSelection,
-      addonsByRoom,
-    )
+    const addonLines = [
+      ...flattenPerRoomAddons(nextAddonSelection, nextSelection, addonsByRoom),
+      ...nextServiceAddonLines,
+    ]
     onLiveAccommodationChange(rooms, addonLines)
   }
 
@@ -1248,6 +1381,12 @@ export function AccommodationStep({
   // window would otherwise reach Confirm and 422).
   const canContinue =
     !accommodationCheckPending &&
+    // landr-lmudr.30: the service-level add-ons gate Continue exactly like
+    // ServiceAddonsStep's own `canContinue` — independent of which
+    // accommodation mode is chosen (they're the parent service's own
+    // add-ons, not tied to a hotel/room choice).
+    serviceAddonCatalogueReady &&
+    !unmetRequiredServiceAddon &&
     (mode === 'guiding-only'
       ? true
       : mode === 'shared-double'
@@ -1400,7 +1539,9 @@ export function AccommodationStep({
     // landr-ffyg.2: guiding-only — no hotel context. Report
     // includeHotel=false so App.tsx stashes the opt-out for back-nav.
     if (mode === 'guiding-only') {
-      onConfirm([], null, [], false, false, {}, {}, {}, {}, {})
+      // landr-lmudr.30: the service-level add-ons are independent of the
+      // hotel/room choice — still thread them through here.
+      onConfirm([], null, serviceAddonLines, false, false, {}, {}, {}, {}, {})
       return
     }
     if (!selectedHotelId) return
@@ -1420,7 +1561,9 @@ export function AccommodationStep({
       onConfirm(
         [],
         selectedHotelId,
-        [],
+        // landr-lmudr.30: thread the service-level add-ons through even in
+        // the no-additional-rooms shared-double path.
+        serviceAddonLines,
         offering === 'optional' ? true : undefined,
         true,
         {},
@@ -1437,7 +1580,12 @@ export function AccommodationStep({
     // Sum qty per addon_product_id across rooms, only for rooms still in the
     // cart and only for add-ons in those rooms' catalogues (guards against
     // carry-over from a dropped room). flattenPerRoomAddons handles this.
-    const addonLines = flattenPerRoomAddons(addonSelection, selection, addonsByRoom)
+    // landr-lmudr.30: fold in the service-level (booking-wide) add-on lines
+    // alongside the flattened per-room ones — see serviceAddonLines above.
+    const addonLines = [
+      ...flattenPerRoomAddons(addonSelection, selection, addonsByRoom),
+      ...serviceAddonLines,
+    ]
     // landr-gb2f.2: prune the assignment to the units actually present at
     // confirm time (guards against a dangling reference if a room was just
     // dropped between the last auto-assign and Continue).
@@ -2132,6 +2280,44 @@ export function AccommodationStep({
           </div>
         ) : null}
 
+        {/* landr-lmudr.30: the parent service's own add-ons (e.g. a rental —
+            landr-lmudr.10) — rendered after the room + room-add-on choice,
+            for every mode (guiding-only / package / shared-double), since
+            they belong to the service itself, not to the hotel/room choice.
+            Reuses AddonsList exactly as ServiceAddonsStep does: same
+            required/optional + sold-out-disabled semantics. */}
+        {visibleServiceAddons.length > 0 ? (
+          <fieldset className="flex flex-col gap-3 border-t pt-3">
+            <legend className="text-sm font-medium">
+              {tr('addonsTitle', locale)}
+            </legend>
+            <AddonsList
+              addons={visibleServiceAddons}
+              selection={serviceAddonSelection}
+              onChange={(next) => {
+                setServiceAddonSelection(next)
+                // landr-87n9.2 / landr-lmudr.30: report the new service-addon
+                // lines live too, so the sidebar total reflects them while
+                // the customer is still picking.
+                notifyLiveAccommodation(
+                  mode,
+                  selection,
+                  addonSelection,
+                  selectionToLines(
+                    Object.fromEntries(
+                      Object.entries(next).filter(
+                        ([id]) => !roomAddonProductIds.has(id),
+                      ),
+                    ),
+                    visibleServiceAddons,
+                  ),
+                )
+              }}
+              expectedQty={1}
+            />
+          </fieldset>
+        ) : null}
+
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
         <CustomerCommentField
@@ -2142,7 +2328,14 @@ export function AccommodationStep({
 
         <ContinueAction
           ready={canContinue}
-          reason={canContinue ? tr('readyToContinue', locale) : occupancyHint || tr('completeStepsAboveToContinue', locale)}
+          reason={
+            canContinue
+              ? tr('readyToContinue', locale)
+              : occupancyHint ||
+                (unmetRequiredServiceAddon
+                  ? tr('pickRequiredAddonsToContinue', locale)
+                  : tr('completeStepsAboveToContinue', locale))
+          }
           reasonId="accommodation-step-gate"
           onContinue={handleContinue}
           data-testid="accommodation-step-submit"

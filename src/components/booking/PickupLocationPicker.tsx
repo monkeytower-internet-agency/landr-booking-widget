@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, MapPin } from 'lucide-react'
-import { listLocations } from '@/api/client'
+import { listPickupLocationsForOperator } from '@/api/client'
 import type { Location } from '@/api/types'
 import {
   Card,
@@ -77,7 +77,7 @@ export function PickupLocationPicker({
 
   useEffect(() => {
     let cancelled = false
-    listLocations(operatorToken)
+    listPickupLocationsForOperator(operatorToken)
       .then((locs) => {
         if (!cancelled) setLocations(locs)
       })

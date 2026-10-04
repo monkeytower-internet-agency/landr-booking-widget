@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
-import { HttpError, submitBooking } from '@/api/client'
+import { HttpError, getAvailability, submitBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.mock('@/api/client', async (importOriginal) => {
@@ -13,6 +13,7 @@ vi.mock('@/api/client', async (importOriginal) => {
   return {
     ...actual,
     submitBooking: vi.fn(),
+    getAvailability: vi.fn(),
   }
 })
 
@@ -300,6 +301,40 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
     )
     const desc = screen.getByText(/Guided day/)
     expect(desc.textContent).toMatch(/·.*·/) // name · date · tz
+  })
+
+  it('shows the timezone for a single_date product with fixed start times (landr-xtkae.2)', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{
+          ...makeServiceProduct('time_slot'),
+          service_time_shape: 'single_date',
+          daily_start_times: ['09:00', '11:00'],
+        }}
+        selection={{
+          kind: 'slot',
+          slot: {
+            availability_id: null,
+            date: '2024-11-23',
+            start_time: '11:00:00',
+            end_time: null,
+            capacity: 2,
+            capacity_reserved: 0,
+            available_seats: 2,
+            status: 'open',
+          },
+        }}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const desc = screen.getByText(/Guided day/)
+    // name · date · 11:00 · timezone
+    expect(desc.textContent?.match(/·/g)?.length).toBe(3)
   })
 
   it('hides the timezone for non-time_slot products', () => {
@@ -969,6 +1004,299 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     )
     const btn = screen.getByRole('button', { name: /Confirm booking/i })
     expect(btn).not.toBeDisabled()
+  })
+
+  it('maps a 422 capacity_exceeded to localized text with a Change dates action (landr-f987a.1)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: { error: 'capacity_exceeded', message: 'Not enough capacity on 2026-10-18' },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/not enough space left/i),
+    )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).not.toMatch(/422|detail|\{/)
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  const TIMED_SLOT_SELECTION: BookingSelection = {
+    kind: 'slot',
+    slot: {
+      availability_id: null,
+      date: '2026-10-18',
+      start_time: '11:00:00',
+      end_time: null,
+      capacity: 2,
+      capacity_reserved: 0,
+      available_seats: 2,
+      status: 'open',
+    },
+  }
+
+  it('maps a 422 slot_start_time_invalid to a friendly pick-another-time message with a retry action (landr-xtkae.2)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'slot_start_time_invalid',
+            reason: 'not_offered',
+            message: 'slot_start_time 11:00 is not offered',
+          },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('time_slot')}
+        selection={TIMED_SLOT_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /start time is no longer available.*pick another time/i,
+      ),
+    )
+    const text = screen.getByTestId('review-error').textContent ?? ''
+    expect(text).not.toMatch(/422|detail|\{|slot_start_time/)
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  it('names the start time when a per-slot capacity_exceeded comes back (landr-xtkae.2)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'capacity_exceeded',
+            message: 'Not enough capacity',
+            days: [{ date: '2026-10-18', seats_short: 1 }],
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('time_slot')}
+        selection={TIMED_SLOT_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/11:00/),
+    )
+    expect(screen.getByTestId('review-change-dates')).toBeInTheDocument()
+  })
+
+  it('maps a 422 fixed_date_window_ambiguous to a pick-a-course message with an action (landr-my6fc.11)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'fixed_date_window_ambiguous',
+            message: 'More than one course date starts on this day',
+            lines: [{ line_index: 0, product_id: 'p', date: '2024-11-23', candidates: [] }],
+          },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/pick the course you want/i),
+    )
+    expect(screen.getByTestId('review-error').textContent ?? '').not.toMatch(/422|detail|\{/)
+    fireEvent.click(screen.getByTestId('review-pick-course'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  it('maps a 422 fixed_date_window_invalid to a pick-a-course message with an action (landr-my6fc.11)', async () => {
+    vi.mocked(submitBooking).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'fixed_date_window_invalid',
+            message: 'Course no longer available 11111111-1111-1111-1111-111111111111',
+            lines: [{ line_index: 0, product_id: 'p', date: '2024-11-23', candidates: [] }],
+          },
+        }),
+      ),
+    )
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(/pick the course you want/i),
+    )
+    expect(screen.getByTestId('review-error').textContent ?? '').not.toMatch(/422|detail|\{/)
+    fireEvent.click(screen.getByTestId('review-pick-course'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  it('blocks submit when host + invitee no longer fit a day (landr-f987a.4)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    vi.mocked(getAvailability).mockResolvedValueOnce([
+      { date: '2024-11-23', available_seats: 5 },
+      { date: '2024-11-24', available_seats: 1 },
+      { date: '2024-11-25', available_seats: 5 },
+    ] as never)
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Matt',
+            last_name: '',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        inviteToken={undefined}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /Only 1 seat left on .*24.* — you need 2\./,
+      ),
+    )
+    expect(submitMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('review-change-dates'))
+    expect(onChangeDates).toHaveBeenCalled()
+  })
+
+  it('does not count invitees when invite_hold_hours is 0 (landr-f987a.6)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+    vi.mocked(getAvailability).mockClear()
+    vi.mocked(getAvailability).mockResolvedValueOnce([
+      { date: '2024-11-23', available_seats: 5 },
+      { date: '2024-11-24', available_seats: 1 },
+      { date: '2024-11-25', available_seats: 5 },
+    ] as never)
+    const onChangeDates = vi.fn()
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{ ...makeServiceProduct('days_range'), invite_hold_hours: 0 }}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Matt',
+            last_name: '',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        inviteToken={undefined}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={onChangeDates}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalled())
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
+    expect(vi.mocked(getAvailability)).not.toHaveBeenCalled()
   })
 
   // landr-zenj.1: the submit endpoint hard-rejects an un-priceable booking

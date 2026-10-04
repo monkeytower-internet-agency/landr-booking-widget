@@ -215,6 +215,101 @@ describe('FixedDateWindowPicker', () => {
     expect(screen.getByRole('button', { name: /Jul 7, 2027/ })).not.toBeDisabled()
   })
 
+  it('landr-my6fc.5: overlapping windows are both selectable and submit their own exact range', async () => {
+    // A Sat 3 -> Sat 10 Jul, B Fri 9 -> Fri 16 Jul: Jul 9-10 is shared.
+    const a: FixedDateWindow = { id: 'w-a', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    const b: FixedDateWindow = { id: 'w-b', start_date: '2027-07-09', end_date: '2027-07-16', capacity: 8, capacity_reserved: 2 }
+    // Returned out of order on purpose: the picker lists chronologically.
+    mocks.getFixedDateWindows.mockResolvedValue([b, a])
+    const onConfirm = vi.fn()
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={onConfirm} />)
+
+    await waitFor(() => expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(2))
+    const cards = screen.getAllByRole('button', { pressed: false })
+    expect(cards[0]).toHaveTextContent(/Jul 3, 2027/)
+    expect(cards[1]).toHaveTextContent(/Jul 9, 2027/)
+    expect(cards[0]).toBeEnabled()
+    expect(cards[1]).toBeEnabled()
+
+    fireEvent.click(cards[1])
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ availability_id: 'w-b', date: '2027-07-09' }),
+      b,
+      false,
+      undefined,
+    )
+    expect(expandWindowDays(onConfirm.mock.calls[0][1])[0]).toBe('2027-07-09')
+    expect(expandWindowDays(onConfirm.mock.calls[0][1]).at(-1)).toBe('2027-07-16')
+
+    // Switch to the other overlapping window: only it is selected.
+    fireEvent.click(screen.getAllByRole('button', { pressed: false })[0])
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ availability_id: 'w-a', date: '2027-07-03' }),
+      a,
+      false,
+      undefined,
+    )
+    expect(expandWindowDays(a).at(-1)).toBe('2027-07-10')
+  })
+
+  it('landr-my6fc.5: windows chained on one shared day (Sat->Sat, Sat->Sat) stay distinct; a full one stays disabled', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-a', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 8 },
+      { id: 'w-b', start_date: '2027-07-10', end_date: '2027-07-17', capacity: 8, capacity_reserved: 0 },
+    ])
+    const onConfirm = vi.fn()
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={onConfirm} />)
+    await waitFor(() => expect(screen.getByText('Full')).toBeInTheDocument())
+    const cards = screen.getAllByRole('button', { pressed: false })
+    expect(cards[0]).toBeDisabled()
+    expect(cards[1]).toBeEnabled()
+    fireEvent.click(cards[1])
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm.mock.calls[0][1].id).toBe('w-b')
+  })
+
+  it('landr-my6fc.11: same-start windows show their labels and submit the chosen id', async () => {
+    const a: FixedDateWindow = { id: 'w-a', label: 'Bus 2', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    const b: FixedDateWindow = { id: 'w-b', label: 'Bus 1', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    mocks.getFixedDateWindows.mockResolvedValue([a, b])
+    const onConfirm = vi.fn()
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={onConfirm} />)
+    await waitFor(() => expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(2))
+    const cards = screen.getAllByRole('button', { pressed: false })
+    expect(cards[0]).toHaveTextContent('Bus 1')
+    expect(cards[1]).toHaveTextContent('Bus 2')
+    fireEvent.click(cards[1])
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm.mock.calls[0][1]).toBe(a)
+    expect(onConfirm.mock.calls[0][0]).toMatchObject({ availability_id: 'w-a' })
+  })
+
+  it('landr-my6fc.11: unlabeled identical windows get distinct fallback names; a lone one gets none', async () => {
+    const mk = (id: string, start: string, end: string): FixedDateWindow => ({ id, start_date: start, end_date: end, capacity: 8, capacity_reserved: 0 })
+    mocks.getFixedDateWindows.mockResolvedValue([
+      mk('w-1', '2027-07-03', '2027-07-10'),
+      mk('w-2', '2027-07-03', '2027-07-10'),
+      mk('w-3', '2027-08-03', '2027-08-10'),
+    ])
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={() => {}} />)
+    await waitFor(() => expect(screen.getByTestId('fixed-date-window-name-w-1')).toHaveTextContent('Course 1'))
+    expect(screen.getByTestId('fixed-date-window-name-w-2')).toHaveTextContent('Course 2')
+    expect(screen.queryByTestId('fixed-date-window-name-w-3')).toBeNull()
+  })
+
+  it('landr-my6fc.11: initialWindowId (invite host window) preselects the right same-start card', async () => {
+    const a: FixedDateWindow = { id: 'w-a', label: 'Bus 1', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    const b: FixedDateWindow = { id: 'w-b', label: 'Bus 2', start_date: '2027-07-03', end_date: '2027-07-10', capacity: 8, capacity_reserved: 0 }
+    mocks.getFixedDateWindows.mockResolvedValue([a, b])
+    const onConfirm = vi.fn()
+    render(<FixedDateWindowPicker product={makeProduct()} onBack={() => {}} onConfirm={onConfirm} initialWindowId="w-b" />)
+    await waitFor(() => expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1))
+    fireEvent.click(screen.getByTestId('fixed-date-window-picker-submit'))
+    expect(onConfirm.mock.calls[0][1]).toBe(b)
+  })
+
   it('expandWindowDays covers inclusive range', () => {
     const days = expandWindowDays({
       id: 'w',

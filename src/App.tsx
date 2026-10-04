@@ -14,6 +14,7 @@ import type {
 } from '@/components/booking/accommodationCalc'
 import { AccountLinkPrompt } from '@/components/booking/AccountLinkPrompt'
 import { AvailabilityPicker } from '@/components/booking/AvailabilityPicker'
+import { hasFixedStartTimes } from '@/components/booking/slotKey'
 import {
   BookingForm,
   type BookingSelection,
@@ -58,6 +59,7 @@ import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
 import PriceSidebar from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
+import { inviteBannerMessage, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
 import { ShopComingSoonStub } from '@/components/booking/ShopComingSoonStub'
 import { SingleDatePicker } from '@/components/booking/SingleDatePicker'
@@ -116,6 +118,8 @@ import {
   overrideBookingLocale,
   pickLocalized,
 } from '@/lib/locale'
+import { seatsNeeded } from '@/lib/seatHold'
+import { InviteHoldNote } from '@/components/booking/InviteHoldNote'
 import { CategoryStep } from '@/components/booking/CategoryStep'
 import { ExpandedCatalog } from '@/components/booking/ExpandedCatalog'
 import { ProductDetailStep } from '@/components/booking/ProductDetailStep'
@@ -1765,10 +1769,17 @@ function BookingFlowApp() {
             role="status"
           >
             <span>
-              You&rsquo;re joining {inviteData.host_display_name}&rsquo;s
-              booking (ref {inviteData.host_reference}). Dates and hotel are
-              prefilled — change anything that differs for you.
+              {inviteBannerMessage(
+                inviteData.host_display_name,
+                inviteData.host_reference,
+                inviteData.hotel_location_id !== null,
+                browserLocale(),
+              )}
             </span>
+            <InviteHoldNote
+              expiresAt={inviteData.seat_hold_expires_at}
+              hours={inviteData.seat_hold_hours}
+            />
           </div>
         ) : null}
 
@@ -1915,6 +1926,11 @@ function BookingFlowApp() {
             // (deep-link case); pickedGroupSlug handles the in-app navigation.
             productGroup={group ?? pickedGroupSlug ?? undefined}
             preselectSlug={product ?? undefined}
+            // landr-wwoap: a start=dates deep link lands on the date list,
+            // so say so while the catalogue fetch resolves the product.
+            preselectLoadingLabel={
+              startAtDates ? tr('loadingWindows', browserLocale()) : undefined
+            }
             // landr-7jgo: per-embed opt-in to show sold-out products as
             // "Fully booked" cards in the overview. Default false (hidden).
             // Ignored when a single-product deep link is in play (the deep
@@ -2057,9 +2073,15 @@ function BookingFlowApp() {
 
         {step.name === 'pick-selection' &&
         step.product.product_kind === 'service' &&
-        step.product.service_time_shape === 'time_slot' ? (
+        // landr-xtkae.2: a product with fixed daily start times gets the
+        // day-then-time picker whatever its shape (the solo flight is
+        // single_date) — route on the data, not the shape.
+        (step.product.service_time_shape === 'time_slot' ||
+          (hasFixedStartTimes(step.product) &&
+            step.product.service_time_shape === 'single_date')) ? (
           <AvailabilityPicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
             onBack={datePickerBack}
@@ -2067,8 +2089,14 @@ function BookingFlowApp() {
             initialSlot={
               step.selection?.kind === 'slot' ? step.selection.slot : undefined
             }
-            onConfirm={(slot) =>
-              afterSelection(step.product, { kind: 'slot', slot })
+            onConfirm={(slot, forced, forcedReasons) =>
+              afterSelection(step.product, {
+                kind: 'slot',
+                slot,
+                // landr-xtkae.2: staff force-booked a full / closed start time
+                // — carried so the submit raises ignore_capacity.
+                ...(forced ? { forced: true, forcedReasons } : {}),
+              })
             }
           />
         ) : null}
@@ -2086,13 +2114,22 @@ function BookingFlowApp() {
             initialWindowId={
               step.selection?.kind === 'slot'
                 ? (step.selection.slot.availability_id ?? undefined)
-                : undefined
+                : step.selection?.kind === 'days'
+                  ? step.selection.fixedDateWindowId
+                  : // landr-my6fc.11: first visit via an invite link →
+                    // preselect the host's course window.
+                    inviteData &&
+                      inviteData.product_id === step.product.product_id
+                    ? (inviteData.fixed_date_window_id ?? undefined)
+                    : undefined
             }
             onConfirm={(_slot, window, forced, forcedReasons) => {
               const days = expandWindowDays(window)
               afterSelection(step.product, {
                 kind: 'days',
                 selectedDays: days,
+                // landr-my6fc.7: remember WHICH course window (windows may overlap).
+                fixedDateWindowId: window.id,
                 // landr-aoak.2/t869m.5: a force-booked blocked window marks
                 // ALL its days as forced (so the submit adapter raises
                 // ignore_capacity) and carries WHICH gate(s) it bypassed.
@@ -2129,6 +2166,18 @@ function BookingFlowApp() {
                 : undefined
             }
             originalDaysLabel={inviteData?.host_display_name}
+            // landr-f987a.4: invitee's token (live hold counts as available)
+            // and the host party's seat need once known (Back nav from details).
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            seatsNeeded={
+              bookingDraft.participants && bookingDraft.participants.length > 0
+                ? seatsNeeded(
+                    bookingDraft.participants.length,
+                    bookingDraft.companions,
+                    step.product.invite_hold_hours,
+                  )
+                : undefined
+            }
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -2146,9 +2195,11 @@ function BookingFlowApp() {
 
         {step.name === 'pick-selection' &&
         step.product.product_kind === 'service' &&
-        step.product.service_time_shape === 'single_date' ? (
+        step.product.service_time_shape === 'single_date' &&
+        !hasFixedStartTimes(step.product) ? (
           <SingleDatePicker
             product={step.product}
+            inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
@@ -2397,6 +2448,14 @@ function BookingFlowApp() {
         {step.name === 'pick-service-addons' ? (
           <ServiceAddonsStep
             product={step.product}
+            // landr-lmudr.10: the booking's service days + guiding party
+            // size, so a stock-limited (rental) add-on shows sold out.
+            selectedDays={
+              step.selection.kind === 'slot'
+                ? [step.selection.slot.date]
+                : step.selection.selectedDays
+            }
+            participantCount={step.participants.length}
             // landr-yf0n: thread prior add-on selections back so the
             // step re-mounts with the customer's choices restored
             // instead of resetting to the min_qty seed.
@@ -2937,6 +2996,9 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            onChangeDates={() =>
+              setStep({ name: 'pick-selection', product: step.product })
+            }
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
               // stepBeforeReview — the LAST custom form (when the operator
@@ -2995,7 +3057,15 @@ function BookingFlowApp() {
           <>
             <Confirmation
               response={step.response}
-              onRestart={goToProductStep}
+              onRestart={() => {
+                // landr-wsttv: "Make another booking" after an invite booking
+                // is a fresh booking, not a second use of the invite — drop the
+                // invite so its banner, prefilled dates and invite_token do not
+                // ride along. (goToProductStep itself keeps it: "← All
+                // categories" mid-invite must not lose the invite.)
+                setInviteData(null)
+                goToProductStep()
+              }}
               isSharedDouble={step.isSharedDouble}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR

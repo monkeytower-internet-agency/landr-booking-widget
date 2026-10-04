@@ -125,6 +125,19 @@ describe('MultiDayPicker — staff force-book', () => {
     expect(onForced).toHaveBeenLastCalledWith([isoOf(blockedDay)], ['capacity'])
   })
 
+  it('landr-f987a.1: a customer session with a stale unavailable selection gets no badge and no forced days', () => {
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
+    render(
+      <StaffHarness
+        staffActive={false}
+        onForced={onForced}
+        initialValue={[blockedDay]}
+      />,
+    )
+    expect(screen.queryByTestId('operator-override-badge')).not.toBeInTheDocument()
+    expect(onForced).toHaveBeenLastCalledWith([], [])
+  })
+
   it('declining the confirm leaves the blocked day unselected', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()

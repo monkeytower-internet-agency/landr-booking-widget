@@ -49,6 +49,8 @@ export type ServiceTimeShape =
 
 export interface FixedDateWindow {
   id: string
+  /** landr-my6fc.9: optional operator-given course name (e.g. "Bus 1"). */
+  label?: string | null
   start_date: string
   end_date: string
   capacity: number
@@ -188,6 +190,14 @@ export interface Product {
    */
   hotel_offering?: HotelOffering
   /**
+   * landr-xtkae.1/.2: the product's live fixed daily start times, "HH:MM"
+   * ascending, or null/absent when the operator confirms the time themselves.
+   * NON-NULL means the widget shows the day-then-time picker
+   * (AvailabilityPicker) whatever `service_time_shape` is — route on this,
+   * not on the shape. Optional only for the rolling-deploy window.
+   */
+  daily_start_times?: string[] | null
+  /**
    * For product_kind='hotel_room' only: the locations.id row representing
    * the hotel that owns this room. Always non-null on hotel_room rows
    * (DB CHECK products_hotel_room_requires_hotel_location). Null on all
@@ -244,6 +254,8 @@ export interface Product {
    * (shop) kinds are always reported bookable by the API.
    */
   bookable?: boolean
+  /** landr-f987a.10: hours an invitee's seat is held (0 = off). Optional only for older API deploys: absent = on. */
+  invite_hold_hours?: components['schemas']['OperatorProduct']['invite_hold_hours']
   /**
    * landr-d8rg, epic contract D: public URL of the product's primary
    * thumbnail image (first entry of images[] sorted by sort_order).
@@ -645,6 +657,17 @@ export interface Location {
    */
   address?: string | null
   geo?: { lat: number; lng: number } | null
+  /**
+   * landr-lmudr.12 — how this place is used: a subset of
+   * {pickup, dropoff, meeting_point, base} (landr-api `resources.place_roles`).
+   * Optional so a response from an API that predates it still type-checks —
+   * treated as "no roles" (never matches the pickup filter) when absent.
+   * `listPickupLocationsForOperator` filters on 'pickup' being a member;
+   * `getHotelsForOperator` is unaffected — it still filters on
+   * `role_type.code === 'hotel'`, orthogonal to place_roles (a hotel can
+   * carry 'pickup' too, e.g. Para42's Hotel Mirador).
+   */
+  place_roles?: string[] | null
 }
 
 /**
@@ -705,6 +728,27 @@ export interface ProductAddon {
    * special-case the slug/name (e.g. 'breakfast') instead of this field.
    */
   product_kind: ProductKind
+  /**
+   * landr-lmudr.10: stock verdict, present when the add-ons were fetched
+   * WITH the booking's days + party size (getProductAddons' `stock`). false
+   * (reason 'sold_out') = the add-on sells a stock-limited resource (the
+   * rentable facet) with no room left on those days — rendered disabled.
+   * Absent / true = available.
+   */
+  available?: boolean
+  /**
+   * landr-lmudr.19: 'unit_taken' = the add-on takes a WHOLE unit (exclusive
+   * use) and another group has the last one — same disabled row, its own copy.
+   */
+  unavailable_reason?: 'sold_out' | 'unit_taken' | null
+  /**
+   * landr-lmudr.32: how many of this add-on still fit on every chosen day —
+   * stock is counted by the add-on QUANTITY, not the party size. The stepper
+   * stops there; null/absent = nothing limits it.
+   */
+  stock_remaining?: number | null
+  /** landr-lmudr.19: the operator's word for one unit ("raft") for 'unit_taken'. */
+  stock_unit_label?: string | null
 }
 
 export interface AvailabilitySlot {
@@ -949,6 +993,19 @@ export interface ProductLine {
    * — landr-ax1c on the API persists this verbatim when present.
    */
   product_availability_id?: string | null
+  /**
+   * landr-my6fc.7 / landr-api#943: the chosen fixed-date course window. Only the
+   * primary line of a fixed_window product sets it (overlapping windows make the
+   * date range alone ambiguous). Omitted for every other product.
+   */
+  fixed_date_window_id?: string | null
+  /**
+   * landr-xtkae.1: "HH:MM" start of the picked slot on a fixed-daily-times
+   * product (the API's availability rows carry "HH:MM:SS" — trim before
+   * sending). Required by the API for a synthesised slot; such a slot has no
+   * `product_availability_id`.
+   */
+  slot_start_time?: string | null
 }
 
 export interface SubmitBookingBody {
@@ -1106,6 +1163,18 @@ export interface InviteSummary {
   /** The reference of the booking this companion has already linked, if any. */
   linked_booking_reference: string | null
   has_invite: boolean
+  /**
+   * landr-f987a.3: ISO tz-aware deadline; null unless the hold is LIVE.
+   * seat_hold_hours: 0 = operator holds no seats, null = unknown.
+   */
+  seat_hold_expires_at?: string | null
+  seat_hold_hours?: number | null
+  /**
+   * landr-f987a.10: false = the seats were NOT free when the host booked
+   * (requested only). Type from the generated InvitePrefillOut; optional only
+   * for older API deploys (absent → treat as true).
+   */
+  seats_were_free?: components['schemas']['InvitePrefillOut']['seats_were_free']
 }
 
 /**
@@ -1329,6 +1398,11 @@ export interface InvitePrefill {
    */
   product_id: string | null
   dates: string[]
+  /**
+   * landr-my6fc.11: the host's fixed-date course window, so an invitee joins
+   * the host's tour. Optional for rolling deploy / non-course products.
+   */
+  fixed_date_window_id?: string | null
   hotel_location_id: string | null
   is_shared_double: boolean
   invitee_first_name: string
@@ -1336,6 +1410,10 @@ export interface InvitePrefill {
   host_display_name: string
   host_reference: string
   language: string | null
+  /** landr-f987a.3 — same semantics as InviteSummary (live-only deadline, hours 0/null). */
+  seat_hold_expires_at?: components['schemas']['InvitePrefillOut']['seat_hold_expires_at']
+  seat_hold_hours?: components['schemas']['InvitePrefillOut']['seat_hold_hours']
+  seats_were_free?: components['schemas']['InvitePrefillOut']['seats_were_free']
 }
 
 /**

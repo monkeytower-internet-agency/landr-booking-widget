@@ -107,10 +107,33 @@ type Bundle = {
   yourDates: string
   loadingAvailabilityEllipsis: string
   changeYourDatesToContinue: string
+  dayNoLongerAvailableReason: string
+  capacityExceededMessage: string
+  slotCapacityExceededMessage: string
+  slotStartTimeInvalidMessage: string
+  seatsShortOne: string
+  seatsShortOther: string
+  seatsShortNone: string
+  holdHeldOne: string
+  holdRequested: string
+  holdUntilOnly: string
+  holdHeldOther: string
+  holdNotHeld: string
+  holdTonight: string
+  holdToday: string
+  holdTomorrow: string
+  inviteHoldActive: string
+  inviteHoldEnded: string
   readyToContinueWithHostsDates: string
   continueWithTheseDates: string
   changeDates: string
+  pickCourse: string
+  courseFallbackName: string
+  fixedDateWindowAmbiguousMessage: string
   sameDaysAsHostFor: string
+  /** Invite banner (App.tsx) — {host}, {ref}. Hotel variant only when the invite prefills a hotel (landr-2jsaf). */
+  inviteBannerDatesAndHotel: string
+  inviteBannerDatesOnly: string
   hostDayUnavailableOne: string
   hostDaysUnavailableOther: string
 
@@ -289,6 +312,9 @@ type Bundle = {
   youWillBeListedAsParticipant1: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
+  participantsYouPayForHint: string
+  guestsPayingForThemselves: string
+  guestsPayingForThemselvesExplainer: string
   guestFallbackTemplate: string
   readyToConfirm: string
   submittingYourBookingEllipsis: string
@@ -462,6 +488,15 @@ type Bundle = {
   addonsTitle: string
   loadingAddons: string
   noAddonsAvailable: string
+  /** landr-lmudr.10: a stock-limited add-on with no room left on the chosen dates. */
+  addonSoldOut: string
+  /** landr-lmudr.19: a whole-unit add-on whose last unit another group has. */
+  addonUnitTaken: string
+  /** Same, led by the operator's own word for the unit as written — `{unit}`
+   *  = "Raft" / "Floß" (never re-cased: German nouns stay capitalised). */
+  addonUnitTakenTemplate: string
+  /** landr-lmudr.32: the stepper reached the stock left — `{n}` = how many. */
+  addonStockLeftTemplate: string
   pickRequiredAddonsCue: string
   pickRequiredAddonsToContinue: string
   requiredSuffix: string
@@ -621,7 +656,7 @@ const en: Bundle = {
 
   pickACourseWindow: 'Pick a course window',
   couldNotLoadCourseWindows: 'Could not load course windows.',
-  loadingWindows: 'Loading windows…',
+  loadingWindows: 'Loading available dates…',
   noUpcomingWindows: 'No upcoming windows for this course. Please check back later.',
   upcomingWindowsFor: 'Upcoming {name} windows. Pick one to continue.',
   fullBadge: 'Full',
@@ -634,10 +669,43 @@ const en: Bundle = {
   yourDates: 'Your dates',
   loadingAvailabilityEllipsis: 'Loading availability…',
   changeYourDatesToContinue: 'Change your dates to continue.',
+  dayNoLongerAvailableReason: '{date} is no longer available — remove it to continue.',
+  capacityExceededMessage:
+    'Sorry, there is not enough space left for your booking on one of your dates. Please change your dates and try again.',
+  slotCapacityExceededMessage:
+    'Sorry, there is not enough space left at that start time. Please pick another time and try again.',
+  slotStartTimeInvalidMessage:
+    'Sorry, that start time is no longer available. Please pick another time and try again.',
+  seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
+  seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
+  seatsShortNone: 'No seats left on {day} — you need {need}.',
+  holdUntilOnly:
+    'When you booked, seats for {name} were still free. Held until {when}.',
+  holdRequested:
+    'Seats for {name} are requested and held for {n} hours, until {when}. The operator still has to confirm that everyone fits.',
+  holdHeldOne:
+    'When you booked, seats for {name} were still free. Held for 1 hour, until {when}.',
+  holdHeldOther:
+    'When you booked, seats for {name} were still free. Held for {n} hours, until {when}.',
+  holdNotHeld: 'Seats for {name} are not held — they can book while seats last.',
+  holdTonight: 'tonight',
+  holdToday: 'today at {time}',
+  holdTomorrow: 'tomorrow at {time}',
+  inviteHoldActive: 'Your seat is held until {when}.',
+  inviteHoldEnded:
+    'The hold on your seat has ended — you can still book while seats last.',
   readyToContinueWithHostsDates: "Ready to continue with the host's dates.",
   continueWithTheseDates: 'Continue with these dates',
   changeDates: 'Change dates',
+  pickCourse: 'Pick a course',
+  courseFallbackName: 'Course {n}',
+  fixedDateWindowAmbiguousMessage:
+    'More than one course starts on this day. Please go back and pick the course you want.',
   sameDaysAsHostFor: 'The same days as {host} for {product}.',
+  inviteBannerDatesAndHotel:
+    'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
+  inviteBannerDatesOnly:
+    'You’re joining {host}’s booking (ref {ref}). Dates are prefilled — change anything that differs for you.',
   hostDayUnavailableOne:
     "1 of {host}'s days is no longer available — change your dates to continue.",
   hostDaysUnavailableOther:
@@ -823,6 +891,10 @@ const en: Bundle = {
     "You'll be listed as participant 1. Add more people below if others are joining.",
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
+  participantsYouPayForHint: "People you're booking and paying for.",
+  guestsPayingForThemselves: 'Guests paying for themselves',
+  guestsPayingForThemselvesExplainer:
+    "Joining the activity but booking and paying for their own spot. We'll send them a link to complete their booking — they're not added to your price.",
   companionsShareAccommodationExplainer:
     'Anyone else sharing your accommodation — partners, friends, family members, or fellow activity ' +
     "participants who book and pay for their own guiding separately. They're added to the hotel headcount " +
@@ -995,6 +1067,10 @@ const en: Bundle = {
   addonsTitle: 'Add-ons',
   loadingAddons: 'Loading add-ons…',
   noAddonsAvailable: 'No add-ons available for this option.',
+  addonSoldOut: 'Sold out for your dates.',
+  addonUnitTaken: 'Reserved for another group on your dates.',
+  addonUnitTakenTemplate: '{unit}: fully reserved for another group on your dates.',
+  addonStockLeftTemplate: 'Only {n} left for your dates.',
   pickRequiredAddonsCue: 'pick your required add-ons',
   pickRequiredAddonsToContinue: 'Pick every required add-on to continue.',
   requiredSuffix: 'required',
@@ -1141,7 +1217,7 @@ const de: Bundle = {
 
   pickACourseWindow: 'Zeitraum wählen',
   couldNotLoadCourseWindows: 'Zeiträume konnten nicht geladen werden.',
-  loadingWindows: 'Zeiträume werden geladen…',
+  loadingWindows: 'Verfügbare Termine werden geladen…',
   noUpcomingWindows: 'Keine bevorstehenden Termine für diesen Kurs. Bitte schauen Sie später wieder vorbei.',
   upcomingWindowsFor: 'Bevorstehende Termine für {name}. Wählen Sie einen aus, um fortzufahren.',
   fullBadge: 'Ausgebucht',
@@ -1154,10 +1230,44 @@ const de: Bundle = {
   yourDates: 'Ihre Termine',
   loadingAvailabilityEllipsis: 'Verfügbarkeit wird geladen…',
   changeYourDatesToContinue: 'Ändern Sie Ihre Termine, um fortzufahren.',
+  dayNoLongerAvailableReason: '{date} ist nicht mehr verfügbar — entfernen Sie den Termin, um fortzufahren.',
+  capacityExceededMessage:
+    'Leider ist für Ihre Buchung an einem Ihrer Termine nicht mehr genug Platz frei. Bitte ändern Sie Ihre Termine und versuchen Sie es erneut.',
+  slotCapacityExceededMessage:
+    'Leider ist zu dieser Startzeit nicht mehr genug Platz frei. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
+  slotStartTimeInvalidMessage:
+    'Leider ist diese Startzeit nicht mehr verfügbar. Bitte wählen Sie eine andere Uhrzeit und versuchen Sie es erneut.',
+  seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
+  seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
+  seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
+  holdUntilOnly:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
+  holdRequested:
+    'Plätze für {name} sind angefragt und {n} Stunden reserviert, bis {when}. Der Anbieter muss noch bestätigen, dass alle Platz haben.',
+  holdHeldOne:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für 1 Stunde, bis {when}.',
+  holdHeldOther:
+    'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert für {n} Stunden, bis {when}.',
+  holdNotHeld:
+    'Für {name} sind keine Plätze reserviert — die Buchung ist möglich, solange Plätze frei sind.',
+  holdTonight: 'heute Abend',
+  holdToday: 'heute um {time}',
+  holdTomorrow: 'morgen um {time}',
+  inviteHoldActive: 'Ihr Platz ist reserviert bis {when}.',
+  inviteHoldEnded:
+    'Die Reservierung Ihres Platzes ist abgelaufen — Sie können weiterhin buchen, solange Plätze frei sind.',
   readyToContinueWithHostsDates: 'Bereit, mit den Terminen des Gastgebers fortzufahren.',
   continueWithTheseDates: 'Mit diesen Terminen fortfahren',
   changeDates: 'Termine ändern',
+  pickCourse: 'Kurs wählen',
+  courseFallbackName: 'Kurs {n}',
+  fixedDateWindowAmbiguousMessage:
+    'An diesem Tag beginnt mehr als ein Kurs. Bitte gehen Sie zurück und wählen Sie den gewünschten Kurs.',
   sameDaysAsHostFor: 'Die gleichen Termine wie {host} für {product}.',
+  inviteBannerDatesAndHotel:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
+  inviteBannerDatesOnly:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
   hostDayUnavailableOne:
     '1 der Termine von {host} ist nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
   hostDaysUnavailableOther:
@@ -1347,6 +1457,10 @@ const de: Bundle = {
     'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
   notAMemberOrNoCode:
     'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
+  participantsYouPayForHint: 'Personen, die Sie buchen und bezahlen.',
+  guestsPayingForThemselves: 'Gäste, die selbst bezahlen',
+  guestsPayingForThemselvesExplainer:
+    'Nehmen an der Aktivität teil, buchen und bezahlen aber ihren eigenen Platz. Wir senden ihnen einen Link, um ihre Buchung abzuschließen — sie werden Ihrem Preis nicht hinzugefügt.',
   companionsShareAccommodationExplainer:
     'Alle weiteren Personen, die sich Ihre Unterkunft teilen — Partner/innen, Freunde, Familienmitglieder ' +
     'oder andere Aktivitätsteilnehmende, die ihr Guiding separat buchen und bezahlen. Sie werden zur ' +
@@ -1521,6 +1635,10 @@ const de: Bundle = {
   addonsTitle: 'Zusatzleistungen',
   loadingAddons: 'Zusatzleistungen werden geladen…',
   noAddonsAvailable: 'Für diese Option sind keine Zusatzleistungen verfügbar.',
+  addonSoldOut: 'Für Ihre Termine ausgebucht.',
+  addonUnitTaken: 'An Ihren Terminen für eine andere Gruppe reserviert.',
+  addonUnitTakenTemplate: '{unit}: an Ihren Terminen komplett für eine andere Gruppe reserviert.',
+  addonStockLeftTemplate: 'Nur noch {n} für Ihre Termine verfügbar.',
   pickRequiredAddonsCue: 'erforderliche Zusatzleistungen wählen',
   pickRequiredAddonsToContinue: 'Wählen Sie alle erforderlichen Zusatzleistungen, um fortzufahren.',
   requiredSuffix: 'erforderlich',
@@ -1674,11 +1792,92 @@ export function sameDaysAsHostForLabel(host: string, product: string, locale?: s
   return tr('sameDaysAsHostFor', locale).replace('{host}', host).replace('{product}', product)
 }
 
+/**
+ * Invite banner sentence. Names the hotel only when the invite actually
+ * prefills one (landr-2jsaf) — a booking without a hotel must not claim it.
+ */
+export function inviteBannerMessage(
+  host: string,
+  reference: string,
+  hasHotel: boolean,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const template = hasHotel ? t.inviteBannerDatesAndHotel : t.inviteBannerDatesOnly
+  return template.replace('{host}', host).replace('{ref}', reference)
+}
+
 /** MultiDayStep invite-summary blocked-days notice. */
 export function hostDaysUnavailableMessage(blocked: number, host: string, locale?: string): string {
   const t = pickBundle(locale)
   const template = plural(blocked, t.hostDayUnavailableOne, t.hostDaysUnavailableOther)
   return template.replace('{host}', host).replace('{n}', String(blocked))
+}
+
+/** MultiDayStep gate reason naming a selected day that is no longer bookable. */
+export function dayNoLongerAvailableReason(dateLabel: string, locale?: string): string {
+  return pickBundle(locale).dayNoLongerAvailableReason.replace('{date}', dateLabel)
+}
+
+/** Host party no longer fits a selected day (landr-f987a.4). */
+export function seatsShortMessage(
+  dayLabel: string,
+  left: number,
+  need: number,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  const template =
+    left <= 0 ? t.seatsShortNone : plural(left, t.seatsShortOne, t.seatsShortOther)
+  return template
+    .replace('{day}', dayLabel)
+    .replace('{n}', String(left))
+    .replace('{need}', String(need))
+}
+
+/** Confirmation: per-invitee hold line (landr-f987a.4). */
+export function holdHeldLabel(
+  name: string,
+  hours: number | null | undefined,
+  when: string,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  if (!hours) return t.holdUntilOnly.replace('{name}', name).replace('{when}', when)
+  return plural(hours, t.holdHeldOne, t.holdHeldOther)
+    .replace('{name}', name)
+    .replace('{n}', String(hours))
+    .replace('{when}', when)
+}
+
+export function holdRequestedLabel(
+  name: string,
+  hours: number | null | undefined,
+  when: string,
+  locale?: string,
+): string {
+  // Hours unknown → fall back to the deadline-only wording.
+  if (!hours) return holdHeldLabel(name, hours, when, locale)
+  return pickBundle(locale)
+    .holdRequested.replace('{name}', name)
+    .replace('{n}', String(hours))
+    .replace('{when}', when)
+}
+
+export function holdNotHeldLabel(name: string, locale?: string): string {
+  return fillName(pickBundle(locale).holdNotHeld, name)
+}
+
+/** Invite landing: live hold / ended hold line. */
+export function inviteHoldLabel(when: string | null, locale?: string): string {
+  const t = pickBundle(locale)
+  return when === null ? t.inviteHoldEnded : t.inviteHoldActive.replace('{when}', when)
+}
+
+/** Relative hint templates for a hold deadline ("tonight", "tomorrow at {time}"). */
+export function holdRelativeTemplates(locale?: string) {
+  const t = pickBundle(locale)
+  return { tonight: t.holdTonight, today: t.holdToday, tomorrow: t.holdTomorrow }
 }
 
 /** "1 day selected" / "N days selected" chip (MultiDayStep). */

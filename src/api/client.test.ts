@@ -1,7 +1,32 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import * as client from './client'
 import type { StaffSubmitBody, SubmitBookingBody } from './types'
-import { MOCK_PREVIEW_TOKEN } from './mocks'
+import { MOCK_PREVIEW_TOKEN, mockLocations } from './mocks'
+
+describe('listPickupLocationsForOperator (landr-lmudr.12)', () => {
+  it('lists exactly the role=pickup places for the demo operator', async () => {
+    const pickups = await client.listPickupLocationsForOperator('para42')
+    const expectedIds = mockLocations
+      .filter((loc) => loc.place_roles?.includes('pickup'))
+      .map((loc) => loc.location_id)
+      .sort()
+    expect(pickups.map((loc) => loc.location_id).sort()).toEqual(expectedIds)
+    // The demo dataset's non-pickup place (Staff Storage Yard) is excluded.
+    expect(pickups.some((loc) => loc.name === 'Staff Storage Yard')).toBe(false)
+    // A hotel that is ALSO a pickup point still appears here — orthogonal
+    // to getHotelsForOperator's own role_type.code === 'hotel' filter.
+    expect(pickups.some((loc) => loc.role_type?.code === 'hotel')).toBe(true)
+  })
+
+  it('still lists every hotel regardless of pickup role (getHotelsForOperator unaffected)', async () => {
+    const hotels = await client.getHotelsForOperator('para42')
+    const expectedIds = mockLocations
+      .filter((loc) => loc.role_type?.code === 'hotel')
+      .map((loc) => loc.location_id)
+      .sort()
+    expect(hotels.map((loc) => loc.location_id).sort()).toEqual(expectedIds)
+  })
+})
 
 describe('listProducts with mocks', () => {
   afterEach(() => {
@@ -291,5 +316,26 @@ describe('initiatePayment — wire "amount" is a STRING, not a number (landr-k9p
     const resp = await client.initiatePayment(REQUEST)
 
     expect(resp.amount).toBeUndefined()
+  })
+})
+
+describe('stockQueryAllowed (landr-lmudr.10 review fix G)', () => {
+  const days = (n: number) =>
+    Array.from({ length: n }, (_, i) => `2031-01-${String((i % 28) + 1).padStart(2, '0')}-${i}`)
+
+  it('asks for a stock verdict within the API caps only', () => {
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 3 })).toBe(true)
+    expect(client.stockQueryAllowed({ selectedDays: days(62), participants: 200 })).toBe(true)
+    // Above the caps the API would 422 and dead-end the step — leave it off.
+    expect(client.stockQueryAllowed({ selectedDays: days(63), participants: 1 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 201 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: [], participants: 1 })).toBe(false)
+    expect(client.stockQueryAllowed({ selectedDays: ['2031-03-10'], participants: 0 })).toBe(false)
+    expect(client.stockQueryAllowed(undefined)).toBe(false)
+  })
+
+  it('counts distinct days against the cap', () => {
+    const repeated = Array.from({ length: 100 }, () => '2031-03-10')
+    expect(client.stockQueryAllowed({ selectedDays: repeated, participants: 1 })).toBe(true)
   })
 })

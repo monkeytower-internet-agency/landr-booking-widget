@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  inviteBannerMessage,
   describeForceReasons,
   forceBookReasonMessage,
   isGermanLocale,
@@ -108,5 +109,25 @@ describe('describeForceReasons', () => {
 
   it('fails open to capacity for an empty list', () => {
     expect(describeForceReasons([])).toBe('past capacity')
+  })
+})
+
+describe('inviteBannerMessage (landr-2jsaf)', () => {
+  it('names the hotel only when the invite prefills one', () => {
+    expect(inviteBannerMessage('Olaf K***n', '67C66263', true, 'en')).toBe(
+      'You’re joining Olaf K***n’s booking (ref 67C66263). Dates and hotel are prefilled — change anything that differs for you.',
+    )
+    const datesOnly = inviteBannerMessage('Olaf K***n', '67C66263', false, 'en')
+    expect(datesOnly).toContain('Dates are prefilled')
+    expect(datesOnly).not.toMatch(/hotel/i)
+  })
+
+  it('has both variants in German', () => {
+    expect(inviteBannerMessage('Olaf K***n', '67C66263', true, 'de')).toContain(
+      'Termine und Hotel sind vorausgefüllt',
+    )
+    const datesOnly = inviteBannerMessage('Olaf K***n', '67C66263', false, 'de')
+    expect(datesOnly).toContain('Die Termine sind vorausgefüllt')
+    expect(datesOnly).not.toMatch(/hotel/i)
   })
 })

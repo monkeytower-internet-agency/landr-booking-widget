@@ -1768,6 +1768,152 @@ describe('AccommodationStep', () => {
     ])
   })
 
+  // ── landr-lmudr.30: service-level add-ons on a hotel-offering product ──
+  // A service (e.g. a Para42 hotel package) can carry its OWN product_addons
+  // (e.g. a rental, landr-lmudr.10) in addition to the per-room add-ons
+  // already covered above. Before this ticket those were unreachable —
+  // AccommodationStep only ever fetched add-ons per ROOM product_id, never
+  // for the parent service product_id.
+
+  it('renders the parent product\'s own add-ons alongside room add-ons, disables a sold-out one, and confirms both at booking level', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 98, 2),
+    ])
+    const breakfastAddon: ProductAddon = {
+      product_addon_id: 'pa-bf',
+      addon_product_id: 'bf-1',
+      name: 'Breakfast',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 10,
+      price_per_unit: 10,
+      currency: 'EUR',
+      product_kind: 'hotel_room',
+    }
+    const videoAddon: ProductAddon = {
+      product_addon_id: 'pa-video',
+      addon_product_id: 'video-1',
+      name: 'Video Package',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: null,
+      sort_order: 20,
+      price_per_unit: 39,
+      currency: 'EUR',
+      product_kind: 'service',
+    }
+    // landr-lmudr.10: a stock-limited rental, sold out for this booking's
+    // days/party-size — the API's `available: false` verdict.
+    const vestRental: ProductAddon = {
+      product_addon_id: 'pa-vest',
+      addon_product_id: 'vest-1',
+      name: 'Vest rental',
+      name_localized: null,
+      is_required: false,
+      min_qty: 0,
+      max_qty: 1,
+      sort_order: 30,
+      price_per_unit: 5,
+      currency: 'EUR',
+      product_kind: 'service',
+      available: false,
+      unavailable_reason: 'sold_out',
+    }
+    // Room-level fetches are keyed on the ROOM product_id; the new
+    // service-level fetch is keyed on the PARENT product_id ('service-1',
+    // per makeService above) — the two catalogues are disjoint.
+    mocks.getProductAddons.mockImplementation(async (productId: string) => {
+      if (productId === 'service-1') return [videoAddon, vestRental]
+      if (productId === 'single-room') return [breakfastAddon]
+      return []
+    })
+    const onConfirm = vi.fn()
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={2}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Single Room')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Increase Single Room quantity/i }))
+
+    // Room-level add-on renders under the room (unchanged behaviour).
+    await waitFor(() => expect(screen.getByText('Breakfast')).toBeInTheDocument())
+    // Service-level add-ons render too, in their own section — the sold-out
+    // rental is disabled with its reason, next to the available one.
+    await waitFor(() => expect(screen.getByText('Video Package')).toBeInTheDocument())
+    expect(screen.getByText('Vest rental')).toBeInTheDocument()
+    expect(screen.getByTestId('addon-sold-out-vest-1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Increase Vest rental/i }),
+    ).toBeDisabled()
+
+    // Opt into both the room add-on and the service add-on.
+    fireEvent.click(screen.getByRole('button', { name: /Increase Breakfast quantity/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Increase Video Package quantity/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/Everyone has a room/i)).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }))
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [, , addonLines] = onConfirm.mock.calls[0] as Parameters<typeof onConfirm>
+    // Both lines land in the SAME flat array the room-only case already used
+    // — the service-level line carries NO room attribution (booking-level,
+    // per memory hotel-addon-per-room-attribution), and the sold-out rental
+    // (never opted into) is absent.
+    expect(addonLines).toEqual(
+      expect.arrayContaining([
+        { productId: 'bf-1', quantity: 1, productKind: 'hotel_room' },
+        { productId: 'video-1', quantity: 1, productKind: 'service' },
+      ]),
+    )
+    expect(addonLines).toHaveLength(2)
+    expect(
+      (addonLines as { productId: string }[]).some((l) => l.productId === 'vest-1'),
+    ).toBe(false)
+  })
+
+  it('does not fetch or render a service-addons section for a product with no add-ons of its own', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 98),
+    ])
+    mocks.getProductAddons.mockResolvedValue([])
+
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Single Room')).toBeInTheDocument())
+    // getProductAddons was still called for the parent product (the new
+    // fetch), it just resolved empty — no add-ons section renders.
+    await waitFor(() =>
+      expect(mocks.getProductAddons).toHaveBeenCalledWith(
+        'service-1',
+        expect.anything(),
+      ),
+    )
+    expect(screen.queryByTestId('addons-list')).not.toBeInTheDocument()
+  })
+
   // ── landr-87n9.2: live-lift room + add-on selection ─────────────────
   // onLiveAccommodationChange fires WHILE the customer picks (not just at
   // Continue) so the App can feed the PriceSidebar's at-hotel total live.
