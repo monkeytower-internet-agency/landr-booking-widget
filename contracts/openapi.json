@@ -785,6 +785,61 @@
         "title": "ApproveIn",
         "type": "object"
       },
+      "AskPartnerIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "partner_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Partner Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "partner_id"
+        ],
+        "title": "AskPartnerIn",
+        "type": "object"
+      },
+      "AskPartnerOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "outbound_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbound Email Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/PartnerRequestOut"
+          }
+        },
+        "required": [
+          "created",
+          "request"
+        ],
+        "title": "AskPartnerOut",
+        "type": "object"
+      },
       "AssignmentIn": {
         "properties": {
           "assignment_date": {
@@ -12566,6 +12621,162 @@
           "service_role_code"
         ],
         "title": "ParticipantIn",
+        "type": "object"
+      },
+      "PartnerOut": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "person",
+              "hotel"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "PartnerOut",
+        "type": "object"
+      },
+      "PartnerRequestOut": {
+        "properties": {
+          "answer_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Comment"
+          },
+          "answered_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "partner_email": {
+            "title": "Partner Email",
+            "type": "string"
+          },
+          "partner_id": {
+            "title": "Partner Id",
+            "type": "string"
+          },
+          "partner_name": {
+            "title": "Partner Name",
+            "type": "string"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "responder_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responder Name"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "confirmed",
+              "declined",
+              "confirmed_with_changes"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "partner_id",
+          "partner_name",
+          "partner_email",
+          "status"
+        ],
+        "title": "PartnerRequestOut",
+        "type": "object"
+      },
+      "PartnerRequestsOut": {
+        "properties": {
+          "partners": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerOut"
+            },
+            "title": "Partners",
+            "type": "array"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerRequestOut"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "partners",
+          "requests"
+        ],
+        "title": "PartnerRequestsOut",
         "type": "object"
       },
       "PatchMoscowIn": {
@@ -33906,6 +34117,109 @@
         "summary": "Get Change Notifications",
         "tags": [
           "staff-bookings-change-notifications"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/partner-requests": {
+      "get": {
+        "operationId": "staff_list_partner_requests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerRequestsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Partner Requests",
+        "tags": [
+          "staff-bookings-partner-requests"
+        ]
+      },
+      "post": {
+        "description": "Ask one partner to confirm this booking (email with the reply link).\n\n409 ``booking_cancelled`` for a cancelled booking \u00b7 404\n``partner_not_found`` when the id is not a live, active partner of this\noperator (unknown, another tenant's, a meeting point \u2014 one answer, no\nprobe) \u00b7 403 ``feature_disabled`` when the partner's feature is off \u00b7\n422 ``partner_has_no_email`` \u00b7 502 ``partner_request_failed`` when the\nask could not be minted.",
+        "operationId": "staff_ask_partner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskPartnerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskPartnerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ask Partner",
+        "tags": [
+          "staff-bookings-partner-requests"
         ]
       }
     },
