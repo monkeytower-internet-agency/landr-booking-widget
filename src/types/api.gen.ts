@@ -10160,6 +10160,8 @@ export interface components {
          */
         ApprovalRequestContext: {
             booking: components["schemas"]["ApprovalRequestBooking"];
+            /** Branch */
+            branch?: string | null;
             /** Can Respond */
             can_respond: boolean;
             /** Confirm Nonce */
