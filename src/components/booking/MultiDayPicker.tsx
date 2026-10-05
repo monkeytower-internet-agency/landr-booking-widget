@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Modifiers } from 'react-day-picker'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDay, type Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot, HotelOffering } from '@/api/types'
-import { Calendar } from '@/components/ui/calendar'
+import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
 import { Button } from '@/components/ui/button'
 import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
 import {
@@ -18,9 +18,11 @@ import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadg
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import { computeDayDiff } from '@/components/booking/daySetDiff'
 import {
+  availabilityWindow,
   useNothingBeforeNotice,
   useStartMonth,
 } from '@/components/booking/calendarStart'
+import { useContainerWide } from '@/components/booking/useContainerWide'
 import { HelpDisclosure } from '@/components/booking/HelpDisclosure'
 
 type Mode = 'individual' | 'range'
@@ -195,6 +197,31 @@ export function MultiDayPicker({
     defaultMonth,
   )
   const nothingBefore = useNothingBeforeNotice(availableSet)
+
+  // landr-53vao: the picker's own container width (not the viewport — the
+  // widget runs in host iframes) picks the layout: two months side by side
+  // when wide, one month plus a first-week peek of the next when narrow.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const wide = useContainerWide(rootRef)
+  // Last month the horizon reaches; the next arrow disables there and the
+  // peek never reaches past it.
+  const horizonMonth = useMemo(() => {
+    const end = dateFromIso(availabilityWindow().toIso)
+    return new Date(end.getFullYear(), end.getMonth(), 1)
+  }, [])
+  const peekMonth = useMemo(
+    () => new Date(month.getFullYear(), month.getMonth() + 1, 1),
+    [month],
+  )
+  const showPeek = !wide && peekMonth.getTime() <= horizonMonth.getTime()
+  const peekDays = useMemo(
+    () =>
+      Array.from(
+        { length: 7 },
+        (_, i) => new Date(peekMonth.getFullYear(), peekMonth.getMonth(), i + 1),
+      ),
+    [peekMonth],
+  )
 
   // landr-aoak.2: the force-booked subset of the current selection — selected
   // days that have zero availability. Empty for every normal selection.
@@ -371,6 +398,13 @@ export function MultiDayPicker({
     applyClick(triggerDate, toggle)
   }
 
+  // landr-53vao: the next-month peek strip taps through the SAME applyClick
+  // path as the grid, with the same mode / modifier-key toggle rules.
+  const handlePeekClick = (date: Date, event: React.MouseEvent) => {
+    const modifierToggle = event.shiftKey || event.ctrlKey || event.metaKey
+    applyClick(date, (!isContiguous && mode === 'individual') || modifierToggle)
+  }
+
   // landr-aoak.2: keep the parent's forced-day set in sync with the selection.
   // Fires [] in the normal path (no unavailable day is ever selectable), so the
   // submit adapter receives an empty force set and behaves byte-identically.
@@ -399,6 +433,8 @@ export function MultiDayPicker({
     () => computeDayDiff(valueSet, originalValue),
     [originalValue, valueSet],
   )
+  const diffAddedSet = useMemo(() => new Set(diff?.added ?? []), [diff])
+  const diffRemovedSet = useMemo(() => new Set(diff?.removed ?? []), [diff])
   const diffAddedDates = useMemo(
     () => diff?.added.map(dateFromIso) ?? [],
     [diff],
@@ -431,7 +467,7 @@ export function MultiDayPicker({
   }, [originalValue, canForce, availableSet, onChange, setResetDroppedCount])
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={rootRef} className="flex flex-col gap-3">
       {!isContiguous && (
         <div
           role="group"
@@ -470,6 +506,11 @@ export function MultiDayPicker({
         }
         month={month}
         onMonthChange={setMonth}
+        numberOfMonths={wide ? 2 : 1}
+        // Two months already show every day once; outside-day duplicates of the
+        // neighbouring month would double-paint a selection.
+        showOutsideDays={!wide}
+        endMonth={horizonMonth}
         // landr-711: do NOT pass range_start / range_middle / range_end
         // modifiers. CalendarDayButton paints range_middle with bg-accent
         // (light gray) instead of bg-primary, so mid-run selected days
@@ -486,6 +527,62 @@ export function MultiDayPicker({
           diffRemoved: diffRemovedDates,
         }}
       />
+      {showPeek ? (
+        <div
+          role="group"
+          aria-label={peekMonth.toLocaleDateString(locale, {
+            month: 'long',
+            year: 'numeric',
+          })}
+          className="flex w-full max-w-[22rem] flex-col gap-1 sm:px-3"
+          data-testid="calendar-peek"
+        >
+          <p className="text-sm font-medium select-none">
+            {peekMonth.toLocaleDateString(locale, {
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+          <div className="grid grid-cols-7">
+            {peekDays.map((date) => {
+              const iso = isoDate(date)
+              const disabled = !canForce && !availableSet.has(iso)
+              return (
+                <div key={iso} className="flex flex-col items-center">
+                  <span
+                    aria-hidden="true"
+                    className="text-[0.7rem] text-muted-foreground select-none"
+                  >
+                    {date.toLocaleDateString(locale, { weekday: 'short' })}
+                  </span>
+                  <CalendarDayButton
+                    day={new CalendarDay(date, peekMonth)}
+                    modifiers={
+                      {
+                        selected: valueSet.has(iso),
+                        disabled,
+                        diffAdded: diffAddedSet.has(iso),
+                        diffRemoved: diffRemovedSet.has(iso),
+                      } as Modifiers
+                    }
+                    disabled={disabled}
+                    aria-label={date.toLocaleDateString(locale, {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                    className={disabled ? 'text-muted-foreground opacity-50' : undefined}
+                    onClick={(event) => handlePeekClick(date, event)}
+                  >
+                    {date.getDate()}
+                  </CalendarDayButton>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
       {nothingBefore ? (
         <p
           className="text-xs text-muted-foreground"
