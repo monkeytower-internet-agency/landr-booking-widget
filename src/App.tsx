@@ -917,12 +917,10 @@ function BookingFlowApp() {
           setOperatorSettings(settings)
           setShowLanding(false)
           // landr-tkgx8.1: operator logo on the boot splash (and cached for
-          // the next visit's first paint) — same visibility rule as the
-          // header logo, so a hidden logo is never flashed on boot.
-          applyBootLogo(
-            token,
-            settings.widget_show_logo !== false ? (settings.logo_url ?? null) : null,
-          )
+          // the next visit's first paint). widget_show_logo only hides the
+          // in-widget header logo; the loading splash always shows the
+          // operator's logo when one is uploaded.
+          applyBootLogo(token, settings.logo_url ?? null)
           // landr-821d6.7: whitelist browserLocale() against this operator's
           // customer_languages (falling back to default_locale) — applies
           // globally to every browserLocale() call from here on, no prop
