@@ -11290,6 +11290,25 @@
             ],
             "title": "Onboarded At"
           },
+          "payment_methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "online",
+                    "bank_transfer",
+                    "on_site"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Methods"
+          },
           "payment_mode": {
             "anyOf": [
               {
@@ -23555,6 +23574,25 @@
               }
             ],
             "title": "Payment Link Sent"
+          },
+          "payment_methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "online",
+                    "bank_transfer",
+                    "on_site"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Methods"
           },
           "payment_mode": {
             "anyOf": [

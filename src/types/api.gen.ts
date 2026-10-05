@@ -14004,6 +14004,8 @@ export interface components {
             name?: string | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Payment Methods */
+            payment_methods?: ("online" | "bank_transfer" | "on_site")[] | null;
             /** Payment Mode */
             payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Pending Booking Expiry Hours */
@@ -18284,6 +18286,8 @@ export interface components {
             next_steps?: string | null;
             /** Payment Link Sent */
             payment_link_sent?: boolean | null;
+            /** Payment Methods */
+            payment_methods?: ("online" | "bank_transfer" | "on_site")[] | null;
             /** Payment Mode */
             payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Semantic State */
