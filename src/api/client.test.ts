@@ -362,10 +362,10 @@ describe('listProducts single pickup location skip (landr-zy2wm.2)', () => {
     const flagged = products.filter((p) => p.auto_pickup_location_id)
     expect(flagged.length).toBeGreaterThan(0)
     for (const p of flagged) {
-      expect(p.needs_pickup).toBe(false)
+      expect(p.needs_pickup).toBe(true)
       expect(p.auto_pickup_location_id).toBe(only.location_id)
     }
-    expect(products.some((p) => p.needs_pickup)).toBe(false)
+    expect(flagged.every((p) => p.needs_pickup)).toBe(true)
   })
 
   it('with two or more pickup locations: unchanged', async () => {

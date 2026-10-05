@@ -110,7 +110,7 @@ function makeCompanions(n: number): CompanionDetails[] {
 describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
   it('routes straight to fill-form with the auto-selected pickup when listProducts marked a single location (landr-zy2wm.2)', () => {
     const product = makeProduct({
-      needs_pickup: false,
+      needs_pickup: true,
       auto_pickup_location_id: 'loc-only',
     })
     const next = stepAfterAccommodation(

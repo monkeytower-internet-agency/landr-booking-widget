@@ -189,8 +189,8 @@ export interface Product {
   max_party_size?: number | null
   /**
    * landr-zy2wm.2: WIDGET-DERIVED, not on the wire. Set by listProducts when
-   * the operator has exactly one pickup location: needs_pickup is then
-   * flipped to false (the picker step is skipped) and this carries the
+   * the operator has exactly one pickup location: the flow plan then drops
+   * the pickup step (needs_pickup stays as sent) and this carries the
    * auto-selected location id into the review/submit step.
    */
   auto_pickup_location_id?: string | null

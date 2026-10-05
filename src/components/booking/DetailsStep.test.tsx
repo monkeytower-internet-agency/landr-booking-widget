@@ -2289,3 +2289,32 @@ describe('DetailsStep product max_party_size (landr-zy2wm.2)', () => {
     expect(clickAddUntilGone()).toBe(5)
   })
 })
+
+describe('DetailsStep max_party_size also caps companions (landr-zy2wm.2)', () => {
+  function renderWith(max: number | null, hotel: 'none' | 'optional' = 'none') {
+    return render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: max, hotel_offering: hotel })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+  it('max_party_size=1 hides the companions section too', () => {
+    renderWith(1)
+    expect(screen.queryByTestId('companions-section')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument()
+  })
+  it('max_party_size=3: additional + companions never exceed 2', () => {
+    renderWith(3)
+    fireEvent.click(screen.getByTestId('add-participant'))
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(screen.queryByTestId('add-participant')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument()
+  })
+  it('no cap keeps companions available', () => {
+    renderWith(null)
+    expect(screen.getByTestId('companions-section')).toBeInTheDocument()
+  })
+})

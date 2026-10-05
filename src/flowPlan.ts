@@ -205,6 +205,26 @@ function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
  *     throws (the widget has no error boundary — landr-9ut4).
  */
 export function buildFlowPlan(
+  product: {
+    product_kind: ProductKind
+    hotel_offering?: HotelOffering
+    needs_pickup?: boolean
+    auto_pickup_location_id?: string | null
+  },
+  settings: FlowSettings | null | undefined,
+  remoteFlow: RemoteFlow | null | undefined,
+): FlowModule[] {
+  const plan = buildFlowPlanRaw(product, settings, remoteFlow)
+  // landr-zy2wm.2: operator with exactly one pickup location — it is
+  // auto-selected, so the picker step is dropped from the realised plan while
+  // needs_pickup itself stays as the API sent it (product facts keep showing
+  // pickup).
+  return product.auto_pickup_location_id
+    ? plan.filter((m) => m.kind !== 'pickup')
+    : plan
+}
+
+function buildFlowPlanRaw(
   product: { product_kind: ProductKind; hotel_offering?: HotelOffering; needs_pickup?: boolean },
   settings: FlowSettings | null | undefined,
   remoteFlow: RemoteFlow | null | undefined,

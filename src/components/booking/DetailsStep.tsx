@@ -64,6 +64,15 @@ const MAX_COMPANIONS = 12
 // CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
 // by hand since the widget has no shared contract constant for this.
 /** Additional participants allowed: min(MAX_ADDITIONAL, max_party_size - 1). */
+function hasPartyCap(m: number | null | undefined): boolean {
+  return typeof m === 'number' && Number.isFinite(m) && m >= 1
+}
+
+/** max_party_size - 1 (uncapped by MAX_ADDITIONAL); Infinity when no cap. */
+function additionalCapRaw(m: number | null | undefined): number {
+  return hasPartyCap(m) ? Math.floor(m as number) - 1 : Infinity
+}
+
 function additionalCap(maxPartySize: number | null | undefined): number {
   if (typeof maxPartySize !== 'number' || !Number.isFinite(maxPartySize) || maxPartySize < 1) {
     return MAX_ADDITIONAL
@@ -311,6 +320,10 @@ export function DetailsStep({
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
   const maxAdditional = additionalCap(product.max_party_size)
+  // Companions of a no-accommodation product are separate-guiding guests, i.e.
+  // effectively more participants, so when a product cap is set additional +
+  // companions together stay within max_party_size - 1.
+  const maxOthers = additionalCapRaw(product.max_party_size)
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
     (initialCompanions ?? []).map((c) =>
       withMemberId(
@@ -458,6 +471,7 @@ export function DetailsStep({
   // render has finished, from the event handler, same as before.
   const addParticipant = () => {
     if (additional.length >= maxAdditional) return
+    if (additional.length + companions.length >= maxOthers) return
     const next = [...additional, emptyParticipant(defaultRoleCode)]
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -476,6 +490,7 @@ export function DetailsStep({
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
     if (companions.length >= MAX_COMPANIONS) return
+    if (additional.length + companions.length >= maxOthers) return
     const next = [
       ...companions,
       emptyCompanion(noAccommodation ? 'separate_guiding' : 'guest'),
@@ -891,6 +906,7 @@ export function DetailsStep({
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
   // "Maximum …" warnings for each section.
   const participantsAtMax = additional.length >= maxAdditional
+  const othersFull = additional.length + companions.length >= maxOthers
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
   // landr-amg6: at the participant max we no longer render the inquiry form
@@ -1313,7 +1329,7 @@ export function DetailsStep({
                 </DialogContent>
               </Dialog>
             </div>
-          ) : (
+          ) : othersFull ? null : (
             <Button
               type="button"
               variant="ghost"
@@ -1334,6 +1350,7 @@ export function DetailsStep({
             participants, price, or the 6-participant cap — regardless of whether
             they do the activity (landr-doam.1: companion_kind).
             landr-rxjo: first and last name are both required for companions. */}
+        {maxOthers > 0 ? (
         <fieldset
           className="flex flex-col gap-3 border-t pt-4"
           data-testid="companions-section"
@@ -1588,7 +1605,7 @@ export function DetailsStep({
                 {maxCompanionsReachedMessage(MAX_COMPANIONS, locale)}
               </p>
             </div>
-          ) : (
+          ) : othersFull ? null : (
             <Button
               type="button"
               variant="ghost"
@@ -1601,6 +1618,7 @@ export function DetailsStep({
             </Button>
           )}
         </fieldset>
+        ) : null}
 
         {/* landr-de6ej / landr-n6ii3: OPTIONAL free-text comment, last field
             before Continue — see CustomerCommentField's doc for why it's

@@ -164,7 +164,7 @@ export async function listProducts(
  * pickup step is pointless — auto-select it. Done here (the single product
  * source) so the skip decision waits for the location load before any step
  * renders (no flash) and applies to forward AND back navigation alike: the
- * flow plan sees needs_pickup=false, and `auto_pickup_location_id` is
+ * flow plan drops the pickup module (needs_pickup is left as sent), and `auto_pickup_location_id` is
  * submitted as the pickup. Zero / >=2 locations, or a load error, leave the
  * products untouched (the picker shows as before).
  */
@@ -182,9 +182,7 @@ async function applySinglePickupLocation(
   if (locations.length !== 1) return products
   const only = locations[0].location_id
   return products.map((p) =>
-    p.needs_pickup
-      ? { ...p, needs_pickup: false, auto_pickup_location_id: only }
-      : p,
+    p.needs_pickup ? { ...p, auto_pickup_location_id: only } : p,
   )
 }
 
