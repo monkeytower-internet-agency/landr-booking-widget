@@ -9526,6 +9526,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/upgrade-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Open Upgrade Request */
+        get: operations["get_open_upgrade_request"];
+        put?: never;
+        /** Create Upgrade Request */
+        post: operations["create_upgrade_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/vouchers": {
         parameters: {
             query?: never;
@@ -10142,6 +10160,8 @@ export interface components {
          */
         ApprovalRequestContext: {
             booking: components["schemas"]["ApprovalRequestBooking"];
+            /** Branch */
+            branch?: string | null;
             /** Can Respond */
             can_respond: boolean;
             /** Confirm Nonce */
@@ -13984,6 +14004,8 @@ export interface components {
             name?: string | null;
             /** Onboarded At */
             onboarded_at?: string | null;
+            /** Payment Methods */
+            payment_methods?: ("online" | "bank_transfer" | "on_site")[] | null;
             /** Payment Mode */
             payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Pending Booking Expiry Hours */
@@ -14231,6 +14253,11 @@ export interface components {
             offer_account_link: boolean;
             /** Primary Color */
             primary_color?: string | null;
+            /**
+             * Remove Powered By
+             * @default true
+             */
+            remove_powered_by: boolean;
             /** Slug */
             slug: string;
             /** Theme */
@@ -18259,6 +18286,8 @@ export interface components {
             next_steps?: string | null;
             /** Payment Link Sent */
             payment_link_sent?: boolean | null;
+            /** Payment Methods */
+            payment_methods?: ("online" | "bank_transfer" | "on_site")[] | null;
             /** Payment Mode */
             payment_mode?: ("online" | "bank_transfer" | "on_site") | null;
             /** Semantic State */
@@ -18901,6 +18930,31 @@ export interface components {
             } | null;
             /** Role */
             role?: ("owner" | "admin" | "staff" | "field" | "finance" | "readonly") | null;
+        };
+        /** UpgradeRequestIn */
+        UpgradeRequestIn: {
+            /** Message */
+            message?: string | null;
+            /** Package Slug */
+            package_slug: string;
+        };
+        /** UpgradeRequestOut */
+        UpgradeRequestOut: {
+            /**
+             * Already Requested
+             * @default false
+             */
+            already_requested: boolean;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Message */
+            message?: string | null;
+            /** Package Slug */
+            package_slug: string;
+            /** Status */
+            status: string;
         };
         /** UploadPhotoRequest */
         UploadPhotoRequest: {
@@ -35566,6 +35620,81 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_open_upgrade_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_upgrade_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpgradeRequestIn"];
+            };
+        };
+        responses: {
+            /** @description An equivalent request is already open: the existing row (``already_requested: true``); no second mail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"];
+                };
+            };
+            /** @description Request recorded and Landr notified. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeRequestOut"];
                 };
             };
             /** @description Validation Error */

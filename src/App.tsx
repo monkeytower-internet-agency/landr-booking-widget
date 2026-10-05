@@ -3146,6 +3146,27 @@ function BookingFlowApp() {
           </p>
         </footer>
       ) : null}
+      {/*
+        landr-xtkae.10 — "powered by LANDR" stays on plans that do not include
+        branding.remove_powered_by (Free). The API sends an explicit `false`
+        for them; `true` / absent (paid, custom packages, older API) renders
+        nothing. Display only: it is a credit line, not a gate.
+      */}
+      {operatorSettings.remove_powered_by === false ? (
+        <div
+          className="mx-auto max-w-5xl px-6 pb-6 pt-2 text-center"
+          data-testid="widget-powered-by"
+        >
+          <a
+            href="https://www.landr.de"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+          >
+            {tr('poweredByLandr', browserLocale())}
+          </a>
+        </div>
+      ) : null}
     </div>
   )
 }

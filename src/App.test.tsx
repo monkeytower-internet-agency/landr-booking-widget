@@ -658,6 +658,42 @@ describe('App', () => {
       })
     })
 
+    // landr-xtkae.10 — "powered by LANDR" follows the operator's entitlement.
+    describe('powered by LANDR (landr-xtkae.10)', () => {
+      const base = {
+        slug: 'para42',
+        expose_seats_to_customer: false,
+        logo_url: null,
+        primary_color: null,
+        name: 'Para42',
+      }
+
+      it('shows the credit line when remove_powered_by is false (Free)', async () => {
+        mocks.getOperatorSettings.mockResolvedValue({ ...base, remove_powered_by: false })
+        mocks.listProducts.mockResolvedValue([])
+        render(<App />)
+        const line = await screen.findByTestId('widget-powered-by')
+        expect(line).toHaveTextContent('Powered by LANDR')
+        expect(within(line).getByRole('link')).toHaveAttribute('href', 'https://www.landr.de')
+      })
+
+      it('hides it when remove_powered_by is true (paid / custom package)', async () => {
+        mocks.getOperatorSettings.mockResolvedValue({ ...base, remove_powered_by: true })
+        mocks.listProducts.mockResolvedValue([])
+        render(<App />)
+        await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+        expect(screen.queryByTestId('widget-powered-by')).not.toBeInTheDocument()
+      })
+
+      it('hides it when the API sends no flag (older API: render as before)', async () => {
+        mocks.getOperatorSettings.mockResolvedValue({ ...base })
+        mocks.listProducts.mockResolvedValue([])
+        render(<App />)
+        await waitFor(() => expect(mocks.getOperatorSettings).toHaveBeenCalled())
+        expect(screen.queryByTestId('widget-powered-by')).not.toBeInTheDocument()
+      })
+    })
+
     it('renders no brand header and no footer when logo + all embed text are unset', async () => {
       mocks.getOperatorSettings.mockResolvedValue({
         slug: 'para42',

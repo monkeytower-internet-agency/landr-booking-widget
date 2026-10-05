@@ -485,6 +485,15 @@ export interface OperatorSettings {
   widget_description_first_page_only?: boolean
   widget_footer_first_page_only?: boolean
   /**
+   * landr-xtkae.10 — the operator's entitlement `branding.remove_powered_by`,
+   * resolved by the API. Only an explicit `false` (Free) makes the widget show
+   * its "powered by LANDR" line; `true` (paid tiers, custom packages) hides it.
+   * Optional for rolling deploy — an older API sends no key, and an absent
+   * value renders exactly as before (no line), so a paying operator never gets
+   * a credit line during a deploy gap.
+   */
+  remove_powered_by?: boolean
+  /**
    * landr-otml0.2 (API) D8: hides the header logo when explicitly false.
    * Defaults to true on the API (new column, default `true`); optional here
    * for rolling deploy — an absent/undefined value is also treated as "show
@@ -1842,6 +1851,13 @@ export interface ApprovalRequestContext {
   locale: string
   request_ref: string
   confirm_nonce: string
+  /**
+   * Which ask this is (landr-xtkae.16): 'partner' = the manual "Ask partner"
+   * request, which may go to a driver — the page then drops hotel/rooms
+   * wording. Optional/nullable: an API that predates the field omits it, and
+   * the page then behaves as a hotel request.
+   */
+  branch?: string | null
   operator: ApprovalRequestOperator
   responder: ApprovalRequestResponder
   booking: ApprovalRequestBooking

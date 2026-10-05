@@ -38,10 +38,10 @@ describe('pickStartMonth', () => {
     expect(pickStartMonth([], [], today)).toEqual(new Date(2026, 8, 1))
   })
 
-  it('fetches a 90-day window from today (landr-api RPC caps p_to - p_from <= 90)', () => {
+  it('fetches a 731-day horizon from today (getAvailability chunks it to the RPC 90-day cap, landr-gm2px)', () => {
     expect(availabilityWindow(today)).toEqual({
       fromIso: '2026-09-21',
-      toIso: '2026-12-20',
+      toIso: '2028-09-21',
     })
   })
 })
