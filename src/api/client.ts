@@ -153,7 +153,39 @@ export async function listProducts(
   // never in the main catalogue. Callers that need rooms use
   // getHotelRoomsForHotel which opts in via includeHotelRooms.
   if (options?.includeHotelRooms) return raw
-  return raw.filter((p) => p.product_kind !== 'hotel_room')
+  return applySinglePickupLocation(
+    operatorToken,
+    raw.filter((p) => p.product_kind !== 'hotel_room'),
+  )
+}
+
+/**
+ * landr-zy2wm.2: when the operator has exactly ONE pickup location, the
+ * pickup step is pointless — auto-select it. Done here (the single product
+ * source) so the skip decision waits for the location load before any step
+ * renders (no flash) and applies to forward AND back navigation alike: the
+ * flow plan sees needs_pickup=false, and `auto_pickup_location_id` is
+ * submitted as the pickup. Zero / >=2 locations, or a load error, leave the
+ * products untouched (the picker shows as before).
+ */
+async function applySinglePickupLocation(
+  operatorToken: string,
+  products: Product[],
+): Promise<Product[]> {
+  if (!products.some((p) => p.needs_pickup)) return products
+  let locations: Location[]
+  try {
+    locations = await listPickupLocationsForOperator(operatorToken)
+  } catch {
+    return products
+  }
+  if (locations.length !== 1) return products
+  const only = locations[0].location_id
+  return products.map((p) =>
+    p.needs_pickup
+      ? { ...p, needs_pickup: false, auto_pickup_location_id: only }
+      : p,
+  )
 }
 
 /**

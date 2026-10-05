@@ -182,6 +182,19 @@ export interface Product {
   /** Backend field: products.needs_pickup. Included once landr-e10.8 lands. */
   needs_pickup?: boolean
   /**
+   * landr-zy2wm.2: max total participants (booker included) per booking.
+   * Absent / null = no product cap (the widget's own 6-participant cap
+   * still applies). 1 = booker only, no additional-participants UI.
+   */
+  max_party_size?: number | null
+  /**
+   * landr-zy2wm.2: WIDGET-DERIVED, not on the wire. Set by listProducts when
+   * the operator has exactly one pickup location: needs_pickup is then
+   * flipped to false (the picker step is skipped) and this carries the
+   * auto-selected location id into the review/submit step.
+   */
+  auto_pickup_location_id?: string | null
+  /**
    * Whether/how this product offers hotel accommodation (landr-vyaz).
    * Service products with 'optional' or 'mandatory' trigger the
    * AccommodationStep after pick-selection. Defaults to 'none' for

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import * as client from './client'
 import type { StaffSubmitBody, SubmitBookingBody } from './types'
 import { MOCK_PREVIEW_TOKEN, mockLocations } from './mocks'
@@ -337,5 +337,48 @@ describe('stockQueryAllowed (landr-lmudr.10 review fix G)', () => {
   it('counts distinct days against the cap', () => {
     const repeated = Array.from({ length: 100 }, () => '2031-03-10')
     expect(client.stockQueryAllowed({ selectedDays: repeated, participants: 1 })).toBe(true)
+  })
+})
+
+describe('listProducts single pickup location skip (landr-zy2wm.2)', () => {
+  const original = [...mockLocations]
+  beforeEach(() => {
+    vi.stubEnv('VITE_USE_MOCKS', '1')
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    mockLocations.splice(0, mockLocations.length, ...original)
+  })
+  function keepPickups(n: number) {
+    const pickups = original.filter((l) => l.place_roles?.includes('pickup'))
+    const others = original.filter((l) => !l.place_roles?.includes('pickup'))
+    mockLocations.splice(0, mockLocations.length, ...others, ...pickups.slice(0, n))
+    return pickups.slice(0, n)
+  }
+
+  it('with exactly one pickup location: needs_pickup products skip the step and carry the id', async () => {
+    const [only] = keepPickups(1)
+    const products = await client.listProducts('para42')
+    const flagged = products.filter((p) => p.auto_pickup_location_id)
+    expect(flagged.length).toBeGreaterThan(0)
+    for (const p of flagged) {
+      expect(p.needs_pickup).toBe(false)
+      expect(p.auto_pickup_location_id).toBe(only.location_id)
+    }
+    expect(products.some((p) => p.needs_pickup)).toBe(false)
+  })
+
+  it('with two or more pickup locations: unchanged', async () => {
+    keepPickups(2)
+    const products = await client.listProducts('para42')
+    expect(products.some((p) => p.needs_pickup)).toBe(true)
+    expect(products.every((p) => !p.auto_pickup_location_id)).toBe(true)
+  })
+
+  it('with zero pickup locations: unchanged', async () => {
+    keepPickups(0)
+    const products = await client.listProducts('para42')
+    expect(products.some((p) => p.needs_pickup)).toBe(true)
+    expect(products.every((p) => !p.auto_pickup_location_id)).toBe(true)
   })
 })

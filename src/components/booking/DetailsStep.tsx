@@ -63,6 +63,14 @@ const MAX_COMPANIONS = 12
 // landr-de6ej: mirrors the API's `bookings_customer_comment_length_chk`
 // CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
 // by hand since the widget has no shared contract constant for this.
+/** Additional participants allowed: min(MAX_ADDITIONAL, max_party_size - 1). */
+function additionalCap(maxPartySize: number | null | undefined): number {
+  if (typeof maxPartySize !== 'number' || !Number.isFinite(maxPartySize) || maxPartySize < 1) {
+    return MAX_ADDITIONAL
+  }
+  return Math.min(MAX_ADDITIONAL, Math.floor(maxPartySize) - 1)
+}
+
 interface Props {
   product: Product
   selection: BookingSelection
@@ -289,7 +297,9 @@ export function DetailsStep({
       // remaining source of id-less rows (a caller that hand-built the array),
       // and does it ONCE in the state initialiser so a re-render can never
       // re-mint and detach someone from their room.
-      return initialParticipants.slice(1).map(withMemberId)
+      return initialParticipants
+        .slice(1, 1 + additionalCap(product.max_party_size))
+        .map(withMemberId)
     }
     return []
   })
@@ -298,6 +308,9 @@ export function DetailsStep({
   // landr-lu41h: no-accommodation products have no room to share — every
   // companion is a guest paying for themselves ('separate_guiding').
   const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
+  // landr-zy2wm.2: product cap on total participants (booker included).
+  // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
+  const maxAdditional = additionalCap(product.max_party_size)
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
     (initialCompanions ?? []).map((c) =>
       withMemberId(
@@ -444,7 +457,7 @@ export function DetailsStep({
   // plain value, and only THEN calling notifyLive — after DetailsStep's own
   // render has finished, from the event handler, same as before.
   const addParticipant = () => {
-    if (additional.length >= MAX_ADDITIONAL) return
+    if (additional.length >= maxAdditional) return
     const next = [...additional, emptyParticipant(defaultRoleCode)]
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -877,7 +890,7 @@ export function DetailsStep({
 
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
   // "Maximum …" warnings for each section.
-  const participantsAtMax = additional.length >= MAX_ADDITIONAL
+  const participantsAtMax = additional.length >= maxAdditional
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
   // landr-amg6: at the participant max we no longer render the inquiry form
@@ -1064,6 +1077,7 @@ export function DetailsStep({
         {/* Additional participants — same stepper pattern as the legacy
             ParticipantsStep (landr-mbge) but now growing/shrinking a
             list of full participant rows instead of a single counter. */}
+        {maxAdditional > 0 ? (
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
             {otherParticipantsHeading(totalCount, locale)}
@@ -1074,7 +1088,7 @@ export function DetailsStep({
             </p>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            {addAnyoneElseUpTo(MAX_ADDITIONAL, locale)}
+            {addAnyoneElseUpTo(maxAdditional, locale)}
           </p>
 
           {additional.map((row, idx) => {
@@ -1237,7 +1251,7 @@ export function DetailsStep({
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(MAX_ADDITIONAL))}
+                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1312,6 +1326,7 @@ export function DetailsStep({
             </Button>
           )}
         </fieldset>
+        ) : null}
 
         {/* landr-87n9.3: non-guiding companions. Generic copy per
             landr-genericity-northstar. Companions occupy hotel beds (whole-party
