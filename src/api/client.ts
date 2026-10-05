@@ -175,6 +175,70 @@ export async function listProductGroups(
   return http<ProductGroup[]>(qs.toString() ? `${path}?${qs}` : path)
 }
 
+/**
+ * landr-gm2px: landr-api's `public_get_product_availability` RPC returns ZERO
+ * rows (not an error) when `p_to - p_from > 90`. 90 is therefore the widest
+ * span (to minus from, in days) one request may cover.
+ */
+export const AVAILABILITY_RPC_MAX_SPAN_DAYS = 90
+
+const MS_PER_DAY = 86_400_000
+
+const isoToUtcMs = (iso: string): number => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return Date.UTC(y, m - 1, d)
+}
+
+const utcMsToIso = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
+
+/**
+ * landr-gm2px: split the inclusive ISO range `[fromIso, toIso]` into
+ * consecutive, non-overlapping, gap-free windows whose `to - from` is at most
+ * `maxSpanDays` (so each covers up to 91 calendar days, the last one shorter).
+ * Pure UTC date arithmetic — immune to DST. A range that already fits (or is
+ * empty/inverted) comes back as a single window, unchanged, so short calls
+ * (e.g. a one-day check) stay one request.
+ */
+export function splitAvailabilityWindows(
+  fromIso: string,
+  toIso: string,
+  maxSpanDays: number = AVAILABILITY_RPC_MAX_SPAN_DAYS,
+): Array<{ from: string; to: string }> {
+  const end = isoToUtcMs(toIso)
+  let start = isoToUtcMs(fromIso)
+  if (!(end - start > maxSpanDays * MS_PER_DAY)) {
+    return [{ from: fromIso, to: toIso }]
+  }
+  const windows: Array<{ from: string; to: string }> = []
+  while (start <= end) {
+    const chunkEnd = Math.min(start + maxSpanDays * MS_PER_DAY, end)
+    windows.push({ from: utcMsToIso(start), to: utcMsToIso(chunkEnd) })
+    start = chunkEnd + MS_PER_DAY
+  }
+  return windows
+}
+
+async function fetchAvailabilityWindow(
+  productId: string,
+  fromIso: string,
+  toIso: string,
+  inviteToken?: string,
+): Promise<AvailabilitySlot[]> {
+  const qs = new URLSearchParams({ from: fromIso, to: toIso })
+  if (inviteToken) qs.set('invite', inviteToken)
+  return http<AvailabilitySlot[]>(
+    `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
+  )
+}
+
+/**
+ * Availability for `[fromIso, toIso]` (inclusive). The RPC behind it serves at
+ * most 90 days per request (see `AVAILABILITY_RPC_MAX_SPAN_DAYS`), so wider
+ * ranges are split into consecutive windows fetched in parallel, concatenated
+ * in date order and de-duplicated by `date + start_time` (landr-gm2px). If any
+ * window fails the whole call rejects — a silently partial calendar would show
+ * bookable days as unavailable. Every picker goes through this one helper.
+ */
 export async function getAvailability(
   productId: string,
   fromIso: string,
@@ -187,11 +251,20 @@ export async function getAvailability(
   inviteToken?: string,
 ): Promise<AvailabilitySlot[]> {
   if (mocksEnabled()) return mockAvailability(productId)
-  const qs = new URLSearchParams({ from: fromIso, to: toIso })
-  if (inviteToken) qs.set('invite', inviteToken)
-  return http<AvailabilitySlot[]>(
-    `/api/public/products/${encodeURIComponent(productId)}/availability?${qs}`,
+  const windows = splitAvailabilityWindows(fromIso, toIso)
+  const chunks = await Promise.all(
+    windows.map((w) => fetchAvailabilityWindow(productId, w.from, w.to, inviteToken)),
   )
+  if (chunks.length === 1) return chunks[0]
+  const seen = new Set<string>()
+  const merged: AvailabilitySlot[] = []
+  for (const slot of chunks.flat()) {
+    const key = `${slot.date}|${slot.start_time ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(slot)
+  }
+  return merged
 }
 
 /**
