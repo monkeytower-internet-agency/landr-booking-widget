@@ -260,8 +260,60 @@ export function normalizeReplyLocale(locale: string | null | undefined): ReplyLo
   return 'en'
 }
 
-export function pickReplyBundle(locale: string | null | undefined): ApprovalReplyBundle {
-  return BUNDLES[normalizeReplyLocale(locale)]
+/**
+ * Generic wording for a manual "Ask partner" request (landr-xtkae.12/.16):
+ * the partner may be a driver, so nothing here may talk about rooms, hotels,
+ * check-in or nights. Only the keys that differ from the hotel bundle are
+ * listed; everything else (errors, comment/name fields, expiry cards, …) is
+ * already neutral and falls through.
+ */
+const PARTNER_OVERRIDES: Record<ReplyLocale, Partial<ApprovalReplyBundle>> = {
+  en: {
+    pageTitle: 'Booking request',
+    checkInLabel: 'From',
+    checkOutLabel: 'Until',
+    guestsLabel: 'People',
+    hotelLabel: 'Partner',
+    optionConfirmedTitle: 'Yes, confirmed',
+    closedCancelledBody: 'This booking was cancelled — nothing further needed.',
+  },
+  de: {
+    pageTitle: 'Buchungsanfrage',
+    checkInLabel: 'Von',
+    checkOutLabel: 'Bis',
+    guestsLabel: 'Personen',
+    hotelLabel: 'Partner',
+    optionConfirmedTitle: 'Ja, bestätigt',
+    closedCancelledBody: 'Diese Buchung wurde storniert — es ist nichts weiter nötig.',
+  },
+  es: {
+    pageTitle: 'Solicitud de reserva',
+    checkInLabel: 'Desde',
+    checkOutLabel: 'Hasta',
+    guestsLabel: 'Personas',
+    hotelLabel: 'Colaborador',
+    optionConfirmedTitle: 'Sí, confirmado',
+    closedCancelledBody: 'Esta reserva fue cancelada — no se necesita nada más.',
+  },
+}
+
+/** `branch` of the GET payload: only the literal 'partner' switches wording. */
+export function isPartnerBranch(branch: string | null | undefined): boolean {
+  return branch === 'partner'
+}
+
+/**
+ * Bundle for a locale. `branch === 'partner'` swaps in the generic partner
+ * wording; any other value — including a missing/null `branch` from an API
+ * that predates the field — is the unchanged hotel wording.
+ */
+export function pickReplyBundle(
+  locale: string | null | undefined,
+  branch?: string | null,
+): ApprovalReplyBundle {
+  const base = BUNDLES[normalizeReplyLocale(locale)]
+  if (!isPartnerBranch(branch)) return base
+  return { ...base, ...PARTNER_OVERRIDES[normalizeReplyLocale(locale)] }
 }
 
 /** Substitute `{key}` placeholders in a bundle string. Unknown keys are left as-is. */

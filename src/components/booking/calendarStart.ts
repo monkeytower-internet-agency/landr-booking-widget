@@ -2,22 +2,25 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 
 /**
- * landr-l38a4: how far ahead the date pickers fetch availability. Was 60
- * days, which hid any season starting later than that — the customer landed
- * on an empty calendar with nothing to book.
+ * How far ahead (days from today) the date pickers fetch availability.
+ * History: 60 (landr-l38a4: hid any season starting later), then 365, then 90.
  *
- * landr-widget-smoke-fix: landr-l38a4 originally set this to 365, but
- * landr-api's public_get_product_availability RPC hard-caps the requested
- * range at 90 days (`(p_to - p_from) <= 90`, stable across
+ * landr-api's public_get_product_availability RPC hard-caps a single request
+ * at 90 days (`(p_to - p_from) <= 90`, stable across
  * 20260512190528_public_rpcs.sql / 20260902040000_.../
  * 20260914114000_...) and returns ZERO rows — not an error — for any wider
- * window. A 365-day fetch silently came back empty for every product,
- * which is what broke the widget-booking-smoke CI check (every day cell in
- * Sep/Oct/Nov 2026 read as unavailable) and would have broken every real
- * booking flow the same way had this reached staging/main. 90 is the
- * widest window the API actually serves.
+ * window. A single wide fetch therefore silently comes back empty (it broke
+ * widget-booking-smoke in landr-widget-smoke-fix), and capping the horizon at
+ * 90 days left customers unable to book anything past today+90 (landr-gm2px,
+ * live 2026-10-05).
+ *
+ * So the horizon is independent of the RPC cap: `getAvailability`
+ * (src/api/client.ts) splits `[today, today + AVAILABILITY_HORIZON_DAYS]`
+ * into consecutive windows of at most 90 days (`to - from <= 90`), fetches
+ * them in parallel and merges the rows. 731 days = two years plus a leap
+ * day, enough for any season an operator schedules in advance.
  */
-export const AVAILABILITY_HORIZON_DAYS = 90
+export const AVAILABILITY_HORIZON_DAYS = 731
 
 /** Local-midnight "today". */
 export function startOfToday(): Date {
