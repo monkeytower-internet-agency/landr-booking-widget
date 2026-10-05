@@ -31,6 +31,10 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  // landr-53vao: several months side by side get a wider root and a row
+  // layout driven by the month count (not a viewport breakpoint — the widget
+  // lives inside host iframes); a single month keeps the 22rem column.
+  const multiMonth = (props.numberOfMonths ?? 1) > 1
 
   return (
     <DayPicker
@@ -52,9 +56,14 @@ function Calendar({
         ...formatters,
       }}
       classNames={{
-        root: cn("w-full max-w-[22rem]", defaultClassNames.root),
+        root: cn(
+          "w-full",
+          multiMonth ? "max-w-[44rem]" : "max-w-[22rem]",
+          defaultClassNames.root
+        ),
         months: cn(
-          "relative flex flex-col gap-4 md:flex-row",
+          "relative flex",
+          multiMonth ? "flex-row gap-6" : "flex-col gap-4",
           defaultClassNames.months
         ),
         month: cn("flex w-full flex-col gap-4", defaultClassNames.month),

@@ -89,6 +89,10 @@ jobs:
           VITE_DEPLOY_TIER: ${{ steps.env.outputs.deploy_tier }}
         run: npm run build
 
+      # landr-tkgx8.2: per-tier API base for functions/_middleware.ts (splash logo).
+      - name: Write edge function config
+        run: echo '{"apiBase":"${{ steps.env.outputs.api_base }}"}' > functions/_config.json
+
       - name: Ensure Cloudflare Pages project exists (idempotent)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
