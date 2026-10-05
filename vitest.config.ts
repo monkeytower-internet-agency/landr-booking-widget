@@ -15,6 +15,6 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     // Prevent vitest from sweeping .claude/worktrees — same fix as dashboard PR #257.
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'functions/**/*.test.ts'],
   },
 })
