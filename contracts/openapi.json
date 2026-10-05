@@ -332,6 +332,66 @@
         "title": "ApplyPresetRequest",
         "type": "object"
       },
+      "ApprovalMailRequest": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "to": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "title": "ApprovalMailRequest",
+        "type": "object"
+      },
+      "ApprovalMailResponse": {
+        "properties": {
+          "button_url": {
+            "title": "Button Url",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": true,
+            "title": "Counts",
+            "type": "object"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "to",
+          "button_url",
+          "counts"
+        ],
+        "title": "ApprovalMailResponse",
+        "type": "object"
+      },
       "ApprovalPeriodRange": {
         "description": "One inclusive date range. ``end_date >= start_date`` is enforced by the\nRPC (typed 422) rather than here, so a multi-range body reports every bad\nrange in one machine-readable payload instead of one Pydantic error.",
         "properties": {
@@ -33779,6 +33839,88 @@
         ]
       }
     },
+    "/api/public/system-update-notice/{token}": {
+      "get": {
+        "operationId": "confirm_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Page",
+        "tags": [
+          "public-system-update-notice"
+        ]
+      },
+      "post": {
+        "operationId": "run_send",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Send",
+        "tags": [
+          "public-system-update-notice"
+        ]
+      }
+    },
     "/api/public/tickets/{token}.png": {
       "get": {
         "operationId": "public_ticket_png",
@@ -54952,6 +55094,63 @@
         "summary": "Provision Subscription Price",
         "tags": [
           "staff-subscriptions"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/system-update-notice/approval-mail": {
+      "post": {
+        "operationId": "approval_mail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalMailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalMailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approval Mail",
+        "tags": [
+          "staff-system-update-approval"
         ]
       }
     },
