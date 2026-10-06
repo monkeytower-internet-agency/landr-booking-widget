@@ -109,6 +109,9 @@ function Calendar({
           "flex-1 rounded-md text-[0.8rem] font-normal text-muted-foreground select-none",
           defaultClassNames.weekday
         ),
+        // landr-xxh5r: shadcn upstream sets this; without it WebKit lays the
+        // table out with default (separate) borders.
+        month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
         week: cn("mt-2 flex w-full", defaultClassNames.week),
         week_number_header: cn(
           "w-(--cell-size) select-none",
@@ -119,7 +122,7 @@ function Calendar({
           defaultClassNames.week_number
         ),
         day: cn(
-          "group/day relative aspect-square h-full w-full min-w-0 flex-1 p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-md",
+          "group/day relative h-(--cell-size) w-full min-w-0 flex-1 p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-md",
           props.showWeekNumber
             ? "[&:nth-child(2)[data-selected=true]_button]:rounded-l-md"
             : "[&:first-child[data-selected=true]_button]:rounded-l-md",
@@ -266,7 +269,7 @@ function CalendarDayButton({
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
       aria-label={ariaLabel}
       className={cn(
-        "relative flex aspect-square size-auto w-full min-w-0 flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/15 data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground [&>span]:text-xs [&>span]:opacity-70",
+        "relative flex size-auto h-(--cell-size) w-full min-w-0 flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/15 data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground [&>span]:text-xs [&>span]:opacity-70",
         // landr-tkgx8.2: the ghost variant's grey `hover:bg-accent` (the
         // widget theme only sets --primary, never --accent) painted over the
         // selected day while the pointer still rested on it after the click.

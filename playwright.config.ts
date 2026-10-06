@@ -29,7 +29,29 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // landr-xxh5r: the calendar layout guard is hermetic (API mocked in-spec)
+  // and runs on a local vite server, on WebKit (iOS Safari) AND Chromium.
+  webServer: {
+    command: 'npx vite --port 5175 --strictPort',
+    url: 'http://localhost:5175',
+    reuseExistingServer: !process.env.CI,
+    env: { VITE_USE_MOCKS: '0', VITE_API_BASE_URL: 'http://api.e2e.test' },
+  },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /calendar-layout\.spec\.ts/,
+    },
+    {
+      name: 'webkit-mobile',
+      use: { ...devices['iPhone 12 Pro Max'], baseURL: 'http://localhost:5175' },
+      testMatch: /calendar-layout\.spec\.ts/,
+    },
+    {
+      name: 'chromium-mobile',
+      use: { ...devices['Pixel 7'], baseURL: 'http://localhost:5175' },
+      testMatch: /calendar-layout\.spec\.ts/,
+    },
   ],
 })
