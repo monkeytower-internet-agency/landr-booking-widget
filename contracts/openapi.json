@@ -332,6 +332,66 @@
         "title": "ApplyPresetRequest",
         "type": "object"
       },
+      "ApprovalMailRequest": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "to": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "title": "ApprovalMailRequest",
+        "type": "object"
+      },
+      "ApprovalMailResponse": {
+        "properties": {
+          "button_url": {
+            "title": "Button Url",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": true,
+            "title": "Counts",
+            "type": "object"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "to",
+          "button_url",
+          "counts"
+        ],
+        "title": "ApprovalMailResponse",
+        "type": "object"
+      },
       "ApprovalPeriodRange": {
         "description": "One inclusive date range. ``end_date >= start_date`` is enforced by the\nRPC (typed 422) rather than here, so a multi-range body reports every bad\nrange in one machine-readable payload instead of one Pydantic error.",
         "properties": {
@@ -3444,6 +3504,24 @@
           "first_name"
         ],
         "title": "CompanionIn",
+        "type": "object"
+      },
+      "ConfirmBody": {
+        "properties": {
+          "confirm_name": {
+            "title": "Confirm Name",
+            "type": "string"
+          },
+          "confirm_phrase": {
+            "title": "Confirm Phrase",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm_phrase",
+          "confirm_name"
+        ],
+        "title": "ConfirmBody",
         "type": "object"
       },
       "CreateMembershipBody": {
@@ -15575,6 +15653,18 @@
             "title": "Lead Time Minutes",
             "type": "integer"
           },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -16096,6 +16186,18 @@
               }
             ],
             "title": "Lead Time Minutes"
+          },
+          "max_party_size": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Party Size"
           },
           "name": {
             "anyOf": [
@@ -23987,6 +24089,23 @@
         "title": "SubscriptionPerkPatch",
         "type": "object"
       },
+      "SuspendBody": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "SuspendBody",
+        "type": "object"
+      },
       "SyncResponse": {
         "properties": {
           "attempted": {
@@ -24026,6 +24145,136 @@
           }
         },
         "title": "SyncResponse",
+        "type": "object"
+      },
+      "SystemUpdateNoticeRequest": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "locale_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale Override"
+          },
+          "test_recipient": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Recipient"
+          }
+        },
+        "title": "SystemUpdateNoticeRequest",
+        "type": "object"
+      },
+      "SystemUpdateNoticeResponse": {
+        "properties": {
+          "amount_due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Due"
+          },
+          "customer_page_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Page Url"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "pay_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pay Url"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SystemUpdateNoticeResponse",
         "type": "object"
       },
       "TagAssignmentIn": {
@@ -28761,6 +29010,401 @@
         ]
       }
     },
+    "/api/landr-staff/operators": {
+      "get": {
+        "operationId": "landr_staff_list_operator",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "active",
+                    "suspended",
+                    "deleted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Landr Staff List Operator",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff List Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}": {
+      "get": {
+        "operationId": "landr_staff_get_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Get Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Get Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/delete": {
+      "post": {
+        "operationId": "landr_staff_delete_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Delete Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Delete Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/purge": {
+      "post": {
+        "operationId": "landr_staff_purge_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Purge Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Purge Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/restore": {
+      "post": {
+        "operationId": "landr_staff_restore_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Restore Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Restore Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/suspend": {
+      "post": {
+        "operationId": "landr_staff_suspend_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SuspendBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Suspend Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Suspend Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
+    "/api/landr-staff/operators/{operator_id}/unsuspend": {
+      "post": {
+        "operationId": "landr_staff_unsuspend_operator",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Unsuspend Operator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Unsuspend Operator",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
     "/api/landr-staff/promotions": {
       "get": {
         "description": "Run history, newest-first.\n\nlandr-1bbm8 \u2014 each run is hydrated with its ``repos`` (promotion_run_repos\nrows: repo, head_sha, merge_status, ahead_by, error). Before this, the\ndashboard's history/pending-proposal cards called `RunRepoList` with\n`run.repos` always undefined (only the single-run `GET /{run_id}`\nendpoint returned them), so a merge conflict recorded in the DB \u2014 e.g.\n`merge_status='conflict'`, `error='merge conflict merging ... into\nstaging on landr-dashboard'` \u2014 was invisible in the UI even though the\nmigration-stage log showed no error at all. One batched `.in_()` query\nover every listed run id, grouped in Python, instead of N+1 per-run\nfetches.",
@@ -33192,6 +33836,88 @@
         "summary": "Initiate Subscription Checkout",
         "tags": [
           "public-subscriptions"
+        ]
+      }
+    },
+    "/api/public/system-update-notice/{token}": {
+      "get": {
+        "operationId": "confirm_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Page",
+        "tags": [
+          "public-system-update-notice"
+        ]
+      },
+      "post": {
+        "operationId": "run_send",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Send",
+        "tags": [
+          "public-system-update-notice"
         ]
       }
     },
@@ -37774,6 +38500,79 @@
         "summary": "Set Stage",
         "tags": [
           "staff-bookings-set-stage"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/system-update-notice": {
+      "post": {
+        "operationId": "system_update_notice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SystemUpdateNoticeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemUpdateNoticeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "System Update Notice",
+        "tags": [
+          "staff-bookings-system-update-notice"
         ]
       }
     },
@@ -54295,6 +55094,63 @@
         "summary": "Provision Subscription Price",
         "tags": [
           "staff-subscriptions"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/system-update-notice/approval-mail": {
+      "post": {
+        "operationId": "approval_mail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalMailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalMailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approval Mail",
+        "tags": [
+          "staff-system-update-approval"
         ]
       }
     },
