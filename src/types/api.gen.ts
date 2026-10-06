@@ -2836,6 +2836,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/hotel-dates-correction/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Confirm Page */
+        get: operations["hotel_dates_correction_confirm_page"];
+        put?: never;
+        /** Run Send */
+        post: operations["hotel_dates_correction_run_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/invites/{token}": {
         parameters: {
             query?: never;
@@ -3437,10 +3455,10 @@ export interface paths {
             cookie?: never;
         };
         /** Confirm Page */
-        get: operations["confirm_page"];
+        get: operations["system_update_notice_confirm_page"];
         put?: never;
         /** Run Send */
-        post: operations["run_send"];
+        post: operations["system_update_notice_run_send"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3931,6 +3949,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Booking Product
+         * @description Add a line to an existing booking (landr-d7ij2.3).
+         *
+         *     ``dry_run=true`` writes nothing and returns what the add would do — the
+         *     new lines (``added_lines``), the lines that follow (``changed_lines``),
+         *     totals before -> after, ``capacity_conflicts`` and whether / how the
+         *     external provider is notified — for the dashboard's confirm dialog.
+         *
+         *     Same guards as the line PATCH (staff membership, 409
+         *     ``booking_locked_for_edit``). 409 ``capacity_exceeded`` when a conflict
+         *     day is not in ``forced_days``. Which products can be added, how the days
+         *     are derived and what the provider is told live in
+         *     ``app/services/booking_line_add.py``.
+         */
+        post: operations["staff_add_booking_product"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Booking Products
+         * @description Remove SEVERAL lines of a booking as ONE edit (landr-d7ij2.1).
+         *
+         *     Same contract as ``DELETE .../products/{booking_product_id}``, for a set
+         *     of lines — e.g. every room line at once. One plan, one totals settlement
+         *     and one provider notice, instead of a notice per line. 404 when any id is
+         *     not a line of this booking.
+         */
+        post: operations["staff_remove_booking_products"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
         parameters: {
             query?: never;
@@ -3941,7 +4015,27 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove Booking Product
+         * @description Remove one line item from a booking (landr-d7ij2.1).
+         *
+         *     ``dry_run=true`` writes nothing and returns what the removal would do —
+         *     the lines that go (the requested one plus any that only exist because of
+         *     it), the lines that change, totals before -> after and whether the
+         *     external provider gets notified — for the dashboard's confirm dialog.
+         *
+         *     Same guards as the line PATCH: staff membership, the edit lock (409
+         *     ``booking_locked_for_edit`` once invoiced / terminal), 404
+         *     ``booking_product_not_found`` for a line of another booking or operator.
+         *     422 ``last_line`` for the booking's last main line — cancelling the
+         *     booking is the tool for that.
+         *
+         *     The real run deletes the lines, rolls the totals up and settles the
+         *     balance delta exactly like the PATCH (a price override is left as is),
+         *     then runs the follow-ups (provider notice, approval routing) — all
+         *     domain knowledge lives in ``app/services/booking_line_removal.py``.
+         */
+        delete: operations["staff_remove_booking_product"];
         options?: never;
         head?: never;
         /**
@@ -3987,6 +4081,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/quantity-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Booking Product Quantity
+         * @description What ``PATCH .../products/{booking_product_id}`` with ``{quantity}``
+         *     would do (landr-d7ij2.1) — writes nothing. Same shape as the removal's
+         *     ``dry_run``; the edited line is in ``changed_lines`` with
+         *     ``reason='requested'``.
+         */
+        post: operations["staff_preview_booking_product_quantity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
         parameters: {
             query?: never;
@@ -4013,6 +4130,33 @@ export interface paths {
          *     line's CURRENTLY stored ``selected_days``.
          */
         post: operations["reprice_booking_product_at_current_entitlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch Booking Product
+         * @description Replace a line's product with another of the same kind
+         *     (landr-d7ij2.3) — same days and quantity, re-priced.
+         *
+         *     ``dry_run=true`` writes nothing (confirm dialog). The old product shows
+         *     in ``removed_lines``, the new one in ``added_lines`` (or, merged into a
+         *     line of that product the booking already holds, in ``changed_lines``).
+         *     ``PATCH .../products/{booking_product_id}`` with ``{"product_id"}`` runs
+         *     the same commit. Same guards and 409s as ``POST .../products``.
+         */
+        post: operations["staff_switch_booking_product"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4483,6 +4627,23 @@ export interface paths {
          *     rest.
          */
         post: operations["staff_unlink_booking_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/hotel-dates-correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hotel Dates Correction */
+        post: operations["hotel_dates_correction"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5927,6 +6088,23 @@ export interface paths {
          *     claimed.
          */
         post: operations["request_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/hotel-dates-correction/approval-mail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hotel Correction Approval Mail */
+        post: operations["hotel_correction_approval_mail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10694,6 +10872,147 @@ export interface components {
             reason: string;
         };
         /**
+         * BookingLineCapacityConflict
+         * @description A day the added/switched line does not fit (landr-d7ij2.3). The commit
+         *     is refused (409 ``capacity_exceeded``) unless the day is listed in the
+         *     request's ``forced_days``.
+         */
+        BookingLineCapacityConflict: {
+            /** Capacity */
+            capacity?: string | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Load */
+            load?: string | null;
+            /** Product Id */
+            product_id: string;
+        };
+        /**
+         * BookingLineEditAddedLine
+         * @description A line the edit CREATES (landr-d7ij2.3). ``booking_product_id`` is
+         *     null on a dry run (nothing exists yet) and the new row's id after the
+         *     commit; for a ``switch`` that rewrote the line in place it is the
+         *     switched line's own id. ``gross`` is the LINE total (per-unit × qty).
+         */
+        BookingLineEditAddedLine: {
+            /** Booking Product Id */
+            booking_product_id?: string | null;
+            /** Gross */
+            gross: string;
+            /** Is Addon Only */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Product Name */
+            product_name: string;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "requested" | "follows_room" | "follows_stay";
+            /** Selected Days */
+            selected_days: string[];
+        };
+        /**
+         * BookingLineEditLine
+         * @description One line the edit removes or changes. ``quantity_after`` is 0 and
+         *     ``selected_days_after`` empty for a removed line; ``gross_*`` are the
+         *     LINE totals (per-unit gross × quantity).
+         */
+        BookingLineEditLine: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /** Gross After */
+            gross_after: string;
+            /** Gross Before */
+            gross_before: string;
+            /** Is Addon Only */
+            is_addon_only: boolean;
+            /** Product Id */
+            product_id: string;
+            /** Product Kind */
+            product_kind: string;
+            /** Product Name */
+            product_name: string;
+            /** Quantity After */
+            quantity_after: number;
+            /** Quantity Before */
+            quantity_before: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "requested" | "follows_room" | "follows_stay";
+            /** Selected Days After */
+            selected_days_after: string[];
+            /** Selected Days Before */
+            selected_days_before: string[];
+        };
+        /**
+         * BookingLineEditOutcome
+         * @description What a line removal / quantity change does (``dry_run=true``: would do).
+         */
+        BookingLineEditOutcome: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "remove" | "quantity" | "add" | "switch";
+            /** Added Lines */
+            added_lines?: components["schemas"]["BookingLineEditAddedLine"][];
+            /**
+             * Approval Gate Skipped
+             * @default false
+             */
+            approval_gate_skipped: boolean;
+            /** Booking Id */
+            booking_id: string;
+            /** Capacity Conflicts */
+            capacity_conflicts?: components["schemas"]["BookingLineCapacityConflict"][];
+            /** Changed Lines */
+            changed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Dry Run */
+            dry_run: boolean;
+            /**
+             * Hotel Will Be Notified
+             * @default false
+             */
+            hotel_will_be_notified: boolean;
+            /** Notification Kind */
+            notification_kind?: ("cancellation" | "modification" | "request") | null;
+            /** Override Gross Total */
+            override_gross_total?: string | null;
+            /**
+             * Participants Pickup Set
+             * @default 0
+             */
+            participants_pickup_set: number;
+            /**
+             * Participants Unassigned
+             * @default 0
+             */
+            participants_unassigned: number;
+            /** Removed Lines */
+            removed_lines?: components["schemas"]["BookingLineEditLine"][];
+            /** Stage After */
+            stage_after?: string | null;
+            /** Totals After */
+            totals_after: {
+                [key: string]: string;
+            };
+            /** Totals Before */
+            totals_before: {
+                [key: string]: string;
+            };
+        };
+        /**
          * BookingNoteIn
          * @description POST body — the note text. Whitespace-only rejected at the model
          *     level (the DB CHECK constraint catches it too, but a 422 from Pydantic
@@ -10748,6 +11067,34 @@ export interface components {
             /** Customer Contact Id */
             customer_contact_id?: string | null;
         };
+        /** BookingProductAddIn */
+        BookingProductAddIn: {
+            /** Addons */
+            addons?: components["schemas"]["BookingProductAddonIn"][];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Forced Days */
+            forced_days?: string[] | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Selected Days */
+            selected_days?: string[] | null;
+        };
+        /** BookingProductAddonIn */
+        BookingProductAddonIn: {
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity?: number | null;
+        };
         /** BookingProductPatch */
         BookingProductPatch: {
             /** Date Range End */
@@ -10761,12 +11108,43 @@ export interface components {
             force_slot_time: boolean;
             /** Forced Days */
             forced_days?: string[] | null;
+            /** Product Id */
+            product_id?: string | null;
             /** Quantity */
             quantity?: number | null;
             /** Selected Days */
             selected_days?: string[] | null;
             /** Slot Start Time */
             slot_start_time?: string | null;
+        };
+        /** BookingProductQuantityPreviewIn */
+        BookingProductQuantityPreviewIn: {
+            /** Quantity */
+            quantity: number;
+        };
+        /** BookingProductSwitchIn */
+        BookingProductSwitchIn: {
+            /** Addons */
+            addons?: components["schemas"]["BookingProductAddonIn"][];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Forced Days */
+            forced_days?: string[] | null;
+            /** Product Id */
+            product_id: string;
+        };
+        /** BookingProductsRemoveIn */
+        BookingProductsRemoveIn: {
+            /** Booking Product Ids */
+            booking_product_ids: string[];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
         };
         /** BookingSessionOut */
         BookingSessionOut: {
@@ -12934,6 +13312,76 @@ export interface components {
             verification_status?: string | null;
             /** Verified At */
             verified_at?: string | null;
+        };
+        /** HotelCorrectionApprovalMailRequest */
+        HotelCorrectionApprovalMailRequest: {
+            /** Booking Ids */
+            booking_ids: string[];
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /** To */
+            to: string[];
+        };
+        /** HotelCorrectionApprovalMailResponse */
+        HotelCorrectionApprovalMailResponse: {
+            /** Button Url */
+            button_url: string;
+            /** Counts */
+            counts: {
+                [key: string]: unknown;
+            };
+            /** Results */
+            results: components["schemas"]["HotelCorrectionApprovalResult"][];
+            /** Status */
+            status: string;
+        };
+        /** HotelCorrectionApprovalResult */
+        HotelCorrectionApprovalResult: {
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+            /** To */
+            to: string;
+        };
+        /** HotelDatesCorrectionRequest */
+        HotelDatesCorrectionRequest: {
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+            /** Locale Override */
+            locale_override?: string | null;
+            /** Test Recipient */
+            test_recipient?: string | null;
+        };
+        /** HotelDatesCorrectionResponse */
+        HotelDatesCorrectionResponse: {
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Customer Page Url */
+            customer_page_url?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+            /** Subject */
+            subject?: string | null;
+            /** To */
+            to?: string | null;
         };
         /** HotelIn */
         HotelIn: {
@@ -23537,6 +23985,68 @@ export interface operations {
             };
         };
     };
+    hotel_dates_correction_confirm_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hotel_dates_correction_run_send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     public_get_invite_prefill: {
         parameters: {
             query?: never;
@@ -24251,7 +24761,7 @@ export interface operations {
             };
         };
     };
-    confirm_page: {
+    system_update_notice_confirm_page: {
         parameters: {
             query?: never;
             header?: never;
@@ -24282,7 +24792,7 @@ export interface operations {
             };
         };
     };
-    run_send: {
+    system_update_notice_run_send: {
         parameters: {
             query?: never;
             header?: never;
@@ -25064,6 +25574,110 @@ export interface operations {
             };
         };
     };
+    staff_add_booking_product: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingProductAddIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingLineEditOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_remove_booking_products: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingProductsRemoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingLineEditOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_remove_booking_product: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingLineEditOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_booking_product: {
         parameters: {
             query?: never;
@@ -25138,6 +25752,42 @@ export interface operations {
             };
         };
     };
+    staff_preview_booking_product_quantity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingProductQuantityPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingLineEditOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reprice_booking_product_at_current_entitlement: {
         parameters: {
             query?: never;
@@ -25159,6 +25809,42 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_switch_booking_product: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                booking_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingProductSwitchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingLineEditOutcome"];
                 };
             };
             /** @description Validation Error */
@@ -26090,6 +26776,42 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hotel_dates_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HotelDatesCorrectionRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotelDatesCorrectionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -28618,6 +29340,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HostnameStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hotel_correction_approval_mail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotelCorrectionApprovalMailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotelCorrectionApprovalMailResponse"];
                 };
             };
             /** @description Validation Error */
