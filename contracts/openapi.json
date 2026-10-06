@@ -1447,6 +1447,331 @@
         "title": "BookingCancelIn",
         "type": "object"
       },
+      "BookingLineCapacityConflict": {
+        "description": "A day the added/switched line does not fit (landr-d7ij2.3). The commit\nis refused (409 ``capacity_exceeded``) unless the day is listed in the\nrequest's ``forced_days``.",
+        "properties": {
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "day"
+        ],
+        "title": "BookingLineCapacityConflict",
+        "type": "object"
+      },
+      "BookingLineEditAddedLine": {
+        "description": "A line the edit CREATES (landr-d7ij2.3). ``booking_product_id`` is\nnull on a dry run (nothing exists yet) and the new row's id after the\ncommit; for a ``switch`` that rewrote the line in place it is the\nswitched line's own id. ``gross`` is the LINE total (per-unit \u00d7 qty).",
+        "properties": {
+          "booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Product Id"
+          },
+          "gross": {
+            "title": "Gross",
+            "type": "string"
+          },
+          "is_addon_only": {
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "requested",
+              "follows_room",
+              "follows_stay"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "selected_days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Selected Days",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "product_kind",
+          "is_addon_only",
+          "quantity",
+          "selected_days",
+          "gross",
+          "reason"
+        ],
+        "title": "BookingLineEditAddedLine",
+        "type": "object"
+      },
+      "BookingLineEditLine": {
+        "description": "One line the edit removes or changes. ``quantity_after`` is 0 and\n``selected_days_after`` empty for a removed line; ``gross_*`` are the\nLINE totals (per-unit gross \u00d7 quantity).",
+        "properties": {
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "gross_after": {
+            "title": "Gross After",
+            "type": "string"
+          },
+          "gross_before": {
+            "title": "Gross Before",
+            "type": "string"
+          },
+          "is_addon_only": {
+            "title": "Is Addon Only",
+            "type": "boolean"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_kind": {
+            "title": "Product Kind",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity_after": {
+            "title": "Quantity After",
+            "type": "integer"
+          },
+          "quantity_before": {
+            "title": "Quantity Before",
+            "type": "integer"
+          },
+          "reason": {
+            "enum": [
+              "requested",
+              "follows_room",
+              "follows_stay"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "selected_days_after": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Selected Days After",
+            "type": "array"
+          },
+          "selected_days_before": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Selected Days Before",
+            "type": "array"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "product_id",
+          "product_name",
+          "product_kind",
+          "is_addon_only",
+          "quantity_before",
+          "quantity_after",
+          "selected_days_before",
+          "selected_days_after",
+          "gross_before",
+          "gross_after",
+          "reason"
+        ],
+        "title": "BookingLineEditLine",
+        "type": "object"
+      },
+      "BookingLineEditOutcome": {
+        "description": "What a line removal / quantity change does (``dry_run=true``: would do).",
+        "properties": {
+          "action": {
+            "enum": [
+              "remove",
+              "quantity",
+              "add",
+              "switch"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "added_lines": {
+            "items": {
+              "$ref": "#/components/schemas/BookingLineEditAddedLine"
+            },
+            "title": "Added Lines",
+            "type": "array"
+          },
+          "approval_gate_skipped": {
+            "default": false,
+            "title": "Approval Gate Skipped",
+            "type": "boolean"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "capacity_conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/BookingLineCapacityConflict"
+            },
+            "title": "Capacity Conflicts",
+            "type": "array"
+          },
+          "changed_lines": {
+            "items": {
+              "$ref": "#/components/schemas/BookingLineEditLine"
+            },
+            "title": "Changed Lines",
+            "type": "array"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "hotel_will_be_notified": {
+            "default": false,
+            "title": "Hotel Will Be Notified",
+            "type": "boolean"
+          },
+          "notification_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cancellation",
+                  "modification",
+                  "request"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notification Kind"
+          },
+          "override_gross_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Gross Total"
+          },
+          "participants_pickup_set": {
+            "default": 0,
+            "title": "Participants Pickup Set",
+            "type": "integer"
+          },
+          "participants_unassigned": {
+            "default": 0,
+            "title": "Participants Unassigned",
+            "type": "integer"
+          },
+          "removed_lines": {
+            "items": {
+              "$ref": "#/components/schemas/BookingLineEditLine"
+            },
+            "title": "Removed Lines",
+            "type": "array"
+          },
+          "stage_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage After"
+          },
+          "totals_after": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals After",
+            "type": "object"
+          },
+          "totals_before": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Totals Before",
+            "type": "object"
+          }
+        },
+        "required": [
+          "dry_run",
+          "booking_id",
+          "action",
+          "totals_before",
+          "totals_after"
+        ],
+        "title": "BookingLineEditOutcome",
+        "type": "object"
+      },
       "BookingNoteIn": {
         "description": "POST body \u2014 the note text. Whitespace-only rejected at the model\nlevel (the DB CHECK constraint catches it too, but a 422 from Pydantic\nis the cleaner client surface).",
         "properties": {
@@ -1595,6 +1920,98 @@
         "title": "BookingPatch",
         "type": "object"
       },
+      "BookingProductAddIn": {
+        "properties": {
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/BookingProductAddonIn"
+            },
+            "maxItems": 10,
+            "title": "Addons",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "forced_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced Days"
+          },
+          "product_id": {
+            "minLength": 1,
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "BookingProductAddIn",
+        "type": "object"
+      },
+      "BookingProductAddonIn": {
+        "properties": {
+          "product_id": {
+            "minLength": 1,
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "BookingProductAddonIn",
+        "type": "object"
+      },
       "BookingProductPatch": {
         "properties": {
           "date_range_end": {
@@ -1641,6 +2058,18 @@
             ],
             "title": "Forced Days"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
           "quantity": {
             "anyOf": [
               {
@@ -1683,6 +2112,85 @@
           }
         },
         "title": "BookingProductPatch",
+        "type": "object"
+      },
+      "BookingProductQuantityPreviewIn": {
+        "properties": {
+          "quantity": {
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "BookingProductQuantityPreviewIn",
+        "type": "object"
+      },
+      "BookingProductSwitchIn": {
+        "properties": {
+          "addons": {
+            "items": {
+              "$ref": "#/components/schemas/BookingProductAddonIn"
+            },
+            "maxItems": 10,
+            "title": "Addons",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "forced_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced Days"
+          },
+          "product_id": {
+            "minLength": 1,
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "title": "BookingProductSwitchIn",
+        "type": "object"
+      },
+      "BookingProductsRemoveIn": {
+        "properties": {
+          "booking_product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Booking Product Ids",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "booking_product_ids"
+        ],
+        "title": "BookingProductsRemoveIn",
         "type": "object"
       },
       "BookingSessionOut": {
@@ -7535,6 +8043,233 @@
           "cname_target"
         ],
         "title": "HostnameStatus",
+        "type": "object"
+      },
+      "HotelCorrectionApprovalMailRequest": {
+        "properties": {
+          "booking_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Booking Ids",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "to": {
+            "items": {
+              "maxLength": 254,
+              "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "to",
+          "booking_ids"
+        ],
+        "title": "HotelCorrectionApprovalMailRequest",
+        "type": "object"
+      },
+      "HotelCorrectionApprovalMailResponse": {
+        "properties": {
+          "button_url": {
+            "title": "Button Url",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": true,
+            "title": "Counts",
+            "type": "object"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/HotelCorrectionApprovalResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "button_url",
+          "counts",
+          "results"
+        ],
+        "title": "HotelCorrectionApprovalMailResponse",
+        "type": "object"
+      },
+      "HotelCorrectionApprovalResult": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "status"
+        ],
+        "title": "HotelCorrectionApprovalResult",
+        "type": "object"
+      },
+      "HotelDatesCorrectionRequest": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "locale_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale Override"
+          },
+          "test_recipient": {
+            "anyOf": [
+              {
+                "maxLength": 254,
+                "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Recipient"
+          }
+        },
+        "title": "HotelDatesCorrectionRequest",
+        "type": "object"
+      },
+      "HotelDatesCorrectionResponse": {
+        "properties": {
+          "check_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check In"
+          },
+          "check_out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Out"
+          },
+          "customer_page_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Page Url"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HotelDatesCorrectionResponse",
         "type": "object"
       },
       "HotelIn": {
@@ -32704,6 +33439,88 @@
         ]
       }
     },
+    "/api/public/hotel-dates-correction/{token}": {
+      "get": {
+        "operationId": "hotel_dates_correction_confirm_page",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Page",
+        "tags": [
+          "public-hotel-dates-correction"
+        ]
+      },
+      "post": {
+        "operationId": "hotel_dates_correction_run_send",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Send",
+        "tags": [
+          "public-hotel-dates-correction"
+        ]
+      }
+    },
     "/api/public/invites/{token}": {
       "get": {
         "description": "Resolve an invite link into the widget's prefill payload.",
@@ -33841,7 +34658,7 @@
     },
     "/api/public/system-update-notice/{token}": {
       "get": {
-        "operationId": "confirm_page",
+        "operationId": "system_update_notice_confirm_page",
         "parameters": [
           {
             "in": "path",
@@ -33881,7 +34698,7 @@
         ]
       },
       "post": {
-        "operationId": "run_send",
+        "operationId": "system_update_notice_run_send",
         "parameters": [
           {
             "in": "path",
@@ -35074,7 +35891,188 @@
         ]
       }
     },
+    "/api/staff/bookings/{booking_id}/products": {
+      "post": {
+        "description": "Add a line to an existing booking (landr-d7ij2.3).\n\n``dry_run=true`` writes nothing and returns what the add would do \u2014 the\nnew lines (``added_lines``), the lines that follow (``changed_lines``),\ntotals before -> after, ``capacity_conflicts`` and whether / how the\nexternal provider is notified \u2014 for the dashboard's confirm dialog.\n\nSame guards as the line PATCH (staff membership, 409\n``booking_locked_for_edit``). 409 ``capacity_exceeded`` when a conflict\nday is not in ``forced_days``. Which products can be added, how the days\nare derived and what the provider is told live in\n``app/services/booking_line_add.py``.",
+        "operationId": "staff_add_booking_product",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingProductAddIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingLineEditOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Booking Product",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/products/remove": {
+      "post": {
+        "description": "Remove SEVERAL lines of a booking as ONE edit (landr-d7ij2.1).\n\nSame contract as ``DELETE .../products/{booking_product_id}``, for a set\nof lines \u2014 e.g. every room line at once. One plan, one totals settlement\nand one provider notice, instead of a notice per line. 404 when any id is\nnot a line of this booking.",
+        "operationId": "staff_remove_booking_products",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingProductsRemoveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingLineEditOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Booking Products",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}": {
+      "delete": {
+        "description": "Remove one line item from a booking (landr-d7ij2.1).\n\n``dry_run=true`` writes nothing and returns what the removal would do \u2014\nthe lines that go (the requested one plus any that only exist because of\nit), the lines that change, totals before -> after and whether the\nexternal provider gets notified \u2014 for the dashboard's confirm dialog.\n\nSame guards as the line PATCH: staff membership, the edit lock (409\n``booking_locked_for_edit`` once invoiced / terminal), 404\n``booking_product_not_found`` for a line of another booking or operator.\n422 ``last_line`` for the booking's last main line \u2014 cancelling the\nbooking is the tool for that.\n\nThe real run deletes the lines, rolls the totals up and settles the\nbalance delta exactly like the PATCH (a price override is left as is),\nthen runs the follow-ups (provider notice, approval routing) \u2014 all\ndomain knowledge lives in ``app/services/booking_line_removal.py``.",
+        "operationId": "staff_remove_booking_product",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingLineEditOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Booking Product",
+        "tags": [
+          "staff-bookings"
+        ]
+      },
       "patch": {
         "description": "Edit a booking line item.\n\nIf selected_days or date_range changes, re-runs the pricing engine\nand updates computed_price_breakdown + rolls up booking totals.\n\nA ``quantity`` edit does NOT re-run the engine (the stored breakdown is\nper-unit, so it does not move) but DOES roll the booking totals up:\nsince landr-hgol the totals are SUM(per-unit \u00d7 quantity), so changing a\nquantity changes the booking's money and leaving the roll-up out would\nstrand ``bookings.gross_total`` at the old headcount.",
         "operationId": "patch_booking_product",
@@ -35210,6 +36208,73 @@
         ]
       }
     },
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/quantity-preview": {
+      "post": {
+        "description": "What ``PATCH .../products/{booking_product_id}`` with ``{quantity}``\nwould do (landr-d7ij2.1) \u2014 writes nothing. Same shape as the removal's\n``dry_run``; the edited line is in ``changed_lines`` with\n``reason='requested'``.",
+        "operationId": "staff_preview_booking_product_quantity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingProductQuantityPreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingLineEditOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Booking Product Quantity",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
     "/api/staff/bookings/{booking_id}/products/{booking_product_id}/reprice": {
       "post": {
         "description": "Deliberately re-evaluate a line's price against the customer's CURRENT\nsubscription-perk entitlement (landr-n0zj).\n\n``PATCH .../products/{id}`` FREEZES whichever perk (if any) the line\nalready carried \u2014 id, kind, and discount value \u2014 across every other field\nedit, so an unrelated date shift can no longer silently re-bill a lapsed\nmember, silently credit one who just joined, or silently move\n``balance_due`` because the perk's config changed \u2014 see\n``extract_frozen_perk``. This endpoint is the escape hatch for the rare\ncase an operator genuinely wants that re-check: a deliberate,\nstaff-initiated, staff-visible action rather than an incidental side\neffect of editing something else. It takes no body \u2014 it re-prices the\nline's CURRENTLY stored ``selected_days``.",
@@ -35264,6 +36329,73 @@
           }
         ],
         "summary": "Reprice Booking Product At Current Entitlement",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/products/{booking_product_id}/switch": {
+      "post": {
+        "description": "Replace a line's product with another of the same kind\n(landr-d7ij2.3) \u2014 same days and quantity, re-priced.\n\n``dry_run=true`` writes nothing (confirm dialog). The old product shows\nin ``removed_lines``, the new one in ``added_lines`` (or, merged into a\nline of that product the booking already holds, in ``changed_lines``).\n``PATCH .../products/{booking_product_id}`` with ``{\"product_id\"}`` runs\nthe same commit. Same guards and 409s as ``POST .../products``.",
+        "operationId": "staff_switch_booking_product",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_product_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingProductSwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingLineEditOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Switch Booking Product",
         "tags": [
           "staff-bookings"
         ]
@@ -36856,6 +37988,79 @@
         "summary": "Unlink Booking Group",
         "tags": [
           "staff-booking-groups"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/hotel-dates-correction": {
+      "post": {
+        "operationId": "hotel_dates_correction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HotelDatesCorrectionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotelDatesCorrectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Hotel Dates Correction",
+        "tags": [
+          "staff-hotel-dates-correction"
         ]
       }
     },
@@ -41670,6 +42875,63 @@
         "summary": "Request Verify",
         "tags": [
           "staff-operator-hostnames"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/hotel-dates-correction/approval-mail": {
+      "post": {
+        "operationId": "hotel_correction_approval_mail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HotelCorrectionApprovalMailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotelCorrectionApprovalMailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Hotel Correction Approval Mail",
+        "tags": [
+          "staff-hotel-dates-correction"
         ]
       }
     },
