@@ -681,7 +681,12 @@ export function stepAfterAccommodation(
     booker,
     participants,
     companions,
-    pickupLocationId: hotelLocationId !== null ? hotelLocationId : null,
+    // landr-zy2wm.2: a single-location operator's pickup is auto-selected
+    // (product.auto_pickup_location_id, set by listProducts).
+    pickupLocationId:
+      hotelLocationId !== null
+        ? hotelLocationId
+        : (product.auto_pickup_location_id ?? null),
     accommodationRooms,
     addons,
     hotelLocationId,

@@ -108,6 +108,19 @@ function makeCompanions(n: number): CompanionDetails[] {
 }
 
 describe('stepAfterAccommodation (landr-4r80 + landr-8c03)', () => {
+  it('routes straight to fill-form with the auto-selected pickup when listProducts marked a single location (landr-zy2wm.2)', () => {
+    const product = makeProduct({
+      needs_pickup: true,
+      auto_pickup_location_id: 'loc-only',
+    })
+    const next = stepAfterAccommodation(
+      product, SLOT_SELECTION, ADA, makeParticipants(1), [], [], null,
+    )
+    expect(next.name).toBe('fill-form')
+    if (next.name !== 'fill-form') throw new Error('narrowing')
+    expect(next.pickupLocationId).toBe('loc-only')
+  })
+
   it('routes to fill-form with pickup_location_id pre-set when a hotel was booked, skipping pick-pickup', () => {
     const product = makeProduct({
       needs_pickup: true,

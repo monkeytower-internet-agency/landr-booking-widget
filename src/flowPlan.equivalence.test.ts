@@ -628,3 +628,16 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
     expect(plan.map((m) => m.kind)).toEqual(['selection', 'participants', 'review'])
   })
 })
+
+import { buildFlowPlan as buildFlowPlanZy2wm } from './flowPlan'
+describe('buildFlowPlan single auto pickup (landr-zy2wm.2)', () => {
+  const base = { product_kind: 'service' as const, needs_pickup: true }
+  it('keeps pickup with 2+/unknown locations', () => {
+    expect(buildFlowPlanZy2wm(base, {}, null).map((m) => m.kind)).toContain('pickup')
+  })
+  it('drops pickup when auto_pickup_location_id is set', () => {
+    expect(
+      buildFlowPlanZy2wm({ ...base, auto_pickup_location_id: 'l1' }, {}, null).map((m) => m.kind),
+    ).not.toContain('pickup')
+  })
+})

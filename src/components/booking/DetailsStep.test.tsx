@@ -2243,3 +2243,78 @@ describe('DetailsStep no-accommodation products (landr-lu41h)', () => {
     expect(screen.getByTestId('companion-kind-0-guest')).toBeInTheDocument()
   })
 })
+
+describe('DetailsStep product max_party_size (landr-zy2wm.2)', () => {
+  function renderWith(max: number | null | undefined) {
+    return render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: max })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+  function clickAddUntilGone() {
+    let n = 0
+    while (screen.queryByTestId('add-participant') && n < 20) {
+      fireEvent.click(screen.getByTestId('add-participant'))
+      n += 1
+    }
+    return n
+  }
+
+  it('max_party_size=1 renders no additional-participants block at all', () => {
+    renderWith(1)
+    expect(screen.queryByTestId('add-participant')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('participants-max-notice')).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(1 total\)/i)).not.toBeInTheDocument()
+    expect(byName('booker_first_name')).toBeInTheDocument()
+  })
+
+  it('max_party_size=3 allows at most 2 additional participants', () => {
+    renderWith(3)
+    expect(clickAddUntilGone()).toBe(2)
+    expect(screen.getByTestId('participant-row-3')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-4')).not.toBeInTheDocument()
+  })
+
+  it.each([null, undefined])('max_party_size=%s keeps the default cap of 5', (max) => {
+    renderWith(max)
+    expect(clickAddUntilGone()).toBe(5)
+  })
+
+  it('a cap above the widget cap does not raise it', () => {
+    renderWith(50)
+    expect(clickAddUntilGone()).toBe(5)
+  })
+})
+
+describe('DetailsStep max_party_size also caps companions (landr-zy2wm.2)', () => {
+  function renderWith(max: number | null, hotel: 'none' | 'optional' = 'none') {
+    return render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: max, hotel_offering: hotel })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+  it('max_party_size=1 hides the companions section too', () => {
+    renderWith(1)
+    expect(screen.queryByTestId('companions-section')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument()
+  })
+  it('max_party_size=3: additional + companions never exceed 2', () => {
+    renderWith(3)
+    fireEvent.click(screen.getByTestId('add-participant'))
+    fireEvent.click(screen.getByTestId('add-companion'))
+    expect(screen.queryByTestId('add-participant')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument()
+  })
+  it('no cap keeps companions available', () => {
+    renderWith(null)
+    expect(screen.getByTestId('companions-section')).toBeInTheDocument()
+  })
+})
