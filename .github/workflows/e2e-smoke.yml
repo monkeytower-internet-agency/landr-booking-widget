@@ -48,9 +48,9 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
 
-      - name: Run booking-submit smoke test
+      - name: Run e2e (booking-submit smoke + calendar layout on WebKit/Chromium mobile)
         env:
           # Defaults (playwright.config.ts) already point at the public dev
           # deployments — override here only if that ever needs to change.
