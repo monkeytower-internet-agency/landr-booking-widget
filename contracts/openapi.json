@@ -11380,6 +11380,41 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
+      "OfferBankDetails": {
+        "description": "Operator bank account for a bank-transfer payment (landr-t63w0).",
+        "properties": {
+          "account_holder": {
+            "default": "",
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "bic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bic"
+          },
+          "iban": {
+            "title": "Iban",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "iban"
+        ],
+        "title": "OfferBankDetails",
+        "type": "object"
+      },
       "OfferCreateIn": {
         "description": "POST body. title is required; the rest are optional.",
         "properties": {
@@ -11646,6 +11681,35 @@
           }
         },
         "title": "OfferPatchIn",
+        "type": "object"
+      },
+      "OfferPayment": {
+        "description": "How THIS booking can be paid, resolved from the operator's ticked\npayment methods (landr-t63w0). ``bank`` is only present when\n``bank_transfer`` is ticked AND an IBAN is on file \u2014 same rule as the\nbooking_payment_link email, so page and email never disagree.\n``online_available`` = ``online`` ticked AND the operator's own Stripe key\non file (the /pay checkout gate).",
+        "properties": {
+          "bank": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferBankDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "online_available": {
+            "default": false,
+            "title": "Online Available",
+            "type": "boolean"
+          }
+        },
+        "title": "OfferPayment",
         "type": "object"
       },
       "OfferProductLine": {
@@ -17712,12 +17776,33 @@
             ],
             "title": "Ical Url"
           },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
           "participants": {
             "items": {
               "$ref": "#/components/schemas/OfferParticipant"
             },
             "title": "Participants",
             "type": "array"
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPayment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "product_lines": {
             "items": {
@@ -17791,6 +17876,18 @@
       },
       "PublicRescheduleRequestOut": {
         "properties": {
+          "applied": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied"
+          },
           "awaiting_confirmation": {
             "default": false,
             "title": "Awaiting Confirmation",
@@ -19343,6 +19440,21 @@
               }
             ],
             "title": "Note"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
           }
         },
         "required": [
@@ -19441,6 +19553,33 @@
       },
       "RescheduleRequestOut": {
         "properties": {
+          "applied": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied"
+          },
+          "applied_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Days"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
@@ -37130,6 +37269,76 @@
         "summary": "Bulk Send Reminder",
         "tags": [
           "staff-bookings-bulk"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/cancelled": {
+      "get": {
+        "description": "Cancelled bookings of the operator, newest first (max 500).\n\n``q`` is the same case-insensitive substring match on ``search_text`` the\nbookings list uses, so a customer name finds its cancelled booking.",
+        "operationId": "staff_list_cancelled_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Cancelled Bookings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Cancelled Bookings",
+        "tags": [
+          "staff-bookings"
         ]
       }
     },

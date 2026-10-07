@@ -363,6 +363,14 @@ type Bundle = {
   payModeNotOnlinePayOnSite: string
   payModeNotOnlineBankTransfer: string
   payModeNotOnlineGeneric: string
+  // landr-t63w0 — /pay page shows the operator's other ticked rails.
+  payByBankTransferTitle: string
+  bankAccountHolderLabel: string
+  bankIbanLabel: string
+  bankBicLabel: string
+  bankReferenceLabel: string
+  bankTransferReferenceHint: string
+  payOnSiteAlsoHint: string
   awaitingOperatorConfirmation: string
   participantCountSingular: string
   participantCountPlural: string
@@ -428,6 +436,7 @@ type Bundle = {
   loadingYourOffer: string
   pleaseWait: string
   completeYourPayment: string
+  paymentPageTitle: string
   yourCustomOffer: string
   payModeDescription: string
   offerModeDescription: string
@@ -941,6 +950,13 @@ const en: Bundle = {
   payModeNotOnlinePayOnSite: 'Please pay on the day, at the meeting point.',
   payModeNotOnlineBankTransfer: 'Please pay by bank transfer — details are in your confirmation email.',
   payModeNotOnlineGeneric: 'Online payment is no longer available for this booking. Please contact the operator about how to pay.',
+  payByBankTransferTitle: 'Pay by bank transfer',
+  bankAccountHolderLabel: 'Account holder',
+  bankIbanLabel: 'IBAN',
+  bankBicLabel: 'BIC',
+  bankReferenceLabel: 'Reference',
+  bankTransferReferenceHint: 'Please quote the reference so we can match your transfer.',
+  payOnSiteAlsoHint: 'You can also pay on site, on the day.',
   awaitingOperatorConfirmation: 'Your booking is awaiting confirmation from the operator.',
   participantCountSingular: '{n} participant',
   participantCountPlural: '{n} participants',
@@ -1008,6 +1024,7 @@ const en: Bundle = {
   loadingYourOffer: 'Loading your offer…',
   pleaseWait: 'Please wait.',
   completeYourPayment: 'Complete your payment',
+  paymentPageTitle: 'Payment site',
   yourCustomOffer: 'Your custom offer',
   payModeDescription: 'Your booking is confirmed. Pay the outstanding balance below to secure it.',
   offerModeDescription: 'Review the details below and click Accept & Pay to confirm your booking.',
@@ -1508,6 +1525,13 @@ const de: Bundle = {
   payModeNotOnlinePayOnSite: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
   payModeNotOnlineBankTransfer: 'Bitte zahlen Sie per Überweisung — die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
   payModeNotOnlineGeneric: 'Für diese Buchung ist keine Online-Zahlung mehr möglich. Bitte wenden Sie sich an den Anbieter, wie Sie zahlen können.',
+  payByBankTransferTitle: 'Per Überweisung bezahlen',
+  bankAccountHolderLabel: 'Kontoinhaber',
+  bankIbanLabel: 'IBAN',
+  bankBicLabel: 'BIC',
+  bankReferenceLabel: 'Verwendungszweck',
+  bankTransferReferenceHint: 'Bitte geben Sie den Verwendungszweck an, damit wir Ihre Überweisung zuordnen können.',
+  payOnSiteAlsoHint: 'Sie können auch vor Ort bezahlen, am Tag der Aktivität.',
   awaitingOperatorConfirmation: 'Ihre Buchung wartet auf die Bestätigung durch den Anbieter.',
   participantCountSingular: '{n} Teilnehmer',
   participantCountPlural: '{n} Teilnehmer',
@@ -1576,6 +1600,7 @@ const de: Bundle = {
   loadingYourOffer: 'Ihr Angebot wird geladen…',
   pleaseWait: 'Bitte warten.',
   completeYourPayment: 'Zahlung abschließen',
+  paymentPageTitle: 'Zahlungsseite',
   yourCustomOffer: 'Ihr individuelles Angebot',
   payModeDescription: 'Ihre Buchung ist bestätigt. Zahlen Sie unten den ausstehenden Betrag, um sie zu sichern.',
   offerModeDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Annehmen & Bezahlen“, um Ihre Buchung zu bestätigen.',

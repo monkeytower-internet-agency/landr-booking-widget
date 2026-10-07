@@ -512,6 +512,82 @@ describe('OfferPage', () => {
       expect(balanceDue).toHaveTextContent(formatCurrency(1120.0, 'EUR'))
     })
 
+    // landr-t63w0: the operator's other ticked rails on the /pay page.
+    const BANK = {
+      iban: 'ES91 2100 0418 4502 0005 1332',
+      bic: 'CAIXESBBXXX',
+      account_holder: 'Canary Tandem Co SL',
+      reference: 'BBBBBBBB',
+    }
+
+    it('online + bank + on-site: card button, IBAN/BIC and the on-site hint', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...payOffer,
+        payment: {
+          methods: ['online', 'bank_transfer', 'on_site'],
+          online_available: true,
+          bank: BANK,
+        },
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => expect(screen.getByTestId('offer-ready')).toBeInTheDocument())
+
+      expect(screen.getByRole('button', { name: /^pay now$/i })).toBeEnabled()
+      expect(screen.getByTestId('offer-bank-iban')).toHaveTextContent(BANK.iban)
+      expect(screen.getByTestId('offer-bank-bic')).toHaveTextContent('CAIXESBBXXX')
+      expect(screen.getByTestId('offer-bank-reference')).toHaveTextContent('BBBBBBBB')
+      expect(screen.getByTestId('offer-pay-on-site-hint')).toHaveTextContent(
+        /also pay on site/i,
+      )
+    })
+
+    it('bank only: shows IBAN/BIC and no card button', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...payOffer,
+        payment: { methods: ['bank_transfer'], online_available: false, bank: BANK },
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => expect(screen.getByTestId('offer-ready')).toBeInTheDocument())
+
+      expect(screen.getByTestId('offer-bank-iban')).toBeInTheDocument()
+      expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('offer-pay-on-site-hint')).not.toBeInTheDocument()
+    })
+
+    it('on-site only: no card button, no bank block, on-site note', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...payOffer,
+        payment: { methods: ['on_site'], online_available: false, bank: null },
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => expect(screen.getByTestId('offer-ready')).toBeInTheDocument())
+
+      expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
+      expect(screen.getByTestId('offer-pay-on-site-hint')).toHaveTextContent(/pay on the day/i)
+    })
+
+    it('older API without `payment`: card-only page unchanged', async () => {
+      mocks.getBookingByToken.mockResolvedValue(payOffer)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => expect(screen.getByTestId('offer-ready')).toBeInTheDocument())
+
+      expect(screen.getByRole('button', { name: /^pay now$/i })).toBeEnabled()
+      expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
+    })
+
+    it('titles the browser tab "Payment site <operator>"', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...payOffer,
+        operator_name: 'Canary Tandem Co',
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() => {
+        expect(document.title).toBe('Payment site Canary Tandem Co')
+      })
+    })
+
     it('shows the payment-link-not-found copy on fetch error', async () => {
       mocks.getBookingByToken.mockRejectedValue(new Error('403 Forbidden'))
       render(<OfferPage token={TOKEN} mode="pay" />)
