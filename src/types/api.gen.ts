@@ -4408,6 +4408,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/cancelled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cancelled Bookings
+         * @description Cancelled bookings of the operator, newest first (max 500).
+         *
+         *     ``q`` is the same case-insensitive substring match on ``search_text`` the
+         *     bookings list uses, so a customer name finds its cancelled booking.
+         */
+        get: operations["staff_list_cancelled_bookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/quick-create": {
         parameters: {
             query?: never;
@@ -14474,6 +14497,26 @@ export interface components {
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
         /**
+         * OfferBankDetails
+         * @description Operator bank account for a bank-transfer payment (landr-t63w0).
+         */
+        OfferBankDetails: {
+            /**
+             * Account Holder
+             * @default
+             */
+            account_holder: string;
+            /** Bic */
+            bic?: string | null;
+            /** Iban */
+            iban: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+        };
+        /**
          * OfferCreateIn
          * @description POST body. title is required; the rest are optional.
          */
@@ -14543,6 +14586,25 @@ export interface components {
             sort_order?: number | null;
             /** Title */
             title?: string | null;
+        };
+        /**
+         * OfferPayment
+         * @description How THIS booking can be paid, resolved from the operator's ticked
+         *     payment methods (landr-t63w0). ``bank`` is only present when
+         *     ``bank_transfer`` is ticked AND an IBAN is on file — same rule as the
+         *     booking_payment_link email, so page and email never disagree.
+         *     ``online_available`` = ``online`` ticked AND the operator's own Stripe key
+         *     on file (the /pay checkout gate).
+         */
+        OfferPayment: {
+            bank?: components["schemas"]["OfferBankDetails"] | null;
+            /** Methods */
+            methods?: string[];
+            /**
+             * Online Available
+             * @default false
+             */
+            online_available: boolean;
         };
         /**
          * OfferProductLine
@@ -16512,8 +16574,11 @@ export interface components {
             customer_semantic_state: string;
             /** Ical Url */
             ical_url?: string | null;
+            /** Operator Name */
+            operator_name?: string | null;
             /** Participants */
             participants?: components["schemas"]["OfferParticipant"][];
+            payment?: components["schemas"]["OfferPayment"] | null;
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
             stage?: components["schemas"]["CustomerStageLabel"] | null;
@@ -16538,6 +16603,10 @@ export interface components {
         };
         /** PublicRescheduleRequestOut */
         PublicRescheduleRequestOut: {
+            /** Applied */
+            applied?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Awaiting Confirmation
              * @default false
@@ -17023,6 +17092,8 @@ export interface components {
             decision: "approved" | "declined";
             /** Note */
             note?: string | null;
+            /** Selected Days */
+            selected_days?: string[] | null;
         };
         /** RescheduleDecisionOut */
         RescheduleDecisionOut: {
@@ -17055,6 +17126,12 @@ export interface components {
         };
         /** RescheduleRequestOut */
         RescheduleRequestOut: {
+            /** Applied */
+            applied?: {
+                [key: string]: unknown;
+            } | null;
+            /** Applied Days */
+            applied_days?: string[] | null;
             /** Booking Id */
             booking_id: string;
             /** Booking Product Id */
@@ -26283,6 +26360,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkReminderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    staff_list_cancelled_bookings: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
             /** @description Validation Error */

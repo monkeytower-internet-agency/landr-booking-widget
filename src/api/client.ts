@@ -992,6 +992,21 @@ export interface OfferCustomer {
  * Shape mirrors the public_get_booking_by_token RPC
  * (migration 20260512221007).
  */
+/**
+ * landr-t63w0: how this booking can be paid — the operator's ticked rails.
+ * `bank` is present only when bank_transfer is ticked and an IBAN is on file.
+ */
+export interface OfferPayment {
+  methods: Array<'online' | 'bank_transfer' | 'on_site'>
+  online_available: boolean
+  bank: {
+    iban: string
+    bic?: string | null
+    account_holder?: string
+    reference?: string
+  } | null
+}
+
 export interface PublicBookingOffer {
   booking_id: string
   customer_semantic_state: string
@@ -1000,6 +1015,16 @@ export interface PublicBookingOffer {
   customer: OfferCustomer
   product_lines: OfferProductLine[]
   participants: OfferParticipant[]
+  /**
+   * The operator's display name, for the browser tab title on /pay. Optional
+   * for rolling deploy — absent on an older API leaves the bare title.
+   */
+  operator_name?: string | null
+  /**
+   * landr-t63w0: payment rails for /pay. Optional for rolling deploy — absent
+   * (older API, or resolve failure) keeps the card-only page.
+   */
+  payment?: OfferPayment | null
   /**
    * landr-821d6.3/.7: the booking's current lifecycle stage, customer-facing
    * wording. Optional for rolling deploy — absent on an older API means no

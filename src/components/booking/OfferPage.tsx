@@ -5,6 +5,7 @@ import {
   initiatePayment,
   isPaymentModeNotOnline,
   paymentModeNotOnlineMode,
+  type OfferPayment,
   type OfferTotals,
   type PublicBookingOffer,
 } from '@/api/client'
@@ -121,6 +122,69 @@ function _returnBase(): string {
   return `${window.location.origin}${window.location.pathname}`
 }
 
+// landr-t63w0: the operator's non-card rails on the /pay page — IBAN/BIC when
+// bank transfer is ticked, an "also pay on site" hint when on-site is ticked.
+function PaymentRails({
+  payment,
+  locale,
+  cardShown,
+}: {
+  payment: OfferPayment
+  locale: string | undefined
+  cardShown: boolean
+}) {
+  const onSite = payment.methods.includes('on_site')
+  const bank = payment.bank
+  if (!bank && !onSite) return null
+  return (
+    <>
+      {bank && (
+        <section
+          className="rounded-md border px-3 py-2"
+          aria-label={tr('payByBankTransferTitle', locale)}
+          data-testid="offer-bank-details"
+        >
+          <h3 className="mb-1 text-sm font-semibold">
+            {tr('payByBankTransferTitle', locale)}
+          </h3>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-sm">
+            {bank.account_holder ? (
+              <>
+                <dt className="text-muted-foreground">{tr('bankAccountHolderLabel', locale)}</dt>
+                <dd data-testid="offer-bank-holder">{bank.account_holder}</dd>
+              </>
+            ) : null}
+            <dt className="text-muted-foreground">{tr('bankIbanLabel', locale)}</dt>
+            <dd className="font-mono" data-testid="offer-bank-iban">{bank.iban}</dd>
+            {bank.bic ? (
+              <>
+                <dt className="text-muted-foreground">{tr('bankBicLabel', locale)}</dt>
+                <dd className="font-mono" data-testid="offer-bank-bic">{bank.bic}</dd>
+              </>
+            ) : null}
+            {bank.reference ? (
+              <>
+                <dt className="text-muted-foreground">{tr('bankReferenceLabel', locale)}</dt>
+                <dd className="font-mono" data-testid="offer-bank-reference">{bank.reference}</dd>
+              </>
+            ) : null}
+          </dl>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {tr('bankTransferReferenceHint', locale)}
+          </p>
+        </section>
+      )}
+      {onSite && (
+        <p className="text-sm" data-testid="offer-pay-on-site-hint">
+          {cardShown || bank
+            ? tr('payOnSiteAlsoHint', locale)
+            : tr('payModeNotOnlinePayOnSite', locale)}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function OfferPage({ token, mode = 'offer' }: Props) {
   // landr-821d6.7 review round: this is a standalone, unauthenticated,
   // pre-BookingFlowApp page (App.tsx never fetches operator/product data
@@ -163,6 +227,15 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     amount: number
     checkoutUrl: string
   } | null>(null)
+
+  // The shell's static <title> is the generic "Book — LANDR"; the pay page is
+  // reached from an email link, so name the page and the operator in the tab.
+  const payTitle = tr('paymentPageTitle', locale)
+  const operatorName = offer?.operator_name ?? null
+  useEffect(() => {
+    if (mode !== 'pay') return
+    document.title = operatorName ? `${payTitle} ${operatorName}` : payTitle
+  }, [mode, payTitle, operatorName])
 
   useEffect(() => {
     if (status !== 'loading') return
@@ -455,8 +528,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         <CardHeader>
           <CardTitle>{tr('payModeNotOnlineTitle', locale)}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm">{body}</p>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm">
+            {offer?.payment?.bank ? tr('payModeNotOnlineGeneric', locale) : body}
+          </p>
+          {offer?.payment ? (
+            <PaymentRails payment={offer.payment} locale={locale} cardShown={false} />
+          ) : null}
         </CardContent>
       </Card>
     )
@@ -547,6 +625,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // mean the whole booking is settled: at-hotel lines are never reflected
   // in balance_due, so money can still be owed to the hotel directly.
   const alreadySettled = mode === 'pay' && chargeAmount <= 0
+  // landr-t63w0: on /pay the card button only shows when online checkout is
+  // actually available. An older API (no `payment`) keeps today's button.
+  const payment = mode === 'pay' ? (offer.payment ?? null) : null
+  const showCardCta = !payment || payment.online_available
   // With the split present the at-hotel row already explains the gap, so the
   // vague "Total booking value" line is only needed as the legacy fallback.
   const showTotalBookingValue =
@@ -781,7 +863,17 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           </p>
         )}
 
+        {/* landr-t63w0: bank details + pay-on-site hint (pay mode only) */}
+        {payment && !alreadySettled ? (
+          <PaymentRails
+            payment={payment}
+            locale={locale}
+            cardShown={showCardCta}
+          />
+        ) : null}
+
         {/* CTA */}
+        {showCardCta && (
         <Button
           type="button"
           className="w-full sm:w-auto"
@@ -805,7 +897,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   ? tr('payNowLabel', locale)
                   : tr('acceptAndPayLabel', locale)}
         </Button>
+        )}
 
+        {showCardCta && (
         <p className="text-xs text-muted-foreground">
           {alreadySettled
             ? // landr-yimp review round 2: balance_due <= 0 only means this
@@ -817,6 +911,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               ? tr('paymentLinkPersonal', locale)
               : tr('offerLinkPersonal', locale)}
         </p>
+        )}
       </CardContent>
     </Card>
   )
