@@ -363,6 +363,14 @@ type Bundle = {
   payModeNotOnlinePayOnSite: string
   payModeNotOnlineBankTransfer: string
   payModeNotOnlineGeneric: string
+  // landr-t63w0 — /pay page shows the operator's other ticked rails.
+  payByBankTransferTitle: string
+  bankAccountHolderLabel: string
+  bankIbanLabel: string
+  bankBicLabel: string
+  bankReferenceLabel: string
+  bankTransferReferenceHint: string
+  payOnSiteAlsoHint: string
   awaitingOperatorConfirmation: string
   participantCountSingular: string
   participantCountPlural: string
@@ -942,6 +950,13 @@ const en: Bundle = {
   payModeNotOnlinePayOnSite: 'Please pay on the day, at the meeting point.',
   payModeNotOnlineBankTransfer: 'Please pay by bank transfer — details are in your confirmation email.',
   payModeNotOnlineGeneric: 'Online payment is no longer available for this booking. Please contact the operator about how to pay.',
+  payByBankTransferTitle: 'Pay by bank transfer',
+  bankAccountHolderLabel: 'Account holder',
+  bankIbanLabel: 'IBAN',
+  bankBicLabel: 'BIC',
+  bankReferenceLabel: 'Reference',
+  bankTransferReferenceHint: 'Please quote the reference so we can match your transfer.',
+  payOnSiteAlsoHint: 'You can also pay on site, on the day.',
   awaitingOperatorConfirmation: 'Your booking is awaiting confirmation from the operator.',
   participantCountSingular: '{n} participant',
   participantCountPlural: '{n} participants',
@@ -1510,6 +1525,13 @@ const de: Bundle = {
   payModeNotOnlinePayOnSite: 'Bitte zahlen Sie am Tag der Aktivität direkt am Treffpunkt.',
   payModeNotOnlineBankTransfer: 'Bitte zahlen Sie per Überweisung — die Bankverbindung finden Sie in Ihrer Bestätigungs-E-Mail.',
   payModeNotOnlineGeneric: 'Für diese Buchung ist keine Online-Zahlung mehr möglich. Bitte wenden Sie sich an den Anbieter, wie Sie zahlen können.',
+  payByBankTransferTitle: 'Per Überweisung bezahlen',
+  bankAccountHolderLabel: 'Kontoinhaber',
+  bankIbanLabel: 'IBAN',
+  bankBicLabel: 'BIC',
+  bankReferenceLabel: 'Verwendungszweck',
+  bankTransferReferenceHint: 'Bitte geben Sie den Verwendungszweck an, damit wir Ihre Überweisung zuordnen können.',
+  payOnSiteAlsoHint: 'Sie können auch vor Ort bezahlen, am Tag der Aktivität.',
   awaitingOperatorConfirmation: 'Ihre Buchung wartet auf die Bestätigung durch den Anbieter.',
   participantCountSingular: '{n} Teilnehmer',
   participantCountPlural: '{n} Teilnehmer',
