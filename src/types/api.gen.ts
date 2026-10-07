@@ -14497,6 +14497,26 @@ export interface components {
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
         /**
+         * OfferBankDetails
+         * @description Operator bank account for a bank-transfer payment (landr-t63w0).
+         */
+        OfferBankDetails: {
+            /**
+             * Account Holder
+             * @default
+             */
+            account_holder: string;
+            /** Bic */
+            bic?: string | null;
+            /** Iban */
+            iban: string;
+            /**
+             * Reference
+             * @default
+             */
+            reference: string;
+        };
+        /**
          * OfferCreateIn
          * @description POST body. title is required; the rest are optional.
          */
@@ -14566,6 +14586,25 @@ export interface components {
             sort_order?: number | null;
             /** Title */
             title?: string | null;
+        };
+        /**
+         * OfferPayment
+         * @description How THIS booking can be paid, resolved from the operator's ticked
+         *     payment methods (landr-t63w0). ``bank`` is only present when
+         *     ``bank_transfer`` is ticked AND an IBAN is on file — same rule as the
+         *     booking_payment_link email, so page and email never disagree.
+         *     ``online_available`` = ``online`` ticked AND the operator's own Stripe key
+         *     on file (the /pay checkout gate).
+         */
+        OfferPayment: {
+            bank?: components["schemas"]["OfferBankDetails"] | null;
+            /** Methods */
+            methods?: string[];
+            /**
+             * Online Available
+             * @default false
+             */
+            online_available: boolean;
         };
         /**
          * OfferProductLine
@@ -16539,6 +16578,7 @@ export interface components {
             operator_name?: string | null;
             /** Participants */
             participants?: components["schemas"]["OfferParticipant"][];
+            payment?: components["schemas"]["OfferPayment"] | null;
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
             stage?: components["schemas"]["CustomerStageLabel"] | null;

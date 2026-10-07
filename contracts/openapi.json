@@ -11380,6 +11380,41 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
+      "OfferBankDetails": {
+        "description": "Operator bank account for a bank-transfer payment (landr-t63w0).",
+        "properties": {
+          "account_holder": {
+            "default": "",
+            "title": "Account Holder",
+            "type": "string"
+          },
+          "bic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bic"
+          },
+          "iban": {
+            "title": "Iban",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "iban"
+        ],
+        "title": "OfferBankDetails",
+        "type": "object"
+      },
       "OfferCreateIn": {
         "description": "POST body. title is required; the rest are optional.",
         "properties": {
@@ -11646,6 +11681,35 @@
           }
         },
         "title": "OfferPatchIn",
+        "type": "object"
+      },
+      "OfferPayment": {
+        "description": "How THIS booking can be paid, resolved from the operator's ticked\npayment methods (landr-t63w0). ``bank`` is only present when\n``bank_transfer`` is ticked AND an IBAN is on file \u2014 same rule as the\nbooking_payment_link email, so page and email never disagree.\n``online_available`` = ``online`` ticked AND the operator's own Stripe key\non file (the /pay checkout gate).",
+        "properties": {
+          "bank": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferBankDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "online_available": {
+            "default": false,
+            "title": "Online Available",
+            "type": "boolean"
+          }
+        },
+        "title": "OfferPayment",
         "type": "object"
       },
       "OfferProductLine": {
@@ -17729,6 +17793,16 @@
             },
             "title": "Participants",
             "type": "array"
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferPayment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "product_lines": {
             "items": {
