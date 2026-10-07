@@ -37133,6 +37133,76 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/cancelled": {
+      "get": {
+        "description": "Cancelled bookings of the operator, newest first (max 500).\n\n``q`` is the same case-insensitive substring match on ``search_text`` the\nbookings list uses, so a customer name finds its cancelled booking.",
+        "operationId": "staff_list_cancelled_bookings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Staff List Cancelled Bookings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Cancelled Bookings",
+        "tags": [
+          "staff-bookings"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/quick-create": {
       "post": {
         "operationId": "quick_create_booking",
