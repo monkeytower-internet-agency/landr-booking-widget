@@ -16561,6 +16561,10 @@ export interface components {
         };
         /** PublicRescheduleRequestOut */
         PublicRescheduleRequestOut: {
+            /** Applied */
+            applied?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Awaiting Confirmation
              * @default false
@@ -17046,6 +17050,8 @@ export interface components {
             decision: "approved" | "declined";
             /** Note */
             note?: string | null;
+            /** Selected Days */
+            selected_days?: string[] | null;
         };
         /** RescheduleDecisionOut */
         RescheduleDecisionOut: {
@@ -17078,6 +17084,12 @@ export interface components {
         };
         /** RescheduleRequestOut */
         RescheduleRequestOut: {
+            /** Applied */
+            applied?: {
+                [key: string]: unknown;
+            } | null;
+            /** Applied Days */
+            applied_days?: string[] | null;
             /** Booking Id */
             booking_id: string;
             /** Booking Product Id */

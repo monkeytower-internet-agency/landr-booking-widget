@@ -17791,6 +17791,18 @@
       },
       "PublicRescheduleRequestOut": {
         "properties": {
+          "applied": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied"
+          },
           "awaiting_confirmation": {
             "default": false,
             "title": "Awaiting Confirmation",
@@ -19343,6 +19355,21 @@
               }
             ],
             "title": "Note"
+          },
+          "selected_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Days"
           }
         },
         "required": [
@@ -19441,6 +19468,33 @@
       },
       "RescheduleRequestOut": {
         "properties": {
+          "applied": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied"
+          },
+          "applied_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Days"
+          },
           "booking_id": {
             "title": "Booking Id",
             "type": "string"
