@@ -1001,6 +1001,11 @@ export interface PublicBookingOffer {
   product_lines: OfferProductLine[]
   participants: OfferParticipant[]
   /**
+   * The operator's display name, for the browser tab title on /pay. Optional
+   * for rolling deploy — absent on an older API leaves the bare title.
+   */
+  operator_name?: string | null
+  /**
    * landr-821d6.3/.7: the booking's current lifecycle stage, customer-facing
    * wording. Optional for rolling deploy — absent on an older API means no
    * status line renders (today's behaviour).

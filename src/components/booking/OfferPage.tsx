@@ -164,6 +164,15 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     checkoutUrl: string
   } | null>(null)
 
+  // The shell's static <title> is the generic "Book — LANDR"; the pay page is
+  // reached from an email link, so name the page and the operator in the tab.
+  const payTitle = tr('paymentPageTitle', locale)
+  const operatorName = offer?.operator_name ?? null
+  useEffect(() => {
+    if (mode !== 'pay') return
+    document.title = operatorName ? `${payTitle} ${operatorName}` : payTitle
+  }, [mode, payTitle, operatorName])
+
   useEffect(() => {
     if (status !== 'loading') return
     let cancelled = false
