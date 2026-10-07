@@ -1429,6 +1429,11 @@
       },
       "BookingCancelIn": {
         "properties": {
+          "notify_accommodation": {
+            "default": true,
+            "title": "Notify Accommodation",
+            "type": "boolean"
+          },
           "notify_customer": {
             "default": true,
             "title": "Notify Customer",
@@ -3542,6 +3547,23 @@
           "method"
         ],
         "title": "CancelRefund",
+        "type": "object"
+      },
+      "CancellationNoticesIn": {
+        "description": "Which parties the after-the-fact \"Send cancellation mail\" reaches.",
+        "properties": {
+          "notify_accommodation": {
+            "default": true,
+            "title": "Notify Accommodation",
+            "type": "boolean"
+          },
+          "notify_customer": {
+            "default": true,
+            "title": "Notify Customer",
+            "type": "boolean"
+          }
+        },
+        "title": "CancellationNoticesIn",
         "type": "object"
       },
       "ChangeNotification": {
@@ -35595,7 +35617,7 @@
     },
     "/api/staff/bookings/{booking_id}": {
       "delete": {
-        "description": "Soft-cancel a booking. Reason is required.\n\nSets bookings.deleted_at + deletion_reason; the capacity trigger\nreleases reserved seats automatically. The booking row remains\nfor audit / history purposes (and stays visible via include_deleted\nfilters in future list endpoints). With notify_customer (default true)\nthe customer is emailed a booking_cancelled notice (landr-5aih0.7).\n\nUnconditionally \u2014 regardless of notify_customer \u2014 also notifies any\nstill-pending approval requester that the booking is off, via\nnotify_pending_approval_requests_cancelled (landr-5aih0.24): that party\nis not the customer, so it must not be gated behind the customer's own\nnotify flag.",
+        "description": "Soft-cancel a booking. Reason is required.\n\nSets bookings.deleted_at + deletion_reason; the capacity trigger\nreleases reserved seats automatically. The booking row remains\nfor audit / history purposes (and stays visible via include_deleted\nfilters in future list endpoints). With notify_customer (default true)\nthe customer is emailed a booking_cancelled notice (landr-5aih0.7).\n\nIndependently of notify_customer, the accommodation partners holding a\nlive approval request (pending AND answered) are told the booking is off\nvia notify_pending_approval_requests_cancelled (landr-5aih0.24) unless\nnotify_accommodation is false (landr-12j4p); a pending partner/driver ask\nis always told \u2014 that party is neither the customer nor accommodation,\nso it is gated by neither flag.",
         "operationId": "cancel_booking",
         "parameters": [
           {
@@ -35876,6 +35898,66 @@
         "summary": "Reissue Approval Request",
         "tags": [
           "staff-bookings-approval-request"
+        ]
+      }
+    },
+    "/api/staff/bookings/{booking_id}/cancellation-notices": {
+      "post": {
+        "description": "(Re)send the cancellation mail for an already-deleted booking.\n\nlandr-12j4p. The trash view's \"Send cancellation mail\": the operator\ndeleted silently (or wants to nudge again) and now mails the customer\nand/or the accommodation(s). Valid ONLY for a soft-deleted booking of the\ncaller's operator \u2014 a live booking is refused 409 so this can never be\nused to announce a cancellation that has not happened. Resends are\nallowed; nothing is deduplicated across calls.\n\nReuses the exact pieces DELETE uses: ``send_booking_cancelled`` with the\nneutral ``operator_decides`` refund line, and the accommodation notifier (answered\nasks included, partner/driver asks excluded \u2014 they were told at delete\ntime and are not part of this notice). Returns what was sent.",
+        "operationId": "send_cancellation_notices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancellationNoticesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Send Cancellation Notices",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Cancellation Notices",
+        "tags": [
+          "staff-bookings"
         ]
       }
     },
@@ -57355,6 +57437,65 @@
         "summary": "Post Day Message",
         "tags": [
           "staff-day-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/trash/bookings/{booking_id}": {
+      "get": {
+        "description": "Read ONE soft-deleted booking of the operator, for the read-only view.\n\nScoped by (id, operator_id, deleted_at IS NOT NULL) exactly like\nrestore: a live booking, a booking of another operator and a missing id\nall 404, so this can never become a back door to a row the normal RLS\nread is meant to serve (or to a different tenant's data).\n\nReturns ``{\"booking\": <raw bookings embed + deletion fields>,\n\"has_accommodation\": bool}``. ``has_accommodation`` is true when a\nnon-revoked, non-partner ``booking_approval_requests`` row exists \u2014 the\ncondition for offering the \"accommodation\" tick on the cancellation mail.",
+        "operationId": "get_trashed_booking",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Trashed Booking",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Trashed Booking",
+        "tags": [
+          "staff-trash"
         ]
       }
     },
