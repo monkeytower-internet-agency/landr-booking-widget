@@ -512,6 +512,18 @@ describe('OfferPage', () => {
       expect(balanceDue).toHaveTextContent(formatCurrency(1120.0, 'EUR'))
     })
 
+    it('titles the browser tab "Payment site <operator>"', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...payOffer,
+        operator_name: 'Canary Tandem Co',
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+
+      await waitFor(() => {
+        expect(document.title).toBe('Payment site Canary Tandem Co')
+      })
+    })
+
     it('shows the payment-link-not-found copy on fetch error', async () => {
       mocks.getBookingByToken.mockRejectedValue(new Error('403 Forbidden'))
       render(<OfferPage token={TOKEN} mode="pay" />)

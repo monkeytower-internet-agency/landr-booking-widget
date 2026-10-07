@@ -428,6 +428,7 @@ type Bundle = {
   loadingYourOffer: string
   pleaseWait: string
   completeYourPayment: string
+  paymentPageTitle: string
   yourCustomOffer: string
   payModeDescription: string
   offerModeDescription: string
@@ -1008,6 +1009,7 @@ const en: Bundle = {
   loadingYourOffer: 'Loading your offer…',
   pleaseWait: 'Please wait.',
   completeYourPayment: 'Complete your payment',
+  paymentPageTitle: 'Payment site',
   yourCustomOffer: 'Your custom offer',
   payModeDescription: 'Your booking is confirmed. Pay the outstanding balance below to secure it.',
   offerModeDescription: 'Review the details below and click Accept & Pay to confirm your booking.',
@@ -1576,6 +1578,7 @@ const de: Bundle = {
   loadingYourOffer: 'Ihr Angebot wird geladen…',
   pleaseWait: 'Bitte warten.',
   completeYourPayment: 'Zahlung abschließen',
+  paymentPageTitle: 'Zahlungsseite',
   yourCustomOffer: 'Ihr individuelles Angebot',
   payModeDescription: 'Ihre Buchung ist bestätigt. Zahlen Sie unten den ausstehenden Betrag, um sie zu sichern.',
   offerModeDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Annehmen & Bezahlen“, um Ihre Buchung zu bestätigen.',

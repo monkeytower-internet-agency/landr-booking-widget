@@ -16535,6 +16535,8 @@ export interface components {
             customer_semantic_state: string;
             /** Ical Url */
             ical_url?: string | null;
+            /** Operator Name */
+            operator_name?: string | null;
             /** Participants */
             participants?: components["schemas"]["OfferParticipant"][];
             /** Product Lines */

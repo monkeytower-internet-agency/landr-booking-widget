@@ -17712,6 +17712,17 @@
             ],
             "title": "Ical Url"
           },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
           "participants": {
             "items": {
               "$ref": "#/components/schemas/OfferParticipant"
