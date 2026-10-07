@@ -3820,11 +3820,12 @@ export interface paths {
          *     filters in future list endpoints). With notify_customer (default true)
          *     the customer is emailed a booking_cancelled notice (landr-5aih0.7).
          *
-         *     Unconditionally — regardless of notify_customer — also notifies any
-         *     still-pending approval requester that the booking is off, via
-         *     notify_pending_approval_requests_cancelled (landr-5aih0.24): that party
-         *     is not the customer, so it must not be gated behind the customer's own
-         *     notify flag.
+         *     Independently of notify_customer, the accommodation partners holding a
+         *     live approval request (pending AND answered) are told the booking is off
+         *     via notify_pending_approval_requests_cancelled (landr-5aih0.24) unless
+         *     notify_accommodation is false (landr-12j4p); a pending partner/driver ask
+         *     is always told — that party is neither the customer nor accommodation,
+         *     so it is gated by neither flag.
          */
         delete: operations["cancel_booking"];
         options?: never;
@@ -3890,6 +3891,38 @@ export interface paths {
          *     every other state there — see that RPC's precedence comment).
          */
         post: operations["staff_reissue_approval_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{booking_id}/cancellation-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Cancellation Notices
+         * @description (Re)send the cancellation mail for an already-deleted booking.
+         *
+         *     landr-12j4p. The trash view's "Send cancellation mail": the operator
+         *     deleted silently (or wants to nudge again) and now mails the customer
+         *     and/or the accommodation(s). Valid ONLY for a soft-deleted booking of the
+         *     caller's operator — a live booking is refused 409 so this can never be
+         *     used to announce a cancellation that has not happened. Resends are
+         *     allowed; nothing is deduplicated across calls.
+         *
+         *     Reuses the exact pieces DELETE uses: ``send_booking_cancelled`` with the
+         *     neutral ``operator_decides`` refund line, and the accommodation notifier (answered
+         *     asks included, partner/driver asks excluded — they were told at delete
+         *     time and are not part of this notice). Returns what was sent.
+         */
+        post: operations["send_cancellation_notices"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9844,6 +9877,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/trash/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trashed Booking
+         * @description Read ONE soft-deleted booking of the operator, for the read-only view.
+         *
+         *     Scoped by (id, operator_id, deleted_at IS NOT NULL) exactly like
+         *     restore: a live booking, a booking of another operator and a missing id
+         *     all 404, so this can never become a back door to a row the normal RLS
+         *     read is meant to serve (or to a different tenant's data).
+         *
+         *     Returns ``{"booking": <raw bookings embed + deletion fields>,
+         *     "has_accommodation": bool}``. ``has_accommodation`` is true when a
+         *     non-revoked, non-partner ``booking_approval_requests`` row exists — the
+         *     condition for offering the "accommodation" tick on the cancellation mail.
+         */
+        get: operations["get_trashed_booking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/trash/{kind}": {
         parameters: {
             query?: never;
@@ -10887,6 +10950,11 @@ export interface components {
         /** BookingCancelIn */
         BookingCancelIn: {
             /**
+             * Notify Accommodation
+             * @default true
+             */
+            notify_accommodation: boolean;
+            /**
              * Notify Customer
              * @default true
              */
@@ -11686,6 +11754,22 @@ export interface components {
              * @enum {string}
              */
             method: "stripe_auto" | "manual" | "none";
+        };
+        /**
+         * CancellationNoticesIn
+         * @description Which parties the after-the-fact "Send cancellation mail" reaches.
+         */
+        CancellationNoticesIn: {
+            /**
+             * Notify Accommodation
+             * @default true
+             */
+            notify_accommodation: boolean;
+            /**
+             * Notify Customer
+             * @default true
+             */
+            notify_customer: boolean;
         };
         /** ChangeNotification */
         ChangeNotification: {
@@ -25554,6 +25638,43 @@ export interface operations {
             };
         };
     };
+    send_cancellation_notices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancellationNoticesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_change_notifications: {
         parameters: {
             query?: never;
@@ -37037,6 +37158,40 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trashed_booking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
