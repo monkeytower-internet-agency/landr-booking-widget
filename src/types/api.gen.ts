@@ -4336,6 +4336,9 @@ export interface paths {
          * Get Bank Details
          * @description Masked read-back of this operator's bank details.
          *
+         *     Response: ``has_iban``, ``iban_masked``, ``has_bic``, ``bic`` (clear),
+         *     ``account_holder`` (clear, null when unset) and ``updated_at``.
+         *
          *     Never a 404 for "nothing stored" — that's a normal empty state (200,
          *     has_iban/has_bic false). 404 is reserved for the operator row itself
          *     being missing.
@@ -4349,6 +4352,10 @@ export interface paths {
          *     credentials above use (landr-yx73's REVISION overrides the ticket's
          *     original owner-only decision) — an operator who can write a live Stripe
          *     secret key can certainly write their own IBAN.
+         *
+         *     Body fields ``iban`` / ``bic`` / ``account_holder`` are each sparse-merge:
+         *     omitted = untouched, null = clear, blank = 422 ``blank_not_allowed``.
+         *     ``account_holder`` is plaintext (stripped, max 140) — landr-u7fqw.
          */
         put: operations["upsert_bank_details"];
         post?: never;
@@ -10865,10 +10872,19 @@ export interface components {
          *         such precedent, so it 422s a blank outright — the more honest
          *         answer when null and blank are BOTH being given meaning at once.
          *
+         *     ``account_holder`` (landr-u7fqw) follows the same three-way contract but
+         *     is stored PLAINTEXT in ``operators.invoice_account_holder`` (a payee name
+         *     is not account-sensitive) and is stripped before storage. It is the name
+         *     printed next to the IBAN so it matches the bank account (Verification of
+         *     Payee); when unset the resolver falls back to legal_name, then name.
+         *
          *     max_length validates the PLAINTEXT on the way in — never the ciphertext
-         *     (a ~34-char IBAN becomes a ~150-char 'fernet:' token).
+         *     (a ~34-char IBAN becomes a ~150-char 'fernet:' token). The account-holder
+         *     cap (140) mirrors the DB CHECK on the column.
          */
         BankDetailsIn: {
+            /** Account Holder */
+            account_holder?: string | null;
             /** Bic */
             bic?: string | null;
             /** Iban */
