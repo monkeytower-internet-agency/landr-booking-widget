@@ -3908,11 +3908,12 @@ export interface paths {
         put?: never;
         /**
          * Send Cancellation Notices
-         * @description (Re)send the cancellation mail for an already-deleted booking.
+         * @description (Re)send the cancellation mail for an already-cancelled booking.
          *
          *     landr-12j4p. The trash view's "Send cancellation mail": the operator
          *     deleted silently (or wants to nudge again) and now mails the customer
-         *     and/or the accommodation(s). Valid ONLY for a soft-deleted booking of the
+         *     and/or the accommodation(s). Valid ONLY for a cancelled booking (soft-deleted, or in a
+         *     cancelled-semantic stage — landr-zd39u.4) of the
          *     caller's operator — a live booking is refused 409 so this can never be
          *     used to announce a cancellation that has not happened. Resends are
          *     allowed; nothing is deduplicated across calls.
