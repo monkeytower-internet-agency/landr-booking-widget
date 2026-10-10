@@ -6182,6 +6182,32 @@
         "title": "EmailCollisionOut",
         "type": "object"
       },
+      "EmailPreview": {
+        "properties": {
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subject",
+          "html",
+          "to"
+        ],
+        "title": "EmailPreview",
+        "type": "object"
+      },
       "EmailSenderStatus": {
         "properties": {
           "configured": {
@@ -11346,6 +11372,20 @@
         "title": "NotifyMentionsOut",
         "type": "object"
       },
+      "NotifyRequest": {
+        "description": "landr-zd39u.1 \u2014 the mails the operator ticked for this stage move.\n\n``kinds`` must each be one of ``stage-mail-options`` for the target stage\n(else 422 before any write). An empty list means \"send nothing\".",
+        "properties": {
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "title": "NotifyRequest",
+        "type": "object"
+      },
       "NumberingSeriesItem": {
         "description": "One GET /api/v2/numbering-series/invoice entry, projected to the\nfields the picker needs. Fields Holded omits come back None rather than\nraising \u2014 the exact wire shape is unverified against a real account\n(epic landr-g1ao.13); ``id`` is the one field we require, dropping any\nitem Holded returns without one.",
         "properties": {
@@ -13773,6 +13813,58 @@
           "moscow"
         ],
         "title": "PatchMoscowOut",
+        "type": "object"
+      },
+      "PaymentLinkShare": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "whatsapp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Url"
+          }
+        },
+        "required": [
+          "url",
+          "expires_at",
+          "amount",
+          "currency",
+          "message",
+          "whatsapp_url"
+        ],
+        "title": "PaymentLinkShare",
         "type": "object"
       },
       "PendingDecisionDetail": {
@@ -22742,6 +22834,24 @@
         "title": "SendMessageRequest",
         "type": "object"
       },
+      "SendPaymentLinkResult": {
+        "properties": {
+          "email_id": {
+            "title": "Email Id",
+            "type": "string"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sent",
+          "email_id"
+        ],
+        "title": "SendPaymentLinkResult",
+        "type": "object"
+      },
       "ServiceRoleIn": {
         "description": "Create payload for a new service role.",
         "properties": {
@@ -23010,6 +23120,16 @@
             ],
             "title": "Note"
           },
+          "notify": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NotifyRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "target_stage_code": {
             "title": "Target Stage Code",
             "type": "string"
@@ -23037,6 +23157,34 @@
           "current_stage_code": {
             "title": "Current Stage Code",
             "type": "string"
+          },
+          "emails_failed": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emails Failed"
+          },
+          "emails_sent": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emails Sent"
           },
           "ok": {
             "title": "Ok",
@@ -23116,6 +23264,31 @@
           "sending_domain"
         ],
         "title": "SetupBody",
+        "type": "object"
+      },
+      "ShareMessage": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "whatsapp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Url"
+          }
+        },
+        "required": [
+          "message",
+          "whatsapp_url"
+        ],
+        "title": "ShareMessage",
         "type": "object"
       },
       "SignedUrlResponse": {
@@ -24264,6 +24437,35 @@
           "available"
         ],
         "title": "StaffingStaffOut",
+        "type": "object"
+      },
+      "StageMailOptions": {
+        "properties": {
+          "canonical": {
+            "title": "Canonical",
+            "type": "boolean"
+          },
+          "customer": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Customer",
+            "type": "array"
+          },
+          "hotel": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Hotel",
+            "type": "array"
+          }
+        },
+        "required": [
+          "canonical",
+          "customer",
+          "hotel"
+        ],
+        "title": "StageMailOptions",
         "type": "object"
       },
       "StagingActivityIn": {
@@ -38108,6 +38310,76 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
+      "get": {
+        "operationId": "email_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "payment_link",
+                "confirmation",
+                "cancellation"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Email Preview",
+        "tags": [
+          "staff-bookings-customer-messages"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
       "get": {
         "operationId": "staff_get_booking_group",
@@ -39389,6 +39661,62 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
+      "post": {
+        "operationId": "payment_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentLinkShare"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Payment Link",
+        "tags": [
+          "staff-bookings-customer-messages"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
       "post": {
         "operationId": "refund_payment",
@@ -39945,6 +40273,62 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-payment-link": {
+      "post": {
+        "operationId": "send_payment_link_now",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendPaymentLinkResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Payment Link Now",
+        "tags": [
+          "staff-bookings-customer-messages"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/set-stage": {
       "post": {
         "operationId": "set_stage",
@@ -40006,6 +40390,141 @@
           }
         ],
         "summary": "Set Stage",
+        "tags": [
+          "staff-bookings-set-stage"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/share-message": {
+      "get": {
+        "operationId": "share_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "confirmation",
+                "cancellation"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareMessage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Share Message",
+        "tags": [
+          "staff-bookings-customer-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/stage-mail-options": {
+      "get": {
+        "description": "Which mails a move to ``target_stage_code`` can send (landr-zd39u.1).\n\n``canonical`` says whether the move is the normal next step (the dashboard\npre-ticks the boxes on a canonical move, leaves them unticked on a forced\none). The lists name exactly the mails that apply to THIS booking \u2014 see\n``booking_customer_messages.stage_mail_options``.",
+        "operationId": "get_stage_mail_options",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_stage_code",
+            "required": true,
+            "schema": {
+              "title": "Target Stage Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StageMailOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Stage Mail Options",
         "tags": [
           "staff-bookings-set-stage"
         ]
