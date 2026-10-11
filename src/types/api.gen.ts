@@ -992,6 +992,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/landr-staff/operators/{operator_id}/send-password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Landr Staff Send Password Reset
+         * @description landr-qzqcy.1: mint ONE recovery link for the operator's owner and email
+         *     it as a Landr system email. EMAIL ONLY (security): the link is never
+         *     returned, logged or written to the audit row — staff never hold a login link.
+         *
+         *     ``reset_password_for_email`` is deliberately NOT called as well: a second
+         *     recovery token would invalidate the link we email.
+         */
+        post: operations["landr_staff_send_password_reset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/landr-staff/operators/{operator_id}/suspend": {
         parameters: {
             query?: never;
@@ -22166,6 +22191,39 @@ export interface operations {
         };
     };
     landr_staff_restore_operator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landr_staff_send_password_reset: {
         parameters: {
             query?: never;
             header?: never;
