@@ -30534,6 +30534,56 @@
         ]
       }
     },
+    "/api/landr-staff/operators/{operator_id}/send-password-reset": {
+      "post": {
+        "description": "landr-qzqcy.1: mint ONE recovery link for the operator's owner and email\nit as a Landr system email. EMAIL ONLY (security): the link is never\nreturned, logged or written to the audit row \u2014 staff never hold a login link.\n\n``reset_password_for_email`` is deliberately NOT called as well: a second\nrecovery token would invalidate the link we email.",
+        "operationId": "landr_staff_send_password_reset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Landr Staff Send Password Reset",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Landr Staff Send Password Reset",
+        "tags": [
+          "landr-staff-operators"
+        ]
+      }
+    },
     "/api/landr-staff/operators/{operator_id}/suspend": {
       "post": {
         "operationId": "landr_staff_suspend_operator",
