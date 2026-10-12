@@ -45,6 +45,18 @@ import type {
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
+import {
+  PERSON_ANSWERS_DRAFT_KEY,
+  bookingFields as selectBookingFields,
+  buildFormPeople,
+  buildPersonPayload,
+  fieldsForKind,
+  personVisibilityAnswers,
+  pruneToPeople,
+  readPersonAnswers,
+  type FormPerson,
+  type FormPersonSource,
+} from './formScopes'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -86,6 +98,15 @@ export interface CustomFormStepProps {
    * fetch didn't have; only a genuinely absent prop triggers the fallback.
    */
   flow?: ProductFlowResponse | null
+  /**
+   * landr-9d82r.4: the people on the booking, from DetailsStep (the same
+   * lists the submit body's `participants[]` / `companions[]` are built from,
+   * in the same order). Participant- and guest-scope fields are asked once per
+   * person, grouped under each person's name. Optional: absent / empty →
+   * booking-scope fields only, identical to the pre-9d82r.4 step.
+   */
+  participants?: readonly FormPersonSource[]
+  companions?: readonly FormPersonSource[]
   /**
    * landr-n6ii3: current value of the "Anything we should know?" comment,
    * read straight off App.tsx's bookingDraft.customerComment. Optional
@@ -187,6 +208,11 @@ function validateField(
       }
     }
 
+    // landr-9d82r.4: date fields carry "YYYY-MM-DD" (the native control's value).
+    if (field.field_type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
+      return `${label} must be a valid date.`
+    }
+
     // min / max (number fields)
     if (field.field_type === 'number') {
       const num = Number(rawVal)
@@ -244,6 +270,9 @@ function normaliseInitial(
   if (!initial) return {}
   const out: AnswerMap = {}
   for (const [k, v] of Object.entries(initial)) {
+    // landr-9d82r.4: the per-person answers ride in this slot under a reserved
+    // key (see readPersonAnswers) — they are not a booking-level field.
+    if (k === PERSON_ANSWERS_DRAFT_KEY) continue
     if (Array.isArray(v)) {
       out[k] = v.map(String)
     } else if (v !== null && v !== undefined) {
@@ -262,6 +291,13 @@ interface FieldRendererProps {
   locale: string
   /** landr-5aih0.17: widget-chrome locale (the "unsupported field type" fallback is a dev/config diagnostic, not operator content — it follows the customer's resolved locale like every other chrome string, not the English-pinned `locale` above). */
   uiLocale?: string
+  /**
+   * landr-9d82r.4: DOM id / data-testid / radio-group prefix. `cf` for the
+   * booking-level form (byte-identical to before); `cf-participant-0` etc.
+   * for a per-person copy, so the same field rendered once per person never
+   * collides on ids, labels or radio `name`s.
+   */
+  idPrefix?: string
   onChange: (key: string, value: string | string[]) => void
 }
 
@@ -271,6 +307,7 @@ function FieldRenderer({
   error,
   locale,
   uiLocale,
+  idPrefix = 'cf',
   onChange,
 }: FieldRendererProps) {
   const { tokens } = useVariant()
@@ -286,14 +323,14 @@ function FieldRenderer({
   const renderSingleSelectChips = () => {
     const val = (answers[field.key] as string | undefined) ?? ''
     return (
-      <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
+      <div className="flex flex-col gap-2" data-testid={`${idPrefix}-field-${field.key}`}>
         {(field.options ?? []).map((opt) => {
           const optLabel = pickLocalized(opt.label, opt.label_localized, locale)
           const checked = val === opt.value
           return (
             <div
               key={opt.value}
-              data-testid={`cf-option-${field.key}-${opt.value}`}
+              data-testid={`${idPrefix}-option-${field.key}-${opt.value}`}
               className={cn(
                 'flex cursor-pointer items-center gap-3 border p-3 transition-[background-color,border-color]',
                 tokens.optionCardRadius,
@@ -304,17 +341,17 @@ function FieldRenderer({
               onClick={() => onChange(field.key, opt.value)}
             >
               <input
-                id={`cf-${field.key}-${opt.value}`}
+                id={`${idPrefix}-${field.key}-${opt.value}`}
                 type="radio"
-                name={`cf-${field.key}`}
+                name={`${idPrefix}-${field.key}`}
                 value={opt.value}
                 checked={checked}
                 onChange={() => onChange(field.key, opt.value)}
-                data-testid={`cf-radio-${field.key}-${opt.value}`}
+                data-testid={`${idPrefix}-radio-${field.key}-${opt.value}`}
                 className="accent-primary"
               />
               <Label
-                htmlFor={`cf-${field.key}-${opt.value}`}
+                htmlFor={`${idPrefix}-${field.key}-${opt.value}`}
                 className="text-sm leading-snug cursor-pointer"
               >
                 {optLabel}
@@ -332,11 +369,11 @@ function FieldRenderer({
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
           <input
-            id={`cf-${field.key}`}
+            id={`${idPrefix}-${field.key}`}
             type="text"
             value={val}
             onChange={(e) => onChange(field.key, e.target.value)}
-            data-testid={`cf-field-${field.key}`}
+            data-testid={`${idPrefix}-field-${field.key}`}
             className={inputClassName}
           />
         )
@@ -346,11 +383,11 @@ function FieldRenderer({
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
           <textarea
-            id={`cf-${field.key}`}
+            id={`${idPrefix}-${field.key}`}
             value={val}
             rows={3}
             onChange={(e) => onChange(field.key, e.target.value)}
-            data-testid={`cf-field-${field.key}`}
+            data-testid={`${idPrefix}-field-${field.key}`}
             className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         )
@@ -359,15 +396,47 @@ function FieldRenderer({
       case 'number': {
         const val = (answers[field.key] as string | undefined) ?? ''
         const v = field.validation
-        return (
+        // landr-9d82r.4: optional unit suffix ("kg") — presentation only, the
+        // answer stays the bare number string.
+        const unit =
+          typeof v?.unit === 'string' && v.unit.trim() ? v.unit.trim() : null
+        const input = (
           <input
-            id={`cf-${field.key}`}
+            id={`${idPrefix}-${field.key}`}
             type="number"
             value={val}
             min={typeof v?.min === 'number' ? v.min : undefined}
             max={typeof v?.max === 'number' ? v.max : undefined}
             onChange={(e) => onChange(field.key, e.target.value)}
-            data-testid={`cf-field-${field.key}`}
+            data-testid={`${idPrefix}-field-${field.key}`}
+            className={unit ? cn(inputClassName, 'flex-1') : inputClassName}
+          />
+        )
+        if (!unit) return input
+        return (
+          <div className="flex items-center gap-2">
+            {input}
+            <span
+              className="text-sm text-muted-foreground"
+              data-testid={`${idPrefix}-unit-${field.key}`}
+            >
+              {unit}
+            </span>
+          </div>
+        )
+      }
+
+      // landr-9d82r.4: calendar date. The native control emits "YYYY-MM-DD"
+      // (or "" when cleared), which is exactly the wire format.
+      case 'date': {
+        const val = (answers[field.key] as string | undefined) ?? ''
+        return (
+          <input
+            id={`${idPrefix}-${field.key}`}
+            type="date"
+            value={val}
+            onChange={(e) => onChange(field.key, e.target.value)}
+            data-testid={`${idPrefix}-field-${field.key}`}
             className={inputClassName}
           />
         )
@@ -377,10 +446,10 @@ function FieldRenderer({
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
           <select
-            id={`cf-${field.key}`}
+            id={`${idPrefix}-${field.key}`}
             value={val}
             onChange={(e) => onChange(field.key, e.target.value)}
-            data-testid={`cf-field-${field.key}`}
+            data-testid={`${idPrefix}-field-${field.key}`}
             className={inputClassName}
           >
             <option value="">{tr('selectPlaceholder', browserLocale())}</option>
@@ -425,11 +494,11 @@ function FieldRenderer({
         const val = (answers[field.key] as string | undefined) ?? ''
         return (
           <input
-            id={`cf-${field.key}`}
+            id={`${idPrefix}-${field.key}`}
             type="text"
             value={val}
             onChange={(e) => onChange(field.key, e.target.value)}
-            data-testid={`cf-field-${field.key}`}
+            data-testid={`${idPrefix}-field-${field.key}`}
             className={inputClassName}
           />
         )
@@ -445,14 +514,14 @@ function FieldRenderer({
           onChange(field.key, next)
         }
         return (
-          <div className="flex flex-col gap-2" data-testid={`cf-field-${field.key}`}>
+          <div className="flex flex-col gap-2" data-testid={`${idPrefix}-field-${field.key}`}>
             {(field.options ?? []).map((opt) => {
               const optLabel = pickLocalized(opt.label, opt.label_localized, locale)
               const isChecked = selected.includes(opt.value)
               return (
                 <div
                   key={opt.value}
-                  data-testid={`cf-option-${field.key}-${opt.value}`}
+                  data-testid={`${idPrefix}-option-${field.key}-${opt.value}`}
                   className={cn(
                     'flex cursor-pointer items-start gap-3 border p-3 transition-[background-color,border-color]',
                     tokens.optionCardRadius,
@@ -469,14 +538,14 @@ function FieldRenderer({
                   }}
                 >
                   <Checkbox
-                    id={`cf-${field.key}-${opt.value}`}
+                    id={`${idPrefix}-${field.key}-${opt.value}`}
                     checked={isChecked}
                     onCheckedChange={() => toggle(opt.value)}
-                    data-testid={`cf-checkbox-${field.key}-${opt.value}`}
+                    data-testid={`${idPrefix}-checkbox-${field.key}-${opt.value}`}
                     className="mt-0.5"
                   />
                   <Label
-                    htmlFor={`cf-${field.key}-${opt.value}`}
+                    htmlFor={`${idPrefix}-${field.key}-${opt.value}`}
                     className="text-sm leading-snug cursor-pointer"
                   >
                     {optLabel}
@@ -490,7 +559,7 @@ function FieldRenderer({
 
       default:
         return (
-          <p className="text-xs text-muted-foreground" data-testid={`cf-field-${field.key}`}>
+          <p className="text-xs text-muted-foreground" data-testid={`${idPrefix}-field-${field.key}`}>
             {unsupportedFieldTypeLabel(field.field_type, uiLocale)}
           </p>
         )
@@ -499,7 +568,7 @@ function FieldRenderer({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={`cf-${field.key}`} className="text-sm font-medium">
+      <Label htmlFor={`${idPrefix}-${field.key}`} className="text-sm font-medium">
         {label}
         {field.required && <span className="ml-0.5 text-destructive">*</span>}
       </Label>
@@ -508,7 +577,7 @@ function FieldRenderer({
       ) : null}
       {renderInput()}
       {error ? (
-        <p className="text-xs text-destructive" data-testid={`cf-error-${field.key}`}>
+        <p className="text-xs text-destructive" data-testid={`${idPrefix}-error-${field.key}`}>
           {error}
         </p>
       ) : null}
@@ -534,6 +603,8 @@ export function CustomFormStep({
   productName,
   initialAnswers,
   flow,
+  participants,
+  companions,
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
@@ -601,11 +672,49 @@ export function CustomFormStep({
   const fetchError = resolvedFromProp ? resolvedFromProp.error : fetchedError
   const loading = resolvedFromProp ? false : fetchLoading
 
-  // Answers keyed by field key. Initialised from draft (back-nav restoration).
+  // Answers keyed by field key — BOOKING-scope fields only. Initialised from
+  // draft (back-nav restoration).
   const [answers, setAnswers] = useState<AnswerMap>(() =>
     normaliseInitial(initialAnswers),
   )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // landr-9d82r.4: per-person answers (participant- and guest-scope fields),
+  // keyed by the person's stable identity (FormPerson.key), so a roster edit
+  // in Details can't hand one person another person's answers.
+  const [personAnswers, setPersonAnswers] = useState<Record<string, AnswerMap>>(
+    () => readPersonAnswers(initialAnswers),
+  )
+  const [personErrors, setPersonErrors] = useState<
+    Record<string, Record<string, string>>
+  >({})
+
+  const people: FormPerson[] = useMemo(
+    () =>
+      buildFormPeople(
+        participants ?? [],
+        companions ?? [],
+        tr('formPersonFallbackName', uiLocale),
+      ),
+    [participants, companions, uiLocale],
+  )
+  const allFields = useMemo(() => formDef?.fields ?? [], [formDef])
+  const bookingScopeFields = useMemo(() => selectBookingFields(allFields), [allFields])
+  // Booking answers as the server will see them: hidden booking fields pruned.
+  const prunedBooking = useMemo(
+    () => pruneHiddenAnswers(bookingScopeFields, answers),
+    [bookingScopeFields, answers],
+  )
+  // The fields each person answers, with that person's visibility answers.
+  const personFields = useCallback(
+    (person: FormPerson) => fieldsForKind(allFields, person.kind),
+    [allFields],
+  )
+  const personEvalAnswers = useCallback(
+    (person: FormPerson): AnswerMap =>
+      personVisibilityAnswers(prunedBooking, personAnswers[person.key]),
+    [prunedBooking, personAnswers],
+  )
 
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
@@ -618,27 +727,69 @@ export function CustomFormStep({
     })
   }, [])
 
+  const handlePersonChange = useCallback(
+    (personKey: string, key: string, value: string | string[]) => {
+      setPersonAnswers((prev) => ({
+        ...prev,
+        [personKey]: { ...(prev[personKey] ?? {}), [key]: value },
+      }))
+      setPersonErrors((prev) => {
+        if (!prev[personKey]?.[key]) return prev
+        const forPerson = { ...prev[personKey] }
+        delete forPerson[key]
+        return { ...prev, [personKey]: forPerson }
+      })
+    },
+    [],
+  )
+
   const handleSubmit = () => {
     if (!formDef) return
 
-    // Validate all visible fields.
+    // Validate all visible booking-level fields.
     const errors: Record<string, string> = {}
-    for (const field of formDef.fields) {
+    for (const field of bookingScopeFields) {
       const err = validateField(field, answers, locale)
       if (err) errors[field.key] = err
     }
+    // landr-9d82r.4: and every visible field of every person.
+    const nextPersonErrors: Record<string, Record<string, string>> = {}
+    for (const person of people) {
+      const evalAnswers = personEvalAnswers(person)
+      for (const field of personFields(person)) {
+        const err = validateField(field, evalAnswers, locale)
+        if (err) {
+          nextPersonErrors[person.key] = {
+            ...(nextPersonErrors[person.key] ?? {}),
+            [field.key]: err,
+          }
+        }
+      }
+    }
     setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
+    setPersonErrors(nextPersonErrors)
+    if (
+      Object.keys(errors).length > 0 ||
+      Object.keys(nextPersonErrors).length > 0
+    ) {
+      return
+    }
 
-    // Prune hidden fields then build the FormResponseEntry.
-    const pruned = pruneHiddenAnswers(formDef.fields, answers)
+    // Prune hidden fields then build the FormResponseEntry. Person-level keys
+    // are only added when the form has person-scope fields (a booking-only
+    // form submits exactly what it always did).
+    const livePersonAnswers = pruneToPeople(personAnswers, people)
     const entry: FormResponseEntry = {
       form_key: formDef.key,
-      answers: pruned,
+      answers: prunedBooking,
+      ...buildPersonPayload(allFields, prunedBooking, people, livePersonAnswers),
     }
 
     // Pass raw answers (includes hidden field state) for draft persistence.
     const rawForDraft: Record<string, unknown> = { ...answers }
+    if (Object.keys(livePersonAnswers).length > 0) {
+      rawForDraft[PERSON_ANSWERS_DRAFT_KEY] = livePersonAnswers
+    }
     onConfirm(entry, rawForDraft)
   }
 
@@ -646,19 +797,52 @@ export function CustomFormStep({
   // validation: required-when-visible (e.g. all declaration checkboxes ticked,
   // ≥1 language picked) plus type/option/format rules. Optional fields left
   // blank produce no error, so they don't block. Derived (no setState) so it
-  // updates live as the customer fills the form.
+  // updates live as the customer fills the form. landr-9d82r.4: includes every
+  // person's fields, so a newly added person with a required answer missing
+  // blocks Next.
   const isFormComplete = useMemo(() => {
     if (!formDef) return false
-    return formDef.fields.every(
+    const bookingOk = bookingScopeFields.every(
       (field) =>
         !isFieldVisible(field, answers) ||
         validateField(field, answers, locale) === null,
     )
-  }, [formDef, answers, locale])
+    if (!bookingOk) return false
+    return people.every((person) => {
+      const evalAnswers = personVisibilityAnswers(
+        prunedBooking,
+        personAnswers[person.key],
+      )
+      return fieldsForKind(allFields, person.kind).every(
+        (field) => validateField(field, evalAnswers, locale) === null,
+      )
+    })
+  }, [
+    formDef,
+    bookingScopeFields,
+    allFields,
+    answers,
+    locale,
+    people,
+    prunedBooking,
+    personAnswers,
+  ])
 
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
   // (no useEffect with setState, which would cause cascading renders).
+
+  // landr-9d82r.4: only people with at least one visible field get a section.
+  const personSections = people
+    .map((person) => {
+      const evalAnswers = personEvalAnswers(person)
+      return {
+        person,
+        evalAnswers,
+        visible: personFields(person).filter((f) => isFieldVisible(f, evalAnswers)),
+      }
+    })
+    .filter((sec) => sec.visible.length > 0)
 
   const formTitle =
     formDef
@@ -682,25 +866,81 @@ export function CustomFormStep({
             {fetchError}
           </p>
         ) : formDef ? (
-          formDef.fields.map((field) => {
-            if (!isFieldVisible(field, answers)) return null
-            // landr-80ubl.3: every OTHER operator-authored field (required or
-            // not) stays visible — unlike the widget's own optional extras,
-            // each one was deliberately added to the flow by the operator, so
-            // collapsing it behind "+ Add …" would hide a configured question
-            // rather than tidy up an incidental one.
-            return (
-              <FieldRenderer
-                key={field.key}
-                field={field}
-                answers={answers}
-                error={fieldErrors[field.key] ?? null}
-                locale={locale}
-                uiLocale={uiLocale}
-                onChange={handleChange}
-              />
-            )
-          })
+          <>
+            {bookingScopeFields.map((field) => {
+              if (!isFieldVisible(field, answers)) return null
+              // landr-80ubl.3: every OTHER operator-authored field (required or
+              // not) stays visible — unlike the widget's own optional extras,
+              // each one was deliberately added to the flow by the operator, so
+              // collapsing it behind "+ Add …" would hide a configured question
+              // rather than tidy up an incidental one.
+              return (
+                <FieldRenderer
+                  key={field.key}
+                  field={field}
+                  answers={answers}
+                  error={fieldErrors[field.key] ?? null}
+                  locale={locale}
+                  uiLocale={uiLocale}
+                  onChange={handleChange}
+                />
+              )
+            })}
+            {/* landr-9d82r.4: participant-/guest-scope fields, once per
+                person, grouped under that person's name. A person with no
+                visible field gets no section. */}
+            {personSections.length > 0 ? (
+              <p
+                className="text-xs text-muted-foreground"
+                data-testid="cf-person-hint"
+              >
+                {tr('formPersonSectionHint', uiLocale)}
+              </p>
+            ) : null}
+            {personSections.map(({ person, evalAnswers, visible }) => {
+              const prefix = `cf-${person.kind}-${person.index}`
+              return (
+                <section
+                  key={person.key}
+                  data-testid={prefix}
+                  aria-labelledby={`${prefix}-name`}
+                  className="flex flex-col gap-4 rounded-md border border-border bg-surface-raised p-4"
+                >
+                  <header className="flex flex-col gap-0.5">
+                    <h3
+                      id={`${prefix}-name`}
+                      className="text-sm font-semibold"
+                      data-testid={`${prefix}-name`}
+                    >
+                      {person.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {tr(
+                        person.kind === 'participant'
+                          ? 'formPersonParticipantTag'
+                          : 'formPersonGuestTag',
+                        uiLocale,
+                      )}
+                    </p>
+                  </header>
+                  {visible.map((field) => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      answers={evalAnswers}
+                      error={personErrors[person.key]?.[field.key] ?? null}
+                      locale={locale}
+                      uiLocale={uiLocale}
+                      idPrefix={prefix}
+                      onChange={(key, value) =>
+                        handlePersonChange(person.key, key, value)
+                      }
+                    />
+                  ))}
+                </section>
+              )
+            })}
+          </>
         ) : null}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —

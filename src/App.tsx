@@ -2726,6 +2726,9 @@ function BookingFlowApp() {
         {/* landr-71kz.4: operator-configured custom form step. */}
         {step.name === 'custom-form' ? (
           <CustomFormStep
+            // landr-9d82r.4: one form's answers/errors must never leak into the
+            // next form of a chained series (the instance is otherwise reused).
+            key={step.formKey}
             operatorToken={token!}
             productId={step.product.product_id}
             formKey={step.formKey}
@@ -2737,6 +2740,10 @@ function BookingFlowApp() {
             // CustomFormStepProps.flow's doc for the forward-dead-end bug
             // this closes.
             flow={resolvedFlowForProduct(step.product.product_id)}
+            // landr-9d82r.4: participant-/guest-scope fields are asked once per
+            // person — the same lists (and order) the submit body is built from.
+            participants={step.participants}
+            companions={step.companions}
             // landr-n6ii3: editable "Anything we should know?" field on
             // every step from details onward — reads/writes the draft
             // directly, live, on every keystroke.

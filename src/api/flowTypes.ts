@@ -25,6 +25,13 @@ export interface FlowFieldValidation {
   max_length?: number | null
   /** Full-match regex (fail-open when uncompilable). */
   pattern?: string | null
+  /**
+   * landr-9d82r.4: display unit for a `number` field (e.g. "kg"), rendered as
+   * a suffix beside the input. Presentation only — the answer stays the bare
+   * number string. Free jsonb server-side: anything but a non-empty string is
+   * ignored.
+   */
+  unit?: string | null
 }
 
 /** op enum for a visibility rule (contract-pinned). */
@@ -50,6 +57,16 @@ export type FlowFieldType =
   | 'checkbox'
   | 'multiselect'
   | 'language'
+  /** landr-9d82r.4: calendar date; the answer is "YYYY-MM-DD". */
+  | 'date'
+
+/**
+ * landr-9d82r.4: who answers a field. `booking` = once per booking (today's
+ * behaviour, also the default when the API omits it); `participant` = once per
+ * activity participant; `guest` = once per person on the booking
+ * (participants + companions).
+ */
+export type FlowFieldScope = 'booking' | 'participant' | 'guest'
 
 /** One field definition from the form RPC (verbatim wire keys). */
 export interface FlowFieldDef {
@@ -64,6 +81,10 @@ export interface FlowFieldDef {
   options: FlowFieldOption[] | null
   validation: FlowFieldValidation | null
   visibility_rule: VisibilityRule | null
+  /** landr-9d82r.4: absent (older API) = `booking`. */
+  scope?: FlowFieldScope
+  /** landr-9d82r.4: staff/hotel concern only — the widget never reads it. */
+  share_with_accommodation?: boolean
 }
 
 /** One form embedded in a custom_form flow module. */
@@ -96,4 +117,13 @@ export interface FormResponseEntry {
   form_key: string
   /** Answers keyed by field_key. Scalar fields → string; multivalue → string[]. */
   answers: Record<string, string | string[]>
+  /**
+   * landr-9d82r.4: per-person answers for participant- and guest-scope fields
+   * (landr-api PR #1027 contract). `participant_answers[i]` belongs to
+   * `participants[i]` (participant + guest keys); `companion_answers[j]` to
+   * `companions[j]` (guest keys only). Omitted entirely when the form has no
+   * person-scope field, so a booking-only form submits byte-identically.
+   */
+  participant_answers?: Record<string, string | string[]>[]
+  companion_answers?: Record<string, string | string[]>[]
 }
