@@ -3564,16 +3564,6 @@
       "CancellationNoticesIn": {
         "description": "Which parties the after-the-fact \"Send cancellation mail\" reaches.",
         "properties": {
-          "email_override": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EmailOverrideIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "notify_accommodation": {
             "default": true,
             "title": "Notify Accommodation",
@@ -6192,87 +6182,6 @@
         "title": "EmailCollisionOut",
         "type": "object"
       },
-      "EmailOverrideIn": {
-        "description": "Staff edits to the customer mail. Every field optional; blank = unchanged.",
-        "properties": {
-          "body_html": {
-            "anyOf": [
-              {
-                "maxLength": 1000000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body Html"
-          },
-          "body_text": {
-            "anyOf": [
-              {
-                "maxLength": 500000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body Text"
-          },
-          "subject": {
-            "anyOf": [
-              {
-                "maxLength": 998,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subject"
-          },
-          "to_address": {
-            "anyOf": [
-              {
-                "maxLength": 320,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To Address"
-          }
-        },
-        "title": "EmailOverrideIn",
-        "type": "object"
-      },
-      "EmailPreview": {
-        "properties": {
-          "html": {
-            "title": "Html",
-            "type": "string"
-          },
-          "subject": {
-            "title": "Subject",
-            "type": "string"
-          },
-          "to": {
-            "items": {
-              "type": "string"
-            },
-            "title": "To",
-            "type": "array"
-          }
-        },
-        "required": [
-          "subject",
-          "html",
-          "to"
-        ],
-        "title": "EmailPreview",
-        "type": "object"
-      },
       "EmailSenderStatus": {
         "properties": {
           "configured": {
@@ -6380,47 +6289,6 @@
           "configured"
         ],
         "title": "EmailSenderStatus",
-        "type": "object"
-      },
-      "EmailTemplateDraftPreviewIn": {
-        "description": "An UNSAVED template draft to render (landr-j6clr.1).",
-        "properties": {
-          "body_html": {
-            "default": "",
-            "maxLength": 1000000,
-            "title": "Body Html",
-            "type": "string"
-          },
-          "body_text": {
-            "default": "",
-            "maxLength": 500000,
-            "title": "Body Text",
-            "type": "string"
-          },
-          "locale": {
-            "maxLength": 10,
-            "minLength": 1,
-            "title": "Locale",
-            "type": "string"
-          },
-          "subject": {
-            "default": "",
-            "maxLength": 2000,
-            "title": "Subject",
-            "type": "string"
-          },
-          "template_kind": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Template Kind",
-            "type": "string"
-          }
-        },
-        "required": [
-          "template_kind",
-          "locale"
-        ],
-        "title": "EmailTemplateDraftPreviewIn",
         "type": "object"
       },
       "EmailTemplateIn": {
@@ -11478,20 +11346,6 @@
         "title": "NotifyMentionsOut",
         "type": "object"
       },
-      "NotifyRequest": {
-        "description": "landr-zd39u.1 \u2014 the mails the operator ticked for this stage move.\n\n``kinds`` must each be one of ``stage-mail-options`` for the target stage\n(else 422 before any write). An empty list means \"send nothing\".",
-        "properties": {
-          "kinds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Kinds",
-            "type": "array"
-          }
-        },
-        "title": "NotifyRequest",
-        "type": "object"
-      },
       "NumberingSeriesItem": {
         "description": "One GET /api/v2/numbering-series/invoice entry, projected to the\nfields the picker needs. Fields Holded omits come back None rather than\nraising \u2014 the exact wire shape is unverified against a real account\n(epic landr-g1ao.13); ``id`` is the one field we require, dropping any\nitem Holded returns without one.",
         "properties": {
@@ -13919,58 +13773,6 @@
           "moscow"
         ],
         "title": "PatchMoscowOut",
-        "type": "object"
-      },
-      "PaymentLinkShare": {
-        "properties": {
-          "amount": {
-            "title": "Amount",
-            "type": "string"
-          },
-          "currency": {
-            "title": "Currency",
-            "type": "string"
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          },
-          "whatsapp_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Whatsapp Url"
-          }
-        },
-        "required": [
-          "url",
-          "expires_at",
-          "amount",
-          "currency",
-          "message",
-          "whatsapp_url"
-        ],
-        "title": "PaymentLinkShare",
         "type": "object"
       },
       "PendingDecisionDetail": {
@@ -22940,41 +22742,6 @@
         "title": "SendMessageRequest",
         "type": "object"
       },
-      "SendPaymentLinkResult": {
-        "properties": {
-          "email_id": {
-            "title": "Email Id",
-            "type": "string"
-          },
-          "sent": {
-            "title": "Sent",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "sent",
-          "email_id"
-        ],
-        "title": "SendPaymentLinkResult",
-        "type": "object"
-      },
-      "SendWithOverrideBody": {
-        "description": "Optional request body of the booking send endpoints.",
-        "properties": {
-          "email_override": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EmailOverrideIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "title": "SendWithOverrideBody",
-        "type": "object"
-      },
       "ServiceRoleIn": {
         "description": "Create payload for a new service role.",
         "properties": {
@@ -23243,16 +23010,6 @@
             ],
             "title": "Note"
           },
-          "notify": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/NotifyRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "target_stage_code": {
             "title": "Target Stage Code",
             "type": "string"
@@ -23280,34 +23037,6 @@
           "current_stage_code": {
             "title": "Current Stage Code",
             "type": "string"
-          },
-          "emails_failed": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emails Failed"
-          },
-          "emails_sent": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emails Sent"
           },
           "ok": {
             "title": "Ok",
@@ -23387,42 +23116,6 @@
           "sending_domain"
         ],
         "title": "SetupBody",
-        "type": "object"
-      },
-      "ShareMessage": {
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
-          "whatsapp_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Whatsapp Url"
-          }
-        },
-        "required": [
-          "message",
-          "whatsapp_url"
-        ],
-        "title": "ShareMessage",
         "type": "object"
       },
       "SignedUrlResponse": {
@@ -24571,35 +24264,6 @@
           "available"
         ],
         "title": "StaffingStaffOut",
-        "type": "object"
-      },
-      "StageMailOptions": {
-        "properties": {
-          "canonical": {
-            "title": "Canonical",
-            "type": "boolean"
-          },
-          "customer": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Customer",
-            "type": "array"
-          },
-          "hotel": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Hotel",
-            "type": "array"
-          }
-        },
-        "required": [
-          "canonical",
-          "customer",
-          "hotel"
-        ],
-        "title": "StageMailOptions",
         "type": "object"
       },
       "StagingActivityIn": {
@@ -30534,56 +30198,6 @@
         ]
       }
     },
-    "/api/landr-staff/operators/{operator_id}/send-password-reset": {
-      "post": {
-        "description": "landr-qzqcy.1: mint ONE recovery link for the operator's owner and email\nit as a Landr system email. EMAIL ONLY (security): the link is never\nreturned, logged or written to the audit row \u2014 staff never hold a login link.\n\n``reset_password_for_email`` is deliberately NOT called as well: a second\nrecovery token would invalidate the link we email.",
-        "operationId": "landr_staff_send_password_reset",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Landr Staff Send Password Reset",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Landr Staff Send Password Reset",
-        "tags": [
-          "landr-staff-operators"
-        ]
-      }
-    },
     "/api/landr-staff/operators/{operator_id}/suspend": {
       "post": {
         "operationId": "landr_staff_suspend_operator",
@@ -34230,7 +33844,7 @@
     },
     "/api/public/operators/{token}/account-link": {
       "post": {
-        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it as a fixed Landr system email (``account_link``\ntemplate, SES \u2192 Resend) \u2014 never through the tenant-readable outbox. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
+        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it through the operator's configured sending domain\n(or platform fallback) with our branded ``account_link`` template \u2014 so it\nnever depends on a Supabase SMTP config. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
         "operationId": "request_account_link",
         "parameters": [
           {
@@ -36301,7 +35915,7 @@
     },
     "/api/staff/bookings/{booking_id}/cancellation-notices": {
       "post": {
-        "description": "(Re)send the cancellation mail for an already-cancelled booking.\n\nlandr-12j4p. The trash view's \"Send cancellation mail\": the operator\ndeleted silently (or wants to nudge again) and now mails the customer\nand/or the accommodation(s). Valid ONLY for a cancelled booking (soft-deleted, or in a\ncancelled-semantic stage \u2014 landr-zd39u.4) of the\ncaller's operator \u2014 a live booking is refused 409 so this can never be\nused to announce a cancellation that has not happened. Resends are\nallowed; nothing is deduplicated across calls.\n\nReuses the exact pieces DELETE uses: ``send_booking_cancelled`` with the\nneutral ``operator_decides`` refund line, and the accommodation notifier (answered\nasks included, partner/driver asks excluded \u2014 they were told at delete\ntime and are not part of this notice). Returns what was sent.",
+        "description": "(Re)send the cancellation mail for an already-deleted booking.\n\nlandr-12j4p. The trash view's \"Send cancellation mail\": the operator\ndeleted silently (or wants to nudge again) and now mails the customer\nand/or the accommodation(s). Valid ONLY for a soft-deleted booking of the\ncaller's operator \u2014 a live booking is refused 409 so this can never be\nused to announce a cancellation that has not happened. Resends are\nallowed; nothing is deduplicated across calls.\n\nReuses the exact pieces DELETE uses: ``send_booking_cancelled`` with the\nneutral ``operator_decides`` refund line, and the accommodation notifier (answered\nasks included, partner/driver asks excluded \u2014 they were told at delete\ntime and are not part of this notice). Returns what was sent.",
         "operationId": "send_cancellation_notices",
         "parameters": [
           {
@@ -38494,76 +38108,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
-      "get": {
-        "operationId": "email_preview",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "kind",
-            "required": true,
-            "schema": {
-              "enum": [
-                "payment_link",
-                "confirmation",
-                "cancellation"
-              ],
-              "title": "Kind",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailPreview"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Email Preview",
-        "tags": [
-          "staff-bookings-customer-messages"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
       "get": {
         "operationId": "staff_get_booking_group",
@@ -39845,62 +39389,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
-      "post": {
-        "operationId": "payment_link",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentLinkShare"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Payment Link",
-        "tags": [
-          "staff-bookings-customer-messages"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
       "post": {
         "operationId": "refund_payment",
@@ -40282,7 +39770,7 @@
     },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/resend-confirmation": {
       "post": {
-        "description": "Resend booking_confirmation with an old\u2192new diff if material fields changed.\n\n- Loads the current booking bundle.\n- Loads last_confirmation_context from the bookings row.\n- Diffs material fields.\n- Sends booking_confirmation with is_update=True + changes list (even when\n  no material changes \u2014 the operator explicitly requested a resend).\n- Persists the new context snapshot.\n- Returns {changes_detected, changes}.\n- Optional body ``{\"email_override\": {to_address?, subject?, body_html?,\n  body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after\n  render; the diff, snapshot and response are unchanged. No body = as before.",
+        "description": "Resend booking_confirmation with an old\u2192new diff if material fields changed.\n\n- Loads the current booking bundle.\n- Loads last_confirmation_context from the bookings row.\n- Diffs material fields.\n- Sends booking_confirmation with is_update=True + changes list (even when\n  no material changes \u2014 the operator explicitly requested a resend).\n- Persists the new context snapshot.\n- Returns {changes_detected, changes}.",
         "operationId": "resend_confirmation",
         "parameters": [
           {
@@ -40304,23 +39792,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/SendWithOverrideBody"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "content": {
@@ -40358,7 +39829,7 @@
     },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-confirmation": {
       "post": {
-        "description": "Send the first booking_confirmation to the customer.\n\n- Verifies the booking belongs to this operator.\n- Guards: only allowed when the booking is in/past the confirmed set (same\n  gate as resend, landr-tf39) AND no prior confirmation exists yet.\n  If a prior exists \u2192 409 {\"error\": \"already_confirmed\"} (use resend).\n  If the stage is not yet confirmed/due \u2192 409 {\"error\": \"confirmation_not_allowed_yet\"}.\n- Calls send_booking_confirmation(is_update=False, no extra_context) which\n  records the initial last_confirmation_context snapshot.\n- Returns {\"sent\": true, \"email_id\": \"<id or null>\"}.\n- Optional body ``{\"email_override\": {to_address?, subject?, body_html?,\n  body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after\n  render; every other side effect of the send is unchanged. No body = as before.",
+        "description": "Send the first booking_confirmation to the customer.\n\n- Verifies the booking belongs to this operator.\n- Guards: only allowed when the booking is in/past the confirmed set (same\n  gate as resend, landr-tf39) AND no prior confirmation exists yet.\n  If a prior exists \u2192 409 {\"error\": \"already_confirmed\"} (use resend).\n  If the stage is not yet confirmed/due \u2192 409 {\"error\": \"confirmation_not_allowed_yet\"}.\n- Calls send_booking_confirmation(is_update=False, no extra_context) which\n  records the initial last_confirmation_context snapshot.\n- Returns {\"sent\": true, \"email_id\": \"<id or null>\"}.",
         "operationId": "send_confirmation",
         "parameters": [
           {
@@ -40380,23 +39851,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/SendWithOverrideBody"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "content": {
@@ -40491,79 +39945,6 @@
         ]
       }
     },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-payment-link": {
-      "post": {
-        "operationId": "send_payment_link_now",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/SendWithOverrideBody"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendPaymentLinkResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Send Payment Link Now",
-        "tags": [
-          "staff-bookings-customer-messages"
-        ]
-      }
-    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/set-stage": {
       "post": {
         "operationId": "set_stage",
@@ -40625,141 +40006,6 @@
           }
         ],
         "summary": "Set Stage",
-        "tags": [
-          "staff-bookings-set-stage"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/share-message": {
-      "get": {
-        "operationId": "share_message",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "kind",
-            "required": true,
-            "schema": {
-              "enum": [
-                "confirmation",
-                "cancellation"
-              ],
-              "title": "Kind",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ShareMessage"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Share Message",
-        "tags": [
-          "staff-bookings-customer-messages"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/stage-mail-options": {
-      "get": {
-        "description": "Which mails a move to ``target_stage_code`` can send (landr-zd39u.1).\n\n``canonical`` says whether the move is the normal next step (the dashboard\npre-ticks the boxes on a canonical move, leaves them unticked on a forced\none). The lists name exactly the mails that apply to THIS booking \u2014 see\n``booking_customer_messages.stage_mail_options``.",
-        "operationId": "get_stage_mail_options",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "booking_id",
-            "required": true,
-            "schema": {
-              "title": "Booking Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "target_stage_code",
-            "required": true,
-            "schema": {
-              "title": "Target Stage Code",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StageMailOptions"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Stage Mail Options",
         "tags": [
           "staff-bookings-set-stage"
         ]
@@ -43173,66 +42419,6 @@
           }
         ],
         "summary": "Get Effective Template",
-        "tags": [
-          "staff-email-templates"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/email-templates/preview-draft": {
-      "post": {
-        "description": "Render an unsaved draft against the same sample context as the per-row\npreview (landr-j6clr.1). Works without a saved operator row \u2014 it also\npreviews the Landr default. NEVER writes.\n\nRequest: ``{template_kind, locale, subject, body_html}``.\nResponse (always 200)::\n\n    {\"subject\": \"...\", \"body_html\": \"...\", \"body_text\": \"...\",\n     \"render_error\": null | \"<message>\"}\n\n``body_text`` is auto-generated from the rendered HTML (as at send time).\nA render problem (undefined variable, Jinja syntax error, ...) comes back as\n``render_error`` with the unrendered draft text in the other fields.",
-        "operationId": "preview_template_draft",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EmailTemplateDraftPreviewIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Preview Template Draft",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Preview Template Draft",
         "tags": [
           "staff-email-templates"
         ]

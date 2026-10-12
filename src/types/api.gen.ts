@@ -992,31 +992,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/landr-staff/operators/{operator_id}/send-password-reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Landr Staff Send Password Reset
-         * @description landr-qzqcy.1: mint ONE recovery link for the operator's owner and email
-         *     it as a Landr system email. EMAIL ONLY (security): the link is never
-         *     returned, logged or written to the audit row — staff never hold a login link.
-         *
-         *     ``reset_password_for_email`` is deliberately NOT called as well: a second
-         *     recovery token would invalidate the link we email.
-         */
-        post: operations["landr_staff_send_password_reset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/landr-staff/operators/{operator_id}/suspend": {
         parameters: {
             query?: never;
@@ -2951,8 +2926,9 @@ export interface paths {
          *     'Track this booking in the LANDR app' prompt.
          *
          *     Mints a magic link via Supabase admin ``generate_link`` (Supabase sends
-         *     NO email) and delivers it as a fixed Landr system email (``account_link``
-         *     template, SES → Resend) — never through the tenant-readable outbox. Gated on the operator's
+         *     NO email) and delivers it through the operator's configured sending domain
+         *     (or platform fallback) with our branded ``account_link`` template — so it
+         *     never depends on a Supabase SMTP config. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
          */
@@ -3932,12 +3908,11 @@ export interface paths {
         put?: never;
         /**
          * Send Cancellation Notices
-         * @description (Re)send the cancellation mail for an already-cancelled booking.
+         * @description (Re)send the cancellation mail for an already-deleted booking.
          *
          *     landr-12j4p. The trash view's "Send cancellation mail": the operator
          *     deleted silently (or wants to nudge again) and now mails the customer
-         *     and/or the accommodation(s). Valid ONLY for a cancelled booking (soft-deleted, or in a
-         *     cancelled-semantic stage — landr-zd39u.4) of the
+         *     and/or the accommodation(s). Valid ONLY for a soft-deleted booking of the
          *     caller's operator — a live booking is refused 409 so this can never be
          *     used to announce a cancellation that has not happened. Resends are
          *     allowed; nothing is deduplicated across calls.
@@ -4645,23 +4620,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Email Preview */
-        get: operations["email_preview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
         parameters: {
             query?: never;
@@ -5096,23 +5054,6 @@ export interface paths {
         patch: operations["staff_patch_participant_language"];
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/payment-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Payment Link */
-        post: operations["payment_link"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/payments/{payment_id}/refund": {
         parameters: {
             query?: never;
@@ -5216,9 +5157,6 @@ export interface paths {
          *       no material changes — the operator explicitly requested a resend).
          *     - Persists the new context snapshot.
          *     - Returns {changes_detected, changes}.
-         *     - Optional body ``{"email_override": {to_address?, subject?, body_html?,
-         *       body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after
-         *       render; the diff, snapshot and response are unchanged. No body = as before.
          */
         post: operations["resend_confirmation"];
         delete?: never;
@@ -5248,9 +5186,6 @@ export interface paths {
          *     - Calls send_booking_confirmation(is_update=False, no extra_context) which
          *       records the initial last_confirmation_context snapshot.
          *     - Returns {"sent": true, "email_id": "<id or null>"}.
-         *     - Optional body ``{"email_override": {to_address?, subject?, body_html?,
-         *       body_text?}}`` (landr-j6clr.1) replaces the rendered customer mail after
-         *       render; every other side effect of the send is unchanged. No body = as before.
          */
         post: operations["send_confirmation"];
         delete?: never;
@@ -5282,23 +5217,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/send-payment-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send Payment Link Now */
-        post: operations["send_payment_link_now"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/set-stage": {
         parameters: {
             query?: never;
@@ -5310,48 +5228,6 @@ export interface paths {
         put?: never;
         /** Set Stage */
         post: operations["set_stage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/share-message": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Share Message */
-        get: operations["share_message"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/bookings/{booking_id}/stage-mail-options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Stage Mail Options
-         * @description Which mails a move to ``target_stage_code`` can send (landr-zd39u.1).
-         *
-         *     ``canonical`` says whether the move is the normal next step (the dashboard
-         *     pre-ticks the boxes on a canonical move, leaves them unticked on a forced
-         *     one). The lists name exactly the mails that apply to THIS booking — see
-         *     ``booking_customer_messages.stage_mail_options``.
-         */
-        get: operations["get_stage_mail_options"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5984,38 +5860,6 @@ export interface paths {
         get: operations["get_effective_template"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/email-templates/preview-draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Preview Template Draft
-         * @description Render an unsaved draft against the same sample context as the per-row
-         *     preview (landr-j6clr.1). Works without a saved operator row — it also
-         *     previews the Landr default. NEVER writes.
-         *
-         *     Request: ``{template_kind, locale, subject, body_html}``.
-         *     Response (always 200)::
-         *
-         *         {"subject": "...", "body_html": "...", "body_text": "...",
-         *          "render_error": null | "<message>"}
-         *
-         *     ``body_text`` is auto-generated from the rendered HTML (as at send time).
-         *     A render problem (undefined variable, Jinja syntax error, ...) comes back as
-         *     ``render_error`` with the unrendered draft text in the other fields.
-         */
-        post: operations["preview_template_draft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11932,7 +11776,6 @@ export interface components {
          * @description Which parties the after-the-fact "Send cancellation mail" reaches.
          */
         CancellationNoticesIn: {
-            email_override?: components["schemas"]["EmailOverrideIn"] | null;
             /**
              * Notify Accommodation
              * @default true
@@ -12877,29 +12720,6 @@ export interface components {
             /** Resolved At */
             resolved_at: string | null;
         };
-        /**
-         * EmailOverrideIn
-         * @description Staff edits to the customer mail. Every field optional; blank = unchanged.
-         */
-        EmailOverrideIn: {
-            /** Body Html */
-            body_html?: string | null;
-            /** Body Text */
-            body_text?: string | null;
-            /** Subject */
-            subject?: string | null;
-            /** To Address */
-            to_address?: string | null;
-        };
-        /** EmailPreview */
-        EmailPreview: {
-            /** Html */
-            html: string;
-            /** Subject */
-            subject: string;
-            /** To */
-            to: string[];
-        };
         /** EmailSenderStatus */
         EmailSenderStatus: {
             /**
@@ -12934,31 +12754,6 @@ export interface components {
              * @description unverified | pending | verified | failed.
              */
             verification_status?: string | null;
-        };
-        /**
-         * EmailTemplateDraftPreviewIn
-         * @description An UNSAVED template draft to render (landr-j6clr.1).
-         */
-        EmailTemplateDraftPreviewIn: {
-            /**
-             * Body Html
-             * @default
-             */
-            body_html: string;
-            /**
-             * Body Text
-             * @default
-             */
-            body_text: string;
-            /** Locale */
-            locale: string;
-            /**
-             * Subject
-             * @default
-             */
-            subject: string;
-            /** Template Kind */
-            template_kind: string;
         };
         /** EmailTemplateIn */
         EmailTemplateIn: {
@@ -14772,17 +14567,6 @@ export interface components {
             skipped: string[];
         };
         /**
-         * NotifyRequest
-         * @description landr-zd39u.1 — the mails the operator ticked for this stage move.
-         *
-         *     ``kinds`` must each be one of ``stage-mail-options`` for the target stage
-         *     (else 422 before any write). An empty list means "send nothing".
-         */
-        NotifyRequest: {
-            /** Kinds */
-            kinds?: string[];
-        };
-        /**
          * NumberingSeriesItem
          * @description One GET /api/v2/numbering-series/invoice entry, projected to the
          *     fields the picker needs. Fields Holded omits come back None rather than
@@ -15507,21 +15291,6 @@ export interface components {
             id: string;
             /** Moscow */
             moscow: string | null;
-        };
-        /** PaymentLinkShare */
-        PaymentLinkShare: {
-            /** Amount */
-            amount: string;
-            /** Currency */
-            currency: string;
-            /** Expires At */
-            expires_at: string | null;
-            /** Message */
-            message: string;
-            /** Url */
-            url: string;
-            /** Whatsapp Url */
-            whatsapp_url: string | null;
         };
         /**
          * PendingDecisionDetail
@@ -18676,20 +18445,6 @@ export interface components {
              */
             recipient_id: string;
         };
-        /** SendPaymentLinkResult */
-        SendPaymentLinkResult: {
-            /** Email Id */
-            email_id: string;
-            /** Sent */
-            sent: boolean;
-        };
-        /**
-         * SendWithOverrideBody
-         * @description Optional request body of the booking send endpoints.
-         */
-        SendWithOverrideBody: {
-            email_override?: components["schemas"]["EmailOverrideIn"] | null;
-        };
         /**
          * ServiceRoleIn
          * @description Create payload for a new service role.
@@ -18784,7 +18539,6 @@ export interface components {
             force: boolean;
             /** Note */
             note?: string | null;
-            notify?: components["schemas"]["NotifyRequest"] | null;
             /** Target Stage Code */
             target_stage_code: string;
         };
@@ -18796,10 +18550,6 @@ export interface components {
             capacity_warnings?: string[];
             /** Current Stage Code */
             current_stage_code: string;
-            /** Emails Failed */
-            emails_failed?: string[] | null;
-            /** Emails Sent */
-            emails_sent?: string[] | null;
             /** Ok */
             ok: boolean;
             /**
@@ -18831,15 +18581,6 @@ export interface components {
              * @description Root domain to send from, e.g. acme.com.
              */
             sending_domain: string;
-        };
-        /** ShareMessage */
-        ShareMessage: {
-            /** Message */
-            message: string;
-            /** Url */
-            url?: string | null;
-            /** Whatsapp Url */
-            whatsapp_url: string | null;
         };
         /** SignedUrlResponse */
         SignedUrlResponse: {
@@ -19266,15 +19007,6 @@ export interface components {
             resource_type_id: string;
             /** Unavailable Reason */
             unavailable_reason?: string | null;
-        };
-        /** StageMailOptions */
-        StageMailOptions: {
-            /** Canonical */
-            canonical: boolean;
-            /** Customer */
-            customer: string[];
-            /** Hotel */
-            hotel: string[];
         };
         /**
          * StagingActivityIn
@@ -22190,39 +21922,6 @@ export interface operations {
         };
     };
     landr_staff_restore_operator: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    landr_staff_send_password_reset: {
         parameters: {
             query?: never;
             header?: never;
@@ -27233,40 +26932,6 @@ export interface operations {
             };
         };
     };
-    email_preview: {
-        parameters: {
-            query: {
-                kind: "payment_link" | "confirmation" | "cancellation";
-            };
-            header?: never;
-            path: {
-                booking_id: string;
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailPreview"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     staff_get_booking_group: {
         parameters: {
             query?: never;
@@ -27918,38 +27583,6 @@ export interface operations {
             };
         };
     };
-    payment_link: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaymentLinkShare"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     refund_payment: {
         parameters: {
             query?: never;
@@ -28169,11 +27802,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -28207,11 +27836,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -28269,42 +27894,6 @@ export interface operations {
             };
         };
     };
-    send_payment_link_now: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                booking_id: string;
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SendPaymentLinkResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     set_stage: {
         parameters: {
             query?: never;
@@ -28328,74 +27917,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetStageResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    share_message: {
-        parameters: {
-            query: {
-                kind: "confirmation" | "cancellation";
-            };
-            header?: never;
-            path: {
-                booking_id: string;
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ShareMessage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_stage_mail_options: {
-        parameters: {
-            query: {
-                target_stage_code: string;
-            };
-            header?: never;
-            path: {
-                operator_id: string;
-                booking_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StageMailOptions"];
                 };
             };
             /** @description Validation Error */
@@ -29651,43 +29172,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_template_draft: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmailTemplateDraftPreviewIn"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {
