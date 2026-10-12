@@ -4662,6 +4662,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/form-answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Form Answers
+         * @description The booking's custom-form answers: ``booking`` (asked once) and
+         *     ``people`` (every participant and companion, keyed by participant_id).
+         */
+        get: operations["get_booking_form_answers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Booking Form Answers Route
+         * @description Edit answers. Each change targets one form and either the booking
+         *     (``participant_id`` null) or one person; ``null`` / ``""`` / ``[]`` clear
+         *     a key, other keys are kept. ``required`` and visibility are not enforced
+         *     (staff can clear wrong data); type / options / validation are. Errors:
+         *     422 ``form_answers_invalid`` (``errors[]``), 409
+         *     ``declarations_read_only``. Returns the fresh GET payload.
+         */
+        patch: operations["patch_booking_form_answers_route"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
         parameters: {
             query?: never;
@@ -11141,6 +11171,25 @@ export interface components {
             reason: string;
         };
         /**
+         * BookingFormAnswersOut
+         * @description GET/PATCH /api/staff/operators/{op}/bookings/{id}/form-answers.
+         */
+        BookingFormAnswersOut: {
+            /** Booking */
+            booking?: components["schemas"]["FormAnswerOut"][];
+            /** Booking Id */
+            booking_id: string;
+            /** Forms */
+            forms?: components["schemas"]["FormAnswersFormOut"][];
+            /** People */
+            people?: components["schemas"]["FormAnswersPersonOut"][];
+        };
+        /** BookingFormAnswersPatchIn */
+        BookingFormAnswersPatchIn: {
+            /** Changes */
+            changes: components["schemas"]["FormAnswerChangeIn"][];
+        };
+        /**
          * BookingLineCapacityConflict
          * @description A day the added/switched line does not fit (landr-d7ij2.3). The commit
          *     is refused (409 ``capacity_exceeded``) unless the day is listed in the
@@ -13275,6 +13324,17 @@ export interface components {
             position: number;
             /** Required */
             required: boolean;
+            /**
+             * Scope
+             * @default booking
+             * @enum {string}
+             */
+            scope: "booking" | "participant" | "guest";
+            /**
+             * Share With Accommodation
+             * @default false
+             */
+            share_with_accommodation: boolean;
             validation?: components["schemas"]["FlowFieldValidation"] | null;
             visibility_rule?: components["schemas"]["VisibilityRule"] | null;
         } & {
@@ -13324,6 +13384,8 @@ export interface components {
             min_length?: number | null;
             /** Pattern */
             pattern?: string | null;
+            /** Unit */
+            unit?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13373,6 +13435,92 @@ export interface components {
             /** Source */
             source: string;
         };
+        /** FormAnswerChangeIn */
+        FormAnswerChangeIn: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** Participant Id */
+            participant_id?: string | null;
+        };
+        /**
+         * FormAnswerOut
+         * @description One field of one form, for the booking or for one person.
+         */
+        FormAnswerOut: {
+            /** Answered */
+            answered: boolean;
+            /** Field Key */
+            field_key: string;
+            /** Field Type */
+            field_type: string;
+            /** Form Id */
+            form_id: string;
+            /** Form Key */
+            form_key: string;
+            /** Form Version */
+            form_version: number;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Options */
+            options?: unknown[] | null;
+            /** Position */
+            position: number;
+            /** Required */
+            required: boolean;
+            /** Retired */
+            retired: boolean;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "booking" | "participant" | "guest";
+            /** Shared */
+            shared: boolean;
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value?: unknown | null;
+            /** Visible */
+            visible: boolean;
+        };
+        /** FormAnswersFormOut */
+        FormAnswersFormOut: {
+            /** Active */
+            active: boolean;
+            /** Form Id */
+            form_id: string;
+            /** Form Key */
+            form_key: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Version */
+            version: number;
+        };
+        /** FormAnswersPersonOut */
+        FormAnswersPersonOut: {
+            /** Answers */
+            answers?: components["schemas"]["FormAnswerOut"][];
+            /** First Name */
+            first_name?: string | null;
+            /** Is Guiding */
+            is_guiding: boolean;
+            /** Last Name */
+            last_name?: string | null;
+            /** Participant Id */
+            participant_id: string;
+        };
         /**
          * FormResponseIn
          * @description landr-71kz.2: one custom form's answers in a booking submit payload.
@@ -13387,8 +13535,16 @@ export interface components {
             answers?: {
                 [key: string]: unknown;
             };
+            /** Companion Answers */
+            companion_answers?: {
+                [key: string]: unknown;
+            }[];
             /** Form Key */
             form_key: string;
+            /** Participant Answers */
+            participant_answers?: {
+                [key: string]: unknown;
+            }[];
         };
         /** FromTemplateIn */
         FromTemplateIn: {
@@ -27274,6 +27430,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_booking_form_answers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingFormAnswersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_booking_form_answers_route: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingFormAnswersPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingFormAnswersOut"];
                 };
             };
             /** @description Validation Error */

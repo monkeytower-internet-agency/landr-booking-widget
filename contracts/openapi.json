@@ -1464,6 +1464,59 @@
         "title": "BookingCancelIn",
         "type": "object"
       },
+      "BookingFormAnswersOut": {
+        "description": "GET/PATCH /api/staff/operators/{op}/bookings/{id}/form-answers.",
+        "properties": {
+          "booking": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswerOut"
+            },
+            "title": "Booking",
+            "type": "array"
+          },
+          "booking_id": {
+            "title": "Booking Id",
+            "type": "string"
+          },
+          "forms": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswersFormOut"
+            },
+            "title": "Forms",
+            "type": "array"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswersPersonOut"
+            },
+            "title": "People",
+            "type": "array"
+          }
+        },
+        "required": [
+          "booking_id"
+        ],
+        "title": "BookingFormAnswersOut",
+        "type": "object"
+      },
+      "BookingFormAnswersPatchIn": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswerChangeIn"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Changes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "BookingFormAnswersPatchIn",
+        "type": "object"
+      },
       "BookingLineCapacityConflict": {
         "description": "A day the added/switched line does not fit (landr-d7ij2.3). The commit\nis refused (409 ``capacity_exceeded``) unless the day is listed in the\nrequest's ``forced_days``.",
         "properties": {
@@ -7169,6 +7222,21 @@
             "title": "Required",
             "type": "boolean"
           },
+          "scope": {
+            "default": "booking",
+            "enum": [
+              "booking",
+              "participant",
+              "guest"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "share_with_accommodation": {
+            "default": false,
+            "title": "Share With Accommodation",
+            "type": "boolean"
+          },
           "validation": {
             "anyOf": [
               {
@@ -7302,6 +7370,17 @@
               }
             ],
             "title": "Pattern"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "title": "FlowFieldValidation",
@@ -7418,6 +7497,258 @@
         "title": "ForecastItem",
         "type": "object"
       },
+      "FormAnswerChangeIn": {
+        "properties": {
+          "answers": {
+            "additionalProperties": true,
+            "title": "Answers",
+            "type": "object"
+          },
+          "form_key": {
+            "minLength": 1,
+            "title": "Form Key",
+            "type": "string"
+          },
+          "participant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Id"
+          }
+        },
+        "required": [
+          "form_key"
+        ],
+        "title": "FormAnswerChangeIn",
+        "type": "object"
+      },
+      "FormAnswerOut": {
+        "description": "One field of one form, for the booking or for one person.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "field_key": {
+            "title": "Field Key",
+            "type": "string"
+          },
+          "field_type": {
+            "title": "Field Type",
+            "type": "string"
+          },
+          "form_id": {
+            "title": "Form Id",
+            "type": "string"
+          },
+          "form_key": {
+            "title": "Form Key",
+            "type": "string"
+          },
+          "form_version": {
+            "title": "Form Version",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Localized"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": [
+              "booking",
+              "participant",
+              "guest"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "form_id",
+          "form_key",
+          "form_version",
+          "field_key",
+          "scope",
+          "field_type",
+          "label",
+          "required",
+          "position",
+          "answered",
+          "visible",
+          "shared",
+          "retired"
+        ],
+        "title": "FormAnswerOut",
+        "type": "object"
+      },
+      "FormAnswersFormOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "form_id": {
+            "title": "Form Id",
+            "type": "string"
+          },
+          "form_key": {
+            "title": "Form Key",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_localized": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Localized"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "form_id",
+          "form_key",
+          "version",
+          "active"
+        ],
+        "title": "FormAnswersFormOut",
+        "type": "object"
+      },
+      "FormAnswersPersonOut": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswerOut"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "is_guiding": {
+            "title": "Is Guiding",
+            "type": "boolean"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "participant_id": {
+            "title": "Participant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant_id",
+          "is_guiding"
+        ],
+        "title": "FormAnswersPersonOut",
+        "type": "object"
+      },
       "FormResponseIn": {
         "description": "landr-71kz.2: one custom form's answers in a booking submit payload.\n\n``form_key`` references a form attached to the product's flow (a custom_form\nmodule). ``answers`` is a flat {field_key: value} map; the server re-evaluates\neach field's visibility_rule and validates required-when-visible / type /\noptions / validation before persisting a booking_form_responses row.",
         "properties": {
@@ -7426,9 +7757,27 @@
             "title": "Answers",
             "type": "object"
           },
+          "companion_answers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 200,
+            "title": "Companion Answers",
+            "type": "array"
+          },
           "form_key": {
             "title": "Form Key",
             "type": "string"
+          },
+          "participant_answers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 200,
+            "title": "Participant Answers",
+            "type": "array"
           }
         },
         "required": [
@@ -38604,6 +38953,128 @@
         "summary": "Email Preview",
         "tags": [
           "staff-bookings-customer-messages"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/form-answers": {
+      "get": {
+        "description": "The booking's custom-form answers: ``booking`` (asked once) and\n``people`` (every participant and companion, keyed by participant_id).",
+        "operationId": "get_booking_form_answers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingFormAnswersOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Booking Form Answers",
+        "tags": [
+          "staff-booking-form-answers"
+        ]
+      },
+      "patch": {
+        "description": "Edit answers. Each change targets one form and either the booking\n(``participant_id`` null) or one person; ``null`` / ``\"\"`` / ``[]`` clear\na key, other keys are kept. ``required`` and visibility are not enforced\n(staff can clear wrong data); type / options / validation are. Errors:\n422 ``form_answers_invalid`` (``errors[]``), 409\n``declarations_read_only``. Returns the fresh GET payload.",
+        "operationId": "patch_booking_form_answers_route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingFormAnswersPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingFormAnswersOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Booking Form Answers Route",
+        "tags": [
+          "staff-booking-form-answers"
         ]
       }
     },
