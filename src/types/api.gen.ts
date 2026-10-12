@@ -2951,9 +2951,8 @@ export interface paths {
          *     'Track this booking in the LANDR app' prompt.
          *
          *     Mints a magic link via Supabase admin ``generate_link`` (Supabase sends
-         *     NO email) and delivers it through the operator's configured sending domain
-         *     (or platform fallback) with our branded ``account_link`` template — so it
-         *     never depends on a Supabase SMTP config. Gated on the operator's
+         *     NO email) and delivers it as a fixed Landr system email (``account_link``
+         *     template, SES → Resend) — never through the tenant-readable outbox. Gated on the operator's
          *     ``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the
          *     surface stays opaque.
          */
