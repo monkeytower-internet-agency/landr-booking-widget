@@ -35,7 +35,6 @@ import { useVariant } from '@/lib/variant'
 import { cn } from '@/lib/utils'
 import { pickLocalized, browserLocale } from '@/lib/locale'
 import { productFormSubtitle, tr, unsupportedFieldTypeLabel } from '@/lib/strings'
-import { findOtherLanguagesField, OTHER_LANGUAGES_FIELD_KEY } from './otherLanguages'
 import { getProductFlow } from '@/api/client'
 import type {
   FlowFieldDef,
@@ -47,10 +46,6 @@ import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import { RankedLanguagePicker } from './RankedLanguagePicker'
-import {
-  distinctAssignedLanguages,
-  type ParticipantLanguageMap,
-} from './participantLanguages'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,38 +87,15 @@ export interface CustomFormStepProps {
    */
   flow?: ProductFlowResponse | null
   /**
-   * landr-r6e5x.4: the guide-language assignment the LanguageStep captured
-   * upstream (party index → ISO 639-1). When the operator's form also declares
-   * a `language` field, that field renders as a read-only summary of this map
-   * and its answer is mirrored from it — the board is the single source, so the
-   * customer is never asked the same question twice.
-   *
-   * Absent / empty (standalone callers, and any operator with no offered
-   * languages at all) leaves the field's own control exactly as it was.
-   */
-  participantLanguages?: ParticipantLanguageMap
-  /** Party size the assignment is keyed against (participants + companions). */
-  partyCount?: number
-  /**
    * landr-n6ii3: current value of the "Anything we should know?" comment,
    * read straight off App.tsx's bookingDraft.customerComment. Optional
    * (defaults to '' / a no-op) so existing tests need no change.
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  /**
-   * landr-8sk6l: "Other languages spoken" was already asked on the
-   * LanguageStep (see otherLanguages.ts). When `formKey` matches this form,
-   * the `other_languages` field is not rendered and its answer is this value —
-   * the same single-source mirror as `participantLanguages`.
-   */
-  otherLanguagesUpstream?: { formKey: string; value: string }
   onBack: () => void
   /**
    * Called with the pruned answers + form metadata when the customer submits.
-   * `participantLanguages` is present only when the assignment board was
-   * shown; it is the party-index → ISO 639-1 map the submit body turns into
-   * each participant's / companion's `language` field.
    */
   onConfirm: (entry: FormResponseEntry, rawAnswers: Record<string, unknown>) => void
 }
@@ -436,7 +408,7 @@ function FieldRenderer({
         // landr-r6e5x.4 / epic decision D3, landr-cgq5g: languages are
         // assigned PER PERSON on the LanguageStep, which runs before this
         // form. When the operator's form also declares a language field, the
-        // render loop above skips it entirely (effectiveAnswers still mirrors
+        // render loop above skips it entirely (answers still mirrors
         // the assignment into the submitted answer) — one source of truth, no
         // redundant re-display, no way for two controls to disagree.
         if (field.options && field.options.length > 0) {
@@ -562,11 +534,8 @@ export function CustomFormStep({
   productName,
   initialAnswers,
   flow,
-  participantLanguages,
-  partyCount = 0,
   customerComment = '',
   onCustomerCommentChange = () => {},
-  otherLanguagesUpstream,
   onBack,
   onConfirm,
 }: CustomFormStepProps) {
@@ -638,39 +607,6 @@ export function CustomFormStep({
   )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // ─── landr-r6e5x.4: mirror of the upstream language assignment ─────────────
-  //
-  // The LanguageStep runs BEFORE this form and owns the assignment. If the
-  // operator's form also declares a `language` field, we neither re-ask nor
-  // let it drift: the field renders as a summary and its answer is derived
-  // here. Everything is computed from props + the assignment — no state, so
-  // no setState-in-effect (an ESLint error in this repo) anywhere in the path.
-  const assignedLanguages = useMemo(
-    () => distinctAssignedLanguages(participantLanguages ?? {}, partyCount),
-    [participantLanguages, partyCount],
-  )
-
-  const mirrorField = useMemo(() => {
-    if (assignedLanguages.length === 0 || !formDef) return null
-    return (
-      formDef.fields.find(
-        (f) => f.field_type === 'language' && (f.options?.length ?? 0) > 0,
-      ) ?? null
-    )
-  }, [formDef, assignedLanguages])
-
-  // The board's assignments mirror into the form answer as-is: the API
-  // validates a `language` answer against the SELECTED PRODUCT's live
-  // guide_languages (landr-p68d2, formerly the operator's offered_languages
-  // — api PR #688 predates that move but the validation shape is unchanged),
-  // not the field's static option list, so every assigned code is valid by
-  // construction — both it and the field's options ultimately come from the
-  // same product-scoped set. No narrowing needed. landr-pv2r1 (E2): for an
-  // any-language product (guide_languages = []) the API validates the answer
-  // as if no set were given (static options / any code), and the board never
-  // runs, so there is nothing to mirror.
-  const mirrorActive = mirrorField !== null
-
   const handleChange = useCallback((key: string, value: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [key]: value }))
     // Clear the field's error on change so the customer gets live feedback.
@@ -682,52 +618,27 @@ export function CustomFormStep({
     })
   }, [])
 
-  // The mirrored answer replaces whatever is (or isn't) in `answers` for that
-  // one field, for validation, visibility and pruning alike — one source of
-  // truth, so a late change upstream can never leave the two disagreeing.
-  // landr-8sk6l: same idea for "Other languages spoken" when the language step
-  // asked it. Blank upstream drops the key, like an untouched optional field.
-  const otherLanguagesLifted =
-    otherLanguagesUpstream !== undefined &&
-    otherLanguagesUpstream.formKey === formKey &&
-    formDef !== null &&
-    findOtherLanguagesField({
-      modules: [{ kind: 'custom_form', position: 0, form: formDef }],
-    }) !== null
-  const effectiveAnswers: AnswerMap = useMemo(() => {
-    const next: AnswerMap =
-      mirrorActive && mirrorField
-        ? { ...answers, [mirrorField.key]: assignedLanguages }
-        : { ...answers }
-    if (otherLanguagesLifted) {
-      const v = otherLanguagesUpstream!.value.trim()
-      if (v) next[OTHER_LANGUAGES_FIELD_KEY] = v
-      else delete next[OTHER_LANGUAGES_FIELD_KEY]
-    }
-    return next
-  }, [answers, mirrorActive, mirrorField, assignedLanguages, otherLanguagesLifted, otherLanguagesUpstream])
-
   const handleSubmit = () => {
     if (!formDef) return
 
     // Validate all visible fields.
     const errors: Record<string, string> = {}
     for (const field of formDef.fields) {
-      const err = validateField(field, effectiveAnswers, locale)
+      const err = validateField(field, answers, locale)
       if (err) errors[field.key] = err
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
     // Prune hidden fields then build the FormResponseEntry.
-    const pruned = pruneHiddenAnswers(formDef.fields, effectiveAnswers)
+    const pruned = pruneHiddenAnswers(formDef.fields, answers)
     const entry: FormResponseEntry = {
       form_key: formDef.key,
       answers: pruned,
     }
 
     // Pass raw answers (includes hidden field state) for draft persistence.
-    const rawForDraft: Record<string, unknown> = { ...effectiveAnswers }
+    const rawForDraft: Record<string, unknown> = { ...answers }
     onConfirm(entry, rawForDraft)
   }
 
@@ -740,10 +651,10 @@ export function CustomFormStep({
     if (!formDef) return false
     return formDef.fields.every(
       (field) =>
-        !isFieldVisible(field, effectiveAnswers) ||
-        validateField(field, effectiveAnswers, locale) === null,
+        !isFieldVisible(field, answers) ||
+        validateField(field, answers, locale) === null,
     )
-  }, [formDef, effectiveAnswers, locale])
+  }, [formDef, answers, locale])
 
   // Note: live re-validation after submit is driven by handleChange clearing
   // per-field errors on each change. A full re-pass runs via handleSubmit only
@@ -772,13 +683,7 @@ export function CustomFormStep({
           </p>
         ) : formDef ? (
           formDef.fields.map((field) => {
-            if (!isFieldVisible(field, effectiveAnswers)) return null
-            if (otherLanguagesLifted && field.key === OTHER_LANGUAGES_FIELD_KEY) return null
-            // landr-cgq5g: languages are already assigned per person on the
-            // LanguageStep upstream — don't ask again here. effectiveAnswers
-            // still carries the mirrored value, so it's submitted/validated
-            // exactly as before; only the redundant re-display is dropped.
-            if (mirrorActive && mirrorField && field.key === mirrorField.key) return null
+            if (!isFieldVisible(field, answers)) return null
             // landr-80ubl.3: every OTHER operator-authored field (required or
             // not) stays visible — unlike the widget's own optional extras,
             // each one was deliberately added to the flow by the operator, so
@@ -788,7 +693,7 @@ export function CustomFormStep({
               <FieldRenderer
                 key={field.key}
                 field={field}
-                answers={effectiveAnswers}
+                answers={answers}
                 error={fieldErrors[field.key] ?? null}
                 locale={locale}
                 uiLocale={uiLocale}
