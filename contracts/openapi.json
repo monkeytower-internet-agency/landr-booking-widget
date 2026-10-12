@@ -34230,7 +34230,7 @@
     },
     "/api/public/operators/{token}/account-link": {
       "post": {
-        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it through the operator's configured sending domain\n(or platform fallback) with our branded ``account_link`` template \u2014 so it\nnever depends on a Supabase SMTP config. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
+        "description": "landr-16u9: passwordless LANDR account-link for the post-booking\n'Track this booking in the LANDR app' prompt.\n\nMints a magic link via Supabase admin ``generate_link`` (Supabase sends\nNO email) and delivers it as a fixed Landr system email (``account_link``\ntemplate, SES \u2192 Resend) \u2014 never through the tenant-readable outbox. Gated on the operator's\n``offer_account_link`` opt-in (landr-atwy): when off, returns 404 so the\nsurface stays opaque.",
         "operationId": "request_account_link",
         "parameters": [
           {
