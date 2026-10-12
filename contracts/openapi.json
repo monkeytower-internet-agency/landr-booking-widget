@@ -7439,6 +7439,21 @@
       },
       "FromTemplateIn": {
         "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-ml90b: the code the new type gets instead of the template's own. Only with exactly one single (non-adopting) template key, else 422 ``template_override_not_applicable``; a live type already holding it is 409 ``code_taken`` (nothing is created).",
+            "title": "Code"
+          },
           "keys": {
             "description": "A mix of bundle and/or single template keys from GET .../templates",
             "items": {
@@ -7448,6 +7463,20 @@
             "minItems": 1,
             "title": "Keys",
             "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-ml90b: the label the new type gets instead of the template's. Same restriction as ``code``.",
+            "title": "Label"
           },
           "with_examples": {
             "default": true,
@@ -21689,7 +21718,7 @@
         "type": "object"
       },
       "ResourceTypePatch": {
-        "description": "Partial update. ``code`` is immutable. Explicit null clears\n``label_localized`` / ``parent_id`` / ``color`` / ``icon`` / ``kind_hint``\nand is ignored on NOT NULL columns.",
+        "description": "Partial update. ``code`` may be renamed (landr-ml90b) unless the type\nis a reserved/baseline one (422 ``code_locked``) or the new code is\ntaken (409 ``code_taken``). Explicit null clears ``label_localized`` /\n``parent_id`` / ``color`` / ``icon`` / ``kind_hint`` and is ignored on\nNOT NULL columns.",
         "properties": {
           "active": {
             "anyOf": [
@@ -21701,6 +21730,20 @@
               }
             ],
             "title": "Active"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           },
           "color": {
             "anyOf": [
@@ -52330,7 +52373,7 @@
     },
     "/api/staff/operators/{operator_id}/resource-types/from-template": {
       "post": {
-        "description": "Seed the named bundle/single template keys (landr-lmudr.7).\nIdempotent \u2014 a type whose code already exists for the operator is left\nuntouched (never relabelled) and reported under ``skipped``; safe to\ncall twice. 422 ``unknown_template_key`` for a key neither the bundle\nnor the single registry recognises; 403 ``template_not_in_tier`` (with\nthe disabled ``keys``) when the operator's plan does not include one\n(landr-lmudr.35 \u2014 nothing is applied then).",
+        "description": "Seed the named bundle/single template keys (landr-lmudr.7).\nIdempotent \u2014 a type whose code already exists for the operator is left\nuntouched (never relabelled) and reported under ``skipped``; safe to\ncall twice. 422 ``unknown_template_key`` for a key neither the bundle\nnor the single registry recognises; 403 ``template_not_in_tier`` (with\nthe disabled ``keys``) when the operator's plan does not include one\n(landr-lmudr.35 \u2014 nothing is applied then).\n\nlandr-ml90b: with exactly one single template key the body may carry\n``code`` (and ``label``) for the new type instead of the template's own;\na live type holding that code is 409 ``code_taken``, a reserved one 422\n``code_reserved``, a combination that cannot take an override 422\n``template_override_not_applicable``.",
         "operationId": "apply_resource_type_templates",
         "parameters": [
           {

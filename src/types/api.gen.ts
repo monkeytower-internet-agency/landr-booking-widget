@@ -8597,6 +8597,12 @@ export interface paths {
          *     nor the single registry recognises; 403 ``template_not_in_tier`` (with
          *     the disabled ``keys``) when the operator's plan does not include one
          *     (landr-lmudr.35 — nothing is applied then).
+         *
+         *     landr-ml90b: with exactly one single template key the body may carry
+         *     ``code`` (and ``label``) for the new type instead of the template's own;
+         *     a live type holding that code is 409 ``code_taken``, a reserved one 422
+         *     ``code_reserved``, a combination that cannot take an override 422
+         *     ``template_override_not_applicable``.
          */
         post: operations["apply_resource_type_templates"];
         delete?: never;
@@ -13387,10 +13393,20 @@ export interface components {
         /** FromTemplateIn */
         FromTemplateIn: {
             /**
+             * Code
+             * @description landr-ml90b: the code the new type gets instead of the template's own. Only with exactly one single (non-adopting) template key, else 422 ``template_override_not_applicable``; a live type already holding it is 409 ``code_taken`` (nothing is created).
+             */
+            code?: string | null;
+            /**
              * Keys
              * @description A mix of bundle and/or single template keys from GET .../templates
              */
             keys: string[];
+            /**
+             * Label
+             * @description landr-ml90b: the label the new type gets instead of the template's. Same restriction as ``code``.
+             */
+            label?: string | null;
             /**
              * With Examples
              * @description Also seed each template's example resources
@@ -18131,13 +18147,17 @@ export interface components {
         };
         /**
          * ResourceTypePatch
-         * @description Partial update. ``code`` is immutable. Explicit null clears
-         *     ``label_localized`` / ``parent_id`` / ``color`` / ``icon`` / ``kind_hint``
-         *     and is ignored on NOT NULL columns.
+         * @description Partial update. ``code`` may be renamed (landr-ml90b) unless the type
+         *     is a reserved/baseline one (422 ``code_locked``) or the new code is
+         *     taken (409 ``code_taken``). Explicit null clears ``label_localized`` /
+         *     ``parent_id`` / ``color`` / ``icon`` / ``kind_hint`` and is ignored on
+         *     NOT NULL columns.
          */
         ResourceTypePatch: {
             /** Active */
             active?: boolean | null;
+            /** Code */
+            code?: string | null;
             /** Color */
             color?: string | null;
             /** Default Released Units */
