@@ -447,6 +447,16 @@ type Bundle = {
   offerModeDescription: string
   statusLabel: string
   whatYoureBooking: string
+  // landr-1zkp7 — /pay + /offer restyle (dates table, per-line prices, hero)
+  offerColItem: string
+  offerColDates: string
+  offerColLength: string
+  offerLengthDaySingular: string
+  offerLengthDayPlural: string
+  offerLengthNightSingular: string
+  offerLengthNightPlural: string
+  offerYourTripWithTemplate: string
+  offerPayableAtHotelShort: string
   productsAria: string
   offerParticipantsTitle: string
   offerPriceBreakdownTitle: string
@@ -1040,6 +1050,15 @@ const en: Bundle = {
   offerModeDescription: 'Review the details below and click Accept & Pay to confirm your booking.',
   statusLabel: 'Status:',
   whatYoureBooking: "What you're booking",
+  offerColItem: 'Item',
+  offerColDates: 'Dates',
+  offerColLength: 'Length',
+  offerLengthDaySingular: '{n} day',
+  offerLengthDayPlural: '{n} days',
+  offerLengthNightSingular: '{n} night',
+  offerLengthNightPlural: '{n} nights',
+  offerYourTripWithTemplate: 'Your trip with {operator}',
+  offerPayableAtHotelShort: 'payable at the hotel',
   productsAria: 'Products',
   offerParticipantsTitle: 'Participants',
   offerPriceBreakdownTitle: 'Price breakdown',
@@ -1621,6 +1640,15 @@ const de: Bundle = {
   offerModeDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Annehmen & Bezahlen“, um Ihre Buchung zu bestätigen.',
   statusLabel: 'Status:',
   whatYoureBooking: 'Was Sie buchen',
+  offerColItem: 'Leistung',
+  offerColDates: 'Datum',
+  offerColLength: 'Dauer',
+  offerLengthDaySingular: '{n} Tag',
+  offerLengthDayPlural: '{n} Tage',
+  offerLengthNightSingular: '{n} Nacht',
+  offerLengthNightPlural: '{n} Nächte',
+  offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
+  offerPayableAtHotelShort: 'im Hotel zu zahlen',
   productsAria: 'Angebote',
   offerParticipantsTitle: 'Teilnehmer',
   offerPriceBreakdownTitle: 'Preisaufschlüsselung',

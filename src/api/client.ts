@@ -1007,6 +1007,24 @@ export interface OfferPayment {
   } | null
 }
 
+/**
+ * landr-b48i5 / landr-1zkp7: one priced line of the booking, same order as
+ * `product_lines`. `participants` / `per_person_price` are set ONLY when the
+ * line was priced per head AND the per-person figure divides to whole cents;
+ * otherwise both are null and the UI shows the line total alone.
+ */
+export interface OfferLineItem {
+  product_id: string
+  label: string
+  qty: number
+  units: number
+  line_total: number
+  unit_price: number
+  paid_to: 'operator' | 'hotel'
+  participants: number | null
+  per_person_price: number | null
+}
+
 export interface PublicBookingOffer {
   booking_id: string
   customer_semantic_state: string
@@ -1031,6 +1049,12 @@ export interface PublicBookingOffer {
    * status line renders (today's behaviour).
    */
   stage?: CustomerStageLabel
+  /**
+   * landr-b48i5 / landr-1zkp7: per-line price breakdown for /pay. Optional
+   * for rolling deploy — absent (older API) or empty (booking without a
+   * persisted per-line breakdown) keeps today's rendering.
+   */
+  line_items?: OfferLineItem[] | null
 }
 
 /**

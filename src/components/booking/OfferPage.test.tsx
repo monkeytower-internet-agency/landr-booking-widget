@@ -132,7 +132,7 @@ describe('OfferPage', () => {
     })
 
     expect(mocks.getBookingByToken).toHaveBeenCalledExactlyOnceWith(TOKEN)
-    expect(screen.getByText('Sailing Week')).toBeInTheDocument()
+    expect(screen.getAllByText('Sailing Week').length).toBeGreaterThan(0)
     expect(screen.getByTestId('offer-gross-total')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /accept & pay/i })).toBeEnabled()
   })
@@ -1053,5 +1053,158 @@ describe('OfferPage — operator/hotel split (mode="pay")', () => {
       formatCurrency(706.0, 'EUR'),
     )
     expect(screen.queryByTestId('offer-hotel-due')).not.toBeInTheDocument()
+  })
+  // ── landr-1zkp7: dates table, per-line prices, trip-page look ──────────────
+  describe('landr-1zkp7 restyle', () => {
+    const LOW_AIR = {
+      ...OFFER,
+      operator_name: 'Para42',
+      totals: { ...OFFER.totals, gross_total: 1580, tax_total: 252.27, net_total: 1327.73, balance_due: 1580 },
+      product_lines: [
+        {
+          product_id: 'p-air',
+          name: 'Low air-timers',
+          name_localized: null,
+          date_range_start: '2027-01-24',
+          date_range_end: '2027-01-29',
+          selected_days: [
+            '2027-01-24', '2027-01-25', '2027-01-26',
+            '2027-01-27', '2027-01-28', '2027-01-29',
+          ],
+          quantity: 1,
+        },
+      ],
+      line_items: [
+        {
+          product_id: 'p-air',
+          label: 'Low air-timers',
+          qty: 1,
+          units: 6,
+          line_total: 1580,
+          unit_price: 1580,
+          paid_to: 'operator',
+          participants: 2,
+          per_person_price: 790,
+        },
+      ],
+    }
+
+    it('renders the dates table: one row, collapsed range, length in days', async () => {
+      mocks.getBookingByToken.mockResolvedValue(LOW_AIR)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      const rows = screen.getAllByTestId('offer-product-line')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toHaveTextContent('Low air-timers')
+      expect(screen.getByTestId('offer-line-dates')).toHaveTextContent(
+        'Sun 24 Jan – Fri 29 Jan 2027',
+      )
+      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('6 days')
+      expect(screen.getByRole('columnheader', { name: 'Dates' })).toBeInTheDocument()
+    })
+
+    it('joins separate stretches with "; " and shows × qty', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...LOW_AIR,
+        line_items: [],
+        product_lines: [
+          {
+            ...LOW_AIR.product_lines[0],
+            quantity: 2,
+            selected_days: ['2027-01-24', '2027-01-25', '2027-01-28'],
+          },
+        ],
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-line-dates')).toHaveTextContent(
+        'Sun 24 Jan – Mon 25 Jan; Thu 28 Jan 2027',
+      )
+      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('3 days')
+      expect(screen.getByTestId('offer-product-line')).toHaveTextContent('× 2')
+    })
+
+    it('falls back to date_range_start/end when selected_days is empty', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...LOW_AIR,
+        product_lines: [{ ...LOW_AIR.product_lines[0], selected_days: null }],
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-line-dates')).toHaveTextContent(
+        'Sun 24 Jan – Fri 29 Jan 2027',
+      )
+      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('6 days')
+    })
+
+    it('counts hotel lines in nights', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...LOW_AIR,
+        product_lines: [
+          { ...LOW_AIR.product_lines[0], selected_days: ['2027-01-24', '2027-01-25'] },
+        ],
+        line_items: [{ ...LOW_AIR.line_items[0], paid_to: 'hotel', participants: null, per_person_price: null }],
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('2 nights')
+      expect(screen.getByTestId('offer-line-hotel')).toHaveTextContent(/payable at the hotel/i)
+    })
+
+    it('shows the per-person price × participants and the line total', async () => {
+      mocks.getBookingByToken.mockResolvedValue(LOW_AIR)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-line-per-person')).toHaveTextContent(
+        `${formatCurrency(790, 'EUR', 'en-US')} × 2 participants`,
+      )
+      expect(screen.getByTestId('offer-line-total')).toHaveTextContent(
+        formatCurrency(1580, 'EUR', 'en-US'),
+      )
+      // existing money rows are untouched
+      expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(
+        formatCurrency(1580, 'EUR', 'en-US'),
+      )
+    })
+
+    it('omits the per-person row when the API sent nulls (flat line)', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...LOW_AIR,
+        line_items: [{ ...LOW_AIR.line_items[0], participants: null, per_person_price: null }],
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-line-item')).toBeInTheDocument()
+      expect(screen.queryByTestId('offer-line-per-person')).not.toBeInTheDocument()
+      expect(screen.getByTestId('offer-line-total')).toBeInTheDocument()
+    })
+
+    it('legacy payload without line_items renders no per-line rows', async () => {
+      mocks.getBookingByToken.mockResolvedValue(OFFER)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.queryByTestId('offer-line-item')).not.toBeInTheDocument()
+      expect(screen.getByTestId('offer-net-total')).toBeInTheDocument()
+      expect(screen.getByTestId('offer-product-line')).toBeInTheDocument()
+    })
+
+    it('renders the hero with operator, product and overall dates', async () => {
+      mocks.getBookingByToken.mockResolvedValue(LOW_AIR)
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      expect(screen.getByTestId('offer-hero-operator')).toHaveTextContent('Your trip with Para42')
+      expect(screen.getByTestId('offer-hero')).toHaveTextContent('Low air-timers')
+      expect(screen.getByTestId('offer-hero-dates')).toHaveTextContent(
+        'Sun 24 Jan – Fri 29 Jan 2027',
+      )
+    })
   })
 })
