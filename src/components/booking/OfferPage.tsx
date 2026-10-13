@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 
 import {
   getBookingByToken,
@@ -21,7 +21,7 @@ import {
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { plural, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
-import { formatRanges, lineRanges } from './offerDates'
+import { formatRange, formatRanges, lineRanges } from './offerDates'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -688,16 +688,34 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     // Hotel lines carry the NIGHT window as selected_days, so count nights
     // there; nothing else on the payload identifies a room line.
     const nights = li?.paid_to === 'hotel'
-    let count = ranges.reduce((sum, r) => sum + r.days, 0)
-    if (nights && !hasDays) count = Math.max(1, count - 1)
-    const length =
+    const lengthOf = (count: number) =>
       count > 0
         ? (nights
             ? plural(count, tr('offerLengthNightSingular', locale), tr('offerLengthNightPlural', locale))
             : plural(count, tr('offerLengthDaySingular', locale), tr('offerLengthDayPlural', locale))
           ).replace('{n}', String(count))
         : ''
-    return { pl, ranges, dates: formatRanges(ranges, locale), length }
+    let count = ranges.reduce((sum, r) => sum + r.days, 0)
+    if (nights && !hasDays) count = Math.max(1, count - 1)
+    // Booked on non-consecutive days: one row per stretch with its own
+    // length (year only when the stretches cross a year boundary — the hero
+    // already carries it), then a total row.
+    const multiYear = new Set(ranges.map((r) => r.end.slice(0, 4))).size > 1
+    const stretches =
+      ranges.length > 1
+        ? ranges.map((r) => ({
+            key: r.start,
+            dates: formatRange(r, locale, multiYear),
+            length: lengthOf(r.days),
+          }))
+        : null
+    return {
+      pl,
+      ranges,
+      dates: formatRanges(ranges, locale),
+      length: lengthOf(count),
+      stretches,
+    }
   })
   const allRanges = itemRows.flatMap((r) => r.ranges)
   const overallRange =
@@ -763,31 +781,82 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {itemRows.map(({ pl, dates, length }, i) => (
-                  <tr
-                    key={`${pl.product_id}-${i}`}
-                    data-testid="offer-product-line"
-                    className="border-b align-top last:border-b-0"
-                  >
-                    <th scope="row" className="px-4 py-3 text-left font-semibold">
+                {itemRows.map(({ pl, dates, length, stretches }, i) => {
+                  const name = (
+                    <>
                       {pl.name}
                       {pl.quantity > 1 && (
                         <span className="ml-1 font-normal text-muted-foreground">
                           &times; {pl.quantity}
                         </span>
                       )}
-                    </th>
-                    <td className="px-4 py-3 text-muted-foreground" data-testid="offer-line-dates">
-                      {dates || '—'}
-                    </td>
-                    <td
-                      className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums"
-                      data-testid="offer-line-length"
+                    </>
+                  )
+                  if (stretches) {
+                    return (
+                      <Fragment key={`${pl.product_id}-${i}`}>
+                        <tr data-testid="offer-product-line">
+                          <th
+                            scope="rowgroup"
+                            colSpan={3}
+                            className="px-4 pt-3 pb-1 text-left font-semibold"
+                          >
+                            {name}
+                          </th>
+                        </tr>
+                        {stretches.map((st) => (
+                          <tr key={st.key} data-testid="offer-line-stretch">
+                            <td aria-hidden="true" className="px-4 py-1" />
+                            <td
+                              className="px-4 py-1 text-muted-foreground tabular-nums"
+                              data-testid="offer-stretch-dates"
+                            >
+                              {st.dates}
+                            </td>
+                            <td
+                              className="whitespace-nowrap px-4 py-1 text-muted-foreground tabular-nums"
+                              data-testid="offer-stretch-length"
+                            >
+                              {st.length}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="border-b last:border-b-0">
+                          <td aria-hidden="true" className="px-4 pt-1 pb-3" />
+                          <td className="px-4 pt-1 pb-3 font-semibold">
+                            {tr('offerLengthTotalLabel', locale)}
+                          </td>
+                          <td
+                            className="whitespace-nowrap px-4 pt-1 pb-3 font-semibold tabular-nums"
+                            data-testid="offer-line-length"
+                          >
+                            {length || '—'}
+                          </td>
+                        </tr>
+                      </Fragment>
+                    )
+                  }
+                  return (
+                    <tr
+                      key={`${pl.product_id}-${i}`}
+                      data-testid="offer-product-line"
+                      className="border-b align-top last:border-b-0"
                     >
-                      {length || '—'}
-                    </td>
-                  </tr>
-                ))}
+                      <th scope="row" className="px-4 py-3 text-left font-semibold">
+                        {name}
+                      </th>
+                      <td className="px-4 py-3 text-muted-foreground" data-testid="offer-line-dates">
+                        {dates || '—'}
+                      </td>
+                      <td
+                        className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums"
+                        data-testid="offer-line-length"
+                      >
+                        {length || '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </OfferSection>

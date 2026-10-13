@@ -1104,7 +1104,7 @@ describe('OfferPage — operator/hotel split (mode="pay")', () => {
       expect(screen.getByRole('columnheader', { name: 'Dates' })).toBeInTheDocument()
     })
 
-    it('joins separate stretches with "; " and shows × qty', async () => {
+    it('splits non-consecutive days into one row per stretch plus a total, and shows × qty', async () => {
       mocks.getBookingByToken.mockResolvedValue({
         ...LOW_AIR,
         line_items: [],
@@ -1112,18 +1112,45 @@ describe('OfferPage — operator/hotel split (mode="pay")', () => {
           {
             ...LOW_AIR.product_lines[0],
             quantity: 2,
-            selected_days: ['2027-01-24', '2027-01-25', '2027-01-28'],
+            selected_days: [
+              '2027-01-18',
+              '2027-01-20', '2027-01-21', '2027-01-22',
+              '2027-01-24', '2027-01-25', '2027-01-26', '2027-01-27',
+              '2027-01-28', '2027-01-29', '2027-01-30',
+            ],
           },
         ],
       })
       render(<OfferPage token={TOKEN} mode="pay" />)
       await waitFor(() => screen.getByTestId('offer-ready'))
 
-      expect(screen.getByTestId('offer-line-dates')).toHaveTextContent(
-        'Sun 24 Jan – Mon 25 Jan; Thu 28 Jan 2027',
-      )
-      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('3 days')
+      expect(screen.getByTestId('offer-product-line')).toHaveTextContent('Low air-timers')
       expect(screen.getByTestId('offer-product-line')).toHaveTextContent('× 2')
+      expect(screen.queryByTestId('offer-line-dates')).not.toBeInTheDocument()
+      const dates = screen.getAllByTestId('offer-stretch-dates').map((el) => el.textContent)
+      expect(dates).toEqual(['Mon 18 Jan', 'Wed 20 Jan – Fri 22 Jan', 'Sun 24 Jan – Sat 30 Jan'])
+      const lengths = screen.getAllByTestId('offer-stretch-length').map((el) => el.textContent)
+      expect(lengths).toEqual(['1 day', '3 days', '7 days'])
+      expect(screen.getByTestId('offer-line-length')).toHaveTextContent('11 days')
+      expect(screen.getByText('Total')).toBeInTheDocument()
+    })
+
+    it('puts the year on each stretch when a line crosses a year boundary', async () => {
+      mocks.getBookingByToken.mockResolvedValue({
+        ...LOW_AIR,
+        line_items: [],
+        product_lines: [
+          {
+            ...LOW_AIR.product_lines[0],
+            selected_days: ['2026-12-30', '2027-01-02'],
+          },
+        ],
+      })
+      render(<OfferPage token={TOKEN} mode="pay" />)
+      await waitFor(() => screen.getByTestId('offer-ready'))
+
+      const dates = screen.getAllByTestId('offer-stretch-dates').map((el) => el.textContent)
+      expect(dates).toEqual(['Wed 30 Dec 2026', 'Sat 2 Jan 2027'])
     })
 
     it('falls back to date_range_start/end when selected_days is empty', async () => {

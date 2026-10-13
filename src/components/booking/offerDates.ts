@@ -88,6 +88,23 @@ function formatDay(iso: string, locale?: string): string {
  * The year closes the whole string when every stretch is in the same year;
  * otherwise each stretch carries its own.
  */
+/**
+ * One stretch on its own: "Wed 20 Jan – Fri 22 Jan", with " 2027" appended
+ * when `withYear`. Used for the per-stretch rows of a line booked on
+ * non-consecutive days.
+ */
+export function formatRange(
+  r: Pick<DayRange, 'start' | 'end'>,
+  locale?: string,
+  withYear = false,
+): string {
+  const text =
+    r.start === r.end
+      ? formatDay(r.start, locale)
+      : `${formatDay(r.start, locale)} – ${formatDay(r.end, locale)}`
+  return withYear ? `${text} ${r.end.slice(0, 4)}` : text
+}
+
 export function formatRanges(
   ranges: readonly Pick<DayRange, 'start' | 'end'>[],
   locale?: string,
