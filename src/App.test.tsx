@@ -4789,21 +4789,18 @@ describe('App', () => {
               name: 'Before you fly',
               name_localized: null,
               fields: [
+                // landr-9d82r.1: the form carries NO language field any more —
+                // the Language step is the only language source.
                 {
-                  key: 'languages',
-                  field_type: 'language',
-                  label: 'Guide language',
+                  key: 'license_valid',
+                  field_type: 'checkbox',
+                  label: 'Licence valid',
                   label_localized: null,
                   help_text: null,
                   help_text_localized: null,
-                  required: true,
+                  required: false,
                   position: 0,
-                  // Deliberately STALE relative to the operator column below —
-                  // the operator's offered list is what the board must use.
-                  options: [
-                    { value: 'en', label: 'English', label_localized: null },
-                    { value: 'de', label: 'Deutsch', label_localized: null },
-                  ],
+                  options: [{ value: 'yes', label: 'Yes', label_localized: null }],
                   validation: null,
                   visibility_rule: null,
                 },
@@ -4911,8 +4908,8 @@ describe('App', () => {
       )
       fireEvent.click(screen.getByTestId('language-step-submit'))
 
-      // The operator's form ALSO declares a language field; it must not ask a
-      // second time — the field is hidden entirely (landr-cgq5g).
+      // The operator's form has no language field (retired, landr-9d82r.1),
+      // so the custom form step never asks languages a second time.
       await waitFor(() => expect(screen.getByTestId('cf-submit')).toBeEnabled())
       expect(screen.queryByTestId('cf-field-languages')).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId('cf-submit'))

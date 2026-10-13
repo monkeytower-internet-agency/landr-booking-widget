@@ -172,6 +172,11 @@ type Bundle = {
   unsupportedFieldTypeTemplate: string
   productFormSubtitleTemplate: string
   loadingEllipsis: string
+  formPersonParticipantTag: string
+  formPersonGuestTag: string
+  formPersonFallbackName: string
+  formPersonSectionHint: string
+  formResponsesInvalidIntro: string
 
   // ---- CustomerCommentField ----
   customerCommentPlaceholder: string
@@ -754,6 +759,11 @@ const en: Bundle = {
   unsupportedFieldTypeTemplate: '(Unsupported field type: {type})',
   productFormSubtitleTemplate: '{product} · please complete the form below',
   loadingEllipsis: 'Loading…',
+  formPersonParticipantTag: 'Participant',
+  formPersonGuestTag: 'Guest',
+  formPersonFallbackName: 'Person',
+  formPersonSectionHint: 'Please answer for each person.',
+  formResponsesInvalidIntro: 'Some answers in the form need fixing. Please go back to the form and correct:',
 
   customerCommentPlaceholder:
     'e.g. a dietary need, an accessibility request, a special occasion…',
@@ -1325,6 +1335,11 @@ const de: Bundle = {
   unsupportedFieldTypeTemplate: '(Nicht unterstützter Feldtyp: {type})',
   productFormSubtitleTemplate: '{product} · bitte füllen Sie das folgende Formular aus',
   loadingEllipsis: 'Wird geladen…',
+  formPersonParticipantTag: 'Teilnehmer',
+  formPersonGuestTag: 'Gast',
+  formPersonFallbackName: 'Person',
+  formPersonSectionHint: 'Bitte für jede Person beantworten.',
+  formResponsesInvalidIntro: 'Einige Antworten im Formular müssen korrigiert werden. Bitte gehen Sie zurück zum Formular und korrigieren Sie:',
 
   customerCommentPlaceholder:
     'z. B. eine Ernährungsbesonderheit, ein Bedarf für Barrierefreiheit, ein besonderer Anlass…',

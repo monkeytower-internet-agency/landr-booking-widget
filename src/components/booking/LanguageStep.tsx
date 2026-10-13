@@ -40,14 +40,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { StepBackButton } from '@/components/booking/StepBackButton'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { languageStepCue, languageStepGate, tr } from '@/lib/strings'
 import { browserLocale } from '@/lib/locale'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
 import { HelpDisclosure } from './HelpDisclosure'
-import { OptionalReveal } from './OptionalReveal'
 import { ParticipantLanguageBoard } from './ParticipantLanguageBoard'
 import {
   applyLanguageAssignment,
@@ -80,20 +77,6 @@ export interface LanguageStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  /**
-   * landr-8sk6l: the operator form's optional "Other languages spoken" field,
-   * asked here beside the board instead of on the later custom-form step. The
-   * value lives in App.tsx's draft (the form's own answer slot) and is written
-   * live, like the comment. Absent when the product's flow declares no such
-   * field — then nothing renders.
-   */
-  otherLanguages?: {
-    label: string
-    helpText?: string | null
-    maxLength?: number | null
-    value: string
-    onChange: (value: string) => void
-  }
   onBack: () => void
   onConfirm: (assignment: ParticipantLanguageMap) => void
 }
@@ -130,7 +113,6 @@ export function LanguageStep({
   initialAssignment,
   customerComment = '',
   onCustomerCommentChange = () => {},
-  otherLanguages,
   onBack,
   onConfirm,
 }: LanguageStepProps) {
@@ -230,30 +212,6 @@ export function LanguageStep({
           onCloseLanguage={handleCloseLanguage}
           nextActionCue={nextActionCue}
         />
-
-        {otherLanguages ? (
-          <OptionalReveal
-            thing={otherLanguages.label}
-            hasValue={otherLanguages.value !== ''}
-            data-testid="language-step-other-languages-reveal"
-          >
-            <div className="flex flex-col gap-1" data-testid="language-step-other-languages">
-              <Label htmlFor="language-step-other-languages-input" className="text-xs">
-                {otherLanguages.label} {tr('optionalSuffix', locale)}
-              </Label>
-              <Input
-                id="language-step-other-languages-input"
-                data-testid="language-step-other-languages-input"
-                value={otherLanguages.value}
-                maxLength={otherLanguages.maxLength ?? undefined}
-                onChange={(e) => otherLanguages.onChange(e.target.value)}
-              />
-              {otherLanguages.helpText ? (
-                <p className="text-xs text-muted-foreground">{otherLanguages.helpText}</p>
-              ) : null}
-            </div>
-          </OptionalReveal>
-        ) : null}
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
