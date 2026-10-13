@@ -12100,6 +12100,76 @@
         "title": "OfferCustomer",
         "type": "object"
       },
+      "OfferLineItem": {
+        "description": "One priced product line of the offer (landr-b48i5), same order as\n``product_lines``. Read from the persisted ``computed_price_breakdown``\nvia ``booking_line_items`` \u2014 never recomputed.\n\n``participants`` / ``per_person_price`` are set only when the line is\npriced per head (a ``per_participant_tier`` rule, or any rule whose\ndetail has ``per_participant`` true) AND ``line_total / qty /\nparticipants`` divides to whole cents; otherwise both are ``None`` and\nthe page shows the line total alone.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line_total": {
+            "title": "Line Total",
+            "type": "number"
+          },
+          "paid_to": {
+            "enum": [
+              "operator",
+              "hotel"
+            ],
+            "title": "Paid To",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "per_person_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Person Price"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "label",
+          "qty",
+          "units",
+          "line_total",
+          "unit_price",
+          "paid_to"
+        ],
+        "title": "OfferLineItem",
+        "type": "object"
+      },
       "OfferParticipant": {
         "additionalProperties": true,
         "description": "One entry of the RPC's ``participants`` array. Mirrors the widget's\n``OfferParticipant`` TypeScript interface.",
@@ -18385,6 +18455,13 @@
               }
             ],
             "title": "Ical Url"
+          },
+          "line_items": {
+            "items": {
+              "$ref": "#/components/schemas/OfferLineItem"
+            },
+            "title": "Line Items",
+            "type": "array"
           },
           "operator_name": {
             "anyOf": [
