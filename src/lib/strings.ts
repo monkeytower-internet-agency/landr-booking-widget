@@ -453,6 +453,8 @@ type Bundle = {
   offerColLength: string
   offerLengthDaySingular: string
   offerLengthDayPlural: string
+  /** Total row under a line booked on non-consecutive days (landr pay page). */
+  offerLengthTotalLabel: string
   offerLengthNightSingular: string
   offerLengthNightPlural: string
   offerYourTripWithTemplate: string
@@ -1055,6 +1057,7 @@ const en: Bundle = {
   offerColLength: 'Length',
   offerLengthDaySingular: '{n} day',
   offerLengthDayPlural: '{n} days',
+  offerLengthTotalLabel: 'Total',
   offerLengthNightSingular: '{n} night',
   offerLengthNightPlural: '{n} nights',
   offerYourTripWithTemplate: 'Your trip with {operator}',
@@ -1645,6 +1648,7 @@ const de: Bundle = {
   offerColLength: 'Dauer',
   offerLengthDaySingular: '{n} Tag',
   offerLengthDayPlural: '{n} Tage',
+  offerLengthTotalLabel: 'Gesamt',
   offerLengthNightSingular: '{n} Nacht',
   offerLengthNightPlural: '{n} Nächte',
   offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
