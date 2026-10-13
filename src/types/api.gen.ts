@@ -2760,7 +2760,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Contact Page */
+        /**
+         * Get Contact Page
+         * @description Where the old personal-page link now points.
+         *
+         *     ``{"redirect_to": "<share page URL>"}`` when the contact has a booking;
+         *     ``{"redirect_to": null, "operator": {...}}`` when they have none (the
+         *     client shows a short "This page has moved" note with the operator's
+         *     contact). Unknown/revoked token or erased contact -> 404.
+         */
         get: operations["public_get_contact_page"];
         put?: never;
         post?: never;
@@ -2789,35 +2797,6 @@ export interface paths {
         get: operations["public_contact_page_prefill"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/public/contact-page/{token}/today-bridge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Today Bridge
-         * @description Mint a Today participant session for this contact, if they are on
-         *     today's roster for this operator.
-         *
-         *     Returns the EXACT same shape as ``POST /api/public/today/session``
-         *     (app/routers/public_today.py) — this reuses that endpoint's own
-         *     ``issue_token`` mint function rather than re-implementing it, so a
-         *     dashboard/widget consumer of one session shape can consume the other
-         *     without a special case. 404 (same opaque body as everything else on
-         *     this router) when the contact has no participant row for TODAY, or when
-         *     today's line is not on a live, coded service product.
-         */
-        post: operations["public_contact_page_today_bridge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5810,36 +5789,6 @@ export interface paths {
         get: operations["contact_booking_overlaps_staff_session"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token Status
-         * @description Metadata only — never the plaintext, which is not recoverable once
-         *     hashed. The dashboard uses this to decide whether to show "copy link"
-         *     (existing token, plaintext already shown once) vs. "create link".
-         */
-        get: operations["staff_get_contact_page_token_status"];
-        put?: never;
-        /**
-         * Create Or Rotate Token
-         * @description Kill any current active link and mint a new one.
-         *
-         *     Idempotently safe to call on a contact with no token yet (there is
-         *     simply nothing to revoke first). Use when a link has been over-shared,
-         *     or on first setup.
-         */
-        post: operations["staff_create_or_rotate_contact_page_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -24554,39 +24503,6 @@ export interface operations {
             };
         };
     };
-    public_contact_page_today_bridge: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     health: {
         parameters: {
             query?: never;
@@ -29582,74 +29498,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOverlap"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_get_contact_page_token_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                contact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_create_or_rotate_contact_page_token: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                contact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */
