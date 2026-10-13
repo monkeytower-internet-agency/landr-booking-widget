@@ -5,6 +5,7 @@ import {
   initiatePayment,
   isPaymentModeNotOnline,
   paymentModeNotOnlineMode,
+  type OfferLineItem,
   type OfferPayment,
   type OfferTotals,
   type PublicBookingOffer,
@@ -18,8 +19,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
-import { tr } from '@/lib/strings'
+import { plural, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
+import { formatRanges, lineRanges } from './offerDates'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -124,6 +126,45 @@ function _returnBase(): string {
 
 // landr-t63w0: the operator's non-card rails on the /pay page — IBAN/BIC when
 // bank transfer is ticked, an "also pay on site" hint when on-site is ticked.
+/**
+ * landr-1zkp7: trip-page-style section — a small uppercase muted title above
+ * a bordered, elevated card. Mimics the briefings site's `.section__title` +
+ * `.card` inside the widget's own Tailwind tokens.
+ */
+function OfferSection({
+  title,
+  ariaLabel,
+  testId,
+  children,
+}: {
+  title: string
+  ariaLabel?: string
+  testId?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section aria-label={ariaLabel ?? title} data-testid={testId}>
+      <h3 className="mb-2 ml-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h3>
+      <div className="overflow-hidden rounded-xl border bg-surface-card shadow-elev-2">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/** The line item for a product line: same index when it lines up, else the first match by product id. */
+function lineItemFor(
+  items: readonly OfferLineItem[],
+  productId: string,
+  index: number,
+): OfferLineItem | undefined {
+  const same = items[index]
+  if (same && same.product_id === productId) return same
+  return items.find((li) => li.product_id === productId)
+}
+
 function PaymentRails({
   payment,
   locale,
@@ -637,61 +678,127 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     totals.gross_total !== chargeAmount &&
     !splitAvailable
 
-  return (
-    <Card data-testid="offer-ready">
-      <CardHeader>
-        {/* landr-esd3: pay mode swaps the title/description copy only —
-            everything below (totals table, CTA, initiatePayment) is shared. */}
-        <CardTitle>
-          {mode === 'pay' ? tr('completeYourPayment', locale) : tr('yourCustomOffer', locale)}
-        </CardTitle>
-        <CardDescription>
-          {mode === 'pay'
-            ? tr('payModeDescription', locale)
-            : tr('offerModeDescription', locale)}
-        </CardDescription>
-        {offer.stage ? (
-          <p
-            className="mt-1 text-sm text-muted-foreground"
-            data-testid="offer-stage-label"
-          >
-            {tr('statusLabel', locale)} {resolveCustomerStageLabel(offer.stage, locale)}
-          </p>
-        ) : null}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+  // landr-1zkp7: per-line prices (absent on an older API => today's rendering)
+  const lineItems = offer.line_items ?? []
+  // Dates table rows: one per product line, dates collapsed into stretches.
+  const itemRows = product_lines.map((pl, i) => {
+    const li = lineItemFor(lineItems, pl.product_id, i)
+    const ranges = lineRanges(pl)
+    const hasDays = !!pl.selected_days && pl.selected_days.length > 0
+    // Hotel lines carry the NIGHT window as selected_days, so count nights
+    // there; nothing else on the payload identifies a room line.
+    const nights = li?.paid_to === 'hotel'
+    let count = ranges.reduce((sum, r) => sum + r.days, 0)
+    if (nights && !hasDays) count = Math.max(1, count - 1)
+    const length =
+      count > 0
+        ? (nights
+            ? plural(count, tr('offerLengthNightSingular', locale), tr('offerLengthNightPlural', locale))
+            : plural(count, tr('offerLengthDaySingular', locale), tr('offerLengthDayPlural', locale))
+          ).replace('{n}', String(count))
+        : ''
+    return { pl, ranges, dates: formatRanges(ranges, locale), length }
+  })
+  const allRanges = itemRows.flatMap((r) => r.ranges)
+  const overallRange =
+    allRanges.length > 0
+      ? formatRanges(
+          [
+            {
+              start: allRanges.map((r) => r.start).sort()[0]!,
+              end: allRanges.map((r) => r.end).sort().slice(-1)[0]!,
+            },
+          ],
+          locale,
+        )
+      : ''
+  const heroTitle = product_lines[0]?.name ?? null
+  const heroSecondary =
+    product_lines.length > 1 ? product_lines.slice(1).map((pl) => pl.name).join(' · ') : null
+  const thClass =
+    'px-4 py-2 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground'
 
-        {/* Product lines */}
+  return (
+    <div data-testid="offer-ready" className="flex flex-col gap-5">
+      {/* landr-1zkp7: trip-page-style hero — operator, product, overall dates */}
+      {(operatorName || heroTitle) && (
+        <header className="px-1" data-testid="offer-hero">
+          {operatorName && (
+            <p
+              className="text-sm font-semibold text-muted-foreground"
+              data-testid="offer-hero-operator"
+            >
+              {tr('offerYourTripWithTemplate', locale).replace('{operator}', operatorName)}
+            </p>
+          )}
+          {heroTitle && (
+            <h1 className="mt-1 text-2xl font-bold tracking-tight">{heroTitle}</h1>
+          )}
+          {overallRange && (
+            <p
+              className="mt-1 font-semibold text-muted-foreground tabular-nums"
+              data-testid="offer-hero-dates"
+            >
+              {overallRange}
+            </p>
+          )}
+          {heroSecondary && (
+            <p className="mt-1 text-sm text-muted-foreground">{heroSecondary}</p>
+          )}
+        </header>
+      )}
+
+        {/* Product lines — landr-1zkp7: Item | Dates | Length table */}
         {product_lines.length > 0 && (
-          <section aria-label={tr('productsAria', locale)}>
-            <h3 className="mb-1 text-sm font-semibold">{tr('whatYoureBooking', locale)}</h3>
-            <ul className="flex flex-col gap-1 text-sm">
-              {product_lines.map((pl) => (
-                <li key={pl.product_id} data-testid="offer-product-line">
-                  <span className="font-medium">{pl.name}</span>
-                  {pl.selected_days && pl.selected_days.length > 0 && (
-                    <span className="ml-1 text-muted-foreground">
-                      ({pl.selected_days.join(', ')})
-                    </span>
-                  )}
-                  {pl.quantity > 1 && (
-                    <span className="ml-1 text-muted-foreground">
-                      &times; {pl.quantity}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <OfferSection
+            title={tr('whatYoureBooking', locale)}
+            ariaLabel={tr('productsAria', locale)}
+          >
+            <table className="w-full text-sm" data-testid="offer-items-table">
+              <thead>
+                <tr className="border-b">
+                  <th scope="col" className={thClass}>{tr('offerColItem', locale)}</th>
+                  <th scope="col" className={thClass}>{tr('offerColDates', locale)}</th>
+                  <th scope="col" className={thClass}>{tr('offerColLength', locale)}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemRows.map(({ pl, dates, length }, i) => (
+                  <tr
+                    key={`${pl.product_id}-${i}`}
+                    data-testid="offer-product-line"
+                    className="border-b align-top last:border-b-0"
+                  >
+                    <th scope="row" className="px-4 py-3 text-left font-semibold">
+                      {pl.name}
+                      {pl.quantity > 1 && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          &times; {pl.quantity}
+                        </span>
+                      )}
+                    </th>
+                    <td className="px-4 py-3 text-muted-foreground" data-testid="offer-line-dates">
+                      {dates || '—'}
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums"
+                      data-testid="offer-line-length"
+                    >
+                      {length || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </OfferSection>
         )}
 
         {/* Participants */}
         {participants.length > 0 && (
-          <section aria-label={tr('offerParticipantsTitle', locale)}>
-            <h3 className="mb-1 text-sm font-semibold">{tr('offerParticipantsTitle', locale)}</h3>
-            <ul className="flex flex-col gap-0.5 text-sm">
+          <OfferSection title={tr('offerParticipantsTitle', locale)}>
+            <ul className="flex flex-col divide-y text-sm">
               {participants.map((p, i) => (
-                <li key={i} data-testid="offer-participant">
+                <li key={i} data-testid="offer-participant" className="px-4 py-2.5">
                   {p.first_name}
                   {p.last_name ? ` ${p.last_name}` : ''}
                   {p.service_role_label && (
@@ -702,24 +809,72 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                 </li>
               ))}
             </ul>
-          </section>
+          </OfferSection>
         )}
 
         {/* Price breakdown */}
-        <section aria-label={tr('offerPriceBreakdownTitle', locale)}>
-          <h3 className="mb-1 text-sm font-semibold">{tr('offerPriceBreakdownTitle', locale)}</h3>
-          <table className="w-full max-w-xs text-sm">
+        <OfferSection title={tr('offerPriceBreakdownTitle', locale)}>
+          <table className="w-full text-sm">
             <tbody>
+              {/* landr-1zkp7: one row per priced line — label, per-person
+                  price × participants when the API priced it per head, line
+                  total. Money semantics below (subtotal / tax / amount due)
+                  are untouched. Absent line_items => today's rendering. */}
+              {lineItems.map((li, i) => (
+                <tr
+                  key={`${li.product_id}-${i}`}
+                  className="border-b align-top"
+                  data-testid="offer-line-item"
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium">
+                      {li.label}
+                      {li.qty > 1 && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          &times; {li.qty}
+                        </span>
+                      )}
+                    </div>
+                    {li.per_person_price != null && li.participants != null && li.participants > 0 && (
+                      <div
+                        className="text-xs text-muted-foreground tabular-nums"
+                        data-testid="offer-line-per-person"
+                      >
+                        {formatCurrency(li.per_person_price, currencyCode, locale)}{' '}
+                        {plural(
+                          li.participants,
+                          tr('participantSuffixSingular', locale),
+                          tr('participantSuffixPlural', locale),
+                        ).replace('{n}', String(li.participants))}
+                      </div>
+                    )}
+                    {li.paid_to === 'hotel' && (
+                      <div
+                        className="text-xs text-muted-foreground"
+                        data-testid="offer-line-hotel"
+                      >
+                        {tr('offerPayableAtHotelShort', locale)}
+                      </div>
+                    )}
+                  </td>
+                  <td
+                    className="px-4 py-2.5 text-right tabular-nums"
+                    data-testid="offer-line-total"
+                  >
+                    {formatCurrency(li.line_total, currencyCode, locale)}
+                  </td>
+                </tr>
+              ))}
               <tr>
-                <td className="py-0.5 pr-4 text-muted-foreground">{tr('offerSubtotalLabel', locale)}</td>
-                <td className="py-0.5 text-right" data-testid="offer-net-total">
+                <td className="px-4 py-1 text-muted-foreground">{tr('offerSubtotalLabel', locale)}</td>
+                <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-net-total">
                   {formatCurrency(breakdownNet, currencyCode, locale)}
                 </td>
               </tr>
               {breakdownTax > 0 && (
                 <tr>
-                  <td className="py-0.5 pr-4 text-muted-foreground">{tr('taxLabel', locale)}</td>
-                  <td className="py-0.5 text-right" data-testid="offer-tax-total">
+                  <td className="px-4 py-1 text-muted-foreground">{tr('taxLabel', locale)}</td>
+                  <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-tax-total">
                     {formatCurrency(breakdownTax, currencyCode, locale)}
                   </td>
                 </tr>
@@ -730,9 +885,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       in pay mode — mirrors booking_payment_link_en's
                       "Amount due" row word-for-word. */}
                   <tr className="border-t">
-                    <td className="py-1 pr-4 font-semibold">{tr('amountDueLabel', locale)}</td>
+                    <td className="px-4 py-1.5 font-semibold">{tr('amountDueLabel', locale)}</td>
                     <td
-                      className="py-1 text-right font-semibold"
+                      className="px-4 py-1.5 text-right tabular-nums font-semibold"
                       data-testid="offer-balance-due"
                     >
                       {alreadySettled
@@ -746,14 +901,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       whole booking's due amount, unchanged). */}
                   {depositPreview && (
                     <tr data-testid="offer-deposit-amount">
-                      <td className="py-0.5 pr-4 text-muted-foreground">
+                      <td className="px-4 py-1 text-muted-foreground">
                         {tr('depositLabelTemplate', locale).replace(
                           '{n}',
                           String(Math.round((depositPreview.amount / chargeAmount) * 100)),
                         )}
                       </td>
                       <td
-                        className="py-0.5 text-right"
+                        className="px-4 py-1 text-right tabular-nums"
                         data-testid="offer-deposit-amount-value"
                       >
                         {formatCurrency(depositPreview.amount, currencyCode, locale)}
@@ -762,11 +917,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   )}
                   {showOperatorGross && (
                     <tr>
-                      <td className="py-0.5 pr-4 text-muted-foreground">
+                      <td className="px-4 py-1 text-muted-foreground">
                         {tr('yourShareOfThisBooking', locale)}
                       </td>
                       <td
-                        className="py-0.5 text-right text-muted-foreground"
+                        className="px-4 py-1 text-right tabular-nums text-muted-foreground"
                         data-testid="offer-operator-gross-total"
                       >
                         {formatCurrency(
@@ -779,11 +934,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   )}
                   {showTotalBookingValue && (
                     <tr>
-                      <td className="py-0.5 pr-4 text-muted-foreground">
+                      <td className="px-4 py-1 text-muted-foreground">
                         {tr('totalBookingValueLabel', locale)}
                       </td>
                       <td
-                        className="py-0.5 text-right text-muted-foreground"
+                        className="px-4 py-1 text-right tabular-nums text-muted-foreground"
                         data-testid="offer-gross-total"
                       >
                         {formatCurrency(totals.gross_total, currencyCode, locale)}
@@ -794,9 +949,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               ) : (
                 <>
                   <tr className="border-t">
-                    <td className="py-1 pr-4 font-semibold">{tr('offerTotalLabel', locale)}</td>
+                    <td className="px-4 py-1.5 font-semibold">{tr('offerTotalLabel', locale)}</td>
                     <td
-                      className="py-1 text-right font-semibold"
+                      className="px-4 py-1.5 text-right tabular-nums font-semibold"
                       data-testid="offer-gross-total"
                     >
                       {formatCurrency(totals.gross_total, currencyCode, locale)}
@@ -804,11 +959,11 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </tr>
                   {totals.balance_due !== totals.gross_total && (
                     <tr>
-                      <td className="py-0.5 pr-4 text-muted-foreground">
+                      <td className="px-4 py-1 text-muted-foreground">
                         {tr('amountDueNowLabel', locale)}
                       </td>
                       <td
-                        className="py-0.5 text-right"
+                        className="px-4 py-1 text-right tabular-nums"
                         data-testid="offer-balance-due"
                       >
                         {formatCurrency(totals.balance_due, currencyCode, locale)}
@@ -821,7 +976,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           </table>
           {showTotalBookingValue && (
             <p
-              className="mt-1 text-xs text-muted-foreground"
+              className="px-4 pb-3 text-xs text-muted-foreground"
               data-testid="offer-total-booking-value-note"
             >
               {tr('totalBookingValueNote', locale)}
@@ -833,7 +988,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               obligation, not another row of the sum being charged. */}
           {showHotelLine && (
             <div
-              className="mt-3 rounded-md border border-dashed px-3 py-2"
+              className="mx-4 mb-4 mt-3 rounded-md border border-dashed px-3 py-2"
               data-testid="offer-hotel-due"
             >
               <div className="flex items-baseline justify-between gap-4 text-sm">
@@ -849,7 +1004,28 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               </p>
             </div>
           )}
-        </section>
+        </OfferSection>
+
+        <OfferSection
+          title={mode === 'pay' ? tr('completeYourPayment', locale) : tr('yourCustomOffer', locale)}
+          testId="offer-payment-section"
+        >
+          <div className="flex flex-col gap-4 p-4">
+            {/* landr-esd3: pay mode swaps the title/description copy only —
+                everything else (totals table, CTA, initiatePayment) is shared. */}
+            <p className="text-sm text-muted-foreground">
+              {mode === 'pay'
+                ? tr('payModeDescription', locale)
+                : tr('offerModeDescription', locale)}
+            </p>
+            {offer.stage ? (
+              <p
+                className="text-sm text-muted-foreground"
+                data-testid="offer-stage-label"
+              >
+                {tr('statusLabel', locale)} {resolveCustomerStageLabel(offer.stage, locale)}
+              </p>
+            ) : null}
 
         {/* landr-k9pji.5 — only reachable once depositPreview is set (see
             onAcceptAndPay); explains why the CTA below no longer says the
@@ -912,7 +1088,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               : tr('offerLinkPersonal', locale)}
         </p>
         )}
-      </CardContent>
-    </Card>
+          </div>
+        </OfferSection>
+    </div>
   )
 }
