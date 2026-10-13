@@ -34192,6 +34192,7 @@
     },
     "/api/public/contact-page/{token}": {
       "get": {
+        "description": "Where the old personal-page link now points.\n\n``{\"redirect_to\": \"<share page URL>\"}`` when the contact has a booking;\n``{\"redirect_to\": null, \"operator\": {...}}`` when they have none (the\nclient shows a short \"This page has moved\" note with the operator's\ncontact). Unknown/revoked token or erased contact -> 404.",
         "operationId": "public_get_contact_page",
         "parameters": [
           {
@@ -34274,51 +34275,6 @@
           }
         },
         "summary": "Get Contact Prefill",
-        "tags": [
-          "public-contact-page"
-        ]
-      }
-    },
-    "/api/public/contact-page/{token}/today-bridge": {
-      "post": {
-        "description": "Mint a Today participant session for this contact, if they are on\ntoday's roster for this operator.\n\nReturns the EXACT same shape as ``POST /api/public/today/session``\n(app/routers/public_today.py) \u2014 this reuses that endpoint's own\n``issue_token`` mint function rather than re-implementing it, so a\ndashboard/widget consumer of one session shape can consume the other\nwithout a special case. 404 (same opaque body as everything else on\nthis router) when the contact has no participant row for TODAY, or when\ntoday's line is not on a live, coded service product.",
-        "operationId": "public_contact_page_today_bridge",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Public Contact Page Today Bridge",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Today Bridge",
         "tags": [
           "public-contact-page"
         ]
@@ -43079,122 +43035,6 @@
         "summary": "Contact Booking Overlaps Staff Session",
         "tags": [
           "staff-contact-booking-overlaps"
-        ]
-      }
-    },
-    "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
-      "get": {
-        "description": "Metadata only \u2014 never the plaintext, which is not recoverable once\nhashed. The dashboard uses this to decide whether to show \"copy link\"\n(existing token, plaintext already shown once) vs. \"create link\".",
-        "operationId": "staff_get_contact_page_token_status",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contact_id",
-            "required": true,
-            "schema": {
-              "title": "Contact Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Staff Get Contact Page Token Status",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Token Status",
-        "tags": [
-          "staff-contact-page-tokens"
-        ]
-      },
-      "post": {
-        "description": "Kill any current active link and mint a new one.\n\nIdempotently safe to call on a contact with no token yet (there is\nsimply nothing to revoke first). Use when a link has been over-shared,\nor on first setup.",
-        "operationId": "staff_create_or_rotate_contact_page_token",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "operator_id",
-            "required": true,
-            "schema": {
-              "title": "Operator Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "contact_id",
-            "required": true,
-            "schema": {
-              "title": "Contact Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Staff Create Or Rotate Contact Page Token",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Or Rotate Token",
-        "tags": [
-          "staff-contact-page-tokens"
         ]
       }
     },
