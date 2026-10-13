@@ -14989,6 +14989,41 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * OfferLineItem
+         * @description One priced product line of the offer (landr-b48i5), same order as
+         *     ``product_lines``. Read from the persisted ``computed_price_breakdown``
+         *     via ``booking_line_items`` — never recomputed.
+         *
+         *     ``participants`` / ``per_person_price`` are set only when the line is
+         *     priced per head (a ``per_participant_tier`` rule, or any rule whose
+         *     detail has ``per_participant`` true) AND ``line_total / qty /
+         *     participants`` divides to whole cents; otherwise both are ``None`` and
+         *     the page shows the line total alone.
+         */
+        OfferLineItem: {
+            /** Label */
+            label: string;
+            /** Line Total */
+            line_total: number;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel";
+            /** Participants */
+            participants?: number | null;
+            /** Per Person Price */
+            per_person_price?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Qty */
+            qty: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Units */
+            units: number;
+        };
+        /**
          * OfferParticipant
          * @description One entry of the RPC's ``participants`` array. Mirrors the widget's
          *     ``OfferParticipant`` TypeScript interface.
@@ -17026,6 +17061,8 @@ export interface components {
             customer_semantic_state: string;
             /** Ical Url */
             ical_url?: string | null;
+            /** Line Items */
+            line_items?: components["schemas"]["OfferLineItem"][];
             /** Operator Name */
             operator_name?: string | null;
             /** Participants */
