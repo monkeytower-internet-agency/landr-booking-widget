@@ -2760,7 +2760,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Contact Page */
+        /**
+         * Get Contact Page
+         * @description Where the old personal-page link now points.
+         *
+         *     ``{"redirect_to": "<share page URL>"}`` when the contact has a booking;
+         *     ``{"redirect_to": null, "operator": {...}}`` when they have none (the
+         *     client shows a short "This page has moved" note with the operator's
+         *     contact). Unknown/revoked token or erased contact -> 404.
+         */
         get: operations["public_get_contact_page"];
         put?: never;
         post?: never;
@@ -2789,35 +2797,6 @@ export interface paths {
         get: operations["public_contact_page_prefill"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/public/contact-page/{token}/today-bridge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Today Bridge
-         * @description Mint a Today participant session for this contact, if they are on
-         *     today's roster for this operator.
-         *
-         *     Returns the EXACT same shape as ``POST /api/public/today/session``
-         *     (app/routers/public_today.py) — this reuses that endpoint's own
-         *     ``issue_token`` mint function rather than re-implementing it, so a
-         *     dashboard/widget consumer of one session shape can consume the other
-         *     without a special case. 404 (same opaque body as everything else on
-         *     this router) when the contact has no participant row for TODAY, or when
-         *     today's line is not on a live, coded service product.
-         */
-        post: operations["public_contact_page_today_bridge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4662,6 +4641,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/form-answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Booking Form Answers
+         * @description The booking's custom-form answers: ``booking`` (asked once) and
+         *     ``people`` (every participant and companion, keyed by participant_id).
+         */
+        get: operations["get_booking_form_answers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Booking Form Answers Route
+         * @description Edit answers. Each change targets one form and either the booking
+         *     (``participant_id`` null) or one person; ``null`` / ``""`` / ``[]`` clear
+         *     a key, other keys are kept. ``required`` and visibility are not enforced
+         *     (staff can clear wrong data); type / options / validation are. Errors:
+         *     422 ``form_answers_invalid`` (``errors[]``), 409
+         *     ``declarations_read_only``. Returns the fresh GET payload.
+         */
+        patch: operations["patch_booking_form_answers_route"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/group": {
         parameters: {
             query?: never;
@@ -5780,36 +5789,6 @@ export interface paths {
         get: operations["contact_booking_overlaps_staff_session"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/staff/operators/{operator_id}/contacts/{contact_id}/page-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Token Status
-         * @description Metadata only — never the plaintext, which is not recoverable once
-         *     hashed. The dashboard uses this to decide whether to show "copy link"
-         *     (existing token, plaintext already shown once) vs. "create link".
-         */
-        get: operations["staff_get_contact_page_token_status"];
-        put?: never;
-        /**
-         * Create Or Rotate Token
-         * @description Kill any current active link and mint a new one.
-         *
-         *     Idempotently safe to call on a contact with no token yet (there is
-         *     simply nothing to revoke first). Use when a link has been over-shared,
-         *     or on first setup.
-         */
-        post: operations["staff_create_or_rotate_contact_page_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8597,6 +8576,12 @@ export interface paths {
          *     nor the single registry recognises; 403 ``template_not_in_tier`` (with
          *     the disabled ``keys``) when the operator's plan does not include one
          *     (landr-lmudr.35 — nothing is applied then).
+         *
+         *     landr-ml90b: with exactly one single template key the body may carry
+         *     ``code`` (and ``label``) for the new type instead of the template's own;
+         *     a live type holding that code is 409 ``code_taken``, a reserved one 422
+         *     ``code_reserved``, a combination that cannot take an override 422
+         *     ``template_override_not_applicable``.
          */
         post: operations["apply_resource_type_templates"];
         delete?: never;
@@ -11135,6 +11120,25 @@ export interface components {
             reason: string;
         };
         /**
+         * BookingFormAnswersOut
+         * @description GET/PATCH /api/staff/operators/{op}/bookings/{id}/form-answers.
+         */
+        BookingFormAnswersOut: {
+            /** Booking */
+            booking?: components["schemas"]["FormAnswerOut"][];
+            /** Booking Id */
+            booking_id: string;
+            /** Forms */
+            forms?: components["schemas"]["FormAnswersFormOut"][];
+            /** People */
+            people?: components["schemas"]["FormAnswersPersonOut"][];
+        };
+        /** BookingFormAnswersPatchIn */
+        BookingFormAnswersPatchIn: {
+            /** Changes */
+            changes: components["schemas"]["FormAnswerChangeIn"][];
+        };
+        /**
          * BookingLineCapacityConflict
          * @description A day the added/switched line does not fit (landr-d7ij2.3). The commit
          *     is refused (409 ``capacity_exceeded``) unless the day is listed in the
@@ -13269,6 +13273,17 @@ export interface components {
             position: number;
             /** Required */
             required: boolean;
+            /**
+             * Scope
+             * @default booking
+             * @enum {string}
+             */
+            scope: "booking" | "participant" | "guest";
+            /**
+             * Share With Accommodation
+             * @default false
+             */
+            share_with_accommodation: boolean;
             validation?: components["schemas"]["FlowFieldValidation"] | null;
             visibility_rule?: components["schemas"]["VisibilityRule"] | null;
         } & {
@@ -13318,6 +13333,8 @@ export interface components {
             min_length?: number | null;
             /** Pattern */
             pattern?: string | null;
+            /** Unit */
+            unit?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13367,6 +13384,92 @@ export interface components {
             /** Source */
             source: string;
         };
+        /** FormAnswerChangeIn */
+        FormAnswerChangeIn: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            };
+            /** Form Key */
+            form_key: string;
+            /** Participant Id */
+            participant_id?: string | null;
+        };
+        /**
+         * FormAnswerOut
+         * @description One field of one form, for the booking or for one person.
+         */
+        FormAnswerOut: {
+            /** Answered */
+            answered: boolean;
+            /** Field Key */
+            field_key: string;
+            /** Field Type */
+            field_type: string;
+            /** Form Id */
+            form_id: string;
+            /** Form Key */
+            form_key: string;
+            /** Form Version */
+            form_version: number;
+            /** Label */
+            label: string;
+            /** Label Localized */
+            label_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Options */
+            options?: unknown[] | null;
+            /** Position */
+            position: number;
+            /** Required */
+            required: boolean;
+            /** Retired */
+            retired: boolean;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "booking" | "participant" | "guest";
+            /** Shared */
+            shared: boolean;
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value?: unknown | null;
+            /** Visible */
+            visible: boolean;
+        };
+        /** FormAnswersFormOut */
+        FormAnswersFormOut: {
+            /** Active */
+            active: boolean;
+            /** Form Id */
+            form_id: string;
+            /** Form Key */
+            form_key: string;
+            /** Name */
+            name?: string | null;
+            /** Name Localized */
+            name_localized?: {
+                [key: string]: unknown;
+            } | null;
+            /** Version */
+            version: number;
+        };
+        /** FormAnswersPersonOut */
+        FormAnswersPersonOut: {
+            /** Answers */
+            answers?: components["schemas"]["FormAnswerOut"][];
+            /** First Name */
+            first_name?: string | null;
+            /** Is Guiding */
+            is_guiding: boolean;
+            /** Last Name */
+            last_name?: string | null;
+            /** Participant Id */
+            participant_id: string;
+        };
         /**
          * FormResponseIn
          * @description landr-71kz.2: one custom form's answers in a booking submit payload.
@@ -13381,16 +13484,34 @@ export interface components {
             answers?: {
                 [key: string]: unknown;
             };
+            /** Companion Answers */
+            companion_answers?: {
+                [key: string]: unknown;
+            }[];
             /** Form Key */
             form_key: string;
+            /** Participant Answers */
+            participant_answers?: {
+                [key: string]: unknown;
+            }[];
         };
         /** FromTemplateIn */
         FromTemplateIn: {
+            /**
+             * Code
+             * @description landr-ml90b: the code the new type gets instead of the template's own. Only with exactly one single (non-adopting) template key, else 422 ``template_override_not_applicable``; a live type already holding it is 409 ``code_taken`` (nothing is created).
+             */
+            code?: string | null;
             /**
              * Keys
              * @description A mix of bundle and/or single template keys from GET .../templates
              */
             keys: string[];
+            /**
+             * Label
+             * @description landr-ml90b: the label the new type gets instead of the template's. Same restriction as ``code``.
+             */
+            label?: string | null;
             /**
              * With Examples
              * @description Also seed each template's example resources
@@ -18131,13 +18252,17 @@ export interface components {
         };
         /**
          * ResourceTypePatch
-         * @description Partial update. ``code`` is immutable. Explicit null clears
-         *     ``label_localized`` / ``parent_id`` / ``color`` / ``icon`` / ``kind_hint``
-         *     and is ignored on NOT NULL columns.
+         * @description Partial update. ``code`` may be renamed (landr-ml90b) unless the type
+         *     is a reserved/baseline one (422 ``code_locked``) or the new code is
+         *     taken (409 ``code_taken``). Explicit null clears ``label_localized`` /
+         *     ``parent_id`` / ``color`` / ``icon`` / ``kind_hint`` and is ignored on
+         *     NOT NULL columns.
          */
         ResourceTypePatch: {
             /** Active */
             active?: boolean | null;
+            /** Code */
+            code?: string | null;
             /** Color */
             color?: string | null;
             /** Default Released Units */
@@ -24378,39 +24503,6 @@ export interface operations {
             };
         };
     };
-    public_contact_page_today_bridge: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     health: {
         parameters: {
             query?: never;
@@ -27267,6 +27359,74 @@ export interface operations {
             };
         };
     };
+    get_booking_form_answers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingFormAnswersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_booking_form_answers_route: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingFormAnswersPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingFormAnswersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     staff_get_booking_group: {
         parameters: {
             query?: never;
@@ -29338,74 +29498,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOverlap"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_get_contact_page_token_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                contact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    staff_create_or_rotate_contact_page_token: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operator_id: string;
-                contact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */

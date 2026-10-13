@@ -103,6 +103,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
+import { alignFormResponses, parseFormResponseErrors } from './formScopes'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
@@ -653,6 +654,17 @@ const formatHttpError = (
       return `${who} needs a room: only you share the host's room. Please go back to accommodation and book a room for them, or remove them from the booking.`
     }
     return "The extra rooms don't match the people staying in them. Please go back to accommodation and check who sleeps in each room."
+  }
+  // landr-9d82r.4: a custom-form answer was rejected. Per-person items name
+  // the right person (participants first, then companions — the same index
+  // space as `memberLabels`); booking-level items carry no name.
+  const formErrors = parseFormResponseErrors(err.detail, participantCount)
+  if (err.status === 422 && formErrors && formErrors.length > 0) {
+    const lines = formErrors.slice(0, 6).map((item) => {
+      const who = item.partyIndex !== null ? memberLabels[item.partyIndex] : undefined
+      return who && who.trim() ? `${who}: ${item.message}` : item.message
+    })
+    return `${tr('formResponsesInvalidIntro', browserLocale())} ${lines.join('; ')}`
   }
   // landr-k9pji.11: operator-setup gap — see DECLARATIONS_SETUP_ERROR_MESSAGE.
   if (
@@ -1392,7 +1404,13 @@ export function BookingForm({
         // answers are already pruned by CustomFormStep before reaching here.
         // Server prunes again for defence-in-depth (landr-9ut4 lesson).
         ...(formResponses && formResponses.length > 0
-          ? { form_responses: formResponses }
+          ? {
+              form_responses: alignFormResponses(
+                formResponses,
+                participants.length,
+                companions.length,
+              ),
+            }
           : {}),
         // landr-fn4i / landr-5krc: only sent when the customer actually typed
         // a code — omitted (not even an empty string) so a booking with no

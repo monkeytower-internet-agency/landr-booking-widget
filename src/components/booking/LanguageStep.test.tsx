@@ -312,40 +312,11 @@ describe('LanguageStep', () => {
   })
 })
 
-describe('LanguageStep — other languages spoken (landr-8sk6l)', () => {
-  it('renders nothing when the flow declares no such field', () => {
+describe('LanguageStep — no "other languages" input (landr-9d82r.1)', () => {
+  it('never renders a free-text other-languages field', () => {
     renderStep()
     expect(screen.queryByTestId('language-step-other-languages')).toBeNull()
-  })
-
-  it('renders the operator label and reports every keystroke', () => {
-    const onChange = vi.fn()
-    render(
-      <LanguageStep
-        productName="Tandem"
-        participantNames={NAMES}
-        guestFlags={GUESTS}
-        offeredLanguages={['en']}
-        otherLanguages={{
-          label: 'Other languages spoken',
-          maxLength: 200,
-          value: '',
-          onChange,
-        }}
-        onBack={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
-    )
-    // landr-80ubl.1: optional, so it starts behind "+ Add …".
-    expect(screen.queryByTestId('language-step-other-languages')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /add other languages spoken/i }))
-    expect(screen.getByTestId('language-step-other-languages').textContent).toContain(
-      'Other languages spoken (optional)',
-    )
-    const input = screen.getByTestId('language-step-other-languages-input')
-    expect(input).toHaveAttribute('maxLength', '200')
-    fireEvent.change(input, { target: { value: 'Italian' } })
-    expect(onChange).toHaveBeenCalledWith('Italian')
+    expect(screen.queryByTestId('language-step-other-languages-input')).toBeNull()
   })
 })
 
@@ -392,7 +363,7 @@ describe('LanguageStep — next action + zen (landr-80ubl.1)', () => {
     expect(screen.getByTestId('customer-comment')).toHaveFocus()
   })
 
-  it('shows a prefilled comment and other-languages value without a click', () => {
+  it('shows a prefilled comment without a click', () => {
     render(
       <LanguageStep
         productName="Tandem"
@@ -400,13 +371,11 @@ describe('LanguageStep — next action + zen (landr-80ubl.1)', () => {
         guestFlags={GUESTS}
         offeredLanguages={['en']}
         customerComment="Vegan"
-        otherLanguages={{ label: 'Other languages spoken', value: 'Italian', onChange: vi.fn() }}
         onBack={vi.fn()}
         onConfirm={vi.fn()}
       />,
     )
     expect(screen.getByTestId('customer-comment')).toHaveValue('Vegan')
-    expect(screen.getByTestId('language-step-other-languages-input')).toHaveValue('Italian')
   })
 })
 

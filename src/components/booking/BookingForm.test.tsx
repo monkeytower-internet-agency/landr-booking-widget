@@ -1402,6 +1402,99 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     },
   )
 
+  // landr-9d82r.4: a per-person form answer rejected by the API (422
+  // form_responses_invalid, person: {kind, index}) names the right person.
+  it('maps a per-person form_responses_invalid 422 onto the right person', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Entity',
+        JSON.stringify({
+          detail: {
+            error: 'form_responses_invalid',
+            errors: [
+              {
+                form_key: 'intake',
+                field_key: 'weight_kg',
+                code: 'required',
+                message: 'Weight is required.',
+                person: { kind: 'participant', index: 1 },
+              },
+              {
+                form_key: 'intake',
+                field_key: 'diet',
+                code: 'option',
+                message: 'Diet is not an option.',
+                person: { kind: 'companion', index: 0 },
+              },
+            ],
+          },
+        }),
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[
+          bookerAsParticipant(ADA_BOOKER),
+          { ...bookerAsParticipant(ADA_BOOKER), first_name: 'Ben', last_name: 'Pilot' },
+        ]}
+        companions={[
+          { first_name: 'Cleo', last_name: '', email: '', phone: '', companion_kind: 'guest' },
+        ]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent('Ben: Weight is required.'),
+    )
+    expect(screen.getByTestId('review-error')).toHaveTextContent('Cleo: Diet is not an option.')
+  })
+
+  // landr-9d82r.4: person answers are clamped to the CURRENT headcount.
+  it('sends person answers aligned to the current participants/companions', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    submitMock.mockResolvedValue({ booking_id: 'b1' } as never)
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        formResponses={[
+          {
+            form_key: 'intake',
+            answers: {},
+            participant_answers: [{ w: '70' }, { w: 'stale' }],
+            companion_answers: [{ d: 'stale' }],
+          },
+        ]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalled())
+    const body = submitMock.mock.calls[0]![0]
+    expect(body.form_responses).toEqual([
+      { form_key: 'intake', answers: {}, participant_answers: [{ w: '70' }] },
+    ])
+  })
+
   // landr-t869m.1/.2: the submit endpoint hard-rejects a booking that falls
   // inside the product's preparation window with 422
   // {"error":"lead_time_not_met",...}. The server already builds the
