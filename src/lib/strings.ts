@@ -530,6 +530,13 @@ type Bundle = {
   offerHotelNote: string
   offerHotelNoteAfterAccept: string
   offerHotelNoteNow: string
+  /** landr-xcyh1.3: the hotel said yes ("Hotel confirmed"). */
+  offerHotelConfirmed: string
+  offerHotelConfirmedAfterAccept: string
+  offerHotelConfirmedAccepted: string
+  /** landr-xcyh1.3: the hotel declined, the operator is updating the offer. */
+  offerHotelDeclined: string
+  offerHotelDeclinedBody: string
   offerSavingsIntroTemplate: string
   offerYouSavePerDayTemplate: string
   offerYouSaveTemplate: string
@@ -1179,11 +1186,16 @@ const en: Bundle = {
   offerAgreedTitle: 'Your booking as agreed',
   offerAgreedDescription: 'This is your booking as we agreed it, so there is nothing for you to accept.',
   offerAcceptedDescription: 'You have accepted this offer.',
-  offerReviewHotelDescription: 'Review the details below and accept the offer. We then ask the hotel to confirm, and you receive the payment link as soon as they have.',
+  offerReviewHotelDescription: 'Review the details below and accept the offer. We asked the hotel when we sent it; you receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
   offerReviewAcceptDescription: 'Review the details below and click Accept offer to confirm your booking.',
-  offerHotelNote: 'This offer depends on availability at the hotel.',
-  offerHotelNoteAfterAccept: 'Once you accept, we ask the hotel to confirm. You receive the payment link as soon as they have.',
+  offerHotelNote: 'This offer is valid once the hotel confirms your rooms.',
+  offerHotelNoteAfterAccept: 'We asked the hotel when we sent this offer. You receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
   offerHotelNoteNow: 'We are asking the hotel to confirm. You receive the payment link by email as soon as they have.',
+  offerHotelConfirmed: 'Hotel confirmed',
+  offerHotelConfirmedAfterAccept: 'The hotel has confirmed your rooms. Accept the offer to get your confirmation and payment link.',
+  offerHotelConfirmedAccepted: 'The hotel has confirmed your rooms.',
+  offerHotelDeclined: 'We are updating your offer.',
+  offerHotelDeclinedBody: 'The hotel could not confirm these rooms. We will send you an updated offer shortly. Nothing is due now.',
   offerSavingsIntroTemplate: 'You save {x} compared to our regular prices.',
   offerYouSavePerDayTemplate: 'You save {a} per day · {b}',
   offerYouSaveTemplate: 'You save {b}',
@@ -1821,11 +1833,16 @@ const de: Bundle = {
   offerAgreedTitle: 'Ihre Buchung wie vereinbart',
   offerAgreedDescription: 'Das ist Ihre Buchung so, wie wir sie vereinbart haben – Sie müssen nichts bestätigen.',
   offerAcceptedDescription: 'Sie haben dieses Angebot angenommen.',
-  offerReviewHotelDescription: 'Prüfen Sie die Details unten und nehmen Sie das Angebot an. Wir fragen dann das Hotel an, und Sie erhalten den Zahlungslink, sobald es bestätigt hat.',
+  offerReviewHotelDescription: 'Prüfen Sie die Details unten und nehmen Sie das Angebot an. Wir haben das Hotel beim Senden angefragt; Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
   offerReviewAcceptDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Angebot annehmen“, um Ihre Buchung zu bestätigen.',
-  offerHotelNote: 'Dieses Angebot hängt von der Verfügbarkeit im Hotel ab.',
-  offerHotelNoteAfterAccept: 'Sobald Sie zusagen, fragen wir das Hotel an. Den Zahlungslink erhalten Sie, sobald es bestätigt hat.',
+  offerHotelNote: 'Dieses Angebot gilt, sobald das Hotel Ihre Zimmer bestätigt.',
+  offerHotelNoteAfterAccept: 'Wir haben das Hotel beim Senden dieses Angebots angefragt. Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
   offerHotelNoteNow: 'Wir fragen das Hotel gerade an. Den Zahlungslink erhalten Sie per E-Mail, sobald es bestätigt hat.',
+  offerHotelConfirmed: 'Hotel bestätigt',
+  offerHotelConfirmedAfterAccept: 'Das Hotel hat Ihre Zimmer bestätigt. Nehmen Sie das Angebot an, um Bestätigung und Zahlungslink zu erhalten.',
+  offerHotelConfirmedAccepted: 'Das Hotel hat Ihre Zimmer bestätigt.',
+  offerHotelDeclined: 'Wir aktualisieren Ihr Angebot.',
+  offerHotelDeclinedBody: 'Das Hotel konnte diese Zimmer nicht bestätigen. Wir senden Ihnen in Kürze ein aktualisiertes Angebot. Es ist jetzt nichts zu zahlen.',
   offerSavingsIntroTemplate: 'Sie sparen {x} gegenüber unseren regulären Preisen.',
   offerYouSavePerDayTemplate: 'Sie sparen {a} pro Tag · {b}',
   offerYouSaveTemplate: 'Sie sparen {b}',

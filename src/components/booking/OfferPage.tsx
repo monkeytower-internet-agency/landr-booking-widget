@@ -292,8 +292,17 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const flagsPresent = mode === 'offer' && offer?.offer_requires_acceptance != null
   const requiresAcceptance = offer?.offer_requires_acceptance !== false
   const accepted = !!offer?.offer_accepted_at
-  const hotelPending = flagsPresent && offer?.offer_hotel_pending === true
-  const needsAccept = flagsPresent && requiresAcceptance && !accepted
+  // landr-xcyh1.3: the hotel declined; the operator is updating the offer.
+  // Nothing to click, nothing to pay until the updated offer arrives.
+  const hotelDeclined = flagsPresent && offer?.offer_hotel_declined === true
+  const hotelPending = flagsPresent && !hotelDeclined && offer?.offer_hotel_pending === true
+  // landr-xcyh1.3: the offer has hotel rooms and the hotel step is behind us.
+  const hotelConfirmed =
+    flagsPresent &&
+    !hotelPending &&
+    !hotelDeclined &&
+    (offer?.line_items ?? []).some((li) => li.paid_to === 'hotel')
+  const needsAccept = flagsPresent && requiresAcceptance && !accepted && !hotelDeclined
   const onlineAvailable = !offer?.payment || offer.payment.online_available
   const acceptOnly = flagsPresent && (hotelPending || !onlineAvailable)
 
@@ -379,6 +388,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               ...prev,
               offer_accepted_at: resp.offer_accepted_at ?? new Date().toISOString(),
               offer_hotel_pending: resp.offer_hotel_pending,
+              offer_hotel_declined: resp.offer_hotel_declined ?? prev.offer_hotel_declined,
             }
           : prev,
       )
@@ -402,7 +412,12 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     if (needsAccept) {
       const resp = await runAccept()
       if (!resp) return
-      if (acceptOnly || resp.offer_hotel_pending || !resp.payment_allowed) {
+      if (
+        acceptOnly ||
+        resp.offer_hotel_pending ||
+        resp.offer_hotel_declined ||
+        !resp.payment_allowed
+      ) {
         setStatus('ready')
         return
       }
@@ -459,6 +474,20 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       // not a failure, the payment link follows by email.
       if (conflictErrorCode(err) === 'hotel_step_pending') {
         setOffer((prev) => (prev ? { ...prev, offer_hotel_pending: true } : prev))
+        setStatus('ready')
+        return
+      }
+      // landr-xcyh1.3: the hotel declined between page load and click -- the
+      // operator is updating the offer, there is nothing to pay.
+      if (conflictErrorCode(err) === 'hotel_declined') {
+        setOffer((prev) => (prev ? { ...prev, offer_hotel_declined: true } : prev))
+        setStatus('ready')
+        return
+      }
+      // landr-xcyh1.3: the offer is not accepted yet (e.g. an older tab) --
+      // fall back to the Accept step instead of an error.
+      if (conflictErrorCode(err) === 'offer_not_accepted') {
+        setOffer((prev) => (prev ? { ...prev, offer_accepted_at: null } : prev))
         setStatus('ready')
         return
       }
@@ -773,7 +802,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     ? showCardCta
       ? 'card'
       : 'none'
-    : needsAccept
+    : hotelDeclined
+      ? 'none'
+      : needsAccept
       ? acceptOnly
         ? 'accept'
         : 'card'
@@ -1617,7 +1648,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   ? tr('offerModeDescription', locale)
                   : !requiresAcceptance
                     ? tr('offerAgreedDescription', locale)
-                    : accepted
+                    : hotelDeclined
+                      ? tr('offerHotelDeclinedBody', locale)
+                      : accepted
                       ? tr('offerAcceptedDescription', locale)
                       : hotelPending
                         ? tr('offerReviewHotelDescription', locale)
@@ -1638,6 +1671,29 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                     ? tr('offerHotelNoteAfterAccept', locale)
                     : tr('offerHotelNoteNow', locale)}
                 </p>
+              </div>
+            )}
+            {/* landr-xcyh1.3: the hotel said yes -- "Hotel confirmed". */}
+            {hotelConfirmed && (
+              <div
+                className="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900 dark:border-green-700 dark:bg-green-950 dark:text-green-100"
+                data-testid="offer-hotel-confirmed"
+              >
+                <p className="font-semibold">{tr('offerHotelConfirmed', locale)}</p>
+                <p className="mt-0.5">
+                  {needsAccept
+                    ? tr('offerHotelConfirmedAfterAccept', locale)
+                    : tr('offerHotelConfirmedAccepted', locale)}
+                </p>
+              </div>
+            )}
+            {/* landr-xcyh1.3: the hotel declined; the operator updates the offer. */}
+            {hotelDeclined && (
+              <div
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+                data-testid="offer-hotel-declined"
+              >
+                <p className="font-semibold">{tr('offerHotelDeclined', locale)}</p>
               </div>
             )}
             {offer.stage ? (
@@ -1662,7 +1718,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         )}
 
         {/* landr-t63w0: bank details + pay-on-site hint (pay mode only) */}
-        {payment && !alreadySettled && !hotelPending && !needsAccept ? (
+        {payment && !alreadySettled && !hotelPending && !hotelDeclined && !needsAccept ? (
           <PaymentRails
             payment={payment}
             locale={locale}

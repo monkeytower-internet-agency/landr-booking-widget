@@ -1684,9 +1684,9 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent(
-      'This offer depends on availability at the hotel.',
+      'This offer is valid once the hotel confirms your rooms.',
     )
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('Once you accept')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('once the hotel has confirmed and you have accepted')
     expect(screen.queryByRole('button', { name: /accept & pay|pay now/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
 
@@ -1735,7 +1735,7 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     })
     await ready()
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
-    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('depends on availability')
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('valid once the hotel confirms your rooms')
   })
 
   it('shows the error card when the offer was changed after the link was sent (no retry)', async () => {
@@ -1777,6 +1777,95 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     await waitFor(() => screen.getByTestId('offer-hotel-note'))
     expect(screen.queryByTestId('offer-payment-section')?.textContent).not.toMatch(/pay now/i)
     expect(screen.queryByTestId('offer-pay-error')).not.toBeInTheDocument()
+  })
+
+  // ── landr-xcyh1.3 ──────────────────────────────────────────────────────────
+  const HOTEL_LINE = {
+    product_id: 'p-hotel', label: 'Hotel Alpenblick', qty: 1, units: 5,
+    line_total: 500, unit_price: 500, paid_to: 'hotel', participants: null, per_person_price: null,
+  }
+
+  it('hotel confirmed, customer not accepted yet: "Hotel confirmed" note, Accept & Pay accepts then pays', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, line_items: [HOTEL_LINE],
+      offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.acceptOffer.mockResolvedValue({ ...ACCEPTED, confirmation_sent: true })
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set() {},
+      get() { return `http://stub.invalid/offer/${TOKEN}` },
+    })
+    await ready()
+    expect(screen.getByTestId('offer-hotel-confirmed')).toHaveTextContent('Hotel confirmed')
+    expect(screen.queryByTestId('offer-hotel-note')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+  })
+
+  it('no "Hotel confirmed" note while the hotel step is pending or without hotel rooms', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, line_items: [HOTEL_LINE],
+      offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: true,
+      payment: { methods: ['online'], online_available: false, bank: null },
+    })
+    await ready()
+    expect(screen.queryByTestId('offer-hotel-confirmed')).not.toBeInTheDocument()
+  })
+
+  it('hotel declined: update note, no button, no payment rails', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null,
+      offer_hotel_pending: true, offer_hotel_declined: true,
+      payment: { methods: ['online', 'bank_transfer'], online_available: false, bank: null },
+    })
+    await ready()
+    expect(screen.getByTestId('offer-hotel-declined')).toHaveTextContent('We are updating your offer.')
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/could not confirm these rooms/i)
+    expect(screen.queryByTestId('offer-hotel-note')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
+  })
+
+  it('initiate 409 hotel_declined turns the page into the declined state', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: false, offer_accepted_at: '2026-10-14T09:00:00Z',
+      offer_hotel_pending: false,
+    })
+    mocks.initiatePayment.mockRejectedValue(conflict('hotel_declined'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
+    await waitFor(() => screen.getByTestId('offer-hotel-declined'))
+    expect(screen.queryByTestId('offer-pay-error')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+  })
+
+  it('initiate 409 offer_not_accepted falls back to the Accept step', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: '2026-10-14T09:00:00Z',
+      offer_hotel_pending: false,
+    })
+    mocks.initiatePayment.mockRejectedValue(conflict('offer_not_accepted'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
+    await waitFor(() => screen.getByRole('button', { name: /accept & pay/i }))
+    expect(screen.queryByTestId('offer-pay-error')).not.toBeInTheDocument()
+  })
+
+  it('a yes while the hotel has declined records it and shows the declined state', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.acceptOffer.mockResolvedValue({
+      ...ACCEPTED, payment_allowed: false, offer_hotel_declined: true,
+    })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => screen.getByTestId('offer-hotel-declined'))
+    expect(mocks.initiatePayment).not.toHaveBeenCalled()
   })
 
   it('no card rail (bank only): Accept offer, then the bank details show', async () => {
