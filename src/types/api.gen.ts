@@ -7387,6 +7387,41 @@ export interface paths {
         patch: operations["patch_product_category"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/product-day-capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Day Capacity
+         * @description Per-day seat numbers of every product whose OWN daily cap limits it
+         *     (``products.day_capacity_source = 'product'``), for the staff calendar's
+         *     product-cap lane (landr-rmcsu).
+         *
+         *     These are the numbers the public booking widget enforces — the rows come
+         *     from the same ``public_get_product_availability`` RPC and the same
+         *     ``_fill_seat_numbers`` step the public endpoint uses, so the dashboard
+         *     cannot show a second seat definition. ``booked`` is the
+         *     guiding participants of live bookings (``product_day_seat_load``).
+         *
+         *     Omitted: products limited by ``resources`` (the pool lanes already show
+         *     them), days whose ``seat_limit_source`` is not ``product`` (sentinel /
+         *     ``none`` / pool-filled days), closed days (the RPC does not return them),
+         *     and slot rows of time_slot products (a per-day number needs a whole-day
+         *     shape). Like the widget, products that are inactive or not publicly
+         *     listed return no rows. Ordered by product name, then date.
+         */
+        get: operations["list_product_day_capacity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/product-groups": {
         parameters: {
             query?: never;
@@ -16777,6 +16812,33 @@ export interface components {
             supports_is_contiguous: boolean;
             /** Template Key */
             template_key: string;
+        };
+        /**
+         * ProductDayCapacity
+         * @description One day of one product limited by its OWN per-day seat cap.
+         */
+        ProductDayCapacity: {
+            /** Available */
+            available: number;
+            /** Booked */
+            booked: number;
+            /** Capacity */
+            capacity: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /**
+             * Seat Limit Source
+             * @default product
+             * @constant
+             */
+            seat_limit_source: "product";
         };
         /**
          * ProductFlowResponse
@@ -32975,6 +33037,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_day_capacity: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDayCapacity"][];
                 };
             };
             /** @description Validation Error */
