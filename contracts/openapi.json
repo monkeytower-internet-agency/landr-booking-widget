@@ -6472,6 +6472,22 @@
             "title": "Html",
             "type": "string"
           },
+          "reason_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Stage"
+          },
+          "send_allowed": {
+            "default": true,
+            "title": "Send Allowed",
+            "type": "boolean"
+          },
           "subject": {
             "title": "Subject",
             "type": "string"
@@ -26716,6 +26732,44 @@
           "matched"
         ],
         "title": "TaxRateCheck",
+        "type": "object"
+      },
+      "TaxRateItem": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "holded",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pct",
+          "label",
+          "source"
+        ],
+        "title": "TaxRateItem",
         "type": "object"
       },
       "TemplateCatalogueEntryOut": {
@@ -59008,6 +59062,57 @@
         "summary": "Patch Tag",
         "tags": [
           "staff-tags"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/tax-rates": {
+      "get": {
+        "operationId": "list_tax_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaxRateItem"
+                  },
+                  "title": "Response List Tax Rates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tax Rates",
+        "tags": [
+          "staff-operator-tax-rates"
         ]
       }
     },
