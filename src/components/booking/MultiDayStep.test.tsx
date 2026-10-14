@@ -330,3 +330,121 @@ describe('MultiDayStep — group-size stepper + seat-aware calendar (landr-rmcsu
     expect(screen.getByText(/ and .* have fewer than 3 seats left\./)).toBeInTheDocument()
   })
 })
+
+describe('MultiDayStep — invite summary honours the group size (landr-rmcsu.7)', () => {
+  const dayBtn = (iso: string) =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+      (b) => b.dataset.day && isoDate(new Date(b.dataset.day)) === iso,
+    )!
+
+  it('blocks "Continue with these dates" when a host day has room for fewer than the group', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 5), slot(OPEN_B, 2)])
+    const onConfirm = vi.fn()
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={onConfirm}
+        originalDays={[OPEN_A, OPEN_B]}
+        originalDaysLabel="Ada"
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={3}
+      />,
+    )
+    const msg = await screen.findByTestId('invite-dates-short')
+    expect(msg).toHaveTextContent(/Only 2 seats left on .* — you need 3\./)
+    expect(screen.getByTestId('multi-day-step-invite-submit')).toBeDisabled()
+    expect(screen.queryByTestId('invite-dates-unavailable')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /change dates/i })).toBeInTheDocument()
+  })
+
+  it('stays ready when every host day takes the group', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 5), slot(OPEN_B, 3)])
+    const onConfirm = vi.fn()
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={onConfirm}
+        originalDays={[OPEN_A, OPEN_B]}
+        originalDaysLabel="Ada"
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={3}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('multi-day-step-invite-submit')).not.toBeDisabled(),
+    )
+    expect(screen.queryByTestId('invite-dates-short')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('multi-day-step-invite-submit'))
+    expect(onConfirm).toHaveBeenCalledWith([OPEN_A, OPEN_B].sort())
+  })
+
+  it('Change dates drops the host day that is short and shows the notice', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 5), slot(OPEN_B, 2)])
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        originalDays={[OPEN_A, OPEN_B]}
+        originalDaysLabel="Ada"
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={3}
+      />,
+    )
+    await screen.findByTestId('invite-dates-short')
+    fireEvent.click(screen.getByRole('button', { name: /change dates/i }))
+    expect(screen.getByText('1 day selected')).toBeInTheDocument()
+    expect(screen.getByTestId('multi-day-reset-dropped-notice')).toBeInTheDocument()
+    expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled()
+  })
+
+  it('staff with force_book are not blocked by a short host day', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 5), slot(OPEN_B, 2)])
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't', powers: ALL_STAFF_POWERS, operatorId: 'op' }}
+      >
+        <MultiDayStep
+          product={PRODUCT}
+          onConfirm={vi.fn()}
+          originalDays={[OPEN_A, OPEN_B]}
+          originalDaysLabel="Ada"
+          initialSelectedDays={[OPEN_A, OPEN_B]}
+          seatsNeeded={3}
+        />
+      </StaffModeProvider>,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('multi-day-step-invite-submit')).not.toBeDisabled(),
+    )
+  })
+
+  it('a selected day that becomes short after raising the stepper can be deselected', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 5), slot(OPEN_B, 2)])
+    render(
+      <MultiDayStep
+        product={{ ...PRODUCT, max_party_size: 4 } as Product}
+        onConfirm={vi.fn()}
+        initialSelectedDays={[OPEN_A, OPEN_B]}
+        seatsNeeded={2}
+        showPartySizeStepper
+      />,
+    )
+    await waitFor(() => expect(dayBtn(OPEN_B)).toBeDefined())
+    expect(screen.getByText('2 days selected')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+    // OPEN_B (2 seats) is now short for 3: Continue is gated with the reason ...
+    await waitFor(() => expect(screen.getByTestId('multi-day-step-submit')).toBeDisabled())
+    expect(document.getElementById('multi-day-step-gate')).toHaveTextContent(
+      /Only 2 seats left on .* — you need 3\./,
+    )
+    // ... but the day is still clickable, so the customer can drop it.
+    expect(dayBtn(OPEN_B)).not.toBeDisabled()
+    fireEvent.click(dayBtn(OPEN_B))
+    expect(screen.getByText('1 day selected')).toBeInTheDocument()
+    expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled()
+    // A short day that is NOT selected cannot be re-added (react-day-picker
+    // keeps the just-clicked, focused day aria-disabled rather than disabled).
+    fireEvent.click(dayBtn(OPEN_B))
+    expect(screen.getByText('1 day selected')).toBeInTheDocument()
+  })
+})

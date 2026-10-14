@@ -1018,9 +1018,12 @@ function BookingFlowApp() {
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
+      // landr-rmcsu.7: the dates-step group size belongs to the product it
+      // was chosen for (its own max_party_size and seat counts) — clear it
+      // too so a stale "5 of you" doesn't seed the new product's stepper.
       setBookingDraft((prev) =>
-        prev.customFormAnswers
-          ? { ...prev, customFormAnswers: undefined }
+        prev.customFormAnswers || prev.partySize !== undefined
+          ? { ...prev, customFormAnswers: undefined, partySize: undefined }
           : prev,
       )
     }
@@ -2094,6 +2097,12 @@ function BookingFlowApp() {
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
+            // landr-rmcsu.7: group-size stepper + seat-aware times.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            showPartySizeStepper
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
             initialSlot={
@@ -2118,6 +2127,12 @@ function BookingFlowApp() {
             product={step.product}
             onLoaded={onSelectionLoaded}
             exposeSeats={operatorSettings.expose_seats_to_customer}
+            // landr-rmcsu.7: group-size stepper + seat-aware windows.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            showPartySizeStepper
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): the committed window id rides on the restored
             // slot's availability_id — re-select it on back-nav re-entry.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { forceReasonsFor, isDayBookable } from '@/components/booking/bookability'
@@ -14,6 +14,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
+import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { PartySizeStepper, SeatFitNotice, ShortDayLegend } from '@/components/booking/PartySize'
+import { usePartySize } from '@/lib/usePartySize'
+import { seatFit, windowRangeLabel } from '@/lib/seatHold'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import { dateFromIso, isoDate } from '@/components/booking/dateUtils'
 import {
@@ -25,6 +29,8 @@ import {
   availabilityGate,
   availableDaysForLabel,
   seatsCountLabel,
+  seatsLeftLabel,
+  slotSeatsShortLabel,
   timesOnLabel,
   tr,
   type ForceReason,
@@ -69,7 +75,24 @@ interface Props {
    * the boot splash can stay up until this step has something to show.
    */
   onLoaded?: () => void
+  /**
+   * landr-rmcsu.7: seats the group needs (known from the draft). A time with
+   * fewer free seats is disabled and marked "Only n left" — distinct from
+   * "Full" — and a day whose every time is short is struck through in the
+   * calendar. Absent/1 → the old "any seat" rule.
+   */
+  seatsNeeded?: number
+  /** landr-rmcsu.7: show the "How many of you?" stepper (see MultiDayStep). */
+  showPartySizeStepper?: boolean
+  onPartySizeChange?: (partySize: number) => void
+  /** landr-rmcsu.7: widget token + contact email for the group-inquiry exit. */
+  operatorToken?: string
+  contactEmail?: string | null
 }
+
+// Stable empty reference while availability loads (an unstable [] in a memo
+// input once looped renders — see MultiDayStep's EMPTY_SLOTS).
+const EMPTY_SLOTS: AvailabilitySlot[] = []
 
 export function AvailabilityPicker({
   product,
@@ -79,8 +102,20 @@ export function AvailabilityPicker({
   initialSlot,
   onLoaded,
   inviteToken,
+  seatsNeeded,
+  showPartySizeStepper = false,
+  onPartySizeChange,
+  operatorToken,
+  contactEmail,
 }: Props) {
   const staff = useStaffMode()
+  const party = usePartySize(
+    product.max_party_size,
+    seatsNeeded,
+    showPartySizeStepper,
+    onPartySizeChange,
+  )
+  const need = party.need
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   useReportLoaded(slots !== null || error !== null, onLoaded)
@@ -118,22 +153,39 @@ export function AvailabilityPicker({
   // behaviour it had in this picker before.
   const fixedTimes = hasFixedStartTimes(product)
   const canForce = fixedTimes && staff.active && staff.powers.includes('force_book')
+  // landr-rmcsu.7: "pickable" = room for the WHOLE group (need 1 → any seat).
   const slotIsPickable = (s: AvailabilitySlot): boolean =>
-    s.available_seats > 0 && isDayBookable(s, product.hotel_offering)
+    s.available_seats >= need && isDayBookable(s, product.hotel_offering)
+  // Has seats, but fewer than the group — shown "Only n left", not "Full".
+  const slotIsShort = (s: AvailabilitySlot): boolean =>
+    need > 1 &&
+    s.available_seats > 0 &&
+    s.available_seats < need &&
+    isDayBookable(s, product.hotel_offering)
 
+  // Days with a time that takes the group, and days where every time is short.
+  const { fit: fitDates, short: shortSeats } = useMemo(
+    () => seatFit(slots ?? EMPTY_SLOTS, product.hotel_offering, need),
+    [slots, product.hotel_offering, need],
+  )
   const availableDates = useMemo(() => {
     if (!slots) return new Set<string>()
-    return new Set(
-      slots
-        // Staff can open any day that has times, even a full / closed one.
-        .filter(
-          (s) =>
-            canForce ||
-            (s.available_seats > 0 && isDayBookable(s, product.hotel_offering)),
-        )
-        .map((s) => s.date),
-    )
-  }, [slots, product.hotel_offering, canForce])
+    // Staff can open any day that has times, even a full / closed one.
+    return canForce ? new Set(slots.map((s) => s.date)) : fitDates
+  }, [slots, canForce, fitDates])
+  const shortDates = useMemo(
+    () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
+    [shortSeats],
+  )
+  const dayHint = useCallback(
+    (date: Date) => {
+      const left = shortSeats.get(isoDate(date))
+      return left === undefined || !exposeSeatsToCustomer
+        ? undefined
+        : seatsLeftLabel(left, locale)
+    },
+    [shortSeats, locale, exposeSeatsToCustomer],
+  )
 
   // landr-l38a4: open on the restored pick, else the first bookable day.
   const [month, setMonth] = useStartMonth(
@@ -168,11 +220,11 @@ export function AvailabilityPicker({
       ),
     // slotIsPickable closes over product.hotel_offering only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering],
+    [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering, need],
   )
   const selectedForceReasons: ForceReason[] =
     selectedSlot && canForce && !slotIsPickable(selectedSlot)
-      ? forceReasonsFor(selectedSlot.available_seats > 0, selectedSlot, product.hotel_offering)
+      ? forceReasonsFor(selectedSlot.available_seats >= need, selectedSlot, product.hotel_offering)
       : []
 
   if (error) {
@@ -195,6 +247,28 @@ export function AvailabilityPicker({
         <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {party.stepperShown ? (
+          <PartySizeStepper
+            value={party.value}
+            max={party.max}
+            onChange={party.change}
+            decreaseRef={party.decreaseRef}
+          />
+        ) : null}
+        {slots !== null ? (
+          <SeatFitNotice
+            need={need}
+            fitCount={fitDates.size}
+            rangeLabel={windowRangeLabel(fromIso, toIso, locale)}
+            onFewer={
+              party.stepperShown ? () => party.decreaseRef.current?.focus() : undefined
+            }
+            operatorToken={operatorToken}
+            productSlug={product.slug}
+            productName={product.name}
+            contactEmail={contactEmail}
+          />
+        ) : null}
         {/* landr-80ubl.2: one-next-action rule — three stages in sequence
             (date, then time, then Continue). Each NextAction is active only
             for its own stage; ContinueAction (active by default) takes over
@@ -209,18 +283,22 @@ export function AvailabilityPicker({
               {tr('loadingAvailabilityEllipsis', locale)}
             </p>
           ) : null}
-          <Calendar
-            className={slots === null ? 'pointer-events-none opacity-40' : undefined}
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => {
-              setSelectedDate(date)
-              setSelectedSlotId(null)
-            }}
-            disabled={(date) => !availableDates.has(isoDate(date))}
-            month={month}
-            onMonthChange={setMonth}
-          />
+          <CalendarDayHintContext.Provider value={dayHint}>
+            <Calendar
+              className={slots === null ? 'pointer-events-none opacity-40' : undefined}
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => {
+                setSelectedDate(date)
+                setSelectedSlotId(null)
+              }}
+              disabled={(date) => !availableDates.has(isoDate(date))}
+              month={month}
+              onMonthChange={setMonth}
+              modifiers={{ short: shortDates }}
+            />
+          </CalendarDayHintContext.Provider>
+          {shortSeats.size > 0 ? <ShortDayLegend /> : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -241,7 +319,12 @@ export function AvailabilityPicker({
                   <Button
                     key={slotKey(slot)}
                     type="button"
-                    variant={selectedSlotId === slotKey(slot) ? 'default' : 'outline'}
+                    // A pick that stopped fitting (stepper raised) no longer reads as chosen.
+                    variant={
+                      selectedSlot && slotKey(selectedSlot) === slotKey(slot)
+                        ? 'default'
+                        : 'outline'
+                    }
                     // Staff keep full / closed times selectable (force-book).
                     disabled={!canForce && !slotIsPickable(slot)}
                     data-testid={fixedTimes ? 'start-time-option' : undefined}
@@ -260,8 +343,20 @@ export function AvailabilityPicker({
                   >
                     {slot.start_time?.slice(0, 5) ?? tr('anyTime', locale)}
                     {!slotIsPickable(slot) ? (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {slot.available_seats > 0 ? tr('tooLateToBook', locale) : tr('fullBadge', locale)}
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-testid={slotIsShort(slot) ? 'slot-seats-short' : undefined}
+                      >
+                        {slotIsShort(slot)
+                          ? slotSeatsShortLabel(
+                              slot.available_seats,
+                              need,
+                              exposeSeatsToCustomer,
+                              locale,
+                            )
+                          : slot.available_seats > 0
+                            ? tr('tooLateToBook', locale)
+                            : tr('fullBadge', locale)}
                       </span>
                     ) : exposeSeatsToCustomer ? (
                       <span className="ml-2 text-xs text-muted-foreground">

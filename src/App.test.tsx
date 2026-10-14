@@ -3796,6 +3796,73 @@ describe('App', () => {
         expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled(),
       )
     })
+
+    // landr-rmcsu.7: the group size belongs to the product it was chosen for.
+    it('switching to a different product resets the group size', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      const day1 = new Date()
+      day1.setHours(12, 0, 0, 0)
+      const iso = `${day1.getFullYear()}-${String(day1.getMonth() + 1).padStart(2, '0')}-${String(day1.getDate()).padStart(2, '0')}`
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-a',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day A',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+        makeProduct({
+          product_id: 'svc-b',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day B',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: `a-${iso}`,
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Group Day A'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day A' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('3')
+
+      // Back out to the catalogue (dates → product detail → catalogue).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      await waitFor(() => screen.getByText('Group Day B'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day B' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+    })
   })
 
   // landr-71kz.10 — KEYSTONE: the remote product-flow DATA PATH. A product whose

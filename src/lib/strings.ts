@@ -128,6 +128,13 @@ type Bundle = {
   seatFitInquiryButton: string
   /** landr-rmcsu.5: calendar legend for days with too few seats for the group. */
   shortDayLegend: string
+  /** landr-rmcsu.7: slot / course-window chip when it has seats, but fewer than the group needs. */
+  slotSeatsShort: string
+  slotSeatsShortNoCount: string
+  /** landr-rmcsu.7: course-window variants of the fit notice. */
+  seatFitWindowsOne: string
+  seatFitWindowsOther: string
+  seatFitNoneWindows: string
   holdHeldOne: string
   holdRequested: string
   holdUntilOnly: string
@@ -740,6 +747,11 @@ const en: Bundle = {
   seatFitFewerButton: 'Fewer people',
   seatFitInquiryButton: 'Ask for a group booking',
   shortDayLegend: 'Not enough seats for your group',
+  slotSeatsShort: 'Only {n} left (you need {need})',
+  slotSeatsShortNoCount: 'Not enough seats for {need}',
+  seatFitWindowsOne: '1 course date fits {n} people',
+  seatFitWindowsOther: '{count} course dates fit {n} people',
+  seatFitNoneWindows: 'No upcoming course dates with room for {n} people.',
   holdUntilOnly:
     'When you booked, seats for {name} were still free. Held until {when}.',
   holdRequested:
@@ -1343,6 +1355,11 @@ const de: Bundle = {
   seatFitFewerButton: 'Weniger Personen',
   seatFitInquiryButton: 'Gruppenbuchung anfragen',
   shortDayLegend: 'Nicht genug Plätze für Ihre Gruppe',
+  slotSeatsShort: 'Nur noch {n} frei (Sie benötigen {need})',
+  slotSeatsShortNoCount: 'Nicht genug Plätze für {need}',
+  seatFitWindowsOne: 'Bei 1 Kurstermin ist Platz für {n} Personen',
+  seatFitWindowsOther: 'Bei {count} Kursterminen ist Platz für {n} Personen',
+  seatFitNoneWindows: 'Es gibt keinen kommenden Kurstermin mit Platz für {n} Personen.',
   holdUntilOnly:
     'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
   holdRequested:
@@ -2003,6 +2020,32 @@ export function seatFitCountLabel(count: number, need: number, locale?: string):
   return plural(count, t.seatFitCountOne, t.seatFitCountOther)
     .replace('{count}', String(count))
     .replace('{n}', String(need))
+}
+
+/** landr-rmcsu.7: "Only 2 left (you need 3)" chip; without the count when seats are not exposed. */
+export function slotSeatsShortLabel(
+  left: number,
+  need: number,
+  showCount: boolean,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  return (showCount ? t.slotSeatsShort : t.slotSeatsShortNoCount)
+    .replace('{n}', String(left))
+    .replace('{need}', String(need))
+}
+
+/** landr-rmcsu.7: course-window flavour of seatFitCountLabel. */
+export function seatFitWindowsCountLabel(count: number, need: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return plural(count, t.seatFitWindowsOne, t.seatFitWindowsOther)
+    .replace('{count}', String(count))
+    .replace('{n}', String(need))
+}
+
+/** landr-rmcsu.7: course-window flavour of seatFitNoneMessage. */
+export function seatFitNoneWindowsMessage(need: number, locale?: string): string {
+  return pickBundle(locale).seatFitNoneWindows.replace('{n}', String(need))
 }
 
 /** landr-rmcsu.5: "No dates with room for 4 people in October 2026 – March 2027." */

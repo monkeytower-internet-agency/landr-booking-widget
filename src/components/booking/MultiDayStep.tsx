@@ -204,6 +204,21 @@ export function MultiDayStep({
     if (!originalDays || bookableSet === null) return []
     return originalDays.filter((iso) => !bookableSet.has(iso))
   }, [originalDays, bookableSet])
+  // landr-rmcsu.7: host days that are still bookable but cannot take the whole
+  // group (seats left, fewer than `need`). The invite summary blocks "Continue
+  // with these dates" on them just like on a sold-out day; staff with
+  // force_book may push past it (the API re-checks capacity).
+  const shortOriginalDays = useMemo(() => {
+    if (!originalDays || canForce || slots === null || bookableSet === null) return []
+    return shortDays(slots, originalDays, need).filter(
+      (d) => d.left > 0 && bookableSet.has(d.date),
+    )
+  }, [originalDays, canForce, slots, bookableSet, need])
+  // Days that fit the whole group — what "Change dates" keeps.
+  const fitSet = useMemo(
+    () => (slots === null ? null : seatFit(slots, product.hotel_offering, need).fit),
+    [slots, product.hotel_offering, need],
+  )
 
   // landr-f987a.1: selected days a customer can no longer book (sold out, lead
   // time passed, or became unavailable after selection / Back nav). Staff with
@@ -238,15 +253,17 @@ export function MultiDayStep({
   }
   const startEditing = () => {
     if (!canForce) {
-      if (bookableSet !== null) dropUnbookable(bookableSet)
+      // landr-rmcsu.7: drop host days that no longer take the group too —
+      // same droppedOnEdit notice as a sold-out day.
+      if (fitSet !== null) dropUnbookable(fitSet)
       else setDropPending(true)
     }
     setEditing(true)
   }
   // Adjust-state-during-render: availability arrived after "Change dates".
-  if (dropPending && bookableSet !== null) {
+  if (dropPending && fitSet !== null) {
     setDropPending(false)
-    dropUnbookable(bookableSet)
+    dropUnbookable(fitSet)
   }
 
   useEffect(() => {
@@ -304,6 +321,21 @@ export function MultiDayStep({
               {hostDaysUnavailableMessage(blocked, host, locale)}
             </p>
           ) : null}
+          {blocked === 0 && shortOriginalDays.length > 0 ? (
+            <p
+              className="text-sm text-destructive"
+              data-testid="invite-dates-short"
+            >
+              {seatsShortDaysMessage(
+                shortOriginalDays.map((d) => ({
+                  label: formatDayLabel(d.date, locale),
+                  left: d.left,
+                  need: d.need,
+                })),
+                locale,
+              )}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-start justify-end gap-2 pt-2">
             <Button
               type="button"
@@ -313,11 +345,11 @@ export function MultiDayStep({
               {tr('changeDates', locale)}
             </Button>
             <ContinueAction
-              ready={slots !== null && blocked === 0}
+              ready={slots !== null && blocked === 0 && shortOriginalDays.length === 0}
               reason={
                 slots === null
                   ? tr('loadingAvailabilityEllipsis', locale)
-                  : blocked > 0
+                  : blocked > 0 || shortOriginalDays.length > 0
                     ? tr('changeYourDatesToContinue', locale)
                     : tr('readyToContinueWithHostsDates', locale)
               }

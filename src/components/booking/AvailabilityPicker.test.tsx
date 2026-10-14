@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { AvailabilityPicker } from './AvailabilityPicker'
 import { hasFixedStartTimes, slotKey, toHHMM } from './slotKey'
+import { StaffModeProvider } from '@/lib/staffMode.tsx'
+import { ALL_STAFF_POWERS } from '@/lib/staffMode'
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -303,5 +305,203 @@ describe('AvailabilityPicker with fixed daily start times (landr-xtkae.2)', () =
     await waitFor(() => expect(screen.getAllByTestId('start-time-option')).toHaveLength(2))
     fireEvent.click(screen.getByTestId('availability-picker-submit'))
     expect(onConfirm).toHaveBeenCalledWith(slots[1])
+  })
+})
+
+// landr-rmcsu.7: slot pickers honour the group size like the day pickers do.
+describe('AvailabilityPicker seat-aware times (landr-rmcsu.7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const timed = (
+    date: Date,
+    start: string,
+    seats: number,
+  ): AvailabilitySlot => ({
+    ...synthetic(date),
+    start_time: start,
+    capacity: 6,
+    capacity_reserved: 6 - seats,
+    available_seats: seats,
+  })
+  const product = (): Product => ({
+    ...makeProduct(),
+    daily_start_times: ['09:00', '11:00'],
+    max_party_size: 6,
+  })
+  const days = () => {
+    const d1 = new Date()
+    d1.setDate(d1.getDate() + 1)
+    const d2 = new Date()
+    d2.setDate(d2.getDate() + 2)
+    return { d1, d2 }
+  }
+
+  it('marks a time with too few seats "Only n left" (not Full) and disables it', async () => {
+    const { d1 } = days()
+    mocks.getAvailability.mockResolvedValue([
+      timed(d1, '09:00:00', 2),
+      timed(d1, '11:00:00', 5),
+    ])
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={3}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => dayButton(d1))
+    fireEvent.click(dayButton(d1))
+    const options = screen.getAllByTestId('start-time-option')
+    expect(options[0]).toBeDisabled()
+    expect(options[0]).toHaveTextContent(/Not enough seats for 3/)
+    expect(options[0]).not.toHaveTextContent(/Full/)
+    expect(options[1]).not.toBeDisabled()
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('1 date fits 3 people')
+  })
+
+  it('shows the seat count on a short time when the operator exposes seats', async () => {
+    const { d1 } = days()
+    mocks.getAvailability.mockResolvedValue([
+      timed(d1, '09:00:00', 2),
+      timed(d1, '11:00:00', 5),
+    ])
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={3}
+        exposeSeatsToCustomer
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => dayButton(d1))
+    fireEvent.click(dayButton(d1))
+    expect(screen.getAllByTestId('start-time-option')[0]).toHaveTextContent(
+      'Only 2 left (you need 3)',
+    )
+  })
+
+  it('strikes a day whose every time is short and disables it', async () => {
+    const { d1, d2 } = days()
+    mocks.getAvailability.mockResolvedValue([
+      timed(d1, '09:00:00', 2),
+      timed(d1, '11:00:00', 1),
+      timed(d2, '09:00:00', 4),
+    ])
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={3}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => dayButton(d1))
+    expect(dayButton(d1)).toBeDisabled()
+    expect(dayButton(d1)).toHaveAttribute('data-short', 'true')
+    expect(dayButton(d2)).not.toBeDisabled()
+    expect(screen.getByTestId('short-day-legend')).toBeInTheDocument()
+  })
+
+  it('offers fewer people / a group inquiry when no time fits (never stranded)', async () => {
+    const { d1 } = days()
+    mocks.getAvailability.mockResolvedValue([timed(d1, '09:00:00', 2)])
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={4}
+        showPartySizeStepper
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => screen.getByTestId('seat-fit-none'))
+    expect(screen.getByTestId('seat-fit-fewer')).toBeInTheDocument()
+    expect(screen.getByTestId('seat-fit-inquiry')).toBeInTheDocument()
+  })
+
+  it('the stepper re-filters the times and reports the group size', async () => {
+    const { d1 } = days()
+    mocks.getAvailability.mockResolvedValue([
+      timed(d1, '09:00:00', 2),
+      timed(d1, '11:00:00', 5),
+    ])
+    const onPartySizeChange = vi.fn()
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={2}
+        showPartySizeStepper
+        onPartySizeChange={onPartySizeChange}
+        onBack={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    )
+    await waitFor(() => dayButton(d1))
+    fireEvent.click(dayButton(d1))
+    expect(screen.getAllByTestId('start-time-option')[0]).not.toBeDisabled()
+    fireEvent.click(screen.getByTestId('party-size-increase'))
+    expect(onPartySizeChange).toHaveBeenCalledWith(3)
+    expect(screen.getAllByTestId('start-time-option')[0]).toBeDisabled()
+    expect(screen.getAllByTestId('start-time-option')[1]).not.toBeDisabled()
+  })
+
+  it('a picked time that stops fitting no longer commits', async () => {
+    const { d1 } = days()
+    mocks.getAvailability.mockResolvedValue([
+      timed(d1, '09:00:00', 2),
+      timed(d1, '11:00:00', 5),
+    ])
+    const onConfirm = vi.fn()
+    render(
+      <AvailabilityPicker
+        product={product()}
+        seatsNeeded={2}
+        showPartySizeStepper
+        onBack={() => {}}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => dayButton(d1))
+    fireEvent.click(dayButton(d1))
+    fireEvent.click(screen.getAllByTestId('start-time-option')[0])
+    expect(screen.getByTestId('availability-picker-submit')).not.toBeDisabled()
+    fireEvent.click(screen.getByTestId('party-size-increase'))
+    expect(screen.getByTestId('availability-picker-submit')).toBeDisabled()
+  })
+
+  it('staff with force_book can still pick a short time (capacity force)', async () => {
+    const { d1 } = days()
+    const slots = [timed(d1, '09:00:00', 2), timed(d1, '11:00:00', 5)]
+    mocks.getAvailability.mockResolvedValue(slots)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onConfirm = vi.fn()
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't', powers: ALL_STAFF_POWERS, operatorId: 'op' }}
+      >
+        <AvailabilityPicker
+          product={product()}
+          seatsNeeded={3}
+          onBack={() => {}}
+          onConfirm={onConfirm}
+        />
+      </StaffModeProvider>,
+    )
+    await waitFor(() => dayButton(d1))
+    fireEvent.click(dayButton(d1))
+    const options = screen.getAllByTestId('start-time-option')
+    expect(options[0]).not.toBeDisabled()
+    fireEvent.click(options[0])
+    fireEvent.click(screen.getByTestId('availability-picker-submit'))
+    expect(onConfirm).toHaveBeenCalledWith(slots[0], true, ['capacity'])
   })
 })

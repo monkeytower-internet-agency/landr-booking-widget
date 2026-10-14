@@ -22,7 +22,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { browserLocale } from '@/lib/locale'
-import { seatFitCountLabel, seatFitNoneMessage, tr } from '@/lib/strings'
+import {
+  seatFitCountLabel,
+  seatFitNoneMessage,
+  seatFitNoneWindowsMessage,
+  seatFitWindowsCountLabel,
+  tr,
+} from '@/lib/strings'
 import { GroupInquiryForm } from './GroupInquiryForm'
 
 interface PartySizeStepperProps {
@@ -96,6 +102,8 @@ interface SeatFitNoticeProps {
   fitCount: number
   /** "October 2026 – October 2027" — the loaded window, for the none-fit copy. */
   rangeLabel: string
+  /** landr-rmcsu.7: 'windows' = fixed course windows ("3 course dates fit 4 people"). */
+  unit?: 'days' | 'windows'
   /** Absent → no "Fewer people" button (the stepper is hidden). */
   onFewer?: () => void
   operatorToken?: string
@@ -108,6 +116,7 @@ export function SeatFitNotice({
   need,
   fitCount,
   rangeLabel,
+  unit = 'days',
   onFewer,
   operatorToken = '',
   productSlug,
@@ -120,7 +129,9 @@ export function SeatFitNotice({
   if (fitCount > 0) {
     return (
       <p className="text-xs text-muted-foreground" data-testid="seat-fit-count">
-        {seatFitCountLabel(fitCount, need, locale)}
+        {unit === 'windows'
+          ? seatFitWindowsCountLabel(fitCount, need, locale)
+          : seatFitCountLabel(fitCount, need, locale)}
       </p>
     )
   }
@@ -134,7 +145,11 @@ export function SeatFitNotice({
       className="flex flex-col gap-2 rounded-lg border border-dashed bg-surface-raised p-3"
       data-testid="seat-fit-none"
     >
-      <p className="text-sm font-medium">{seatFitNoneMessage(need, rangeLabel, locale)}</p>
+      <p className="text-sm font-medium">
+        {unit === 'windows'
+          ? seatFitNoneWindowsMessage(need, locale)
+          : seatFitNoneMessage(need, rangeLabel, locale)}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         {onFewer ? (
           <Button
