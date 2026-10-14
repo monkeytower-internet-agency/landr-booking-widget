@@ -21,7 +21,15 @@ import {
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
 import { plural, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
-import { formatRange, formatRanges, lineRanges } from './offerDates'
+import {
+  derivePeriodRows,
+  formatRange,
+  formatRanges,
+  lineRanges,
+  periodRowsFromApi,
+  type OfferPeriodRow,
+} from './offerDates'
+import { hasSaving, splitPositionLabel } from './offerPositions'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -680,6 +688,42 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
 
   // landr-1zkp7: per-line prices (absent on an older API => today's rendering)
   const lineItems = offer.line_items ?? []
+  // landr-8f1sh.4: custom offer v2. With positions the breakdown lists the
+  // OFFER (not the engine's line_items, which are the regular prices) and the
+  // dates table follows the booking periods. No positions => today's page.
+  const positions = offer.offer_positions ?? []
+  const hasPositions = positions.length > 0
+  const showSavings = hasPositions && offer.show_savings !== false
+  const offerDiscount = showSavings ? (offer.offer_discount ?? null) : null
+  const adjustments = hasPositions ? (offer.offer_adjustments ?? null) : null
+  const groupDiscountAmount = adjustments?.group_discount_amount ?? 0
+  const freeSpotCount = adjustments?.free_spot_count ?? 0
+  // The operator-paid lines are replaced by the positions; the hotel part
+  // (read-only, never discounted) stays as its own rows.
+  const breakdownLines = hasPositions
+    ? lineItems.filter((li) => li.paid_to === 'hotel')
+    : lineItems
+  const periodRows: OfferPeriodRow[] = !hasPositions
+    ? []
+    : offer.periods && offer.periods.length > 0
+      ? periodRowsFromApi(offer.periods)
+      : derivePeriodRows(
+          product_lines.map((pl, i) => ({
+            name: pl.name,
+            hotel: lineItemFor(lineItems, pl.product_id, i)?.paid_to === 'hotel',
+            selected_days: pl.selected_days,
+            date_range_start: pl.date_range_start,
+            date_range_end: pl.date_range_end,
+          })),
+        )
+  const showPeriods = periodRows.length > 0
+  const lengthLabel = (count: number, nights: boolean) =>
+    count > 0
+      ? (nights
+          ? plural(count, tr('offerLengthNightSingular', locale), tr('offerLengthNightPlural', locale))
+          : plural(count, tr('offerLengthDaySingular', locale), tr('offerLengthDayPlural', locale))
+        ).replace('{n}', String(count))
+      : ''
   // Dates table rows: one per product line, dates collapsed into stretches.
   const itemRows = product_lines.map((pl, i) => {
     const li = lineItemFor(lineItems, pl.product_id, i)
@@ -688,13 +732,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     // Hotel lines carry the NIGHT window as selected_days, so count nights
     // there; nothing else on the payload identifies a room line.
     const nights = li?.paid_to === 'hotel'
-    const lengthOf = (count: number) =>
-      count > 0
-        ? (nights
-            ? plural(count, tr('offerLengthNightSingular', locale), tr('offerLengthNightPlural', locale))
-            : plural(count, tr('offerLengthDaySingular', locale), tr('offerLengthDayPlural', locale))
-          ).replace('{n}', String(count))
-        : ''
+    const lengthOf = (count: number) => lengthLabel(count, nights)
     let count = ranges.reduce((sum, r) => sum + r.days, 0)
     if (nights && !hasDays) count = Math.max(1, count - 1)
     // Booked on non-consecutive days: one row per stretch with its own
@@ -767,7 +805,54 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       )}
 
         {/* Product lines — landr-1zkp7: Item | Dates | Length table */}
-        {product_lines.length > 0 && (
+        {showPeriods && (
+          <OfferSection
+            title={tr('whatYoureBooking', locale)}
+            ariaLabel={tr('productsAria', locale)}
+          >
+            <table className="w-full text-sm" data-testid="offer-periods-table">
+              <thead>
+                <tr className="border-b">
+                  <th scope="col" className={thClass}>{tr('offerColPeriod', locale)}</th>
+                  <th scope="col" className={thClass}>{tr('offerColDates', locale)}</th>
+                  <th scope="col" className={thClass}>{tr('offerColLength', locale)}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodRows.map((row, i) => (
+                  <tr
+                    key={`${row.kind}-${row.start}-${i}`}
+                    data-testid="offer-period-row"
+                    data-kind={row.kind}
+                    className="border-b align-top last:border-b-0"
+                  >
+                    <th scope="row" className="px-4 py-3 text-left font-semibold">
+                      {row.kind === 'arrival'
+                        ? tr('offerPeriodArrival', locale)
+                        : row.kind === 'departure'
+                          ? tr('offerPeriodDeparture', locale)
+                          : row.name}
+                    </th>
+                    <td
+                      className="px-4 py-3 text-muted-foreground tabular-nums"
+                      data-testid="offer-period-dates"
+                    >
+                      {formatRanges([row], locale)}
+                    </td>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-muted-foreground tabular-nums"
+                      data-testid="offer-period-length"
+                    >
+                      {lengthLabel(row.count, row.nights) || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </OfferSection>
+        )}
+
+        {product_lines.length > 0 && !showPeriods && (
           <OfferSection
             title={tr('whatYoureBooking', locale)}
             ariaLabel={tr('productsAria', locale)}
@@ -889,7 +974,101 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   price × participants when the API priced it per head, line
                   total. Money semantics below (subtotal / tax / amount due)
                   are untouched. Absent line_items => today's rendering. */}
-              {lineItems.map((li, i) => (
+              {/* landr-8f1sh.4: the OFFER's positions — label, €/day × people
+                  (the offer price; the regular one struck through when the
+                  operator shows the discount), line total. */}
+              {positions.map((p, i) => {
+                const { title, perDay } = splitPositionLabel(p.label)
+                const saved = hasSaving(p, showSavings)
+                return (
+                  <tr
+                    key={`position-${i}`}
+                    className="border-b align-top"
+                    data-testid="offer-position"
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="font-medium">{title}</div>
+                      {perDay && (
+                        <div
+                          className="text-xs text-muted-foreground tabular-nums"
+                          data-testid="offer-position-per-day"
+                        >
+                          {saved && (
+                            <span
+                              className="mr-1 line-through"
+                              data-testid="offer-position-original-unit"
+                            >
+                              {formatCurrency(p.original_unit_price, currencyCode, locale)}
+                            </span>
+                          )}
+                          {formatCurrency(p.unit_price, currencyCode, locale)}
+                          {tr('offerPerDaySuffix', locale)}{' '}
+                          {plural(
+                            p.participants,
+                            tr('participantSuffixSingular', locale),
+                            tr('participantSuffixPlural', locale),
+                          ).replace('{n}', String(p.participants))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      {saved && (
+                        <div
+                          className="text-xs text-muted-foreground line-through"
+                          data-testid="offer-position-original-total"
+                        >
+                          {formatCurrency(p.original_total, currencyCode, locale)}
+                        </div>
+                      )}
+                      <div data-testid="offer-position-total">
+                        {formatCurrency(p.total, currencyCode, locale)}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {offerDiscount && offerDiscount.amount > 0 && (
+                <tr
+                  className="text-emerald-700 dark:text-emerald-400"
+                  data-testid="offer-discount"
+                >
+                  <td className="px-4 py-1">− {tr('offerDiscountLabel', locale)}</td>
+                  <td
+                    className="px-4 py-1 text-right tabular-nums"
+                    data-testid="offer-discount-amount"
+                  >
+                    −{formatCurrency(offerDiscount.amount, currencyCode, locale)}
+                  </td>
+                </tr>
+              )}
+              {groupDiscountAmount > 0 && (
+                <tr
+                  className="text-emerald-700 dark:text-emerald-400"
+                  data-testid="offer-group-discount"
+                >
+                  <td className="px-4 py-1">
+                    −{' '}
+                    {tr('offerGroupDiscountTemplate', locale).replace(
+                      '{pct}',
+                      String(Math.round((adjustments?.group_discount_pct ?? 0) * 1000) / 10),
+                    )}
+                  </td>
+                  <td className="px-4 py-1 text-right tabular-nums">
+                    −{formatCurrency(groupDiscountAmount, currencyCode, locale)}
+                  </td>
+                </tr>
+              )}
+              {freeSpotCount > 0 && (
+                <tr data-testid="offer-free-spots">
+                  <td className="px-4 py-1 text-muted-foreground">
+                    {tr('offerFreeSpotsTemplate', locale).replace('{n}', String(freeSpotCount))}
+                  </td>
+                  <td className="px-4 py-1 text-right tabular-nums text-muted-foreground">
+                    {tr('offerFreeLabel', locale)}
+                  </td>
+                </tr>
+              )}
+              {breakdownLines.map((li, i) => (
                 <tr
                   key={`${li.product_id}-${i}`}
                   className="border-b align-top"

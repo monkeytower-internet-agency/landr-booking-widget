@@ -458,6 +458,15 @@ type Bundle = {
   offerLengthNightSingular: string
   offerLengthNightPlural: string
   offerYourTripWithTemplate: string
+  // landr-8f1sh.4 — custom offer v2: positions, discount row, periods table
+  offerColPeriod: string
+  offerPeriodArrival: string
+  offerPeriodDeparture: string
+  offerPerDaySuffix: string
+  offerDiscountLabel: string
+  offerGroupDiscountTemplate: string
+  offerFreeSpotsTemplate: string
+  offerFreeLabel: string
   offerPayableAtHotelShort: string
   productsAria: string
   offerParticipantsTitle: string
@@ -1061,6 +1070,14 @@ const en: Bundle = {
   offerLengthNightSingular: '{n} night',
   offerLengthNightPlural: '{n} nights',
   offerYourTripWithTemplate: 'Your trip with {operator}',
+  offerColPeriod: 'Period',
+  offerPeriodArrival: 'Arrival',
+  offerPeriodDeparture: 'Departure',
+  offerPerDaySuffix: '/day',
+  offerDiscountLabel: 'Your discount',
+  offerGroupDiscountTemplate: 'Group discount ({pct} %)',
+  offerFreeSpotsTemplate: 'Free spots × {n}',
+  offerFreeLabel: 'Free',
   offerPayableAtHotelShort: 'payable at the hotel',
   productsAria: 'Products',
   offerParticipantsTitle: 'Participants',
@@ -1652,6 +1669,14 @@ const de: Bundle = {
   offerLengthNightSingular: '{n} Nacht',
   offerLengthNightPlural: '{n} Nächte',
   offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
+  offerColPeriod: 'Zeitraum',
+  offerPeriodArrival: 'Anreise',
+  offerPeriodDeparture: 'Abreise',
+  offerPerDaySuffix: '/Tag',
+  offerDiscountLabel: 'Ihr Rabatt',
+  offerGroupDiscountTemplate: 'Gruppenrabatt ({pct} %)',
+  offerFreeSpotsTemplate: 'Freiplätze × {n}',
+  offerFreeLabel: 'Kostenlos',
   offerPayableAtHotelShort: 'im Hotel zu zahlen',
   productsAria: 'Angebote',
   offerParticipantsTitle: 'Teilnehmer',
