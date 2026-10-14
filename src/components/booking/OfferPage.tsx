@@ -987,6 +987,10 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   >
                     <td className="px-4 py-2.5">
                       <div className="font-medium">{p.label}</div>
+                      {/* A flat 1 × 1 position (e.g. a video package) needs
+                          no "€50/day × 1 day × 1 participant" sub-line — the
+                          total column already says it all. */}
+                      {p.units > 1 || p.participants > 1 ? (
                       <div
                         className="text-xs text-muted-foreground tabular-nums"
                         data-testid="offer-position-per-day"
@@ -1012,6 +1016,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                           tr('participantSuffixPlural', locale),
                         ).replace('{n}', String(p.participants))}
                       </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       {saved && (
