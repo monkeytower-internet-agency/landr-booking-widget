@@ -539,6 +539,8 @@ type Bundle = {
   offerRegularPriceLabel: string
   offerYourPriceLabel: string
   offerInclTaxTemplate: string
+  offerPriceExclTaxLabel: string
+  offerTaxAddedTemplate: string
   offerPaidAtHotelTemplate: string
   couldNotStartPayment: string
 
@@ -1188,6 +1190,8 @@ const en: Bundle = {
   offerRegularPriceLabel: 'Regular price',
   offerYourPriceLabel: 'Your price',
   offerInclTaxTemplate: 'incl. {a} tax ({p} %)',
+  offerPriceExclTaxLabel: 'Price excl. tax',
+  offerTaxAddedTemplate: '+ {a} tax ({p} %)',
   offerPaidAtHotelTemplate: '+ {a} paid at the hotel on arrival',
   couldNotStartPayment: 'We could not start the payment. Please try again or contact us.',
 
@@ -1826,6 +1830,8 @@ const de: Bundle = {
   offerRegularPriceLabel: 'Regulärer Preis',
   offerYourPriceLabel: 'Ihr Preis',
   offerInclTaxTemplate: 'inkl. {a} Steuer ({p} %)',
+  offerPriceExclTaxLabel: 'Preis ohne Steuer',
+  offerTaxAddedTemplate: '+ {a} Steuer ({p} %)',
   offerPaidAtHotelTemplate: '+ {a} Zahlung im Hotel bei Anreise',
   couldNotStartPayment: 'Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
 

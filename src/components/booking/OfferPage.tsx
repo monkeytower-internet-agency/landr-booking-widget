@@ -888,16 +888,32 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const v3Totals = mode === 'offer' && hasPositions
   const sumOf = (f: (p: (typeof positions)[number]) => number) =>
     positions.reduce((n, p) => n + f(p), 0)
-  const yourPrice = Math.max(sumOf((p) => p.total) - groupDiscountAmount, 0)
+  // Position prices after the group discount: GROSS when prices include tax,
+  // NET on a net-entry offer (tax added on top).
+  const positionsPrice = Math.max(sumOf((p) => p.total) - groupDiscountAmount, 0)
+  // "Your price" is what the customer pays online (what Stripe charges): the
+  // booking's operator gross, never the position sum -- on a net-entry offer
+  // that sum is net and lacks the tax. Falls back to the sum on a legacy
+  // payload without the operator split.
+  const opGross = totals.operator_gross_total ?? 0
+  const yourPrice = opGross > 0 ? opGross : positionsPrice
   const perHeadRegular = showSavings ? sumOf((p) => p.original_unit_price * p.units) : 0
   const regularTotal = showSavings
     ? sumOf((p) => p.original_total) + freeSpotCount * perHeadRegular
     : 0
-  const discountTotal = showSavings ? Math.max(regularTotal - yourPrice, 0) : 0
+  // Regular price and discount sit on the positions' basis, so
+  // Regular − Discount = positionsPrice (+ tax when it is added).
+  const discountTotal = showSavings ? Math.max(regularTotal - positionsPrice, 0) : 0
   const showDiscountRows = showSavings && discountTotal > EPS
   const opNet = totals.operator_net_total ?? 0
   const opTax = totals.operator_tax_total ?? 0
-  const taxPct = opNet > 0 && opTax > 0 ? Math.round((opTax / opNet) * 1000) / 10 : 0
+  // The wire carries no "prices include tax" flag: a net-entry offer is the one
+  // whose positions add up to the NET total (within a cent) while gross is
+  // higher. Then the tax is added on top of positionsPrice.
+  const taxAdded = opGross - opNet > EPS && Math.abs(positionsPrice - opNet) < 0.015
+  const taxAmount = taxAdded ? Math.max(yourPrice - positionsPrice, 0) : opTax
+  const taxBase = taxAdded ? positionsPrice : opNet
+  const taxPct = taxBase > 0 && taxAmount > 0 ? Math.round((taxAmount / taxBase) * 1000) / 10 : 0
   const hotelAtArrival =
     totals.hotel_gross_total ??
     lineItems.filter((li) => li.paid_to === 'hotel').reduce((n, li) => n + li.line_total, 0)
@@ -1266,6 +1282,32 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       </td>
                     </tr>
                   ) : null}
+                  {taxAdded && taxPct > 0 && (
+                    <>
+                      <tr>
+                        <td className="px-4 pt-2 pb-1 text-muted-foreground">
+                          {tr('offerPriceExclTaxLabel', locale)}
+                        </td>
+                        <td
+                          className="px-4 pt-2 pb-1 text-right tabular-nums text-muted-foreground"
+                          data-testid="offer-net-price"
+                        >
+                          {formatCurrency(positionsPrice, currencyCode, locale)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td
+                          colSpan={2}
+                          className="px-4 pb-1 text-right text-muted-foreground tabular-nums"
+                          data-testid="offer-tax-added"
+                        >
+                          {tr('offerTaxAddedTemplate', locale)
+                            .replace('{a}', formatCurrency(taxAmount, currencyCode, locale))
+                            .replace('{p}', String(taxPct))}
+                        </td>
+                      </tr>
+                    </>
+                  )}
                   <tr className="border-t">
                     <td className="px-4 py-2 text-base font-semibold">
                       {tr('offerYourPriceLabel', locale)}
@@ -1277,7 +1319,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       {formatCurrency(yourPrice, currencyCode, locale)}
                     </td>
                   </tr>
-                  {taxPct > 0 && (
+                  {!taxAdded && taxPct > 0 && (
                     <tr>
                       <td
                         colSpan={2}
@@ -1285,7 +1327,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         data-testid="offer-tax-included"
                       >
                         {tr('offerInclTaxTemplate', locale)
-                          .replace('{a}', formatCurrency(opTax, currencyCode, locale))
+                          .replace('{a}', formatCurrency(taxAmount, currencyCode, locale))
                           .replace('{p}', String(taxPct))}
                       </td>
                     </tr>

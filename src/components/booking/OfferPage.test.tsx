@@ -1442,6 +1442,33 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     render(<OfferPage token={TOKEN} />)
     await waitFor(() => screen.getByTestId('offer-ready'))
     expect(screen.getByTestId('offer-tax-included')).toHaveTextContent(`incl. ${fmt(30.75)} tax (7 %)`)
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(470))
+    expect(screen.queryByTestId('offer-tax-added')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-net-price')).not.toBeInTheDocument()
+  })
+
+  it('net-entry offer: positions are NET, the tax is added and Your price is the gross', async () => {
+    // positions 420 + 50 = 470 net; 7 % added = 502.90 gross (what Stripe charges)
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      totals: {
+        ...WITH_OFFER.totals,
+        gross_total: 1002.9,
+        operator_net_total: 470,
+        operator_tax_total: 32.9,
+        operator_gross_total: 502.9,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-regular-total')).toHaveTextContent(fmt(590))
+    expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
+    expect(screen.getByTestId('offer-net-price')).toHaveTextContent(fmt(470))
+    expect(screen.getByTestId('offer-tax-added')).toHaveTextContent(`+ ${fmt(32.9)} tax (7 %)`)
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(502.9))
+    expect(screen.queryByTestId('offer-tax-included')).not.toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/incl\. .* tax/)
   })
 
   it('renders the booking periods: Arrival / product range / Departure with nights and days', async () => {
