@@ -90,6 +90,16 @@ describe('seatFit (landr-rmcsu.5)', () => {
   })
 })
 
+describe('seatFit with several slots on one date (landr-rmcsu.7)', () => {
+  it('a date is fit as soon as one slot takes the group, never fit AND short', () => {
+    const slots = [slot('2026-11-11', 2), slot('2026-11-11', 5), slot('2026-11-12', 1), slot('2026-11-12', 2)]
+    const { fit, short } = seatFit(slots, 'none', 3)
+    expect([...fit]).toEqual(['2026-11-11'])
+    // The short date reports its best slot.
+    expect([...short]).toEqual([['2026-11-12', 2]])
+  })
+})
+
 describe('maxPartySize (landr-rmcsu.5)', () => {
   it('honours any product cap >= 1, including above 6; falls back to 6', () => {
     expect(maxPartySize(12)).toBe(12)

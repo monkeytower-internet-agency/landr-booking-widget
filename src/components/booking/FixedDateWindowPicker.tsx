@@ -4,7 +4,16 @@ import { ProductSkeleton } from '@/components/booking/browse/ProductSkeleton'
 import { getFixedDateWindows, getStaffFixedDateWindows } from '@/api/client'
 import type { AvailabilitySlot, FixedDateWindow, Product } from '@/api/types'
 import { forceReasonsFor } from '@/components/booking/bookability'
-import { fixedDateWindowGate, seatsLeftLabel, tr, upcomingWindowsForLabel, type ForceReason } from '@/lib/strings'
+import {
+  fixedDateWindowGate,
+  seatsLeftLabel,
+  slotSeatsShortLabel,
+  tr,
+  upcomingWindowsForLabel,
+  type ForceReason,
+} from '@/lib/strings'
+import { PartySizeStepper, SeatFitNotice } from '@/components/booking/PartySize'
+import { usePartySize } from '@/lib/usePartySize'
 import { browserLocale } from '@/lib/locale'
 import { expandWindowDays } from './expandWindowDays'
 import { formatWindowRangeLabel } from './dateLabel'
@@ -65,6 +74,19 @@ interface Props {
    * the boot splash can stay up until this step has something to show.
    */
   onLoaded?: () => void
+  /**
+   * landr-rmcsu.7: seats the group needs (known from the draft). A window
+   * with fewer free seats is disabled and marked "Only n left" — distinct
+   * from "Full". Absent/1 → the old "any seat" rule. Staff `canForce` still
+   * picks it (capacity force).
+   */
+  seatsNeeded?: number
+  /** landr-rmcsu.7: show the "How many of you?" stepper (see MultiDayStep). */
+  showPartySizeStepper?: boolean
+  onPartySizeChange?: (partySize: number) => void
+  /** landr-rmcsu.7: widget token + contact email for the group-inquiry exit. */
+  operatorToken?: string
+  contactEmail?: string | null
 }
 
 function sortWindows(list: FixedDateWindow[]): FixedDateWindow[] {
@@ -124,8 +146,20 @@ export function FixedDateWindowPicker({
   onLiveDaysChange,
   initialWindowId,
   onLoaded,
+  seatsNeeded,
+  showPartySizeStepper = false,
+  onPartySizeChange,
+  operatorToken,
+  contactEmail,
 }: Props) {
   const { tokens } = useVariant()
+  const party = usePartySize(
+    product.max_party_size,
+    seatsNeeded,
+    showPartySizeStepper,
+    onPartySizeChange,
+  )
+  const need = party.need
   const staff = useStaffMode()
   const locale = browserLocale()
   // landr-aoak.2: force-book a FULL window only when staff mode is active AND
@@ -189,10 +223,27 @@ export function FixedDateWindowPicker({
   // forceBookReasonMessage in @/lib/strings).
   const selectedForceReasons = useMemo(() => {
     if (!selectedWindow) return []
-    const available =
-      selectedWindow.capacity - selectedWindow.capacity_reserved > 0
-    return forceReasonsFor(available, selectedWindow, product.hotel_offering)
-  }, [selectedWindow, product.hotel_offering])
+    // landr-rmcsu.7: "has room" = room for the WHOLE group.
+    const hasRoom =
+      selectedWindow.capacity - selectedWindow.capacity_reserved >= need
+    return forceReasonsFor(hasRoom, selectedWindow, product.hotel_offering)
+  }, [selectedWindow, product.hotel_offering, need])
+
+  // landr-rmcsu.7: windows with room for the group (not full, not too late) —
+  // for "n course dates fit 4 people" / the none-fit exits.
+  const fitCount = useMemo(
+    () =>
+      (windows ?? []).filter(
+        (w) =>
+          w.capacity - w.capacity_reserved >= need &&
+          forceReasonsFor(true, w, product.hotel_offering).length === 0,
+      ).length,
+    [windows, need, product.hotel_offering],
+  )
+  // A restored / previously picked window that stopped fitting (stepper
+  // raised): it must not stay committable for a customer. Staff may force it.
+  const selectedUnfit =
+    !canForce && selectedWindow !== null && selectedForceReasons.length > 0
 
   if (error) {
     return (
@@ -219,6 +270,29 @@ export function FixedDateWindowPicker({
         {/* landr-80ubl.2: one-next-action rule — the window list owns the
             ring until one is picked, then ContinueAction (active by
             default) takes over. */}
+        {party.stepperShown ? (
+          <PartySizeStepper
+            value={party.value}
+            max={party.max}
+            onChange={party.change}
+            decreaseRef={party.decreaseRef}
+          />
+        ) : null}
+        {windows !== null && windows.length > 0 ? (
+          <SeatFitNotice
+            need={need}
+            fitCount={fitCount}
+            unit="windows"
+            rangeLabel=""
+            onFewer={
+              party.stepperShown ? () => party.decreaseRef.current?.focus() : undefined
+            }
+            operatorToken={operatorToken}
+            productSlug={product.slug}
+            productName={product.name}
+            contactEmail={contactEmail}
+          />
+        ) : null}
         <NextAction active={!selectedWindow} cue={tr('fixedDateWindowCue', locale)}>
         {windows === null ? (
           <ProductSkeleton view="list" count={3} label={tr('loadingWindows', locale)} />
@@ -235,6 +309,8 @@ export function FixedDateWindowPicker({
                 window.capacity - window.capacity_reserved,
               )
               const isFull = available === 0
+              // landr-rmcsu.7: seats left, but fewer than the group needs.
+              const isShort = !isFull && available < need
               // landr-t869m.5: which gate(s) does this window fail, if any?
               // Reuses the SAME forceReasonsFor()/isDayBookable() rule the
               // day pickers gate on — see bookability.ts's doc for the
@@ -243,7 +319,7 @@ export function FixedDateWindowPicker({
               // the list, just shown as unavailable with its own reason so
               // the customer can see the trip exists.
               const windowReasons = forceReasonsFor(
-                !isFull,
+                !isFull && !isShort,
                 window,
                 product.hotel_offering,
               )
@@ -251,7 +327,7 @@ export function FixedDateWindowPicker({
                 windowReasons.includes('lead_time') ||
                 windowReasons.includes('accommodation_lead_time')
               const blocked = windowReasons.length > 0
-              const isSelected = selectedId === window.id
+              const isSelected = selectedId === window.id && !selectedUnfit
               return (
                 <li key={window.id}>
                   {/* landr-3mo4: window rows are now proper OPTION-CARDS —
@@ -343,9 +419,11 @@ export function FixedDateWindowPicker({
                             ? tr('fullBadge', locale)
                             : leadTimeBlocked
                               ? tr('tooLateToBook', locale)
-                              : exposeSeats
-                                ? seatsLeftLabel(available, locale)
-                                : tr('availableBadge', locale)}
+                              : isShort
+                                ? slotSeatsShortLabel(available, need, exposeSeats, locale)
+                                : exposeSeats
+                                  ? seatsLeftLabel(available, locale)
+                                  : tr('availableBadge', locale)}
                         </span>
                       )}
                     </span>
@@ -358,11 +436,11 @@ export function FixedDateWindowPicker({
         </NextAction>
 
         <ContinueAction
-          ready={!!selectedWindow}
-          reason={fixedDateWindowGate(!!selectedWindow, locale)}
+          ready={!!selectedWindow && !selectedUnfit}
+          reason={fixedDateWindowGate(!!selectedWindow && !selectedUnfit, locale)}
           reasonId="fixed-date-window-picker-gate"
           onContinue={() => {
-            if (selectedWindow) {
+            if (selectedWindow && !selectedUnfit) {
               onConfirm(
                 windowToSlot(selectedWindow),
                 selectedWindow,

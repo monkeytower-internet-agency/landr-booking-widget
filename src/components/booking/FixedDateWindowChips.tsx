@@ -16,7 +16,7 @@ import type { FixedDateWindow, HotelOffering } from '@/api/types'
 import { isDayBookable } from '@/components/booking/bookability'
 import { formatWindowRangeLabel } from '@/components/booking/dateLabel'
 import { browserLocale } from '@/lib/locale'
-import { seatsLeftLabel, tr } from '@/lib/strings'
+import { seatsLeftLabel, slotSeatsShortLabel, tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -31,6 +31,12 @@ interface Props {
    * (caller predates the field) behaves like 'none'/'optional'.
    */
   hotelOffering?: HotelOffering
+  /**
+   * landr-rmcsu.7: the group size when already known (e.g. restored from the
+   * draft). A window with seats but fewer than this reads "Only n left (you
+   * need N)" instead of an inviting "n seats left". Absent/1 → unchanged.
+   */
+  seatsNeeded?: number
 }
 
 export function FixedDateWindowChips({
@@ -38,6 +44,7 @@ export function FixedDateWindowChips({
   slug,
   exposeSeats = true,
   hotelOffering,
+  seatsNeeded,
 }: Props) {
   const [windows, setWindows] = useState<FixedDateWindow[] | null>(null)
   const locale = browserLocale()
@@ -86,7 +93,9 @@ export function FixedDateWindowChips({
         // window that fails it is shown unavailable here too, never dropped,
         // so the customer sees the trip exists but can't be booked this late.
         const leadTimeBlocked = !isDayBookable(window, hotelOffering)
-        const blocked = isFull || leadTimeBlocked
+        const need = Math.max(1, seatsNeeded ?? 1)
+        const isShort = !isFull && available < need
+        const blocked = isFull || leadTimeBlocked || isShort
         return (
           <span
             key={window.id}
@@ -107,9 +116,11 @@ export function FixedDateWindowChips({
                 ? tr('fullBadge', locale)
                 : leadTimeBlocked
                   ? tr('tooLateToBook', locale)
-                  : exposeSeats
-                    ? seatsLeftLabel(available, locale)
-                    : tr('availableBadge', locale)}
+                  : isShort
+                    ? slotSeatsShortLabel(available, need, exposeSeats, locale)
+                    : exposeSeats
+                      ? seatsLeftLabel(available, locale)
+                      : tr('availableBadge', locale)}
             </span>
           </span>
         )

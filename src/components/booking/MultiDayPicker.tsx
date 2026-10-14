@@ -289,7 +289,19 @@ export function MultiDayPicker({
       // day. Normal customers (canForce false) keep the original early-return,
       // so a sold-out day is never selectable for them.
       if (!availableSet.has(key)) {
-        if (!canForce) return
+        if (!canForce) {
+          // landr-rmcsu.7: a day that was selected and then stopped fitting
+          // (stepper raised, Back / Change dates, sold out meanwhile) must
+          // stay deselectable — a disabled-and-selected day with no way off
+          // would strand the customer behind the gate message.
+          if (valueSet.has(key)) {
+            const without = new Set(valueSet)
+            without.delete(key)
+            setAnchor(day)
+            onChange(sortedDates(without))
+          }
+          return
+        }
         if (
           !window.confirm(
             'Force-book this full / blocked day on behalf of the customer?',
@@ -527,7 +539,9 @@ export function MultiDayPicker({
           // operator can force-book a sold-out / blocked day. Normal customers
           // keep the original predicate (only available days are clickable).
           disabled={
-            canForce ? undefined : (date) => !availableSet.has(isoDate(date))
+            canForce
+              ? undefined
+              : (date) => !availableSet.has(isoDate(date)) && !valueSet.has(isoDate(date))
           }
           month={month}
           onMonthChange={setMonth}
@@ -573,7 +587,7 @@ export function MultiDayPicker({
           <div className="grid grid-cols-7">
             {peekDays.map((date) => {
               const iso = isoDate(date)
-              const disabled = !canForce && !availableSet.has(iso)
+              const disabled = !canForce && !availableSet.has(iso) && !valueSet.has(iso)
               return (
                 <div key={iso} className="flex flex-col items-center">
                   <span

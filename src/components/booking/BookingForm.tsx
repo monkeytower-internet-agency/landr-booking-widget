@@ -1141,15 +1141,22 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
-      // landr-f987a.4: party-size check before submit — the host's guiding
-      // participants + invited companions must all fit on every selected day.
-      // Best effort: a failed availability read never blocks the submit (the
-      // API re-checks and answers capacity_exceeded).
+      // landr-f987a.4 / landr-rmcsu.7: party-size check before submit — the
+      // whole group (guiding participants + invited companions) must fit on
+      // every selected day. Runs for ANY group > 1, not only when invitees
+      // were added: a participants-only group of 3 used to fall through to
+      // the API's capacity_exceeded 422, which names ONE day. Best effort: a
+      // failed availability read never blocks the submit (the API re-checks
+      // and answers capacity_exceeded). A fixed course window is judged by
+      // its own picker, not here.
       const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
-      const hasInvitees =
-        product.invite_hold_hours !== 0 &&
-        companions.some((c) => c.companion_kind === 'separate_guiding')
-      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+      if (
+        !staff.active &&
+        selection.kind === 'days' &&
+        !selection.fixedDateWindowId &&
+        need > 1 &&
+        selectedDaysForSubmit.length > 0
+      ) {
         try {
           const sorted = [...selectedDaysForSubmit].sort()
           const slots = await getAvailability(

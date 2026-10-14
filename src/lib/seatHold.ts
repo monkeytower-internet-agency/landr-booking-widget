@@ -83,8 +83,11 @@ export function seatFit(
   for (const slot of slots) {
     if (slot.available_seats <= 0 || !isDayBookable(slot, hotelOffering)) continue
     if (slot.available_seats >= n) fit.add(slot.date)
-    else short.set(slot.date, slot.available_seats)
+    else short.set(slot.date, Math.max(short.get(slot.date) ?? 0, slot.available_seats))
   }
+  // landr-rmcsu.7: a date with several slots (time-slot products) is `fit`
+  // as soon as ONE slot takes the group — never both fit and short.
+  for (const iso of fit) short.delete(iso)
   return { fit, short }
 }
 

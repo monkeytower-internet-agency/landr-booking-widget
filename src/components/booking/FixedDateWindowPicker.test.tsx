@@ -348,3 +348,110 @@ describe('FixedDateWindowPicker — next action + zen (landr-80ubl.2)', () => {
     expect(screen.getByTestId('next-action-cue')).toHaveTextContent('Next: continue')
   })
 })
+
+// landr-rmcsu.7: course windows honour the group size.
+describe('FixedDateWindowPicker seat-aware windows (landr-rmcsu.7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+  const WINDOWS: FixedDateWindow[] = [
+    { id: 'w-1', start_date: '2027-07-07', end_date: '2027-07-13', capacity: 8, capacity_reserved: 6 },
+    { id: 'w-2', start_date: '2027-08-04', end_date: '2027-08-10', capacity: 8, capacity_reserved: 0 },
+    { id: 'w-3', start_date: '2027-09-01', end_date: '2027-09-07', capacity: 8, capacity_reserved: 8 },
+  ]
+  const windowButton = (re: RegExp) => screen.getByText(re).closest('button')!
+
+  it('marks a window with too few seats "Only n left" (not Full) and disables it', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue(WINDOWS)
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        seatsNeeded={3}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => screen.getByText(/Jul 7, 2027/))
+    expect(windowButton(/Jul 7, 2027/)).toBeDisabled()
+    expect(screen.getByText('Only 2 left (you need 3)')).toBeInTheDocument()
+    expect(windowButton(/Aug 4, 2027/)).not.toBeDisabled()
+    expect(screen.getByText('Full')).toBeInTheDocument()
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('1 course date fits 3 people')
+  })
+
+  it('hides the seat count on a short window when exposeSeats is false', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue(WINDOWS)
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        seatsNeeded={3}
+        exposeSeats={false}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => screen.getByText(/Jul 7, 2027/))
+    expect(screen.getByText('Not enough seats for 3')).toBeInTheDocument()
+    expect(screen.queryByText(/Only 2 left/)).not.toBeInTheDocument()
+  })
+
+  it('offers fewer people / a group inquiry when no window fits (never stranded)', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue(WINDOWS)
+    render(
+      <FixedDateWindowPicker
+        product={{ ...makeProduct(), max_party_size: 10 }}
+        seatsNeeded={9}
+        showPartySizeStepper
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => screen.getByTestId('seat-fit-none'))
+    expect(screen.getByTestId('seat-fit-none')).toHaveTextContent(
+      'No upcoming course dates with room for 9 people.',
+    )
+    expect(screen.getByTestId('seat-fit-fewer')).toBeInTheDocument()
+    expect(screen.getByTestId('seat-fit-inquiry')).toBeInTheDocument()
+  })
+
+  it('the stepper re-filters the windows, reports the size and blocks a pick that stops fitting', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue(WINDOWS)
+    const onPartySizeChange = vi.fn()
+    const onConfirm = vi.fn()
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        seatsNeeded={2}
+        showPartySizeStepper
+        onPartySizeChange={onPartySizeChange}
+        onBack={() => {}}
+        onConfirm={onConfirm}
+      />,
+    )
+    await waitFor(() => screen.getByText(/Jul 7, 2027/))
+    expect(windowButton(/Jul 7, 2027/)).not.toBeDisabled()
+    fireEvent.click(windowButton(/Jul 7, 2027/))
+    expect(screen.getByRole('button', { name: 'Continue' })).not.toBeDisabled()
+
+    fireEvent.click(screen.getByTestId('party-size-increase'))
+    expect(onPartySizeChange).toHaveBeenCalledWith(3)
+    expect(windowButton(/Jul 7, 2027/)).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('one person keeps the old any-seat rule', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue(WINDOWS)
+    render(
+      <FixedDateWindowPicker
+        product={makeProduct()}
+        onBack={() => {}}
+        onConfirm={() => {}}
+      />,
+    )
+    await waitFor(() => screen.getByText(/Jul 7, 2027/))
+    expect(windowButton(/Jul 7, 2027/)).not.toBeDisabled()
+    expect(screen.queryByText(/you need/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('seat-fit-count')).not.toBeInTheDocument()
+  })
+})
