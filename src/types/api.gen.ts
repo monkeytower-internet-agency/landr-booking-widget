@@ -10009,6 +10009,23 @@ export interface paths {
         patch: operations["patch_tag"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/tax-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tax Rates */
+        get: operations["list_tax_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/today/board-messages": {
         parameters: {
             query?: never;
@@ -13052,6 +13069,13 @@ export interface components {
         EmailPreview: {
             /** Html */
             html: string;
+            /** Reason Stage */
+            reason_stage?: string | null;
+            /**
+             * Send Allowed
+             * @default true
+             */
+            send_allowed: boolean;
             /** Subject */
             subject: string;
             /** To */
@@ -20146,6 +20170,20 @@ export interface components {
             operator_rate_pct: string;
             /** Override Key */
             override_key?: string | null;
+        };
+        /** TaxRateItem */
+        TaxRateItem: {
+            /** Key */
+            key?: string | null;
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "holded" | "default";
         };
         /**
          * TemplateCatalogueEntryOut
@@ -38035,6 +38073,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tax_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxRateItem"][];
                 };
             };
             /** @description Validation Error */
