@@ -14,6 +14,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     getBookingByToken: vi.fn<(token: string) => Promise<unknown>>(),
     initiatePayment: vi.fn<(body: unknown) => Promise<unknown>>(),
+    acceptOffer: vi.fn<(token: string) => Promise<unknown>>(),
   },
 }))
 
@@ -23,6 +24,7 @@ vi.mock('@/api/client', async () => {
     ...actual,
     getBookingByToken: mocks.getBookingByToken,
     initiatePayment: mocks.initiatePayment,
+    acceptOffer: mocks.acceptOffer,
   }
 })
 
@@ -1329,11 +1331,22 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
 
     expect(screen.getByTestId('offer-discount')).toHaveTextContent('Your discount')
     expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
-    // the engine's regular-price line items are not listed next to the offer
-    expect(screen.getAllByTestId('offer-line-item')).toHaveLength(1)
-    expect(screen.getByTestId('offer-line-hotel')).toHaveTextContent(/payable at the hotel/i)
-    // money rows unchanged
+    // landr-bo0wd.5: green savings line, Regular price / − Your discount / Your price
+    expect(screen.getAllByTestId('offer-position-saving')).toHaveLength(1)
+    expect(screen.getByTestId('offer-position-saving')).toHaveTextContent(
+      `You save ${fmt(20)} per day · ${fmt(120)}`,
+    )
+    expect(screen.getByTestId('offer-savings-intro')).toHaveTextContent(
+      `You save ${fmt(120)} compared to our regular prices.`,
+    )
+    expect(screen.getByTestId('offer-regular-total')).toHaveTextContent(fmt(590))
     expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(470))
+    // the engine's regular-price line items are not listed next to the offer;
+    // the hotel part is one "+ paid at the hotel" line
+    expect(screen.queryByTestId('offer-line-item')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-hotel-due')).toHaveTextContent(
+      `+ ${fmt(500)} paid at the hotel on arrival`,
+    )
   })
 
   it('hides regular prices and the discount row when show_savings is off', async () => {
@@ -1378,9 +1391,84 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     render(<OfferPage token={TOKEN} />)
     await waitFor(() => screen.getByTestId('offer-ready'))
 
+    // landr-bo0wd.5: free spots are rows "on us" with the regular price of one
+    // participant across all positions (90 × 3 + 50 × 1 = 320); the group
+    // discount folds into "Your discount" while savings are shown.
+    const spots = screen.getAllByTestId('offer-free-spot')
+    expect(spots).toHaveLength(2)
+    expect(spots[0]).toHaveTextContent('Free spot')
+    expect(screen.getAllByTestId('offer-free-spot-note')[0]).toHaveTextContent(
+      `Regular price ${fmt(320)} — on us`,
+    )
+    expect(screen.getByTestId('offer-regular-total')).toHaveTextContent(fmt(590 + 640))
+    expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(1230 - 423)}`)
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(423))
+    expect(screen.queryByTestId('offer-group-discount')).not.toBeInTheDocument()
+  })
+
+  it('keeps the group discount row and says "on us" without a price when savings are hidden', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      show_savings: false,
+      offer_discount: null,
+      offer_positions: [{ ...POSITION, original_unit_price: 70, original_total: 420 }, VIDEO],
+      offer_adjustments: {
+        free_spot_count: 1, group_threshold: 8, group_discount_pct: 0.1, group_discount_amount: 47,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
     expect(screen.getByTestId('offer-group-discount')).toHaveTextContent('Group discount (10 %)')
     expect(screen.getByTestId('offer-group-discount')).toHaveTextContent(`−${fmt(47)}`)
-    expect(screen.getByTestId('offer-free-spots')).toHaveTextContent('Free spots × 2')
+    expect(screen.getByTestId('offer-free-spot-note')).toHaveTextContent(/^On us$/)
+    expect(screen.queryByTestId('offer-regular-total')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-savings-intro')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-position-saving')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(423))
+  })
+
+  it('shows the tax included in Your price', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      totals: {
+        ...WITH_OFFER.totals,
+        operator_net_total: 439.25,
+        operator_tax_total: 30.75,
+        operator_gross_total: 470,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-tax-included')).toHaveTextContent(`incl. ${fmt(30.75)} tax (7 %)`)
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(470))
+    expect(screen.queryByTestId('offer-tax-added')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-net-price')).not.toBeInTheDocument()
+  })
+
+  it('net-entry offer: positions are NET, the tax is added and Your price is the gross', async () => {
+    // positions 420 + 50 = 470 net; 7 % added = 502.90 gross (what Stripe charges)
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      totals: {
+        ...WITH_OFFER.totals,
+        gross_total: 1002.9,
+        operator_net_total: 470,
+        operator_tax_total: 32.9,
+        operator_gross_total: 502.9,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-regular-total')).toHaveTextContent(fmt(590))
+    expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
+    expect(screen.getByTestId('offer-net-price')).toHaveTextContent(fmt(470))
+    expect(screen.getByTestId('offer-tax-added')).toHaveTextContent(`+ ${fmt(32.9)} tax (7 %)`)
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(502.9))
+    expect(screen.queryByTestId('offer-tax-included')).not.toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/incl\. .* tax/)
   })
 
   it('renders the booking periods: Arrival / product range / Departure with nights and days', async () => {
@@ -1447,5 +1535,187 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
 
     expect(screen.queryByTestId('offer-position')).not.toBeInTheDocument()
     expect(screen.getByTestId('offer-items-table')).toBeInTheDocument()
+  })
+})
+
+describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)', () => {
+  const BASE = {
+    ...OFFER,
+    operator_name: 'Para42',
+    offer_positions: [
+      {
+        label: 'Guided Day · 3 consecutive days', units: 3, participants: 2,
+        original_unit_price: 90, unit_price: 70, original_total: 540, total: 420, excluded: false,
+      },
+    ],
+    offer_discount: { amount: 120, per_day: 20, pct: 22.2 },
+    show_savings: true,
+    offer_adjustments: { free_spot_count: 0, group_threshold: null, group_discount_pct: null, group_discount_amount: 0 },
+  }
+  const ACCEPTED = {
+    accepted: true, already_accepted: false, offer_accepted_at: '2026-10-14T10:00:00Z',
+    advanced: true, stage_code: 'awaiting_payment', offer_hotel_pending: false, payment_allowed: true,
+  }
+  const conflict = (code: string) =>
+    new HttpError(409, 'Conflict', JSON.stringify({ detail: { error: code } }))
+
+  beforeEach(() => {
+    mocks.getBookingByToken.mockReset()
+    mocks.initiatePayment.mockReset()
+    mocks.acceptOffer.mockReset()
+    resetQueryParams()
+  })
+
+  const ready = async () => {
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+  }
+
+  it('acceptance required, no hotel step: Accept & Pay accepts first, then starts the payment', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.acceptOffer.mockResolvedValue(ACCEPTED)
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    let navigatedTo = ''
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set(v: string) { navigatedTo = v },
+      get() { return `http://stub.invalid/offer/${TOKEN}` },
+    })
+    await ready()
+    expect(screen.queryByTestId('offer-hotel-note')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+    expect(mocks.acceptOffer).toHaveBeenCalledWith(TOKEN)
+    expect(mocks.acceptOffer.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.initiatePayment.mock.invocationCallOrder[0],
+    )
+    expect(navigatedTo).toBe(INITIATE_RESP.checkout_url)
+  })
+
+  it('hotel step pending: Accept only, hotel note, no payment', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: true,
+      payment: { methods: ['online', 'bank_transfer'], online_available: false, bank: null },
+    })
+    mocks.acceptOffer.mockResolvedValue({
+      ...ACCEPTED, offer_hotel_pending: true, payment_allowed: false, stage_code: 'awaiting_hotel_approval',
+    })
+    await ready()
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent(
+      'This offer depends on availability at the hotel.',
+    )
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('Once you accept')
+    expect(screen.queryByRole('button', { name: /accept & pay|pay now/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^accept offer$/i }))
+    await waitFor(() => expect(mocks.acceptOffer).toHaveBeenCalledOnce())
+    // accepted: the button is gone, the note now says the hotel is being asked
+    await waitFor(() =>
+      expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument(),
+    )
+    expect(mocks.initiatePayment).not.toHaveBeenCalled()
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are asking the hotel')
+    expect(screen.getByTestId('offer-description')).toHaveTextContent('You have accepted this offer.')
+  })
+
+  it('already accepted while the hotel step runs: no button, no payment', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: '2026-10-14T10:00:00Z',
+      offer_hotel_pending: true,
+      payment: { methods: ['online'], online_available: false, bank: null },
+    })
+    await ready()
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('We are asking the hotel')
+  })
+
+  it('acceptance not required: confirmation wording, no accept button, Pay now when the hotel step is done', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: false, offer_accepted_at: '2026-10-14T09:00:00Z',
+      offer_hotel_pending: false,
+    })
+    mocks.initiatePayment.mockResolvedValue(INITIATE_RESP)
+    await ready()
+    expect(screen.getByText('Your booking as agreed')).toBeInTheDocument()
+    expect(screen.getByTestId('offer-description')).toHaveTextContent(/nothing for you to accept/i)
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
+    await waitFor(() => expect(mocks.initiatePayment).toHaveBeenCalledOnce())
+    expect(mocks.acceptOffer).not.toHaveBeenCalled()
+  })
+
+  it('acceptance not required + hotel step pending: just the note', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: false, offer_accepted_at: '2026-10-14T09:00:00Z',
+      offer_hotel_pending: true,
+      payment: { methods: ['online'], online_available: false, bank: null },
+    })
+    await ready()
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-hotel-note')).toHaveTextContent('depends on availability')
+  })
+
+  it('shows the error card when the offer was changed after the link was sent (no retry)', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.acceptOffer.mockRejectedValue(conflict('offer_changed_since_sent'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => screen.getByTestId('offer-accept-error'))
+    expect(screen.getByTestId('offer-accept-error')).toHaveTextContent(/changed this offer/i)
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument()
+    expect(mocks.initiatePayment).not.toHaveBeenCalled()
+  })
+
+  it('a network failure on accept offers Try again', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+    })
+    mocks.acceptOffer.mockRejectedValue(new Error('network'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /accept & pay/i }))
+    await waitFor(() => screen.getByTestId('offer-accept-error'))
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    await waitFor(() => screen.getByTestId('offer-ready'))
+  })
+
+  it('the hotel step starting between load and click turns the 409 into the hotel state', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: false, offer_accepted_at: '2026-10-14T09:00:00Z',
+      offer_hotel_pending: false,
+    })
+    mocks.initiatePayment.mockRejectedValue(conflict('hotel_step_pending'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: /pay now/i }))
+    await waitFor(() => screen.getByTestId('offer-hotel-note'))
+    expect(screen.queryByTestId('offer-payment-section')?.textContent).not.toMatch(/pay now/i)
+    expect(screen.queryByTestId('offer-pay-error')).not.toBeInTheDocument()
+  })
+
+  it('no card rail (bank only): Accept offer, then the bank details show', async () => {
+    const payment = {
+      methods: ['bank_transfer'],
+      online_available: false,
+      bank: { iban: 'ES00 0000 0000 0000', bic: null, account_holder: 'Para42', reference: 'B-1' },
+    }
+    mocks.getBookingByToken.mockResolvedValue({
+      ...BASE, offer_requires_acceptance: true, offer_accepted_at: null, offer_hotel_pending: false,
+      payment,
+    })
+    mocks.acceptOffer.mockResolvedValue(ACCEPTED)
+    await ready()
+    // not before the yes
+    expect(screen.queryByTestId('offer-bank-details')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^accept offer$/i }))
+    await waitFor(() => screen.getByTestId('offer-bank-details'))
+    expect(mocks.initiatePayment).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
   })
 })

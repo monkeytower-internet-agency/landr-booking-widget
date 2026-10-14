@@ -515,6 +515,33 @@ type Bundle = {
   nothingFurtherToPay: string
   paymentLinkPersonal: string
   offerLinkPersonal: string
+  // landr-bo0wd.5 — offer v3: acceptance flow, hotel note, savings layout
+  offerAcceptLabel: string
+  offerAcceptingEllipsis: string
+  offerAcceptErrorTitle: string
+  offerAcceptErrorChanged: string
+  offerAcceptErrorClosed: string
+  offerAcceptErrorGeneric: string
+  offerAgreedTitle: string
+  offerAgreedDescription: string
+  offerAcceptedDescription: string
+  offerReviewHotelDescription: string
+  offerReviewAcceptDescription: string
+  offerHotelNote: string
+  offerHotelNoteAfterAccept: string
+  offerHotelNoteNow: string
+  offerSavingsIntroTemplate: string
+  offerYouSavePerDayTemplate: string
+  offerYouSaveTemplate: string
+  offerFreeSpotLabel: string
+  offerRegularOnUsTemplate: string
+  offerOnUs: string
+  offerRegularPriceLabel: string
+  offerYourPriceLabel: string
+  offerInclTaxTemplate: string
+  offerPriceExclTaxLabel: string
+  offerTaxAddedTemplate: string
+  offerPaidAtHotelTemplate: string
   couldNotStartPayment: string
 
   // ---- MembershipCheckoutStep / MembershipReturnPage ----
@@ -1140,6 +1167,32 @@ const en: Bundle = {
   nothingFurtherToPay: "There's nothing further to pay through this link right now.",
   paymentLinkPersonal: 'This payment link is personal. Do not share it.',
   offerLinkPersonal: 'This offer link is personal. Do not share it.',
+  offerAcceptLabel: 'Accept offer',
+  offerAcceptingEllipsis: 'Accepting…',
+  offerAcceptErrorTitle: 'Could not accept the offer',
+  offerAcceptErrorChanged: 'The operator changed this offer after the link was sent. Please open the link in your latest email.',
+  offerAcceptErrorClosed: 'This booking is no longer open.',
+  offerAcceptErrorGeneric: 'We could not record your acceptance. Please try again or contact us.',
+  offerAgreedTitle: 'Your booking as agreed',
+  offerAgreedDescription: 'This is your booking as we agreed it, so there is nothing for you to accept.',
+  offerAcceptedDescription: 'You have accepted this offer.',
+  offerReviewHotelDescription: 'Review the details below and accept the offer. We then ask the hotel to confirm, and you receive the payment link as soon as they have.',
+  offerReviewAcceptDescription: 'Review the details below and click Accept offer to confirm your booking.',
+  offerHotelNote: 'This offer depends on availability at the hotel.',
+  offerHotelNoteAfterAccept: 'Once you accept, we ask the hotel to confirm. You receive the payment link as soon as they have.',
+  offerHotelNoteNow: 'We are asking the hotel to confirm. You receive the payment link by email as soon as they have.',
+  offerSavingsIntroTemplate: 'You save {x} compared to our regular prices.',
+  offerYouSavePerDayTemplate: 'You save {a} per day · {b}',
+  offerYouSaveTemplate: 'You save {b}',
+  offerFreeSpotLabel: 'Free spot',
+  offerRegularOnUsTemplate: 'Regular price {x} — on us',
+  offerOnUs: 'On us',
+  offerRegularPriceLabel: 'Regular price',
+  offerYourPriceLabel: 'Your price',
+  offerInclTaxTemplate: 'incl. {a} tax ({p} %)',
+  offerPriceExclTaxLabel: 'Price excl. tax',
+  offerTaxAddedTemplate: '+ {a} tax ({p} %)',
+  offerPaidAtHotelTemplate: '+ {a} paid at the hotel on arrival',
   couldNotStartPayment: 'We could not start the payment. Please try again or contact us.',
 
   becomeAMember: 'Become a member',
@@ -1754,6 +1807,32 @@ const de: Bundle = {
   nothingFurtherToPay: 'Über diesen Link ist derzeit nichts weiter zu bezahlen.',
   paymentLinkPersonal: 'Dieser Zahlungslink ist persönlich. Bitte nicht weitergeben.',
   offerLinkPersonal: 'Dieser Angebotslink ist persönlich. Bitte nicht weitergeben.',
+  offerAcceptLabel: 'Angebot annehmen',
+  offerAcceptingEllipsis: 'Wird angenommen…',
+  offerAcceptErrorTitle: 'Angebot konnte nicht angenommen werden',
+  offerAcceptErrorChanged: 'Der Anbieter hat dieses Angebot nach dem Versand geändert. Bitte öffnen Sie den Link in Ihrer neuesten E-Mail.',
+  offerAcceptErrorClosed: 'Diese Buchung ist nicht mehr offen.',
+  offerAcceptErrorGeneric: 'Wir konnten Ihre Zusage nicht speichern. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
+  offerAgreedTitle: 'Ihre Buchung wie vereinbart',
+  offerAgreedDescription: 'Das ist Ihre Buchung so, wie wir sie vereinbart haben – Sie müssen nichts bestätigen.',
+  offerAcceptedDescription: 'Sie haben dieses Angebot angenommen.',
+  offerReviewHotelDescription: 'Prüfen Sie die Details unten und nehmen Sie das Angebot an. Wir fragen dann das Hotel an, und Sie erhalten den Zahlungslink, sobald es bestätigt hat.',
+  offerReviewAcceptDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Angebot annehmen“, um Ihre Buchung zu bestätigen.',
+  offerHotelNote: 'Dieses Angebot hängt von der Verfügbarkeit im Hotel ab.',
+  offerHotelNoteAfterAccept: 'Sobald Sie zusagen, fragen wir das Hotel an. Den Zahlungslink erhalten Sie, sobald es bestätigt hat.',
+  offerHotelNoteNow: 'Wir fragen das Hotel gerade an. Den Zahlungslink erhalten Sie per E-Mail, sobald es bestätigt hat.',
+  offerSavingsIntroTemplate: 'Sie sparen {x} gegenüber unseren regulären Preisen.',
+  offerYouSavePerDayTemplate: 'Sie sparen {a} pro Tag · {b}',
+  offerYouSaveTemplate: 'Sie sparen {b}',
+  offerFreeSpotLabel: 'Freiplatz',
+  offerRegularOnUsTemplate: 'Regulärer Preis {x} – geht auf uns',
+  offerOnUs: 'Geht auf uns',
+  offerRegularPriceLabel: 'Regulärer Preis',
+  offerYourPriceLabel: 'Ihr Preis',
+  offerInclTaxTemplate: 'inkl. {a} Steuer ({p} %)',
+  offerPriceExclTaxLabel: 'Preis ohne Steuer',
+  offerTaxAddedTemplate: '+ {a} Steuer ({p} %)',
+  offerPaidAtHotelTemplate: '+ {a} Zahlung im Hotel bei Anreise',
   couldNotStartPayment: 'Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
 
   becomeAMember: 'Mitglied werden',
