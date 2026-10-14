@@ -462,6 +462,21 @@ function BookingFlowApp() {
   const mergeDraft = useCallback((patch: BookingDraft) => {
     setBookingDraft((prev) => mergeDraftPatch(prev, patch))
   }, [])
+  // landr-rmcsu.5: the dates step's group size — the stepper's last value,
+  // else the party already entered (Back / Change dates), else unknown.
+  const draftSeatsNeeded = (product: Product): number | undefined =>
+    bookingDraft.partySize ??
+    (bookingDraft.participants && bookingDraft.participants.length > 0
+      ? seatsNeeded(
+          bookingDraft.participants.length,
+          bookingDraft.companions,
+          product.invite_hold_hours,
+        )
+      : undefined)
+  const onPartySizeChange = useCallback(
+    (partySize: number) => mergeDraft({ partySize }),
+    [mergeDraft],
+  )
   // landr-otml0.3: resolve `?invite=<token>` once, at mount. On success:
   // seed the persistent draft (booker name, hotel + shared-double mode —
   // the SAME slices `afterDetails` already reads to build pick-accommodation,
@@ -1260,6 +1275,8 @@ function BookingFlowApp() {
       participants,
       companions,
       customerComment: comment || null,
+      // landr-rmcsu.5: the party actually entered is now the group size.
+      partySize: seatsNeeded(participants.length, companions, product.invite_hold_hours),
     })
     // landr-pv2r1 (E3): an any-language product never shows the language
     // board, so drop any assignment an earlier restricted product left in
@@ -2162,15 +2179,13 @@ function BookingFlowApp() {
             // landr-f987a.4: invitee's token (live hold counts as available)
             // and the host party's seat need once known (Back nav from details).
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
-            seatsNeeded={
-              bookingDraft.participants && bookingDraft.participants.length > 0
-                ? seatsNeeded(
-                    bookingDraft.participants.length,
-                    bookingDraft.companions,
-                    step.product.invite_hold_hours,
-                  )
-                : undefined
-            }
+            // landr-rmcsu.5: the group size (stepper / entered party) drives
+            // the seat-aware calendar; the stepper persists into the draft.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            showPartySizeStepper
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -2193,6 +2208,12 @@ function BookingFlowApp() {
           <SingleDatePicker
             product={step.product}
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            // landr-rmcsu.5: same group-size contract as MultiDayStep.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            showPartySizeStepper
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
@@ -2236,6 +2257,14 @@ function BookingFlowApp() {
             operatorToken={token!}
             initialBooker={step.booker}
             initialParticipants={step.participants}
+            // landr-rmcsu.5: pre-create the participant rows the dates-step
+            // stepper asked for (invited companions are not rows here).
+            prefillParticipantCount={
+              bookingDraft.partySize !== undefined
+                ? bookingDraft.partySize -
+                  seatsNeeded(0, step.companions ?? [], step.product.invite_hold_hours)
+                : undefined
+            }
             // landr-87n9.3: restore the non-guiding companions on Back.
             initialCompanions={step.companions}
             // landr-fn4i / landr-5krc: restore the member-perk code on Back —
@@ -2930,8 +2959,14 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            // landr-rmcsu.5: keep the committed dates (like Back does) so the
+            // calendar re-opens on them with any short day marked.
             onChangeDates={() =>
-              setStep({ name: 'pick-selection', product: step.product })
+              setStep({
+                name: 'pick-selection',
+                product: step.product,
+                selection: step.selection,
+              })
             }
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via

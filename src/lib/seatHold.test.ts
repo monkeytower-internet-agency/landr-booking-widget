@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { AvailabilitySlot } from '@/api/types'
-import { formatHoldDeadline, holdIsLive, seatsNeeded, shortDays } from './seatHold'
+import {
+  formatHoldDeadline,
+  holdIsLive,
+  maxPartySize,
+  seatFit,
+  seatsNeeded,
+  shortDays,
+  windowRangeLabel,
+} from './seatHold'
 
 const slot = (date: string, available_seats: number) =>
   ({ date, available_seats }) as AvailabilitySlot
@@ -61,5 +69,40 @@ describe('hold deadline', () => {
     expect(formatHoldDeadline(new Date(2026, 9, 17, 15, 0).toISOString(), 'de', now)).toMatch(
       /\(morgen um /,
     )
+  })
+})
+
+describe('seatFit (landr-rmcsu.5)', () => {
+  const slots = [
+    slot('2026-11-11', 2),
+    slot('2026-11-12', 3),
+    slot('2026-11-13', 0),
+    { ...slot('2026-11-14', 9), activity_bookable: false } as AvailabilitySlot,
+  ]
+  it('splits bookable days into fit-for-N and short (seats left), skipping sold-out / unbookable', () => {
+    const { fit, short } = seatFit(slots, 'none', 3)
+    expect([...fit]).toEqual(['2026-11-12'])
+    expect([...short]).toEqual([['2026-11-11', 2]])
+  })
+  it('need absent or 1 is the plain available_seats > 0 rule', () => {
+    expect([...seatFit(slots, 'none', undefined).fit]).toEqual(['2026-11-11', '2026-11-12'])
+    expect(seatFit(slots, 'none', 1).short.size).toBe(0)
+  })
+})
+
+describe('maxPartySize (landr-rmcsu.5)', () => {
+  it('honours any product cap >= 1, including above 6; falls back to 6', () => {
+    expect(maxPartySize(12)).toBe(12)
+    expect(maxPartySize(1)).toBe(1)
+    expect(maxPartySize(null)).toBe(6)
+    expect(maxPartySize(undefined)).toBe(6)
+    expect(maxPartySize(0)).toBe(6)
+  })
+})
+
+describe('windowRangeLabel (landr-rmcsu.5)', () => {
+  it('formats the loaded window as a month range', () => {
+    expect(windowRangeLabel('2026-10-14', '2027-03-01', 'en-GB')).toBe('October 2026 – March 2027')
+    expect(windowRangeLabel('2026-10-01', '2026-10-30', 'en-GB')).toBe('October 2026')
   })
 })

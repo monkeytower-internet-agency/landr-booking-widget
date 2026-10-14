@@ -224,3 +224,109 @@ describe('MultiDayStep — party size incl. invitees (landr-f987a.4)', () => {
     expect(vi.mocked(getAvailability).mock.calls.at(-1)?.[3]).toBe('tok-123')
   })
 })
+
+describe('MultiDayStep — group-size stepper + seat-aware calendar (landr-rmcsu.5)', () => {
+  const dayBtn = (iso: string) =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-day]')).find(
+      (b) => b.dataset.day && isoDate(new Date(b.dataset.day)) === iso,
+    )!
+
+  it('the stepper starts at the known need, is capped by max_party_size and persists', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 2), slot(OPEN_B, 5)])
+    const onPartySizeChange = vi.fn()
+    render(
+      <MultiDayStep
+        product={{ ...PRODUCT, max_party_size: 3 } as Product}
+        onConfirm={vi.fn()}
+        seatsNeeded={2}
+        showPartySizeStepper
+        onPartySizeChange={onPartySizeChange}
+      />,
+    )
+    const group = screen.getByRole('group', { name: 'How many of you?' })
+    expect(group).toBeInTheDocument()
+    expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+    await waitFor(() => expect(screen.getByTestId('seat-fit-count')).toBeInTheDocument())
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('2 dates fit 2 people')
+
+    fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+    expect(screen.getByTestId('party-size-value')).toHaveTextContent('3')
+    expect(onPartySizeChange).toHaveBeenLastCalledWith(3)
+    expect(screen.getByRole('button', { name: 'One person more' })).toBeDisabled()
+    // OPEN_A has 2 seats: now short for 3 → marked + disabled.
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('1 date fits 3 people')
+    expect(dayBtn(OPEN_A)).toBeDisabled()
+    expect(dayBtn(OPEN_A)).toHaveAttribute('data-short', 'true')
+    expect(dayBtn(OPEN_B)).not.toBeDisabled()
+  })
+
+  it('max_party_size absent falls back to 6', () => {
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        seatsNeeded={6}
+        showPartySizeStepper
+      />,
+    )
+    expect(screen.getByTestId('party-size-value')).toHaveTextContent('6')
+    expect(screen.getByRole('button', { name: 'One person more' })).toBeDisabled()
+  })
+
+  it('no stepper unless asked for (participants already known — landr-rmcsu.6)', () => {
+    render(<MultiDayStep product={PRODUCT} onConfirm={vi.fn()} seatsNeeded={2} />)
+    expect(screen.queryByTestId('party-size-stepper')).not.toBeInTheDocument()
+  })
+
+  it('never stranded: no day fits → notice with "Fewer people" and the group inquiry', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([slot(OPEN_A, 2), slot(OPEN_B, 1)])
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        seatsNeeded={3}
+        showPartySizeStepper
+        operatorToken="tok"
+      />,
+    )
+    await waitFor(() => expect(screen.getByTestId('seat-fit-none')).toBeInTheDocument())
+    expect(screen.getByTestId('seat-fit-none')).toHaveTextContent(
+      /^No dates with room for 3 people in .+\./,
+    )
+    fireEvent.click(screen.getByTestId('seat-fit-fewer'))
+    expect(screen.getByTestId('party-size-decrease')).toHaveFocus()
+
+    fireEvent.click(screen.getByTestId('seat-fit-inquiry'))
+    const modal = await screen.findByTestId('seat-fit-inquiry-modal')
+    expect(modal).toBeInTheDocument()
+    // The group size carries into the inquiry form.
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+
+    // Two fewer people → some days fit again and the notice goes away.
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+    fireEvent.click(screen.getByTestId('party-size-decrease'))
+    expect(screen.queryByTestId('seat-fit-none')).not.toBeInTheDocument()
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('1 date fits 2 people')
+  })
+
+  it('the gate names every short selected day, not only the first', async () => {
+    vi.mocked(getAvailability).mockResolvedValue([
+      slot(FULL, 2),
+      slot(OPEN_A, 1),
+      slot(OPEN_B, 5),
+    ])
+    render(
+      <MultiDayStep
+        product={PRODUCT}
+        onConfirm={vi.fn()}
+        initialSelectedDays={[FULL, OPEN_A, OPEN_B]}
+        seatsNeeded={3}
+        showPartySizeStepper
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('multi-day-step-submit')).toBeDisabled(),
+    )
+    expect(screen.getByText(/ and .* have fewer than 3 seats left\./)).toBeInTheDocument()
+  })
+})

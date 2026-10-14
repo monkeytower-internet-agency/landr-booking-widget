@@ -11,6 +11,7 @@ import {
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
+import { CalendarDayHintContext } from "@/components/ui/calendarDayHints"
 import { Button, buttonVariants } from "@/components/ui/button"
 
 function Calendar({
@@ -218,6 +219,12 @@ function CalendarDayButton({
   // usage in this widget, so this whole block is a no-op split there.
   const diffAdded = modifiers.diffAdded === true
   const diffRemoved = modifiers.diffRemoved === true
+  // landr-rmcsu.5: `short` = the day has seats, but fewer than the group
+  // needs (MultiDayPicker / SingleDatePicker feed it). Struck through in
+  // amber; the hint context adds "n seats left" to the label + tooltip.
+  const short = modifiers.short === true
+  const hintFor = React.useContext(CalendarDayHintContext)
+  const hint = hintFor?.(day.date)
 
   const isSelectedSingle =
     modifiers.selected &&
@@ -236,7 +243,7 @@ function CalendarDayButton({
   const { children, "aria-label": ariaLabelProp, ...restProps } = props
 
   let content: React.ReactNode = children
-  let ariaLabel = ariaLabelProp
+  let ariaLabel: string | undefined = ariaLabelProp
   if (diffAdded || diffRemoved) {
     const base =
       typeof ariaLabelProp === "string"
@@ -256,6 +263,10 @@ function CalendarDayButton({
     )
   }
 
+  if (hint) {
+    ariaLabel = ariaLabel ? `${ariaLabel}, ${hint}` : hint
+  }
+
   return (
     <Button
       ref={ref}
@@ -267,7 +278,9 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       data-diff={diffAdded ? "added" : diffRemoved ? "removed" : undefined}
+      data-short={short || undefined}
       aria-label={ariaLabel}
+      title={hint}
       className={cn(
         "relative flex size-auto h-(--cell-size) w-full min-w-0 flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/15 data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground [&>span]:text-xs [&>span]:opacity-70",
         // landr-tkgx8.2: the ghost variant's grey `hover:bg-accent` (the
@@ -284,6 +297,10 @@ function CalendarDayButton({
           "bg-diff-added-soft-bg text-diff-added hover:bg-diff-added-soft-bg/70 hover:text-diff-added",
         diffRemoved &&
           "bg-destructive/10 text-destructive line-through hover:bg-destructive/15 hover:text-destructive",
+        short && "line-through decoration-2",
+        short &&
+          !modifiers.selected &&
+          "text-amber-700 decoration-amber-600 dark:text-amber-400 dark:decoration-amber-400",
         defaultClassNames.day,
         className
       )}

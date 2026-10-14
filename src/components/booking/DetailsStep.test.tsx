@@ -2284,9 +2284,77 @@ describe('DetailsStep product max_party_size (landr-zy2wm.2)', () => {
     expect(clickAddUntilGone()).toBe(5)
   })
 
-  it('a cap above the widget cap does not raise it', () => {
-    renderWith(50)
-    expect(clickAddUntilGone()).toBe(5)
+  // landr-rmcsu.5: the old min(5, max_party_size - 1) clamp is gone — a cap
+  // above 6 is honoured, and the larger-group line shows at THAT cap.
+  it('a cap above 6 raises the participant limit to max_party_size - 1', () => {
+    renderWith(10)
+    expect(clickAddUntilGone()).toBe(9)
+    expect(screen.getByTestId('participant-row-10')).toBeInTheDocument()
+    expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(
+      'Maximum of 9 additional participants reached',
+    )
+  })
+})
+
+describe('DetailsStep prefillParticipantCount (landr-rmcsu.5)', () => {
+  const restored = (first: string) => ({
+    first_name: first,
+    last_name: 'X',
+    email: '',
+    phone: '+34 600 000 002',
+    service_role_code: '',
+  })
+
+  it('pre-creates empty rows up to the dates-step group size and tells the sidebar', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 8 })}
+        selection={DAYS_SELECTION}
+        prefillParticipantCount={4}
+        onLiveParticipantsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('participant-row-4')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-5')).not.toBeInTheDocument()
+    expect(onLive).toHaveBeenCalledWith(4, [], 0)
+    // Still removable / addable by the customer.
+    expect(screen.getByTestId('add-participant')).toBeInTheDocument()
+  })
+
+  it('never drops restored rows and never exceeds the product cap', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 3 })}
+        selection={DAYS_SELECTION}
+        initialParticipants={[restored('Ada'), restored('Grace')]}
+        prefillParticipantCount={6}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(byName('participant_2_first_name')).toHaveValue('Grace')
+    expect(screen.getByTestId('participant-row-3')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-4')).not.toBeInTheDocument()
+  })
+
+  it('a smaller group size than the restored party removes nobody', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        initialParticipants={[restored('Ada'), restored('Grace'), restored('Linus')]}
+        prefillParticipantCount={1}
+        onLiveParticipantsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(byName('participant_3_first_name')).toHaveValue('Linus')
+    expect(onLive).not.toHaveBeenCalled()
   })
 })
 
