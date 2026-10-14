@@ -1238,7 +1238,7 @@ describe('OfferPage — operator/hotel split (mode="pay")', () => {
 
 describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
   const POSITION = {
-    label: 'Guided Paragliding Day · 3 consecutive days · €90.00/day × 2 participants',
+    label: 'Guided Paragliding Day · 3 consecutive days',
     units: 3,
     participants: 2,
     original_unit_price: 90,
@@ -1312,20 +1312,22 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
 
     const rows = screen.getAllByTestId('offer-position')
     expect(rows).toHaveLength(2)
-    // the label's baked-in regular price tail is replaced by the offer price
+    // the label is price-free (landr-8f1sh.5); the sub-line comes from the numeric fields
     expect(rows[0]).toHaveTextContent('Guided Paragliding Day · 3 consecutive days')
-    expect(rows[0]).not.toHaveTextContent('€90.00/day')
     expect(screen.getByTestId('offer-position-original-unit')).toHaveTextContent(fmt(90))
-    expect(screen.getByTestId('offer-position-per-day')).toHaveTextContent(
-      `${fmt(70)}/day × 2 participants`,
+    expect(screen.getAllByTestId('offer-position-per-day')[0]).toHaveTextContent(
+      `${fmt(70)}/day × 3 days × 2 participants`,
     )
     expect(screen.getByTestId('offer-position-original-total')).toHaveTextContent(fmt(540))
     expect(screen.getAllByTestId('offer-position-total')[0]).toHaveTextContent(fmt(420))
-    // excluded / flat position: just its price, no struck original, no per-day line
+    // excluded position: sub-line from numeric fields too, but no struck original
     expect(rows[1]).toHaveTextContent('Video package')
     expect(rows[1]).toHaveTextContent(fmt(50))
     expect(rows[1].querySelector('[data-testid="offer-position-original-total"]')).toBeNull()
-    expect(rows[1].querySelector('[data-testid="offer-position-per-day"]')).toBeNull()
+    expect(rows[1].querySelector('[data-testid="offer-position-original-unit"]')).toBeNull()
+    expect(rows[1].querySelector('[data-testid="offer-position-per-day"]')).toHaveTextContent(
+      `${fmt(50)}/day × 1 day × 1 participant`,
+    )
 
     expect(screen.getByTestId('offer-discount')).toHaveTextContent('Your discount')
     expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
@@ -1354,7 +1356,7 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     expect(screen.queryByTestId('offer-discount')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-position-original-unit')).not.toBeInTheDocument()
     expect(screen.queryByTestId('offer-position-original-total')).not.toBeInTheDocument()
-    expect(screen.getByTestId('offer-position-per-day')).toHaveTextContent(`${fmt(70)}/day`)
+    expect(screen.getAllByTestId('offer-position-per-day')[0]).toHaveTextContent(`${fmt(70)}/day × 3 days × 2 participants`)
     expect(document.body).not.toHaveTextContent('€90.00')
     expect(document.body).not.toHaveTextContent(fmt(540))
   })

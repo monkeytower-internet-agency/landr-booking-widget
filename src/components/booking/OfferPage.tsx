@@ -29,7 +29,7 @@ import {
   periodRowsFromApi,
   type OfferPeriodRow,
 } from './offerDates'
-import { hasSaving, splitPositionLabel } from './offerPositions'
+import { hasSaving } from './offerPositions'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -978,7 +978,6 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   (the offer price; the regular one struck through when the
                   operator shows the discount), line total. */}
               {positions.map((p, i) => {
-                const { title, perDay } = splitPositionLabel(p.label)
                 const saved = hasSaving(p, showSavings)
                 return (
                   <tr
@@ -987,29 +986,32 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                     data-testid="offer-position"
                   >
                     <td className="px-4 py-2.5">
-                      <div className="font-medium">{title}</div>
-                      {perDay && (
-                        <div
-                          className="text-xs text-muted-foreground tabular-nums"
-                          data-testid="offer-position-per-day"
-                        >
-                          {saved && (
-                            <span
-                              className="mr-1 line-through"
-                              data-testid="offer-position-original-unit"
-                            >
-                              {formatCurrency(p.original_unit_price, currencyCode, locale)}
-                            </span>
-                          )}
-                          {formatCurrency(p.unit_price, currencyCode, locale)}
-                          {tr('offerPerDaySuffix', locale)}{' '}
-                          {plural(
-                            p.participants,
-                            tr('participantSuffixSingular', locale),
-                            tr('participantSuffixPlural', locale),
-                          ).replace('{n}', String(p.participants))}
-                        </div>
-                      )}
+                      <div className="font-medium">{p.label}</div>
+                      <div
+                        className="text-xs text-muted-foreground tabular-nums"
+                        data-testid="offer-position-per-day"
+                      >
+                        {saved && (
+                          <span
+                            className="mr-1 line-through"
+                            data-testid="offer-position-original-unit"
+                          >
+                            {formatCurrency(p.original_unit_price, currencyCode, locale)}
+                          </span>
+                        )}
+                        {formatCurrency(p.unit_price, currencyCode, locale)}
+                        {tr('offerPerDaySuffix', locale)} ×{' '}
+                        {plural(
+                          p.units,
+                          tr('offerLengthDaySingular', locale),
+                          tr('offerLengthDayPlural', locale),
+                        ).replace('{n}', String(p.units))}{' '}
+                        {plural(
+                          p.participants,
+                          tr('participantSuffixSingular', locale),
+                          tr('participantSuffixPlural', locale),
+                        ).replace('{n}', String(p.participants))}
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       {saved && (
