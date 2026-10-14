@@ -17331,6 +17331,10 @@ export interface components {
             /** Participants */
             participants?: components["schemas"]["OfferParticipant"][];
             payment?: components["schemas"]["OfferPayment"] | null;
+            /** Periods */
+            periods?: {
+                [key: string]: unknown;
+            }[];
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
             /** Show Savings */
