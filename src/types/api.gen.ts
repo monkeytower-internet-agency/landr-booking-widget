@@ -2451,6 +2451,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/accept-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Offer Public
+         * @description The customer accepts the custom offer behind ``token`` (landr-bo0wd.1).
+         *
+         *     Records ``offer_accepted_at`` (once) and, when the booking still waits at
+         *     the general gate, runs the general approval through the normal transition
+         *     (``custom_offer_flow.advance_after_acceptance``) with the operator who
+         *     SENT the offer as the approver: hotel step + hotel request when the
+         *     booking has one, else the usual route (confirmation + payment link).
+         *
+         *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
+         *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
+         *     sent), ``offer_changed_since_sent`` (edited after the send: the link is
+         *     stale until the offer is re-sent), ``booking_closed`` (deleted /
+         *     cancelled / finalised).
+         */
+        post: operations["accept_offer_public"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/bookings/{token}/calendar.ics": {
         parameters: {
             query?: never;
@@ -10520,6 +10552,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptOfferResponse
+         * @description POST /{token}/accept-offer (landr-bo0wd.1).
+         *
+         *     ``already_accepted`` = the yes was recorded before (double click, or an
+         *     acceptance-free offer); nothing moved this time. ``advanced`` = this call
+         *     ran the general-approval transition (booking was at the general gate).
+         *     ``payment_allowed`` = the offer page may take payment now: False while the
+         *     hotel step is ahead or in progress (``offer_hotel_pending``) -- the payment
+         *     link then arrives the usual way once the hotel confirmed.
+         */
+        AcceptOfferResponse: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /** Advanced */
+            advanced: boolean;
+            /** Already Accepted */
+            already_accepted: boolean;
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
+            /** Offer Hotel Pending */
+            offer_hotel_pending: boolean;
+            /** Payment Allowed */
+            payment_allowed: boolean;
+            /** Stage Code */
+            stage_code?: string | null;
+        };
         /** AccountLinkRequest */
         AccountLinkRequest: {
             /** Email */
@@ -12344,6 +12406,8 @@ export interface components {
              * @default true
              */
             prices_include_tax: boolean;
+            /** Requires Acceptance */
+            requires_acceptance?: boolean | null;
             /**
              * Rounding
              * @default exact
@@ -12438,7 +12502,16 @@ export interface components {
             lines: components["schemas"]["CustomOfferLineOut"][];
             /** Net Total */
             net_total: string;
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
             offer_discount?: components["schemas"]["OfferDiscountOut"] | null;
+            /**
+             * Offer Hotel Pending
+             * @default false
+             */
+            offer_hotel_pending: boolean;
+            /** Offer Sent At */
+            offer_sent_at?: string | null;
             /**
              * Original Total
              * @default 0
@@ -12464,6 +12537,11 @@ export interface components {
             prices_include_tax: boolean;
             /** Regular Unit Price */
             regular_unit_price?: string | null;
+            /**
+             * Requires Acceptance
+             * @default true
+             */
+            requires_acceptance: boolean;
             /**
              * Rounding
              * @default exact
@@ -15209,12 +15287,27 @@ export interface components {
         };
         /** OfferEmailPreview */
         OfferEmailPreview: {
+            /**
+             * Body Html
+             * @default
+             */
+            body_html: string;
+            /**
+             * Body Text
+             * @default
+             */
+            body_text: string;
             /** Html */
             html: string;
             /** Subject */
             subject: string;
             /** To */
             to?: string | null;
+            /**
+             * To Address
+             * @default
+             */
+            to_address: string;
         };
         /**
          * OfferLineItem
@@ -17408,10 +17501,16 @@ export interface components {
             ical_url?: string | null;
             /** Line Items */
             line_items?: components["schemas"]["OfferLineItem"][];
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
             offer_adjustments?: components["schemas"]["OfferAdjustments"] | null;
             offer_discount?: components["schemas"]["OfferDiscount"] | null;
+            /** Offer Hotel Pending */
+            offer_hotel_pending?: boolean | null;
             /** Offer Positions */
             offer_positions?: components["schemas"]["OfferPositionLine"][] | null;
+            /** Offer Requires Acceptance */
+            offer_requires_acceptance?: boolean | null;
             /** Operator Name */
             operator_name?: string | null;
             /** Participants */
@@ -24410,6 +24509,37 @@ export interface operations {
             };
         };
     };
+    accept_offer_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptOfferResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_booking_calendar_ics: {
         parameters: {
             query?: never;
@@ -28879,7 +29009,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

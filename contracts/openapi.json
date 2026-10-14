@@ -1,6 +1,63 @@
 {
   "components": {
     "schemas": {
+      "AcceptOfferResponse": {
+        "description": "POST /{token}/accept-offer (landr-bo0wd.1).\n\n``already_accepted`` = the yes was recorded before (double click, or an\nacceptance-free offer); nothing moved this time. ``advanced`` = this call\nran the general-approval transition (booking was at the general gate).\n``payment_allowed`` = the offer page may take payment now: False while the\nhotel step is ahead or in progress (``offer_hotel_pending``) -- the payment\nlink then arrives the usual way once the hotel confirmed.",
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "advanced": {
+            "title": "Advanced",
+            "type": "boolean"
+          },
+          "already_accepted": {
+            "title": "Already Accepted",
+            "type": "boolean"
+          },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
+          "offer_hotel_pending": {
+            "title": "Offer Hotel Pending",
+            "type": "boolean"
+          },
+          "payment_allowed": {
+            "title": "Payment Allowed",
+            "type": "boolean"
+          },
+          "stage_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Code"
+          }
+        },
+        "required": [
+          "already_accepted",
+          "advanced",
+          "offer_hotel_pending",
+          "payment_allowed"
+        ],
+        "title": "AcceptOfferResponse",
+        "type": "object"
+      },
       "AccountLinkRequest": {
         "properties": {
           "email": {
@@ -4355,6 +4412,17 @@
             "title": "Prices Include Tax",
             "type": "boolean"
           },
+          "requires_acceptance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requires Acceptance"
+          },
           "rounding": {
             "default": "exact",
             "enum": [
@@ -4626,6 +4694,18 @@
             "title": "Net Total",
             "type": "string"
           },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
           "offer_discount": {
             "anyOf": [
               {
@@ -4635,6 +4715,23 @@
                 "type": "null"
               }
             ]
+          },
+          "offer_hotel_pending": {
+            "default": false,
+            "title": "Offer Hotel Pending",
+            "type": "boolean"
+          },
+          "offer_sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Sent At"
           },
           "original_total": {
             "default": "0",
@@ -4683,6 +4780,11 @@
               }
             ],
             "title": "Regular Unit Price"
+          },
+          "requires_acceptance": {
+            "default": true,
+            "title": "Requires Acceptance",
+            "type": "boolean"
           },
           "rounding": {
             "default": "exact",
@@ -12373,6 +12475,16 @@
       },
       "OfferEmailPreview": {
         "properties": {
+          "body_html": {
+            "default": "",
+            "title": "Body Html",
+            "type": "string"
+          },
+          "body_text": {
+            "default": "",
+            "title": "Body Text",
+            "type": "string"
+          },
           "html": {
             "title": "Html",
             "type": "string"
@@ -12391,6 +12503,11 @@
               }
             ],
             "title": "To"
+          },
+          "to_address": {
+            "default": "",
+            "title": "To Address",
+            "type": "string"
           }
         },
         "required": [
@@ -19038,6 +19155,18 @@
             "title": "Line Items",
             "type": "array"
           },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
           "offer_adjustments": {
             "anyOf": [
               {
@@ -19058,6 +19187,17 @@
               }
             ]
           },
+          "offer_hotel_pending": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Hotel Pending"
+          },
           "offer_positions": {
             "anyOf": [
               {
@@ -19071,6 +19211,17 @@
               }
             ],
             "title": "Offer Positions"
+          },
+          "offer_requires_acceptance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Requires Acceptance"
           },
           "operator_name": {
             "anyOf": [
@@ -34307,6 +34458,49 @@
         ]
       }
     },
+    "/api/public/bookings/{token}/accept-offer": {
+      "post": {
+        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1).\n\nRecords ``offer_accepted_at`` (once) and, when the booking still waits at\nthe general gate, runs the general approval through the normal transition\n(``custom_offer_flow.advance_after_acceptance``) with the operator who\nSENT the offer as the approver: hotel step + hotel request when the\nbooking has one, else the usual route (confirmation + payment link).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_changed_since_sent`` (edited after the send: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
+        "operationId": "accept_offer_public",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptOfferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Offer Public",
+        "tags": [
+          "public-bookings"
+        ]
+      }
+    },
     "/api/public/bookings/{token}/calendar.ics": {
       "get": {
         "description": "The whole booking as one .ics (landr-3vr5; token-scoped, landr-5aih0.4).\n\nTimed + zoned VEVENTs for days with a known start (pickup time, else the\ntime-slot start), all-day otherwise; LOCATION/GEO = the meeting point.\nSee :mod:`app.services.booking_calendar_context`.\n\n410 for a bare booking UUID: that was the pre-5aih0.4 link (the UUID was\nthe credential). It is never looked up, so the answer does not reveal\nwhether the booking exists. 401 for any other bad/expired token, 404 when\na valid token's booking no longer exists (or was cancelled).",
@@ -41793,6 +41987,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SendWithOverrideBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
