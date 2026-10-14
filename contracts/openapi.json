@@ -17146,6 +17146,58 @@
         "title": "ProductCategoryTemplateOut",
         "type": "object"
       },
+      "ProductDayCapacity": {
+        "description": "One day of one product limited by its OWN per-day seat cap.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "booked": {
+            "title": "Booked",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "seat_limit_source": {
+            "const": "product",
+            "default": "product",
+            "title": "Seat Limit Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "date",
+          "capacity",
+          "booked",
+          "available"
+        ],
+        "title": "ProductDayCapacity",
+        "type": "object"
+      },
       "ProductFlowResponse": {
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
@@ -49382,6 +49434,78 @@
         "summary": "Patch Product Category",
         "tags": [
           "staff-product-categories"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/product-day-capacity": {
+      "get": {
+        "description": "Per-day seat numbers of every product whose OWN daily cap limits it\n(``products.day_capacity_source = 'product'``), for the staff calendar's\nproduct-cap lane (landr-rmcsu).\n\nThese are the numbers the public booking widget enforces \u2014 the rows come\nfrom the same ``public_get_product_availability`` RPC and the same\n``_fill_seat_numbers`` step the public endpoint uses, so the dashboard\ncannot show a second seat definition. ``booked`` is the\nguiding participants of live bookings (``product_day_seat_load``).\n\nOmitted: products limited by ``resources`` (the pool lanes already show\nthem), days whose ``seat_limit_source`` is not ``product`` (sentinel /\n``none`` / pool-filled days), closed days (the RPC does not return them),\nand slot rows of time_slot products (a per-day number needs a whole-day\nshape). Like the widget, products that are inactive or not publicly\nlisted return no rows. Ordered by product name, then date.",
+        "operationId": "list_product_day_capacity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductDayCapacity"
+                  },
+                  "title": "Response List Product Day Capacity",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Day Capacity",
+        "tags": [
+          "staff-availability"
         ]
       }
     },
