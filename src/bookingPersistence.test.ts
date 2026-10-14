@@ -80,6 +80,16 @@ describe('writeStoredProgress / readStoredProgress', () => {
     expect(restored!.bookingDraft.booker?.email).toBe('ada@example.com')
   })
 
+  // landr-rmcsu.6: participants before dates → a details step with no
+  // selection yet must survive a reload as-is.
+  it('round-trips a details step that has no selection yet (participants before dates)', () => {
+    const step: Step = { name: 'details', product: makeProduct() }
+    writeStoredProgress({ step, bookingDraft: draft })
+    const restored = readStoredProgress()
+    expect(restored!.step).toEqual(step)
+    expect('selection' in restored!.step).toBe(false)
+  })
+
   it('returns null when nothing is stored', () => {
     expect(readStoredProgress()).toBeNull()
   })

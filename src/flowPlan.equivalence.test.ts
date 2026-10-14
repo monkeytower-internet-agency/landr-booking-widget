@@ -32,7 +32,7 @@ import {
   stepBeforeReview,
   type Step,
 } from './appStepMachine'
-import { buildFlowPlan, type FlowModule } from './flowPlan'
+import { buildFlowPlan, planHasParticipantsFirst, type FlowModule } from './flowPlan'
 
 // ─── Fixtures (mirroring appStepMachine.test.ts) ────────────────────────────
 
@@ -626,6 +626,144 @@ describe('buildFlowPlan — well-formed remoteFlow overrides the order', () => {
       { modules: [{ kind: 'accommodation' }] },
     )
     expect(plan.map((m) => m.kind)).toEqual(['selection', 'participants', 'review'])
+  })
+})
+
+// ─── landr-rmcsu.6: the stored participants position ────────────────────────
+
+describe('buildFlowPlan — participants position (landr-rmcsu.6)', () => {
+  const kinds = (plan: FlowModule[]) => plan.map((m) => m.kind)
+  function product() {
+    return makeProduct({ hotel_offering: 'optional', needs_pickup: false })
+  }
+
+  it('dev guided-day shape (selection 1, participants 2): today\'s order', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'selection', position: 1 },
+        { kind: 'participants', position: 2 },
+        { kind: 'accommodation', position: 3 },
+        { kind: 'custom_form', position: 4, form: { key: 'waiver' } },
+      ],
+    })
+    expect(kinds(plan)).toEqual([
+      'selection',
+      'participants',
+      'accommodation',
+      'custom_form',
+      'review',
+    ])
+    expect(planHasParticipantsFirst(plan)).toBe(false)
+  })
+
+  it('places participants among the middles by its stored position', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'selection', position: 1 },
+        { kind: 'accommodation', position: 2 },
+        { kind: 'participants', position: 3 },
+        { kind: 'custom_form', position: 4, form: { key: 'waiver' } },
+      ],
+    })
+    expect(kinds(plan)).toEqual([
+      'selection',
+      'accommodation',
+      'participants',
+      'custom_form',
+      'review',
+    ])
+    expect(planHasParticipantsFirst(plan)).toBe(false)
+  })
+
+  it('participants stored before selection run first; middles follow both', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'accommodation', position: 3 },
+        { kind: 'selection', position: 2 },
+        { kind: 'participants', position: 1 },
+        { kind: 'custom_form', position: 4, form: { key: 'waiver' } },
+      ],
+    })
+    expect(kinds(plan)).toEqual([
+      'participants',
+      'selection',
+      'accommodation',
+      'custom_form',
+      'review',
+    ])
+    expect(planHasParticipantsFirst(plan)).toBe(true)
+  })
+
+  it('selection stays first whatever its stored position when participants follow it', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'accommodation', position: 1 },
+        { kind: 'selection', position: 2 },
+        { kind: 'participants', position: 3 },
+      ],
+    })
+    expect(kinds(plan)).toEqual(['selection', 'accommodation', 'participants', 'review'])
+  })
+
+  it('no participants row → right after selection (never lost)', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'accommodation', position: 1 },
+        { kind: 'selection', position: 5 },
+      ],
+    })
+    expect(kinds(plan)).toEqual(['selection', 'participants', 'accommodation', 'review'])
+  })
+
+  it('no selection row → selection first, participants by position', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'participants', position: 1 },
+        { kind: 'accommodation', position: 2 },
+      ],
+    })
+    expect(kinds(plan)).toEqual(['selection', 'participants', 'accommodation', 'review'])
+    expect(planHasParticipantsFirst(plan)).toBe(false)
+  })
+
+  it('a frame-only flow keeps the legacy middles (landr-ws0ce untouched)', () => {
+    const p = makeProduct({ hotel_offering: 'optional', needs_pickup: true })
+    const legacy = kinds(buildFlowPlan(p, {}, null))
+    expect(
+      kinds(
+        buildFlowPlan(p, {}, {
+          modules: [
+            { kind: 'selection', position: 1 },
+            { kind: 'participants', position: 2 },
+          ],
+        }),
+      ),
+    ).toEqual(legacy)
+    // …with only the participants-first reorder applied.
+    expect(
+      kinds(
+        buildFlowPlan(p, {}, {
+          modules: [
+            { kind: 'participants', position: 1 },
+            { kind: 'selection', position: 2 },
+          ],
+        }),
+      ),
+    ).toEqual(['participants', 'selection', ...legacy.filter((k) => k !== 'selection' && k !== 'participants')])
+  })
+
+  it('the legacy plan never runs participants first', () => {
+    expect(planHasParticipantsFirst(buildFlowPlan(product(), {}, null))).toBe(false)
+  })
+
+  it('equal positions keep today\'s order (participants not strictly before)', () => {
+    const plan = buildFlowPlan(product(), {}, {
+      modules: [
+        { kind: 'participants', position: 1 },
+        { kind: 'selection', position: 1 },
+      ],
+    })
+    expect(planHasParticipantsFirst(plan)).toBe(false)
   })
 })
 

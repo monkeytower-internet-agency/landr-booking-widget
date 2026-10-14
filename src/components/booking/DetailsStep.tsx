@@ -87,7 +87,12 @@ function additionalCap(maxPartySize: number | null | undefined): number {
 
 interface Props {
   product: Product
-  selection: BookingSelection
+  /**
+   * landr-rmcsu.6: undefined when the operator's flow runs participants BEFORE
+   * the dates step and no dates are picked yet — the card description then
+   * shows the product name alone.
+   */
+  selection?: BookingSelection
   /**
    * Operator's active service_roles (landr-mg0a). Fetched once at App
    * mount via getOperatorServiceRoles and threaded down. When the list
@@ -171,7 +176,8 @@ interface Props {
    * doesn't re-apply on an unrelated later remount.
    */
   onCompanionContactFocusApplied?: () => void
-  onBack: () => void
+  /** landr-rmcsu.6: absent when this is the funnel's first step (start=dates). */
+  onBack?: () => void
   onConfirm: (
     booker: BookerDetails,
     participants: ParticipantDetails[],
@@ -976,7 +982,9 @@ export function DetailsStep({
       <CardHeader>
         <CardTitle>{tr('participantsTitle', locale)}</CardTitle>
         <CardDescription>
-          {product.name} · {describeSelection(selection, locale)}
+          {selection
+            ? `${product.name} · ${describeSelection(selection, locale)}`
+            : product.name}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
