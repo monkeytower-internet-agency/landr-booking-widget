@@ -1320,14 +1320,12 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     )
     expect(screen.getByTestId('offer-position-original-total')).toHaveTextContent(fmt(540))
     expect(screen.getAllByTestId('offer-position-total')[0]).toHaveTextContent(fmt(420))
-    // excluded position: sub-line from numeric fields too, but no struck original
+    // excluded flat 1 × 1 position: no struck original and no per-day sub-line
     expect(rows[1]).toHaveTextContent('Video package')
     expect(rows[1]).toHaveTextContent(fmt(50))
     expect(rows[1].querySelector('[data-testid="offer-position-original-total"]')).toBeNull()
     expect(rows[1].querySelector('[data-testid="offer-position-original-unit"]')).toBeNull()
-    expect(rows[1].querySelector('[data-testid="offer-position-per-day"]')).toHaveTextContent(
-      `${fmt(50)}/day × 1 day × 1 participant`,
-    )
+    expect(rows[1].querySelector('[data-testid="offer-position-per-day"]')).toBeNull()
 
     expect(screen.getByTestId('offer-discount')).toHaveTextContent('Your discount')
     expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
