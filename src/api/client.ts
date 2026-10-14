@@ -1104,6 +1104,55 @@ export interface PublicBookingOffer {
    * yet — when absent OfferPage derives the same rows from `product_lines`.
    */
   periods?: BookingPeriod[] | null
+  /**
+   * landr-bo0wd.1/.5: custom offer v3 flow flags. Present only when an offer
+   * is applied; absent on an older API (or a booking without an offer) keeps
+   * today's single "Accept & Pay" page.
+   * - `offer_requires_acceptance` false: the offer was sent as the agreed
+   *   booking, so the page has no Accept button.
+   * - `offer_accepted_at`: ISO time of the customer's yes (or of the send of
+   *   an acceptance-free offer).
+   * - `offer_hotel_pending`: the hotel step is ahead or in progress. The API
+   *   then sends `payment` with `online_available: false` and no bank
+   *   details, and the page offers Accept only.
+   */
+  offer_requires_acceptance?: boolean | null
+  offer_accepted_at?: string | null
+  offer_hotel_pending?: boolean | null
+}
+
+/**
+ * Response of POST /api/public/bookings/{token}/accept-offer (landr-bo0wd.1).
+ * `payment_allowed` false while the hotel step is pending: show the "waiting
+ * for the hotel" state, the payment link arrives by email later.
+ */
+export interface AcceptOfferResponse {
+  accepted: boolean
+  already_accepted: boolean
+  offer_accepted_at: string | null
+  advanced: boolean
+  stage_code: string | null
+  offer_hotel_pending: boolean
+  payment_allowed: boolean
+}
+
+/**
+ * Record the customer's acceptance of the offer (landr-bo0wd.5). Idempotent
+ * on the server. 409 detail.error: booking_closed, offer_not_applied,
+ * offer_not_sent, offer_changed_since_sent (see `acceptOfferErrorCode`).
+ */
+export async function acceptOffer(token: string): Promise<AcceptOfferResponse> {
+  return http<AcceptOfferResponse>(
+    `/api/public/bookings/${encodeURIComponent(token)}/accept-offer`,
+    { method: 'POST' },
+  )
+}
+
+/** The `detail.error` code of a 409 from accept-offer / initiate, else null. */
+export function conflictErrorCode(err: unknown): string | null {
+  if (!(err instanceof HttpError) || err.status !== 409) return null
+  const detail = err.detail as { error?: unknown } | undefined
+  return typeof detail?.error === 'string' ? detail.error : null
 }
 
 /**

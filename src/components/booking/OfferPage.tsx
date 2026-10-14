@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useState } from 'react'
 
 import {
+  acceptOffer,
+  conflictErrorCode,
   getBookingByToken,
   initiatePayment,
   isPaymentModeNotOnline,
@@ -78,6 +80,7 @@ import { hasSaving } from './offerPositions'
  *   'cancelled'       — returned from Stripe with ?paid=cancelled
  *   'fetch_error'     — offer fetch failed (token invalid / expired)
  *   'pay_error'       — payment initiation failed
+ *   'accept_error'    — accept-offer failed (landr-bo0wd.5)
  *   'pay_mode_not_online' — initiatePayment 409'd payment_mode_not_online:
  *                        the operator switched away from 'online' (Settings
  *                        -> Payments) since this link was sent (landr-k9pji.15)
@@ -95,6 +98,7 @@ type Status =
   | 'fetch_error'
   | 'pay_error'
   | 'pay_mode_not_online'
+  | 'accept_error'
 
 // landr-6l7y: bounded poll for the ?paid=1 re-check. The first check is
 // immediate (attempt 0); these are the delays before each retry if the
@@ -260,6 +264,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   })
   const [offer, setOffer] = useState<PublicBookingOffer | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // landr-bo0wd.5: why accept-offer failed (its 409 code), for the error card.
+  const [acceptErrorCode, setAcceptErrorCode] = useState<string | null>(null)
   // landr-k9pji.15: the operator's mode from the 409 payment_mode_not_online
   // body, so the 'pay_mode_not_online' card can show pay-on-site vs.
   // bank-transfer instructions instead of one generic message.
@@ -276,6 +282,20 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     amount: number
     checkoutUrl: string
   } | null>(null)
+
+  // landr-bo0wd.5 — offer v3 flow, derived from the server's flags. All
+  // false/legacy when the API sends none of them (older deploy, /pay).
+  //   needsAccept — the customer still has to say yes
+  //   hotelPending — the hotel step is ahead: Accept only, no payment yet
+  //   acceptOnly  — accepting is all this page can do now (hotel step, or the
+  //                 operator has no card rail); payment follows elsewhere
+  const flagsPresent = mode === 'offer' && offer?.offer_requires_acceptance != null
+  const requiresAcceptance = offer?.offer_requires_acceptance !== false
+  const accepted = !!offer?.offer_accepted_at
+  const hotelPending = flagsPresent && offer?.offer_hotel_pending === true
+  const needsAccept = flagsPresent && requiresAcceptance && !accepted
+  const onlineAvailable = !offer?.payment || offer.payment.online_available
+  const acceptOnly = flagsPresent && (hotelPending || !onlineAvailable)
 
   // The shell's static <title> is the generic "Book — LANDR"; the pay page is
   // reached from an email link, so name the page and the operator in the tab.
@@ -347,11 +367,46 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // landr-bo0wd.5: record the customer's yes. Folds the answer into `offer`
+  // (accepted time, hotel flag) so the page re-renders from the server's
+  // state. Returns the response, or null after switching to the error card.
+  const runAccept = async () => {
+    try {
+      const resp = await acceptOffer(token)
+      setOffer((prev) =>
+        prev
+          ? {
+              ...prev,
+              offer_accepted_at: resp.offer_accepted_at ?? new Date().toISOString(),
+              offer_hotel_pending: resp.offer_hotel_pending,
+            }
+          : prev,
+      )
+      return resp
+    } catch (err) {
+      console.error('[landr] acceptOffer failed', err)
+      setAcceptErrorCode(conflictErrorCode(err))
+      setStatus('accept_error')
+      return null
+    }
+  }
+
   const onAcceptAndPay = async () => {
     setStatus('paying')
     setErrorMessage(null)
     setDepositPreview(null)
     const base = _returnBase()
+    // landr-bo0wd.5: a not-yet-accepted offer is accepted first. Accept-only
+    // (hotel step ahead, or no card rail) stops here; the payment link
+    // arrives by email, or the rails show on the re-rendered page.
+    if (needsAccept) {
+      const resp = await runAccept()
+      if (!resp) return
+      if (acceptOnly || resp.offer_hotel_pending || !resp.payment_allowed) {
+        setStatus('ready')
+        return
+      }
+    }
     try {
       const resp = await initiatePayment({
         booking_token: token,
@@ -398,6 +453,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       if (isPaymentModeNotOnline(err)) {
         setNotOnlineMode(paymentModeNotOnlineMode(err))
         setStatus('pay_mode_not_online')
+        return
+      }
+      // landr-bo0wd.5: the hotel step started between page load and click --
+      // not a failure, the payment link follows by email.
+      if (conflictErrorCode(err) === 'hotel_step_pending') {
+        setOffer((prev) => (prev ? { ...prev, offer_hotel_pending: true } : prev))
+        setStatus('ready')
         return
       }
       setErrorMessage(
@@ -563,6 +625,32 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     )
   }
 
+  // ── Accepting the offer failed (landr-bo0wd.5) ───────────────────────────
+  if (status === 'accept_error') {
+    const body =
+      acceptErrorCode === 'offer_changed_since_sent' || acceptErrorCode === 'offer_not_sent'
+        ? tr('offerAcceptErrorChanged', locale)
+        : acceptErrorCode === 'booking_closed'
+          ? tr('offerAcceptErrorClosed', locale)
+          : tr('offerAcceptErrorGeneric', locale)
+    const retryable = acceptErrorCode == null
+    return (
+      <Card data-testid="offer-accept-error">
+        <CardHeader>
+          <CardTitle>{tr('offerAcceptErrorTitle', locale)}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm">{body}</p>
+          {retryable && (
+            <Button type="button" variant="outline" onClick={() => setStatus('ready')}>
+              {tr('tryAgain', locale)}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   // ── Payment mode switched away from 'online' since this link was sent ────
   // landr-k9pji.15
   if (status === 'pay_mode_not_online') {
@@ -676,8 +764,24 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const alreadySettled = mode === 'pay' && chargeAmount <= 0
   // landr-t63w0: on /pay the card button only shows when online checkout is
   // actually available. An older API (no `payment`) keeps today's button.
-  const payment = mode === 'pay' ? (offer.payment ?? null) : null
+  const payment = mode === 'pay' || flagsPresent ? (offer.payment ?? null) : null
   const showCardCta = !payment || payment.online_available
+  // landr-bo0wd.5: which action the page offers. Legacy / pay pages keep the
+  // single card button; the v3 offer page adds an accept-only button and, while
+  // the hotel step is pending (or the yes is still missing), no payment.
+  const ctaKind: 'card' | 'accept' | 'none' = !flagsPresent
+    ? showCardCta
+      ? 'card'
+      : 'none'
+    : needsAccept
+      ? acceptOnly
+        ? 'accept'
+        : 'card'
+      : hotelPending
+        ? 'none'
+        : showCardCta
+          ? 'card'
+          : 'none'
   // With the split present the at-hotel row already explains the gap, so the
   // vague "Total booking value" line is only needed as the legacy fallback.
   const showTotalBookingValue =
@@ -774,6 +878,30 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const thClass =
     'px-4 py-2 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground'
 
+  // landr-bo0wd.5: the transparent offer layout (Regular price / − Your
+  // discount / Your price, free spots "on us", tax, pay-at-hotel line) for the
+  // offer page. Same arithmetic as the offer email (landr-api
+  // custom_offer_positions.offer_email_context): a free spot saves ONE
+  // participant at the regular prices of all positions; the group discount
+  // folds into "Your discount" while savings are shown.
+  const EPS = 0.005
+  const v3Totals = mode === 'offer' && hasPositions
+  const sumOf = (f: (p: (typeof positions)[number]) => number) =>
+    positions.reduce((n, p) => n + f(p), 0)
+  const yourPrice = Math.max(sumOf((p) => p.total) - groupDiscountAmount, 0)
+  const perHeadRegular = showSavings ? sumOf((p) => p.original_unit_price * p.units) : 0
+  const regularTotal = showSavings
+    ? sumOf((p) => p.original_total) + freeSpotCount * perHeadRegular
+    : 0
+  const discountTotal = showSavings ? Math.max(regularTotal - yourPrice, 0) : 0
+  const showDiscountRows = showSavings && discountTotal > EPS
+  const opNet = totals.operator_net_total ?? 0
+  const opTax = totals.operator_tax_total ?? 0
+  const taxPct = opNet > 0 && opTax > 0 ? Math.round((opTax / opNet) * 1000) / 10 : 0
+  const hotelAtArrival =
+    totals.hotel_gross_total ??
+    lineItems.filter((li) => li.paid_to === 'hotel').reduce((n, li) => n + li.line_total, 0)
+
   return (
     <div data-testid="offer-ready" className="flex flex-col gap-5">
       {/* landr-1zkp7: trip-page-style hero — operator, product, overall dates */}
@@ -803,6 +931,19 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           )}
         </header>
       )}
+
+        {/* landr-bo0wd.5: what the offer saves, up front */}
+        {v3Totals && showDiscountRows && (
+          <p
+            className="px-1 text-sm font-medium text-emerald-700 dark:text-emerald-400"
+            data-testid="offer-savings-intro"
+          >
+            {tr('offerSavingsIntroTemplate', locale).replace(
+              '{x}',
+              formatCurrency(discountTotal, currencyCode, locale),
+            )}
+          </p>
+        )}
 
         {/* Product lines — landr-1zkp7: Item | Dates | Length table */}
         {showPeriods && (
@@ -1017,6 +1158,27 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         ).replace('{n}', String(p.participants))}
                       </div>
                       ) : null}
+                      {saved && (
+                        <div
+                          className="mt-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+                          data-testid="offer-position-saving"
+                        >
+                          {p.units > 1 || p.participants > 1
+                            ? tr('offerYouSavePerDayTemplate', locale)
+                                .replace(
+                                  '{a}',
+                                  formatCurrency(p.original_unit_price - p.unit_price, currencyCode, locale),
+                                )
+                                .replace(
+                                  '{b}',
+                                  formatCurrency(p.original_total - p.total, currencyCode, locale),
+                                )
+                            : tr('offerYouSaveTemplate', locale).replace(
+                                '{b}',
+                                formatCurrency(p.original_total - p.total, currencyCode, locale),
+                              )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       {saved && (
@@ -1034,6 +1196,117 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </tr>
                 )
               })}
+              {v3Totals ? (
+                <>
+                  {Array.from({ length: freeSpotCount }, (_, i) => (
+                    <tr
+                      key={`free-spot-${i}`}
+                      className="border-b bg-emerald-50/70 align-top dark:bg-emerald-950/30"
+                      data-testid="offer-free-spot"
+                    >
+                      <td className="px-4 py-2.5">
+                        <div className="font-medium">{tr('offerFreeSpotLabel', locale)}</div>
+                        <div
+                          className="text-xs text-emerald-700 dark:text-emerald-400"
+                          data-testid="offer-free-spot-note"
+                        >
+                          {perHeadRegular > 0
+                            ? tr('offerRegularOnUsTemplate', locale).replace(
+                                '{x}',
+                                formatCurrency(perHeadRegular, currencyCode, locale),
+                              )
+                            : tr('offerOnUs', locale)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        {formatCurrency(0, currencyCode, locale)}
+                      </td>
+                    </tr>
+                  ))}
+                  {showDiscountRows ? (
+                    <>
+                      <tr>
+                        <td className="px-4 pt-2 pb-1 text-muted-foreground">
+                          {tr('offerRegularPriceLabel', locale)}
+                        </td>
+                        <td
+                          className="px-4 pt-2 pb-1 text-right tabular-nums text-muted-foreground"
+                          data-testid="offer-regular-total"
+                        >
+                          {formatCurrency(regularTotal, currencyCode, locale)}
+                        </td>
+                      </tr>
+                      <tr
+                        className="font-medium text-emerald-700 dark:text-emerald-400"
+                        data-testid="offer-discount"
+                      >
+                        <td className="px-4 py-1">− {tr('offerDiscountLabel', locale)}</td>
+                        <td
+                          className="px-4 py-1 text-right tabular-nums"
+                          data-testid="offer-discount-amount"
+                        >
+                          −{formatCurrency(discountTotal, currencyCode, locale)}
+                        </td>
+                      </tr>
+                    </>
+                  ) : groupDiscountAmount > 0 ? (
+                    <tr
+                      className="text-emerald-700 dark:text-emerald-400"
+                      data-testid="offer-group-discount"
+                    >
+                      <td className="px-4 py-1">
+                        −{' '}
+                        {tr('offerGroupDiscountTemplate', locale).replace(
+                          '{pct}',
+                          String(Math.round((adjustments?.group_discount_pct ?? 0) * 1000) / 10),
+                        )}
+                      </td>
+                      <td className="px-4 py-1 text-right tabular-nums">
+                        −{formatCurrency(groupDiscountAmount, currencyCode, locale)}
+                      </td>
+                    </tr>
+                  ) : null}
+                  <tr className="border-t">
+                    <td className="px-4 py-2 text-base font-semibold">
+                      {tr('offerYourPriceLabel', locale)}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right text-base font-bold tabular-nums"
+                      data-testid="offer-gross-total"
+                    >
+                      {formatCurrency(yourPrice, currencyCode, locale)}
+                    </td>
+                  </tr>
+                  {taxPct > 0 && (
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="px-4 pb-1 text-right text-xs text-muted-foreground tabular-nums"
+                        data-testid="offer-tax-included"
+                      >
+                        {tr('offerInclTaxTemplate', locale)
+                          .replace('{a}', formatCurrency(opTax, currencyCode, locale))
+                          .replace('{p}', String(taxPct))}
+                      </td>
+                    </tr>
+                  )}
+                  {hotelAtArrival > 0 && (
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="px-4 pb-3 text-right text-sm text-muted-foreground tabular-nums"
+                        data-testid="offer-hotel-due"
+                      >
+                        {tr('offerPaidAtHotelTemplate', locale).replace(
+                          '{a}',
+                          formatCurrency(hotelAtArrival, currencyCode, locale),
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ) : (
+                <>
               {offerDiscount && offerDiscount.amount > 0 && (
                 <tr
                   className="text-emerald-700 dark:text-emerald-400"
@@ -1227,6 +1500,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   )}
                 </>
               )}
+                </>
+              )}
             </tbody>
           </table>
           {showTotalBookingValue && (
@@ -1262,17 +1537,48 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         </OfferSection>
 
         <OfferSection
-          title={mode === 'pay' ? tr('completeYourPayment', locale) : tr('yourCustomOffer', locale)}
+          title={
+            mode === 'pay'
+              ? tr('completeYourPayment', locale)
+              : flagsPresent && !requiresAcceptance
+                ? tr('offerAgreedTitle', locale)
+                : tr('yourCustomOffer', locale)
+          }
           testId="offer-payment-section"
         >
           <div className="flex flex-col gap-4 p-4">
             {/* landr-esd3: pay mode swaps the title/description copy only —
                 everything else (totals table, CTA, initiatePayment) is shared. */}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground" data-testid="offer-description">
               {mode === 'pay'
                 ? tr('payModeDescription', locale)
-                : tr('offerModeDescription', locale)}
+                : !flagsPresent
+                  ? tr('offerModeDescription', locale)
+                  : !requiresAcceptance
+                    ? tr('offerAgreedDescription', locale)
+                    : accepted
+                      ? tr('offerAcceptedDescription', locale)
+                      : hotelPending
+                        ? tr('offerReviewHotelDescription', locale)
+                        : acceptOnly
+                          ? tr('offerReviewAcceptDescription', locale)
+                          : tr('offerModeDescription', locale)}
             </p>
+            {/* landr-bo0wd.5: the hotel step is never skipped -- say so, and
+                when the payment link follows. */}
+            {hotelPending && (
+              <div
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+                data-testid="offer-hotel-note"
+              >
+                <p className="font-semibold">{tr('offerHotelNote', locale)}</p>
+                <p className="mt-0.5">
+                  {needsAccept
+                    ? tr('offerHotelNoteAfterAccept', locale)
+                    : tr('offerHotelNoteNow', locale)}
+                </p>
+              </div>
+            )}
             {offer.stage ? (
               <p
                 className="text-sm text-muted-foreground"
@@ -1295,7 +1601,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         )}
 
         {/* landr-t63w0: bank details + pay-on-site hint (pay mode only) */}
-        {payment && !alreadySettled ? (
+        {payment && !alreadySettled && !hotelPending && !needsAccept ? (
           <PaymentRails
             payment={payment}
             locale={locale}
@@ -1304,7 +1610,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         ) : null}
 
         {/* CTA */}
-        {showCardCta && (
+        {ctaKind !== 'none' && (
         <Button
           type="button"
           className="w-full sm:w-auto"
@@ -1320,17 +1626,21 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
         >
           {alreadySettled
             ? tr('nothingToPay', locale)
-            : busy
-              ? tr('redirectingToPaymentEllipsis', locale)
-              : depositPreview
-                ? tr('continueToStripeLabel', locale)
-                : mode === 'pay'
-                  ? tr('payNowLabel', locale)
-                  : tr('acceptAndPayLabel', locale)}
+            : ctaKind === 'accept'
+              ? busy
+                ? tr('offerAcceptingEllipsis', locale)
+                : tr('offerAcceptLabel', locale)
+              : busy
+                ? tr('redirectingToPaymentEllipsis', locale)
+                : depositPreview
+                  ? tr('continueToStripeLabel', locale)
+                  : mode === 'pay' || (flagsPresent && !needsAccept)
+                    ? tr('payNowLabel', locale)
+                    : tr('acceptAndPayLabel', locale)}
         </Button>
         )}
 
-        {showCardCta && (
+        {ctaKind !== 'none' && (
         <p className="text-xs text-muted-foreground">
           {alreadySettled
             ? // landr-yimp review round 2: balance_due <= 0 only means this
