@@ -1136,6 +1136,12 @@ export interface PublicBookingOffer {
   offer_requires_acceptance?: boolean | null
   offer_accepted_at?: string | null
   offer_hotel_pending?: boolean | null
+  /**
+   * landr-xcyh1.3 (landr-api #1053): the hotel declined the sent offer and the
+   * operator is updating it. `payment` then has `online_available: false` and
+   * no bank details, and the page offers nothing to click.
+   */
+  offer_hotel_declined?: boolean | null
 }
 
 /**
@@ -1151,6 +1157,10 @@ export interface AcceptOfferResponse {
   stage_code: string | null
   offer_hotel_pending: boolean
   payment_allowed: boolean
+  /** landr-xcyh1.3: this yes released the held confirmation + payment link. */
+  confirmation_sent?: boolean
+  /** landr-xcyh1.3: the hotel declined; the yes is recorded, nothing is released. */
+  offer_hotel_declined?: boolean
 }
 
 /**
