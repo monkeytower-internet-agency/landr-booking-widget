@@ -4336,10 +4336,56 @@
             "title": "Lines",
             "type": "array"
           },
+          "positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferPositionIn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positions"
+          },
           "prices_include_tax": {
             "default": true,
             "title": "Prices Include Tax",
             "type": "boolean"
+          },
+          "rounding": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "0.50",
+              "1",
+              "5"
+            ],
+            "title": "Rounding",
+            "type": "string"
+          },
+          "show_savings": {
+            "default": true,
+            "title": "Show Savings",
+            "type": "boolean"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
           },
           "tax_rate": {
             "anyOf": [
@@ -4557,6 +4603,17 @@
             ],
             "title": "Group Threshold"
           },
+          "has_hotel": {
+            "default": false,
+            "title": "Has Hotel",
+            "type": "boolean"
+          },
+          "hotel_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hotel Total",
+            "type": "string"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/CustomOfferLineOut"
@@ -4569,9 +4626,46 @@
             "title": "Net Total",
             "type": "string"
           },
+          "offer_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferDiscountOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
           "paying_count": {
             "title": "Paying Count",
             "type": "integer"
+          },
+          "periods": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/OfferPositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "positions_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
           },
           "prices_include_tax": {
             "default": true,
@@ -4589,6 +4683,28 @@
               }
             ],
             "title": "Regular Unit Price"
+          },
+          "rounding": {
+            "default": "exact",
+            "title": "Rounding",
+            "type": "string"
+          },
+          "show_savings": {
+            "default": true,
+            "title": "Show Savings",
+            "type": "boolean"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
           },
           "tax_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -4611,6 +4727,56 @@
           "lines"
         ],
         "title": "CustomOfferOut",
+        "type": "object"
+      },
+      "CustomOfferPreviewOut": {
+        "properties": {
+          "offer_discount": {
+            "$ref": "#/components/schemas/OfferDiscountOut"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/OfferPositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "positions_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
+          },
+          "rounding": {
+            "title": "Rounding",
+            "type": "string"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
+          }
+        },
+        "required": [
+          "positions",
+          "original_total",
+          "positions_total",
+          "offer_discount",
+          "rounding",
+          "target_total"
+        ],
+        "title": "CustomOfferPreviewOut",
         "type": "object"
       },
       "CustomerSignoffIn": {
@@ -11938,6 +12104,45 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
+      "OfferAdjustments": {
+        "description": "Adjustments below the positions: free spots and the >N group discount.",
+        "properties": {
+          "free_spot_count": {
+            "default": 0,
+            "title": "Free Spot Count",
+            "type": "integer"
+          },
+          "group_discount_amount": {
+            "default": 0.0,
+            "title": "Group Discount Amount",
+            "type": "number"
+          },
+          "group_discount_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Discount Pct"
+          },
+          "group_threshold": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Threshold"
+          }
+        },
+        "title": "OfferAdjustments",
+        "type": "object"
+      },
       "OfferBankDetails": {
         "description": "Operator bank account for a bank-transfer payment (landr-t63w0).",
         "properties": {
@@ -12098,6 +12303,56 @@
           }
         },
         "title": "OfferCustomer",
+        "type": "object"
+      },
+      "OfferDiscount": {
+        "description": "Overall offer discount: ``amount`` total, ``per_day`` averaged over the\ndiscounted days, ``pct`` of the regular total.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          },
+          "per_day": {
+            "title": "Per Day",
+            "type": "number"
+          }
+        },
+        "required": [
+          "amount",
+          "per_day",
+          "pct"
+        ],
+        "title": "OfferDiscount",
+        "type": "object"
+      },
+      "OfferDiscountOut": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "pct": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pct",
+            "type": "string"
+          },
+          "per_day": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Per Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "per_day",
+          "pct"
+        ],
+        "title": "OfferDiscountOut",
         "type": "object"
       },
       "OfferLineItem": {
@@ -12338,6 +12593,229 @@
           }
         },
         "title": "OfferPayment",
+        "type": "object"
+      },
+      "OfferPositionIn": {
+        "description": "One position of the composed offer (landr-8f1sh.1).\n\nIdentity is ``(booking_product_id, position_key)`` from GET\n``positions``. ``unit_price`` is the OFFER price per unit (day) per\nparticipant; omitted = the regular price (or the computed value when the\nbody carries ``target_total``). ``units`` / ``participants`` are optional\nechoes validated against the server's seed (422 ``position_mismatch``);\nthe server never takes them, nor any total, from the client.",
+        "properties": {
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "exclude_from_discount": {
+            "default": false,
+            "title": "Exclude From Discount",
+            "type": "boolean"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "position_key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Position Key",
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "position_key"
+        ],
+        "title": "OfferPositionIn",
+        "type": "object"
+      },
+      "OfferPositionLine": {
+        "description": "One position of an applied custom offer (landr-8f1sh.1).\n\n``original_*`` are the regular prices; when ``show_savings`` is False they\nare redacted to the offer prices (see\n``custom_offer_positions.public_positions_wire``).",
+        "properties": {
+          "excluded": {
+            "default": false,
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "original_total": {
+            "title": "Original Total",
+            "type": "number"
+          },
+          "original_unit_price": {
+            "title": "Original Unit Price",
+            "type": "number"
+          },
+          "participants": {
+            "title": "Participants",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
+          },
+          "units": {
+            "title": "Units",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "units",
+          "participants",
+          "original_unit_price",
+          "unit_price",
+          "original_total",
+          "total"
+        ],
+        "title": "OfferPositionLine",
+        "type": "object"
+      },
+      "OfferPositionOut": {
+        "properties": {
+          "booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Product Id"
+          },
+          "discount_per_unit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Per Unit",
+            "type": "string"
+          },
+          "discount_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "type": "string"
+          },
+          "exclude_from_discount": {
+            "title": "Exclude From Discount",
+            "type": "boolean"
+          },
+          "in_offer": {
+            "title": "In Offer",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "original_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Unit Price",
+            "type": "string"
+          },
+          "participants": {
+            "title": "Participants",
+            "type": "integer"
+          },
+          "position_key": {
+            "title": "Position Key",
+            "type": "string"
+          },
+          "rounding_adjustment": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Rounding Adjustment",
+            "type": "string"
+          },
+          "total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "type": "string"
+          },
+          "unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price",
+            "type": "string"
+          },
+          "units": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Units",
+            "type": "string"
+          }
+        },
+        "required": [
+          "position_key",
+          "booking_product_id",
+          "label",
+          "units",
+          "participants",
+          "original_unit_price",
+          "unit_price",
+          "original_total",
+          "total",
+          "discount_total",
+          "discount_per_unit",
+          "exclude_from_discount",
+          "rounding_adjustment",
+          "in_offer"
+        ],
+        "title": "OfferPositionOut",
         "type": "object"
       },
       "OfferProductLine": {
@@ -18463,6 +18941,40 @@
             "title": "Line Items",
             "type": "array"
           },
+          "offer_adjustments": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferAdjustments"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offer_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferDiscount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offer_positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferPositionLine"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Positions"
+          },
           "operator_name": {
             "anyOf": [
               {
@@ -18497,6 +19009,17 @@
             },
             "title": "Product Lines",
             "type": "array"
+          },
+          "show_savings": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Savings"
           },
           "stage": {
             "anyOf": [
@@ -38914,6 +39437,73 @@
           }
         ],
         "summary": "Put Custom Offer",
+        "tags": [
+          "staff-bookings-custom-offer"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview": {
+      "post": {
+        "description": "Compute the positions a PUT with this body would store, WITHOUT\npersisting anything -- so the composer's live preview and the save use\nthe one server-side spread (target total, rounding, leftover) and can\nnever disagree. Only ``positions`` / ``target_total`` / ``rounding`` are\nread; totals beyond the positions (group discount, tax, hotel) are not\npart of the preview.",
+        "operationId": "preview_custom_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomOfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomOfferPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Custom Offer",
         "tags": [
           "staff-bookings-custom-offer"
         ]

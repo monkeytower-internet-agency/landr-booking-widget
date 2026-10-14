@@ -4624,6 +4624,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Custom Offer
+         * @description Compute the positions a PUT with this body would store, WITHOUT
+         *     persisting anything -- so the composer's live preview and the save use
+         *     the one server-side spread (target total, rounding, leftover) and can
+         *     never disagree. Only ``positions`` / ``target_total`` / ``rounding`` are
+         *     read; totals beyond the positions (group discount, tax, hotel) are not
+         *     part of the preview.
+         */
+        post: operations["preview_custom_offer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
         parameters: {
             query?: never;
@@ -12235,11 +12260,26 @@ export interface components {
             group_threshold?: number | null;
             /** Lines */
             lines?: components["schemas"]["CustomOfferLineIn"][];
+            /** Positions */
+            positions?: components["schemas"]["OfferPositionIn"][] | null;
             /**
              * Prices Include Tax
              * @default true
              */
             prices_include_tax: boolean;
+            /**
+             * Rounding
+             * @default exact
+             * @enum {string}
+             */
+            rounding: "exact" | "0.50" | "1" | "5";
+            /**
+             * Show Savings
+             * @default true
+             */
+            show_savings: boolean;
+            /** Target Total */
+            target_total?: number | string | null;
             /** Tax Rate */
             tax_rate?: number | string | null;
         };
@@ -12307,12 +12347,39 @@ export interface components {
             group_discount_pct: string | null;
             /** Group Threshold */
             group_threshold: number | null;
+            /**
+             * Has Hotel
+             * @default false
+             */
+            has_hotel: boolean;
+            /**
+             * Hotel Total
+             * @default 0
+             */
+            hotel_total: string;
             /** Lines */
             lines: components["schemas"]["CustomOfferLineOut"][];
             /** Net Total */
             net_total: string;
+            offer_discount?: components["schemas"]["OfferDiscountOut"] | null;
+            /**
+             * Original Total
+             * @default 0
+             */
+            original_total: string;
             /** Paying Count */
             paying_count: number;
+            /** Periods */
+            periods?: {
+                [key: string]: unknown;
+            }[];
+            /** Positions */
+            positions?: components["schemas"]["OfferPositionOut"][];
+            /**
+             * Positions Total
+             * @default 0
+             */
+            positions_total: string;
             /**
              * Prices Include Tax
              * @default true
@@ -12320,8 +12387,34 @@ export interface components {
             prices_include_tax: boolean;
             /** Regular Unit Price */
             regular_unit_price?: string | null;
+            /**
+             * Rounding
+             * @default exact
+             */
+            rounding: string;
+            /**
+             * Show Savings
+             * @default true
+             */
+            show_savings: boolean;
+            /** Target Total */
+            target_total?: string | null;
             /** Tax Total */
             tax_total: string;
+        };
+        /** CustomOfferPreviewOut */
+        CustomOfferPreviewOut: {
+            offer_discount: components["schemas"]["OfferDiscountOut"];
+            /** Original Total */
+            original_total: string;
+            /** Positions */
+            positions: components["schemas"]["OfferPositionOut"][];
+            /** Positions Total */
+            positions_total: string;
+            /** Rounding */
+            rounding: string;
+            /** Target Total */
+            target_total: string | null;
         };
         /** CustomerSignoffIn */
         CustomerSignoffIn: {
@@ -14934,6 +15027,26 @@ export interface components {
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
         /**
+         * OfferAdjustments
+         * @description Adjustments below the positions: free spots and the >N group discount.
+         */
+        OfferAdjustments: {
+            /**
+             * Free Spot Count
+             * @default 0
+             */
+            free_spot_count: number;
+            /**
+             * Group Discount Amount
+             * @default 0
+             */
+            group_discount_amount: number;
+            /** Group Discount Pct */
+            group_discount_pct?: number | null;
+            /** Group Threshold */
+            group_threshold?: number | null;
+        };
+        /**
          * OfferBankDetails
          * @description Operator bank account for a bank-transfer payment (landr-t63w0).
          */
@@ -14987,6 +15100,28 @@ export interface components {
             last_name?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferDiscount
+         * @description Overall offer discount: ``amount`` total, ``per_day`` averaged over the
+         *     discounted days, ``pct`` of the regular total.
+         */
+        OfferDiscount: {
+            /** Amount */
+            amount: number;
+            /** Pct */
+            pct: number;
+            /** Per Day */
+            per_day: number;
+        };
+        /** OfferDiscountOut */
+        OfferDiscountOut: {
+            /** Amount */
+            amount: string;
+            /** Pct */
+            pct: string;
+            /** Per Day */
+            per_day: string;
         };
         /**
          * OfferLineItem
@@ -15077,6 +15212,96 @@ export interface components {
              * @default false
              */
             online_available: boolean;
+        };
+        /**
+         * OfferPositionIn
+         * @description One position of the composed offer (landr-8f1sh.1).
+         *
+         *     Identity is ``(booking_product_id, position_key)`` from GET
+         *     ``positions``. ``unit_price`` is the OFFER price per unit (day) per
+         *     participant; omitted = the regular price (or the computed value when the
+         *     body carries ``target_total``). ``units`` / ``participants`` are optional
+         *     echoes validated against the server's seed (422 ``position_mismatch``);
+         *     the server never takes them, nor any total, from the client.
+         */
+        OfferPositionIn: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /**
+             * Exclude From Discount
+             * @default false
+             */
+            exclude_from_discount: boolean;
+            /** Participants */
+            participants?: number | null;
+            /** Position Key */
+            position_key: string;
+            /** Unit Price */
+            unit_price?: number | string | null;
+            /** Units */
+            units?: number | string | null;
+        };
+        /**
+         * OfferPositionLine
+         * @description One position of an applied custom offer (landr-8f1sh.1).
+         *
+         *     ``original_*`` are the regular prices; when ``show_savings`` is False they
+         *     are redacted to the offer prices (see
+         *     ``custom_offer_positions.public_positions_wire``).
+         */
+        OfferPositionLine: {
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded: boolean;
+            /** Label */
+            label: string;
+            /** Original Total */
+            original_total: number;
+            /** Original Unit Price */
+            original_unit_price: number;
+            /** Participants */
+            participants: number;
+            /** Total */
+            total: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Units */
+            units: number;
+        };
+        /** OfferPositionOut */
+        OfferPositionOut: {
+            /** Booking Product Id */
+            booking_product_id: string | null;
+            /** Discount Per Unit */
+            discount_per_unit: string;
+            /** Discount Total */
+            discount_total: string;
+            /** Exclude From Discount */
+            exclude_from_discount: boolean;
+            /** In Offer */
+            in_offer: boolean;
+            /** Label */
+            label: string;
+            /** Line Id */
+            line_id?: string | null;
+            /** Original Total */
+            original_total: string;
+            /** Original Unit Price */
+            original_unit_price: string;
+            /** Participants */
+            participants: number;
+            /** Position Key */
+            position_key: string;
+            /** Rounding Adjustment */
+            rounding_adjustment: string;
+            /** Total */
+            total: string;
+            /** Unit Price */
+            unit_price: string;
+            /** Units */
+            units: string;
         };
         /**
          * OfferProductLine
@@ -17063,6 +17288,10 @@ export interface components {
             ical_url?: string | null;
             /** Line Items */
             line_items?: components["schemas"]["OfferLineItem"][];
+            offer_adjustments?: components["schemas"]["OfferAdjustments"] | null;
+            offer_discount?: components["schemas"]["OfferDiscount"] | null;
+            /** Offer Positions */
+            offer_positions?: components["schemas"]["OfferPositionLine"][] | null;
             /** Operator Name */
             operator_name?: string | null;
             /** Participants */
@@ -17070,6 +17299,8 @@ export interface components {
             payment?: components["schemas"]["OfferPayment"] | null;
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            /** Show Savings */
+            show_savings?: boolean | null;
             stage?: components["schemas"]["CustomerStageLabel"] | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
@@ -27349,6 +27580,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomOfferOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_custom_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomOfferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomOfferPreviewOut"];
                 };
             };
             /** @description Validation Error */
