@@ -2462,13 +2462,17 @@ export interface paths {
         put?: never;
         /**
          * Accept Offer Public
-         * @description The customer accepts the custom offer behind ``token`` (landr-bo0wd.1).
+         * @description The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,
+         *     landr-xcyh1.2).
          *
-         *     Records ``offer_accepted_at`` (once) and, when the booking still waits at
-         *     the general gate, runs the general approval through the normal transition
-         *     (``custom_offer_flow.advance_after_acceptance``) with the operator who
-         *     SENT the offer as the approver: hotel step + hotel request when the
-         *     booking has one, else the usual route (confirmation + payment link).
+         *     Records ``offer_accepted_at`` (once). Since landr-xcyh1.2 the send already
+         *     moved the booking on, so the yes usually only releases the confirmation
+         *     step when the hotel has confirmed (or there is no hotel step)
+         *     (``custom_offer_flow.release_held_confirmation``); with the hotel still
+         *     pending, the hotel's yes sends it later. A booking still waiting at the
+         *     general gate (sent before landr-xcyh1.2, or its send-time approval failed)
+         *     is approved here as before (``custom_offer_flow.advance_from_general_gate``)
+         *     with the operator who SENT the offer as the approver.
          *
          *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
          *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
@@ -10558,10 +10562,15 @@ export interface components {
          *
          *     ``already_accepted`` = the yes was recorded before (double click, or an
          *     acceptance-free offer); nothing moved this time. ``advanced`` = this call
-         *     ran the general-approval transition (booking was at the general gate).
+         *     ran the general-approval transition (booking was at the general gate --
+         *     offers sent before landr-xcyh1.2, or a send whose approval failed).
+         *     ``confirmation_sent`` = this yes released the held confirmation step
+         *     (the hotel had already confirmed, or there is no hotel step): the
+         *     customer confirmation + payment link are on their way.
          *     ``payment_allowed`` = the offer page may take payment now: False while the
-         *     hotel step is ahead or in progress (``offer_hotel_pending``) -- the payment
-         *     link then arrives the usual way once the hotel confirmed.
+         *     hotel step is ahead or in progress (``offer_hotel_pending``) or the hotel
+         *     declined (``offer_hotel_declined``) -- the payment link then arrives the
+         *     usual way once the hotel confirmed.
          */
         AcceptOfferResponse: {
             /**
@@ -10573,8 +10582,18 @@ export interface components {
             advanced: boolean;
             /** Already Accepted */
             already_accepted: boolean;
+            /**
+             * Confirmation Sent
+             * @default false
+             */
+            confirmation_sent: boolean;
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
+            /**
+             * Offer Hotel Declined
+             * @default false
+             */
+            offer_hotel_declined: boolean;
             /** Offer Hotel Pending */
             offer_hotel_pending: boolean;
             /** Payment Allowed */
@@ -12510,7 +12529,14 @@ export interface components {
             net_total: string;
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
+            /**
+             * Offer Confirmation Held
+             * @default false
+             */
+            offer_confirmation_held: boolean;
             offer_discount?: components["schemas"]["OfferDiscountOut"] | null;
+            /** Offer Hotel Declined At */
+            offer_hotel_declined_at?: string | null;
             /**
              * Offer Hotel Pending
              * @default false
@@ -13166,6 +13192,8 @@ export interface components {
         EmailPreview: {
             /** Html */
             html: string;
+            /** Reason */
+            reason?: string | null;
             /** Reason Stage */
             reason_stage?: string | null;
             /**
@@ -17539,6 +17567,8 @@ export interface components {
             offer_accepted_at?: string | null;
             offer_adjustments?: components["schemas"]["OfferAdjustments"] | null;
             offer_discount?: components["schemas"]["OfferDiscount"] | null;
+            /** Offer Hotel Declined */
+            offer_hotel_declined?: boolean | null;
             /** Offer Hotel Pending */
             offer_hotel_pending?: boolean | null;
             /** Offer Positions */
