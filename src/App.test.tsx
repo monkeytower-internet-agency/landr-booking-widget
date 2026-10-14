@@ -3865,6 +3865,215 @@ describe('App', () => {
     })
   })
 
+  // landr-rmcsu.6: the operator's stored flow decides whether customers enter
+  // participants before or after picking dates. Both orders, end to end, with a
+  // remote-flow fixture (getProductFlow mock).
+  describe('participants position from the remote flow (landr-rmcsu.6)', () => {
+    const day1 = new Date()
+    day1.setHours(12, 0, 0, 0)
+    const day2 = new Date(day1)
+    day2.setDate(day2.getDate() + 1)
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const slotFor = (d: Date, seats: number) => ({
+      availability_id: `a-${iso(d)}`,
+      date: iso(d),
+      start_time: null,
+      end_time: null,
+      capacity: 10,
+      capacity_reserved: 10 - seats,
+      available_seats: seats,
+      status: 'open',
+    })
+    const setInput = (name: string, value: string) =>
+      fireEvent.change(
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+        { target: { value } },
+      )
+    const value = (name: string) =>
+      document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!.value
+
+    function setup(modules: { kind: string; position: number }[]) {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-order',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Order Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      // day2 has a single seat → short for a party of 2.
+      mocks.getAvailability.mockResolvedValue([slotFor(day1, 10), slotFor(day2, 1)])
+      mocks.getProductFlow.mockResolvedValue({ modules })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-rmcsu-6',
+        semantic_state: 'pending',
+      })
+    }
+
+    function fillParty() {
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+    }
+
+    it('participants stored before selection: details first, then a seat-aware dates step without the stepper', async () => {
+      setup([
+        { kind: 'participants', position: 1 },
+        { kind: 'selection', position: 2 },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText('Order Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Order Day' }))
+      // The flow is fetched on the product page, so Book lands on details.
+      await waitFor(() => expect(mocks.getProductFlow).toHaveBeenCalled())
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/Pick your dates/i)).not.toBeInTheDocument()
+      // No dates yet → the sidebar shows no price ("—" / empty state).
+      expect(
+        within(screen.getByTestId('price-sidebar-desktop')).getByText(
+          /Pick your options to see the price/i,
+        ),
+      ).toBeInTheDocument()
+      expect(mocks.estimateBookingPrice).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Dates come second: the group size is known, so no stepper, and the
+      // calendar already judges days against the party of 2.
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('party-size-value')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(document.querySelector('button[data-short="true"]')).not.toBeNull(),
+      )
+      expect(document.querySelector('button[data-short="true"]')).toBeDisabled()
+      // The breadcrumb follows the plan order: Participants before Dates.
+      const trail = screen.getByTestId('step-breadcrumb').textContent ?? ''
+      expect(trail.indexOf('Participants')).toBeGreaterThan(-1)
+      expect(trail.indexOf('Participants')).toBeLessThan(trail.indexOf('Dates'))
+
+      // Back from Dates returns to the participants, still filled in.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(value('booker_first_name')).toBe('Ada')
+      expect(value('participant_2_first_name')).toBe('Grace')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      // Dates were the second frame step → straight on to the middles.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0]![0] as {
+        participants: { first_name: string }[]
+        products: { product_id: string; selected_days: string[] }[]
+      }
+      expect(body.participants.map((p) => p.first_name)).toEqual(['Ada', 'Grace'])
+      expect(
+        body.products.find((l) => l.product_id === 'svc-order')!.selected_days,
+      ).toEqual([iso(day1)])
+    })
+
+    it('a start=dates embed opens on the participants step when they run first', async () => {
+      setup([
+        { kind: 'participants', position: 1 },
+        { kind: 'selection', position: 2 },
+      ])
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-order',
+          slug: 'order-day',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Order Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=order-day&start=dates`,
+      )
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      // The first funnel step of a start=dates embed: nothing to go back to.
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('party-size-value')).not.toBeInTheDocument()
+      // Dates → Participants is the whole trail (no product crumb).
+      expect(screen.getByTestId('step-back-button')).toHaveTextContent('Participants')
+    })
+
+    it('participants stored after selection: today\'s flow — dates with the stepper, then details', async () => {
+      setup([
+        { kind: 'selection', position: 1 },
+        { kind: 'participants', position: 2 },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText('Order Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Order Day' }))
+      await waitFor(() => expect(mocks.getProductFlow).toHaveBeenCalled())
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const trail = screen.getByTestId('step-breadcrumb').textContent ?? ''
+      expect(trail.indexOf('Dates')).toBeLessThan(trail.indexOf('Participants'))
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+    })
+  })
+
   // landr-71kz.10 — KEYSTONE: the remote product-flow DATA PATH. A product whose
   // operator-configured flow carries a `customer_declarations` custom_form module
   // must render that form via CustomFormStep (the 4 declaration checkboxes + the

@@ -28,6 +28,7 @@ import type {
 import type { Product, ProductGroup, SubmitBookingResponse } from '@/api/types'
 import {
   buildFlowPlan,
+  planHasParticipantsFirst,
   productHasHotelOffering,
   type FlowModule,
   type FlowModuleKind,
@@ -205,10 +206,16 @@ export type Step =
   // customer hits Back from a downstream step. They seed the form so
   // previously entered data isn't wiped on re-mount. Undefined on the
   // initial forward visit (no prior data to restore).
+  //
+  // landr-rmcsu.6: `selection` is undefined when the operator's flow runs
+  // participants BEFORE the dates step (participantsBeforeSelection) and the
+  // customer has not picked dates yet. When present on that order it is the
+  // previously committed selection, carried so the dates step that follows
+  // re-seeds from it.
   | {
       name: 'details'
       product: Product
-      selection: BookingSelection
+      selection?: BookingSelection
       booker?: BookerDetails
       participants?: ParticipantDetails[]
       // landr-87n9.3: non-guiding companions carry over on Back-restore.
@@ -529,6 +536,43 @@ function customFormKeysBeforeReview(
       m.kind === 'custom_form' && typeof m.formKey === 'string',
     )
     .map((m) => m.formKey)
+}
+
+/**
+ * landr-rmcsu.6: does this product's flow run the participants step BEFORE the
+ * dates step? Only when the operator stored the participants row ahead of the
+ * selection row (see buildFlowPlan); the legacy plan and every other flow keep
+ * today's dates-first order. Either way every middle module runs after BOTH.
+ */
+export function participantsBeforeSelection(
+  product: Product,
+  remoteFlow?: RemoteFlow | null,
+): boolean {
+  return planHasParticipantsFirst(buildFlowPlan(product, {}, remoteFlow ?? null))
+}
+
+/**
+ * landr-rmcsu.6: the frame step the middles walk back to — the step that ran
+ * SECOND of {dates, participants}: `details` on today's order, the dates step
+ * (with its committed selection restored) when participants run first.
+ */
+export function frameBackStep(
+  args: Pick<
+    StepBeforeReviewArgs,
+    'product' | 'selection' | 'booker' | 'participants' | 'companions' | 'remoteFlow'
+  >,
+): Step {
+  if (participantsBeforeSelection(args.product, args.remoteFlow)) {
+    return { name: 'pick-selection', product: args.product, selection: args.selection }
+  }
+  return {
+    name: 'details',
+    product: args.product,
+    selection: args.selection,
+    booker: args.booker,
+    participants: args.participants,
+    companions: args.companions,
+  }
 }
 
 /**
@@ -879,15 +923,9 @@ function reconstructStepForModule(
         addons: args.addons,
       }
     default:
-      // null (or any non-back-nav kind) → the implicit details frame.
-      return {
-        name: 'details',
-        product: args.product,
-        selection: args.selection,
-        booker: args.booker,
-        participants: args.participants,
-        companions: args.companions,
-      }
+      // null (or any non-back-nav kind) → the implicit frame: details, or the
+      // dates step when participants ran first (landr-rmcsu.6).
+      return frameBackStep(args)
   }
 }
 
@@ -1120,7 +1158,15 @@ function namesFrom(participants: ParticipantDetails[]): string[] {
     .filter((s) => s.length > 0)
 }
 
-export function sidebarInputsForStep(step: Step): SidebarInputs | null {
+export function sidebarInputsForStep(
+  step: Step,
+  /**
+   * landr-rmcsu.6: the party committed on a participants step that ran BEFORE
+   * the dates step. The dates step then prices the real group (count + names)
+   * instead of the count-only default of 1. Omit on today's dates-first order.
+   */
+  partyBeforeDates?: ParticipantDetails[],
+): SidebarInputs | null {
   switch (step.name) {
     // landr-7jgo: 'fully-booked' has nothing to price (sold-out) — no sidebar.
     // landr-d8rg.4: pick-category and product-detail return null — no price
@@ -1136,8 +1182,9 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
       return {
         product: step.product,
         selectedDays: [],
-        participantCount: 1,
-        participantNames: [],
+        participantCount:
+          partyBeforeDates && partyBeforeDates.length > 0 ? partyBeforeDates.length : 1,
+        participantNames: partyBeforeDates ? namesFrom(partyBeforeDates) : [],
         accommodationRooms: [],
         addons: [],
       }
@@ -1150,7 +1197,9 @@ export function sidebarInputsForStep(step: Step): SidebarInputs | null {
       // sidebar to "1×" while the customer just glances at the step).
       return {
         product: step.product,
-        selectedDays: selectionToDays(step.selection),
+        // landr-rmcsu.6: participants before dates → no dates yet; the
+        // sidebar shows "—" until the dates step ran.
+        selectedDays: step.selection ? selectionToDays(step.selection) : [],
         participantCount: step.participants?.length ?? 1,
         participantNames: step.participants ? namesFrom(step.participants) : [],
         accommodationRooms: [],
@@ -1238,6 +1287,13 @@ export interface BreadcrumbOptions {
    * trail starts at the product crumb as before.
    */
   startAtDates?: boolean
+  /**
+   * landr-rmcsu.6: the persistent booking draft. When participants run BEFORE
+   * the dates step, the dates step's predecessor is `details`, which the
+   * pick-selection step does not carry — it is rebuilt from the draft's
+   * committed booker / participants / companions.
+   */
+  draft?: BookingDraft
 }
 
 /**
@@ -1290,7 +1346,10 @@ const BREADCRUMB_STEPS: ReadonlySet<Step['name']> = new Set([
  * details. Reuses reconstructStepForModule so the back-nav Step shapes live in
  * one place.
  */
-function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
+function stepBeforePickup(
+  step: Extract<Step, { name: 'pick-pickup' }>,
+  remoteFlow?: RemoteFlow | null,
+): Step {
   // Hotel-offering products always route Back to accommodation (the original
   // hotel-first priority); else the standard backward walk over the live
   // middles preceding pickup.
@@ -1326,6 +1385,8 @@ function stepBeforePickup(step: Extract<Step, { name: 'pick-pickup' }>): Step {
     perRoomAddons: step.perRoomAddons,
     roomProductNames: step.roomProductNames,
     breakfastMap: step.breakfastMap,
+    // landr-rmcsu.6: decides whether the frame back-target is details or dates.
+    remoteFlow,
   })
 }
 
@@ -1440,7 +1501,9 @@ export function mergeDraftPatch(
  */
 export function detailsFromDraft(
   product: Product,
-  selection: BookingSelection,
+  // landr-rmcsu.6: undefined when participants run before the dates step and
+  // no dates are committed yet.
+  selection: BookingSelection | undefined,
   draft: BookingDraft | undefined,
 ): Extract<Step, { name: 'details' }> {
   return {
@@ -1464,10 +1527,22 @@ export function detailsFromDraft(
 export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
   switch (step.name) {
     case 'pick-selection':
+      // landr-rmcsu.6: participants ran first → Dates walks back to them,
+      // rebuilt from the draft (carrying the selection so their Continue
+      // re-opens the calendar on it).
+      if (participantsBeforeSelection(step.product, opts.remoteFlow)) {
+        return detailsFromDraft(step.product, step.selection, opts.draft)
+      }
       // landr-6eita.1: with start=dates, Dates is the first step.
       if (opts.startAtDates) return null
       return { name: 'product-detail', product: step.product }
     case 'details':
+      // landr-rmcsu.6: participants ran first → they are the first funnel
+      // step (after the product page, which start=dates skips).
+      if (participantsBeforeSelection(step.product, opts.remoteFlow)) {
+        if (opts.startAtDates) return null
+        return { name: 'product-detail', product: step.product }
+      }
       return {
         name: 'pick-selection',
         product: step.product,
@@ -1475,16 +1550,10 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
       }
     case 'pick-accommodation':
     case 'pick-service-addons':
-      return {
-        name: 'details',
-        product: step.product,
-        selection: step.selection,
-        booker: step.booker,
-        participants: step.participants,
-        companions: step.companions,
-      }
+      // landr-rmcsu.6: back to whichever of details / dates ran second.
+      return frameBackStep({ ...step, remoteFlow: opts.remoteFlow })
     case 'pick-pickup':
-      return stepBeforePickup(step)
+      return stepBeforePickup(step, opts.remoteFlow)
     // landr-71kz.3/.10: a custom-form crumb routes Back through the custom-form
     // chain (stepBeforeReview with the step's formKey + the remote flow) — the
     // prior custom form, else the hotel-aware non-custom walk. With no remote
@@ -1538,6 +1607,8 @@ export function stepBefore(step: Step, opts: BreadcrumbOptions): Step | null {
         perRoomAddons: step.perRoomAddons,
         roomProductNames: step.roomProductNames,
         breakfastMap: step.breakfastMap,
+        // landr-rmcsu.6: frame back-target (details vs dates).
+        remoteFlow: opts.remoteFlow,
       })
     case 'fill-form':
       // landr-71kz.10: Back from review lands on the LAST custom form when the
