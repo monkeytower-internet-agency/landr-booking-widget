@@ -4649,6 +4649,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Offer Email
+         * @description Render the email ``send-offer`` would send, from the SAVED offer.
+         *
+         *     Same context builder and render path as the real send, run in no-write
+         *     preview mode (``capture_email_preview``): nothing is enqueued, no token is
+         *     issued (the link is a placeholder) and ``offer_sent_at`` is not touched.
+         *     Render problems propagate as a 500, like the other staff mail previews.
+         */
+        post: operations["preview_offer_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
         parameters: {
             query?: never;
@@ -15122,6 +15147,15 @@ export interface components {
             pct: string;
             /** Per Day */
             per_day: string;
+        };
+        /** OfferEmailPreview */
+        OfferEmailPreview: {
+            /** Html */
+            html: string;
+            /** Subject */
+            subject: string;
+            /** To */
+            to?: string | null;
         };
         /**
          * OfferLineItem
@@ -27616,6 +27650,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomOfferPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_offer_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEmailPreview"];
                 };
             };
             /** @description Validation Error */
