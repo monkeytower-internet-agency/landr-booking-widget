@@ -19032,6 +19032,14 @@
               }
             ]
           },
+          "periods": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
           "product_lines": {
             "items": {
               "$ref": "#/components/schemas/OfferProductLine"
