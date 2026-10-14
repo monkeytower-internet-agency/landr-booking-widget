@@ -141,3 +141,129 @@ export function lineRanges(line: {
   }
   return []
 }
+
+/** Add `n` days to an ISO day (UTC arithmetic), returned as YYYY-MM-DD. */
+export function addDays(iso: string, n: number): string {
+  const ms = toUtcMs(iso)
+  if (ms === null) return iso
+  return new Date(ms + n * DAY_MS).toISOString().slice(0, 10)
+}
+
+/** One row of the offer page's Period / Dates / Length table. */
+export interface OfferPeriodRow {
+  kind: 'arrival' | 'activity' | 'departure'
+  /** Activity: the product name(s). Arrival/departure: null (caller localizes). */
+  name: string | null
+  start: string
+  end: string
+  /** Inclusive days for an activity; nights of the stay on the arrival row; 0 = no length. */
+  count: number
+  /** True when `count` counts hotel nights rather than days. */
+  nights: boolean
+}
+
+/**
+ * Same shape as the server's booking periods (landr-78i5e.1): an Arrival row
+ * (the hotel stay's first night), one row per contiguous activity stretch
+ * (products sharing identical days are merged as "A + B"), a Departure row
+ * (last night + 1). Used when the public payload carries no `periods`.
+ * `hotel` lines hold the NIGHT window as selected_days; without selected_days
+ * their date_range_end is already the check-out day.
+ */
+export function derivePeriodRows(
+  lines: ReadonlyArray<{
+    name: string
+    hotel: boolean
+    selected_days?: string[] | null
+    date_range_start?: string | null
+    date_range_end?: string | null
+  }>,
+): OfferPeriodRow[] {
+  const activity = new Map<string, OfferPeriodRow>()
+  let arrival: string | null = null
+  let departure: string | null = null
+  for (const line of lines) {
+    const ranges = lineRanges(line)
+    if (ranges.length === 0) continue
+    if (line.hotel) {
+      const first = ranges[0]!.start
+      const last = ranges[ranges.length - 1]!.end
+      const hasDays = !!line.selected_days && line.selected_days.length > 0
+      const out = hasDays ? addDays(last, 1) : last
+      if (arrival === null || first < arrival) arrival = first
+      if (departure === null || out > departure) departure = out
+      continue
+    }
+    for (const r of ranges) {
+      const key = `${r.start}|${r.end}`
+      const have = activity.get(key)
+      if (have) {
+        const names = (have.name ?? '').split(' + ')
+        if (!names.includes(line.name)) have.name = [...names, line.name].join(' + ')
+      } else {
+        activity.set(key, {
+          kind: 'activity',
+          name: line.name,
+          start: r.start,
+          end: r.end,
+          count: r.days,
+          nights: false,
+        })
+      }
+    }
+  }
+  const rows: OfferPeriodRow[] = []
+  if (arrival !== null) {
+    const stay = departure !== null ? inclusiveDays(arrival, departure) : null
+    rows.push({
+      kind: 'arrival',
+      name: null,
+      start: arrival,
+      end: arrival,
+      count: stay !== null ? Math.max(0, stay - 1) : 0,
+      nights: true,
+    })
+  }
+  rows.push(...[...activity.values()].sort((a, b) => a.start.localeCompare(b.start)))
+  if (departure !== null) {
+    rows.push({ kind: 'departure', name: null, start: departure, end: departure, count: 0, nights: false })
+  }
+  return rows
+}
+
+/**
+ * Server `periods` (BookingPeriod, landr-78i5e.1) as table rows. The arrival
+ * row carries the stay's nights (departure.start - arrival.start); activity
+ * rows their inclusive days; the departure row no length.
+ */
+export function periodRowsFromApi(
+  periods: ReadonlyArray<{
+    kind: 'arrival' | 'activity' | 'departure'
+    start_date: string
+    end_date: string
+    product_name: string | null
+    label: string
+    days: number
+  }>,
+): OfferPeriodRow[] {
+  const departure = periods.find((p) => p.kind === 'departure')
+  return periods.map((p) => {
+    const start = p.start_date.slice(0, 10)
+    const end = p.end_date.slice(0, 10)
+    if (p.kind === 'arrival') {
+      const stay = departure ? inclusiveDays(start, departure.start_date) : null
+      return { kind: 'arrival', name: null, start, end, count: stay !== null ? stay - 1 : 0, nights: true }
+    }
+    if (p.kind === 'departure') {
+      return { kind: 'departure', name: null, start, end, count: 0, nights: false }
+    }
+    return {
+      kind: 'activity',
+      name: p.product_name ?? p.label,
+      start,
+      end,
+      count: p.days > 0 ? p.days : (inclusiveDays(start, end) ?? 0),
+      nights: false,
+    }
+  })
+}

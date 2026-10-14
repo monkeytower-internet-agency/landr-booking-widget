@@ -1235,3 +1235,217 @@ describe('OfferPage — operator/hotel split (mode="pay")', () => {
     })
   })
 })
+
+describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
+  const POSITION = {
+    label: 'Guided Paragliding Day · 3 consecutive days · €90.00/day × 2 participants',
+    units: 3,
+    participants: 2,
+    original_unit_price: 90,
+    unit_price: 70,
+    original_total: 540,
+    total: 420,
+    excluded: false,
+  }
+  const VIDEO = {
+    label: 'Video package',
+    units: 1,
+    participants: 1,
+    original_unit_price: 50,
+    unit_price: 50,
+    original_total: 50,
+    total: 50,
+    excluded: true,
+  }
+  const WITH_OFFER = {
+    ...OFFER,
+    operator_name: 'Para42',
+    totals: { ...OFFER.totals, gross_total: 470, tax_total: 75.04, net_total: 394.96, balance_due: 470 },
+    product_lines: [
+      {
+        product_id: 'p-guide',
+        name: 'Guided Paragliding Day',
+        name_localized: null,
+        date_range_start: '2027-01-25',
+        date_range_end: '2027-01-27',
+        selected_days: ['2027-01-25', '2027-01-26', '2027-01-27'],
+        quantity: 1,
+      },
+      {
+        product_id: 'p-hotel',
+        name: 'Hotel Alpenblick',
+        name_localized: null,
+        date_range_start: '2027-01-24',
+        date_range_end: '2027-01-29',
+        selected_days: ['2027-01-24', '2027-01-25', '2027-01-26', '2027-01-27', '2027-01-28'],
+        quantity: 1,
+      },
+    ],
+    line_items: [
+      {
+        product_id: 'p-guide', label: 'Guided Paragliding Day', qty: 1, units: 3,
+        line_total: 590, unit_price: 590, paid_to: 'operator', participants: 2, per_person_price: 295,
+      },
+      {
+        product_id: 'p-hotel', label: 'Hotel Alpenblick', qty: 1, units: 5,
+        line_total: 500, unit_price: 500, paid_to: 'hotel', participants: null, per_person_price: null,
+      },
+    ],
+    offer_positions: [POSITION, VIDEO],
+    offer_discount: { amount: 120, per_day: 20, pct: 20.34 },
+    show_savings: true,
+    offer_adjustments: {
+      free_spot_count: 0, group_threshold: null, group_discount_pct: null, group_discount_amount: 0,
+    },
+  }
+  const fmt = (n: number) => formatCurrency(n, 'EUR', 'en-US')
+
+  beforeEach(() => {
+    mocks.getBookingByToken.mockReset()
+    resetQueryParams()
+  })
+
+  it('lists the offer positions with the regular price struck and a discount row (show_savings on)', async () => {
+    mocks.getBookingByToken.mockResolvedValue(WITH_OFFER)
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-position')
+    expect(rows).toHaveLength(2)
+    // the label's baked-in regular price tail is replaced by the offer price
+    expect(rows[0]).toHaveTextContent('Guided Paragliding Day · 3 consecutive days')
+    expect(rows[0]).not.toHaveTextContent('€90.00/day')
+    expect(screen.getByTestId('offer-position-original-unit')).toHaveTextContent(fmt(90))
+    expect(screen.getByTestId('offer-position-per-day')).toHaveTextContent(
+      `${fmt(70)}/day × 2 participants`,
+    )
+    expect(screen.getByTestId('offer-position-original-total')).toHaveTextContent(fmt(540))
+    expect(screen.getAllByTestId('offer-position-total')[0]).toHaveTextContent(fmt(420))
+    // excluded / flat position: just its price, no struck original, no per-day line
+    expect(rows[1]).toHaveTextContent('Video package')
+    expect(rows[1]).toHaveTextContent(fmt(50))
+    expect(rows[1].querySelector('[data-testid="offer-position-original-total"]')).toBeNull()
+    expect(rows[1].querySelector('[data-testid="offer-position-per-day"]')).toBeNull()
+
+    expect(screen.getByTestId('offer-discount')).toHaveTextContent('Your discount')
+    expect(screen.getByTestId('offer-discount-amount')).toHaveTextContent(`−${fmt(120)}`)
+    // the engine's regular-price line items are not listed next to the offer
+    expect(screen.getAllByTestId('offer-line-item')).toHaveLength(1)
+    expect(screen.getByTestId('offer-line-hotel')).toHaveTextContent(/payable at the hotel/i)
+    // money rows unchanged
+    expect(screen.getByTestId('offer-gross-total')).toHaveTextContent(fmt(470))
+  })
+
+  it('hides regular prices and the discount row when show_savings is off', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      show_savings: false,
+      offer_discount: null,
+      // the API redacts original_* to the offer prices server-side
+      offer_positions: [
+        { ...POSITION, original_unit_price: 70, original_total: 420 },
+        VIDEO,
+      ],
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getAllByTestId('offer-position')).toHaveLength(2)
+    expect(screen.queryByTestId('offer-discount')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-position-original-unit')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-position-original-total')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-position-per-day')).toHaveTextContent(`${fmt(70)}/day`)
+    expect(document.body).not.toHaveTextContent('€90.00')
+    expect(document.body).not.toHaveTextContent(fmt(540))
+  })
+
+  it('never shows savings when show_savings is false even if the payload still carries them', async () => {
+    mocks.getBookingByToken.mockResolvedValue({ ...WITH_OFFER, show_savings: false })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.queryByTestId('offer-discount')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-position-original-total')).not.toBeInTheDocument()
+  })
+
+  it('shows group discount and free spots below the positions', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_adjustments: {
+        free_spot_count: 2, group_threshold: 8, group_discount_pct: 0.1, group_discount_amount: 47,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-group-discount')).toHaveTextContent('Group discount (10 %)')
+    expect(screen.getByTestId('offer-group-discount')).toHaveTextContent(`−${fmt(47)}`)
+    expect(screen.getByTestId('offer-free-spots')).toHaveTextContent('Free spots × 2')
+  })
+
+  it('renders the booking periods: Arrival / product range / Departure with nights and days', async () => {
+    mocks.getBookingByToken.mockResolvedValue(WITH_OFFER)
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.queryByTestId('offer-items-table')).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Period' })).toBeInTheDocument()
+    const rows = screen.getAllByTestId('offer-period-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['arrival', 'activity', 'departure'])
+    expect(rows[0]).toHaveTextContent('Arrival')
+    expect(rows[0]).toHaveTextContent('Sun 24 Jan 2027')
+    expect(rows[0]).toHaveTextContent('5 nights')
+    expect(rows[1]).toHaveTextContent('Guided Paragliding Day')
+    expect(rows[1]).toHaveTextContent('Mon 25 Jan – Wed 27 Jan 2027')
+    expect(rows[1]).toHaveTextContent('3 days')
+    expect(rows[2]).toHaveTextContent('Departure')
+    expect(rows[2]).toHaveTextContent('Fri 29 Jan 2027')
+  })
+
+  it('prefers server-sent periods when the payload carries them', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      periods: [
+        { kind: 'arrival', start_date: '2027-02-01', end_date: '2027-02-01', label: 'Anreise', product_name: null, days: 1, meta: {} },
+        { kind: 'activity', start_date: '2027-02-02', end_date: '2027-02-03', label: 'Activity', product_name: 'Tandem', days: 2, meta: {} },
+        { kind: 'departure', start_date: '2027-02-04', end_date: '2027-02-04', label: 'Abreise', product_name: null, days: 1, meta: {} },
+      ],
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-period-row')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('3 nights')
+    expect(rows[1]).toHaveTextContent('Tandem')
+    expect(rows[1]).toHaveTextContent('2 days')
+  })
+
+  it('legacy booking without offer_positions keeps today\'s rendering', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_positions: undefined,
+      offer_discount: undefined,
+      show_savings: undefined,
+      offer_adjustments: undefined,
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.queryByTestId('offer-position')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-discount')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('offer-periods-table')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-items-table')).toBeInTheDocument()
+    expect(screen.getAllByTestId('offer-product-line')).toHaveLength(2)
+    expect(screen.getAllByTestId('offer-line-item')).toHaveLength(2)
+  })
+
+  it('treats an empty offer_positions list like no offer', async () => {
+    mocks.getBookingByToken.mockResolvedValue({ ...WITH_OFFER, offer_positions: [] })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.queryByTestId('offer-position')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-items-table')).toBeInTheDocument()
+  })
+})

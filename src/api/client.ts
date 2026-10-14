@@ -4,6 +4,7 @@ import type {
   ApprovalReplyResult,
   ApprovalRequestContext,
   AvailabilitySlot,
+  BookingPeriod,
   BookingLookupResult,
   ContactPagePrefill,
   CustomerStageLabel,
@@ -1025,6 +1026,40 @@ export interface OfferLineItem {
   per_person_price: number | null
 }
 
+/**
+ * landr-8f1sh.1/.4: one position of an applied custom offer (public payload).
+ * Money is plain numbers. `label` is the server's seeded text and embeds the
+ * REGULAR per-day price ("Name · 2 consecutive days · €90.00/day × 1
+ * participant") — OfferPage strips that tail and re-renders the price from
+ * the numeric fields (see offerPositions.ts). When `show_savings` is false
+ * the API already redacts `original_*` to the offer prices.
+ */
+export interface OfferPosition {
+  label: string
+  units: number
+  participants: number
+  original_unit_price: number
+  unit_price: number
+  original_total: number
+  total: number
+  excluded?: boolean
+}
+
+/** Overall offer discount; null/absent when the operator hides it. */
+export interface OfferDiscount {
+  amount: number
+  per_day: number
+  pct: number
+}
+
+/** Adjustments below the positions: free spots and the >N group discount. */
+export interface OfferAdjustments {
+  free_spot_count?: number
+  group_threshold?: number | null
+  group_discount_pct?: number | null
+  group_discount_amount?: number
+}
+
 export interface PublicBookingOffer {
   booking_id: string
   customer_semantic_state: string
@@ -1055,6 +1090,20 @@ export interface PublicBookingOffer {
    * persisted per-line breakdown) keeps today's rendering.
    */
   line_items?: OfferLineItem[] | null
+  /**
+   * landr-8f1sh.1/.4: custom offer v2. Present only when an offer is applied
+   * to the booking; absent/null/empty keeps today's rendering.
+   */
+  offer_positions?: OfferPosition[] | null
+  offer_discount?: OfferDiscount | null
+  show_savings?: boolean | null
+  offer_adjustments?: OfferAdjustments | null
+  /**
+   * landr-8f1sh.4: arrival / activity / departure periods, same shape as
+   * `BookingSummary.periods`. The public booking payload does not carry them
+   * yet — when absent OfferPage derives the same rows from `product_lines`.
+   */
+  periods?: BookingPeriod[] | null
 }
 
 /**
