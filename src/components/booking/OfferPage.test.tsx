@@ -1471,6 +1471,86 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     expect(document.body).not.toHaveTextContent(/incl\. .* tax/)
   })
 
+  it('names the tax the operator picked (landr-bo0wd.7)', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_prices_include_tax: true,
+      offer_tax: { pct: 7, label: 'IVA' },
+      totals: {
+        ...WITH_OFFER.totals,
+        operator_net_total: 439.25,
+        operator_tax_total: 30.75,
+        operator_gross_total: 470,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-tax-included')).toHaveTextContent(`incl. ${fmt(30.75)} IVA (7 %)`)
+    expect(document.body).not.toHaveTextContent(/incl\. .* tax/)
+  })
+
+  it('does not repeat the percentage when the tax name already carries it', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_prices_include_tax: true,
+      offer_tax: { pct: 7, label: 'IVA 7%' },
+      totals: {
+        ...WITH_OFFER.totals,
+        operator_net_total: 439.25,
+        operator_tax_total: 30.75,
+        operator_gross_total: 470,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    const line = screen.getByTestId('offer-tax-included')
+    expect(line).toHaveTextContent(`incl. ${fmt(30.75)} IVA 7%`)
+    expect(line).not.toHaveTextContent('(7 %)')
+  })
+
+  it('net entry is read from offer_prices_include_tax, not inferred from the totals', async () => {
+    // net entry with a name; the picked 7 % wins over the derived rate
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_prices_include_tax: false,
+      offer_tax: { pct: 7, label: 'IGIC' },
+      totals: {
+        ...WITH_OFFER.totals,
+        gross_total: 1002.9,
+        operator_net_total: 470,
+        operator_tax_total: 32.9,
+        operator_gross_total: 502.9,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-tax-added')).toHaveTextContent(`+ ${fmt(32.9)} IGIC (7 %)`)
+    expect(screen.getByTestId('offer-net-price')).toHaveTextContent(fmt(470))
+  })
+
+  it('a gross-entry flag wins over a net-looking total', async () => {
+    // positions add up to the net total, which the old inference read as net entry
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      offer_prices_include_tax: true,
+      totals: {
+        ...WITH_OFFER.totals,
+        gross_total: 1002.9,
+        operator_net_total: 470,
+        operator_tax_total: 32.9,
+        operator_gross_total: 502.9,
+        hotel_gross_total: 500,
+      },
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.queryByTestId('offer-tax-added')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-tax-included')).toBeInTheDocument()
+  })
+
   it('renders the booking periods: Arrival / product range / Departure with nights and days', async () => {
     mocks.getBookingByToken.mockResolvedValue(WITH_OFFER)
     render(<OfferPage token={TOKEN} />)

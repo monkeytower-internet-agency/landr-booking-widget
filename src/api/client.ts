@@ -1053,6 +1053,15 @@ export interface OfferDiscount {
 }
 
 /** Adjustments below the positions: free spots and the >N group discount. */
+/**
+ * landr-bo0wd.7: the tax the operator picked for the offer. `pct` is a
+ * percentage number (7 = 7 %); `label` the tax's name ("IVA") or null.
+ */
+export interface OfferTax {
+  pct: number
+  label?: string | null
+}
+
 export interface OfferAdjustments {
   free_spot_count?: number
   group_threshold?: number | null
@@ -1098,6 +1107,14 @@ export interface PublicBookingOffer {
   offer_discount?: OfferDiscount | null
   show_savings?: boolean | null
   offer_adjustments?: OfferAdjustments | null
+  /**
+   * landr-bo0wd.7: whether the offer's typed prices include tax (false = net
+   * entry, the tax is added on top) and the tax the operator picked. Absent on
+   * an older API; `offer_tax` is also null for offers saved before the choice
+   * was stored — the page then falls back to inferring both from the totals.
+   */
+  offer_prices_include_tax?: boolean | null
+  offer_tax?: OfferTax | null
   /**
    * landr-8f1sh.4: arrival / activity / departure periods, same shape as
    * `BookingSummary.periods`. The public booking payload does not carry them

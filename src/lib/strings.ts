@@ -541,6 +541,9 @@ type Bundle = {
   offerInclTaxTemplate: string
   offerPriceExclTaxLabel: string
   offerTaxAddedTemplate: string
+  /** landr-bo0wd.7: same rows with the picked tax's name ({n}, e.g. "IVA"). */
+  offerInclTaxNamedTemplate: string
+  offerTaxAddedNamedTemplate: string
   offerPaidAtHotelTemplate: string
   couldNotStartPayment: string
 
@@ -1192,6 +1195,8 @@ const en: Bundle = {
   offerInclTaxTemplate: 'incl. {a} tax ({p} %)',
   offerPriceExclTaxLabel: 'Price excl. tax',
   offerTaxAddedTemplate: '+ {a} tax ({p} %)',
+  offerInclTaxNamedTemplate: 'incl. {a} {n} ({p} %)',
+  offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
   offerPaidAtHotelTemplate: '+ {a} paid at the hotel on arrival',
   couldNotStartPayment: 'We could not start the payment. Please try again or contact us.',
 
@@ -1832,6 +1837,8 @@ const de: Bundle = {
   offerInclTaxTemplate: 'inkl. {a} Steuer ({p} %)',
   offerPriceExclTaxLabel: 'Preis ohne Steuer',
   offerTaxAddedTemplate: '+ {a} Steuer ({p} %)',
+  offerInclTaxNamedTemplate: 'inkl. {a} {n} ({p} %)',
+  offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
   offerPaidAtHotelTemplate: '+ {a} Zahlung im Hotel bei Anreise',
   couldNotStartPayment: 'Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
 

@@ -4439,6 +4439,22 @@
             "title": "Show Savings",
             "type": "boolean"
           },
+          "target_offer_total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Offer Total"
+          },
           "target_total": {
             "anyOf": [
               {
@@ -4454,6 +4470,30 @@
               }
             ],
             "title": "Target Total"
+          },
+          "tax_key": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Key"
+          },
+          "tax_label": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Label"
           },
           "tax_rate": {
             "anyOf": [
@@ -4733,6 +4773,18 @@
             ],
             "title": "Offer Sent At"
           },
+          "offer_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Total"
+          },
           "original_total": {
             "default": "0",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -4808,6 +4860,40 @@
             ],
             "title": "Target Total"
           },
+          "tax_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Key"
+          },
+          "tax_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Label"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
+          },
           "tax_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Tax Total",
@@ -4835,6 +4921,12 @@
         "properties": {
           "offer_discount": {
             "$ref": "#/components/schemas/OfferDiscountOut"
+          },
+          "offer_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Offer Total",
+            "type": "string"
           },
           "original_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -12889,6 +12981,28 @@
             ],
             "title": "Booking Product Id"
           },
+          "date_range_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range End"
+          },
+          "date_range_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range Start"
+          },
           "discount_per_unit": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Discount Per Unit",
@@ -13053,6 +13167,31 @@
           "quantity"
         ],
         "title": "OfferProductLine",
+        "type": "object"
+      },
+      "OfferTax": {
+        "description": "The tax the operator picked for the offer (landr-bo0wd.7). ``pct`` is a\npercentage number (7.0 = 7 %); ``label`` the tax's name (\"IVA\") or None.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pct"
+        ],
+        "title": "OfferTax",
         "type": "object"
       },
       "OfferTotals": {
@@ -19212,6 +19351,17 @@
             ],
             "title": "Offer Positions"
           },
+          "offer_prices_include_tax": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Prices Include Tax"
+          },
           "offer_requires_acceptance": {
             "anyOf": [
               {
@@ -19222,6 +19372,16 @@
               }
             ],
             "title": "Offer Requires Acceptance"
+          },
+          "offer_tax": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferTax"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "operator_name": {
             "anyOf": [

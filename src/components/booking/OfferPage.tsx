@@ -907,13 +907,36 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const showDiscountRows = showSavings && discountTotal > EPS
   const opNet = totals.operator_net_total ?? 0
   const opTax = totals.operator_tax_total ?? 0
-  // The wire carries no "prices include tax" flag: a net-entry offer is the one
-  // whose positions add up to the NET total (within a cent) while gross is
-  // higher. Then the tax is added on top of positionsPrice.
-  const taxAdded = opGross - opNet > EPS && Math.abs(positionsPrice - opNet) < 0.015
+  // landr-bo0wd.7: the API says whether the typed prices include tax
+  // (`offer_prices_include_tax`); a net-entry offer adds the tax on top of
+  // positionsPrice. An older API sends no flag: a net-entry offer is then the
+  // one whose positions add up to the NET total (within a cent) while gross is
+  // higher.
+  const pricesIncludeTax = offer.offer_prices_include_tax
+  const taxAdded =
+    pricesIncludeTax === true || pricesIncludeTax === false
+      ? !pricesIncludeTax && opGross - opNet > EPS
+      : opGross - opNet > EPS && Math.abs(positionsPrice - opNet) < 0.015
   const taxAmount = taxAdded ? Math.max(yourPrice - positionsPrice, 0) : opTax
   const taxBase = taxAdded ? positionsPrice : opNet
-  const taxPct = taxBase > 0 && taxAmount > 0 ? Math.round((taxAmount / taxBase) * 1000) / 10 : 0
+  const derivedTaxPct =
+    taxBase > 0 && taxAmount > 0 ? Math.round((taxAmount / taxBase) * 1000) / 10 : 0
+  // The tax the operator PICKED (exact rate + name) beats the derived one.
+  const offerTax = offer.offer_tax
+  const taxPct = taxAmount > 0 && offerTax ? Math.round(offerTax.pct * 100) / 100 : derivedTaxPct
+  const taxName = taxAmount > 0 ? (offerTax?.label ?? '').trim() : ''
+  // "IVA 7%" already says the percentage: don't repeat it as "(7 %)".
+  const taxShowPct =
+    !taxName || !new RegExp(`(^|[^\\d.,])${String(taxPct).replace('.', '\\.')}(?!\\d)`).test(taxName)
+  const taxLine = (kind: 'incl' | 'added', amount: number): string => {
+    const key = taxName
+      ? kind === 'incl' ? 'offerInclTaxNamedTemplate' : 'offerTaxAddedNamedTemplate'
+      : kind === 'incl' ? 'offerInclTaxTemplate' : 'offerTaxAddedTemplate'
+    const line = tr(key, locale)
+      .replace('{a}', formatCurrency(amount, currencyCode, locale))
+      .replace('{n}', taxName)
+    return taxShowPct ? line.replace('{p}', String(taxPct)) : line.replace(/\s*\(\{p\} %\)/, '')
+  }
   const hotelAtArrival =
     totals.hotel_gross_total ??
     lineItems.filter((li) => li.paid_to === 'hotel').reduce((n, li) => n + li.line_total, 0)
@@ -1301,9 +1324,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                           className="px-4 pb-1 text-right text-muted-foreground tabular-nums"
                           data-testid="offer-tax-added"
                         >
-                          {tr('offerTaxAddedTemplate', locale)
-                            .replace('{a}', formatCurrency(taxAmount, currencyCode, locale))
-                            .replace('{p}', String(taxPct))}
+                          {taxLine('added', taxAmount)}
                         </td>
                       </tr>
                     </>
@@ -1326,9 +1347,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         className="px-4 pb-1 text-right text-xs text-muted-foreground tabular-nums"
                         data-testid="offer-tax-included"
                       >
-                        {tr('offerInclTaxTemplate', locale)
-                          .replace('{a}', formatCurrency(taxAmount, currencyCode, locale))
-                          .replace('{p}', String(taxPct))}
+                        {taxLine('incl', taxAmount)}
                       </td>
                     </tr>
                   )}

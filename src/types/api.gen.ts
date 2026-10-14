@@ -12419,8 +12419,14 @@ export interface components {
              * @default true
              */
             show_savings: boolean;
+            /** Target Offer Total */
+            target_offer_total?: number | string | null;
             /** Target Total */
             target_total?: number | string | null;
+            /** Tax Key */
+            tax_key?: string | null;
+            /** Tax Label */
+            tax_label?: string | null;
             /** Tax Rate */
             tax_rate?: number | string | null;
         };
@@ -12512,6 +12518,8 @@ export interface components {
             offer_hotel_pending: boolean;
             /** Offer Sent At */
             offer_sent_at?: string | null;
+            /** Offer Total */
+            offer_total?: string | null;
             /**
              * Original Total
              * @default 0
@@ -12554,12 +12562,23 @@ export interface components {
             show_savings: boolean;
             /** Target Total */
             target_total?: string | null;
+            /** Tax Key */
+            tax_key?: string | null;
+            /** Tax Label */
+            tax_label?: string | null;
+            /** Tax Rate */
+            tax_rate?: string | null;
             /** Tax Total */
             tax_total: string;
         };
         /** CustomOfferPreviewOut */
         CustomOfferPreviewOut: {
             offer_discount: components["schemas"]["OfferDiscountOut"];
+            /**
+             * Offer Total
+             * @default 0
+             */
+            offer_total: string;
             /** Original Total */
             original_total: string;
             /** Positions */
@@ -15460,6 +15479,10 @@ export interface components {
         OfferPositionOut: {
             /** Booking Product Id */
             booking_product_id: string | null;
+            /** Date Range End */
+            date_range_end?: string | null;
+            /** Date Range Start */
+            date_range_start?: string | null;
             /** Discount Per Unit */
             discount_per_unit: string;
             /** Discount Total */
@@ -15513,6 +15536,17 @@ export interface components {
             selected_days?: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferTax
+         * @description The tax the operator picked for the offer (landr-bo0wd.7). ``pct`` is a
+         *     percentage number (7.0 = 7 %); ``label`` the tax's name ("IVA") or None.
+         */
+        OfferTax: {
+            /** Label */
+            label?: string | null;
+            /** Pct */
+            pct: number;
         };
         /**
          * OfferTotals
@@ -17509,8 +17543,11 @@ export interface components {
             offer_hotel_pending?: boolean | null;
             /** Offer Positions */
             offer_positions?: components["schemas"]["OfferPositionLine"][] | null;
+            /** Offer Prices Include Tax */
+            offer_prices_include_tax?: boolean | null;
             /** Offer Requires Acceptance */
             offer_requires_acceptance?: boolean | null;
+            offer_tax?: components["schemas"]["OfferTax"] | null;
             /** Operator Name */
             operator_name?: string | null;
             /** Participants */
