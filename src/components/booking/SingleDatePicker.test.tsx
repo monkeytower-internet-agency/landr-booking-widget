@@ -252,3 +252,58 @@ describe('SingleDatePicker with synthesised on-request days (landr-k9pji.1)', ()
     expect(onConfirm).toHaveBeenCalledWith([isoOf(tomorrow)])
   })
 })
+
+describe('SingleDatePicker — group size (landr-rmcsu.5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const at = (n: number) => new Date(2026, 4, n)
+  const seats = (d: Date, available: number): AvailabilitySlot => ({
+    ...makeAvailability([d])[0]!,
+    available_seats: available,
+  })
+
+  it('marks a day short for the group and unmarks it when the group shrinks', async () => {
+    mocks.getAvailability.mockResolvedValue([seats(at(18), 2), seats(at(19), 5)])
+    const onPartySizeChange = vi.fn()
+    render(
+      <SingleDatePicker
+        product={makeProduct()}
+        onConfirm={() => {}}
+        seatsNeeded={3}
+        showPartySizeStepper
+        onPartySizeChange={onPartySizeChange}
+      />,
+    )
+    await waitFor(() => expect(dayButton(at(18))).toHaveAttribute('data-short', 'true'))
+    expect(dayButton(at(18))).toBeDisabled()
+    expect(dayButton(at(18))).toHaveAttribute('title', '2 seats left')
+    expect(screen.getByTestId('seat-fit-count')).toHaveTextContent('1 date fits 3 people')
+    fireEvent.click(screen.getByRole('button', { name: 'One person fewer' }))
+    expect(onPartySizeChange).toHaveBeenLastCalledWith(2)
+    expect(dayButton(at(18))).not.toBeDisabled()
+    expect(dayButton(at(18))).not.toHaveAttribute('data-short')
+  })
+
+  it('a restored pick that no longer fits the group blocks Continue with the reason', async () => {
+    mocks.getAvailability.mockResolvedValue([seats(at(18), 1)])
+    render(
+      <SingleDatePicker
+        product={makeProduct()}
+        onConfirm={() => {}}
+        initialSelectedDays={[isoOf(at(18))]}
+        seatsNeeded={2}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText(/Only 1 seat left on .* — you need 2\./)).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+})

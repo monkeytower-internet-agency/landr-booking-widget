@@ -183,8 +183,11 @@ export interface Product {
   needs_pickup?: boolean
   /**
    * landr-zy2wm.2: max total participants (booker included) per booking.
-   * Absent / null = no product cap (the widget's own 6-participant cap
-   * still applies). 1 = booker only, no additional-participants UI.
+   * Absent / null = no product cap (the widget falls back to 6
+   * participants). Any set value is honoured as-is, including values above 6
+   * (landr-rmcsu.5 lifted the old min(6, …) clamp); it is also the dates
+   * step's "How many of you?" maximum. 1 = booker only, no
+   * additional-participants UI.
    */
   max_party_size?: number | null
   /**

@@ -43,6 +43,7 @@ import {
   forceBookReasonMessage,
   nightsWord,
   seatsShortMessage,
+  seatsShortDaysMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -1159,11 +1160,14 @@ export function BookingForm({
           )
           const short = shortDays(slots, sorted, need)
           if (short.length > 0) {
+            // landr-rmcsu.5: name every short day, not just the first.
             setServerError(
-              seatsShortMessage(
-                formatDayLabel(short[0].date, locale),
-                short[0].left,
-                short[0].need,
+              seatsShortDaysMessage(
+                short.map((d) => ({
+                  label: formatDayLabel(d.date, locale),
+                  left: d.left,
+                  need: d.need,
+                })),
                 locale,
               ),
             )

@@ -180,3 +180,34 @@ describe('MultiDayPicker — staff force-book', () => {
     )
   })
 })
+
+describe('MultiDayPicker — staff force-book of a day short for the group (landr-rmcsu.5)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('a short day stays selectable for staff and is reported as a capacity force', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onForced = vi.fn<(iso: string[], reasons: ForceReason[]) => void>()
+    const shortDay = new Date(2026, 5, 14)
+    function Harness() {
+      const [value, setValue] = useState<Date[]>([])
+      return (
+        <StaffModeProvider value={STAFF}>
+          <MultiDayPicker
+            availability={[slot(availDay, 5), slot(shortDay, 2)]}
+            value={value}
+            onChange={setValue}
+            onForcedDaysChange={onForced}
+            defaultMonth={defaultMonth}
+            seatsNeeded={3}
+          />
+        </StaffModeProvider>
+      )
+    }
+    render(<Harness />)
+    expect(dayButton(shortDay)).not.toBeDisabled()
+    expect(dayButton(shortDay)).toHaveAttribute('data-short', 'true')
+    fireEvent.click(dayButton(shortDay))
+    expect(window.confirm).toHaveBeenCalledTimes(1)
+    expect(onForced).toHaveBeenLastCalledWith([isoOf(shortDay)], ['capacity'])
+  })
+})

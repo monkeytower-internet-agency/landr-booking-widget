@@ -63,6 +63,15 @@ export type PerRoomAddons = Record<string, Record<string, number>>
  * against capacity — landr-u4fl); the identities (names) are always kept.
  */
 export interface BookingDraft {
+  /**
+   * landr-rmcsu.5: the group size (seats needed on every day — guiding
+   * participants + held separate_guiding invitees) from the dates step's
+   * "How many of you?" stepper. Re-seeds that stepper, drives the seat-aware
+   * calendar, and pre-creates participant rows on the details step. Re-set to
+   * the real need whenever the details step confirms, so a later "Change
+   * dates" judges days against the party actually entered.
+   */
+  partySize?: number
   booker?: BookerDetails
   participants?: ParticipantDetails[]
   companions?: CompanionDetails[]

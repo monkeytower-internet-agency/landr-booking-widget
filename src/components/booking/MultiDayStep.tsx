@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import type { ForceReason } from '@/lib/strings'
@@ -22,7 +22,7 @@ import {
   availableDaysForLabel,
   dayNoLongerAvailableReason,
   daysSelectedLabel,
-  seatsShortMessage,
+  seatsShortDaysMessage,
   hostDaysUnavailableMessage,
   multiDayGate,
   sameDaysAsHostForLabel,
@@ -32,7 +32,8 @@ import { browserLocale } from '@/lib/locale'
 import { NextAction } from '@/components/booking/NextAction'
 import { ContinueAction } from '@/components/booking/ContinueAction'
 import { useReportLoaded } from '@/lib/bootSplash'
-import { shortDays } from '@/lib/seatHold'
+import { maxPartySize, seatFit, shortDays, windowRangeLabel } from '@/lib/seatHold'
+import { PartySizeStepper, SeatFitNotice } from '@/components/booking/PartySize'
 
 interface Props {
   product: Product
@@ -87,6 +88,20 @@ interface Props {
    * Back from the details step). Absent/1 → no party-size check here.
    */
   seatsNeeded?: number
+  /**
+   * landr-rmcsu.5: show the "How many of you?" stepper above the calendar.
+   * Its value (seeded from `seatsNeeded`, else 1; max = the product's
+   * max_party_size, else 6) replaces `seatsNeeded` for the seat check and is
+   * reported through `onPartySizeChange` so App can persist it in the draft.
+   * Pass false/omit when the group size is already known — e.g. the
+   * participants step ran BEFORE dates (landr-rmcsu.6); `seatsNeeded` then
+   * drives the seat check on its own.
+   */
+  showPartySizeStepper?: boolean
+  onPartySizeChange?: (partySize: number) => void
+  /** landr-rmcsu.5: widget token + contact email for the group-inquiry exit. */
+  operatorToken?: string
+  contactEmail?: string | null
 }
 
 // Stable empty reference for the availability prop while slots are still
@@ -110,6 +125,10 @@ export function MultiDayStep({
   onLoaded,
   inviteToken,
   seatsNeeded,
+  showPartySizeStepper = false,
+  onPartySizeChange,
+  operatorToken,
+  contactEmail,
 }: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -132,6 +151,27 @@ export function MultiDayStep({
   const [droppedOnEdit, setDroppedOnEdit] = useState<number | undefined>(undefined)
 
   const { fromIso, toIso } = useMemo(() => availabilityWindow(), [])
+
+  // landr-rmcsu.5: group size. With the stepper shown it is local state
+  // seeded from the known need (Back / Change dates) and clamped to the
+  // product's cap; without it the caller's seatsNeeded is the need.
+  const partySizeMax = Math.max(maxPartySize(product.max_party_size), seatsNeeded ?? 1)
+  const stepperShown = showPartySizeStepper && partySizeMax > 1
+  const [partySize, setPartySize] = useState(() =>
+    Math.min(Math.max(1, seatsNeeded ?? 1), partySizeMax),
+  )
+  const need = stepperShown ? partySize : Math.max(1, seatsNeeded ?? 1)
+  const decreaseRef = useRef<HTMLButtonElement>(null)
+  const changePartySize = (next: number) => {
+    setPartySize(next)
+    onPartySizeChange?.(next)
+  }
+  // Days in the loaded window that fit the whole group (for "12 dates fit 3
+  // people" / the none-fit exits). null until availability has loaded.
+  const fitCount = useMemo(
+    () => (slots === null ? null : seatFit(slots, product.hotel_offering, need).fit.size),
+    [slots, product.hotel_offering, need],
+  )
 
   // landr-l38a4: an invite lands on a read-only summary of the host's days
   // (join as-is in one tap); the calendar only opens behind "Change dates".
@@ -179,9 +219,9 @@ export function MultiDayStep({
   // landr-f987a.4: selected days that cannot take the whole party (host +
   // invited companions). Staff with force_book may still push past it.
   const shortSelectedDays = useMemo(() => {
-    if (canForce || slots === null || !seatsNeeded) return []
-    return shortDays(slots, selectedDays.map(isoDate), seatsNeeded)
-  }, [canForce, slots, seatsNeeded, selectedDays])
+    if (canForce || slots === null) return []
+    return shortDays(slots, selectedDays.map(isoDate), need)
+  }, [canForce, slots, need, selectedDays])
 
   // "Change dates": drop every host day that is no longer bookable so the
   // calendar opens on a selection the customer can actually submit. When
@@ -300,6 +340,26 @@ export function MultiDayStep({
         <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {stepperShown ? (
+          <PartySizeStepper
+            value={partySize}
+            max={partySizeMax}
+            onChange={changePartySize}
+            decreaseRef={decreaseRef}
+          />
+        ) : null}
+        {fitCount !== null ? (
+          <SeatFitNotice
+            need={need}
+            fitCount={fitCount}
+            rangeLabel={windowRangeLabel(fromIso, toIso, locale)}
+            onFewer={stepperShown ? () => decreaseRef.current?.focus() : undefined}
+            operatorToken={operatorToken}
+            productSlug={product.slug}
+            productName={product.name}
+            contactEmail={contactEmail}
+          />
+        ) : null}
         {/* landr-80ubl.2: one-next-action rule — the picker owns the ring
             until at least one day is picked, then ContinueAction (active by
             default) takes over. */}
@@ -321,6 +381,7 @@ export function MultiDayStep({
             originalValue={originalDays?.map(dateFromIso)}
             originalValueLabel={originalDaysLabel}
             initialDroppedCount={droppedOnEdit}
+            seatsNeeded={need}
           />
           {selectedDays.length > 0 ? (
             // landr-3mo4: selection count surfaced as a tinted chip (committed
@@ -343,10 +404,12 @@ export function MultiDayStep({
                   locale,
                 )
               : shortSelectedDays.length > 0
-                ? seatsShortMessage(
-                    formatDayLabel(shortSelectedDays[0].date, locale),
-                    shortSelectedDays[0].left,
-                    shortSelectedDays[0].need,
+                ? seatsShortDaysMessage(
+                    shortSelectedDays.map((d) => ({
+                      label: formatDayLabel(d.date, locale),
+                      left: d.left,
+                      need: d.need,
+                    })),
                     locale,
                   )
                 : multiDayGate(selectedDays.length, locale)

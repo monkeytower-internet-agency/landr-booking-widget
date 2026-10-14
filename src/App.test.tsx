@@ -3688,6 +3688,116 @@ describe('App', () => {
     })
   })
 
+  // landr-rmcsu.5: the dates step asks "How many of you?", marks days that
+  // cannot take the group, pre-creates that many participant rows, and the
+  // review step's "Change dates" re-opens the calendar on the committed days
+  // (it used to drop them) with the group size kept.
+  describe('group size on the dates step (landr-rmcsu.5)', () => {
+    it('stepper marks short days, pre-fills participants, and Change dates keeps the selection', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      const day1 = new Date()
+      day1.setHours(12, 0, 0, 0)
+      const day2 = new Date(day1)
+      day2.setDate(day2.getDate() + 1)
+      const iso = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-grp',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      const slotFor = (d: Date, seats: number) => ({
+        availability_id: `a-${iso(d)}`,
+        date: iso(d),
+        start_time: null,
+        end_time: null,
+        capacity: 10,
+        capacity_reserved: 10 - seats,
+        available_seats: seats,
+        status: 'open',
+      })
+      mocks.getAvailability.mockResolvedValue([slotFor(day1, 10), slotFor(day2, 1)])
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Group Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+      await waitFor(() =>
+        expect(document.querySelector('button[data-short="true"]')).toBeNull(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      // day2 has 1 seat → short for 2: marked and not selectable.
+      const shortBtn = document.querySelector<HTMLButtonElement>('button[data-short="true"]')
+      expect(shortBtn).not.toBeNull()
+      expect(shortBtn).toBeDisabled()
+
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      expect(screen.getByText('1 day selected')).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      // Details: the second participant row already exists.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // Seats ran out meanwhile → the review offers "Change dates".
+      mocks.submitBooking.mockRejectedValueOnce(
+        new HttpError(
+          422,
+          'Unprocessable Entity',
+          JSON.stringify({ detail: { error: 'capacity_exceeded', message: 'full' } }),
+        ),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      fireEvent.click(await screen.findByTestId('review-change-dates'))
+
+      // Back on the calendar with the committed day still selected and the
+      // group size kept.
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByText('1 day selected')).toBeInTheDocument()
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      await waitFor(() =>
+        expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled(),
+      )
+    })
+  })
+
   // landr-71kz.10 — KEYSTONE: the remote product-flow DATA PATH. A product whose
   // operator-configured flow carries a `customer_declarations` custom_form module
   // must render that form via CustomFormStep (the 4 declaration checkboxes + the

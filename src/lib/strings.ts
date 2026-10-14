@@ -114,6 +114,20 @@ type Bundle = {
   seatsShortOne: string
   seatsShortOther: string
   seatsShortNone: string
+  /** landr-rmcsu.5: several selected days are short — "{days} have fewer than {need} seats left." */
+  seatsShortDays: string
+  /** landr-rmcsu.5: dates-step group-size stepper. */
+  partySizeLabel: string
+  partySizeDecreaseAria: string
+  partySizeIncreaseAria: string
+  /** landr-rmcsu.5: "12 dates fit 3 people" / none fit in the loaded window. */
+  seatFitCountOne: string
+  seatFitCountOther: string
+  seatFitNone: string
+  seatFitFewerButton: string
+  seatFitInquiryButton: string
+  /** landr-rmcsu.5: calendar legend for days with too few seats for the group. */
+  shortDayLegend: string
   holdHeldOne: string
   holdRequested: string
   holdUntilOnly: string
@@ -716,6 +730,16 @@ const en: Bundle = {
   seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
   seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
   seatsShortNone: 'No seats left on {day} — you need {need}.',
+  seatsShortDays: '{days} have fewer than {need} seats left.',
+  partySizeLabel: 'How many of you?',
+  partySizeDecreaseAria: 'One person fewer',
+  partySizeIncreaseAria: 'One person more',
+  seatFitCountOne: '1 date fits {n} people',
+  seatFitCountOther: '{count} dates fit {n} people',
+  seatFitNone: 'No dates with room for {n} people in {range}.',
+  seatFitFewerButton: 'Fewer people',
+  seatFitInquiryButton: 'Ask for a group booking',
+  shortDayLegend: 'Not enough seats for your group',
   holdUntilOnly:
     'When you booked, seats for {name} were still free. Held until {when}.',
   holdRequested:
@@ -1309,6 +1333,16 @@ const de: Bundle = {
   seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
   seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
   seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
+  seatsShortDays: 'Am {days} sind weniger als {need} Plätze frei.',
+  partySizeLabel: 'Wie viele Personen sind Sie?',
+  partySizeDecreaseAria: 'Eine Person weniger',
+  partySizeIncreaseAria: 'Eine Person mehr',
+  seatFitCountOne: 'An 1 Tag ist Platz für {n} Personen',
+  seatFitCountOther: 'An {count} Tagen ist Platz für {n} Personen',
+  seatFitNone: 'Im Zeitraum {range} gibt es keinen Tag mit Platz für {n} Personen.',
+  seatFitFewerButton: 'Weniger Personen',
+  seatFitInquiryButton: 'Gruppenbuchung anfragen',
+  shortDayLegend: 'Nicht genug Plätze für Ihre Gruppe',
   holdUntilOnly:
     'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
   holdRequested:
@@ -1934,6 +1968,48 @@ export function seatsShortMessage(
     .replace('{day}', dayLabel)
     .replace('{n}', String(left))
     .replace('{need}', String(need))
+}
+
+/**
+ * landr-rmcsu.5: name EVERY short day, not just the first — a lone "why
+ * Nov 11?" when Nov 12 and 13 are short too was the confusing part. One day
+ * keeps the exact seatsShortMessage wording (seats left + need); several
+ * become "Wed 11 Nov, Thu 12 Nov and Fri 13 Nov have fewer than 3 seats left."
+ */
+export function seatsShortDaysMessage(
+  days: readonly { label: string; left: number; need: number }[],
+  locale?: string,
+): string {
+  if (days.length === 0) return ''
+  if (days.length === 1) {
+    const d = days[0]!
+    return seatsShortMessage(d.label, d.left, d.need, locale)
+  }
+  const labels = days.map((d) => d.label)
+  let list: string
+  try {
+    list = new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(labels)
+  } catch {
+    list = labels.join(', ')
+  }
+  return pickBundle(locale)
+    .seatsShortDays.replace('{days}', list)
+    .replace('{need}', String(days[0]!.need))
+}
+
+/** landr-rmcsu.5: "12 dates fit 3 people" under the dates-step calendar. */
+export function seatFitCountLabel(count: number, need: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return plural(count, t.seatFitCountOne, t.seatFitCountOther)
+    .replace('{count}', String(count))
+    .replace('{n}', String(need))
+}
+
+/** landr-rmcsu.5: "No dates with room for 4 people in October 2026 – March 2027." */
+export function seatFitNoneMessage(need: number, range: string, locale?: string): string {
+  return pickBundle(locale)
+    .seatFitNone.replace('{n}', String(need))
+    .replace('{range}', range)
 }
 
 /** Confirmation: per-invitee hold line (landr-f987a.4). */
