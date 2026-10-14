@@ -12355,6 +12355,35 @@
         "title": "OfferDiscountOut",
         "type": "object"
       },
+      "OfferEmailPreview": {
+        "properties": {
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "subject",
+          "html"
+        ],
+        "title": "OfferEmailPreview",
+        "type": "object"
+      },
       "OfferLineItem": {
         "description": "One priced product line of the offer (landr-b48i5), same order as\n``product_lines``. Read from the persisted ``computed_price_breakdown``\nvia ``booking_line_items`` \u2014 never recomputed.\n\n``participants`` / ``per_person_price`` are set only when the line is\npriced per head (a ``per_participant_tier`` rule, or any rule whose\ndetail has ``per_participant`` true) AND ``line_total / qty /\nparticipants`` divides to whole cents; otherwise both are ``None`` and\nthe page shows the line total alone.",
         "properties": {
@@ -39506,6 +39535,63 @@
         "summary": "Preview Custom Offer",
         "tags": [
           "staff-bookings-custom-offer"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview-email": {
+      "post": {
+        "description": "Render the email ``send-offer`` would send, from the SAVED offer.\n\nSame context builder and render path as the real send, run in no-write\npreview mode (``capture_email_preview``): nothing is enqueued, no token is\nissued (the link is a placeholder) and ``offer_sent_at`` is not touched.\nRender problems propagate as a 500, like the other staff mail previews.",
+        "operationId": "preview_offer_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEmailPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Offer Email",
+        "tags": [
+          "staff-bookings-send-offer"
         ]
       }
     },
