@@ -1190,3 +1190,144 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
     expect(body).not.toHaveProperty('customer_billing')
   })
 })
+
+// landr-jiagg.2: PINNED wire contract for "I'm booking for someone else and
+// won't take part". The booker stays the customer_* (invoice recipient);
+// participants[] carries NO booker row when joins=false and DOES carry it
+// when joins=true; is_shared_double is never sent when joins=false.
+describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  afterEach(() => fetchSpy.mockRestore())
+
+  const CHILD: ParticipantDetails = {
+    id: 'pm-child',
+    first_name: 'Max',
+    last_name: 'Lovelace',
+    email: '',
+    phone: '',
+    service_role_code: 'participant',
+  }
+  const FRIEND: ParticipantDetails = {
+    id: 'pm-friend',
+    first_name: 'Grace',
+    last_name: 'Hopper',
+    email: '',
+    phone: '+34 600 999 888',
+    service_role_code: 'participant',
+  }
+
+  async function submit(
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    extra: { isSharedDouble?: boolean; pickupLocationId?: string | null } = {},
+  ) {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={booker}
+        participants={participants}
+        pickupLocationId={extra.pickupLocationId ?? null}
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble={extra.isSharedDouble}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    return JSON.parse(String(init.body)) as Record<string, unknown>
+  }
+
+  it('joins=false: participants[] is the roster only; the booker stays the customer', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD, FRIEND])
+    expect(body.customer_first_name).toBe('Ada')
+    expect(body.customer_email).toBe('ada@example.com')
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants.map((p) => p.first_name)).toEqual(['Max', 'Grace'])
+    expect(participants.some((p) => p.first_name === 'Ada')).toBe(false)
+  })
+
+  it('joins=false: Participant 1 blank email/phone are filled from the booker; rows 2..N untouched', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD, FRIEND])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants[0]).toMatchObject({
+      first_name: 'Max',
+      email: 'ada@example.com',
+      phone: '+34 600 111 222',
+    })
+    expect(participants[1]).toMatchObject({
+      first_name: 'Grace',
+      email: null,
+      phone: '+34 600 999 888',
+    })
+  })
+
+  it('joins=false: never sends is_shared_double, even if a stale draft says shared double', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD], {
+      isSharedDouble: true,
+      pickupLocationId: 'hotel-a',
+    })
+    expect(body).not.toHaveProperty('is_shared_double')
+  })
+
+  it('joins=true: participants[0] is the booker row and is_shared_double is sent', async () => {
+    const body = await submit({ ...BOOKER, joins: true }, [
+      { ...BOOKER, id: 'booker', service_role_code: 'participant' },
+      FRIEND,
+    ])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants.map((p) => p.first_name)).toEqual(['Ada', 'Grace'])
+    expect(body.is_shared_double).toBe(false)
+  })
+
+  it('a legacy booker without the flag is treated as joining (key sent)', async () => {
+    const body = await submit(BOOKER, PARTICIPANTS)
+    expect(body.is_shared_double).toBe(false)
+    expect((body.participants as unknown[]).length).toBe(2)
+  })
+
+  it('maps a shared_double_requires_booker 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: { error: 'shared_double_requires_booker', message: 'raw server text' },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={PARTICIPANTS}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/only pick it when you take part yourself/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+})

@@ -301,6 +301,14 @@ interface Props {
    */
   inviteMode?: boolean
   /**
+   * landr-jiagg.2 — false when the booker books for someone else and does not
+   * take part. The shared double covers the BOOKER'S own bed, so without the
+   * booker in the party there is nothing to share: the option is not offered
+   * (and a restored 'shared-double' falls back to 'package'). Default true.
+   * Never false together with inviteMode (the invite flow hides the toggle).
+   */
+  allowSharedDouble?: boolean
+  /**
    * landr-otml0.3 — fires whenever the confirmed shared-double reference
    * changes: the 8-char code once the customer picks "Yes, link us" on the
    * masked-lookup confirm, or `null` when they clear it / pick "No" / switch
@@ -367,6 +375,7 @@ export function AccommodationStep({
   initialAgeMap,
   initialBreakfastMap,
   inviteMode = false,
+  allowSharedDouble = true,
   onJoinRefChange,
 }: Props) {
   const locale = browserLocale()
@@ -392,6 +401,8 @@ export function AccommodationStep({
     // landr-zeg4u.4: an invitee is sharing the host's double by definition.
     if (inviteMode) return 'shared-double'
     if (initialMode) {
+      // landr-jiagg.2: no shared double without the booker in the party.
+      if (initialMode === 'shared-double' && !allowSharedDouble) return 'package'
       // Guard: a stale 'guiding-only' on a mandatory product is invalid.
       if (initialMode === 'guiding-only' && isMandatory) return 'package'
       return initialMode
@@ -1678,7 +1689,8 @@ export function AccommodationStep({
               label: tr('bookAccommodationPackageLabel', locale),
               hint: tr('bookAccommodationPackageHint', locale),
             },
-            sharedDoubleOption,
+            // landr-jiagg.2: only when the booker takes part.
+            ...(allowSharedDouble ? [sharedDoubleOption] : []),
           ]),
     ]
 

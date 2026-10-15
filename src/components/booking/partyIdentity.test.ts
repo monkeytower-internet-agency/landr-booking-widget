@@ -280,3 +280,38 @@ describe('roster mutations must not move anyone (landr-uwvl)', () => {
     expect(topped[2]).toEqual({ roomProductId: 'room-single', unitIndex: 0 })
   })
 })
+
+// landr-jiagg.2: a booker who books for someone else is NOT in the party.
+// DetailsStep then emits participants[] = the roster only (no
+// bookerToParticipant row), so App.tsx's seams — which always resolve against
+// buildPartyRoster(step.participants, step.companions) — never see
+// BOOKER_MEMBER_ID, and a room the booker held before ticking the toggle is
+// dropped exactly like any member who left the party.
+describe('booker not taking part — seams drop BOOKER_MEMBER_ID (landr-jiagg.2)', () => {
+  const max: ParticipantDetails = { ...emptyParticipant('participant'), first_name: 'Max' }
+  const grace: ParticipantDetails = { ...emptyParticipant('participant'), first_name: 'Grace' }
+  const partner: CompanionDetails = { ...emptyCompanion(), first_name: 'Pat' }
+
+  it('the roster built from a joins=false participant list has no booker id', () => {
+    const roster = buildPartyRoster([max, grace], [partner])
+    expect(roster).toEqual([max.id, grace.id, partner.id])
+    expect(roster).not.toContain(BOOKER_MEMBER_ID)
+  })
+
+  it('identity → index drops the booker\'s old room; everyone else keeps theirs', () => {
+    // Draft written while the booker still joined: booker + Max + Pat.
+    const before = buildPartyRoster(
+      [bookerToParticipant(emptyBooker(), 'participant'), max],
+      [partner],
+    )
+    const draftMap = toIdentityKeyed({ 0: SINGLE_0, 1: DOUBLE_0, 2: DOUBLE_1 }, before)
+    expect(draftMap[BOOKER_MEMBER_ID]).toEqual(SINGLE_0)
+
+    // Booker ticks "booking for someone else": the party is Max + Pat.
+    const after = buildPartyRoster([max], [partner])
+    const indexed = toIndexKeyed(draftMap, after)
+    expect(indexed).toEqual({ 0: DOUBLE_0, 1: DOUBLE_1 })
+    // And back to identity: nothing ever lands on the booker sentinel.
+    expect(Object.keys(toIdentityKeyed(indexed, after))).not.toContain(BOOKER_MEMBER_ID)
+  })
+})

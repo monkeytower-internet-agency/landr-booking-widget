@@ -2954,4 +2954,58 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       screen.queryByTestId('shared-double-too-late-others'),
     ).not.toBeInTheDocument()
   })
+
+  // ── landr-jiagg.2: booker books for someone else ───────────────────
+  // The shared double covers the BOOKER'S own bed — without the booker in
+  // the party it is not offered, and a restored shared-double falls back.
+
+  it('allowSharedDouble=false hides the shared-double mode', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        allowSharedDouble={false}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('accommodation-mode-package')).toBeInTheDocument()
+    expect(screen.getByTestId('accommodation-mode-guiding-only')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('accommodation-mode-shared-double'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('allowSharedDouble=false turns a restored shared-double mode into package', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        allowSharedDouble={false}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    const packageRadio = screen
+      .getByTestId('accommodation-mode-package')
+      .querySelector('input[type="radio"]') as HTMLInputElement
+    expect(packageRadio.checked).toBe(true)
+  })
 })

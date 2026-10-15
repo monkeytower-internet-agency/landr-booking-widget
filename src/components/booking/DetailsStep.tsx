@@ -18,6 +18,7 @@ import {
   maxCompanionsReachedMessage,
   otherParticipantsHeading,
   participantOrdinalLabel,
+  participantsTotalHeading,
   removeCompanionAriaLabel,
   removeParticipantAriaLabel,
   tr,
@@ -35,8 +36,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import {
+  bookerJoins,
   bookerToParticipant,
   detailsAreComplete,
+  invoiceToLines,
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
@@ -143,6 +146,14 @@ interface Props {
    * mailto: link — safe degrade.
    */
   operatorToken?: string
+  /**
+   * landr-jiagg.2: true when this booking joins a host's group through an
+   * invite link (`?invite=<token>`). The invitee takes the seat themselves,
+   * so the "I'm booking for someone else" toggle is hidden and the booker
+   * always joins. (Joining by shared-double REFERENCE happens later, in the
+   * accommodation step, and is only offered when the booker joins.)
+   */
+  inviteMode?: boolean
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -308,6 +319,7 @@ export function DetailsStep({
   onMemberPerkOtpChange,
   operatorCountry,
   prefillParticipantCount,
+  inviteMode = false,
 }: Props) {
   const locale = browserLocale()
   // landr-uuntm.3: staff-entered bookings (operator dashboard, phone walk-ins)
@@ -325,6 +337,15 @@ export function DetailsStep({
   const [booker, setBooker] = useState<BookerDetails>(
     () => (initialBooker ? withBilling(initialBooker) : emptyBooker()),
   )
+  // landr-jiagg.2: "I'm booking for someone else and won't take part". The
+  // invite flow never offers it (the invitee takes the seat themselves), and a
+  // draft from an older bundle has no flag → joins (bookerJoins).
+  // The flag lives on the booker state itself (booker.joins) so it rides the
+  // draft + sessionStorage with the rest of the booker.
+  const joinsOnMount = inviteMode || bookerJoins(initialBooker)
+  const joins = inviteMode || bookerJoins(booker)
+  // The booker's seat in the party: 1 when they take part, 0 when not.
+  const bookerSeat = joins ? 1 : 0
   // landr-uuntm.3: "Invoice to a company?" — open when company/tax id are
   // already filled (Back-restore) so stored data is never hidden.
   const [invoiceToCompany, setInvoiceToCompany] = useState<boolean>(
@@ -342,9 +363,12 @@ export function DetailsStep({
   // — but we need an independent state slot for THEIR role code since the
   // booker type itself carries no role. Seeded from initialParticipants[0]
   // when restoring after Back, else the operator's default.
+  // landr-jiagg.2: when the booker was not joining, participants[0] is the
+  // first roster row, not the booker — its role is its own, not theirs.
   const [bookerRoleCode, setBookerRoleCode] = useState<string>(
     () =>
-      initialParticipants?.[0]?.service_role_code ?? defaultRoleCode,
+      (joinsOnMount ? initialParticipants?.[0]?.service_role_code : undefined) ??
+      defaultRoleCode,
   )
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
@@ -353,12 +377,26 @@ export function DetailsStep({
   // effectively more participants, so when a product cap is set additional +
   // companions together stay within max_party_size - 1.
   const maxOthers = additionalCapRaw(product.max_party_size)
-  // Additional participants only (booker is participants[0], synced
-  // automatically). When the customer comes back to this step we
-  // restore the additional slots from initialParticipants[1..].
+  // landr-jiagg.2: the caps count the ROSTER (every row below the booker
+  // block). A booker who does not take part frees their seat, so the roster
+  // may hold one more row: the product cap counts people taking part, never
+  // 1 + additional.
+  const rowCapFor = (j: boolean) => maxAdditional + (j ? 0 : 1)
+  const othersCapFor = (j: boolean) => maxOthers + (j ? 0 : 1)
+  const rowCap = rowCapFor(joins)
+  const othersCap = othersCapFor(joins)
+  // The roster: every participant row BELOW the booker block. When the booker
+  // takes part they are participants[0] (mirrored, never a row here) and these
+  // are participants 2..N; when they book for someone else these rows ARE
+  // participants 1..N ("Participant 1" is the first row). Toggling the flag
+  // never moves a row, so per-row touched keys and member ids stay put.
+  // When the customer comes back to this step we restore the rows from
+  // initialParticipants[1..] (or [0..] when the booker was not joining).
   const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
     let rows: ParticipantDetails[] = []
-    if (initialParticipants && initialParticipants.length > 1) {
+    if (!joinsOnMount && initialParticipants && initialParticipants.length > 0) {
+      rows = initialParticipants.slice(0, rowCapFor(false)).map(withMemberId)
+    } else if (joinsOnMount && initialParticipants && initialParticipants.length > 1) {
       // landr-uwvl: every row this step emits must carry a stable id — it is
       // what the draft's room-assignment / age / breakfast maps are keyed by.
       // Rows restored from the draft already have one; this backfills the only
@@ -368,14 +406,21 @@ export function DetailsStep({
       rows = initialParticipants.slice(1, 1 + maxAdditional).map(withMemberId)
     }
     // landr-rmcsu.5: top up to the dates-step group size with empty rows.
+    const seat = joinsOnMount ? 1 : 0
     const want = Math.min(
-      (prefillParticipantCount ?? 1) - 1,
-      maxAdditional,
-      maxOthers - (initialCompanions?.length ?? 0),
+      (prefillParticipantCount ?? 1) - seat,
+      rowCapFor(joinsOnMount),
+      othersCapFor(joinsOnMount) - (initialCompanions?.length ?? 0),
     )
     while (rows.length < want) rows.push(emptyParticipant(defaultRoleCode))
+    // landr-jiagg.2: a booker who is not joining always has "Participant 1".
+    if (!joinsOnMount && rows.length === 0) rows.push(emptyParticipant(defaultRoleCode))
     return rows
   })
+  // landr-jiagg.2: the empty "Participant 1" row minted by ticking the toggle
+  // (only when the roster was empty) — dropped again on untick while still
+  // blank, so a tick-untick round trip leaves no empty required row behind.
+  const autoFirstRowIdRef = useRef<string | null>(null)
   // landr-87n9.3: non-guiding companions ("Others joining the activity").
   // Restored from initialCompanions on Back-restore, else empty.
   // landr-lu41h: no-accommodation products have no room to share — every
@@ -491,21 +536,27 @@ export function DetailsStep({
     prevBooker.current = booker
   }, [booker])
 
-  const totalCount = 1 + additional.length
+  // landr-jiagg.2: headcount = the people taking part — the roster, plus the
+  // booker only when they join.
+  const totalCount = bookerSeat + additional.length
 
   // landr-gb2f.1: fire the live-update callback with the latest derived
   // count + names. Called from event handlers (not effects) so App.tsx can
   // set its own liveParticipant* state without triggering the
   // react-hooks/set-state-in-effect rule.
+  // landr-jiagg.2: `nextJoins` because the toggle handler notifies in the same
+  // tick it flips the flag; a booker who is not joining is neither counted nor
+  // named — the sidebar shows the roster.
   const notifyLive = (
     nextBooker: BookerDetails,
     nextAdditional: ParticipantDetails[],
     nextCompanions: CompanionDetails[],
+    nextJoins: boolean = joins,
   ) => {
     if (!onLiveParticipantsChange) return
-    const count = 1 + nextAdditional.length
+    const count = (nextJoins ? 1 : 0) + nextAdditional.length
     const names = [
-      nextBooker.first_name.trim(),
+      ...(nextJoins ? [nextBooker.first_name.trim()] : []),
       ...nextAdditional.map((p) => p.first_name.trim()),
     ].filter((n) => n.length > 0)
     onLiveParticipantsChange(count, names, nextCompanions.length)
@@ -516,7 +567,13 @@ export function DetailsStep({
   // mount, or its live price would keep counting only the restored rows.
   const prefilledOnMount = useRef(
     additional.length >
-      Math.max(0, Math.min((initialParticipants?.length ?? 0) - 1, maxAdditional)),
+      Math.max(
+        0,
+        Math.min(
+          (initialParticipants?.length ?? 0) - (joinsOnMount ? 1 : 0),
+          rowCapFor(joinsOnMount),
+        ),
+      ),
   )
   useEffect(() => {
     if (prefilledOnMount.current) notifyLive(booker, additional, companions)
@@ -540,8 +597,8 @@ export function DetailsStep({
   // plain value, and only THEN calling notifyLive — after DetailsStep's own
   // render has finished, from the event handler, same as before.
   const addParticipant = () => {
-    if (additional.length >= maxAdditional) return
-    if (additional.length + companions.length >= maxOthers) return
+    if (additional.length >= rowCap) return
+    if (additional.length + companions.length >= othersCap) return
     const next = [...additional, emptyParticipant(defaultRoleCode)]
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -552,6 +609,9 @@ export function DetailsStep({
   // index preserves the entered data of all the OTHER rows (landr-nmed).
   const removeParticipant = (idx: number) => {
     if (idx < 0 || idx >= additional.length) return
+    // landr-jiagg.2: "Participant 1" cannot be removed when the booker does
+    // not take part — somebody has to.
+    if (!joins && additional.length <= 1) return
     const next = additional.slice(0, idx).concat(additional.slice(idx + 1))
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -560,7 +620,7 @@ export function DetailsStep({
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
     if (companions.length >= MAX_COMPANIONS) return
-    if (additional.length + companions.length >= maxOthers) return
+    if (additional.length + companions.length >= othersCap) return
     const next = [
       ...companions,
       emptyCompanion(noAccommodation ? 'separate_guiding' : 'guest'),
@@ -603,6 +663,51 @@ export function DetailsStep({
       ...prev,
       billing: { ...prev.billing, [key]: value },
     }))
+  }
+
+  // landr-jiagg.2: tick = the booker books for someone else. The roster keeps
+  // every typed row; when it is empty an empty "Participant 1" appears (seeded
+  // with the booker's role, which is the operator default unless they picked
+  // one). Untick = the booker is participant 1 again (mirrored, read-only) and
+  // the typed rows become participants 2..N. The auto-minted row goes away if
+  // it is still blank, and rows beyond the product cap (the booker takes a
+  // seat back) are trimmed from the end, blank ones first.
+  const toggleBookingForSomeoneElse = (notJoining: boolean) => {
+    if (inviteMode) return
+    let next = additional
+    if (notJoining) {
+      if (next.length === 0) {
+        const row = emptyParticipant(bookerRoleCode || defaultRoleCode)
+        autoFirstRowIdRef.current = row.id ?? null
+        next = [row]
+      }
+    } else {
+      const first = next[0]
+      if (first && first.id && first.id === autoFirstRowIdRef.current && isBlankRow(first)) {
+        next = next.slice(1)
+      }
+      autoFirstRowIdRef.current = null
+      const cap = Math.max(
+        0,
+        Math.min(rowCapFor(true), othersCapFor(true) - companions.length),
+      )
+      if (next.length > cap) {
+        const blanks = next.filter(isBlankRow).length
+        let dropBlanks = Math.min(blanks, next.length - cap)
+        next = next.filter((row) => {
+          if (dropBlanks > 0 && isBlankRow(row)) {
+            dropBlanks -= 1
+            return false
+          }
+          return true
+        })
+        next = next.slice(0, cap)
+      }
+    }
+    const nextBooker = { ...booker, joins: !notJoining }
+    setBooker(nextBooker)
+    if (next !== additional) setAdditional(next)
+    notifyLive(nextBooker, next, companions, !notJoining)
   }
 
   const toggleInvoiceToCompany = (on: boolean) => {
@@ -987,12 +1092,15 @@ export function DetailsStep({
     }
   }
 
-  const participantsForValidation: ParticipantDetails[] = [
-    bookerToParticipant(booker, bookerRoleCode),
-    ...additional,
-  ]
+  // landr-jiagg.2: the booker is mirrored into participants[0] only when they
+  // take part; otherwise the roster alone is the participant list (no booker
+  // row, so BOOKER_MEMBER_ID is absent from the party downstream).
+  const bookerForSubmit: BookerDetails = { ...booker, joins }
+  const participantsForValidation: ParticipantDetails[] = joins
+    ? [bookerToParticipant(booker, bookerRoleCode), ...additional]
+    : additional
   const canContinue = detailsAreComplete(
-    booker,
+    bookerForSubmit,
     participantsForValidation,
     companions,
     requireBilling,
@@ -1024,7 +1132,7 @@ export function DetailsStep({
       return
     }
     onConfirm(
-      booker,
+      bookerForSubmit,
       participantsForValidation,
       noAccommodation
         ? companions.map((c) => ({ ...c, companion_kind: 'separate_guiding' as const }))
@@ -1035,8 +1143,14 @@ export function DetailsStep({
 
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
   // "Maximum …" warnings for each section.
-  const participantsAtMax = additional.length >= maxAdditional
-  const othersFull = additional.length + companions.length >= maxOthers
+  const participantsAtMax = additional.length >= rowCap
+  const othersFull = additional.length + companions.length >= othersCap
+  // landr-jiagg.2: how many more rows the hint/notice talk about — beyond the
+  // booker (joining) or beyond "Participant 1" (not joining).
+  const moreAllowed = joins ? maxAdditional : rowCap - 1
+  // landr-jiagg.2 + landr-jiagg.5: "Invoice to:" — first two lines of the
+  // billing address block (company, then the booker as contact person).
+  const invoiceTo = invoiceToLines(booker, invoiceToCompany)
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
   // landr-amg6: at the participant max we no longer render the inquiry form
@@ -1128,9 +1242,25 @@ export function DetailsStep({
           )}>
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
-          <p className="text-xs text-muted-foreground">
-            {tr('youWillBeListedAsParticipant1', locale)}
+          <p className="text-xs text-muted-foreground" data-testid="booker-participant-helper">
+            {tr(joins ? 'youWillBeListedAsParticipant1' : 'addPeopleJoiningBelow', locale)}
           </p>
+          {/* landr-jiagg.2: the booker pays but does not take part (a parent
+              booking for a child, a friend for a friend). Hidden in the invite
+              flow — an invitee takes the seat themselves. */}
+          {!inviteMode ? (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="booker-not-joining-toggle"
+                checked={!joins}
+                onCheckedChange={(v) => toggleBookingForSomeoneElse(v === true)}
+                data-testid="booker-not-joining-toggle"
+              />
+              <Label htmlFor="booker-not-joining-toggle" className="text-sm font-normal">
+                {tr('bookingForSomeoneElseLabel', locale)}
+              </Label>
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr('firstNameLabel', locale)} htmlFor="booker-first" error={bookerFirstV.error}>
               <Input
@@ -1195,7 +1325,8 @@ export function DetailsStep({
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
                 operator only has the single default role. */}
-            {showRoleDropdown ? (
+            {/* landr-jiagg.2: a booker who does not take part has no role. */}
+            {showRoleDropdown && joins ? (
               <Field label={tr('roleLabel', locale)} htmlFor="booker-role">
                 <RoleSelect
                   id="booker-role"
@@ -1227,6 +1358,32 @@ export function DetailsStep({
               <p className="text-xs text-muted-foreground">
                 {tr('billingAddressHelper', locale)}
               </p>
+            </div>
+            {/* landr-jiagg.2: who the invoice goes to, live, once the booker
+                has a name — so the payer is obvious right at the address even
+                when they are not taking part. Company invoices read company,
+                then the booker as contact person (landr-jiagg.5 block rule).
+                The live region stays mounted so updates are announced. */}
+            <div aria-live="polite" data-testid="invoice-to-region">
+              {invoiceTo.length > 0 ? (
+                <div
+                  className="rounded-md border bg-surface-well px-3 py-2 text-sm shadow-well"
+                  data-testid="invoice-to"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    {tr('invoiceToLabel', locale)}
+                  </span>
+                  {invoiceTo.map((line, i) => (
+                    <span
+                      key={i}
+                      className={`block ${i === 0 ? 'font-medium' : ''}`}
+                      data-testid={`invoice-to-line-${i}`}
+                    >
+                      {line}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-6">
               <div className="sm:col-span-6">
@@ -1396,21 +1553,30 @@ export function DetailsStep({
         {/* Additional participants — same stepper pattern as the legacy
             ParticipantsStep (landr-mbge) but now growing/shrinking a
             list of full participant rows instead of a single counter. */}
-        {maxAdditional > 0 ? (
+        {rowCap > 0 ? (
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
-            {otherParticipantsHeading(totalCount, locale)}
+            {joins
+              ? otherParticipantsHeading(totalCount, locale)
+              : participantsTotalHeading(totalCount, locale)}
           </legend>
           {noAccommodation ? (
             <p className="text-xs text-muted-foreground">
               {tr('participantsYouPayForHint', locale)}
             </p>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            {addAnyoneElseUpTo(maxAdditional, locale)}
-          </p>
+          {moreAllowed > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {addAnyoneElseUpTo(moreAllowed, locale)}
+            </p>
+          ) : null}
 
           {additional.map((row, idx) => {
+            // landr-jiagg.2: the row's participant number — after the booker
+            // (participant 1) when they join, from 1 when they do not.
+            const n = idx + 1 + bookerSeat
+            const isFirstOfRoster = !joins && idx === 0
+            const canRemove = joins || additional.length > 1
             // landr-opi3: first + last + phone are required for every added
             // participant (landr-nkbi); email stays optional.
             const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
@@ -1428,32 +1594,34 @@ export function DetailsStep({
             <div
               key={`participant-${idx}`}
               className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
-              data-testid={`participant-row-${idx + 2}`}
+              data-testid={`participant-row-${n}`}
             >
               {/* landr-4uyu: per-card header row carries a remove (×) control so
                   a specific participant row can be removed (replacing the old
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {participantOrdinalLabel(idx + 2, locale)}
+                  {participantOrdinalLabel(n, locale)}
                 </span>
+                {canRemove ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-                  aria-label={removeParticipantAriaLabel(idx + 2, locale)}
-                  data-testid={`remove-participant-${idx + 2}`}
+                  aria-label={removeParticipantAriaLabel(n, locale)}
+                  data-testid={`remove-participant-${n}`}
                   onClick={() => removeParticipant(idx)}
                 >
                   ×
                 </Button>
+                ) : null}
               </div>
               <Field label={tr('firstNameLabel', locale)} htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
-                  name={`participant_${idx + 2}_first_name`}
-                  autoComplete={`section-participant-${idx + 2} given-name`}
+                  name={`participant_${n}_first_name`}
+                  autoComplete={`section-participant-${n} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
@@ -1464,8 +1632,8 @@ export function DetailsStep({
               <Field label={tr('lastNameLabel', locale)} htmlFor={`p-${idx}-last`} error={pLastV.error}>
                 <Input
                   id={`p-${idx}-last`}
-                  name={`participant_${idx + 2}_last_name`}
-                  autoComplete={`section-participant-${idx + 2} family-name`}
+                  name={`participant_${n}_last_name`}
+                  autoComplete={`section-participant-${n} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
@@ -1488,9 +1656,12 @@ export function DetailsStep({
               >
                 <Input
                   id={`p-${idx}-email`}
-                  name={`participant_${idx + 2}_email`}
+                  name={`participant_${n}_email`}
                   type="email"
-                  autoComplete={`section-participant-${idx + 2} email`}
+                  autoComplete={`section-participant-${n} email`}
+                  // landr-jiagg.2: left blank, "Participant 1" gets the
+                  // booker's email on submit (participantsForSubmit).
+                  placeholder={isFirstOfRoster ? tr('sameAsYoursPlaceholder', locale) : undefined}
                   value={row.email}
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
@@ -1514,9 +1685,9 @@ export function DetailsStep({
               >
                 <Input
                   id={`p-${idx}-phone`}
-                  name={`participant_${idx + 2}_phone`}
+                  name={`participant_${n}_phone`}
                   type="tel"
-                  autoComplete={`section-participant-${idx + 2} tel`}
+                  autoComplete={`section-participant-${n} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
@@ -1538,13 +1709,13 @@ export function DetailsStep({
                 <Field label={tr('roleLabel', locale)} htmlFor={`p-${idx}-role`}>
                   <RoleSelect
                     id={`p-${idx}-role`}
-                    name={`participant_${idx + 2}_role`}
+                    name={`participant_${n}_role`}
                     value={row.service_role_code || defaultRoleCode}
                     serviceRoles={serviceRoles}
                     onChange={(value) =>
                       updateParticipant(idx, 'service_role_code', value)
                     }
-                    testId={`participant-role-select-${idx + 2}`}
+                    testId={`participant-role-select-${n}`}
                   />
                 </Field>
               ) : null}
@@ -1570,7 +1741,7 @@ export function DetailsStep({
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))}
+                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(moreAllowed))}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1961,6 +2132,16 @@ export function DetailsStep({
         </NextAction>
       </CardContent>
     </Card>
+  )
+}
+
+/** landr-jiagg.2: a roster row the customer has not typed anything into. */
+function isBlankRow(row: ParticipantDetails): boolean {
+  return (
+    !row.first_name.trim() &&
+    !row.last_name.trim() &&
+    !row.email.trim() &&
+    !row.phone.trim()
   )
 }
 

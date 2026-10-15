@@ -51,6 +51,21 @@ export interface BookerDetails {
   email: string
   phone: string
   billing: BillingDetails
+  /**
+   * landr-jiagg.2: does the booker take part themselves? `false` = "I'm
+   * booking for someone else and won't take part" — the booker pays (they
+   * stay the invoice recipient, customer_* on the wire) but is NOT mirrored
+   * into participants[] and has no seat in the party (no bed, no occupant,
+   * no breakfast chip). Optional so every hand-rolled literal and every draft
+   * persisted by an older bundle keeps meaning what it meant: ABSENT = true.
+   * Always read it through `bookerJoins`, never as a bare truthiness check.
+   */
+  joins?: boolean
+}
+
+/** landr-jiagg.2: true unless the booker explicitly opted out of taking part. */
+export function bookerJoins(b: Pick<BookerDetails, 'joins'> | undefined): boolean {
+  return b?.joins !== false
 }
 
 export interface ParticipantDetails {
@@ -164,7 +179,14 @@ export function emptyBilling(): BillingDetails {
 }
 
 export function emptyBooker(): BookerDetails {
-  return { first_name: '', last_name: '', email: '', phone: '', billing: emptyBilling() }
+  return {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    billing: emptyBilling(),
+    joins: true,
+  }
 }
 
 /** The four billing fields the API requires for the public website channel. */
@@ -294,6 +316,11 @@ export function bookerToParticipant(
  * NOTE: `participants` here is the FULL list including the booker at [0].
  * The booker's phone is validated via the booker fields above, so we skip
  * index 0 and validate indices 1..N (the "additional" rows).
+ *
+ * landr-jiagg.2: unless the booker does not take part (`booker.joins ===
+ * false`) — then there is no booker row, participants[0] is "Participant 1"
+ * and is held to first + last + phone like the rest; the list must be
+ * non-empty.
  */
 export function detailsAreComplete(
   booker: BookerDetails,
@@ -301,6 +328,11 @@ export function detailsAreComplete(
   companions: CompanionDetails[] = [],
   requireBilling: boolean = true,
 ): boolean {
+  // landr-jiagg.2: when the booker does not take part, participants[0] is NOT
+  // the booker but the first roster row ("Participant 1") — it carries its own
+  // phone and is validated like every other added participant. It must exist.
+  const firstRowIsBooker = bookerJoins(booker)
+  if (!firstRowIsBooker && participants.length === 0) return false
   if (!booker.first_name.trim() || !booker.last_name.trim()) return false
   // landr-uuntm.3: the invoice recipient's address (staff-entered bookings opt out).
   if (requireBilling && !billingAddressComplete(booker.billing)) return false
@@ -317,10 +349,11 @@ export function detailsAreComplete(
     if (!p.first_name.trim() || !p.last_name.trim()) return false
     // landr-nkbi: every participant (other than the booker who is validated
     // separately above) must supply a non-empty phone number.
-    if (i > 0 && !p.phone.trim()) return false
+    const isBookerRow = i === 0 && firstRowIsBooker
+    if (!isBookerRow && !p.phone.trim()) return false
     // landr-1url: when a participant phone is present it must also look
-    // internationally-formatted. i===0 is the booker, already checked above.
-    if (i > 0 && !isValidPhoneFormat(p.phone)) return false
+    // internationally-formatted. The booker row is already checked above.
+    if (!isBookerRow && !isValidPhoneFormat(p.phone)) return false
   }
   // landr-rxjo: each companion needs both first and last name; phone optional.
   // landr-1url: companion phone stays optional but if filled must also look
@@ -342,4 +375,50 @@ export function detailsAreComplete(
     }
   }
   return true
+}
+
+/**
+ * landr-jiagg.2: the participants[] the submit sends. When the booker takes
+ * part this is the list unchanged (participants[0] already mirrors them).
+ * When they book for someone else, "Participant 1" may leave email/phone
+ * blank (placeholder "same as yours") — fill those blanks from the booker so
+ * the joining person is reachable through the payer, the same way a family's
+ * children share the parent's contact (landr-0utgk copy, landr-pmbfk server
+ * side: a shared email with a different name resolves to its own contact).
+ * Only row 1 is filled; rows 2..N keep their optional blanks exactly as when
+ * the booker joins. Returns new objects — the draft keeps the blanks so a
+ * Back-restore shows what the customer actually typed.
+ */
+export function participantsForSubmit(
+  booker: BookerDetails,
+  participants: ParticipantDetails[],
+): ParticipantDetails[] {
+  if (bookerJoins(booker) || participants.length === 0) return participants
+  const [first, ...rest] = participants
+  return [
+    {
+      ...first!,
+      email: first!.email.trim() ? first!.email : booker.email,
+      phone: first!.phone.trim() ? first!.phone : booker.phone,
+    },
+    ...rest,
+  ]
+}
+
+/**
+ * landr-jiagg.2 (+ landr-jiagg.5 block rule): the read-only "Invoice to:" cue
+ * in the billing block — the first two lines of the billing address block
+ * (company / person / street / postal city / COUNTRY). The company line only
+ * when the "Invoice to a company?" toggle is on and the company is non-blank;
+ * then the booker follows as the contact person. Empty when the booker has no
+ * name yet (the cue is not rendered).
+ */
+export function invoiceToLines(
+  booker: Pick<BookerDetails, 'first_name' | 'last_name' | 'billing'>,
+  invoiceToCompany: boolean,
+): string[] {
+  const person = `${booker.first_name.trim()} ${booker.last_name.trim()}`.trim()
+  if (!person) return []
+  const company = invoiceToCompany ? (booker.billing?.company ?? '').trim() : ''
+  return company ? [company, person] : [person]
 }

@@ -202,3 +202,85 @@ describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
     expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
   })
 })
+
+// landr-jiagg.2: "booking for someone else" — every new label in German.
+describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  it('DetailsStep: toggle, helper, Participant 1 placeholder and "Rechnung an:" in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+      }),
+    )
+    expect(
+      screen.getByText('Tragen Sie unten die Personen ein, die teilnehmen.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Teilnehmer \(1 insgesamt\)/)).toBeInTheDocument()
+    expect(
+      document.querySelector<HTMLInputElement>('[name="participant_1_email"]')!.placeholder,
+    ).toBe('wie Ihre')
+
+    fireEvent.change(document.querySelector('[name="booker_first_name"]')!, {
+      target: { value: 'Olaf' },
+    })
+    fireEvent.change(document.querySelector('[name="booker_last_name"]')!, {
+      target: { value: 'Klein' },
+    })
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Rechnung an:')
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Olaf Klein')
+    // English strings must not leak through.
+    expect(screen.queryByText("I'm booking for someone else and won't take part")).not.toBeInTheDocument()
+    expect(screen.queryByText('Invoice to:')).not.toBeInTheDocument()
+  })
+
+  it('BookingForm review: "Nimmt nicht teil · zahlt die Rechnung" in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: false }}
+        participants={[
+          {
+            id: 'pm-max',
+            first_name: 'Max',
+            last_name: 'Lovelace',
+            email: '',
+            phone: '+34 600 999 888',
+            service_role_code: 'participant',
+          },
+        ]}
+        companions={[]}
+        participantLanguages={{}}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        addons={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('review-booker-not-joining')).toHaveTextContent(
+      'Nimmt nicht teil · zahlt die Rechnung',
+    )
+  })
+})

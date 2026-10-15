@@ -248,6 +248,23 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     )
   })
 
+  // landr-jiagg.2: a booker who booked for someone else is not a participant —
+  // the line lists only the people taking part (straight from summary, which
+  // the API builds from booking_participants), never the booker's name.
+  it('lists only the participants when the booker did not take part', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        participant_count: 1,
+        participants: [{ name: 'Max Lovelace' }],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const line = screen.getByTestId('confirmation-participants')
+    expect(line).toHaveTextContent('1 participant')
+    expect(line).toHaveTextContent('Max Lovelace')
+    expect(line).not.toHaveTextContent('Ada')
+  })
+
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)

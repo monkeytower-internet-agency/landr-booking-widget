@@ -27,6 +27,7 @@ import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
 import {
+  bookerJoins,
   emptyBilling,
   type BookerDetails,
   type CompanionDetails,
@@ -2418,6 +2419,9 @@ function BookingFlowApp() {
             operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
+            // landr-jiagg.2: an invitee takes the seat themselves — no
+            // "I'm booking for someone else" toggle in the invite flow.
+            inviteMode={!!inviteData}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-rmcsu.5: pre-create the participant rows the dates-step
@@ -2513,6 +2517,11 @@ function BookingFlowApp() {
             // invite-linked customer is already joined via the token.
             inviteMode={!!inviteData}
             onJoinRefChange={setJoinRef}
+            // landr-jiagg.2: the shared double is the booker's own bed — not
+            // offered when the booker books for someone else. The party below
+            // (step.participants) then carries no booker row at all, so
+            // BOOKER_MEMBER_ID never reaches the room/age/breakfast seams.
+            allowSharedDouble={bookerJoins(step.booker)}
             // landr-sjrd: progressive name disambiguation — build the whole
             // party (participants first, companions after; mirrors the room
             // assignment index space) and split disambiguated labels back at
