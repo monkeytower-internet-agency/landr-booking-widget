@@ -50,13 +50,50 @@ describe('geoCountry', () => {
     }))
     expect(await geoCountry('https://widget.test')).toBeNull()
   })
-  it('gives up after the 1500 ms timeout', async () => {
+  it('gives up after the 1500 ms timeout and the chain falls through', async () => {
     expect(GEO_TIMEOUT_MS).toBe(1500)
-    const spy = vi.spyOn(AbortSignal, 'timeout')
-    stubFetch(ok({ country: 'DE' }))
-    await geoCountry('https://widget.test')
-    expect(spy).toHaveBeenCalledWith(1500)
-    spy.mockRestore()
+    vi.useFakeTimers()
+    // A fetch that never answers on its own - only the abort signal ends it,
+    // exactly like a hung edge call.
+    const f = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal!.addEventListener('abort', () =>
+            reject(init.signal!.reason ?? new Error('aborted')),
+          )
+        }),
+    )
+    vi.stubGlobal('fetch', f)
+    stubNav(['en'])
+
+    const pending = guessCountry('es')
+    let settled = false
+    void pending.then(() => {
+      settled = true
+    })
+    await vi.advanceTimersByTimeAsync(GEO_TIMEOUT_MS - 1)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    // Timed out -> no locale region either -> the operator country wins.
+    expect(await pending).toBe('ES')
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('a timed-out geo call falls through to the browser locale before the operator', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal!.addEventListener('abort', () => reject(new Error('aborted')))
+          }),
+      ),
+    )
+    stubNav(['de-AT'])
+    const pending = guessCountry('ES')
+    await vi.advanceTimersByTimeAsync(GEO_TIMEOUT_MS)
+    expect(await pending).toBe('AT')
   })
 })
 

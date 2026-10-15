@@ -30,6 +30,7 @@ import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
 import { emptyBilling } from './detailsTypes'
+import { StaffModeProvider } from '@/lib/staffMode.tsx'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -2613,6 +2614,27 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
     expect(byName('booker_billing_country')).toHaveValue('FR')
   })
 
+  it('keeps the country empty when the customer picked then cleared it before the guess landed', async () => {
+    let release!: () => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve({ ok: true, json: async () => ({ country: 'AT' }) })
+          }),
+      ),
+    )
+    renderStep()
+    const country = byName('booker_billing_country')
+    fireEvent.change(country, { target: { value: 'FR' } })
+    fireEvent.change(country, { target: { value: '' } })
+    release()
+    await new Promise((r) => setTimeout(r, 0))
+    // Empty again, but deliberately so: the guess must not sneak back in.
+    expect(byName('booker_billing_country')).toHaveValue('')
+  })
+
   it('does not run (or override) the guess when the country is already restored', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ country: 'AT' }) }))
     vi.stubGlobal('fetch', fetchMock)
@@ -2638,5 +2660,66 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
       'option[value="DE"]',
     )
     expect(opt).toHaveTextContent('Deutschland')
+  })
+})
+
+describe('DetailsStep — billing address in staff mode (landr-uuntm.3)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function renderStaff() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ country: null }) })),
+    )
+    vi.stubGlobal('navigator', { languages: ['en'], language: 'en' })
+    const onConfirm = vi.fn()
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't.o.k', powers: [], operatorId: 'op-1' }}
+      >
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      </StaffModeProvider>,
+    )
+    return onConfirm
+  }
+
+  it('shows the group but reads as optional: blur on empty fields flags nothing', () => {
+    renderStaff()
+    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
+    for (const name of [
+      'booker_billing_address_line1',
+      'booker_billing_postal_code',
+      'booker_billing_city',
+      'booker_billing_country',
+    ]) {
+      const el = byName(name)
+      fireEvent.blur(el)
+      expect(el).not.toHaveAttribute('aria-invalid')
+    }
+    expect(document.querySelector('[id^="booker-billing-"][id$="-error"]')).toBeNull()
+  })
+
+  it('Continue works without an address, and carries one when the operator enters it', () => {
+    const onConfirm = renderStaff()
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    fireEvent.change(byName('booker_last_name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(byName('booker_email'), { target: { value: 'ada@example.com' } })
+    fireEvent.change(byName('booker_phone'), { target: { value: '+34 600 000 000' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![0].billing.city).toBe('')
+
+    fillBillingFields()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+    expect(onConfirm.mock.calls[1]![0].billing).toMatchObject({
+      address_line1: 'Calle Mayor 1',
+      country: 'ES',
+    })
   })
 })

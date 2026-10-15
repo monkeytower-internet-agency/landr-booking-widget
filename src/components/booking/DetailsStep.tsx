@@ -1066,23 +1066,27 @@ export function DetailsStep({
     'booker-phone',
     'phone',
   )
-  // landr-uuntm.3: billing address validations (same touched/blur UX).
-  const billingLine1V = validate(
+  // landr-uuntm.3: billing address validations (same touched/blur UX). In
+  // staff mode the address is optional, so the fields neither flag nor arm.
+  const noValidation = { error: undefined, inputProps: {} }
+  const billingValidate = (key: string, value: string, id: string) =>
+    requireBilling ? validate(key, value, id) : noValidation
+  const billingLine1V = billingValidate(
     'booker.billing.address_line1',
     booker.billing.address_line1,
     'booker-billing-line1',
   )
-  const billingPostalV = validate(
+  const billingPostalV = billingValidate(
     'booker.billing.postal_code',
     booker.billing.postal_code,
     'booker-billing-postal',
   )
-  const billingCityV = validate(
+  const billingCityV = billingValidate(
     'booker.billing.city',
     booker.billing.city,
     'booker-billing-city',
   )
-  const billingCountryV = validate(
+  const billingCountryV = billingValidate(
     'booker.billing.country',
     booker.billing.country,
     'booker-billing-country',
