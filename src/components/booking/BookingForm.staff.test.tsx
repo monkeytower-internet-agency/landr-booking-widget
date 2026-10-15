@@ -189,6 +189,62 @@ describe('BookingForm — staff mode', () => {
     expect(body.override_reason).toBe('loyalty discount')
   })
 
+  // landr-h0opd.3: the calculated total is the override input's placeholder.
+  it('shows the calculated total as the override placeholder and a "Calculated" line', () => {
+    render(
+      <StaffModeProvider value={STAFF}>
+        <BookingForm
+          widgetToken="op-x"
+          product={makeServiceProduct()}
+          selection={DAYS}
+          booker={ADA_BOOKER}
+          participants={[ADA_PARTICIPANT]}
+          pickupLocationId={null}
+          onBack={vi.fn()}
+          onConfirmed={vi.fn()}
+          calculatedTotal={{ amount: '250', currency: 'EUR' }}
+        />
+      </StaffModeProvider>,
+    )
+    expect(screen.getByTestId('override-amount')).toHaveAttribute(
+      'placeholder',
+      '250.00 EUR',
+    )
+    expect(screen.getByTestId('override-calculated-total')).toHaveTextContent(
+      'Calculated: 250.00 EUR',
+    )
+  })
+
+  it('keeps the generic placeholder and no "Calculated" line without an estimate', () => {
+    renderForm(DAYS, true)
+    expect(screen.getByTestId('override-amount')).toHaveAttribute('placeholder', 'e.g. 250.00')
+    expect(screen.queryByTestId('override-calculated-total')).not.toBeInTheDocument()
+  })
+
+  it('drops the override when the operator clears the input — submit uses the calculated total', async () => {
+    renderForm(DAYS, true)
+    fireEvent.change(screen.getByTestId('override-amount'), {
+      target: { value: '199.95' },
+    })
+    fireEvent.change(screen.getByTestId('override-reason'), {
+      target: { value: 'loyalty discount' },
+    })
+    // Operator changes their mind: empty = calculated.
+    fireEvent.change(screen.getByTestId('override-amount'), {
+      target: { value: '' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+    const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [
+      string,
+      StaffSubmitBody,
+    ]
+    expect(body).not.toHaveProperty('override_gross_total')
+    expect(body).not.toHaveProperty('override_reason')
+  })
+
   it('blocks submit when an override amount is set without a reason', async () => {
     renderForm(DAYS, true)
     fireEvent.change(screen.getByTestId('override-amount'), {

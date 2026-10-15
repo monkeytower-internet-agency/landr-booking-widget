@@ -160,6 +160,27 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     expect(screen.queryByText(/Next step: send your group/)).not.toBeInTheDocument()
   })
 
+  // landr-h0opd.3: reworded share hint, shown only when the product has
+  // reference sharing switched on.
+  it('renders the share-reference hint in German when sharing is on', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} shareReferenceEnabled />)
+
+    expect(screen.getByTestId('confirmation-share-reference-hint')).toHaveTextContent(
+      'Teilen Sie diese Referenz mit allen, die dieselbe Aktivität buchen und mit Ihnen zusammen eingeteilt werden möchten.',
+    )
+    expect(screen.queryByText(/Share this reference/)).not.toBeInTheDocument()
+  })
+
+  it('omits the share-reference hint in German when sharing is off', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({ summary: baseSummary() })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.queryByTestId('confirmation-share-reference-hint')).not.toBeInTheDocument()
+  })
+
   it('renders GroupBlock ("booked together with") in German, excluding self', () => {
     setBrowserLanguage('de-DE')
     const response = baseResponse({

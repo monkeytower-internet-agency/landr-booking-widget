@@ -651,3 +651,75 @@ describe('MultiDayPicker', () => {
     expect(headers[6]!.getAttribute('aria-label')).toBe('Sunday')
   })
 })
+
+// ---------------------------------------------------------------------------
+// landr-rmcsu.5: seat-aware calendar — a day with seats, but fewer than the
+// group needs, is "short": disabled for a customer, marked (data-short +
+// "n seats left" label/tooltip), listed in a legend, and skipped by range
+// fills. Sold-out days stay plain disabled.
+// ---------------------------------------------------------------------------
+describe('MultiDayPicker — seatsNeeded (landr-rmcsu.5)', () => {
+  const day = (n: number) => new Date(2026, 5, n)
+  const seatAvailability = (): AvailabilitySlot[] =>
+    makeAvailability(day(10), 10).map((s) =>
+      s.date === isoOf(day(12))
+        ? { ...s, available_seats: 2 }
+        : s.date === isoOf(day(13))
+          ? { ...s, available_seats: 0, status: 'fully_booked' }
+          : s,
+    )
+
+  function SeatHarness({
+    seatsNeeded,
+    onChangeSpy,
+  }: {
+    seatsNeeded?: number
+    onChangeSpy?: (days: Date[]) => void
+  }) {
+    const [value, setValue] = useState<Date[]>([])
+    return (
+      <MultiDayPicker
+        availability={seatAvailability()}
+        value={value}
+        onChange={(days) => {
+          setValue(days)
+          onChangeSpy?.(days)
+        }}
+        defaultMonth={defaultMonth}
+        seatsNeeded={seatsNeeded}
+      />
+    )
+  }
+
+  it('marks + disables a day with fewer seats than the group, with an "n left" label and legend', () => {
+    render(<SeatHarness seatsNeeded={3} />)
+    const short = dayButton(day(12))
+    expect(short).toBeDisabled()
+    expect(short).toHaveAttribute('data-short', 'true')
+    expect(short).toHaveAttribute('title', '2 seats left')
+    expect(short.getAttribute('aria-label')).toMatch(/2 seats left$/)
+    // Sold out is not "short" — it stays a plain disabled day.
+    expect(dayButton(day(13))).toBeDisabled()
+    expect(dayButton(day(13))).not.toHaveAttribute('data-short')
+    expect(screen.getByTestId('short-day-legend')).toHaveTextContent(
+      'Not enough seats for your group',
+    )
+  })
+
+  it('range fill skips short days', () => {
+    const spy = vi.fn<(days: Date[]) => void>()
+    render(<SeatHarness seatsNeeded={3} onChangeSpy={spy} />)
+    clickDay(day(10))
+    clickDay(day(15))
+    expect(spy.mock.calls.at(-1)?.[0].map(isoOf)).toEqual(
+      [10, 11, 14, 15].map((n) => isoOf(day(n))),
+    )
+  })
+
+  it('without a group size (or 1) the day stays selectable and unmarked', () => {
+    render(<SeatHarness />)
+    expect(dayButton(day(12))).not.toBeDisabled()
+    expect(dayButton(day(12))).not.toHaveAttribute('data-short')
+    expect(screen.queryByTestId('short-day-legend')).not.toBeInTheDocument()
+  })
+})

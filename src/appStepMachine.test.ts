@@ -12,7 +12,9 @@ import {
   deriveAccommodationMode,
   detailsFromDraft,
   draftFromStep,
+  frameBackStep,
   mergeCapturedDraft,
+  participantsBeforeSelection,
   mergeDraftPatch,
   productEntryStep,
   sidebarInputsForStep,
@@ -25,6 +27,7 @@ import {
   type BookingDraft,
   type Step,
 } from './appStepMachine'
+import { languageStepNeeded } from '@/components/booking/participantLanguages'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -1090,6 +1093,31 @@ describe('language step routing (landr-r6e5x.4)', () => {
     expect(trail.indexOf('Language')).toBeGreaterThan(trail.indexOf('Participants'))
   })
 
+  // landr-h0opd.3: the step only runs when there is a real choice.
+  it('skips the language step for a product offering exactly ONE language', () => {
+    const languageStep = languageStepNeeded(['de'])
+    expect(languageStep).toBe(false)
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, languageStep)
+    expect(next.name).toBe('fill-form')
+    // ...and no Language crumb on the review trail, nor as review's back-target.
+    const trail = buildBreadcrumb(next, { languageStep }).map((c) => c.label)
+    expect(trail).not.toContain('Language')
+    expect(stepBeforeReview(preReviewArgs({ languageStep })).name).not.toBe(
+      'assign-languages',
+    )
+  })
+
+  it('keeps the language step for a product offering TWO languages', () => {
+    const languageStep = languageStepNeeded(['de', 'en'])
+    expect(languageStep).toBe(true)
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, languageStep)
+    expect(next.name).toBe('assign-languages')
+  })
+
+  it('skips the language step for an any-language product (empty list)', () => {
+    expect(languageStepNeeded([])).toBe(false)
+  })
+
   it('shares the committed price context with review, so the sidebar does not blank', () => {
     const step = enterReviewOrCustomForm(preReviewArgs(), null, undefined, true)
     const inputs = sidebarInputsForStep(step)
@@ -1113,5 +1141,187 @@ describe('productEntryStep (landr-6eita.1)', () => {
       name: 'pick-selection',
       product,
     })
+  })
+})
+
+// ─── landr-rmcsu.6: participants before / after the dates step ──────────────
+
+describe('participants position in the step machine (landr-rmcsu.6)', () => {
+  // The operator stored participants ahead of the dates step.
+  const PARTICIPANTS_FIRST = {
+    modules: [
+      { kind: 'participants', position: 1 },
+      { kind: 'selection', position: 2 },
+    ],
+  }
+  // Declared after accommodation — realised as today's order, because every
+  // middle needs the party.
+  const PARTICIPANTS_AFTER_ACCOMMODATION = {
+    modules: [
+      { kind: 'selection', position: 1 },
+      { kind: 'accommodation', position: 2 },
+      { kind: 'participants', position: 3 },
+    ],
+  }
+  const party = makeParticipants(2)
+  const draft: BookingDraft = { booker: ADA, participants: party, companions: [] }
+
+  it('participantsBeforeSelection follows the stored order', () => {
+    const product = makeProduct()
+    expect(participantsBeforeSelection(product, null)).toBe(false)
+    expect(participantsBeforeSelection(product, PARTICIPANTS_FIRST)).toBe(true)
+    expect(
+      participantsBeforeSelection(
+        makeProduct({ hotel_offering: 'optional' }),
+        PARTICIPANTS_AFTER_ACCOMMODATION,
+      ),
+    ).toBe(false)
+  })
+
+  it('details (no dates yet) walks back to the product page, or nowhere with start=dates', () => {
+    const product = makeProduct()
+    const details: Step = { name: 'details', product }
+    expect(stepBefore(details, { remoteFlow: PARTICIPANTS_FIRST })).toEqual({
+      name: 'product-detail',
+      product,
+    })
+    expect(
+      stepBefore(details, { remoteFlow: PARTICIPANTS_FIRST, startAtDates: true }),
+    ).toBeNull()
+  })
+
+  it('the dates step walks back to the participants, rebuilt from the draft with the selection carried', () => {
+    const product = makeProduct()
+    const prev = stepBefore(
+      { name: 'pick-selection', product, selection: SLOT_SELECTION },
+      { remoteFlow: PARTICIPANTS_FIRST, draft },
+    )
+    expect(prev).toEqual({
+      name: 'details',
+      product,
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+    })
+  })
+
+  it('the first middle walks back to the dates step (the second frame step)', () => {
+    const product = makeProduct({ hotel_offering: 'optional' })
+    const accommodation: Step = {
+      name: 'pick-accommodation',
+      product,
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+    }
+    expect(stepBefore(accommodation, { remoteFlow: PARTICIPANTS_FIRST })).toEqual({
+      name: 'pick-selection',
+      product,
+      selection: SLOT_SELECTION,
+    })
+    // Declared after accommodation → realised as today's order.
+    expect(
+      stepBefore(accommodation, { remoteFlow: PARTICIPANTS_AFTER_ACCOMMODATION })!.name,
+    ).toBe('details')
+  })
+
+  it('pickup and review fall back to the dates step when nothing else is live', () => {
+    const product = makeProduct({ needs_pickup: true })
+    const pickup: Step = {
+      name: 'pick-pickup',
+      product,
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+      accommodationRooms: [],
+      addons: [],
+    }
+    expect(stepBefore(pickup, { remoteFlow: PARTICIPANTS_FIRST })!.name).toBe(
+      'pick-selection',
+    )
+    const review = stepBeforeReview({
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+      pickupLocationId: null,
+      accommodationRooms: [],
+      addons: [],
+      remoteFlow: PARTICIPANTS_FIRST,
+    })
+    expect(review).toEqual({
+      name: 'pick-selection',
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+    })
+    expect(
+      stepBeforeLanguages({
+        product: makeProduct(),
+        selection: SLOT_SELECTION,
+        booker: ADA,
+        participants: party,
+        companions: [],
+        pickupLocationId: null,
+        accommodationRooms: [],
+        addons: [],
+        remoteFlow: PARTICIPANTS_FIRST,
+      }).name,
+    ).toBe('pick-selection')
+  })
+
+  it('frameBackStep: details on today\'s order, dates when participants ran first', () => {
+    const args = {
+      product: makeProduct(),
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+    }
+    expect(frameBackStep(args).name).toBe('details')
+    expect(frameBackStep({ ...args, remoteFlow: PARTICIPANTS_FIRST }).name).toBe(
+      'pick-selection',
+    )
+  })
+
+  it('the breadcrumb follows the plan order', () => {
+    const product = makeProduct()
+    const addons: Step = {
+      name: 'pick-service-addons',
+      product,
+      selection: SLOT_SELECTION,
+      booker: ADA,
+      participants: party,
+      companions: [],
+    }
+    expect(
+      buildBreadcrumb(addons, { remoteFlow: PARTICIPANTS_FIRST, draft }).map((c) => c.name),
+    ).toEqual(['product-detail', 'details', 'pick-selection', 'pick-service-addons'])
+    // Legacy (no flow) unchanged.
+    expect(buildBreadcrumb(addons, { draft }).map((c) => c.name)).toEqual([
+      'product-detail',
+      'pick-selection',
+      'details',
+      'pick-service-addons',
+    ])
+  })
+
+  it('the sidebar shows no dates before the dates step, and the committed party on it', () => {
+    const product = makeProduct()
+    expect(sidebarInputsForStep({ name: 'details', product })!.selectedDays).toEqual([])
+    const onDates = sidebarInputsForStep({ name: 'pick-selection', product }, party)!
+    expect(onDates.participantCount).toBe(2)
+    expect(onDates.participantNames).toEqual(['Ada', 'P2'])
+    // Today's order: count-only default.
+    expect(sidebarInputsForStep({ name: 'pick-selection', product })!.participantCount).toBe(1)
+  })
+
+  it('detailsFromDraft accepts a missing selection', () => {
+    const step = detailsFromDraft(makeProduct(), undefined, draft)
+    expect(step.selection).toBeUndefined()
+    expect(step.participants).toEqual(party)
   })
 })

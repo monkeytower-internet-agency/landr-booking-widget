@@ -54,7 +54,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
+// landr-rmcsu.5: fallback ONLY — total 6 participants when the product sets
+// no max_party_size. A product cap (any value >= 1) replaces it, including
+// caps above 6.
+const MAX_ADDITIONAL = 5
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
 // (participants + companions) can exceed 6 — companions are uncapped by the
 // guiding rule. 12 is a pragmatic upper bound that comfortably covers
@@ -63,7 +66,7 @@ const MAX_COMPANIONS = 12
 // landr-de6ej: mirrors the API's `bookings_customer_comment_length_chk`
 // CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
 // by hand since the widget has no shared contract constant for this.
-/** Additional participants allowed: min(MAX_ADDITIONAL, max_party_size - 1). */
+/** True when the product sets a usable max_party_size (>= 1). */
 function hasPartyCap(m: number | null | undefined): boolean {
   return typeof m === 'number' && Number.isFinite(m) && m >= 1
 }
@@ -73,16 +76,23 @@ function additionalCapRaw(m: number | null | undefined): number {
   return hasPartyCap(m) ? Math.floor(m as number) - 1 : Infinity
 }
 
+/**
+ * Additional participants allowed (booker excluded): max_party_size - 1 when
+ * the product sets a cap, else MAX_ADDITIONAL (landr-rmcsu.5 lifted the old
+ * min(5, …) clamp that capped every product at 6).
+ */
 function additionalCap(maxPartySize: number | null | undefined): number {
-  if (typeof maxPartySize !== 'number' || !Number.isFinite(maxPartySize) || maxPartySize < 1) {
-    return MAX_ADDITIONAL
-  }
-  return Math.min(MAX_ADDITIONAL, Math.floor(maxPartySize) - 1)
+  return hasPartyCap(maxPartySize) ? Math.floor(maxPartySize as number) - 1 : MAX_ADDITIONAL
 }
 
 interface Props {
   product: Product
-  selection: BookingSelection
+  /**
+   * landr-rmcsu.6: undefined when the operator's flow runs participants BEFORE
+   * the dates step and no dates are picked yet — the card description then
+   * shows the product name alone.
+   */
+  selection?: BookingSelection
   /**
    * Operator's active service_roles (landr-mg0a). Fetched once at App
    * mount via getOperatorServiceRoles and threaded down. When the list
@@ -166,7 +176,8 @@ interface Props {
    * doesn't re-apply on an unrelated later remount.
    */
   onCompanionContactFocusApplied?: () => void
-  onBack: () => void
+  /** landr-rmcsu.6: absent when this is the funnel's first step (start=dates). */
+  onBack?: () => void
   onConfirm: (
     booker: BookerDetails,
     participants: ParticipantDetails[],
@@ -206,6 +217,14 @@ interface Props {
    * field.
    */
   onMemberPerkOtpChange?: (code: string) => void
+  /**
+   * landr-rmcsu.5: participant rows (booker included) to pre-create, from the
+   * dates step's "How many of you?" stepper (minus any invited companions).
+   * Only ever ADDS empty rows up to this count — restored rows are never
+   * dropped — and stays within the participant / party caps. The customer
+   * can still add or remove rows. Absent → no pre-creation.
+   */
+  prefillParticipantCount?: number
 }
 
 /**
@@ -275,6 +294,7 @@ export function DetailsStep({
   onConfirm,
   onLiveParticipantsChange,
   onMemberPerkOtpChange,
+  prefillParticipantCount,
 }: Props) {
   const locale = browserLocale()
   // landr-mg0a: defaultRoleCode is the first row served by
@@ -295,28 +315,6 @@ export function DetailsStep({
     () =>
       initialParticipants?.[0]?.service_role_code ?? defaultRoleCode,
   )
-  // Additional participants only (booker is participants[0], synced
-  // automatically). When the customer comes back to this step we
-  // restore the additional slots from initialParticipants[1..].
-  const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
-    if (initialParticipants && initialParticipants.length > 1) {
-      // landr-uwvl: every row this step emits must carry a stable id — it is
-      // what the draft's room-assignment / age / breakfast maps are keyed by.
-      // Rows restored from the draft already have one; this backfills the only
-      // remaining source of id-less rows (a caller that hand-built the array),
-      // and does it ONCE in the state initialiser so a re-render can never
-      // re-mint and detach someone from their room.
-      return initialParticipants
-        .slice(1, 1 + additionalCap(product.max_party_size))
-        .map(withMemberId)
-    }
-    return []
-  })
-  // landr-87n9.3: non-guiding companions ("Others joining the activity").
-  // Restored from initialCompanions on Back-restore, else empty.
-  // landr-lu41h: no-accommodation products have no room to share — every
-  // companion is a guest paying for themselves ('separate_guiding').
-  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
   const maxAdditional = additionalCap(product.max_party_size)
@@ -324,6 +322,34 @@ export function DetailsStep({
   // effectively more participants, so when a product cap is set additional +
   // companions together stay within max_party_size - 1.
   const maxOthers = additionalCapRaw(product.max_party_size)
+  // Additional participants only (booker is participants[0], synced
+  // automatically). When the customer comes back to this step we
+  // restore the additional slots from initialParticipants[1..].
+  const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
+    let rows: ParticipantDetails[] = []
+    if (initialParticipants && initialParticipants.length > 1) {
+      // landr-uwvl: every row this step emits must carry a stable id — it is
+      // what the draft's room-assignment / age / breakfast maps are keyed by.
+      // Rows restored from the draft already have one; this backfills the only
+      // remaining source of id-less rows (a caller that hand-built the array),
+      // and does it ONCE in the state initialiser so a re-render can never
+      // re-mint and detach someone from their room.
+      rows = initialParticipants.slice(1, 1 + maxAdditional).map(withMemberId)
+    }
+    // landr-rmcsu.5: top up to the dates-step group size with empty rows.
+    const want = Math.min(
+      (prefillParticipantCount ?? 1) - 1,
+      maxAdditional,
+      maxOthers - (initialCompanions?.length ?? 0),
+    )
+    while (rows.length < want) rows.push(emptyParticipant(defaultRoleCode))
+    return rows
+  })
+  // landr-87n9.3: non-guiding companions ("Others joining the activity").
+  // Restored from initialCompanions on Back-restore, else empty.
+  // landr-lu41h: no-accommodation products have no room to share — every
+  // companion is a guest paying for themselves ('separate_guiding').
+  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
     (initialCompanions ?? []).map((c) =>
       withMemberId(
@@ -453,6 +479,19 @@ export function DetailsStep({
     ].filter((n) => n.length > 0)
     onLiveParticipantsChange(count, names, nextCompanions.length)
   }
+
+  // landr-rmcsu.5: rows pre-created from the dates-step group size are not a
+  // customer edit, so no handler fires for them — tell the sidebar once on
+  // mount, or its live price would keep counting only the restored rows.
+  const prefilledOnMount = useRef(
+    additional.length >
+      Math.max(0, Math.min((initialParticipants?.length ?? 0) - 1, maxAdditional)),
+  )
+  useEffect(() => {
+    if (prefilledOnMount.current) notifyLive(booker, additional, companions)
+    // Mount only: later changes go through the event handlers above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // landr-4uyu: add a single additional participant below the last card.
   // Replaces the top stepper's grow path. Appends one empty row (capped at
@@ -943,7 +982,9 @@ export function DetailsStep({
       <CardHeader>
         <CardTitle>{tr('participantsTitle', locale)}</CardTitle>
         <CardDescription>
-          {product.name} · {describeSelection(selection, locale)}
+          {selection
+            ? `${product.name} · ${describeSelection(selection, locale)}`
+            : product.name}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">

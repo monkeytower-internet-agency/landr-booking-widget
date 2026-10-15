@@ -99,4 +99,18 @@ describe('FixedDateWindowChips', () => {
       screen.queryByTestId('product-date-chips-siv-course'),
     ).not.toBeInTheDocument()
   })
+
+  it('landr-rmcsu.7: a window with fewer seats than the known group reads "Only n left"', async () => {
+    mocks.getFixedDateWindows.mockResolvedValue([
+      { id: 'w-1', start_date: '2026-08-04', end_date: '2026-08-10', capacity: 8, capacity_reserved: 6 },
+      { id: 'w-2', start_date: '2026-08-18', end_date: '2026-08-24', capacity: 8, capacity_reserved: 0 },
+    ])
+    render(<FixedDateWindowChips productId="p-1" slug="siv-course" seatsNeeded={3} />)
+    const chips = await waitFor(() =>
+      screen.getByTestId('product-date-chips-siv-course'),
+    )
+    expect(chips).toHaveTextContent('Only 2 left (you need 3)')
+    expect(chips).toHaveTextContent('8 seats left')
+    expect(chips).not.toHaveTextContent('2 seats left')
+  })
 })

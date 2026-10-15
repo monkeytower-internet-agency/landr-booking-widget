@@ -1,9 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAvailability } from '@/api/client'
 import type { AvailabilitySlot, Product } from '@/api/types'
 import { Calendar } from '@/components/ui/calendar'
-import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
-import { availableDaysForLabel, singleDateGate, tr, type ForceReason } from '@/lib/strings'
+import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
+import { forceReasonsFor } from '@/components/booking/bookability'
+import {
+  availableDaysForLabel,
+  seatsLeftLabel,
+  seatsShortMessage,
+  singleDateGate,
+  tr,
+  type ForceReason,
+} from '@/lib/strings'
+import { maxPartySize, seatFit, shortDays, windowRangeLabel } from '@/lib/seatHold'
+import { formatDayLabel } from '@/components/booking/dateLabel'
+import {
+  PartySizeStepper,
+  SeatFitNotice,
+  ShortDayLegend,
+} from '@/components/booking/PartySize'
 import { browserLocale } from '@/lib/locale'
 import {
   Card,
@@ -62,7 +77,21 @@ interface Props {
    * the boot splash can stay up until this step has something to show.
    */
   onLoaded?: () => void
+  /**
+   * landr-rmcsu.5: seats the group needs (known from the draft). Days with
+   * fewer free seats are marked short and disabled for a customer.
+   */
+  seatsNeeded?: number
+  /** landr-rmcsu.5: see MultiDayStep's prop of the same name. */
+  showPartySizeStepper?: boolean
+  onPartySizeChange?: (partySize: number) => void
+  operatorToken?: string
+  contactEmail?: string | null
 }
+
+// Stable empty reference while availability loads (see MultiDayStep's
+// EMPTY_SLOTS: an unstable [] in a memo input once looped renders).
+const EMPTY_SLOTS: AvailabilitySlot[] = []
 
 /**
  * Picker for service products with service_time_shape='single_date' (landr-y9k).
@@ -79,6 +108,11 @@ export function SingleDatePicker({
   initialSelectedDays,
   onLoaded,
   inviteToken,
+  seatsNeeded,
+  showPartySizeStepper = false,
+  onPartySizeChange,
+  operatorToken,
+  contactEmail,
 }: Props) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -129,17 +163,34 @@ export function SingleDatePicker({
   // force-book path as well. isDayBookable also folds in
   // accommodation_bookable for a 'mandatory' hotel_offering — see its own
   // doc for why that combination is the widget's job, not the API's.
-  const availableSet = useMemo(() => {
-    return new Set(
-      (slots ?? [])
-        .filter(
-          (slot) =>
-            slot.available_seats > 0 &&
-            isDayBookable(slot, product.hotel_offering),
-        )
-        .map((slot) => slot.date),
-    )
-  }, [slots, product.hotel_offering])
+  // landr-rmcsu.5: group size — same contract as MultiDayStep.
+  const partySizeMax = Math.max(maxPartySize(product.max_party_size), seatsNeeded ?? 1)
+  const stepperShown = showPartySizeStepper && partySizeMax > 1
+  const [partySize, setPartySize] = useState(() =>
+    Math.min(Math.max(1, seatsNeeded ?? 1), partySizeMax),
+  )
+  const need = stepperShown ? partySize : Math.max(1, seatsNeeded ?? 1)
+  const decreaseRef = useRef<HTMLButtonElement>(null)
+  const changePartySize = (next: number) => {
+    setPartySize(next)
+    onPartySizeChange?.(next)
+  }
+  // "Available" = fits the whole group; fewer-but-some seats → short.
+  const { fit: availableSet, short: shortSeats } = useMemo(
+    () => seatFit(slots ?? EMPTY_SLOTS, product.hotel_offering, need),
+    [slots, product.hotel_offering, need],
+  )
+  const shortDates = useMemo(
+    () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
+    [shortSeats],
+  )
+  const dayHint = useCallback(
+    (date: Date) => {
+      const left = shortSeats.get(isoDate(date))
+      return left === undefined ? undefined : seatsLeftLabel(left, locale)
+    },
+    [shortSeats, locale],
+  )
 
   // landr-l38a4: open on the restored pick, else the first bookable day.
   const [month, setMonth] = useStartMonth(
@@ -180,10 +231,18 @@ export function SingleDatePicker({
     const iso = isoDate(selected)
     if (availableSet.has(iso)) return []
     const slot = slotsByDate.get(iso)
+    // landr-rmcsu.5: a day short for the group is a capacity force too.
     return slot
-      ? forceReasonsFor(slot.available_seats > 0, slot, product.hotel_offering)
+      ? forceReasonsFor(slot.available_seats >= need, slot, product.hotel_offering)
       : (['capacity'] as ForceReason[])
-  }, [selected, canForce, slots, availableSet, slotsByDate, product.hotel_offering])
+  }, [selected, canForce, slots, availableSet, slotsByDate, product.hotel_offering, need])
+
+  // landr-rmcsu.5: a restored pick (Back / Change dates) that no longer
+  // takes the whole group blocks Continue with the reason. Staff may force.
+  const selectedShort = useMemo(() => {
+    if (!selected || canForce || slots === null) return null
+    return shortDays(slots, [isoDate(selected)], need)[0] ?? null
+  }, [selected, canForce, slots, need])
 
   // Stable handler so Calendar doesn't re-render on every parent render.
   // landr-aoak.2: in staff mode, picking a date with zero availability is the
@@ -229,24 +288,48 @@ export function SingleDatePicker({
         <CardDescription>{availableDaysForLabel(product.name, locale)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {stepperShown ? (
+          <PartySizeStepper
+            value={partySize}
+            max={partySizeMax}
+            onChange={changePartySize}
+            decreaseRef={decreaseRef}
+          />
+        ) : null}
+        {slots !== null ? (
+          <SeatFitNotice
+            need={need}
+            fitCount={availableSet.size}
+            rangeLabel={windowRangeLabel(fromIso, toIso, locale)}
+            onFewer={stepperShown ? () => decreaseRef.current?.focus() : undefined}
+            operatorToken={operatorToken}
+            productSlug={product.slug}
+            productName={product.name}
+            contactEmail={contactEmail}
+          />
+        ) : null}
         {/* landr-80ubl.2: one-next-action rule — the calendar owns the ring
             until a date is picked, then ContinueAction (active by default)
             takes over. */}
         <NextAction active={selected === null} cue={tr('singleDatePickerCue', locale)}>
-          <Calendar
-            mode="single"
-            selected={selected ?? undefined}
-            onSelect={handleSelect}
-            // landr-aoak.2: in staff mode, zero-availability (sold-out / blocked)
-            // days stay SELECTABLE so the operator can force-book them. Past dates
-            // remain disabled for everyone. Normal customers keep today's exact
-            // behaviour (both predicates apply).
-            disabled={(date) =>
-              date < today || (!canForce && !availableSet.has(isoDate(date)))
-            }
-            month={month}
-            onMonthChange={setMonth}
-          />
+          <CalendarDayHintContext.Provider value={dayHint}>
+            <Calendar
+              mode="single"
+              selected={selected ?? undefined}
+              onSelect={handleSelect}
+              // landr-aoak.2: in staff mode, zero-availability (sold-out / blocked)
+              // days stay SELECTABLE so the operator can force-book them. Past dates
+              // remain disabled for everyone. Normal customers keep today's exact
+              // behaviour (both predicates apply).
+              disabled={(date) =>
+                date < today || (!canForce && !availableSet.has(isoDate(date)))
+              }
+              month={month}
+              onMonthChange={setMonth}
+              modifiers={{ short: shortDates }}
+            />
+          </CalendarDayHintContext.Provider>
+          {shortSeats.size > 0 ? <ShortDayLegend /> : null}
           {nothingBefore ? (
             <p
               className="text-xs text-muted-foreground"
@@ -270,8 +353,17 @@ export function SingleDatePicker({
           ) : null}
         </NextAction>
         <ContinueAction
-          ready={selected !== null}
-          reason={singleDateGate(selected !== null, locale)}
+          ready={selected !== null && selectedShort === null}
+          reason={
+            selectedShort
+              ? seatsShortMessage(
+                  formatDayLabel(selectedShort.date, locale),
+                  selectedShort.left,
+                  selectedShort.need,
+                  locale,
+                )
+              : singleDateGate(selected !== null, locale)
+          }
           reasonId="single-date-picker-gate"
           onContinue={() => {
             if (selected) {

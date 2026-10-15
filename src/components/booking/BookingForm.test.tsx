@@ -611,6 +611,9 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
   beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
+    // landr-rmcsu.7: the seat pre-check now runs for any group > 1; reset so a
+    // queued availability answer never leaks into a later test.
+    vi.mocked(getAvailability).mockReset()
   })
 
   it('builds the submit body from booker + participants + line items and calls onConfirmed', async () => {
@@ -1257,6 +1260,144 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
     expect(onChangeDates).toHaveBeenCalled()
   })
 
+  it('names EVERY short day, not only the first (landr-rmcsu.5)', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockClear()
+    vi.mocked(getAvailability).mockResolvedValueOnce([
+      { date: '2024-11-23', available_seats: 1 },
+      { date: '2024-11-24', available_seats: 1 },
+      { date: '2024-11-25', available_seats: 0 },
+    ] as never)
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={[
+          {
+            first_name: 'Matt',
+            last_name: '',
+            email: '',
+            phone: '',
+            companion_kind: 'separate_guiding',
+          },
+        ]}
+        inviteToken={undefined}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onChangeDates={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('review-error')).toHaveTextContent(
+        /23.*, .*24.*,? and .*25.* have fewer than 2 seats left\./,
+      ),
+    )
+    expect(submitMock).not.toHaveBeenCalled()
+  })
+
+  // landr-rmcsu.7: the pre-check is not only for invitees — a participants-only
+  // group of 3 used to fall through to the API's capacity_exceeded 422, which
+  // names ONE day.
+  describe('seat pre-check for a group without invitees (landr-rmcsu.7)', () => {
+    const THREE = [
+      bookerAsParticipant(ADA_BOOKER),
+      { ...bookerAsParticipant(ADA_BOOKER), first_name: 'Ben' },
+      { ...bookerAsParticipant(ADA_BOOKER), first_name: 'Cleo' },
+    ]
+    const renderGroup = (over: Partial<React.ComponentProps<typeof BookingForm>> = {}) =>
+      render(
+        <BookingForm
+          widgetToken="para42"
+          product={makeServiceProduct('days_range')}
+          selection={DAYS_SELECTION}
+          booker={ADA_BOOKER}
+          participants={THREE}
+          pickupLocationId={null}
+          onBack={vi.fn()}
+          onChangeDates={vi.fn()}
+          onConfirmed={vi.fn()}
+          {...over}
+        />,
+      )
+    const confirm = async () =>
+      act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+
+    it('blocks submit and names every short day', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockClear()
+      vi.mocked(getAvailability).mockResolvedValueOnce([
+        { date: '2024-11-23', available_seats: 2 },
+        { date: '2024-11-24', available_seats: 2 },
+        { date: '2024-11-25', available_seats: 5 },
+      ] as never)
+      renderGroup()
+      await confirm()
+      await waitFor(() =>
+        expect(screen.getByTestId('review-error')).toHaveTextContent(
+          /23.* and .*24.* have fewer than 3 seats left\./,
+        ),
+      )
+      expect(submitMock).not.toHaveBeenCalled()
+      expect(screen.getByTestId('review-change-dates')).toBeInTheDocument()
+    })
+
+    it('submits when every day takes the group', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockClear()
+      submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+      vi.mocked(getAvailability).mockResolvedValueOnce([
+        { date: '2024-11-23', available_seats: 3 },
+        { date: '2024-11-24', available_seats: 9 },
+        { date: '2024-11-25', available_seats: 5 },
+      ] as never)
+      renderGroup()
+      await confirm()
+      await waitFor(() => expect(submitMock).toHaveBeenCalled())
+    })
+
+    it('never blocks on a failed availability read (best effort)', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockClear()
+      submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+      vi.mocked(getAvailability).mockRejectedValueOnce(new Error('offline'))
+      renderGroup()
+      await confirm()
+      await waitFor(() => expect(submitMock).toHaveBeenCalled())
+      expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
+    })
+
+    it('does not pre-check a single person', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockClear()
+      submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+      renderGroup({ participants: [bookerAsParticipant(ADA_BOOKER)] })
+      await confirm()
+      await waitFor(() => expect(submitMock).toHaveBeenCalled())
+      expect(vi.mocked(getAvailability)).not.toHaveBeenCalled()
+    })
+
+    it('leaves a fixed course window to its own picker', async () => {
+      const submitMock = vi.mocked(submitBooking)
+      submitMock.mockClear()
+      submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+      renderGroup({
+        selection: { ...DAYS_SELECTION, fixedDateWindowId: 'win-1' } as BookingSelection,
+      })
+      await confirm()
+      await waitFor(() => expect(submitMock).toHaveBeenCalled())
+      expect(vi.mocked(getAvailability)).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not count invitees when invite_hold_hours is 0 (landr-f987a.6)', async () => {
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockClear()
@@ -1714,6 +1855,9 @@ describe('BookingForm — un_priceable CTA gating (landr-zenj.1)', () => {
 describe('BookingForm — per-occupant breakfast (landr-a4fy)', () => {
   beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
+    // landr-rmcsu.7: the seat pre-check now runs for any group > 1; reset so a
+    // queued availability answer never leaks into a later test.
+    vi.mocked(getAvailability).mockReset()
   })
 
   it('sends has_breakfast=true on participants whose breakfastMap entry is true', async () => {

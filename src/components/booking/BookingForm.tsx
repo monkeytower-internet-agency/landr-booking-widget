@@ -43,6 +43,7 @@ import {
   forceBookReasonMessage,
   nightsWord,
   seatsShortMessage,
+  seatsShortDaysMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -107,6 +108,7 @@ import { alignFormResponses, parseFormResponseErrors } from './formScopes'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
   isStaffSubmitBody,
@@ -332,6 +334,15 @@ interface Props {
    */
   unPriceable?: boolean
   /**
+   * landr-h0opd.3: the calculated booking total from App.tsx's PriceSidebar
+   * estimate (see its onCalculatedTotalChange doc). Shown as the staff
+   * price-override input's placeholder and as a "Calculated: …" line under
+   * it, so the operator sees what they are overriding. Display only — an
+   * empty override input still means "no override" (the submit uses the
+   * calculated total server-side). Absent/null → the generic placeholder.
+   */
+  calculatedTotal?: CalculatedTotal | null
+  /**
    * landr-otml0.3 review fix (MINOR 6): fires with the 0-based companion
    * index when the API rejects submit with 422 companion_contact_required
    * (the client-side D11 gate should make this unreachable in the normal
@@ -494,6 +505,17 @@ function readLanguageError(
     ? obj.offered.filter((v): v is string => typeof v === 'string')
     : []
   return { code, entries, offered }
+}
+
+/**
+ * landr-h0opd.3: "250.00 EUR" — the calculated total in the same plain
+ * decimal form the operator types into the override input, plus the
+ * booking currency. Falls back to the raw string for a non-numeric amount.
+ */
+function formatOverridePlaceholder(total: CalculatedTotal): string {
+  const n = Number(total.amount)
+  const amount = Number.isFinite(n) ? n.toFixed(2) : total.amount
+  return `${amount} ${total.currency}`
 }
 
 /**
@@ -839,6 +861,7 @@ export function BookingForm({
   inviteToken,
   joinRef,
   unPriceable = false,
+  calculatedTotal = null,
   onCompanionContactRequired,
   onBack,
   onChangeDates,
@@ -1140,15 +1163,22 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
-      // landr-f987a.4: party-size check before submit — the host's guiding
-      // participants + invited companions must all fit on every selected day.
-      // Best effort: a failed availability read never blocks the submit (the
-      // API re-checks and answers capacity_exceeded).
+      // landr-f987a.4 / landr-rmcsu.7: party-size check before submit — the
+      // whole group (guiding participants + invited companions) must fit on
+      // every selected day. Runs for ANY group > 1, not only when invitees
+      // were added: a participants-only group of 3 used to fall through to
+      // the API's capacity_exceeded 422, which names ONE day. Best effort: a
+      // failed availability read never blocks the submit (the API re-checks
+      // and answers capacity_exceeded). A fixed course window is judged by
+      // its own picker, not here.
       const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
-      const hasInvitees =
-        product.invite_hold_hours !== 0 &&
-        companions.some((c) => c.companion_kind === 'separate_guiding')
-      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+      if (
+        !staff.active &&
+        selection.kind === 'days' &&
+        !selection.fixedDateWindowId &&
+        need > 1 &&
+        selectedDaysForSubmit.length > 0
+      ) {
         try {
           const sorted = [...selectedDaysForSubmit].sort()
           const slots = await getAvailability(
@@ -1159,11 +1189,14 @@ export function BookingForm({
           )
           const short = shortDays(slots, sorted, need)
           if (short.length > 0) {
+            // landr-rmcsu.5: name every short day, not just the first.
             setServerError(
-              seatsShortMessage(
-                formatDayLabel(short[0].date, locale),
-                short[0].left,
-                short[0].need,
+              seatsShortDaysMessage(
+                short.map((d) => ({
+                  label: formatDayLabel(d.date, locale),
+                  left: d.left,
+                  need: d.need,
+                })),
                 locale,
               ),
             )
@@ -1875,10 +1908,22 @@ export function BookingForm({
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  placeholder="e.g. 250.00"
+                  placeholder={
+                    calculatedTotal
+                      ? formatOverridePlaceholder(calculatedTotal)
+                      : 'e.g. 250.00'
+                  }
                   value={overrideAmount}
                   onChange={(e) => setOverrideAmount(e.target.value)}
                 />
+                {calculatedTotal ? (
+                  <p
+                    className="text-xs text-muted-foreground"
+                    data-testid="override-calculated-total"
+                  >
+                    Calculated: {formatOverridePlaceholder(calculatedTotal)}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="override-reason">Reason</Label>

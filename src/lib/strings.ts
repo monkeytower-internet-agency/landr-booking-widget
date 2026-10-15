@@ -114,6 +114,27 @@ type Bundle = {
   seatsShortOne: string
   seatsShortOther: string
   seatsShortNone: string
+  /** landr-rmcsu.5: several selected days are short — "{days} have fewer than {need} seats left." */
+  seatsShortDays: string
+  /** landr-rmcsu.5: dates-step group-size stepper. */
+  partySizeLabel: string
+  partySizeDecreaseAria: string
+  partySizeIncreaseAria: string
+  /** landr-rmcsu.5: "12 dates fit 3 people" / none fit in the loaded window. */
+  seatFitCountOne: string
+  seatFitCountOther: string
+  seatFitNone: string
+  seatFitFewerButton: string
+  seatFitInquiryButton: string
+  /** landr-rmcsu.5: calendar legend for days with too few seats for the group. */
+  shortDayLegend: string
+  /** landr-rmcsu.7: slot / course-window chip when it has seats, but fewer than the group needs. */
+  slotSeatsShort: string
+  slotSeatsShortNoCount: string
+  /** landr-rmcsu.7: course-window variants of the fit notice. */
+  seatFitWindowsOne: string
+  seatFitWindowsOther: string
+  seatFitNoneWindows: string
   holdHeldOne: string
   holdRequested: string
   holdUntilOnly: string
@@ -447,6 +468,27 @@ type Bundle = {
   offerModeDescription: string
   statusLabel: string
   whatYoureBooking: string
+  // landr-1zkp7 — /pay + /offer restyle (dates table, per-line prices, hero)
+  offerColItem: string
+  offerColDates: string
+  offerColLength: string
+  offerLengthDaySingular: string
+  offerLengthDayPlural: string
+  /** Total row under a line booked on non-consecutive days (landr pay page). */
+  offerLengthTotalLabel: string
+  offerLengthNightSingular: string
+  offerLengthNightPlural: string
+  offerYourTripWithTemplate: string
+  // landr-8f1sh.4 — custom offer v2: positions, discount row, periods table
+  offerColPeriod: string
+  offerPeriodArrival: string
+  offerPeriodDeparture: string
+  offerPerDaySuffix: string
+  offerDiscountLabel: string
+  offerGroupDiscountTemplate: string
+  offerFreeSpotsTemplate: string
+  offerFreeLabel: string
+  offerPayableAtHotelShort: string
   productsAria: string
   offerParticipantsTitle: string
   offerPriceBreakdownTitle: string
@@ -473,6 +515,43 @@ type Bundle = {
   nothingFurtherToPay: string
   paymentLinkPersonal: string
   offerLinkPersonal: string
+  // landr-bo0wd.5 — offer v3: acceptance flow, hotel note, savings layout
+  offerAcceptLabel: string
+  offerAcceptingEllipsis: string
+  offerAcceptErrorTitle: string
+  offerAcceptErrorChanged: string
+  offerAcceptErrorClosed: string
+  offerAcceptErrorGeneric: string
+  offerAgreedTitle: string
+  offerAgreedDescription: string
+  offerAcceptedDescription: string
+  offerReviewHotelDescription: string
+  offerReviewAcceptDescription: string
+  offerHotelNote: string
+  offerHotelNoteAfterAccept: string
+  offerHotelNoteNow: string
+  /** landr-xcyh1.3: the hotel said yes ("Hotel confirmed"). */
+  offerHotelConfirmed: string
+  offerHotelConfirmedAfterAccept: string
+  offerHotelConfirmedAccepted: string
+  /** landr-xcyh1.3: the hotel declined, the operator is updating the offer. */
+  offerHotelDeclined: string
+  offerHotelDeclinedBody: string
+  offerSavingsIntroTemplate: string
+  offerYouSavePerDayTemplate: string
+  offerYouSaveTemplate: string
+  offerFreeSpotLabel: string
+  offerRegularOnUsTemplate: string
+  offerOnUs: string
+  offerRegularPriceLabel: string
+  offerYourPriceLabel: string
+  offerInclTaxTemplate: string
+  offerPriceExclTaxLabel: string
+  offerTaxAddedTemplate: string
+  /** landr-bo0wd.7: same rows with the picked tax's name ({n}, e.g. "IVA"). */
+  offerInclTaxNamedTemplate: string
+  offerTaxAddedNamedTemplate: string
+  offerPaidAtHotelTemplate: string
   couldNotStartPayment: string
 
   // ---- MembershipCheckoutStep / MembershipReturnPage ----
@@ -695,6 +774,21 @@ const en: Bundle = {
   seatsShortOne: 'Only 1 seat left on {day} — you need {need}.',
   seatsShortOther: 'Only {n} seats left on {day} — you need {need}.',
   seatsShortNone: 'No seats left on {day} — you need {need}.',
+  seatsShortDays: '{days} have fewer than {need} seats left.',
+  partySizeLabel: 'How many of you?',
+  partySizeDecreaseAria: 'One person fewer',
+  partySizeIncreaseAria: 'One person more',
+  seatFitCountOne: '1 date fits {n} people',
+  seatFitCountOther: '{count} dates fit {n} people',
+  seatFitNone: 'No dates with room for {n} people in {range}.',
+  seatFitFewerButton: 'Fewer people',
+  seatFitInquiryButton: 'Ask for a group booking',
+  shortDayLegend: 'Not enough seats for your group',
+  slotSeatsShort: 'Only {n} left (you need {need})',
+  slotSeatsShortNoCount: 'Not enough seats for {need}',
+  seatFitWindowsOne: '1 course date fits {n} people',
+  seatFitWindowsOther: '{count} course dates fit {n} people',
+  seatFitNoneWindows: 'No upcoming course dates with room for {n} people.',
   holdUntilOnly:
     'When you booked, seats for {name} were still free. Held until {when}.',
   holdRequested:
@@ -939,7 +1033,7 @@ const en: Bundle = {
   copyLabel: 'Copy',
   copiedLabel: 'Copied',
   couldNotCopyAutomatically: "Couldn't copy automatically — select and copy:",
-  shareReferenceHint: 'Share this with anyone booking their own guiding who wants to be grouped with you.',
+  shareReferenceHint: 'Share this reference with anyone booking the same activity who wants to be grouped with you.',
   retryEmailLabel: 'Retry email',
   emailLabelShort: 'Email',
   bookingCreated: 'Booking created',
@@ -1040,6 +1134,24 @@ const en: Bundle = {
   offerModeDescription: 'Review the details below and click Accept & Pay to confirm your booking.',
   statusLabel: 'Status:',
   whatYoureBooking: "What you're booking",
+  offerColItem: 'Item',
+  offerColDates: 'Dates',
+  offerColLength: 'Length',
+  offerLengthDaySingular: '{n} day',
+  offerLengthDayPlural: '{n} days',
+  offerLengthTotalLabel: 'Total',
+  offerLengthNightSingular: '{n} night',
+  offerLengthNightPlural: '{n} nights',
+  offerYourTripWithTemplate: 'Your trip with {operator}',
+  offerColPeriod: 'Period',
+  offerPeriodArrival: 'Arrival',
+  offerPeriodDeparture: 'Departure',
+  offerPerDaySuffix: '/day',
+  offerDiscountLabel: 'Your discount',
+  offerGroupDiscountTemplate: 'Group discount ({pct} %)',
+  offerFreeSpotsTemplate: 'Free spots × {n}',
+  offerFreeLabel: 'Free',
+  offerPayableAtHotelShort: 'payable at the hotel',
   productsAria: 'Products',
   offerParticipantsTitle: 'Participants',
   offerPriceBreakdownTitle: 'Price breakdown',
@@ -1065,6 +1177,39 @@ const en: Bundle = {
   nothingFurtherToPay: "There's nothing further to pay through this link right now.",
   paymentLinkPersonal: 'This payment link is personal. Do not share it.',
   offerLinkPersonal: 'This offer link is personal. Do not share it.',
+  offerAcceptLabel: 'Accept offer',
+  offerAcceptingEllipsis: 'Accepting…',
+  offerAcceptErrorTitle: 'Could not accept the offer',
+  offerAcceptErrorChanged: 'The operator changed this offer after the link was sent. Please open the link in your latest email.',
+  offerAcceptErrorClosed: 'This booking is no longer open.',
+  offerAcceptErrorGeneric: 'We could not record your acceptance. Please try again or contact us.',
+  offerAgreedTitle: 'Your booking as agreed',
+  offerAgreedDescription: 'This is your booking as we agreed it, so there is nothing for you to accept.',
+  offerAcceptedDescription: 'You have accepted this offer.',
+  offerReviewHotelDescription: 'Review the details below and accept the offer. We asked the hotel when we sent it; you receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
+  offerReviewAcceptDescription: 'Review the details below and click Accept offer to confirm your booking.',
+  offerHotelNote: 'This offer is valid once the hotel confirms your rooms.',
+  offerHotelNoteAfterAccept: 'We asked the hotel when we sent this offer. You receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
+  offerHotelNoteNow: 'We are asking the hotel to confirm. You receive the payment link by email as soon as they have.',
+  offerHotelConfirmed: 'Hotel confirmed',
+  offerHotelConfirmedAfterAccept: 'The hotel has confirmed your rooms. Accept the offer to get your confirmation and payment link.',
+  offerHotelConfirmedAccepted: 'The hotel has confirmed your rooms.',
+  offerHotelDeclined: 'We are updating your offer.',
+  offerHotelDeclinedBody: 'The hotel could not confirm these rooms. We will send you an updated offer shortly. Nothing is due now.',
+  offerSavingsIntroTemplate: 'You save {x} compared to our regular prices.',
+  offerYouSavePerDayTemplate: 'You save {a} per day · {b}',
+  offerYouSaveTemplate: 'You save {b}',
+  offerFreeSpotLabel: 'Free spot',
+  offerRegularOnUsTemplate: 'Regular price {x} — on us',
+  offerOnUs: 'On us',
+  offerRegularPriceLabel: 'Regular price',
+  offerYourPriceLabel: 'Your price',
+  offerInclTaxTemplate: 'incl. {a} tax ({p} %)',
+  offerPriceExclTaxLabel: 'Price excl. tax',
+  offerTaxAddedTemplate: '+ {a} tax ({p} %)',
+  offerInclTaxNamedTemplate: 'incl. {a} {n} ({p} %)',
+  offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
+  offerPaidAtHotelTemplate: '+ {a} paid at the hotel on arrival',
   couldNotStartPayment: 'We could not start the payment. Please try again or contact us.',
 
   becomeAMember: 'Become a member',
@@ -1270,6 +1415,21 @@ const de: Bundle = {
   seatsShortOne: 'Nur noch 1 Platz am {day} frei — Sie benötigen {need}.',
   seatsShortOther: 'Nur noch {n} Plätze am {day} frei — Sie benötigen {need}.',
   seatsShortNone: 'Am {day} ist kein Platz mehr frei — Sie benötigen {need}.',
+  seatsShortDays: 'Am {days} sind weniger als {need} Plätze frei.',
+  partySizeLabel: 'Wie viele Personen sind Sie?',
+  partySizeDecreaseAria: 'Eine Person weniger',
+  partySizeIncreaseAria: 'Eine Person mehr',
+  seatFitCountOne: 'An 1 Tag ist Platz für {n} Personen',
+  seatFitCountOther: 'An {count} Tagen ist Platz für {n} Personen',
+  seatFitNone: 'Im Zeitraum {range} gibt es keinen Tag mit Platz für {n} Personen.',
+  seatFitFewerButton: 'Weniger Personen',
+  seatFitInquiryButton: 'Gruppenbuchung anfragen',
+  shortDayLegend: 'Nicht genug Plätze für Ihre Gruppe',
+  slotSeatsShort: 'Nur noch {n} frei (Sie benötigen {need})',
+  slotSeatsShortNoCount: 'Nicht genug Plätze für {need}',
+  seatFitWindowsOne: 'Bei 1 Kurstermin ist Platz für {n} Personen',
+  seatFitWindowsOther: 'Bei {count} Kursterminen ist Platz für {n} Personen',
+  seatFitNoneWindows: 'Es gibt keinen kommenden Kurstermin mit Platz für {n} Personen.',
   holdUntilOnly:
     'Bei Ihrer Buchung waren die Plätze für {name} noch frei. Reserviert bis {when}.',
   holdRequested:
@@ -1519,7 +1679,7 @@ const de: Bundle = {
   copyLabel: 'Kopieren',
   copiedLabel: 'Kopiert',
   couldNotCopyAutomatically: 'Automatisches Kopieren fehlgeschlagen — bitte auswählen und kopieren:',
-  shareReferenceHint: 'Teilen Sie dies mit allen, die ihre eigene Tour buchen und sich mit Ihnen zusammenschließen möchten.',
+  shareReferenceHint: 'Teilen Sie diese Referenz mit allen, die dieselbe Aktivität buchen und mit Ihnen zusammen eingeteilt werden möchten.',
   retryEmailLabel: 'E-Mail erneut senden',
   emailLabelShort: 'E-Mail',
   bookingCreated: 'Buchung erstellt',
@@ -1621,6 +1781,24 @@ const de: Bundle = {
   offerModeDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Annehmen & Bezahlen“, um Ihre Buchung zu bestätigen.',
   statusLabel: 'Status:',
   whatYoureBooking: 'Was Sie buchen',
+  offerColItem: 'Leistung',
+  offerColDates: 'Datum',
+  offerColLength: 'Dauer',
+  offerLengthDaySingular: '{n} Tag',
+  offerLengthDayPlural: '{n} Tage',
+  offerLengthTotalLabel: 'Gesamt',
+  offerLengthNightSingular: '{n} Nacht',
+  offerLengthNightPlural: '{n} Nächte',
+  offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
+  offerColPeriod: 'Zeitraum',
+  offerPeriodArrival: 'Anreise',
+  offerPeriodDeparture: 'Abreise',
+  offerPerDaySuffix: '/Tag',
+  offerDiscountLabel: 'Ihr Rabatt',
+  offerGroupDiscountTemplate: 'Gruppenrabatt ({pct} %)',
+  offerFreeSpotsTemplate: 'Freiplätze × {n}',
+  offerFreeLabel: 'Kostenlos',
+  offerPayableAtHotelShort: 'im Hotel zu zahlen',
   productsAria: 'Angebote',
   offerParticipantsTitle: 'Teilnehmer',
   offerPriceBreakdownTitle: 'Preisaufschlüsselung',
@@ -1646,6 +1824,39 @@ const de: Bundle = {
   nothingFurtherToPay: 'Über diesen Link ist derzeit nichts weiter zu bezahlen.',
   paymentLinkPersonal: 'Dieser Zahlungslink ist persönlich. Bitte nicht weitergeben.',
   offerLinkPersonal: 'Dieser Angebotslink ist persönlich. Bitte nicht weitergeben.',
+  offerAcceptLabel: 'Angebot annehmen',
+  offerAcceptingEllipsis: 'Wird angenommen…',
+  offerAcceptErrorTitle: 'Angebot konnte nicht angenommen werden',
+  offerAcceptErrorChanged: 'Der Anbieter hat dieses Angebot nach dem Versand geändert. Bitte öffnen Sie den Link in Ihrer neuesten E-Mail.',
+  offerAcceptErrorClosed: 'Diese Buchung ist nicht mehr offen.',
+  offerAcceptErrorGeneric: 'Wir konnten Ihre Zusage nicht speichern. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
+  offerAgreedTitle: 'Ihre Buchung wie vereinbart',
+  offerAgreedDescription: 'Das ist Ihre Buchung so, wie wir sie vereinbart haben – Sie müssen nichts bestätigen.',
+  offerAcceptedDescription: 'Sie haben dieses Angebot angenommen.',
+  offerReviewHotelDescription: 'Prüfen Sie die Details unten und nehmen Sie das Angebot an. Wir haben das Hotel beim Senden angefragt; Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
+  offerReviewAcceptDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Angebot annehmen“, um Ihre Buchung zu bestätigen.',
+  offerHotelNote: 'Dieses Angebot gilt, sobald das Hotel Ihre Zimmer bestätigt.',
+  offerHotelNoteAfterAccept: 'Wir haben das Hotel beim Senden dieses Angebots angefragt. Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
+  offerHotelNoteNow: 'Wir fragen das Hotel gerade an. Den Zahlungslink erhalten Sie per E-Mail, sobald es bestätigt hat.',
+  offerHotelConfirmed: 'Hotel bestätigt',
+  offerHotelConfirmedAfterAccept: 'Das Hotel hat Ihre Zimmer bestätigt. Nehmen Sie das Angebot an, um Bestätigung und Zahlungslink zu erhalten.',
+  offerHotelConfirmedAccepted: 'Das Hotel hat Ihre Zimmer bestätigt.',
+  offerHotelDeclined: 'Wir aktualisieren Ihr Angebot.',
+  offerHotelDeclinedBody: 'Das Hotel konnte diese Zimmer nicht bestätigen. Wir senden Ihnen in Kürze ein aktualisiertes Angebot. Es ist jetzt nichts zu zahlen.',
+  offerSavingsIntroTemplate: 'Sie sparen {x} gegenüber unseren regulären Preisen.',
+  offerYouSavePerDayTemplate: 'Sie sparen {a} pro Tag · {b}',
+  offerYouSaveTemplate: 'Sie sparen {b}',
+  offerFreeSpotLabel: 'Freiplatz',
+  offerRegularOnUsTemplate: 'Regulärer Preis {x} – geht auf uns',
+  offerOnUs: 'Geht auf uns',
+  offerRegularPriceLabel: 'Regulärer Preis',
+  offerYourPriceLabel: 'Ihr Preis',
+  offerInclTaxTemplate: 'inkl. {a} Steuer ({p} %)',
+  offerPriceExclTaxLabel: 'Preis ohne Steuer',
+  offerTaxAddedTemplate: '+ {a} Steuer ({p} %)',
+  offerInclTaxNamedTemplate: 'inkl. {a} {n} ({p} %)',
+  offerTaxAddedNamedTemplate: '+ {a} {n} ({p} %)',
+  offerPaidAtHotelTemplate: '+ {a} Zahlung im Hotel bei Anreise',
   couldNotStartPayment: 'Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns.',
 
   becomeAMember: 'Mitglied werden',
@@ -1877,6 +2088,74 @@ export function seatsShortMessage(
     .replace('{day}', dayLabel)
     .replace('{n}', String(left))
     .replace('{need}', String(need))
+}
+
+/**
+ * landr-rmcsu.5: name EVERY short day, not just the first — a lone "why
+ * Nov 11?" when Nov 12 and 13 are short too was the confusing part. One day
+ * keeps the exact seatsShortMessage wording (seats left + need); several
+ * become "Wed 11 Nov, Thu 12 Nov and Fri 13 Nov have fewer than 3 seats left."
+ */
+export function seatsShortDaysMessage(
+  days: readonly { label: string; left: number; need: number }[],
+  locale?: string,
+): string {
+  if (days.length === 0) return ''
+  if (days.length === 1) {
+    const d = days[0]!
+    return seatsShortMessage(d.label, d.left, d.need, locale)
+  }
+  const labels = days.map((d) => d.label)
+  let list: string
+  try {
+    list = new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(labels)
+  } catch {
+    list = labels.join(', ')
+  }
+  return pickBundle(locale)
+    .seatsShortDays.replace('{days}', list)
+    .replace('{need}', String(days[0]!.need))
+}
+
+/** landr-rmcsu.5: "12 dates fit 3 people" under the dates-step calendar. */
+export function seatFitCountLabel(count: number, need: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return plural(count, t.seatFitCountOne, t.seatFitCountOther)
+    .replace('{count}', String(count))
+    .replace('{n}', String(need))
+}
+
+/** landr-rmcsu.7: "Only 2 left (you need 3)" chip; without the count when seats are not exposed. */
+export function slotSeatsShortLabel(
+  left: number,
+  need: number,
+  showCount: boolean,
+  locale?: string,
+): string {
+  const t = pickBundle(locale)
+  return (showCount ? t.slotSeatsShort : t.slotSeatsShortNoCount)
+    .replace('{n}', String(left))
+    .replace('{need}', String(need))
+}
+
+/** landr-rmcsu.7: course-window flavour of seatFitCountLabel. */
+export function seatFitWindowsCountLabel(count: number, need: number, locale?: string): string {
+  const t = pickBundle(locale)
+  return plural(count, t.seatFitWindowsOne, t.seatFitWindowsOther)
+    .replace('{count}', String(count))
+    .replace('{n}', String(need))
+}
+
+/** landr-rmcsu.7: course-window flavour of seatFitNoneMessage. */
+export function seatFitNoneWindowsMessage(need: number, locale?: string): string {
+  return pickBundle(locale).seatFitNoneWindows.replace('{n}', String(need))
+}
+
+/** landr-rmcsu.5: "No dates with room for 4 people in October 2026 – March 2027." */
+export function seatFitNoneMessage(need: number, range: string, locale?: string): string {
+  return pickBundle(locale)
+    .seatFitNone.replace('{n}', String(need))
+    .replace('{range}', range)
 }
 
 /** Confirmation: per-invitee hold line (landr-f987a.4). */

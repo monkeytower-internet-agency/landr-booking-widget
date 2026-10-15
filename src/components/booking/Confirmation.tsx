@@ -56,6 +56,13 @@ interface Props {
    * appStepMachine.ts's 'confirmed' step doc.
    */
   isSharedDouble?: boolean
+  /**
+   * landr-h0opd.3: the booked product's `share_reference_enabled` flag.
+   * The "share this reference to be grouped with you" hint shows only when
+   * true; the reference itself and its copy button always show. Absent (an
+   * older API, or a caller that does not know the product) → false.
+   */
+  shareReferenceEnabled?: boolean
 }
 
 /**
@@ -891,7 +898,12 @@ function PostBookingSection({
   )
 }
 
-export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
+export function Confirmation({
+  response,
+  onRestart,
+  isSharedDouble,
+  shareReferenceEnabled = false,
+}: Props) {
   const locale = browserLocale()
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
@@ -1010,9 +1022,17 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             testId="confirmation-reference-copy"
           />
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {tr('shareReferenceHint', locale)}
-        </p>
+        {/* landr-h0opd.3: only for products where the operator switched
+            reference sharing on — elsewhere grouping by reference is not
+            offered, so the hint would only invite a confused customer. */}
+        {shareReferenceEnabled ? (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            data-testid="confirmation-share-reference-hint"
+          >
+            {tr('shareReferenceHint', locale)}
+          </p>
+        ) : null}
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
           booking's current stage (falls back to the staff label when the

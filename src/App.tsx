@@ -43,8 +43,10 @@ import {
 } from '@/components/booking/partyIdentity'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
+  languageStepNeeded,
   normaliseOfferedLanguages,
   productAcceptsAnyLanguage,
+  singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
@@ -52,7 +54,7 @@ import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutS
 import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
-import PriceSidebar from '@/components/booking/PriceSidebar'
+import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import { inviteBannerMessage, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
@@ -86,6 +88,8 @@ import {
   productEntryStep,
   deriveAccommodationMode,
   detailsFromDraft,
+  frameBackStep,
+  participantsBeforeSelection,
   draftFromStep,
   enterReviewOrCustomForm,
   mergeCapturedDraft,
@@ -462,6 +466,26 @@ function BookingFlowApp() {
   const mergeDraft = useCallback((patch: BookingDraft) => {
     setBookingDraft((prev) => mergeDraftPatch(prev, patch))
   }, [])
+  // landr-rmcsu.5: the dates step's group size — the stepper's last value,
+  // else the party already entered (Back / Change dates), else unknown.
+  // landr-rmcsu.6: when participants ran BEFORE the dates step the committed
+  // party (+ held invitees) is authoritative — there is no stepper to set it.
+  const draftSeatsNeeded = (product: Product): number | undefined => {
+    const committed =
+      bookingDraft.participants && bookingDraft.participants.length > 0
+        ? seatsNeeded(
+            bookingDraft.participants.length,
+            bookingDraft.companions,
+            product.invite_hold_hours,
+          )
+        : undefined
+    if (committed !== undefined && participantsFirstFor(product)) return committed
+    return bookingDraft.partySize ?? committed
+  }
+  const onPartySizeChange = useCallback(
+    (partySize: number) => mergeDraft({ partySize }),
+    [mergeDraft],
+  )
   // landr-otml0.3: resolve `?invite=<token>` once, at mount. On success:
   // seed the persistent draft (booker name, hotel + shared-double mode —
   // the SAME slices `afterDetails` already reads to build pick-accommodation,
@@ -538,6 +562,8 @@ function BookingFlowApp() {
         if (cancelled) return
         const match = products.find((p) => p.product_id === prefill.product_id)
         if (match && isBookable(match)) {
+          // landr-rmcsu.6: a participants-first flow swaps this for the
+          // participants step once the flow resolves (flow-fetch effect).
           setStep({ name: 'pick-selection', product: match })
         } else {
           // Product deleted/inactive/sold out since the invite was minted —
@@ -612,6 +638,9 @@ function BookingFlowApp() {
   // Confirm CTA must be blocked instead of submitting against a price the
   // API will 422 anyway.
   const [estimateUnPriceable, setEstimateUnPriceable] = useState(false)
+  // landr-h0opd.3: the same estimate's calculated total, for the staff
+  // price-override placeholder in BookingForm (same lifting pattern).
+  const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
     setFormResponses((prev) => {
       const idx = prev.findIndex((e) => e.form_key === entry.form_key)
@@ -643,6 +672,14 @@ function BookingFlowApp() {
       return remoteFlow.flow
     },
     [remoteFlow],
+  )
+  // landr-rmcsu.6: does this product's (resolved) flow run the participants
+  // step BEFORE the dates step? False until the flow resolves and on every
+  // legacy / dates-first flow — today's order.
+  const participantsFirstFor = useCallback(
+    (p: Product): boolean =>
+      participantsBeforeSelection(p, flowForProduct(p.product_id)),
+    [flowForProduct],
   )
   // landr-db45: same lookup as flowForProduct but preserving the concrete
   // `ProductFlowResponse` shape (flowForProduct's declared `RemoteFlow`
@@ -872,10 +909,11 @@ function BookingFlowApp() {
   // widget books exactly one main service product per booking (D4), so
   // keying this off `step.product` (never an add-on) already matches.
   //
-  // The step runs whenever the resolved list is non-empty. landr-pv2r1
+  // The step runs only when the resolved list has TWO or more languages
+  // (landr-h0opd.3 — see languageStepForProduct below). landr-pv2r1
   // (epic decision E3): an EMPTY `guide_languages` array marks an
   // "any language" product (e.g. a tandem flight) — the resolved list is
-  // then `[]`, so every `.length > 0` gate below skips the step and the API
+  // then `[]`, so the step gate below skips the step and the API
   // (landr-pv2r1.1, tri-state resolver) treats participant languages as
   // optional for it. NULL / absent is NOT "any": normaliseOfferedLanguages
   // still falls back to the platform default there, because a widget can
@@ -888,6 +926,16 @@ function BookingFlowApp() {
         ? []
         : normaliseOfferedLanguages(product.guide_languages),
     [],
+  )
+  // landr-h0opd.3: the language step only runs when there is a real choice —
+  // TWO or more offered languages. A single-language product skips it (its
+  // members are auto-filled with that language at the review seam below, so
+  // the API's participants[].language check still passes); an any-language
+  // product (`[]`) skips it as before. Every step / breadcrumb gate reads
+  // this one predicate.
+  const languageStepForProduct = useCallback(
+    (product: Product) => languageStepNeeded(offeredLanguagesForProduct(product)),
+    [offeredLanguagesForProduct],
   )
   // landr-pv2r1 (E3): the per-member language map the downstream seams
   // (custom form, review/submit) may use for THIS product — always empty for
@@ -970,7 +1018,23 @@ function BookingFlowApp() {
     if (!token || !activeProductId) return
     // Already cached for this product → no refetch (idempotent).
     if (remoteFlow && remoteFlow.productId === activeProductId) return
-    void ensureProductFlow(activeProductId)
+    // landr-rmcsu.6: an entry that opened the dates step before this product's
+    // flow was known (start=dates deep link, invite link, reload, or a Book
+    // click that beat the fetch) is swapped for the participants step when
+    // the flow runs them first — but only while the customer is still on
+    // that untouched dates step and has no committed party yet.
+    const draftAtFetch = bookingDraft
+    void ensureProductFlow(activeProductId).then((flow) => {
+      setStep((prev) =>
+        prev.name === 'pick-selection' &&
+        prev.product.product_id === activeProductId &&
+        !prev.selection &&
+        !(draftAtFetch.participants && draftAtFetch.participants.length > 0) &&
+        participantsBeforeSelection(prev.product, flow)
+          ? detailsFromDraft(prev.product, undefined, draftAtFetch)
+          : prev,
+      )
+    })
     // ensureProductFlow is stable; remoteFlow is the cache guard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeProductId])
@@ -1003,9 +1067,12 @@ function BookingFlowApp() {
   useEffect(() => {
     const lastProductId = lastProductIdRef.current
     if (activeProductId && lastProductId && lastProductId !== activeProductId) {
+      // landr-rmcsu.7: the dates-step group size belongs to the product it
+      // was chosen for (its own max_party_size and seat counts) — clear it
+      // too so a stale "5 of you" doesn't seed the new product's stepper.
       setBookingDraft((prev) =>
-        prev.customFormAnswers
-          ? { ...prev, customFormAnswers: undefined }
+        prev.customFormAnswers || prev.partySize !== undefined
+          ? { ...prev, customFormAnswers: undefined, partySize: undefined }
           : prev,
       )
     }
@@ -1185,6 +1252,8 @@ function BookingFlowApp() {
       // so the deep link shows the detail page first — unless the
       // embed asked for start=dates (landr-6eita.1), which lands the
       // deep-linked product straight on the date picker.
+      // landr-rmcsu.6: a participants-first flow swaps this dates step for the
+      // participants step once the flow resolves (see the flow-fetch effect).
       setStep(productEntryStep(p, opensOnDates(p)))
     },
     [opensOnDates],
@@ -1216,6 +1285,25 @@ function BookingFlowApp() {
     // values (from step state) rather than stale live values.
     setLiveParticipantCount(0)
     setLiveParticipantNames([])
+    // landr-rmcsu.6: participants already ran (operator put them before the
+    // dates step) → the party is committed in the draft; go straight on to
+    // the middles exactly as DetailsStep's Continue does on today's order.
+    // Without a committed party (an entry that landed on Dates before the
+    // flow resolved) fall through to the details step, selection carried.
+    if (participantsFirstFor(product)) {
+      const { booker, participants } = bookingDraft
+      if (booker && participants && participants.length > 0) {
+        afterDetails(
+          product,
+          selection,
+          booker,
+          participants,
+          bookingDraft.companions ?? [],
+          bookingDraft.customerComment ?? '',
+        )
+        return
+      }
+    }
     // landr-nmed: re-seed the DetailsStep from the persistent draft so that a
     // breadcrumb jump back to Dates (or the product crumb) + Continue restores
     // the booker / participants / companions the customer already entered,
@@ -1224,6 +1312,66 @@ function BookingFlowApp() {
     // unchanged. The accommodation / declarations slices stay in the draft and
     // are re-applied as the customer steps forward through afterDetails.
     setStep(detailsFromDraft(product, selection, bookingDraft))
+  }
+
+  /**
+   * landr-nmed / landr-rmcsu.6: commit DetailsStep's confirmed party into the
+   * persistent draft — shared by both flow orders (afterDetails on today's
+   * dates-first order, afterDetailsBeforeDates when participants run first).
+   */
+  const commitDetails = (
+    product: Product,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+    comment: string,
+  ) => {
+    // landr-nmed: commit the just-entered details into the persistent draft so
+    // they survive a later breadcrumb jump back to Dates / the product crumb.
+    // landr-de6ej: comment folds '' -> null (mergeDraftPatch only skips
+    // `undefined`, not ''), matching every other nullable draft slice.
+    mergeDraft({
+      booker,
+      participants,
+      companions,
+      customerComment: comment || null,
+      // landr-rmcsu.5: the party actually entered is now the group size.
+      partySize: seatsNeeded(participants.length, companions, product.invite_hold_hours),
+    })
+    // landr-pv2r1 (E3): an any-language product never shows the language
+    // board, so drop any assignment an earlier restricted product left in
+    // the draft — it could only mislead, and would silently re-appear if the
+    // customer went back to that product. (Done here, in the handler, rather
+    // than in an effect: react-hooks/set-state-in-effect.)
+    if (productAcceptsAnyLanguage(product.guide_languages)) {
+      setBookingDraft((prev) =>
+        prev.participantLanguages
+          ? { ...prev, participantLanguages: undefined }
+          : prev,
+      )
+    }
+  }
+
+  /**
+   * landr-rmcsu.6: DetailsStep confirmed on a flow that runs participants
+   * BEFORE the dates step — commit the party, then open the dates step (seeded
+   * with any previously committed selection) with the group size known, so
+   * the calendar judges every day against the real party. The dates step's
+   * Continue (afterSelection) then runs the middles.
+   */
+  const afterDetailsBeforeDates = (
+    product: Product,
+    selection: BookingSelection | undefined,
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    companions: CompanionDetails[],
+    comment: string,
+  ) => {
+    commitDetails(product, booker, participants, companions, comment)
+    setLiveSelectionDays([])
+    setLiveParticipantCount(0)
+    setLiveParticipantNames([])
+    setStep({ name: 'pick-selection', product, selection })
   }
 
   /**
@@ -1251,28 +1399,7 @@ function BookingFlowApp() {
     // landr-de6ej: trimmed comment text ('' when left blank).
     comment: string,
   ) => {
-    // landr-nmed: commit the just-entered details into the persistent draft so
-    // they survive a later breadcrumb jump back to Dates / the product crumb.
-    // landr-de6ej: comment folds '' -> null (mergeDraftPatch only skips
-    // `undefined`, not ''), matching every other nullable draft slice.
-    mergeDraft({
-      booker,
-      participants,
-      companions,
-      customerComment: comment || null,
-    })
-    // landr-pv2r1 (E3): an any-language product never shows the language
-    // board, so drop any assignment an earlier restricted product left in
-    // the draft — it could only mislead, and would silently re-appear if the
-    // customer went back to that product. (Done here, in the handler, rather
-    // than in an effect: react-hooks/set-state-in-effect.)
-    if (productAcceptsAnyLanguage(product.guide_languages)) {
-      setBookingDraft((prev) =>
-        prev.participantLanguages
-          ? { ...prev, participantLanguages: undefined }
-          : prev,
-      )
-    }
+    commitDetails(product, booker, participants, companions, comment)
     const offering = product.hotel_offering ?? 'none'
     if (product.product_kind === 'service' && offering !== 'none') {
       // landr-nmed: re-seed the AccommodationStep from the draft so a customer
@@ -1470,7 +1597,7 @@ function BookingFlowApp() {
             bookingDraft.customFormAnswers,
             // landr-r6e5x.4 / landr-p68d2: the language step is the first
             // pre-review step, gated on THIS product's offered languages.
-            offeredLanguagesForProduct(product).length > 0,
+            languageStepForProduct(product),
           ),
         )
       })
@@ -1489,7 +1616,14 @@ function BookingFlowApp() {
     return selection.selectedDays
   }
 
-  const sidebarInputs = sidebarInputsForStep(step)
+  // landr-rmcsu.6: on the dates step of a participants-first flow the party
+  // is already committed — price it instead of the count-only default.
+  const sidebarInputs = sidebarInputsForStep(
+    step,
+    step.name === 'pick-selection' && participantsFirstFor(step.product)
+      ? bookingDraft.participants
+      : undefined,
+  )
 
   // landr (breadcrumb): jump back to any prior step with its state restored.
   // navigateTo clears the ephemeral live-selection state (mirroring the back
@@ -1529,6 +1663,11 @@ function BookingFlowApp() {
   // landr-71kz.10: the crumb trail now reconstructs the custom-form chain from
   // the active product's remote flow (replacing the hardcoded declarations crumb).
   const activeFlow = flowForProduct(activeProductId)
+  const {
+    booker: draftBooker,
+    participants: draftParticipants,
+    companions: draftCompanions,
+  } = bookingDraft
   const breadcrumbItems = useMemo(() => {
     const productLabel =
       'product' in step
@@ -1546,17 +1685,25 @@ function BookingFlowApp() {
       // mirrors the productLabel guard above for the same reason (some
       // funnel steps, e.g. pick-product, carry no product at all).
       languageStep:
-        'product' in step
-          ? offeredLanguagesForProduct(step.product).length > 0
-          : false,
+        'product' in step ? languageStepForProduct(step.product) : false,
       // landr-6eita.1: no product-detail crumb for a start=dates product.
       startAtDates: 'product' in step && opensOnDates(step.product),
+      // landr-rmcsu.6: rebuilds the participants crumb ahead of Dates when
+      // the operator's flow runs participants first.
+      draft: {
+        booker: draftBooker,
+        participants: draftParticipants,
+        companions: draftCompanions,
+      },
     })
   }, [
     step,
     activeFlow,
+    draftBooker,
+    draftParticipants,
+    draftCompanions,
     bookingDraft.customFormAnswers,
-    offeredLanguagesForProduct,
+    languageStepForProduct,
     opensOnDates,
   ])
   const breadcrumbNav = useMemo(
@@ -1618,10 +1765,16 @@ function BookingFlowApp() {
   // landr-6eita.1: the date picker's Back returns to the catalogue, whose
   // ?product= preselect lands on product-detail again. A start=dates product
   // has neither to go back to, so its date step renders no Back at all.
+  //
+  // landr-rmcsu.6: when participants ran first, Dates walks back to them
+  // (re-seeded from the draft, the committed dates carried along).
   const datePickerBack =
-    step.name === 'pick-selection' && opensOnDates(step.product)
-      ? undefined
-      : goToProductStep
+    step.name === 'pick-selection' && participantsFirstFor(step.product)
+      ? () =>
+          setStep(detailsFromDraft(step.product, step.selection, bookingDraft))
+      : step.name === 'pick-selection' && opensOnDates(step.product)
+        ? undefined
+        : goToProductStep
 
   // landr-otml0.3 review fix (MINOR 4): without this, an invite link briefly
   // rendered the full product catalogue (a fetch + render cycle) before the
@@ -1966,8 +2119,14 @@ function BookingFlowApp() {
               return (
                 <ProductDetailStep
                   product={step.product}
+                  // landr-rmcsu.6: dates, or participants when the operator's
+                  // flow (fetched on this page) runs them first.
                   onBook={() =>
-                    setStep({ name: 'pick-selection', product: step.product })
+                    setStep(
+                      participantsFirstFor(step.product)
+                        ? detailsFromDraft(step.product, undefined, bookingDraft)
+                        : { name: 'pick-selection', product: step.product },
+                    )
                   }
                   onBack={
                     canGoBack
@@ -2077,6 +2236,13 @@ function BookingFlowApp() {
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
             onLoaded={onSelectionLoaded}
             exposeSeatsToCustomer={operatorSettings.expose_seats_to_customer}
+            // landr-rmcsu.7: group-size stepper + seat-aware times.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            // landr-rmcsu.6: participants already entered → N is known.
+            showPartySizeStepper={!participantsFirstFor(step.product)}
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior slot on back-nav re-entry.
             initialSlot={
@@ -2101,6 +2267,13 @@ function BookingFlowApp() {
             product={step.product}
             onLoaded={onSelectionLoaded}
             exposeSeats={operatorSettings.expose_seats_to_customer}
+            // landr-rmcsu.7: group-size stepper + seat-aware windows.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            // landr-rmcsu.6: participants already entered → N is known.
+            showPartySizeStepper={!participantsFirstFor(step.product)}
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onBack={datePickerBack}
             // landr (breadcrumb): the committed window id rides on the restored
             // slot's availability_id — re-select it on back-nav re-entry.
@@ -2162,15 +2335,14 @@ function BookingFlowApp() {
             // landr-f987a.4: invitee's token (live hold counts as available)
             // and the host party's seat need once known (Back nav from details).
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
-            seatsNeeded={
-              bookingDraft.participants && bookingDraft.participants.length > 0
-                ? seatsNeeded(
-                    bookingDraft.participants.length,
-                    bookingDraft.companions,
-                    step.product.invite_hold_hours,
-                  )
-                : undefined
-            }
+            // landr-rmcsu.5: the group size (stepper / entered party) drives
+            // the seat-aware calendar; the stepper persists into the draft.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            // landr-rmcsu.6: participants already entered → N is known.
+            showPartySizeStepper={!participantsFirstFor(step.product)}
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onConfirm={(selectedDays, forcedDays, forcedReasons) =>
               afterSelection(step.product, {
                 kind: 'days',
@@ -2193,6 +2365,13 @@ function BookingFlowApp() {
           <SingleDatePicker
             product={step.product}
             inviteToken={inviteData ? (invite ?? undefined) : undefined}
+            // landr-rmcsu.5: same group-size contract as MultiDayStep.
+            seatsNeeded={draftSeatsNeeded(step.product)}
+            // landr-rmcsu.6: participants already entered → N is known.
+            showPartySizeStepper={!participantsFirstFor(step.product)}
+            onPartySizeChange={onPartySizeChange}
+            operatorToken={token ?? undefined}
+            contactEmail={operatorSettings.contact_email ?? null}
             onLoaded={onSelectionLoaded}
             onBack={datePickerBack}
             // landr (breadcrumb): restore the prior single-date pick on re-entry.
@@ -2236,6 +2415,14 @@ function BookingFlowApp() {
             operatorToken={token!}
             initialBooker={step.booker}
             initialParticipants={step.participants}
+            // landr-rmcsu.5: pre-create the participant rows the dates-step
+            // stepper asked for (invited companions are not rows here).
+            prefillParticipantCount={
+              bookingDraft.partySize !== undefined
+                ? bookingDraft.partySize -
+                  seatsNeeded(0, step.companions ?? [], step.product.invite_hold_hours)
+                : undefined
+            }
             // landr-87n9.3: restore the non-guiding companions on Back.
             initialCompanions={step.companions}
             // landr-fn4i / landr-5krc: restore the member-perk code on Back —
@@ -2254,16 +2441,39 @@ function BookingFlowApp() {
             onCompanionContactFocusApplied={() =>
               setFocusCompanionContactIndex(undefined)
             }
-            onBack={() =>
-              // landr (breadcrumb): carry the committed selection back so the
-              // date picker re-mounts showing the customer's prior dates.
-              setStep({
-                name: 'pick-selection',
-                product: step.product,
-                selection: step.selection,
-              })
+            onBack={
+              participantsFirstFor(step.product)
+                ? // landr-rmcsu.6: participants run first → they open the
+                  // funnel; Back returns to the product page (none with
+                  // start=dates — the breadcrumb is the only way back then).
+                  opensOnDates(step.product)
+                  ? undefined
+                  : () => setStep({ name: 'product-detail', product: step.product })
+                : () =>
+                    // landr (breadcrumb): carry the committed selection back so
+                    // the date picker re-mounts showing the customer's prior
+                    // dates.
+                    setStep({
+                      name: 'pick-selection',
+                      product: step.product,
+                      selection: step.selection,
+                    })
             }
-            onConfirm={(booker, participants, companions, comment) =>
+            onConfirm={(booker, participants, companions, comment) => {
+              // landr-rmcsu.6: participants before dates → the dates step is
+              // next (also after a "Change participants" detour, so the
+              // calendar re-checks the dates against the edited party).
+              if (participantsFirstFor(step.product) || !step.selection) {
+                afterDetailsBeforeDates(
+                  step.product,
+                  step.selection,
+                  booker,
+                  participants,
+                  companions,
+                  comment,
+                )
+                return
+              }
               afterDetails(
                 step.product,
                 step.selection,
@@ -2272,7 +2482,7 @@ function BookingFlowApp() {
                 companions,
                 comment,
               )
-            }
+            }}
             // landr-gb2f.1: live participant count + names for the sidebar.
             // Fires on every add/remove/name-change so the price breakdown
             // updates without waiting for Continue.
@@ -2388,16 +2598,14 @@ function BookingFlowApp() {
               clearLiveAccommodation()
               // landr-b3g5: thread the already-collected booker +
               // participants back to DetailsStep so the form re-mounts
-              // pre-filled instead of empty.
-              setStep({
-                name: 'details',
-                product: step.product,
-                selection: step.selection,
-                booker: step.booker,
-                participants: step.participants,
-                // landr-87n9.3: carry companions back to DetailsStep.
-                companions: step.companions,
-              })
+              // pre-filled instead of empty. landr-rmcsu.6: or back to the
+              // dates step when participants ran before it.
+              setStep(
+                frameBackStep({
+                  ...step,
+                  remoteFlow: flowForProduct(step.product.product_id),
+                }),
+              )
             }}
             onConfirm={(rooms, hotelLocationId, addons, includeHotel, isSharedDouble, roomAssignment, ageMap, perRoomAddons, roomProductNames, breakfastMap) =>
               afterAccommodation(
@@ -2462,16 +2670,14 @@ function BookingFlowApp() {
             }
             onBack={() =>
               // landr-b3g5: carry booker + participants back so the
-              // DetailsStep re-mount restores them.
-              setStep({
-                name: 'details',
-                product: step.product,
-                selection: step.selection,
-                booker: step.booker,
-                participants: step.participants,
-                // landr-87n9.3: carry companions back to DetailsStep.
-                companions: step.companions,
-              })
+              // DetailsStep re-mount restores them. landr-rmcsu.6: or back to
+              // the dates step when participants ran before it.
+              setStep(
+                frameBackStep({
+                  ...step,
+                  remoteFlow: flowForProduct(step.product.product_id),
+                }),
+              )
             }
             onConfirm={(addons) =>
               afterAccommodation(
@@ -2547,15 +2753,14 @@ function BookingFlowApp() {
                 })
               } else {
                 // landr-b3g5: preserve booker + participants when
-                // back-stepping into DetailsStep.
-                setStep({
-                  name: 'details',
-                  product: step.product,
-                  selection: step.selection,
-                  booker: step.booker,
-                  participants: step.participants,
-                  companions: step.companions,
-                })
+                // back-stepping into DetailsStep. landr-rmcsu.6: or back to
+                // the dates step when participants ran before it.
+                setStep(
+                  frameBackStep({
+                    ...step,
+                    remoteFlow: flowForProduct(step.product.product_id),
+                  }),
+                )
               }
             }}
             onConfirm={(locationId) => {
@@ -2602,7 +2807,7 @@ function BookingFlowApp() {
                     // landr-r6e5x.4 / landr-p68d2: the language step is the
                     // first pre-review step, gated on THIS product's
                     // offered languages.
-                    offeredLanguagesForProduct(step.product).length > 0,
+                    languageStepForProduct(step.product),
                   ),
                 )
               })
@@ -2680,6 +2885,8 @@ function BookingFlowApp() {
                   perRoomAddons: step.perRoomAddons,
                   roomProductNames: step.roomProductNames,
                   breakfastMap: step.breakfastMap,
+                  // landr-rmcsu.6: frame back-target (details vs dates).
+                  remoteFlow: flowForProduct(step.product.product_id),
                 }),
               )
             }
@@ -2779,7 +2986,7 @@ function BookingFlowApp() {
                     remoteFlow: flowForProduct(step.product.product_id),
                     customFormAnswers: bookingDraft.customFormAnswers,
                     // landr-p68d2: per-product, not per-operator.
-                    languageStep: offeredLanguagesForProduct(step.product).length > 0,
+                    languageStep: languageStepForProduct(step.product),
                   },
                   step.formKey,
                 ),
@@ -2887,10 +3094,17 @@ function BookingFlowApp() {
                 // participant's / companion's `language`.
                 // landr-pv2r1 (E3): `{}` for an any-language product, so no
                 // stale assignment reaches the submit body.
-                participantLanguages: toIndexKeyed(
-                  draftLanguagesForProduct(step.product),
-                  roster,
-                ),
+                // landr-h0opd.3: a single-language product skipped the
+                // language step, so every member (participants AND
+                // companions — the whole roster) is auto-filled with that
+                // one language here, overriding anything an earlier
+                // product left in the draft.
+                participantLanguages:
+                  singleLanguageAssignment(
+                    offeredLanguagesForProduct(step.product),
+                    roster.length,
+                  ) ??
+                  toIndexKeyed(draftLanguagesForProduct(step.product), roster),
               }
             })()}
             // landr-gb2f.5: thread the per-room add-on map so BookingForm
@@ -2930,8 +3144,17 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            // landr-h0opd.3: the calculated total for the staff override
+            // placeholder — see PriceSidebar's onCalculatedTotalChange.
+            calculatedTotal={estimateTotal}
+            // landr-rmcsu.5: keep the committed dates (like Back does) so the
+            // calendar re-opens on them with any short day marked.
             onChangeDates={() =>
-              setStep({ name: 'pick-selection', product: step.product })
+              setStep({
+                name: 'pick-selection',
+                product: step.product,
+                selection: step.selection,
+              })
             }
             onBack={() => {
               // landr-71kz.10: Back from review walks the pre-review tail via
@@ -2964,7 +3187,7 @@ function BookingFlowApp() {
                   remoteFlow: flowForProduct(step.product.product_id),
                   customFormAnswers: bookingDraft.customFormAnswers,
                   // landr-p68d2: per-product, not per-operator.
-                  languageStep: offeredLanguagesForProduct(step.product).length > 0,
+                  languageStep: languageStepForProduct(step.product),
                 }),
               )
             }}
@@ -2982,6 +3205,9 @@ function BookingFlowApp() {
                 // landr-otml0.4: carried through so Confirmation can show
                 // the shared-double "add reference later" hint.
                 isSharedDouble: step.isSharedDouble,
+                // landr-h0opd.3: gates the share-reference hint; absent on
+                // an older API → false.
+                shareReferenceEnabled: step.product.share_reference_enabled === true,
               })
             }}
           />
@@ -3001,6 +3227,7 @@ function BookingFlowApp() {
                 goToProductStep()
               }}
               isSharedDouble={step.isSharedDouble}
+              shareReferenceEnabled={step.shareReferenceEnabled}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
@@ -3058,6 +3285,7 @@ function BookingFlowApp() {
             // flag up so BookingForm (a sibling, not a child) can block
             // its Confirm CTA on it — see the prop's doc on PriceSidebar.
             onUnPriceableChange={setEstimateUnPriceable}
+            onCalculatedTotalChange={setEstimateTotal}
           />
         ) : null}
         </div>
