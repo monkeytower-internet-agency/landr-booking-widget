@@ -923,6 +923,20 @@
         "title": "ApproveIn",
         "type": "object"
       },
+      "AskBillingAddressResponse": {
+        "description": "Result of POST .../ask-billing-address.",
+        "properties": {
+          "sent_at": {
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sent_at"
+        ],
+        "title": "AskBillingAddressResponse",
+        "type": "object"
+      },
       "AskPartnerIn": {
         "properties": {
           "note": {
@@ -1634,6 +1648,17 @@
           "country"
         ],
         "title": "BillingAddressPatchIn",
+        "type": "object"
+      },
+      "BillingAddressSavedOut": {
+        "properties": {
+          "billing_address_missing": {
+            "default": false,
+            "title": "Billing Address Missing",
+            "type": "boolean"
+          }
+        },
+        "title": "BillingAddressSavedOut",
         "type": "object"
       },
       "BookingCalendarEvent": {
@@ -35469,6 +35494,59 @@
         ]
       }
     },
+    "/api/public/briefings/{token}/billing-address": {
+      "put": {
+        "description": "Save the invoice recipient's billing address from the customer page.\n\nTHE TOKEN IS THE AUTHORISATION, exactly as for the page itself (same\nliveness gate via ``_resolve_briefing_booking``; every failure is the same\nopaque 404). The address is written to the BOOKER contact\n(``bookings.customer_contact_id``) with\n``billing_address_source='customer_page'``, then any Holded invoice row\nparked on ``billing_address_missing`` for that contact is re-queued.\n\nFirst write wins: the page only offers the form while the address is\nmissing, so a second submit means two people raced. The write is a\nconditional UPDATE (only while the contact still has no address), not a\nread-then-write, so the race cannot overwrite -- 409\n``billing_address_already_set``. The stored address is never echoed back.\nMetered per IP and per token like ``/join``.",
+        "operationId": "public_briefing_put_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingAddressIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingAddressSavedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Billing Address",
+        "tags": [
+          "public-briefings"
+        ]
+      }
+    },
     "/api/public/briefings/{token}/checkin": {
       "post": {
         "operationId": "create_checkin",
@@ -45903,6 +45981,66 @@
           }
         ],
         "summary": "List Holded Invoices",
+        "tags": [
+          "staff-holded-invoicing"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/ask-billing-address": {
+      "post": {
+        "description": "Email the booker asking for the invoice billing address (landr-uuntm.4).\n\nAuthz is the retry route's: operator membership + the ``invoicing``\nfeature gate, and the row is looked up with ``operator_id`` AND\n``action='invoice_push'`` filters (404 otherwise).\n\nOnly for a row parked ``blocked_on_human`` /\n``failure_reason='billing_address_missing'`` (409 otherwise -- a row blocked\non a contact-matching decision, a failed or already-transferred row has\nnothing the customer can fix). Resolves booking -> booker contact -> email\nand sends the transactional ``billing_address_request`` email with the\nbooking's my.site share link (DE/EN/ES by the customer's language).\n\nResend guard: a second ask for the same booking inside 24 h is a 409\n``{detail: 'recently_sent', next_allowed_at}``. The guard row is written\nBEFORE the send (atomically, ``claim_billing_address_request`` -- an\nadvisory lock per booking, DB clock) and removed again if the send fails,\nso a concurrent double-click sends exactly one email.\nResponse ``{sent_at}``.",
+        "operationId": "ask_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sync_log_id",
+            "required": true,
+            "schema": {
+              "title": "Sync Log Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskBillingAddressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not blocked on a missing billing address (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ask Billing Address",
         "tags": [
           "staff-holded-invoicing"
         ]
