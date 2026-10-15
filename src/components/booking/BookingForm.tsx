@@ -108,6 +108,7 @@ import { alignFormResponses, parseFormResponseErrors } from './formScopes'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
   isStaffSubmitBody,
@@ -333,6 +334,15 @@ interface Props {
    */
   unPriceable?: boolean
   /**
+   * landr-h0opd.3: the calculated booking total from App.tsx's PriceSidebar
+   * estimate (see its onCalculatedTotalChange doc). Shown as the staff
+   * price-override input's placeholder and as a "Calculated: …" line under
+   * it, so the operator sees what they are overriding. Display only — an
+   * empty override input still means "no override" (the submit uses the
+   * calculated total server-side). Absent/null → the generic placeholder.
+   */
+  calculatedTotal?: CalculatedTotal | null
+  /**
    * landr-otml0.3 review fix (MINOR 6): fires with the 0-based companion
    * index when the API rejects submit with 422 companion_contact_required
    * (the client-side D11 gate should make this unreachable in the normal
@@ -495,6 +505,17 @@ function readLanguageError(
     ? obj.offered.filter((v): v is string => typeof v === 'string')
     : []
   return { code, entries, offered }
+}
+
+/**
+ * landr-h0opd.3: "250.00 EUR" — the calculated total in the same plain
+ * decimal form the operator types into the override input, plus the
+ * booking currency. Falls back to the raw string for a non-numeric amount.
+ */
+function formatOverridePlaceholder(total: CalculatedTotal): string {
+  const n = Number(total.amount)
+  const amount = Number.isFinite(n) ? n.toFixed(2) : total.amount
+  return `${amount} ${total.currency}`
 }
 
 /**
@@ -840,6 +861,7 @@ export function BookingForm({
   inviteToken,
   joinRef,
   unPriceable = false,
+  calculatedTotal = null,
   onCompanionContactRequired,
   onBack,
   onChangeDates,
@@ -1886,10 +1908,22 @@ export function BookingForm({
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  placeholder="e.g. 250.00"
+                  placeholder={
+                    calculatedTotal
+                      ? formatOverridePlaceholder(calculatedTotal)
+                      : 'e.g. 250.00'
+                  }
                   value={overrideAmount}
                   onChange={(e) => setOverrideAmount(e.target.value)}
                 />
+                {calculatedTotal ? (
+                  <p
+                    className="text-xs text-muted-foreground"
+                    data-testid="override-calculated-total"
+                  >
+                    Calculated: {formatOverridePlaceholder(calculatedTotal)}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="override-reason">Reason</Label>

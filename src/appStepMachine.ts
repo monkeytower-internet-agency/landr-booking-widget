@@ -444,6 +444,9 @@ export type Step =
       response: SubmitBookingResponse
       email: string
       isSharedDouble?: boolean
+      // landr-h0opd.3: the booked product's share_reference_enabled flag,
+      // captured at submit time (the confirmed step carries no product).
+      shareReferenceEnabled?: boolean
     }
 
 /**

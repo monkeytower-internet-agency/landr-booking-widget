@@ -402,6 +402,14 @@ export interface Product {
    * copy can be derived client-side the same way the server derives it.
    */
   accommodation_lead_time_minutes?: number
+  /**
+   * landr-h0opd.1/.3: the operator switched on "customers may share their
+   * booking reference to be grouped together" for this product. The
+   * confirmation screen shows the share hint only when the booked product
+   * has it true. Optional for the rolling-deploy window — absent (an older
+   * API) is treated as false.
+   */
+  share_reference_enabled?: boolean | null
 }
 
 /**

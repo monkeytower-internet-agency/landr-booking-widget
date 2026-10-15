@@ -415,12 +415,52 @@ export function openLanguageColumns(
   return offered.filter((code) => live.has(code))
 }
 
-/** True when every party member has a language — the submit gate. */
+/**
+ * True when every party member has a language — the submit gate.
+ *
+ * landr-h0opd.3: with exactly ONE offered language there is nothing to
+ * choose (the step is skipped and every member is auto-filled with it — see
+ * singleLanguageAssignment), so the gate is complete whatever `assignment`
+ * holds.
+ */
 export function isLanguageAssignmentComplete(
   count: number,
   assignment: ParticipantLanguageMap,
+  offered?: readonly string[],
 ): boolean {
+  if (offered?.length === 1) return true
   return unassignedMemberIndices(count, assignment).length === 0
+}
+
+/**
+ * landr-h0opd.3: does the per-participant language step run for a product
+ * with these resolved offered languages? Only when there is a real choice —
+ * TWO or more languages. `[]` (an "any language" product, landr-pv2r1) and a
+ * single language both skip it.
+ */
+export function languageStepNeeded(offered: readonly string[]): boolean {
+  return offered.length > 1
+}
+
+/**
+ * landr-h0opd.3: the auto-filled assignment for a single-language product —
+ * every one of the `count` party members (participants then companions, the
+ * unified index space BookingForm submits from) gets the one offered
+ * language. The API validates `participants[].language` on every submit for
+ * a language-restricted product (assert_participant_languages), so skipping
+ * the step must not mean submitting without languages. Returns null when the
+ * product offers anything other than exactly one language — the caller then
+ * uses the customer's own assignment.
+ */
+export function singleLanguageAssignment(
+  offered: readonly string[],
+  count: number,
+): ParticipantLanguageMap | null {
+  if (offered.length !== 1) return null
+  const only = offered[0]!
+  const out: ParticipantLanguageMap = {}
+  for (let i = 0; i < count; i += 1) out[i] = only
+  return out
 }
 
 /**
