@@ -2616,6 +2616,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/briefings/{token}/billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Billing Address
+         * @description Save the invoice recipient's billing address from the customer page.
+         *
+         *     THE TOKEN IS THE AUTHORISATION, exactly as for the page itself (same
+         *     liveness gate via ``_resolve_briefing_booking``; every failure is the same
+         *     opaque 404). The address is written to the BOOKER contact
+         *     (``bookings.customer_contact_id``) with
+         *     ``billing_address_source='customer_page'``, then any Holded invoice row
+         *     parked on ``billing_address_missing`` for that contact is re-queued.
+         *
+         *     First write wins: the page only offers the form while the address is
+         *     missing, so a second submit means two people raced. The write is a
+         *     conditional UPDATE (only while the contact still has no address), not a
+         *     read-then-write, so the race cannot overwrite -- 409
+         *     ``billing_address_already_set``. The stored address is never echoed back.
+         *     Metered per IP and per token like ``/join``.
+         */
+        put: operations["public_briefing_put_billing_address"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/briefings/{token}/checkin": {
         parameters: {
             query?: never;
@@ -6231,6 +6265,44 @@ export interface paths {
         get: operations["list_holded_invoices"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/ask-billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Billing Address
+         * @description Email the booker asking for the invoice billing address (landr-uuntm.4).
+         *
+         *     Authz is the retry route's: operator membership + the ``invoicing``
+         *     feature gate, and the row is looked up with ``operator_id`` AND
+         *     ``action='invoice_push'`` filters (404 otherwise).
+         *
+         *     Only for a row parked ``blocked_on_human`` /
+         *     ``failure_reason='billing_address_missing'`` (409 otherwise -- a row blocked
+         *     on a contact-matching decision, a failed or already-transferred row has
+         *     nothing the customer can fix). Resolves booking -> booker contact -> email
+         *     and sends the transactional ``billing_address_request`` email with the
+         *     booking's my.site share link (DE/EN/ES by the customer's language).
+         *
+         *     Resend guard: a second ask for the same booking inside 24 h is a 409
+         *     ``{detail: 'recently_sent', next_allowed_at}``. The guard row is written
+         *     BEFORE the send (atomically, ``claim_billing_address_request`` -- an
+         *     advisory lock per booking, DB clock) and removed again if the send fails,
+         *     so a concurrent double-click sends exactly one email.
+         *     Response ``{sent_at}``.
+         */
+        post: operations["ask_billing_address"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11072,6 +11144,14 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /**
+         * AskBillingAddressResponse
+         * @description Result of POST .../ask-billing-address.
+         */
+        AskBillingAddressResponse: {
+            /** Sent At */
+            sent_at: string;
+        };
         /** AskPartnerIn */
         AskPartnerIn: {
             /** Note */
@@ -11388,6 +11468,14 @@ export interface components {
             source: "staff" | "woocommerce_import";
             /** Tax Id */
             tax_id?: string | null;
+        };
+        /** BillingAddressSavedOut */
+        BillingAddressSavedOut: {
+            /**
+             * Billing Address Missing
+             * @default false
+             */
+            billing_address_missing: boolean;
         };
         /**
          * BookingCalendarEvent
@@ -25019,6 +25107,41 @@ export interface operations {
             };
         };
     };
+    public_briefing_put_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAddressIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAddressSavedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_checkin: {
         parameters: {
             query?: never;
@@ -30973,6 +31096,45 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InvoicesResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                sync_log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskBillingAddressResponse"];
+                };
+            };
+            /** @description Not blocked on a missing billing address (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
