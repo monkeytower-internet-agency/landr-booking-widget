@@ -5780,6 +5780,24 @@ export interface paths {
         patch: operations["commission_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/company-inquiry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Latest Company Inquiry */
+        get: operations["get_latest_company_inquiry"];
+        put?: never;
+        /** Create Company Inquiry */
+        post: operations["create_company_inquiry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/config-health": {
         parameters: {
             query?: never;
@@ -12307,6 +12325,63 @@ export interface components {
             /** Room Unit Index */
             room_unit_index?: number | null;
         };
+        /** CompanyInquiryAnswers */
+        CompanyInquiryAnswers: {
+            /** Company Name */
+            company_name: string;
+            /** Country */
+            country: string;
+            /** Message */
+            message?: string | null;
+            /** Needs */
+            needs?: string[];
+            /** Offers */
+            offers?: string[];
+            /** Phone */
+            phone?: string | null;
+            /** Products Count */
+            products_count: string;
+            /** Team Size */
+            team_size: string;
+            /** Website */
+            website?: string | null;
+        };
+        /** CompanyInquiryCreated */
+        CompanyInquiryCreated: {
+            /** Inquiry Id */
+            inquiry_id: string;
+        };
+        /** CompanyInquiryIn */
+        CompanyInquiryIn: {
+            /** Company Name */
+            company_name: string;
+            /** Country */
+            country: string;
+            /** Message */
+            message?: string | null;
+            /** Needs */
+            needs?: components["schemas"]["Need"][];
+            /** Offers */
+            offers?: components["schemas"]["Offer"][];
+            /** Phone */
+            phone?: string | null;
+            products_count: components["schemas"]["ProductsCount"];
+            team_size: components["schemas"]["TeamSize"];
+            /** Website */
+            website?: string | null;
+        };
+        /** CompanyInquiryOut */
+        CompanyInquiryOut: {
+            answers: components["schemas"]["CompanyInquiryAnswers"];
+            /** Created At */
+            created_at: string;
+            /** Created By User Id */
+            created_by_user_id?: string | null;
+            /** Id */
+            id: string;
+            /** Operator Id */
+            operator_id: string;
+        };
         /** ConfirmBody */
         ConfirmBody: {
             /** Confirm Name */
@@ -15140,6 +15215,11 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /**
+         * Need
+         * @enum {string}
+         */
+        Need: "pickup_locations" | "staff_scheduling" | "resources_equipment" | "partners_hotels" | "multiple_languages" | "payments_online" | "invoicing" | "other";
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -15235,6 +15315,11 @@ export interface components {
             /** Items */
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
+        /**
+         * Offer
+         * @enum {string}
+         */
+        Offer: "flights/activities" | "courses" | "accommodation" | "other";
         /**
          * OfferAdjustments
          * @description Adjustments below the positions: free spots and the >N group discount.
@@ -15789,6 +15874,11 @@ export interface components {
             price_from?: string | null;
             /** Product Id */
             product_id: string;
+            /**
+             * Share Reference Enabled
+             * @default false
+             */
+            share_reference_enabled: boolean;
             /** Slug */
             slug: string;
             /** Thumb Url */
@@ -17216,6 +17306,11 @@ export interface components {
             revenue_flows_through_operator: boolean;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
+            /**
+             * Share Reference Enabled
+             * @default false
+             */
+            share_reference_enabled: boolean;
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -17331,6 +17426,8 @@ export interface components {
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
+            /** Share Reference Enabled */
+            share_reference_enabled?: boolean | null;
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -17433,6 +17530,11 @@ export interface components {
             /** Units Required Per Participant */
             units_required_per_participant?: number | null;
         };
+        /**
+         * ProductsCount
+         * @enum {string}
+         */
+        ProductsCount: "1-3" | "4-10" | "10+";
         /**
          * PromoteTicketIn
          * @description Body for the promote endpoint.
@@ -20351,6 +20453,11 @@ export interface components {
              */
             source: "holded" | "default";
         };
+        /**
+         * TeamSize
+         * @enum {string}
+         */
+        TeamSize: "1" | "2-5" | "6-20" | "20+";
         /**
          * TemplateCatalogueEntryOut
          * @description One pick in the "Add from template" catalogue — a bundle (a named
@@ -30027,6 +30134,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_latest_company_inquiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyInquiryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_company_inquiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyInquiryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyInquiryCreated"];
                 };
             };
             /** @description Validation Error */

@@ -4178,6 +4178,214 @@
         "title": "CompanionIn",
         "type": "object"
       },
+      "CompanyInquiryAnswers": {
+        "properties": {
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "offers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "products_count": {
+            "title": "Products Count",
+            "type": "string"
+          },
+          "team_size": {
+            "title": "Team Size",
+            "type": "string"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          }
+        },
+        "required": [
+          "company_name",
+          "country",
+          "team_size",
+          "products_count"
+        ],
+        "title": "CompanyInquiryAnswers",
+        "type": "object"
+      },
+      "CompanyInquiryCreated": {
+        "properties": {
+          "inquiry_id": {
+            "title": "Inquiry Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inquiry_id"
+        ],
+        "title": "CompanyInquiryCreated",
+        "type": "object"
+      },
+      "CompanyInquiryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "company_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "country": {
+            "pattern": "^[A-Za-z]{2}$",
+            "title": "Country",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "needs": {
+            "items": {
+              "$ref": "#/components/schemas/Need"
+            },
+            "maxItems": 8,
+            "title": "Needs",
+            "type": "array"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            },
+            "maxItems": 4,
+            "title": "Offers",
+            "type": "array"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "products_count": {
+            "$ref": "#/components/schemas/ProductsCount"
+          },
+          "team_size": {
+            "$ref": "#/components/schemas/TeamSize"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          }
+        },
+        "required": [
+          "company_name",
+          "country",
+          "team_size",
+          "products_count"
+        ],
+        "title": "CompanyInquiryIn",
+        "type": "object"
+      },
+      "CompanyInquiryOut": {
+        "properties": {
+          "answers": {
+            "$ref": "#/components/schemas/CompanyInquiryAnswers"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "created_at",
+          "answers"
+        ],
+        "title": "CompanyInquiryOut",
+        "type": "object"
+      },
       "ConfirmBody": {
         "properties": {
           "confirm_name": {
@@ -12152,6 +12360,20 @@
         "title": "MyUnitRequestIn",
         "type": "object"
       },
+      "Need": {
+        "enum": [
+          "pickup_locations",
+          "staff_scheduling",
+          "resources_equipment",
+          "partners_hotels",
+          "multiple_languages",
+          "payments_online",
+          "invoicing",
+          "other"
+        ],
+        "title": "Need",
+        "type": "string"
+      },
       "NoShowIn": {
         "properties": {
           "charge_cancellation_fee": {
@@ -12351,6 +12573,16 @@
         },
         "title": "NumberingSeriesListResult",
         "type": "object"
+      },
+      "Offer": {
+        "enum": [
+          "flights/activities",
+          "courses",
+          "accommodation",
+          "other"
+        ],
+        "title": "Offer",
+        "type": "string"
       },
       "OfferAdjustments": {
         "description": "Adjustments below the positions: free spots and the >N group discount.",
@@ -14249,6 +14481,11 @@
           "product_id": {
             "title": "Product Id",
             "type": "string"
+          },
+          "share_reference_enabled": {
+            "default": false,
+            "title": "Share Reference Enabled",
+            "type": "boolean"
           },
           "slug": {
             "title": "Slug",
@@ -18102,6 +18339,11 @@
             ],
             "title": "Service Time Shape"
           },
+          "share_reference_enabled": {
+            "default": false,
+            "title": "Share Reference Enabled",
+            "type": "boolean"
+          },
           "short_description": {
             "anyOf": [
               {
@@ -18667,6 +18909,17 @@
             ],
             "title": "Service Time Shape"
           },
+          "share_reference_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Reference Enabled"
+          },
           "short_description": {
             "anyOf": [
               {
@@ -18990,6 +19243,15 @@
         },
         "title": "ProductRequirementPatch",
         "type": "object"
+      },
+      "ProductsCount": {
+        "enum": [
+          "1-3",
+          "4-10",
+          "10+"
+        ],
+        "title": "ProductsCount",
+        "type": "string"
       },
       "PromoteTicketIn": {
         "description": "Body for the promote endpoint.\n\npromotion_prompt: Olaf's engineering prompt \u2014 the human-compiled\n    description of the customer problem translated into engineering work.\n    This is what the bridge worker (.19) will pass to `bd create`.\n    Must be non-empty (min_length=1); strip-only content is also rejected\n    by the router before writing.",
@@ -27131,6 +27393,16 @@
         ],
         "title": "TaxRateItem",
         "type": "object"
+      },
+      "TeamSize": {
+        "enum": [
+          "1",
+          "2-5",
+          "6-20",
+          "20+"
+        ],
+        "title": "TeamSize",
+        "type": "string"
       },
       "TemplateCatalogueEntryOut": {
         "description": "One pick in the \"Add from template\" catalogue \u2014 a bundle (a named\ngroup of singles, e.g. 'kayak_rafting') or a standalone single\n(e.g. 'accommodation').",
@@ -43936,6 +44208,108 @@
         "summary": "Patch Tier",
         "tags": [
           "staff-commission"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/company-inquiry": {
+      "get": {
+        "operationId": "get_latest_company_inquiry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyInquiryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Company Inquiry",
+        "tags": [
+          "staff-company-inquiry"
+        ]
+      },
+      "post": {
+        "operationId": "create_company_inquiry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyInquiryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyInquiryCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Company Inquiry",
+        "tags": [
+          "staff-company-inquiry"
         ]
       }
     },
