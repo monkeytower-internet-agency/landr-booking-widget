@@ -5901,6 +5901,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Contact Billing Address
+         * @description Write the billing address (invoice recipient) onto one contact.
+         *
+         *     Returns ``{"updated": bool, "contact_id", "billing_address_source"}``.
+         *     ``updated`` is false only when ``only_if_missing`` found an address.
+         */
+        patch: operations["patch_contact_billing_address"];
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/contacts/{contact_id}/tags": {
         parameters: {
             query?: never;
@@ -11321,6 +11344,48 @@ export interface components {
             postal_code: string;
             /** Region */
             region?: string | null;
+            /** Tax Id */
+            tax_id?: string | null;
+        };
+        /**
+         * BillingAddressPatchIn
+         * @description landr-uuntm.2: a contact's billing address plus who supplied it.
+         *
+         *     ``source`` is limited to the two staff-side origins (the widget and
+         *     my.site paths set theirs server-side). ``only_if_missing`` makes the call
+         *     a fill-never-overwrite write: when the contact already has an invoiceable
+         *     address nothing is written (the WooCommerce importer's backfill of
+         *     already-imported bookings; the customer or staff may have fixed it since).
+         */
+        BillingAddressPatchIn: {
+            /** Address Line1 */
+            address_line1: string;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** City */
+            city: string;
+            /** Company */
+            company?: string | null;
+            /**
+             * Country
+             * @description ISO 3166-1 alpha-2, e.g. 'DE'.
+             */
+            country: string;
+            /**
+             * Only If Missing
+             * @default false
+             */
+            only_if_missing: boolean;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Source
+             * @default staff
+             * @enum {string}
+             */
+            source: "staff" | "woocommerce_import";
             /** Tax Id */
             tax_id?: string | null;
         };
@@ -19904,6 +19969,12 @@ export interface components {
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
             /**
+             * Billing Address Source
+             * @default staff
+             * @enum {string}
+             */
+            billing_address_source: "staff" | "woocommerce_import";
+            /**
              * Booking Channel
              * @default agent_dashboard
              */
@@ -19912,6 +19983,7 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            customer_billing?: components["schemas"]["BillingAddressIn"] | null;
             /** Customer Comment */
             customer_comment?: string | null;
             /** Customer Declarations */
@@ -30390,6 +30462,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOverlap"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_contact_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAddressPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

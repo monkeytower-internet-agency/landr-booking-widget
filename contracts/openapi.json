@@ -1541,6 +1541,101 @@
         "title": "BillingAddressIn",
         "type": "object"
       },
+      "BillingAddressPatchIn": {
+        "description": "landr-uuntm.2: a contact's billing address plus who supplied it.\n\n``source`` is limited to the two staff-side origins (the widget and\nmy.site paths set theirs server-side). ``only_if_missing`` makes the call\na fill-never-overwrite write: when the contact already has an invoiceable\naddress nothing is written (the WooCommerce importer's backfill of\nalready-imported bookings; the customer or staff may have fixed it since).",
+        "properties": {
+          "address_line1": {
+            "maxLength": 200,
+            "title": "Address Line1",
+            "type": "string"
+          },
+          "address_line2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Line2"
+          },
+          "city": {
+            "maxLength": 120,
+            "title": "City",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "country": {
+            "description": "ISO 3166-1 alpha-2, e.g. 'DE'.",
+            "title": "Country",
+            "type": "string"
+          },
+          "only_if_missing": {
+            "default": false,
+            "title": "Only If Missing",
+            "type": "boolean"
+          },
+          "postal_code": {
+            "maxLength": 32,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "source": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "woocommerce_import"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "tax_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Id"
+          }
+        },
+        "required": [
+          "address_line1",
+          "postal_code",
+          "city",
+          "country"
+        ],
+        "title": "BillingAddressPatchIn",
+        "type": "object"
+      },
       "BookingCalendarEvent": {
         "description": "Parsed calendar event for client-side Google Calendar / Outlook deep-links.\n\nlandr-odsr: mirrors the widget's ``BookingCalendarEvent`` TypeScript interface\n(src/api/types.ts) exactly \u2014 field names must not diverge or the confirmation\nscreen goes blank (landr-9ut4).",
         "properties": {
@@ -25868,6 +25963,15 @@
       },
       "StaffSubmitBookingIn": {
         "properties": {
+          "billing_address_source": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "woocommerce_import"
+            ],
+            "title": "Billing Address Source",
+            "type": "string"
+          },
           "booking_channel": {
             "default": "agent_dashboard",
             "title": "Booking Channel",
@@ -25883,6 +25987,16 @@
             },
             "title": "Companions",
             "type": "array"
+          },
+          "customer_billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingAddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "customer_comment": {
             "anyOf": [
@@ -44809,6 +44923,75 @@
         "summary": "Contact Booking Overlaps Staff Session",
         "tags": [
           "staff-contact-booking-overlaps"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/billing-address": {
+      "patch": {
+        "description": "Write the billing address (invoice recipient) onto one contact.\n\nReturns ``{\"updated\": bool, \"contact_id\", \"billing_address_source\"}``.\n``updated`` is false only when ``only_if_missing`` found an address.",
+        "operationId": "patch_contact_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingAddressPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Contact Billing Address",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Contact Billing Address",
+        "tags": [
+          "staff-contacts"
         ]
       }
     },
