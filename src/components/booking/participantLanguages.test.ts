@@ -24,6 +24,7 @@ import {
   normaliseOfferedLanguages,
   openLanguageColumns,
   pruneLanguageAssignment,
+  singleLanguageAssignment,
   unassignedMemberIndices,
 } from './participantLanguages'
 
@@ -98,6 +99,13 @@ describe('assignment bookkeeping', () => {
     // A party of nobody cannot block a submit.
     expect(isLanguageAssignmentComplete(0, {})).toBe(true)
   })
+
+  // landr-h0opd.3: one offered language = nothing to choose.
+  it('is complete for a single-language product whatever the assignment', () => {
+    expect(isLanguageAssignmentComplete(3, {}, ['de'])).toBe(true)
+    expect(isLanguageAssignmentComplete(3, {}, ['de', 'en'])).toBe(false)
+  })
+
 })
 
 describe('distinctAssignedLanguages', () => {
@@ -251,5 +259,20 @@ describe('display — German UI (landr-5aih0.27)', () => {
 
   it('a regional German tag (de-AT) resolves the same as bare "de"', () => {
     expect(languageName('fr', 'de-AT')).toBe('Französisch')
+  })
+})
+
+describe('singleLanguageAssignment (landr-h0opd.3)', () => {
+  it('fills every party member (participants + companions) with the one language', () => {
+    expect(singleLanguageAssignment(['de'], 3)).toEqual({ 0: 'de', 1: 'de', 2: 'de' })
+  })
+
+  it('returns null unless exactly one language is offered', () => {
+    expect(singleLanguageAssignment([], 2)).toBeNull()
+    expect(singleLanguageAssignment(['de', 'en'], 2)).toBeNull()
+  })
+
+  it('returns an empty map for an empty party', () => {
+    expect(singleLanguageAssignment(['en'], 0)).toEqual({})
   })
 })

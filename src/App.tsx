@@ -43,8 +43,10 @@ import {
 } from '@/components/booking/partyIdentity'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
+  languageStepNeeded,
   normaliseOfferedLanguages,
   productAcceptsAnyLanguage,
+  singleLanguageAssignment,
 } from '@/components/booking/participantLanguages'
 import { FixedDateWindowPicker } from '@/components/booking/FixedDateWindowPicker'
 import { expandWindowDays } from '@/components/booking/expandWindowDays'
@@ -52,7 +54,7 @@ import { MembershipCheckoutStep } from '@/components/booking/MembershipCheckoutS
 import { MembershipReturnPage } from '@/components/booking/MembershipReturnPage'
 import { MultiDayStep } from '@/components/booking/MultiDayStep'
 import { PickupLocationPicker } from '@/components/booking/PickupLocationPicker'
-import PriceSidebar from '@/components/booking/PriceSidebar'
+import PriceSidebar, { type CalculatedTotal } from '@/components/booking/PriceSidebar'
 import { ProductList } from '@/components/booking/ProductList'
 import { inviteBannerMessage, tr } from '@/lib/strings'
 import { FullyBookedNotice } from '@/components/booking/FullyBookedNotice'
@@ -636,6 +638,9 @@ function BookingFlowApp() {
   // Confirm CTA must be blocked instead of submitting against a price the
   // API will 422 anyway.
   const [estimateUnPriceable, setEstimateUnPriceable] = useState(false)
+  // landr-h0opd.3: the same estimate's calculated total, for the staff
+  // price-override placeholder in BookingForm (same lifting pattern).
+  const [estimateTotal, setEstimateTotal] = useState<CalculatedTotal | null>(null)
   const mergeFormResponse = useCallback((entry: FormResponseEntry) => {
     setFormResponses((prev) => {
       const idx = prev.findIndex((e) => e.form_key === entry.form_key)
@@ -904,10 +909,11 @@ function BookingFlowApp() {
   // widget books exactly one main service product per booking (D4), so
   // keying this off `step.product` (never an add-on) already matches.
   //
-  // The step runs whenever the resolved list is non-empty. landr-pv2r1
+  // The step runs only when the resolved list has TWO or more languages
+  // (landr-h0opd.3 — see languageStepForProduct below). landr-pv2r1
   // (epic decision E3): an EMPTY `guide_languages` array marks an
   // "any language" product (e.g. a tandem flight) — the resolved list is
-  // then `[]`, so every `.length > 0` gate below skips the step and the API
+  // then `[]`, so the step gate below skips the step and the API
   // (landr-pv2r1.1, tri-state resolver) treats participant languages as
   // optional for it. NULL / absent is NOT "any": normaliseOfferedLanguages
   // still falls back to the platform default there, because a widget can
@@ -920,6 +926,16 @@ function BookingFlowApp() {
         ? []
         : normaliseOfferedLanguages(product.guide_languages),
     [],
+  )
+  // landr-h0opd.3: the language step only runs when there is a real choice —
+  // TWO or more offered languages. A single-language product skips it (its
+  // members are auto-filled with that language at the review seam below, so
+  // the API's participants[].language check still passes); an any-language
+  // product (`[]`) skips it as before. Every step / breadcrumb gate reads
+  // this one predicate.
+  const languageStepForProduct = useCallback(
+    (product: Product) => languageStepNeeded(offeredLanguagesForProduct(product)),
+    [offeredLanguagesForProduct],
   )
   // landr-pv2r1 (E3): the per-member language map the downstream seams
   // (custom form, review/submit) may use for THIS product — always empty for
@@ -1581,7 +1597,7 @@ function BookingFlowApp() {
             bookingDraft.customFormAnswers,
             // landr-r6e5x.4 / landr-p68d2: the language step is the first
             // pre-review step, gated on THIS product's offered languages.
-            offeredLanguagesForProduct(product).length > 0,
+            languageStepForProduct(product),
           ),
         )
       })
@@ -1669,9 +1685,7 @@ function BookingFlowApp() {
       // mirrors the productLabel guard above for the same reason (some
       // funnel steps, e.g. pick-product, carry no product at all).
       languageStep:
-        'product' in step
-          ? offeredLanguagesForProduct(step.product).length > 0
-          : false,
+        'product' in step ? languageStepForProduct(step.product) : false,
       // landr-6eita.1: no product-detail crumb for a start=dates product.
       startAtDates: 'product' in step && opensOnDates(step.product),
       // landr-rmcsu.6: rebuilds the participants crumb ahead of Dates when
@@ -1689,7 +1703,7 @@ function BookingFlowApp() {
     draftParticipants,
     draftCompanions,
     bookingDraft.customFormAnswers,
-    offeredLanguagesForProduct,
+    languageStepForProduct,
     opensOnDates,
   ])
   const breadcrumbNav = useMemo(
@@ -2793,7 +2807,7 @@ function BookingFlowApp() {
                     // landr-r6e5x.4 / landr-p68d2: the language step is the
                     // first pre-review step, gated on THIS product's
                     // offered languages.
-                    offeredLanguagesForProduct(step.product).length > 0,
+                    languageStepForProduct(step.product),
                   ),
                 )
               })
@@ -2972,7 +2986,7 @@ function BookingFlowApp() {
                     remoteFlow: flowForProduct(step.product.product_id),
                     customFormAnswers: bookingDraft.customFormAnswers,
                     // landr-p68d2: per-product, not per-operator.
-                    languageStep: offeredLanguagesForProduct(step.product).length > 0,
+                    languageStep: languageStepForProduct(step.product),
                   },
                   step.formKey,
                 ),
@@ -3080,10 +3094,17 @@ function BookingFlowApp() {
                 // participant's / companion's `language`.
                 // landr-pv2r1 (E3): `{}` for an any-language product, so no
                 // stale assignment reaches the submit body.
-                participantLanguages: toIndexKeyed(
-                  draftLanguagesForProduct(step.product),
-                  roster,
-                ),
+                // landr-h0opd.3: a single-language product skipped the
+                // language step, so every member (participants AND
+                // companions — the whole roster) is auto-filled with that
+                // one language here, overriding anything an earlier
+                // product left in the draft.
+                participantLanguages:
+                  singleLanguageAssignment(
+                    offeredLanguagesForProduct(step.product),
+                    roster.length,
+                  ) ??
+                  toIndexKeyed(draftLanguagesForProduct(step.product), roster),
               }
             })()}
             // landr-gb2f.5: thread the per-room add-on map so BookingForm
@@ -3123,6 +3144,9 @@ function BookingFlowApp() {
             // landr-zenj.1: gates the Confirm CTA — see PriceSidebar's
             // onUnPriceableChange prop for where this state comes from.
             unPriceable={estimateUnPriceable}
+            // landr-h0opd.3: the calculated total for the staff override
+            // placeholder — see PriceSidebar's onCalculatedTotalChange.
+            calculatedTotal={estimateTotal}
             // landr-rmcsu.5: keep the committed dates (like Back does) so the
             // calendar re-opens on them with any short day marked.
             onChangeDates={() =>
@@ -3163,7 +3187,7 @@ function BookingFlowApp() {
                   remoteFlow: flowForProduct(step.product.product_id),
                   customFormAnswers: bookingDraft.customFormAnswers,
                   // landr-p68d2: per-product, not per-operator.
-                  languageStep: offeredLanguagesForProduct(step.product).length > 0,
+                  languageStep: languageStepForProduct(step.product),
                 }),
               )
             }}
@@ -3181,6 +3205,9 @@ function BookingFlowApp() {
                 // landr-otml0.4: carried through so Confirmation can show
                 // the shared-double "add reference later" hint.
                 isSharedDouble: step.isSharedDouble,
+                // landr-h0opd.3: gates the share-reference hint; absent on
+                // an older API → false.
+                shareReferenceEnabled: step.product.share_reference_enabled === true,
               })
             }}
           />
@@ -3200,6 +3227,7 @@ function BookingFlowApp() {
                 goToProductStep()
               }}
               isSharedDouble={step.isSharedDouble}
+              shareReferenceEnabled={step.shareReferenceEnabled}
             />
             {/* landr-atwy: the account-link prompt creates a real LANDR
                 account, so it only shows when the operator opts in. */}
@@ -3257,6 +3285,7 @@ function BookingFlowApp() {
             // flag up so BookingForm (a sibling, not a child) can block
             // its Confirm CTA on it — see the prop's doc on PriceSidebar.
             onUnPriceableChange={setEstimateUnPriceable}
+            onCalculatedTotalChange={setEstimateTotal}
           />
         ) : null}
         </div>

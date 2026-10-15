@@ -1443,17 +1443,34 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
   it('shows the reference prominently with a copy button and the share hint', async () => {
     const { writeText } = stubClipboard()
     const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
-    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    render(<Confirmation response={response} onRestart={vi.fn()} shareReferenceEnabled />)
 
     expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
-    expect(
-      screen.getByText(
-        /share this with anyone booking their own guiding who wants to be grouped with you/i,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-share-reference-hint')).toHaveTextContent(
+      'Share this reference with anyone booking the same activity who wants to be grouped with you.',
+    )
 
     fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('REF-1234'))
+  })
+
+  // landr-h0opd.3: the hint is per-product — the reference + copy button
+  // always show, the hint only when the product has sharing switched on.
+  it('hides the share hint (but keeps the reference + copy) when the product has sharing off', () => {
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} shareReferenceEnabled={false} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
+    expect(screen.getByTestId('confirmation-reference-copy')).toBeInTheDocument()
+    expect(screen.queryByTestId('confirmation-share-reference-hint')).not.toBeInTheDocument()
+  })
+
+  it('hides the share hint when the flag is absent (older API → false)', () => {
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
+    expect(screen.queryByTestId('confirmation-share-reference-hint')).not.toBeInTheDocument()
   })
 
   it('renders no invite cards, group block, or hint when the response carries none of it (older API / no companions)', () => {

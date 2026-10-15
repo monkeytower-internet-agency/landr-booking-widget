@@ -5071,6 +5071,38 @@ describe('App', () => {
       )
     })
 
+    // landr-h0opd.3: ONE offered language = nothing to choose. The step is
+    // skipped, but the API still validates participants[].language for a
+    // restricted product, so every member is submitted with that language.
+    it('skips the language step for a single-language product and auto-fills its language on submit', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'German Only',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: ['de'],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('German Only')
+      await fillDateThenBooker()
+
+      // Straight from details to review — no board, no language crumb.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as Body
+      expect(body.participants).toHaveLength(1)
+      for (const p of body.participants) expect(p).toMatchObject({ language: 'de' })
+    })
+
     const twoProducts = () => [
       makeProduct({
         product_id: 'svc-restricted',
@@ -5591,7 +5623,12 @@ describe('App', () => {
   // is NOT consulted at all any more; see offeredLanguagesForProduct's doc
   // in App.tsx and OperatorSettings.offered_languages's doc in types.ts.
   describe('per-product guide languages (landr-p68d2.2)', () => {
-    async function advanceToLanguageBoardWithProduct(product: Product) {
+    async function advanceToLanguageBoardWithProduct(
+      product: Product,
+      // landr-h0opd.3: a single-language product skips the board and lands
+      // straight on the review screen.
+      landOn: 'board' | 'review' = 'board',
+    ) {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.getProductFlow.mockResolvedValue({ modules: null })
@@ -5638,6 +5675,12 @@ describe('App', () => {
       setField('participant_2_last_name', 'Hopper')
       setField('participant_2_phone', '+34600000002')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      if (landOn === 'review') {
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        return
+      }
       await waitFor(() =>
         expect(
           screen.getByTestId('participant-language-board'),
@@ -5654,6 +5697,10 @@ describe('App', () => {
         // never reads it, not merely that a real response lacks it.
         offered_languages: ['en', 'de', 'es'],
       })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-it',
+        semantic_state: 'pending',
+      })
       await advanceToLanguageBoardWithProduct(
         makeProduct({
           name: 'Denmark Paragliding Trip',
@@ -5662,16 +5709,22 @@ describe('App', () => {
           hotel_offering: 'none',
           guide_languages: ['it'],
         }),
+        'review',
       )
-      // Exactly one column, already fully seeded — seedAssignment's one-tap
-      // shortcut for a single offered language — and the operator setting
-      // never surfaces.
-      expect(screen.getByTestId('lang-column-it')).toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-en')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-es')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-add-en')).not.toBeInTheDocument()
-      expect(screen.getByTestId('language-step-submit')).toBeEnabled()
+      // landr-h0opd.3: one offered language → no board at all (nothing to
+      // choose), and the operator setting never surfaces.
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      // Every party member is auto-filled with the product's one language —
+      // the API validates participants[].language on every submit.
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants).toHaveLength(2)
+      for (const p of body.participants) expect(p).toMatchObject({ language: 'it' })
     })
 
     it('shows all four columns for a four-language product', async () => {

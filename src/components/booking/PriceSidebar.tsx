@@ -84,6 +84,25 @@ interface Props {
    * fetch would just double the request for the same answer.
    */
   onUnPriceableChange?: (unPriceable: boolean) => void
+  /**
+   * landr-h0opd.3: fires with the visible estimate's calculated booking total
+   * (`amount_due`, falling back to `operator_total` on an older API — the
+   * figure a booking's `gross_total` is stamped from; hotel lines are paid
+   * at the hotel and never part of it) and its currency, or `null` when
+   * there is no priceable estimate on screen (loading, error, empty
+   * selection, un_priceable). Same lifting pattern as onUnPriceableChange:
+   * App.tsx threads it into BookingForm so the staff price-override input
+   * can show the calculated total as its placeholder.
+   */
+  onCalculatedTotalChange?: (total: CalculatedTotal | null) => void
+}
+
+/** landr-h0opd.3: the estimate's calculated total, lifted out of PriceSidebar. */
+export interface CalculatedTotal {
+  /** Decimal string, e.g. "250.00". */
+  amount: string
+  /** ISO 4217 code, e.g. "EUR". */
+  currency: string
 }
 
 /**
@@ -407,6 +426,7 @@ export default function PriceSidebar(props: Props) {
     addons,
     debounceMs,
     onUnPriceableChange,
+    onCalculatedTotalChange,
   } = props
 
   const addonLines = useMemo(
@@ -470,6 +490,22 @@ export default function PriceSidebar(props: Props) {
   useEffect(() => {
     onUnPriceableChange?.(visible.data?.un_priceable === true)
   }, [visible.data, onUnPriceableChange])
+
+  // landr-h0opd.3: report the calculated total up (see the prop doc). Keyed
+  // on the two primitives so the parent's state only changes when the
+  // figure does, not on every estimate refetch.
+  const calculatedAmount =
+    visible.data && visible.data.un_priceable !== true
+      ? (visible.data.amount_due ?? visible.data.operator_total)
+      : null
+  const calculatedCurrency = calculatedAmount !== null ? (visible.data?.currency ?? null) : null
+  useEffect(() => {
+    onCalculatedTotalChange?.(
+      calculatedAmount !== null && calculatedCurrency
+        ? { amount: calculatedAmount, currency: calculatedCurrency }
+        : null,
+    )
+  }, [calculatedAmount, calculatedCurrency, onCalculatedTotalChange])
 
   // Mobile drawer open state — collapsed by default so the customer
   // sees just the grand total + a tap target. Resetting it to false on

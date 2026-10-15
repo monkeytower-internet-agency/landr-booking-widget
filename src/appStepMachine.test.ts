@@ -27,6 +27,7 @@ import {
   type BookingDraft,
   type Step,
 } from './appStepMachine'
+import { languageStepNeeded } from '@/components/booking/participantLanguages'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -1090,6 +1091,31 @@ describe('language step routing (landr-r6e5x.4)', () => {
     const trail = buildBreadcrumb(step, { languageStep: true }).map((c) => c.label)
     expect(trail).toContain('Language')
     expect(trail.indexOf('Language')).toBeGreaterThan(trail.indexOf('Participants'))
+  })
+
+  // landr-h0opd.3: the step only runs when there is a real choice.
+  it('skips the language step for a product offering exactly ONE language', () => {
+    const languageStep = languageStepNeeded(['de'])
+    expect(languageStep).toBe(false)
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, languageStep)
+    expect(next.name).toBe('fill-form')
+    // ...and no Language crumb on the review trail, nor as review's back-target.
+    const trail = buildBreadcrumb(next, { languageStep }).map((c) => c.label)
+    expect(trail).not.toContain('Language')
+    expect(stepBeforeReview(preReviewArgs({ languageStep })).name).not.toBe(
+      'assign-languages',
+    )
+  })
+
+  it('keeps the language step for a product offering TWO languages', () => {
+    const languageStep = languageStepNeeded(['de', 'en'])
+    expect(languageStep).toBe(true)
+    const next = enterReviewOrCustomForm(preReviewArgs(), null, undefined, languageStep)
+    expect(next.name).toBe('assign-languages')
+  })
+
+  it('skips the language step for an any-language product (empty list)', () => {
+    expect(languageStepNeeded([])).toBe(false)
   })
 
   it('shares the committed price context with review, so the sidebar does not blank', () => {

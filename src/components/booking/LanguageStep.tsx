@@ -143,7 +143,7 @@ export function LanguageStep({
       ),
     [partyCount, assignment, participantNames],
   )
-  const complete = isLanguageAssignmentComplete(partyCount, assignment)
+  const complete = isLanguageAssignmentComplete(partyCount, assignment, offeredLanguages)
   // Before the customer has placed anyone the gate is guidance, not a failure —
   // a red validation error on arrival is noise rather than feedback.
   const started = Object.keys(assignment).length > 0

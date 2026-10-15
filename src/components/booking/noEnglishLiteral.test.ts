@@ -95,6 +95,8 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
     'Leave blank to use the calculated total. When set, this gross total replaces the computed price for this booking.',
     'Override price (operator)',
     '[placeholder] Reason for the override (required when set)',
+    // landr-h0opd.3: staff-only "Calculated: 250.00 EUR" line under the override input.
+    'Calculated:',
     // landr-my6fc.7: staff-only overlap warning (overlaps only load in staff mode).
     'Already booked',
     'Book anyway',
