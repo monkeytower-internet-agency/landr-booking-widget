@@ -2465,14 +2465,16 @@ export interface paths {
          * @description The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,
          *     landr-xcyh1.2).
          *
-         *     Records ``offer_accepted_at`` (once). Since landr-xcyh1.2 the send already
-         *     moved the booking on, so the yes usually only releases the confirmation
-         *     step when the hotel has confirmed (or there is no hotel step)
-         *     (``custom_offer_flow.release_held_confirmation``); with the hotel still
-         *     pending, the hotel's yes sends it later. A booking still waiting at the
-         *     general gate (sent before landr-xcyh1.2, or its send-time approval failed)
-         *     is approved here as before (``custom_offer_flow.advance_from_general_gate``)
-         *     with the operator who SENT the offer as the approver.
+         *     Records ``offer_accepted_at`` (once), then -- landr-kstic -- runs the
+         *     general approval while the booking waits at the general gate
+         *     (``custom_offer_flow.advance_from_general_gate``) with the operator who
+         *     SENT the offer as the approver: the hotel is asked only now (or, with no
+         *     hotel step, the booking reaches ``awaiting_payment`` and the
+         *     confirmation + payment link go out; the stamp comes first, so the
+         *     confirmation gate does not hold it). A booking already at
+         *     ``awaiting_payment`` with its confirmation held (the hotel confirmed
+         *     before this yes) gets it released
+         *     (``custom_offer_flow.release_held_confirmation``).
          *
          *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
          *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
@@ -10580,11 +10582,12 @@ export interface components {
          *
          *     ``already_accepted`` = the yes was recorded before (double click, or an
          *     acceptance-free offer); nothing moved this time. ``advanced`` = this call
-         *     ran the general-approval transition (booking was at the general gate --
-         *     offers sent before landr-xcyh1.2, or a send whose approval failed).
-         *     ``confirmation_sent`` = this yes released the held confirmation step
-         *     (the hotel had already confirmed, or there is no hotel step): the
-         *     customer confirmation + payment link are on their way.
+         *     ran the general-approval transition (landr-kstic: the normal case -- the
+         *     booking waits at the general gate until the customer accepts; the hotel
+         *     request, or with no hotel step the confirmation + payment link, goes out
+         *     now). ``confirmation_sent`` = this yes released a held confirmation step
+         *     (the booking already sat at ``awaiting_payment``): the customer
+         *     confirmation + payment link are on their way.
          *     ``payment_allowed`` = the offer page may take payment now: False while the
          *     hotel step is ahead or in progress (``offer_hotel_pending``) or the hotel
          *     declined (``offer_hotel_declined``) -- the payment link then arrives the
