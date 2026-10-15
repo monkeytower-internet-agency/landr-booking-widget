@@ -72,6 +72,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [
   // landr-mg0a: empty service_role_code intentionally exercises the
@@ -105,6 +106,7 @@ const EXPECTED_TOP_LEVEL = [
   'customer_last_name',
   'customer_phone',
   'customer_preferred_locale',
+  'customer_billing',
 ] as const
 
 const REQUIRED_PRODUCT_LINE = ['product_id', 'quantity'] as const
@@ -172,6 +174,19 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(body.customer_phone).toBe('+34 600 111 222')
     expect(typeof body.customer_preferred_locale).toBe('string')
     expect(body.booking_channel).toBe('public_website')
+
+    // landr-uuntm.3: billing address — trimmed, blank optionals -> null,
+    // country upper-cased (BillingAddressIn, landr-uuntm.1).
+    expect(body.customer_billing).toEqual({
+      address_line1: 'Calle Mayor 1',
+      address_line2: null,
+      postal_code: '28013',
+      city: 'Madrid',
+      region: null,
+      country: 'ES',
+      company: null,
+      tax_id: null,
+    })
 
     // cancellation_deadline is an ISO datetime string, computed as
     // 00:00 UTC of (firstDay − 1 day) = 2026-06-09T00:00:00.000Z
@@ -1093,5 +1108,85 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(response.share_secret).toBe('secret-abc')
     expect(response.group.members[0].reference).toBe('A1B2C3D4')
     expect(response.invites[0].invite_url).toContain('tok-2')
+  })
+})
+
+describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  afterEach(() => fetchSpy.mockRestore())
+
+  async function submit(booker: typeof BOOKER) {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={booker}
+        participants={PARTICIPANTS}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        addons={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    return JSON.parse(String(init.body)) as Record<string, unknown>
+  }
+
+  it('sends company and tax id when the customer invoices a company', async () => {
+    const body = await submit({
+      ...BOOKER,
+      billing: {
+        address_line1: 'Hauptstr. 5',
+        address_line2: 'Hinterhaus',
+        postal_code: '10115',
+        city: 'Berlin',
+        region: 'BE',
+        country: 'DE',
+        company: 'Para42 GmbH',
+        tax_id: 'DE123456789',
+      },
+    })
+    expect(body.customer_billing).toEqual({
+      address_line1: 'Hauptstr. 5',
+      address_line2: 'Hinterhaus',
+      postal_code: '10115',
+      city: 'Berlin',
+      region: 'BE',
+      country: 'DE',
+      company: 'Para42 GmbH',
+      tax_id: 'DE123456789',
+    })
+  })
+
+  it('omits customer_billing entirely when no complete address exists (staff-entered booking)', async () => {
+    const body = await submit({
+      ...BOOKER,
+      billing: {
+        address_line1: '',
+        address_line2: '',
+        postal_code: '',
+        city: '',
+        region: '',
+        country: '',
+        company: '',
+        tax_id: '',
+      },
+    })
+    expect(body).not.toHaveProperty('customer_billing')
   })
 })

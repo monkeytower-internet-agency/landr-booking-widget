@@ -1,3 +1,4 @@
+import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -1104,6 +1105,7 @@ describe('App', () => {
       fireEvent.change(bookerLast, { target: { value: 'Lovelace' } })
       fireEvent.change(bookerEmail, { target: { value: 'ada@example.com' } })
       fireEvent.change(bookerPhone, { target: { value: '+34 600000000' } })
+      fillBillingFields()
 
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
@@ -1184,6 +1186,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(
         screen.getByRole('button', { name: /add participant/i }),
       )
@@ -1311,6 +1314,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       // The OTP request fires on the email's blur, not on every keystroke.
       fireEvent.blur(
         document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
@@ -1418,6 +1422,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
 
       // DetailsStep never gets a comment typed into it here — the whole
       // point is that the field is untouched on this step and only filled
@@ -1550,6 +1555,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // PickupLocationPicker → pick "Beach Parking" → Continue.
@@ -1732,6 +1738,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       // The hotel room is a capacity-2 Double Room; the occupancy gate now
       // requires both spots filled, so add a second guest before continuing.
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
@@ -1947,6 +1954,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -2751,6 +2759,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
@@ -3615,6 +3624,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -3767,6 +3777,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
@@ -3924,6 +3935,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
       setInput('participant_2_phone', '+34600000002')
@@ -4149,6 +4161,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
@@ -4246,6 +4259,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Straight to review — no custom-form step is produced.
@@ -4312,6 +4326,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The widget still works — straight to review, no custom-form, no crash.
@@ -4406,6 +4421,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The flow fetch is still in flight (releaseFirstFlow not yet called) —
@@ -4506,6 +4522,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The custom-form step renders from App's already-resolved flow — no
@@ -4574,6 +4591,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5001,6 +5019,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -5294,6 +5313,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
@@ -5427,6 +5447,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The language step still appears, with no custom form anywhere.
@@ -5558,6 +5579,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       // A non-guiding companion joins the trip but is never in the activity.
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
@@ -5670,6 +5692,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')

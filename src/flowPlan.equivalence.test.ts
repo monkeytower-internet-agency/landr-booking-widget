@@ -82,6 +82,7 @@ const ADA: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600000000',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
 }
 
 function makeParticipants(n: number): ParticipantDetails[] {

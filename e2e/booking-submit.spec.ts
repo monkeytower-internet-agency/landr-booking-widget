@@ -130,6 +130,11 @@ test('booking-submit happy path: catalog -> date -> participant -> confirm', asy
   await page.getByLabel('Last name').fill('Smoketest')
   await page.getByLabel('Email').fill('playwright-smoke@example.com')
   await page.getByLabel('Phone').fill('+491701234567')
+  // landr-uuntm.3: the billing address is required in the booker block.
+  await page.getByLabel('Street and number').fill('Hauptstrasse 1')
+  await page.getByLabel('Postal code').fill('10115')
+  await page.getByLabel('City', { exact: true }).fill('Berlin')
+  await page.getByLabel('Country', { exact: true }).selectOption('DE')
   await page.getByRole('button', { name: 'Continue' }).click()
 
   // ---- Pickup location (fixture has needs_pickup=true, no accommodation) --
