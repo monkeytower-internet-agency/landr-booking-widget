@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/api/types'
 import { configureCustomerLocale, overrideBookingLocale } from '@/lib/locale'
 import { BookingForm, type BookingSelection } from './BookingForm'
+import { DetailsStep } from './DetailsStep'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.stubEnv('VITE_USE_MOCKS', '0')
@@ -60,6 +61,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [{ ...BOOKER, service_role_code: 'participant' }]
 
@@ -147,5 +149,56 @@ describe('BookingForm — German UI (landr-5aih0.9)', () => {
     })
 
     expect(globalThis.fetch).toHaveBeenCalled()
+  })
+})
+
+describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  function renderDetails() {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+
+  it('shows the billing group, toggle and tax id in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderDetails()
+
+    expect(screen.getByRole('group', { name: 'Rechnungsadresse' })).toBeInTheDocument()
+    expect(screen.getByText('Diese Angaben benötigen wir für Ihre Rechnung.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Straße und Hausnummer')).toBeInTheDocument()
+    expect(screen.getByLabelText('Adresszusatz (optional)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Postleitzahl')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ort')).toBeInTheDocument()
+    expect(screen.getByLabelText('Land')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Rechnung an ein Unternehmen?' }))
+    expect(screen.getByLabelText('Unternehmen')).toBeInTheDocument()
+    expect(screen.getByLabelText('Steuernummer (NIF / USt-IdNr.)')).toBeInTheDocument()
+    // English strings must not leak through.
+    expect(screen.queryByText('Billing address')).not.toBeInTheDocument()
+    expect(screen.queryByText('We need this for your invoice.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the English labels on an English browser', () => {
+    setBrowserLanguage('en-US')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderDetails()
+    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
   })
 })

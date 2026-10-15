@@ -30,10 +30,12 @@ import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
-import type {
-  BookerDetails,
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  billingAddressComplete,
+  billingToPayload,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from './detailsTypes'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -1286,6 +1288,13 @@ export function BookingForm({
         customer_last_name: booker.last_name,
         customer_email: booker.email,
         customer_phone: booker.phone || null,
+        // landr-uuntm.3: invoice recipient's billing address. The public
+        // widget requires it (DetailsStep gate); a staff-entered booking may
+        // legitimately leave it out, in which case the key is omitted rather
+        // than sent half-filled (the API 422s an incomplete address).
+        ...(billingAddressComplete(booker.billing)
+          ? { customer_billing: billingToPayload(booker.billing) }
+          : {}),
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',

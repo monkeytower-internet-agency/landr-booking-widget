@@ -26,10 +26,11 @@ import { OfferPage } from '@/components/booking/OfferPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
-import type {
-  BookerDetails,
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  emptyBilling,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 // landr-uwvl: the draft/step carry the three party maps keyed by a STABLE
 // PartyMemberId; AccommodationStep + BookingForm consume them positionally.
@@ -551,6 +552,7 @@ function BookingFlowApp() {
             last_name: prefill.invitee_last_name,
             email: '',
             phone: '',
+            billing: emptyBilling(),
           },
           hotelLocationId: prefill.hotel_location_id,
           isSharedDouble: prefill.is_shared_double,
@@ -616,6 +618,7 @@ function BookingFlowApp() {
             last_name: prefill.last_name ?? '',
             email: prefill.email ?? '',
             phone: prefill.phone ?? '',
+            billing: emptyBilling(),
           },
         })
       } catch {
@@ -2411,6 +2414,8 @@ function BookingFlowApp() {
             // predate the key) the field stays hidden rather than flashing in
             // and then vanishing.
             hasMemberPerks={operatorSettings.has_member_perks ?? false}
+            // landr-uuntm.3: last link of the billing-country guess chain.
+            operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
             initialBooker={step.booker}

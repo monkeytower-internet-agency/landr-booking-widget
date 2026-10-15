@@ -212,9 +212,21 @@ type Bundle = {
   addParticipantButton: string
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
+  enterYourNameEmailPhoneBillingCue: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
+  billingAddressTitle: string
+  billingAddressHelper: string
+  billingStreetLabel: string
+  billingAddressLine2Label: string
+  billingPostalCodeLabel: string
+  billingCityLabel: string
+  billingCountryLabel: string
+  billingCountryPlaceholder: string
+  billingInvoiceToCompanyLabel: string
+  billingCompanyLabel: string
+  billingTaxIdLabel: string
   memberPerkOtpLabel: string
   maxAdditionalParticipantsTemplate: string
   needLargerGroupHint: string
@@ -871,9 +883,21 @@ const en: Bundle = {
   addParticipantButton: '+ Add participant',
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
+  enterYourNameEmailPhoneBillingCue: 'enter your name, email, phone and billing address',
   fillInEveryRequiredField: 'Fill in every required field to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
+  billingAddressTitle: 'Billing address',
+  billingAddressHelper: 'We need this for your invoice.',
+  billingStreetLabel: 'Street and number',
+  billingAddressLine2Label: 'Address line 2 (optional)',
+  billingPostalCodeLabel: 'Postal code',
+  billingCityLabel: 'City',
+  billingCountryLabel: 'Country',
+  billingCountryPlaceholder: '— select a country —',
+  billingInvoiceToCompanyLabel: 'Invoice to a company?',
+  billingCompanyLabel: 'Company',
+  billingTaxIdLabel: 'Tax ID (NIF / VAT)',
   memberPerkOtpLabel: 'Member? Enter the 6-digit code we emailed you to apply your member price.',
   maxAdditionalParticipantsTemplate: 'Maximum of {n} additional participants reached',
   needLargerGroupHint: 'Need a larger group or a custom booking?',
@@ -1513,9 +1537,21 @@ const de: Bundle = {
   addParticipantButton: '+ Teilnehmer hinzufügen',
   addGuestButton: '+ Gast hinzufügen',
   enterYourNameEmailPhoneCue: 'Name, E-Mail und Telefon eingeben',
+  enterYourNameEmailPhoneBillingCue: 'Name, E-Mail, Telefon und Rechnungsadresse eingeben',
   fillInEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
   roleLabel: 'Rolle',
   includeYourCountryCode: 'Bitte mit Landesvorwahl',
+  billingAddressTitle: 'Rechnungsadresse',
+  billingAddressHelper: 'Diese Angaben benötigen wir für Ihre Rechnung.',
+  billingStreetLabel: 'Straße und Hausnummer',
+  billingAddressLine2Label: 'Adresszusatz (optional)',
+  billingPostalCodeLabel: 'Postleitzahl',
+  billingCityLabel: 'Ort',
+  billingCountryLabel: 'Land',
+  billingCountryPlaceholder: '— Land auswählen —',
+  billingInvoiceToCompanyLabel: 'Rechnung an ein Unternehmen?',
+  billingCompanyLabel: 'Unternehmen',
+  billingTaxIdLabel: 'Steuernummer (NIF / USt-IdNr.)',
   memberPerkOtpLabel: 'Mitglied? Geben Sie den 6-stelligen Code ein, den wir Ihnen per E-Mail geschickt haben, um Ihren Mitgliederpreis anzuwenden.',
   maxAdditionalParticipantsTemplate: 'Maximal {n} zusätzliche Teilnehmer erreicht',
   needLargerGroupHint: 'Größere Gruppe oder individuelle Buchung gewünscht?',

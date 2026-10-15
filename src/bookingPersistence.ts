@@ -26,9 +26,11 @@
  * read/write/clear primitives unit-testable without rendering App.
  */
 import type { Step, BookingDraft } from './appStepMachine'
-import type {
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  withBilling,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from './components/booking/detailsTypes'
 import {
   BOOKER_MEMBER_ID,
@@ -226,6 +228,20 @@ export function normalizePartyIdentity(progress: BookingProgress): BookingProgre
 }
 
 /**
+ * landr-uuntm.3: a blob written before the billing address existed carries a
+ * booker without `billing`. Backfill empties on both containers so nothing
+ * downstream dereferences undefined (the details step then simply asks for it).
+ */
+export function normalizeBookerBilling(progress: BookingProgress): BookingProgress {
+  const fix = <T extends { booker?: BookerDetails }>(c: T): T =>
+    c.booker && !c.booker.billing ? { ...c, booker: withBilling(c.booker) } : c
+  return {
+    step: fix(progress.step as Step & { booker?: BookerDetails }) as Step,
+    bookingDraft: fix(progress.bookingDraft),
+  }
+}
+
+/**
  * Read + parse the persisted progress. Returns null when nothing is
  * stored, the blob is unparseable/legacy, the stored step is not a
  * restorable one, OR storage is unavailable/throws (sandboxed embed).
@@ -248,12 +264,14 @@ export function readStoredProgress(): BookingProgress | null {
     if (!isRestorableStep(step)) return null
     // landr-uwvl: migrate a pre-identity blob before it reaches App state —
     // see normalizePartyIdentity. A no-op for blobs written by this bundle.
-    return normalizePartyIdentity({
-      step,
-      // Draft is optional in the blob; default to empty so a partial
-      // write never restores `undefined` into App's draft state.
-      bookingDraft: (parsed.bookingDraft as BookingDraft) ?? {},
-    })
+    return normalizeBookerBilling(
+      normalizePartyIdentity({
+        step,
+        // Draft is optional in the blob; default to empty so a partial
+        // write never restores `undefined` into App's draft state.
+        bookingDraft: (parsed.bookingDraft as BookingDraft) ?? {},
+      }),
+    )
   } catch {
     // Unparseable JSON, blocked storage, or a shape we don't recognise —
     // fall back to a fresh start. Never throw.

@@ -4,6 +4,7 @@
  * landing (held vs ended), Change dates with an unavailable host day, and the
  * 422 capacity_exceeded that carries `days`.
  */
+import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -120,6 +121,7 @@ async function driveToConfirm() {
   setInput('booker_last_name', 'Klein')
   setInput('booker_email', 'olaf@example.com')
   setInput('booker_phone', '+34 600000000')
+  fillBillingFields()
   fireEvent.click(screen.getByRole('button', { name: /continue/i }))
   await screen.findByTestId('participant-language-board')
   const submit = screen.getByTestId('language-step-submit') as HTMLButtonElement

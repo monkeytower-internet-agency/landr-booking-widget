@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AnimationEvent } from 'react'
 import { Copy } from 'lucide-react'
+import { guessCountry } from '@/lib/guessCountry'
+import { countryOptions } from '@/lib/countries'
+import { useStaffMode } from '@/lib/staffMode'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
@@ -36,8 +40,11 @@ import {
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
+  billingAddressComplete,
   isValidPhoneFormat,
   PHONE_HTML_PATTERN,
+  withBilling,
+  type BillingDetails,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -218,6 +225,11 @@ interface Props {
    */
   onMemberPerkOtpChange?: (code: string) => void
   /**
+   * landr-uuntm.3: the operator's ISO country — last link of the billing
+   * country guess chain (geo -> browser locale -> this). Absent/null = skip.
+   */
+  operatorCountry?: string | null
+  /**
    * landr-rmcsu.5: participant rows (booker included) to pre-create, from the
    * dates step's "How many of you?" stepper (minus any invited companions).
    * Only ever ADDS empty rows up to this count — restored rows are never
@@ -294,9 +306,15 @@ export function DetailsStep({
   onConfirm,
   onLiveParticipantsChange,
   onMemberPerkOtpChange,
+  operatorCountry,
   prefillParticipantCount,
 }: Props) {
   const locale = browserLocale()
+  // landr-uuntm.3: staff-entered bookings (operator dashboard, phone walk-ins)
+  // may not have the customer's address to hand — the billing address is
+  // required for the public widget only.
+  const staff = useStaffMode()
+  const requireBilling = !staff.active
   // landr-mg0a: defaultRoleCode is the first row served by
   // public_get_operator_service_roles (ordered by sort_order). When
   // serviceRoles is still empty (fetch in flight) defaults are ''; the
@@ -305,8 +323,21 @@ export function DetailsStep({
   const defaultRoleCode = serviceRoles[0]?.code ?? ''
   const showRoleDropdown = serviceRoles.length > 1
   const [booker, setBooker] = useState<BookerDetails>(
-    () => initialBooker ?? emptyBooker(),
+    () => (initialBooker ? withBilling(initialBooker) : emptyBooker()),
   )
+  // landr-uuntm.3: "Invoice to a company?" — open when company/tax id are
+  // already filled (Back-restore) so stored data is never hidden.
+  const [invoiceToCompany, setInvoiceToCompany] = useState<boolean>(
+    () =>
+      !!(
+        initialBooker?.billing?.company?.trim() ||
+        initialBooker?.billing?.tax_id?.trim()
+      ),
+  )
+  // landr-uuntm.3: set the moment the customer picks a country themselves —
+  // the async guess must never overwrite a deliberate choice.
+  const countryTouchedRef = useRef(false)
+  const countries = useMemo(() => countryOptions(locale), [locale])
   // The booker becomes participants[0] on submit (via bookerToParticipant)
   // — but we need an independent state slot for THEIR role code since the
   // booker type itself carries no role. Seeded from initialParticipants[0]
@@ -566,6 +597,47 @@ export function DetailsStep({
     notifyLive(next, additional, companions)
   }
 
+  const updateBillingField = (key: keyof BillingDetails, value: string) => {
+    if (key === 'country') countryTouchedRef.current = true
+    setBooker((prev) => ({
+      ...prev,
+      billing: { ...prev.billing, [key]: value },
+    }))
+  }
+
+  const toggleInvoiceToCompany = (on: boolean) => {
+    setInvoiceToCompany(on)
+    // Hidden values must never ride along on submit.
+    if (!on) {
+      setBooker((prev) => ({
+        ...prev,
+        billing: { ...prev.billing, company: '', tax_id: '' },
+      }))
+    }
+  }
+
+  // landr-uuntm.3: pre-fill the billing country once, only while it is still
+  // empty and the customer has not touched it. The guess is async (edge /geo
+  // call, <=1.5 s) so the functional update re-checks both conditions when it
+  // lands. setBooker runs in the promise callback, not the effect body.
+  useEffect(() => {
+    if (booker.billing.country) return
+    let cancelled = false
+    void guessCountry(operatorCountry).then((code) => {
+      if (cancelled || !code || countryTouchedRef.current) return
+      setBooker((prev) =>
+        prev.billing.country
+          ? prev
+          : { ...prev, billing: { ...prev.billing, country: code } },
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+    // Mount-only on purpose: a one-shot guess, never re-run on edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
   // Fires POST .../subscription-perk/otp for a non-empty, '@'-shaped email —
   // the same loose check the rest of this file already uses for "does this
@@ -716,6 +788,7 @@ export function DetailsStep({
       'booker.email',
       'booker.phone',
     ]
+    if (requireBilling) keys.push(...BILLING_REQUIRED_KEYS)
     additional.forEach((_, idx) => {
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
@@ -753,6 +826,14 @@ export function DetailsStep({
         return 'booker-email'
       case 'booker.phone':
         return 'booker-phone'
+      case 'booker.billing.address_line1':
+        return 'booker-billing-line1'
+      case 'booker.billing.postal_code':
+        return 'booker-billing-postal'
+      case 'booker.billing.city':
+        return 'booker-billing-city'
+      case 'booker.billing.country':
+        return 'booker-billing-country'
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
@@ -794,6 +875,14 @@ export function DetailsStep({
       case 'booker.phone':
         // landr-1url: required AND must look internationally-formatted.
         return !booker.phone.trim() || !isValidPhoneFormat(booker.phone)
+      case 'booker.billing.address_line1':
+        return !booker.billing.address_line1.trim()
+      case 'booker.billing.postal_code':
+        return !booker.billing.postal_code.trim()
+      case 'booker.billing.city':
+        return !booker.billing.city.trim()
+      case 'booker.billing.country':
+        return !booker.billing.country.trim()
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
@@ -906,6 +995,7 @@ export function DetailsStep({
     booker,
     participantsForValidation,
     companions,
+    requireBilling,
   )
   // landr-80ubl.3: the one-next-action rule's pending required control for
   // this screen is "your contact details" — the other sections (additional
@@ -917,7 +1007,8 @@ export function DetailsStep({
     booker.email.trim() !== '' &&
     booker.email.includes('@') &&
     booker.phone.trim() !== '' &&
-    isValidPhoneFormat(booker.phone)
+    isValidPhoneFormat(booker.phone) &&
+    (!requireBilling || billingAddressComplete(booker.billing))
 
   const handleContinue = () => {
     // landr-79re: the Continue button is ALWAYS tappable now (no
@@ -975,6 +1066,31 @@ export function DetailsStep({
     'booker-phone',
     'phone',
   )
+  // landr-uuntm.3: billing address validations (same touched/blur UX). In
+  // staff mode the address is optional, so the fields neither flag nor arm.
+  const noValidation = { error: undefined, inputProps: {} }
+  const billingValidate = (key: string, value: string, id: string) =>
+    requireBilling ? validate(key, value, id) : noValidation
+  const billingLine1V = billingValidate(
+    'booker.billing.address_line1',
+    booker.billing.address_line1,
+    'booker-billing-line1',
+  )
+  const billingPostalV = billingValidate(
+    'booker.billing.postal_code',
+    booker.billing.postal_code,
+    'booker-billing-postal',
+  )
+  const billingCityV = billingValidate(
+    'booker.billing.city',
+    booker.billing.city,
+    'booker-billing-city',
+  )
+  const billingCountryV = billingValidate(
+    'booker.billing.country',
+    booker.billing.country,
+    'booker-billing-country',
+  )
 
   return (
     <Card>
@@ -1006,7 +1122,10 @@ export function DetailsStep({
             browser after this change (none available in this environment);
             the bulk-fill touch-detection above is the fallback that catches
             a mangled value either way, regardless of whether this helps. */}
-        <NextAction active={!bookerComplete} cue={tr('enterYourNameEmailPhoneCue', locale)}>
+        <NextAction active={!bookerComplete} cue={tr(
+            requireBilling ? 'enterYourNameEmailPhoneBillingCue' : 'enterYourNameEmailPhoneCue',
+            locale,
+          )}>
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
           <p className="text-xs text-muted-foreground">
@@ -1087,6 +1206,149 @@ export function DetailsStep({
                   testId="booker-role-select"
                 />
               </Field>
+            ) : null}
+          </div>
+
+          {/* landr-uuntm.3: the booker IS the invoice recipient — the billing
+              address (Holded needs it above the simplified-invoice limit) is
+              collected here, once, and stored on their contact. Required:
+              street, postal code, city, country. Optional: line 2, and — behind
+              "Invoice to a company?" — company + tax id. */}
+          <div
+            role="group"
+            aria-labelledby="booker-billing-title"
+            className="flex flex-col gap-3"
+            data-testid="booker-billing-group"
+          >
+            <div className="flex flex-col gap-0.5">
+              <span id="booker-billing-title" className="text-sm font-medium">
+                {tr('billingAddressTitle', locale)}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                {tr('billingAddressHelper', locale)}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-6">
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingStreetLabel', locale)}
+                  htmlFor="booker-billing-line1"
+                  error={billingLine1V.error}
+                >
+                  <Input
+                    id="booker-billing-line1"
+                    name="booker_billing_address_line1"
+                    autoComplete="section-booker billing address-line1"
+                    value={booker.billing.address_line1}
+                    onChange={(e) => updateBillingField('address_line1', e.target.value)}
+                    {...billingLine1V.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingAddressLine2Label', locale)}
+                  htmlFor="booker-billing-line2"
+                >
+                  <Input
+                    id="booker-billing-line2"
+                    name="booker_billing_address_line2"
+                    autoComplete="section-booker billing address-line2"
+                    value={booker.billing.address_line2}
+                    onChange={(e) => updateBillingField('address_line2', e.target.value)}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field
+                  label={tr('billingPostalCodeLabel', locale)}
+                  htmlFor="booker-billing-postal"
+                  error={billingPostalV.error}
+                >
+                  <Input
+                    id="booker-billing-postal"
+                    name="booker_billing_postal_code"
+                    autoComplete="section-booker billing postal-code"
+                    value={booker.billing.postal_code}
+                    onChange={(e) => updateBillingField('postal_code', e.target.value)}
+                    {...billingPostalV.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-4">
+                <Field
+                  label={tr('billingCityLabel', locale)}
+                  htmlFor="booker-billing-city"
+                  error={billingCityV.error}
+                >
+                  <Input
+                    id="booker-billing-city"
+                    name="booker_billing_city"
+                    autoComplete="section-booker billing address-level2"
+                    value={booker.billing.city}
+                    onChange={(e) => updateBillingField('city', e.target.value)}
+                    {...billingCityV.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingCountryLabel', locale)}
+                  htmlFor="booker-billing-country"
+                  error={billingCountryV.error}
+                >
+                  <select
+                    id="booker-billing-country"
+                    name="booker_billing_country"
+                    autoComplete="section-booker billing country"
+                    value={booker.billing.country}
+                    onChange={(e) => updateBillingField('country', e.target.value)}
+                    data-testid="booker-billing-country"
+                    className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring aria-invalid:border-destructive flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...billingCountryV.inputProps}
+                  >
+                    <option value="">{tr('billingCountryPlaceholder', locale)}</option>
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="booker-billing-company-toggle"
+                checked={invoiceToCompany}
+                onCheckedChange={(v) => toggleInvoiceToCompany(v === true)}
+                data-testid="booker-billing-company-toggle"
+              />
+              <Label htmlFor="booker-billing-company-toggle" className="text-sm font-normal">
+                {tr('billingInvoiceToCompanyLabel', locale)}
+              </Label>
+            </div>
+            {invoiceToCompany ? (
+              <div className="grid gap-3 sm:grid-cols-2" data-testid="booker-billing-company-fields">
+                <Field label={tr('billingCompanyLabel', locale)} htmlFor="booker-billing-company">
+                  <Input
+                    id="booker-billing-company"
+                    name="booker_billing_company"
+                    autoComplete="section-booker organization"
+                    value={booker.billing.company}
+                    onChange={(e) => updateBillingField('company', e.target.value)}
+                  />
+                </Field>
+                <Field label={tr('billingTaxIdLabel', locale)} htmlFor="booker-billing-tax-id">
+                  <Input
+                    id="booker-billing-tax-id"
+                    name="booker_billing_tax_id"
+                    autoComplete="off"
+                    value={booker.billing.tax_id}
+                    onChange={(e) => updateBillingField('tax_id', e.target.value)}
+                  />
+                </Field>
+              </div>
             ) : null}
           </div>
 
@@ -1701,6 +1963,14 @@ export function DetailsStep({
     </Card>
   )
 }
+
+/** landr-uuntm.3: touched/required keys of the billing address (public widget). */
+const BILLING_REQUIRED_KEYS = [
+  'booker.billing.address_line1',
+  'booker.billing.postal_code',
+  'booker.billing.city',
+  'booker.billing.country',
+]
 
 function Field({
   label,

@@ -9,6 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Step, BookingDraft } from './appStepMachine'
 import type { Product } from '@/api/types'
+import type { BookerDetails } from './components/booking/detailsTypes'
 import {
   BOOKING_PROGRESS_STORAGE_KEY,
   clearStoredProgress,
@@ -64,6 +65,7 @@ const draft: BookingDraft = {
     last_name: 'Lovelace',
     email: 'ada@example.com',
     phone: '+49 30 1234567',
+    billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
   },
   participants: [],
 }
@@ -425,5 +427,43 @@ describe('normalizePartyIdentity backfill (landr-uwvl)', () => {
       step: detailsStep,
       bookingDraft: {},
     })
+  })
+})
+
+describe('billing backfill (landr-uuntm.3)', () => {
+  it('backfills empty billing on a booker persisted before the field existed (step + draft)', () => {
+    const legacyBooker = {
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      phone: '+49 30 1234567',
+    }
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({
+        step: { ...detailsStep, booker: legacyBooker },
+        bookingDraft: { booker: legacyBooker },
+      }),
+    )
+    const restored = readStoredProgress()!
+    const empty = {
+      address_line1: '',
+      address_line2: '',
+      postal_code: '',
+      city: '',
+      region: '',
+      country: '',
+      company: '',
+      tax_id: '',
+    }
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.billing).toEqual(empty)
+    expect(restored.bookingDraft.booker!.billing).toEqual(empty)
+  })
+
+  it('round-trips a filled billing address (back-nav / reload restore)', () => {
+    writeStoredProgress({ step: { ...detailsStep, booker: draft.booker }, bookingDraft: draft })
+    const restored = readStoredProgress()!
+    expect(restored.bookingDraft.booker!.billing).toEqual(draft.booker!.billing)
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.billing.country).toBe('ES')
   })
 })
