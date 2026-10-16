@@ -2808,6 +2808,17 @@
       "BookingSummaryParticipant": {
         "additionalProperties": true,
         "properties": {
+          "companion_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companion Kind"
+          },
           "is_guiding": {
             "default": true,
             "title": "Is Guiding",

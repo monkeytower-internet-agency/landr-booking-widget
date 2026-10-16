@@ -11913,6 +11913,8 @@ export interface components {
         };
         /** BookingSummaryParticipant */
         BookingSummaryParticipant: {
+            /** Companion Kind */
+            companion_kind?: string | null;
             /**
              * Is Guiding
              * @default true
