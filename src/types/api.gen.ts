@@ -2451,6 +2451,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/bookings/{token}/accept-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Offer Public
+         * @description The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,
+         *     landr-xcyh1.2).
+         *
+         *     Records ``offer_accepted_at`` (once), then -- landr-kstic -- runs the
+         *     general approval while the booking waits at the general gate
+         *     (``custom_offer_flow.advance_from_general_gate``) with the operator who
+         *     SENT the offer as the approver: the hotel is asked only now (or, with no
+         *     hotel step, the booking reaches ``awaiting_payment`` and the
+         *     confirmation + payment link go out; the stamp comes first, so the
+         *     confirmation gate does not hold it). A booking already at
+         *     ``awaiting_payment`` with its confirmation held (the hotel confirmed
+         *     before this yes) gets it released
+         *     (``custom_offer_flow.release_held_confirmation``).
+         *
+         *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
+         *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
+         *     sent), ``offer_changed_since_sent`` (edited after the send: the link is
+         *     stale until the offer is re-sent), ``booking_closed`` (deleted /
+         *     cancelled / finalised).
+         */
+        post: operations["accept_offer_public"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/bookings/{token}/calendar.ics": {
         parameters: {
             query?: never;
@@ -2571,6 +2609,40 @@ export interface paths {
         /** Get Briefing */
         get: operations["public_get_briefing"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/briefings/{token}/billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Billing Address
+         * @description Save the invoice recipient's billing address from the customer page.
+         *
+         *     THE TOKEN IS THE AUTHORISATION, exactly as for the page itself (same
+         *     liveness gate via ``_resolve_briefing_booking``; every failure is the same
+         *     opaque 404). The address is written to the BOOKER contact
+         *     (``bookings.customer_contact_id``) with
+         *     ``billing_address_source='customer_page'``, then any Holded invoice row
+         *     parked on ``billing_address_missing`` for that contact is re-queued.
+         *
+         *     First write wins: the page only offers the form while the address is
+         *     missing, so a second submit means two people raced. The write is a
+         *     conditional UPDATE (only while the contact still has no address), not a
+         *     read-then-write, so the race cannot overwrite -- 409
+         *     ``billing_address_already_set``. The stored address is never echoed back.
+         *     Metered per IP and per token like ``/join``.
+         */
+        put: operations["public_briefing_put_billing_address"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4624,6 +4696,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Custom Offer
+         * @description Compute the positions a PUT with this body would store, WITHOUT
+         *     persisting anything -- so the composer's live preview and the save use
+         *     the one server-side spread (target total, rounding, leftover) and can
+         *     never disagree. Only ``positions`` / ``target_total`` / ``rounding`` are
+         *     read; totals beyond the positions (group discount, tax, hotel) are not
+         *     part of the preview.
+         */
+        post: operations["preview_custom_offer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Offer Email
+         * @description Render the email ``send-offer`` would send, from the SAVED offer.
+         *
+         *     Same context builder and render path as the real send, run in no-write
+         *     preview mode (``capture_email_preview``): nothing is enqueued, no token is
+         *     issued (the link is a placeholder) and ``offer_sent_at`` is not touched.
+         *     Render problems propagate as a 500, like the other staff mail previews.
+         */
+        post: operations["preview_offer_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
         parameters: {
             query?: never;
@@ -5694,6 +5816,24 @@ export interface paths {
         patch: operations["commission_patch_tier"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/company-inquiry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Latest Company Inquiry */
+        get: operations["get_latest_company_inquiry"];
+        put?: never;
+        /** Create Company Inquiry */
+        post: operations["create_company_inquiry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/config-health": {
         parameters: {
             query?: never;
@@ -5793,6 +5933,29 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Contact Billing Address
+         * @description Write the billing address (invoice recipient) onto one contact.
+         *
+         *     Returns ``{"updated": bool, "contact_id", "billing_address_source"}``.
+         *     ``updated`` is false only when ``only_if_missing`` found an address.
+         */
+        patch: operations["patch_contact_billing_address"];
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/contacts/{contact_id}/tags": {
@@ -6108,6 +6271,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/ask-billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Billing Address
+         * @description Email the booker asking for the invoice billing address (landr-uuntm.4).
+         *
+         *     Authz is the retry route's: operator membership + the ``invoicing``
+         *     feature gate, and the row is looked up with ``operator_id`` AND
+         *     ``action='invoice_push'`` filters (404 otherwise).
+         *
+         *     Only for a row parked ``blocked_on_human`` /
+         *     ``failure_reason='billing_address_missing'`` (409 otherwise -- a row blocked
+         *     on a contact-matching decision, a failed or already-transferred row has
+         *     nothing the customer can fix). Resolves booking -> booker contact -> email
+         *     and sends the transactional ``billing_address_request`` email with the
+         *     booking's my.site share link (DE/EN/ES by the customer's language).
+         *
+         *     Resend guard: a second ask for the same booking inside 24 h is a 409
+         *     ``{detail: 'recently_sent', next_allowed_at}``. The guard row is written
+         *     BEFORE the send (atomically, ``claim_billing_address_request`` -- an
+         *     advisory lock per booking, DB clock) and removed again if the send fails,
+         *     so a concurrent double-click sends exactly one email.
+         *     Response ``{sent_at}``.
+         */
+        post: operations["ask_billing_address"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
         parameters: {
             query?: never;
@@ -6137,6 +6338,12 @@ export interface paths {
          *         retry can add is skipping the remaining backoff, so only
          *         ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would
          *         throw away a live retry budget the worker is legitimately using.
+         *
+         *       * ``blocked_on_human`` with ``failure_reason='billing_address_missing'``
+         *         (landr-uuntm.1) -> requeue like ``failed`` but ``attempt_count`` is
+         *         kept. Staff fixed the booker's address on the contact sheet; if it is
+         *         still incomplete the pass re-blocks the row. A row blocked on a
+         *         contact-matching DECISION still 409s.
          *
          *     Every other state 409s with its own message (see ``_RETRY_CONFLICTS``);
          *     an unknown/other-operator/non-invoice row 404s.
@@ -7335,6 +7542,41 @@ export interface paths {
         head?: never;
         /** Patch Product Category */
         patch: operations["patch_product_category"];
+        trace?: never;
+    };
+    "/api/staff/operators/{operator_id}/product-day-capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Product Day Capacity
+         * @description Per-day seat numbers of every product whose OWN daily cap limits it
+         *     (``products.day_capacity_source = 'product'``), for the staff calendar's
+         *     product-cap lane (landr-rmcsu).
+         *
+         *     These are the numbers the public booking widget enforces — the rows come
+         *     from the same ``public_get_product_availability`` RPC and the same
+         *     ``_fill_seat_numbers`` step the public endpoint uses, so the dashboard
+         *     cannot show a second seat definition. ``booked`` is the
+         *     guiding participants of live bookings (``product_day_seat_load``).
+         *
+         *     Omitted: products limited by ``resources`` (the pool lanes already show
+         *     them), days whose ``seat_limit_source`` is not ``product`` (sentinel /
+         *     ``none`` / pool-filled days), closed days (the RPC does not return them),
+         *     and slot rows of time_slot products (a per-day number needs a whole-day
+         *     shape). Like the widget, products that are inactive or not publicly
+         *     listed return no rows. Ordered by product name, then date.
+         */
+        get: operations["list_product_day_capacity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/staff/operators/{operator_id}/product-groups": {
@@ -9924,6 +10166,23 @@ export interface paths {
         patch: operations["patch_tag"];
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/tax-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tax Rates */
+        get: operations["list_tax_rates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/today/board-messages": {
         parameters: {
             query?: never;
@@ -10418,6 +10677,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptOfferResponse
+         * @description POST /{token}/accept-offer (landr-bo0wd.1).
+         *
+         *     ``already_accepted`` = the yes was recorded before (double click, or an
+         *     acceptance-free offer); nothing moved this time. ``advanced`` = this call
+         *     ran the general-approval transition (landr-kstic: the normal case -- the
+         *     booking waits at the general gate until the customer accepts; the hotel
+         *     request, or with no hotel step the confirmation + payment link, goes out
+         *     now). ``confirmation_sent`` = this yes released a held confirmation step
+         *     (the booking already sat at ``awaiting_payment``): the customer
+         *     confirmation + payment link are on their way.
+         *     ``payment_allowed`` = the offer page may take payment now: False while the
+         *     hotel step is ahead or in progress (``offer_hotel_pending``) or the hotel
+         *     declined (``offer_hotel_declined``) -- the payment link then arrives the
+         *     usual way once the hotel confirmed. landr-jsu3n.5: a staff offer's hotel
+         *     is asked at send, so its accept is accept-only (``payment_allowed``
+         *     False) until the hotel's yes; ``offer_hotel_confirmed`` = that yes is in.
+         */
+        AcceptOfferResponse: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /** Advanced */
+            advanced: boolean;
+            /** Already Accepted */
+            already_accepted: boolean;
+            /**
+             * Confirmation Sent
+             * @default false
+             */
+            confirmation_sent: boolean;
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
+            /**
+             * Offer Hotel Confirmed
+             * @default false
+             */
+            offer_hotel_confirmed: boolean;
+            /**
+             * Offer Hotel Declined
+             * @default false
+             */
+            offer_hotel_declined: boolean;
+            /** Offer Hotel Pending */
+            offer_hotel_pending: boolean;
+            /** Payment Allowed */
+            payment_allowed: boolean;
+            /** Stage Code */
+            stage_code?: string | null;
+        };
         /** AccountLinkRequest */
         AccountLinkRequest: {
             /** Email */
@@ -10839,6 +11151,14 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /**
+         * AskBillingAddressResponse
+         * @description Result of POST .../ask-billing-address.
+         */
+        AskBillingAddressResponse: {
+            /** Sent At */
+            sent_at: string;
+        };
         /** AskPartnerIn */
         AskPartnerIn: {
             /** Note */
@@ -11083,6 +11403,97 @@ export interface components {
             ticket_id: string;
             /** Title */
             title: string;
+        };
+        /**
+         * BillingAddressIn
+         * @description The invoice recipient's postal address.
+         *
+         *     ``address_line1``, ``postal_code``, ``city`` and ``country`` are required
+         *     and must be non-blank after stripping (a whitespace-only value is a 422,
+         *     not a silently-missing address). The rest are optional and blank-fold to
+         *     ``None``. ``company`` + ``tax_id`` are the "invoice to a company" pair;
+         *     ``name`` (landr-jsu3n.2) is an optional different bill-to name.
+         */
+        BillingAddressIn: {
+            /** Address Line1 */
+            address_line1: string;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** City */
+            city: string;
+            /** Company */
+            company?: string | null;
+            /**
+             * Country
+             * @description ISO 3166-1 alpha-2, e.g. 'DE'.
+             */
+            country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region?: string | null;
+            /** Tax Id */
+            tax_id?: string | null;
+        };
+        /**
+         * BillingAddressPatchIn
+         * @description landr-uuntm.2: a contact's billing address plus who supplied it.
+         *
+         *     ``source`` is limited to the two staff-side origins (the widget and
+         *     my.site paths set theirs server-side). ``only_if_missing`` makes the call
+         *     a fill-never-overwrite write: when the contact already has an invoiceable
+         *     address nothing is written (the WooCommerce importer's backfill of
+         *     already-imported bookings; the customer or staff may have fixed it since).
+         */
+        BillingAddressPatchIn: {
+            /** Address Line1 */
+            address_line1: string;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** City */
+            city: string;
+            /** Company */
+            company?: string | null;
+            /**
+             * Country
+             * @description ISO 3166-1 alpha-2, e.g. 'DE'.
+             */
+            country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
+            /**
+             * Only If Missing
+             * @default false
+             */
+            only_if_missing: boolean;
+            /** Postal Code */
+            postal_code: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Source
+             * @default staff
+             * @enum {string}
+             */
+            source: "staff" | "woocommerce_import";
+            /** Tax Id */
+            tax_id?: string | null;
+        };
+        /** BillingAddressSavedOut */
+        BillingAddressSavedOut: {
+            /**
+             * Billing Address Missing
+             * @default false
+             */
+            billing_address_missing: boolean;
         };
         /**
          * BookingCalendarEvent
@@ -11520,6 +11931,8 @@ export interface components {
         };
         /** BookingSummaryParticipant */
         BookingSummaryParticipant: {
+            /** Companion Kind */
+            companion_kind?: string | null;
             /**
              * Is Guiding
              * @default true
@@ -12124,6 +12537,63 @@ export interface components {
             /** Room Unit Index */
             room_unit_index?: number | null;
         };
+        /** CompanyInquiryAnswers */
+        CompanyInquiryAnswers: {
+            /** Company Name */
+            company_name: string;
+            /** Country */
+            country: string;
+            /** Message */
+            message?: string | null;
+            /** Needs */
+            needs?: string[];
+            /** Offers */
+            offers?: string[];
+            /** Phone */
+            phone?: string | null;
+            /** Products Count */
+            products_count: string;
+            /** Team Size */
+            team_size: string;
+            /** Website */
+            website?: string | null;
+        };
+        /** CompanyInquiryCreated */
+        CompanyInquiryCreated: {
+            /** Inquiry Id */
+            inquiry_id: string;
+        };
+        /** CompanyInquiryIn */
+        CompanyInquiryIn: {
+            /** Company Name */
+            company_name: string;
+            /** Country */
+            country: string;
+            /** Message */
+            message?: string | null;
+            /** Needs */
+            needs?: components["schemas"]["Need"][];
+            /** Offers */
+            offers?: components["schemas"]["Offer"][];
+            /** Phone */
+            phone?: string | null;
+            products_count: components["schemas"]["ProductsCount"];
+            team_size: components["schemas"]["TeamSize"];
+            /** Website */
+            website?: string | null;
+        };
+        /** CompanyInquiryOut */
+        CompanyInquiryOut: {
+            answers: components["schemas"]["CompanyInquiryAnswers"];
+            /** Created At */
+            created_at: string;
+            /** Created By User Id */
+            created_by_user_id?: string | null;
+            /** Id */
+            id: string;
+            /** Operator Id */
+            operator_id: string;
+        };
         /** ConfirmBody */
         ConfirmBody: {
             /** Confirm Name */
@@ -12235,11 +12705,34 @@ export interface components {
             group_threshold?: number | null;
             /** Lines */
             lines?: components["schemas"]["CustomOfferLineIn"][];
+            /** Positions */
+            positions?: components["schemas"]["OfferPositionIn"][] | null;
             /**
              * Prices Include Tax
              * @default true
              */
             prices_include_tax: boolean;
+            /** Requires Acceptance */
+            requires_acceptance?: boolean | null;
+            /**
+             * Rounding
+             * @default exact
+             * @enum {string}
+             */
+            rounding: "exact" | "0.50" | "1" | "5";
+            /**
+             * Show Savings
+             * @default true
+             */
+            show_savings: boolean;
+            /** Target Offer Total */
+            target_offer_total?: number | string | null;
+            /** Target Total */
+            target_total?: number | string | null;
+            /** Tax Key */
+            tax_key?: string | null;
+            /** Tax Label */
+            tax_label?: string | null;
             /** Tax Rate */
             tax_rate?: number | string | null;
         };
@@ -12307,12 +12800,62 @@ export interface components {
             group_discount_pct: string | null;
             /** Group Threshold */
             group_threshold: number | null;
+            /**
+             * Has Hotel
+             * @default false
+             */
+            has_hotel: boolean;
+            /**
+             * Hotel Total
+             * @default 0
+             */
+            hotel_total: string;
             /** Lines */
             lines: components["schemas"]["CustomOfferLineOut"][];
             /** Net Total */
             net_total: string;
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
+            /**
+             * Offer Confirmation Held
+             * @default false
+             */
+            offer_confirmation_held: boolean;
+            offer_discount?: components["schemas"]["OfferDiscountOut"] | null;
+            /**
+             * Offer Hotel Confirmed
+             * @default false
+             */
+            offer_hotel_confirmed: boolean;
+            /** Offer Hotel Declined At */
+            offer_hotel_declined_at?: string | null;
+            /**
+             * Offer Hotel Pending
+             * @default false
+             */
+            offer_hotel_pending: boolean;
+            /** Offer Sent At */
+            offer_sent_at?: string | null;
+            /** Offer Total */
+            offer_total?: string | null;
+            /**
+             * Original Total
+             * @default 0
+             */
+            original_total: string;
             /** Paying Count */
             paying_count: number;
+            /** Periods */
+            periods?: {
+                [key: string]: unknown;
+            }[];
+            /** Positions */
+            positions?: components["schemas"]["OfferPositionOut"][];
+            /**
+             * Positions Total
+             * @default 0
+             */
+            positions_total: string;
             /**
              * Prices Include Tax
              * @default true
@@ -12320,8 +12863,50 @@ export interface components {
             prices_include_tax: boolean;
             /** Regular Unit Price */
             regular_unit_price?: string | null;
+            /**
+             * Requires Acceptance
+             * @default true
+             */
+            requires_acceptance: boolean;
+            /**
+             * Rounding
+             * @default exact
+             */
+            rounding: string;
+            /**
+             * Show Savings
+             * @default true
+             */
+            show_savings: boolean;
+            /** Target Total */
+            target_total?: string | null;
+            /** Tax Key */
+            tax_key?: string | null;
+            /** Tax Label */
+            tax_label?: string | null;
+            /** Tax Rate */
+            tax_rate?: string | null;
             /** Tax Total */
             tax_total: string;
+        };
+        /** CustomOfferPreviewOut */
+        CustomOfferPreviewOut: {
+            offer_discount: components["schemas"]["OfferDiscountOut"];
+            /**
+             * Offer Total
+             * @default 0
+             */
+            offer_total: string;
+            /** Original Total */
+            original_total: string;
+            /** Positions */
+            positions: components["schemas"]["OfferPositionOut"][];
+            /** Positions Total */
+            positions_total: string;
+            /** Rounding */
+            rounding: string;
+            /** Target Total */
+            target_total: string | null;
         };
         /** CustomerSignoffIn */
         CustomerSignoffIn: {
@@ -12899,6 +13484,15 @@ export interface components {
         EmailPreview: {
             /** Html */
             html: string;
+            /** Reason */
+            reason?: string | null;
+            /** Reason Stage */
+            reason_stage?: string | null;
+            /**
+             * Send Allowed
+             * @default true
+             */
+            send_allowed: boolean;
             /** Subject */
             subject: string;
             /** To */
@@ -14219,6 +14813,8 @@ export interface components {
             bucket: string;
             /** Currency */
             currency: string | null;
+            /** Customer Contact Id */
+            customer_contact_id?: string | null;
             /** Customer Name */
             customer_name: string | null;
             /** External Reference */
@@ -14838,6 +15434,11 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /**
+         * Need
+         * @enum {string}
+         */
+        Need: "pickup_locations" | "staff_scheduling" | "resources_equipment" | "partners_hotels" | "multiple_languages" | "payments_online" | "invoicing" | "other";
         /** NoShowIn */
         NoShowIn: {
             /**
@@ -14934,6 +15535,31 @@ export interface components {
             items?: components["schemas"]["NumberingSeriesItem"][];
         };
         /**
+         * Offer
+         * @enum {string}
+         */
+        Offer: "flights/activities" | "courses" | "accommodation" | "other";
+        /**
+         * OfferAdjustments
+         * @description Adjustments below the positions: free spots and the >N group discount.
+         */
+        OfferAdjustments: {
+            /**
+             * Free Spot Count
+             * @default 0
+             */
+            free_spot_count: number;
+            /**
+             * Group Discount Amount
+             * @default 0
+             */
+            group_discount_amount: number;
+            /** Group Discount Pct */
+            group_discount_pct?: number | null;
+            /** Group Threshold */
+            group_threshold?: number | null;
+        };
+        /**
          * OfferBankDetails
          * @description Operator bank account for a bank-transfer payment (landr-t63w0).
          */
@@ -14987,6 +15613,87 @@ export interface components {
             last_name?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferDiscount
+         * @description Overall offer discount: ``amount`` total, ``per_day`` averaged over the
+         *     discounted days, ``pct`` of the regular total.
+         */
+        OfferDiscount: {
+            /** Amount */
+            amount: number;
+            /** Pct */
+            pct: number;
+            /** Per Day */
+            per_day: number;
+        };
+        /** OfferDiscountOut */
+        OfferDiscountOut: {
+            /** Amount */
+            amount: string;
+            /** Pct */
+            pct: string;
+            /** Per Day */
+            per_day: string;
+        };
+        /** OfferEmailPreview */
+        OfferEmailPreview: {
+            /**
+             * Body Html
+             * @default
+             */
+            body_html: string;
+            /**
+             * Body Text
+             * @default
+             */
+            body_text: string;
+            /** Html */
+            html: string;
+            /** Subject */
+            subject: string;
+            /** To */
+            to?: string | null;
+            /**
+             * To Address
+             * @default
+             */
+            to_address: string;
+        };
+        /**
+         * OfferLineItem
+         * @description One priced product line of the offer (landr-b48i5), same order as
+         *     ``product_lines``. Read from the persisted ``computed_price_breakdown``
+         *     via ``booking_line_items`` — never recomputed.
+         *
+         *     ``participants`` / ``per_person_price`` are set only when the line is
+         *     priced per head (a ``per_participant_tier`` rule, or any rule whose
+         *     detail has ``per_participant`` true) AND ``line_total / qty /
+         *     participants`` divides to whole cents; otherwise both are ``None`` and
+         *     the page shows the line total alone.
+         */
+        OfferLineItem: {
+            /** Label */
+            label: string;
+            /** Line Total */
+            line_total: number;
+            /**
+             * Paid To
+             * @enum {string}
+             */
+            paid_to: "operator" | "hotel";
+            /** Participants */
+            participants?: number | null;
+            /** Per Person Price */
+            per_person_price?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Qty */
+            qty: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Units */
+            units: number;
         };
         /**
          * OfferParticipant
@@ -15044,6 +15751,100 @@ export interface components {
             online_available: boolean;
         };
         /**
+         * OfferPositionIn
+         * @description One position of the composed offer (landr-8f1sh.1).
+         *
+         *     Identity is ``(booking_product_id, position_key)`` from GET
+         *     ``positions``. ``unit_price`` is the OFFER price per unit (day) per
+         *     participant; omitted = the regular price (or the computed value when the
+         *     body carries ``target_total``). ``units`` / ``participants`` are optional
+         *     echoes validated against the server's seed (422 ``position_mismatch``);
+         *     the server never takes them, nor any total, from the client.
+         */
+        OfferPositionIn: {
+            /** Booking Product Id */
+            booking_product_id: string;
+            /**
+             * Exclude From Discount
+             * @default false
+             */
+            exclude_from_discount: boolean;
+            /** Participants */
+            participants?: number | null;
+            /** Position Key */
+            position_key: string;
+            /** Unit Price */
+            unit_price?: number | string | null;
+            /** Units */
+            units?: number | string | null;
+        };
+        /**
+         * OfferPositionLine
+         * @description One position of an applied custom offer (landr-8f1sh.1).
+         *
+         *     ``original_*`` are the regular prices; when ``show_savings`` is False they
+         *     are redacted to the offer prices (see
+         *     ``custom_offer_positions.public_positions_wire``).
+         */
+        OfferPositionLine: {
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded: boolean;
+            /** Label */
+            label: string;
+            /** Original Total */
+            original_total: number;
+            /** Original Unit Price */
+            original_unit_price: number;
+            /** Participants */
+            participants: number;
+            /** Total */
+            total: number;
+            /** Unit Price */
+            unit_price: number;
+            /** Units */
+            units: number;
+        };
+        /** OfferPositionOut */
+        OfferPositionOut: {
+            /** Booking Product Id */
+            booking_product_id: string | null;
+            /** Date Range End */
+            date_range_end?: string | null;
+            /** Date Range Start */
+            date_range_start?: string | null;
+            /** Discount Per Unit */
+            discount_per_unit: string;
+            /** Discount Total */
+            discount_total: string;
+            /** Exclude From Discount */
+            exclude_from_discount: boolean;
+            /** In Offer */
+            in_offer: boolean;
+            /** Label */
+            label: string;
+            /** Line Id */
+            line_id?: string | null;
+            /** Original Total */
+            original_total: string;
+            /** Original Unit Price */
+            original_unit_price: string;
+            /** Participants */
+            participants: number;
+            /** Position Key */
+            position_key: string;
+            /** Rounding Adjustment */
+            rounding_adjustment: string;
+            /** Total */
+            total: string;
+            /** Unit Price */
+            unit_price: string;
+            /** Units */
+            units: string;
+        };
+        /**
          * OfferProductLine
          * @description One entry of the RPC's ``product_lines`` array. Mirrors the
          *     widget's ``OfferProductLine`` TypeScript interface.
@@ -15067,6 +15868,17 @@ export interface components {
             selected_days?: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferTax
+         * @description The tax the operator picked for the offer (landr-bo0wd.7). ``pct`` is a
+         *     percentage number (7.0 = 7 %); ``label`` the tax's name ("IVA") or None.
+         */
+        OfferTax: {
+            /** Label */
+            label?: string | null;
+            /** Pct */
+            pct: number;
         };
         /**
          * OfferTotals
@@ -15281,6 +16093,11 @@ export interface components {
             price_from?: string | null;
             /** Product Id */
             product_id: string;
+            /**
+             * Share Reference Enabled
+             * @default false
+             */
+            share_reference_enabled: boolean;
             /** Slug */
             slug: string;
             /** Thumb Url */
@@ -15375,6 +16192,8 @@ export interface components {
         OperatorSettings: {
             /** Contact Email */
             contact_email?: string | null;
+            /** Country */
+            country?: string | null;
             /** Customer Languages */
             customer_languages?: string[];
             /**
@@ -16485,6 +17304,33 @@ export interface components {
             template_key: string;
         };
         /**
+         * ProductDayCapacity
+         * @description One day of one product limited by its OWN per-day seat cap.
+         */
+        ProductDayCapacity: {
+            /** Available */
+            available: number;
+            /** Booked */
+            booked: number;
+            /** Capacity */
+            capacity: number;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /**
+             * Seat Limit Source
+             * @default product
+             * @constant
+             */
+            seat_limit_source: "product";
+        };
+        /**
          * ProductFlowResponse
          * @description Response of GET …/products/{id}/flow. Mirrors the widget's
          *     ``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).
@@ -16681,6 +17527,11 @@ export interface components {
             revenue_flows_through_operator: boolean;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
+            /**
+             * Share Reference Enabled
+             * @default false
+             */
+            share_reference_enabled: boolean;
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -16796,6 +17647,8 @@ export interface components {
             revenue_flows_through_operator?: boolean | null;
             /** Service Time Shape */
             service_time_shape?: ("single_date" | "days_range" | "fixed_window" | "time_slot") | null;
+            /** Share Reference Enabled */
+            share_reference_enabled?: boolean | null;
             /** Short Description */
             short_description?: string | null;
             /** Short Description Localized */
@@ -16898,6 +17751,11 @@ export interface components {
             /** Units Required Per Participant */
             units_required_per_participant?: number | null;
         };
+        /**
+         * ProductsCount
+         * @enum {string}
+         */
+        ProductsCount: "1-3" | "4-10" | "10+";
         /**
          * PromoteTicketIn
          * @description Body for the promote endpoint.
@@ -17026,13 +17884,38 @@ export interface components {
             customer_semantic_state: string;
             /** Ical Url */
             ical_url?: string | null;
+            /** Line Items */
+            line_items?: components["schemas"]["OfferLineItem"][];
+            /** Offer Accepted At */
+            offer_accepted_at?: string | null;
+            offer_adjustments?: components["schemas"]["OfferAdjustments"] | null;
+            offer_discount?: components["schemas"]["OfferDiscount"] | null;
+            /** Offer Hotel Confirmed */
+            offer_hotel_confirmed?: boolean | null;
+            /** Offer Hotel Declined */
+            offer_hotel_declined?: boolean | null;
+            /** Offer Hotel Pending */
+            offer_hotel_pending?: boolean | null;
+            /** Offer Positions */
+            offer_positions?: components["schemas"]["OfferPositionLine"][] | null;
+            /** Offer Prices Include Tax */
+            offer_prices_include_tax?: boolean | null;
+            /** Offer Requires Acceptance */
+            offer_requires_acceptance?: boolean | null;
+            offer_tax?: components["schemas"]["OfferTax"] | null;
             /** Operator Name */
             operator_name?: string | null;
             /** Participants */
             participants?: components["schemas"]["OfferParticipant"][];
             payment?: components["schemas"]["OfferPayment"] | null;
+            /** Periods */
+            periods?: {
+                [key: string]: unknown;
+            }[];
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            /** Show Savings */
+            show_savings?: boolean | null;
             stage?: components["schemas"]["CustomerStageLabel"] | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
@@ -17094,6 +17977,7 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            customer_billing?: components["schemas"]["BillingAddressIn"] | null;
             /** Customer Comment */
             customer_comment?: string | null;
             /** Customer Declarations */
@@ -19200,6 +20084,12 @@ export interface components {
         /** StaffSubmitBookingIn */
         StaffSubmitBookingIn: {
             /**
+             * Billing Address Source
+             * @default staff
+             * @enum {string}
+             */
+            billing_address_source: "staff" | "woocommerce_import";
+            /**
              * Booking Channel
              * @default agent_dashboard
              */
@@ -19208,6 +20098,7 @@ export interface components {
             cancellation_deadline: string;
             /** Companions */
             companions?: components["schemas"]["CompanionIn"][];
+            customer_billing?: components["schemas"]["BillingAddressIn"] | null;
             /** Customer Comment */
             customer_comment?: string | null;
             /** Customer Declarations */
@@ -19779,6 +20670,25 @@ export interface components {
             /** Override Key */
             override_key?: string | null;
         };
+        /** TaxRateItem */
+        TaxRateItem: {
+            /** Key */
+            key?: string | null;
+            /** Label */
+            label: string;
+            /** Pct */
+            pct: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "holded" | "default";
+        };
+        /**
+         * TeamSize
+         * @enum {string}
+         */
+        TeamSize: "1" | "2-5" | "6-20" | "20+";
         /**
          * TemplateCatalogueEntryOut
          * @description One pick in the "Add from template" catalogue — a bundle (a named
@@ -24004,6 +24914,37 @@ export interface operations {
             };
         };
     };
+    accept_offer_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptOfferResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_booking_calendar_ics: {
         parameters: {
             query?: never;
@@ -24180,6 +25121,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_briefing_put_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAddressIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingAddressSavedOut"];
                 };
             };
             /** @description Validation Error */
@@ -27325,6 +28301,74 @@ export interface operations {
             };
         };
     };
+    preview_custom_offer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomOfferIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomOfferPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_offer_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferEmailPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     email_preview: {
         parameters: {
             query: {
@@ -28405,7 +29449,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -29365,6 +30413,72 @@ export interface operations {
             };
         };
     };
+    get_latest_company_inquiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyInquiryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_company_inquiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyInquiryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyInquiryCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_config_health: {
         parameters: {
             query?: never;
@@ -29498,6 +30612,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingOverlap"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_contact_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAddressPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -29971,6 +31123,45 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InvoicesResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_billing_address: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+                sync_log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskBillingAddressResponse"];
+                };
+            };
+            /** @description Not blocked on a missing billing address (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -32601,6 +33792,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_day_capacity: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDayCapacity"][];
                 };
             };
             /** @description Validation Error */
@@ -37565,6 +38790,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tax_rates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxRateItem"][];
                 };
             };
             /** @description Validation Error */

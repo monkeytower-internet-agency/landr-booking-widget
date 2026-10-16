@@ -47,6 +47,11 @@ export interface GroupInquiryFormProps {
    * inquiry. Optional so the form still renders standalone in unit tests.
    */
   onCancel?: () => void
+  /**
+   * landr-rmcsu.5: prefill for the (optional) group-size field — the dates
+   * step's stepper value when nothing fits the group. Absent → empty.
+   */
+  defaultPartySize?: number
 }
 
 type SubmitState = 'idle' | 'loading' | 'success' | 'error'
@@ -60,11 +65,14 @@ export function GroupInquiryForm({
   contactMailto,
   contactEmail,
   onCancel,
+  defaultPartySize,
 }: GroupInquiryFormProps) {
   const [name, setName] = useState(defaultName)
   const [email, setEmail] = useState(defaultEmail)
   const [phone, setPhone] = useState(defaultPhone)
-  const [partySize, setPartySize] = useState('')
+  const [partySize, setPartySize] = useState(
+    defaultPartySize !== undefined ? String(defaultPartySize) : '',
+  )
   const [message, setMessage] = useState('')
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
   const locale = browserLocale()

@@ -183,8 +183,11 @@ export interface Product {
   needs_pickup?: boolean
   /**
    * landr-zy2wm.2: max total participants (booker included) per booking.
-   * Absent / null = no product cap (the widget's own 6-participant cap
-   * still applies). 1 = booker only, no additional-participants UI.
+   * Absent / null = no product cap (the widget falls back to 6
+   * participants). Any set value is honoured as-is, including values above 6
+   * (landr-rmcsu.5 lifted the old min(6, …) clamp); it is also the dates
+   * step's "How many of you?" maximum. 1 = booker only, no
+   * additional-participants UI.
    */
   max_party_size?: number | null
   /**
@@ -399,6 +402,14 @@ export interface Product {
    * copy can be derived client-side the same way the server derives it.
    */
   accommodation_lead_time_minutes?: number
+  /**
+   * landr-h0opd.1/.3: the operator switched on "customers may share their
+   * booking reference to be grouped together" for this product. The
+   * confirmation screen shows the share hint only when the booked product
+   * has it true. Optional for the rolling-deploy window — absent (an older
+   * API) is treated as false.
+   */
+  share_reference_enabled?: boolean | null
 }
 
 /**
@@ -467,6 +478,12 @@ export interface OperatorSettings {
    */
   logo_url?: string | null
   primary_color?: string | null
+  /**
+   * landr-uuntm.3: operator's ISO-3166-1 alpha-2 country — last link of the
+   * billing-country guess chain (lib/guessCountry.ts). Optional: the public
+   * settings endpoint may not expose it yet; absent = no operator fallback.
+   */
+  country?: string | null
   /**
    * landr-ens5 — the operator's 3-colour brand theme (brand/accent/
    * background, + optional dark overrides). When present it supersedes
@@ -1030,12 +1047,34 @@ export interface ProductLine {
   slot_start_time?: string | null
 }
 
+/**
+ * landr-uuntm.3 / landr-uuntm.1 (BillingAddressIn): the invoice recipient's
+ * billing address, stored on the booker's contact. The API requires
+ * address_line1, postal_code, city and country for booking_channel
+ * 'public_website' (422 otherwise). Hand-written until api.gen.ts syncs.
+ */
+export interface CustomerBilling {
+  address_line1: string
+  address_line2?: string | null
+  postal_code: string
+  city: string
+  region?: string | null
+  /** ISO-3166-1 alpha-2, upper-case. */
+  country: string
+  company?: string | null
+  tax_id?: string | null
+  /** landr-jsu3n.2: optional bill-to (invoice) name when not the booker. */
+  name?: string | null
+}
+
 export interface SubmitBookingBody {
   widget_token: string
   customer_first_name: string
   customer_last_name?: string | null
   customer_email: string
   customer_phone?: string | null
+  /** landr-uuntm.3: invoice recipient's billing address (see CustomerBilling). */
+  customer_billing?: CustomerBilling | null
   customer_preferred_locale?: string | null
   cancellation_deadline: string
   voucher_code?: string | null
@@ -1475,6 +1514,9 @@ export interface BookingSummaryDates {
 export interface BookingSummaryParticipant {
   name: string
   is_guiding?: boolean
+  /** landr-jsu3n.1: set on non-guiding companions; groups the Party block
+   * exactly like the confirmation email. */
+  companion_kind?: 'guest' | 'separate_guiding' | null
 }
 
 /**

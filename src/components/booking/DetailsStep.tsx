@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AnimationEvent } from 'react'
 import { Copy } from 'lucide-react'
+import { guessCountry } from '@/lib/guessCountry'
+import { countryOptions } from '@/lib/countries'
+import { useStaffMode } from '@/lib/staffMode'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { BookingSelection } from '@/components/booking/BookingForm'
 import type { Product, ServiceRole } from '@/api/types'
 import { requestSubscriptionPerkOtp } from '@/api/client'
@@ -14,6 +18,8 @@ import {
   maxCompanionsReachedMessage,
   otherParticipantsHeading,
   participantOrdinalLabel,
+  participantsTotalHeading,
+  maxParticipantsReachedMessage,
   removeCompanionAriaLabel,
   removeParticipantAriaLabel,
   tr,
@@ -31,13 +37,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StepBackButton } from '@/components/booking/StepBackButton'
 import {
+  bookerJoins,
   bookerToParticipant,
   detailsAreComplete,
+  invoiceToLines,
   emptyBooker,
   emptyCompanion,
   emptyParticipant,
+  billingAddressComplete,
   isValidPhoneFormat,
   PHONE_HTML_PATTERN,
+  withBilling,
+  type BillingDetails,
   type BookerDetails,
   type CompanionDetails,
   type ParticipantDetails,
@@ -54,7 +65,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-const MAX_ADDITIONAL = 5 // total cap = 6 participants (matches the legacy form)
+// landr-rmcsu.5: fallback ONLY — total 6 participants when the product sets
+// no max_party_size. A product cap (any value >= 1) replaces it, including
+// caps above 6.
+const MAX_ADDITIONAL = 5
 // landr-87n9.3: generous cap on non-guiding companions. Total headcount
 // (participants + companions) can exceed 6 — companions are uncapped by the
 // guiding rule. 12 is a pragmatic upper bound that comfortably covers
@@ -63,7 +77,7 @@ const MAX_COMPANIONS = 12
 // landr-de6ej: mirrors the API's `bookings_customer_comment_length_chk`
 // CHECK constraint (and PublicSubmitBookingIn's max_length) — kept in sync
 // by hand since the widget has no shared contract constant for this.
-/** Additional participants allowed: min(MAX_ADDITIONAL, max_party_size - 1). */
+/** True when the product sets a usable max_party_size (>= 1). */
 function hasPartyCap(m: number | null | undefined): boolean {
   return typeof m === 'number' && Number.isFinite(m) && m >= 1
 }
@@ -73,16 +87,23 @@ function additionalCapRaw(m: number | null | undefined): number {
   return hasPartyCap(m) ? Math.floor(m as number) - 1 : Infinity
 }
 
+/**
+ * Additional participants allowed (booker excluded): max_party_size - 1 when
+ * the product sets a cap, else MAX_ADDITIONAL (landr-rmcsu.5 lifted the old
+ * min(5, …) clamp that capped every product at 6).
+ */
 function additionalCap(maxPartySize: number | null | undefined): number {
-  if (typeof maxPartySize !== 'number' || !Number.isFinite(maxPartySize) || maxPartySize < 1) {
-    return MAX_ADDITIONAL
-  }
-  return Math.min(MAX_ADDITIONAL, Math.floor(maxPartySize) - 1)
+  return hasPartyCap(maxPartySize) ? Math.floor(maxPartySize as number) - 1 : MAX_ADDITIONAL
 }
 
 interface Props {
   product: Product
-  selection: BookingSelection
+  /**
+   * landr-rmcsu.6: undefined when the operator's flow runs participants BEFORE
+   * the dates step and no dates are picked yet — the card description then
+   * shows the product name alone.
+   */
+  selection?: BookingSelection
   /**
    * Operator's active service_roles (landr-mg0a). Fetched once at App
    * mount via getOperatorServiceRoles and threaded down. When the list
@@ -126,6 +147,14 @@ interface Props {
    * mailto: link — safe degrade.
    */
   operatorToken?: string
+  /**
+   * landr-jiagg.2: true when this booking joins a host's group through an
+   * invite link (`?invite=<token>`). The invitee takes the seat themselves,
+   * so the "I'm booking for someone else" toggle is hidden and the booker
+   * always joins. (Joining by shared-double REFERENCE happens later, in the
+   * accommodation step, and is only offered when the booker joins.)
+   */
+  inviteMode?: boolean
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -166,7 +195,8 @@ interface Props {
    * doesn't re-apply on an unrelated later remount.
    */
   onCompanionContactFocusApplied?: () => void
-  onBack: () => void
+  /** landr-rmcsu.6: absent when this is the funnel's first step (start=dates). */
+  onBack?: () => void
   onConfirm: (
     booker: BookerDetails,
     participants: ParticipantDetails[],
@@ -206,6 +236,19 @@ interface Props {
    * field.
    */
   onMemberPerkOtpChange?: (code: string) => void
+  /**
+   * landr-uuntm.3: the operator's ISO country — last link of the billing
+   * country guess chain (geo -> browser locale -> this). Absent/null = skip.
+   */
+  operatorCountry?: string | null
+  /**
+   * landr-rmcsu.5: participant rows (booker included) to pre-create, from the
+   * dates step's "How many of you?" stepper (minus any invited companions).
+   * Only ever ADDS empty rows up to this count — restored rows are never
+   * dropped — and stays within the participant / party caps. The customer
+   * can still add or remove rows. Absent → no pre-creation.
+   */
+  prefillParticipantCount?: number
 }
 
 /**
@@ -275,8 +318,16 @@ export function DetailsStep({
   onConfirm,
   onLiveParticipantsChange,
   onMemberPerkOtpChange,
+  operatorCountry,
+  prefillParticipantCount,
+  inviteMode = false,
 }: Props) {
   const locale = browserLocale()
+  // landr-uuntm.3: staff-entered bookings (operator dashboard, phone walk-ins)
+  // may not have the customer's address to hand — the billing address is
+  // required for the public widget only.
+  const staff = useStaffMode()
+  const requireBilling = !staff.active
   // landr-mg0a: defaultRoleCode is the first row served by
   // public_get_operator_service_roles (ordered by sort_order). When
   // serviceRoles is still empty (fetch in flight) defaults are ''; the
@@ -285,38 +336,41 @@ export function DetailsStep({
   const defaultRoleCode = serviceRoles[0]?.code ?? ''
   const showRoleDropdown = serviceRoles.length > 1
   const [booker, setBooker] = useState<BookerDetails>(
-    () => initialBooker ?? emptyBooker(),
+    () => (initialBooker ? withBilling(initialBooker) : emptyBooker()),
   )
+  // landr-jiagg.2: "I'm booking for someone else and won't take part". The
+  // invite flow never offers it (the invitee takes the seat themselves), and a
+  // draft from an older bundle has no flag → joins (bookerJoins).
+  // The flag lives on the booker state itself (booker.joins) so it rides the
+  // draft + sessionStorage with the rest of the booker.
+  const joinsOnMount = inviteMode || bookerJoins(initialBooker)
+  const joins = inviteMode || bookerJoins(booker)
+  // The booker's seat in the party: 1 when they take part, 0 when not.
+  const bookerSeat = joins ? 1 : 0
+  // landr-uuntm.3: "Invoice to a company?" — open when company/tax id are
+  // already filled (Back-restore) so stored data is never hidden.
+  const [invoiceToCompany, setInvoiceToCompany] = useState<boolean>(
+    () =>
+      !!(
+        initialBooker?.billing?.company?.trim() ||
+        initialBooker?.billing?.tax_id?.trim()
+      ),
+  )
+  // landr-uuntm.3: set the moment the customer picks a country themselves —
+  // the async guess must never overwrite a deliberate choice.
+  const countryTouchedRef = useRef(false)
+  const countries = useMemo(() => countryOptions(locale), [locale])
   // The booker becomes participants[0] on submit (via bookerToParticipant)
   // — but we need an independent state slot for THEIR role code since the
   // booker type itself carries no role. Seeded from initialParticipants[0]
   // when restoring after Back, else the operator's default.
+  // landr-jiagg.2: when the booker was not joining, participants[0] is the
+  // first roster row, not the booker — its role is its own, not theirs.
   const [bookerRoleCode, setBookerRoleCode] = useState<string>(
     () =>
-      initialParticipants?.[0]?.service_role_code ?? defaultRoleCode,
+      (joinsOnMount ? initialParticipants?.[0]?.service_role_code : undefined) ??
+      defaultRoleCode,
   )
-  // Additional participants only (booker is participants[0], synced
-  // automatically). When the customer comes back to this step we
-  // restore the additional slots from initialParticipants[1..].
-  const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
-    if (initialParticipants && initialParticipants.length > 1) {
-      // landr-uwvl: every row this step emits must carry a stable id — it is
-      // what the draft's room-assignment / age / breakfast maps are keyed by.
-      // Rows restored from the draft already have one; this backfills the only
-      // remaining source of id-less rows (a caller that hand-built the array),
-      // and does it ONCE in the state initialiser so a re-render can never
-      // re-mint and detach someone from their room.
-      return initialParticipants
-        .slice(1, 1 + additionalCap(product.max_party_size))
-        .map(withMemberId)
-    }
-    return []
-  })
-  // landr-87n9.3: non-guiding companions ("Others joining the activity").
-  // Restored from initialCompanions on Back-restore, else empty.
-  // landr-lu41h: no-accommodation products have no room to share — every
-  // companion is a guest paying for themselves ('separate_guiding').
-  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
   // landr-zy2wm.2: product cap on total participants (booker included).
   // null/undefined/invalid = no product cap. 1 => no additional-participants UI.
   const maxAdditional = additionalCap(product.max_party_size)
@@ -324,6 +378,55 @@ export function DetailsStep({
   // effectively more participants, so when a product cap is set additional +
   // companions together stay within max_party_size - 1.
   const maxOthers = additionalCapRaw(product.max_party_size)
+  // landr-jiagg.2: the caps count the ROSTER (every row below the booker
+  // block). A booker who does not take part frees their seat, so the roster
+  // may hold one more row: the product cap counts people taking part, never
+  // 1 + additional.
+  const rowCapFor = (j: boolean) => maxAdditional + (j ? 0 : 1)
+  const othersCapFor = (j: boolean) => maxOthers + (j ? 0 : 1)
+  const rowCap = rowCapFor(joins)
+  const othersCap = othersCapFor(joins)
+  // The roster: every participant row BELOW the booker block. When the booker
+  // takes part they are participants[0] (mirrored, never a row here) and these
+  // are participants 2..N; when they book for someone else these rows ARE
+  // participants 1..N ("Participant 1" is the first row). Toggling the flag
+  // never moves a row, so per-row touched keys and member ids stay put.
+  // When the customer comes back to this step we restore the rows from
+  // initialParticipants[1..] (or [0..] when the booker was not joining).
+  const [additional, setAdditional] = useState<ParticipantDetails[]>(() => {
+    let rows: ParticipantDetails[] = []
+    if (!joinsOnMount && initialParticipants && initialParticipants.length > 0) {
+      rows = initialParticipants.slice(0, rowCapFor(false)).map(withMemberId)
+    } else if (joinsOnMount && initialParticipants && initialParticipants.length > 1) {
+      // landr-uwvl: every row this step emits must carry a stable id — it is
+      // what the draft's room-assignment / age / breakfast maps are keyed by.
+      // Rows restored from the draft already have one; this backfills the only
+      // remaining source of id-less rows (a caller that hand-built the array),
+      // and does it ONCE in the state initialiser so a re-render can never
+      // re-mint and detach someone from their room.
+      rows = initialParticipants.slice(1, 1 + maxAdditional).map(withMemberId)
+    }
+    // landr-rmcsu.5: top up to the dates-step group size with empty rows.
+    const seat = joinsOnMount ? 1 : 0
+    const want = Math.min(
+      (prefillParticipantCount ?? 1) - seat,
+      rowCapFor(joinsOnMount),
+      othersCapFor(joinsOnMount) - (initialCompanions?.length ?? 0),
+    )
+    while (rows.length < want) rows.push(emptyParticipant(defaultRoleCode))
+    // landr-jiagg.2: a booker who is not joining always has "Participant 1".
+    if (!joinsOnMount && rows.length === 0) rows.push(emptyParticipant(defaultRoleCode))
+    return rows
+  })
+  // landr-jiagg.2: the empty "Participant 1" row minted by ticking the toggle
+  // (only when the roster was empty) — dropped again on untick while still
+  // blank, so a tick-untick round trip leaves no empty required row behind.
+  const autoFirstRowIdRef = useRef<string | null>(null)
+  // landr-87n9.3: non-guiding companions ("Others joining the activity").
+  // Restored from initialCompanions on Back-restore, else empty.
+  // landr-lu41h: no-accommodation products have no room to share — every
+  // companion is a guest paying for themselves ('separate_guiding').
+  const noAccommodation = (product.hotel_offering ?? 'none') === 'none'
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
     (initialCompanions ?? []).map((c) =>
       withMemberId(
@@ -434,25 +537,50 @@ export function DetailsStep({
     prevBooker.current = booker
   }, [booker])
 
-  const totalCount = 1 + additional.length
+  // landr-jiagg.2: headcount = the people taking part — the roster, plus the
+  // booker only when they join.
+  const totalCount = bookerSeat + additional.length
 
   // landr-gb2f.1: fire the live-update callback with the latest derived
   // count + names. Called from event handlers (not effects) so App.tsx can
   // set its own liveParticipant* state without triggering the
   // react-hooks/set-state-in-effect rule.
+  // landr-jiagg.2: `nextJoins` because the toggle handler notifies in the same
+  // tick it flips the flag; a booker who is not joining is neither counted nor
+  // named — the sidebar shows the roster.
   const notifyLive = (
     nextBooker: BookerDetails,
     nextAdditional: ParticipantDetails[],
     nextCompanions: CompanionDetails[],
+    nextJoins: boolean = joins,
   ) => {
     if (!onLiveParticipantsChange) return
-    const count = 1 + nextAdditional.length
+    const count = (nextJoins ? 1 : 0) + nextAdditional.length
     const names = [
-      nextBooker.first_name.trim(),
+      ...(nextJoins ? [nextBooker.first_name.trim()] : []),
       ...nextAdditional.map((p) => p.first_name.trim()),
     ].filter((n) => n.length > 0)
     onLiveParticipantsChange(count, names, nextCompanions.length)
   }
+
+  // landr-rmcsu.5: rows pre-created from the dates-step group size are not a
+  // customer edit, so no handler fires for them — tell the sidebar once on
+  // mount, or its live price would keep counting only the restored rows.
+  const prefilledOnMount = useRef(
+    additional.length >
+      Math.max(
+        0,
+        Math.min(
+          (initialParticipants?.length ?? 0) - (joinsOnMount ? 1 : 0),
+          rowCapFor(joinsOnMount),
+        ),
+      ),
+  )
+  useEffect(() => {
+    if (prefilledOnMount.current) notifyLive(booker, additional, companions)
+    // Mount only: later changes go through the event handlers above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // landr-4uyu: add a single additional participant below the last card.
   // Replaces the top stepper's grow path. Appends one empty row (capped at
@@ -470,8 +598,8 @@ export function DetailsStep({
   // plain value, and only THEN calling notifyLive — after DetailsStep's own
   // render has finished, from the event handler, same as before.
   const addParticipant = () => {
-    if (additional.length >= maxAdditional) return
-    if (additional.length + companions.length >= maxOthers) return
+    if (additional.length >= rowCap) return
+    if (additional.length + companions.length >= othersCap) return
     const next = [...additional, emptyParticipant(defaultRoleCode)]
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -482,6 +610,9 @@ export function DetailsStep({
   // index preserves the entered data of all the OTHER rows (landr-nmed).
   const removeParticipant = (idx: number) => {
     if (idx < 0 || idx >= additional.length) return
+    // landr-jiagg.2: "Participant 1" cannot be removed when the booker does
+    // not take part — somebody has to.
+    if (!joins && additional.length <= 1) return
     const next = additional.slice(0, idx).concat(additional.slice(idx + 1))
     setAdditional(next)
     notifyLive(booker, next, companions)
@@ -490,7 +621,7 @@ export function DetailsStep({
   // landr-4uyu: add a single companion below the last companion card.
   const addCompanion = () => {
     if (companions.length >= MAX_COMPANIONS) return
-    if (additional.length + companions.length >= maxOthers) return
+    if (additional.length + companions.length >= othersCap) return
     const next = [
       ...companions,
       emptyCompanion(noAccommodation ? 'separate_guiding' : 'guest'),
@@ -526,6 +657,77 @@ export function DetailsStep({
     setBooker(next)
     notifyLive(next, additional, companions)
   }
+
+  const updateBillingField = (key: keyof BillingDetails, value: string) => {
+    if (key === 'country') countryTouchedRef.current = true
+    setBooker((prev) => ({
+      ...prev,
+      billing: { ...prev.billing, [key]: value },
+    }))
+  }
+
+  // landr-jiagg.2: tick = the booker books for someone else. The roster keeps
+  // every typed row; when it is empty an empty "Participant 1" appears (seeded
+  // with the booker's role, which is the operator default unless they picked
+  // one). Untick = the booker is participant 1 again (mirrored, read-only) and
+  // EVERY typed row stays, as participants 2..N. Only the still-blank row the
+  // tick itself minted goes away. If booker + roster now exceed the product
+  // cap nothing is trimmed: the max notice shows and Continue stays blocked
+  // (detailsWithinCap) until the customer removes a row themselves.
+  const toggleBookingForSomeoneElse = (notJoining: boolean) => {
+    if (inviteMode) return
+    let next = additional
+    if (notJoining) {
+      if (next.length === 0) {
+        const row = emptyParticipant(bookerRoleCode || defaultRoleCode)
+        autoFirstRowIdRef.current = row.id ?? null
+        next = [row]
+      }
+    } else {
+      const first = next[0]
+      if (first && first.id && first.id === autoFirstRowIdRef.current && isBlankRow(first)) {
+        next = next.slice(1)
+      }
+      autoFirstRowIdRef.current = null
+    }
+    const nextBooker = { ...booker, joins: !notJoining }
+    setBooker(nextBooker)
+    if (next !== additional) setAdditional(next)
+    notifyLive(nextBooker, next, companions, !notJoining)
+  }
+
+  const toggleInvoiceToCompany = (on: boolean) => {
+    setInvoiceToCompany(on)
+    // Hidden values must never ride along on submit.
+    if (!on) {
+      setBooker((prev) => ({
+        ...prev,
+        billing: { ...prev.billing, company: '', tax_id: '' },
+      }))
+    }
+  }
+
+  // landr-uuntm.3: pre-fill the billing country once, only while it is still
+  // empty and the customer has not touched it. The guess is async (edge /geo
+  // call, <=1.5 s) so the functional update re-checks both conditions when it
+  // lands. setBooker runs in the promise callback, not the effect body.
+  useEffect(() => {
+    if (booker.billing.country) return
+    let cancelled = false
+    void guessCountry(operatorCountry).then((code) => {
+      if (cancelled || !code || countryTouchedRef.current) return
+      setBooker((prev) =>
+        prev.billing.country
+          ? prev
+          : { ...prev, billing: { ...prev.billing, country: code } },
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+    // Mount-only on purpose: a one-shot guess, never re-run on edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
   // Fires POST .../subscription-perk/otp for a non-empty, '@'-shaped email —
@@ -677,6 +879,7 @@ export function DetailsStep({
       'booker.email',
       'booker.phone',
     ]
+    if (requireBilling) keys.push(...BILLING_REQUIRED_KEYS)
     additional.forEach((_, idx) => {
       keys.push(`p.${idx}.first_name`, `p.${idx}.last_name`, `p.${idx}.phone`)
     })
@@ -714,6 +917,14 @@ export function DetailsStep({
         return 'booker-email'
       case 'booker.phone':
         return 'booker-phone'
+      case 'booker.billing.address_line1':
+        return 'booker-billing-line1'
+      case 'booker.billing.postal_code':
+        return 'booker-billing-postal'
+      case 'booker.billing.city':
+        return 'booker-billing-city'
+      case 'booker.billing.country':
+        return 'booker-billing-country'
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
@@ -755,6 +966,14 @@ export function DetailsStep({
       case 'booker.phone':
         // landr-1url: required AND must look internationally-formatted.
         return !booker.phone.trim() || !isValidPhoneFormat(booker.phone)
+      case 'booker.billing.address_line1':
+        return !booker.billing.address_line1.trim()
+      case 'booker.billing.postal_code':
+        return !booker.billing.postal_code.trim()
+      case 'booker.billing.city':
+        return !booker.billing.city.trim()
+      case 'booker.billing.country':
+        return !booker.billing.country.trim()
     }
     const pMatch = /^p\.(\d+)\.(first_name|last_name|phone)$/.exec(key)
     if (pMatch) {
@@ -859,15 +1078,25 @@ export function DetailsStep({
     }
   }
 
-  const participantsForValidation: ParticipantDetails[] = [
-    bookerToParticipant(booker, bookerRoleCode),
-    ...additional,
-  ]
-  const canContinue = detailsAreComplete(
-    booker,
-    participantsForValidation,
-    companions,
-  )
+  // landr-jiagg.2: the booker is mirrored into participants[0] only when they
+  // take part; otherwise the roster alone is the participant list (no booker
+  // row, so BOOKER_MEMBER_ID is absent from the party downstream).
+  const bookerForSubmit: BookerDetails = { ...booker, joins }
+  const participantsForValidation: ParticipantDetails[] = joins
+    ? [bookerToParticipant(booker, bookerRoleCode), ...additional]
+    : additional
+  // landr-jiagg.2: unticking never trims typed rows, so the roster can sit
+  // above the product cap until the customer removes one — block Continue.
+  const withinCap =
+    additional.length <= rowCap && additional.length + companions.length <= othersCap
+  const canContinue =
+    withinCap &&
+    detailsAreComplete(
+      bookerForSubmit,
+      participantsForValidation,
+      companions,
+      requireBilling,
+    )
   // landr-80ubl.3: the one-next-action rule's pending required control for
   // this screen is "your contact details" — the other sections (additional
   // participants, companions) are opt-in via their own "+ Add" affordances,
@@ -878,7 +1107,8 @@ export function DetailsStep({
     booker.email.trim() !== '' &&
     booker.email.includes('@') &&
     booker.phone.trim() !== '' &&
-    isValidPhoneFormat(booker.phone)
+    isValidPhoneFormat(booker.phone) &&
+    (!requireBilling || billingAddressComplete(booker.billing))
 
   const handleContinue = () => {
     // landr-79re: the Continue button is ALWAYS tappable now (no
@@ -889,12 +1119,15 @@ export function DetailsStep({
     // when the form is actually complete (unchanged behavior for the valid
     // case).
     if (!canContinue) {
+      // landr-jiagg.2: over the cap is not a blank field — the gate line and
+      // the max notice say what to do; nothing to focus.
+      if (!withinCap) return
       markAllTouched()
       focusFirstInvalid()
       return
     }
     onConfirm(
-      booker,
+      bookerForSubmit,
       participantsForValidation,
       noAccommodation
         ? companions.map((c) => ({ ...c, companion_kind: 'separate_guiding' as const }))
@@ -905,8 +1138,14 @@ export function DetailsStep({
 
   // landr-4uyu: at-max flags drive the "+ Add" button visibility and the
   // "Maximum …" warnings for each section.
-  const participantsAtMax = additional.length >= maxAdditional
-  const othersFull = additional.length + companions.length >= maxOthers
+  const participantsAtMax = additional.length >= rowCap
+  const othersFull = additional.length + companions.length >= othersCap
+  // landr-jiagg.2: how many more rows the hint/notice talk about — beyond the
+  // booker (joining) or beyond "Participant 1" (not joining).
+  const moreAllowed = joins ? maxAdditional : rowCap - 1
+  // landr-jiagg.2 + landr-jiagg.5: "Invoice to:" — first two lines of the
+  // billing address block (company, then the booker as contact person).
+  const invoiceTo = invoiceToLines(booker, invoiceToCompany)
   const companionsAtMax = companions.length >= MAX_COMPANIONS
 
   // landr-amg6: at the participant max we no longer render the inquiry form
@@ -936,6 +1175,31 @@ export function DetailsStep({
     'booker-phone',
     'phone',
   )
+  // landr-uuntm.3: billing address validations (same touched/blur UX). In
+  // staff mode the address is optional, so the fields neither flag nor arm.
+  const noValidation = { error: undefined, inputProps: {} }
+  const billingValidate = (key: string, value: string, id: string) =>
+    requireBilling ? validate(key, value, id) : noValidation
+  const billingLine1V = billingValidate(
+    'booker.billing.address_line1',
+    booker.billing.address_line1,
+    'booker-billing-line1',
+  )
+  const billingPostalV = billingValidate(
+    'booker.billing.postal_code',
+    booker.billing.postal_code,
+    'booker-billing-postal',
+  )
+  const billingCityV = billingValidate(
+    'booker.billing.city',
+    booker.billing.city,
+    'booker-billing-city',
+  )
+  const billingCountryV = billingValidate(
+    'booker.billing.country',
+    booker.billing.country,
+    'booker-billing-country',
+  )
 
   return (
     <Card>
@@ -943,7 +1207,9 @@ export function DetailsStep({
       <CardHeader>
         <CardTitle>{tr('participantsTitle', locale)}</CardTitle>
         <CardDescription>
-          {product.name} · {describeSelection(selection, locale)}
+          {selection
+            ? `${product.name} · ${describeSelection(selection, locale)}`
+            : product.name}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -965,12 +1231,31 @@ export function DetailsStep({
             browser after this change (none available in this environment);
             the bulk-fill touch-detection above is the fallback that catches
             a mangled value either way, regardless of whether this helps. */}
-        <NextAction active={!bookerComplete} cue={tr('enterYourNameEmailPhoneCue', locale)}>
+        <NextAction active={!bookerComplete} cue={tr(
+            requireBilling ? 'enterYourNameEmailPhoneBillingCue' : 'enterYourNameEmailPhoneCue',
+            locale,
+          )}>
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium">{tr('yourContactDetailsTitle', locale)}</legend>
-          <p className="text-xs text-muted-foreground">
-            {tr('youWillBeListedAsParticipant1', locale)}
+          <p className="text-xs text-muted-foreground" data-testid="booker-participant-helper">
+            {tr(joins ? 'youWillBeListedAsParticipant1' : 'addPeopleJoiningBelow', locale)}
           </p>
+          {/* landr-jiagg.2: the booker pays but does not take part (a parent
+              booking for a child, a friend for a friend). Hidden in the invite
+              flow — an invitee takes the seat themselves. */}
+          {!inviteMode ? (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="booker-not-joining-toggle"
+                checked={!joins}
+                onCheckedChange={(v) => toggleBookingForSomeoneElse(v === true)}
+                data-testid="booker-not-joining-toggle"
+              />
+              <Label htmlFor="booker-not-joining-toggle" className="text-sm font-normal">
+                {tr('bookingForSomeoneElseLabel', locale)}
+              </Label>
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr('firstNameLabel', locale)} htmlFor="booker-first" error={bookerFirstV.error}>
               <Input
@@ -1035,7 +1320,8 @@ export function DetailsStep({
             </Field>
             {/* landr-mg0a: per-participant role dropdown, hidden when the
                 operator only has the single default role. */}
-            {showRoleDropdown ? (
+            {/* landr-jiagg.2: a booker who does not take part has no role. */}
+            {showRoleDropdown && joins ? (
               <Field label={tr('roleLabel', locale)} htmlFor="booker-role">
                 <RoleSelect
                   id="booker-role"
@@ -1046,6 +1332,193 @@ export function DetailsStep({
                   testId="booker-role-select"
                 />
               </Field>
+            ) : null}
+          </div>
+
+          {/* landr-uuntm.3: the booker IS the invoice recipient — the billing
+              address (Holded needs it above the simplified-invoice limit) is
+              collected here, once, and stored on their contact. Required:
+              street, postal code, city, country. Optional: line 2, and — behind
+              "Invoice to a company?" — company + tax id. */}
+          <div
+            role="group"
+            aria-labelledby="booker-billing-title"
+            className="flex flex-col gap-3"
+            data-testid="booker-billing-group"
+          >
+            <div className="flex flex-col gap-0.5">
+              <span id="booker-billing-title" className="text-sm font-medium">
+                {tr('billingAddressTitle', locale)}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                {tr('billingAddressHelper', locale)}
+              </p>
+            </div>
+            {/* landr-jiagg.2: who the invoice goes to, live, once the booker
+                has a name — so the payer is obvious right at the address even
+                when they are not taking part. Company invoices read company,
+                then the booker as contact person (landr-jiagg.5 block rule).
+                The live region stays mounted so updates are announced. */}
+            <div aria-live="polite" data-testid="invoice-to-region">
+              {invoiceTo.length > 0 ? (
+                <div
+                  className="rounded-md border bg-surface-well px-3 py-2 text-sm shadow-well"
+                  data-testid="invoice-to"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    {tr('invoiceToLabel', locale)}
+                  </span>
+                  {invoiceTo.map((line, i) => (
+                    <span
+                      key={i}
+                      className={`block ${i === 0 ? 'font-medium' : ''}`}
+                      data-testid={`invoice-to-line-${i}`}
+                    >
+                      {line}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {/* landr-jsu3n.2: optional bill-to name — also in the invite flow.
+                Always visible (not behind the company toggle): a private
+                guest can have the invoice made out to someone else too. */}
+            <Field
+              label={tr('billingInvoiceNameLabel', locale)}
+              htmlFor="booker-billing-name"
+            >
+              <Input
+                id="booker-billing-name"
+                name="booker_billing_name"
+                autoComplete="off"
+                data-testid="booker-billing-name"
+                value={booker.billing.name}
+                onChange={(e) => updateBillingField('name', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {tr('billingInvoiceNameHint', locale)}
+              </p>
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-6">
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingStreetLabel', locale)}
+                  htmlFor="booker-billing-line1"
+                  error={billingLine1V.error}
+                >
+                  <Input
+                    id="booker-billing-line1"
+                    name="booker_billing_address_line1"
+                    autoComplete="section-booker billing address-line1"
+                    value={booker.billing.address_line1}
+                    onChange={(e) => updateBillingField('address_line1', e.target.value)}
+                    {...billingLine1V.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingAddressLine2Label', locale)}
+                  htmlFor="booker-billing-line2"
+                >
+                  <Input
+                    id="booker-billing-line2"
+                    name="booker_billing_address_line2"
+                    autoComplete="section-booker billing address-line2"
+                    value={booker.billing.address_line2}
+                    onChange={(e) => updateBillingField('address_line2', e.target.value)}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field
+                  label={tr('billingPostalCodeLabel', locale)}
+                  htmlFor="booker-billing-postal"
+                  error={billingPostalV.error}
+                >
+                  <Input
+                    id="booker-billing-postal"
+                    name="booker_billing_postal_code"
+                    autoComplete="section-booker billing postal-code"
+                    value={booker.billing.postal_code}
+                    onChange={(e) => updateBillingField('postal_code', e.target.value)}
+                    {...billingPostalV.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-4">
+                <Field
+                  label={tr('billingCityLabel', locale)}
+                  htmlFor="booker-billing-city"
+                  error={billingCityV.error}
+                >
+                  <Input
+                    id="booker-billing-city"
+                    name="booker_billing_city"
+                    autoComplete="section-booker billing address-level2"
+                    value={booker.billing.city}
+                    onChange={(e) => updateBillingField('city', e.target.value)}
+                    {...billingCityV.inputProps}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-6">
+                <Field
+                  label={tr('billingCountryLabel', locale)}
+                  htmlFor="booker-billing-country"
+                  error={billingCountryV.error}
+                >
+                  <select
+                    id="booker-billing-country"
+                    name="booker_billing_country"
+                    autoComplete="section-booker billing country"
+                    value={booker.billing.country}
+                    onChange={(e) => updateBillingField('country', e.target.value)}
+                    data-testid="booker-billing-country"
+                    className="border-input bg-surface-page shadow-well ring-offset-background focus-visible:ring-ring aria-invalid:border-destructive flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    {...billingCountryV.inputProps}
+                  >
+                    <option value="">{tr('billingCountryPlaceholder', locale)}</option>
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="booker-billing-company-toggle"
+                checked={invoiceToCompany}
+                onCheckedChange={(v) => toggleInvoiceToCompany(v === true)}
+                data-testid="booker-billing-company-toggle"
+              />
+              <Label htmlFor="booker-billing-company-toggle" className="text-sm font-normal">
+                {tr('billingInvoiceToCompanyLabel', locale)}
+              </Label>
+            </div>
+            {invoiceToCompany ? (
+              <div className="grid gap-3 sm:grid-cols-2" data-testid="booker-billing-company-fields">
+                <Field label={tr('billingCompanyLabel', locale)} htmlFor="booker-billing-company">
+                  <Input
+                    id="booker-billing-company"
+                    name="booker_billing_company"
+                    autoComplete="section-booker organization"
+                    value={booker.billing.company}
+                    onChange={(e) => updateBillingField('company', e.target.value)}
+                  />
+                </Field>
+                <Field label={tr('billingTaxIdLabel', locale)} htmlFor="booker-billing-vat-id">
+                  <Input
+                    id="booker-billing-vat-id"
+                    name="vat_id"
+                    value={booker.billing.tax_id}
+                    onChange={(e) => updateBillingField('tax_id', e.target.value)}
+                  />
+                </Field>
+              </div>
             ) : null}
           </div>
 
@@ -1093,21 +1566,30 @@ export function DetailsStep({
         {/* Additional participants — same stepper pattern as the legacy
             ParticipantsStep (landr-mbge) but now growing/shrinking a
             list of full participant rows instead of a single counter. */}
-        {maxAdditional > 0 ? (
+        {rowCap > 0 ? (
         <fieldset className="flex flex-col gap-3 border-t pt-4">
           <legend className="text-sm font-medium">
-            {otherParticipantsHeading(totalCount, locale)}
+            {joins
+              ? otherParticipantsHeading(totalCount, locale)
+              : participantsTotalHeading(totalCount, locale)}
           </legend>
           {noAccommodation ? (
             <p className="text-xs text-muted-foreground">
               {tr('participantsYouPayForHint', locale)}
             </p>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            {addAnyoneElseUpTo(maxAdditional, locale)}
-          </p>
+          {moreAllowed > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {addAnyoneElseUpTo(moreAllowed, locale)}
+            </p>
+          ) : null}
 
           {additional.map((row, idx) => {
+            // landr-jiagg.2: the row's participant number — after the booker
+            // (participant 1) when they join, from 1 when they do not.
+            const n = idx + 1 + bookerSeat
+            const isFirstOfRoster = !joins && idx === 0
+            const canRemove = joins || additional.length > 1
             // landr-opi3: first + last + phone are required for every added
             // participant (landr-nkbi); email stays optional.
             const pFirstV = validate(`p.${idx}.first_name`, row.first_name, `p-${idx}-first`)
@@ -1125,32 +1607,34 @@ export function DetailsStep({
             <div
               key={`participant-${idx}`}
               className="grid gap-3 rounded-lg border bg-surface-raised p-3 shadow-elev-1 sm:grid-cols-2"
-              data-testid={`participant-row-${idx + 2}`}
+              data-testid={`participant-row-${n}`}
             >
               {/* landr-4uyu: per-card header row carries a remove (×) control so
                   a specific participant row can be removed (replacing the old
                   top-stepper −). Removal preserves the OTHER rows' data. */}
               <div className="sm:col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {participantOrdinalLabel(idx + 2, locale)}
+                  {participantOrdinalLabel(n, locale)}
                 </span>
+                {canRemove ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="tap-44 rounded bg-primary/10 text-foreground shadow-elev-1 hover:bg-primary/20"
-                  aria-label={removeParticipantAriaLabel(idx + 2, locale)}
-                  data-testid={`remove-participant-${idx + 2}`}
+                  aria-label={removeParticipantAriaLabel(n, locale)}
+                  data-testid={`remove-participant-${n}`}
                   onClick={() => removeParticipant(idx)}
                 >
                   ×
                 </Button>
+                ) : null}
               </div>
               <Field label={tr('firstNameLabel', locale)} htmlFor={`p-${idx}-first`} error={pFirstV.error}>
                 <Input
                   id={`p-${idx}-first`}
-                  name={`participant_${idx + 2}_first_name`}
-                  autoComplete={`section-participant-${idx + 2} given-name`}
+                  name={`participant_${n}_first_name`}
+                  autoComplete={`section-participant-${n} given-name`}
                   value={row.first_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'first_name', e.target.value)
@@ -1161,8 +1645,8 @@ export function DetailsStep({
               <Field label={tr('lastNameLabel', locale)} htmlFor={`p-${idx}-last`} error={pLastV.error}>
                 <Input
                   id={`p-${idx}-last`}
-                  name={`participant_${idx + 2}_last_name`}
-                  autoComplete={`section-participant-${idx + 2} family-name`}
+                  name={`participant_${n}_last_name`}
+                  autoComplete={`section-participant-${n} family-name`}
                   value={row.last_name}
                   onChange={(e) =>
                     updateParticipant(idx, 'last_name', e.target.value)
@@ -1185,9 +1669,12 @@ export function DetailsStep({
               >
                 <Input
                   id={`p-${idx}-email`}
-                  name={`participant_${idx + 2}_email`}
+                  name={`participant_${n}_email`}
                   type="email"
-                  autoComplete={`section-participant-${idx + 2} email`}
+                  autoComplete={`section-participant-${n} email`}
+                  // landr-jiagg.2: left blank, "Participant 1" gets the
+                  // booker's email on submit (participantsForSubmit).
+                  placeholder={isFirstOfRoster ? tr('sameAsYoursPlaceholder', locale) : undefined}
                   value={row.email}
                   onChange={(e) =>
                     updateParticipant(idx, 'email', e.target.value)
@@ -1211,9 +1698,9 @@ export function DetailsStep({
               >
                 <Input
                   id={`p-${idx}-phone`}
-                  name={`participant_${idx + 2}_phone`}
+                  name={`participant_${n}_phone`}
                   type="tel"
-                  autoComplete={`section-participant-${idx + 2} tel`}
+                  autoComplete={`section-participant-${n} tel`}
                   placeholder="+34 600 123 456"
                   pattern={PHONE_HTML_PATTERN}
                   value={row.phone}
@@ -1235,13 +1722,13 @@ export function DetailsStep({
                 <Field label={tr('roleLabel', locale)} htmlFor={`p-${idx}-role`}>
                   <RoleSelect
                     id={`p-${idx}-role`}
-                    name={`participant_${idx + 2}_role`}
+                    name={`participant_${n}_role`}
                     value={row.service_role_code || defaultRoleCode}
                     serviceRoles={serviceRoles}
                     onChange={(value) =>
                       updateParticipant(idx, 'service_role_code', value)
                     }
-                    testId={`participant-role-select-${idx + 2}`}
+                    testId={`participant-role-select-${n}`}
                   />
                 </Field>
               ) : null}
@@ -1267,7 +1754,12 @@ export function DetailsStep({
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))}
+                {/* landr-jiagg.2: worded from the cap that applies — "additional"
+                    beyond the joining booker, or the whole roster when the
+                    booker does not take part (never "Maximum of 0 additional"). */}
+                {joins
+                  ? tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
+                  : maxParticipantsReachedMessage(rowCap, locale)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -1644,7 +2136,11 @@ export function DetailsStep({
               data-testid="details-step-gate"
               className="min-w-0 flex-1 text-xs text-muted-foreground"
             >
-              {canContinue ? tr('readyToContinue', locale) : tr('fillInEveryRequiredField', locale)}
+              {canContinue
+                ? tr('readyToContinue', locale)
+                : !withinCap
+                  ? tr('tooManyPeopleRemoveSomeone', locale)
+                  : tr('fillInEveryRequiredField', locale)}
             </p>
             <Button
               type="button"
@@ -1660,6 +2156,24 @@ export function DetailsStep({
     </Card>
   )
 }
+
+/** landr-jiagg.2: a roster row the customer has not typed anything into. */
+function isBlankRow(row: ParticipantDetails): boolean {
+  return (
+    !row.first_name.trim() &&
+    !row.last_name.trim() &&
+    !row.email.trim() &&
+    !row.phone.trim()
+  )
+}
+
+/** landr-uuntm.3: touched/required keys of the billing address (public widget). */
+const BILLING_REQUIRED_KEYS = [
+  'booker.billing.address_line1',
+  'booker.billing.postal_code',
+  'booker.billing.city',
+  'booker.billing.country',
+]
 
 function Field({
   label,

@@ -31,8 +31,11 @@ import type { HotelOffering, ProductKind } from '@/api/types'
  * custom_form`) plus `review`, a widget-internal frame module the DB does not
  * store as a row:
  *
- *   - `selection` — date / slot picker (pinned first, always present)
- *   - `participants` — booker + participant details (always present)
+ *   - `selection` — date / slot picker (always present; first, unless the
+ *                   operator stored `participants` ahead of it — landr-rmcsu.6)
+ *   - `participants` — booker + participant details (always present; placed by
+ *                   its stored position, right after `selection` when the
+ *                   remote flow has no participants row)
  *   - `accommodation` — hotel rooms (gated: service + hotel_offering != none)
  *   - `service_addons` — per-product add-ons (gated: probed at runtime)
  *   - `pickup` — free pickup-location picker (gated: needs_pickup, no hotel)
@@ -156,9 +159,10 @@ function buildLegacyPlan(
 
 /**
  * The valid module kinds a remote flow may name for its MIDDLE modules. The
- * pinned frame (`selection`, `participants`, `review`) and the legacy-only
- * `declarations` are NOT operator-configurable via the remote flow — they are
- * supplied by the builder. Unknown kinds in a remote flow are skipped silently
+ * frame (`selection`, `participants`, `review`) is supplied by the builder:
+ * `review` is never a row, and the `selection` / `participants` rows only
+ * contribute their stored positions (landr-rmcsu.6), parsed in
+ * buildFlowPlanRaw rather than here. Unknown kinds in a remote flow are skipped silently
  * (forward-compat: a future product kind slots in without breaking old widgets).
  */
 const REMOTE_MIDDLE_KINDS: ReadonlySet<string> = new Set([
@@ -194,12 +198,27 @@ function parseRemoteModule(raw: RemoteFlowModule): FlowModule | null {
  * Build the ordered flow plan for a product.
  *
  *   - `remoteFlow === null` → the LEGACY plan (today's routing, bit-for-bit).
- *   - a well-formed `remoteFlow` → `selection` + `participants` (pinned frame),
- *     then the remote middle modules in their given order (each still subject to
- *     the product gates: accommodation is dropped when the product offers no
- *     hotel; unknown kinds are skipped), then `review` (pinned frame). The
- *     legacy `declarations` step is NOT injected on the remote path — operators
- *     configuring a flow express declarations as a `custom_form` instead.
+ *   - a well-formed `remoteFlow` → `selection` first, the remote middle modules
+ *     in stored `position` order (each still subject to the product gates:
+ *     accommodation is dropped when the product offers no hotel; unknown kinds
+ *     are skipped), `review` last. landr-rmcsu.6 (ok, 2026-10-14 — operators
+ *     may order steps as long as the logic allows):
+ *       · `participants` is a positioned module among the middles; a remote
+ *         flow WITHOUT a participants row gets it right after `selection`.
+ *       · `selection` stays first whatever its stored position — EXCEPT that a
+ *         participants row stored strictly before the selection row moves
+ *         participants ahead of it (participants → selection → middles →
+ *         review): the customer enters the party first and the dates step
+ *         already knows the group size.
+ *       · a flow holding only the selection/participants rows keeps the legacy
+ *         middles (only the participants-first reorder applies) — the
+ *         service_addons/pickup auto-injection question is landr-ws0ce.
+ *     The plan is the DECLARED order. The step machine realises every middle
+ *     after both frame steps, whatever participants' position among them:
+ *     each middle needs the dates and the party (room assignment, add-on
+ *     pricing, per-participant forms). The legacy `declarations` step is NOT
+ *     injected on the remote path — operators configuring a flow express
+ *     declarations as a `custom_form` instead.
  *   - ANY malformation (not an object, `modules` not an array, every module
  *     unparseable, or a thrown error) → falls back to the LEGACY plan. NEVER
  *     throws (the widget has no error boundary — landr-9ut4).
@@ -244,14 +263,38 @@ function buildFlowPlanRaw(
     // its original array index, as a stable tie-break for equal/missing
     // positions) so the final middle sequence can be DEFENSIVELY re-sorted by
     // `position` ascending here, regardless of the order the RPC sent them in.
-    const middleEntries: { module: FlowModule; position: number; index: number }[] = []
+    const middleEntries: PositionedModule[] = []
+    // landr-rmcsu.6: the `selection` / `participants` data rows are no longer
+    // dropped — their stored positions decide where participants sit. Only the
+    // FIRST row of each counts (the DB has a unique index since landr-rmcsu.1).
+    let selectionPosition: number | null = null
+    let participantsEntry: PositionedModule | null = null
     // landr-f4dm: track how many entries parsed successfully SEPARATELY from
     // how many survived the product gate below. This distinguishes "every
     // entry was unparseable garbage" (→ fall back to legacy) from "entries
     // parsed fine but the product gate dropped all of them" (→ honour the
     // minimal selection→participants→review flow the operator configured).
+    // The frame rows (selection / participants) deliberately do NOT count:
+    // a flow holding only them has always meant "legacy middles" and must
+    // keep doing so (landr-ws0ce owns that auto-injection question).
     let parsedCount = 0
     modules.forEach((raw, index) => {
+      // A missing/non-numeric position falls back to the module's original
+      // array index, so unpositioned entries keep the RPC's given order
+      // relative to each other (and to positioned entries at the same rank).
+      const position =
+        typeof raw?.position === 'number' && Number.isFinite(raw.position) ? raw.position : index
+      const kind = typeof raw?.kind === 'string' ? raw.kind : null
+      if (kind === 'selection') {
+        if (selectionPosition === null) selectionPosition = position
+        return
+      }
+      if (kind === 'participants') {
+        if (!participantsEntry) {
+          participantsEntry = { module: { kind: 'participants' }, position, index }
+        }
+        return
+      }
       const parsed = parseRemoteModule(raw)
       if (!parsed) return // unknown / malformed module → skip silently.
       parsedCount += 1
@@ -261,32 +304,51 @@ function buildFlowPlanRaw(
       if (parsed.kind === 'accommodation' && !productHasHotelOffering(product)) {
         return
       }
-      // A missing/non-numeric position falls back to the module's original
-      // array index, so unpositioned entries keep the RPC's given order
-      // relative to each other (and to positioned entries at the same rank).
-      const position =
-        typeof raw?.position === 'number' && Number.isFinite(raw.position) ? raw.position : index
       middleEntries.push({ module: parsed, position, index })
     })
 
+    // Assigned inside the forEach callback, so TS narrows them to their
+    // initialisers here — re-widen explicitly.
+    const participants = participantsEntry as PositionedModule | null
+    const selectionPos = selectionPosition as number | null
+    // landr-rmcsu.6: participants precede the dates step only when BOTH rows
+    // exist and participants is stored strictly before selection.
+    const participantsFirst =
+      participants !== null && selectionPos !== null && participants.position < selectionPos
+
     // Zero modules parsed out of a non-empty array means the payload was
-    // garbage (not a deliberate operator choice) → fall back to legacy. When
-    // at least one module parsed — even if the product gate then dropped all
-    // of them (e.g. an accommodation-only remote flow on a no-hotel product)
-    // — that is a VALID minimal flow, not a parse failure.
+    // garbage or held only the frame rows (not a deliberate middle choice) →
+    // legacy middles. When at least one module parsed — even if the product
+    // gate then dropped all of them (e.g. an accommodation-only remote flow on
+    // a no-hotel product) — that is a VALID minimal flow, not a parse failure.
     if (parsedCount === 0 && modules.length > 0) {
-      return buildLegacyPlan(product, settings)
+      const legacy = buildLegacyPlan(product, settings)
+      return participantsFirst ? withParticipantsFirst(legacy) : legacy
     }
 
-    // Stable sort by position ascending; ties broken by original array order
-    // so a same/absent position never reshuffles equal-ranked entries.
-    middleEntries.sort((a, b) => a.position - b.position || a.index - b.index)
-    const middle = middleEntries.map((entry) => entry.module)
-
+    if (participantsFirst) {
+      // participants → selection → middles (by position) → review.
+      return withParticipantsFirst([
+        { kind: 'selection' },
+        { kind: 'participants' },
+        ...sortByPosition(middleEntries),
+        { kind: 'review' },
+      ])
+    }
+    if (participants === null) {
+      // No participants row → right after selection (never lose it).
+      return [
+        { kind: 'selection' },
+        { kind: 'participants' },
+        ...sortByPosition(middleEntries),
+        { kind: 'review' },
+      ]
+    }
+    // participants is a positioned module among the middles; selection first
+    // regardless of its stored position, review last.
     return [
       { kind: 'selection' },
-      { kind: 'participants' },
-      ...middle,
+      ...sortByPosition([...middleEntries, participants]),
       { kind: 'review' },
     ]
   } catch {
@@ -294,4 +356,38 @@ function buildFlowPlanRaw(
     // widget — degrade to the legacy plan.
     return buildLegacyPlan(product, settings)
   }
+}
+
+/** A plan module carried with its stored position + array index (sort keys). */
+interface PositionedModule {
+  module: FlowModule
+  position: number
+  index: number
+}
+
+/**
+ * Stable sort by position ascending; ties broken by original array order so a
+ * same/absent position never reshuffles equal-ranked entries.
+ */
+function sortByPosition(entries: PositionedModule[]): FlowModule[] {
+  return [...entries]
+    .sort((a, b) => a.position - b.position || a.index - b.index)
+    .map((entry) => entry.module)
+}
+
+/** Move `participants` to the head of a plan (ahead of `selection`). */
+function withParticipantsFirst(plan: FlowModule[]): FlowModule[] {
+  return [{ kind: 'participants' }, ...plan.filter((m) => m.kind !== 'participants')]
+}
+
+/**
+ * landr-rmcsu.6: does the plan run `participants` BEFORE `selection` (the
+ * dates step)? True only when the operator's stored flow puts the participants
+ * row ahead of the selection row; the legacy plan and every flow without both
+ * rows answer false (today's dates-first order).
+ */
+export function planHasParticipantsFirst(plan: readonly FlowModule[]): boolean {
+  const p = plan.findIndex((m) => m.kind === 'participants')
+  const s = plan.findIndex((m) => m.kind === 'selection')
+  return p >= 0 && s >= 0 && p < s
 }

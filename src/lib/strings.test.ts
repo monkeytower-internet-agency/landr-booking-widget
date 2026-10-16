@@ -6,6 +6,9 @@ import {
   isGermanLocale,
   pickBundle,
   plural,
+  seatFitCountLabel,
+  seatFitNoneMessage,
+  seatsShortDaysMessage,
   tr,
 } from './strings'
 
@@ -137,5 +140,31 @@ describe('inviteBannerMessage (landr-2jsaf)', () => {
     const datesOnly = inviteBannerMessage('Olaf K***n', '67C66263', false, 'de')
     expect(datesOnly).toContain('Die Termine sind vorausgefüllt')
     expect(datesOnly).not.toMatch(/hotel/i)
+  })
+})
+
+describe('seat-fit copy (landr-rmcsu.5)', () => {
+  const d = (label: string, left: number) => ({ label, left, need: 3 })
+  it('one short day keeps the exact seats-left wording', () => {
+    expect(seatsShortDaysMessage([d('Wed 11 Nov', 2)], 'en')).toBe(
+      'Only 2 seats left on Wed 11 Nov — you need 3.',
+    )
+  })
+  it('several short days are all named (EN + DE)', () => {
+    const days = [d('Wed 11 Nov', 2), d('Thu 12 Nov', 2), d('Fri 13 Nov', 1)]
+    expect(seatsShortDaysMessage(days, 'en')).toBe(
+      'Wed 11 Nov, Thu 12 Nov, and Fri 13 Nov have fewer than 3 seats left.',
+    )
+    expect(seatsShortDaysMessage(days, 'de')).toBe(
+      'Am Wed 11 Nov, Thu 12 Nov und Fri 13 Nov sind weniger als 3 Plätze frei.',
+    )
+  })
+  it('fit count and none-fit notice in both bundles', () => {
+    expect(seatFitCountLabel(12, 3, 'en')).toBe('12 dates fit 3 people')
+    expect(seatFitCountLabel(1, 3, 'en')).toBe('1 date fits 3 people')
+    expect(seatFitCountLabel(12, 3, 'de')).toBe('An 12 Tagen ist Platz für 3 Personen')
+    expect(seatFitNoneMessage(4, 'Oktober 2026 – März 2027', 'de')).toBe(
+      'Im Zeitraum Oktober 2026 – März 2027 gibt es keinen Tag mit Platz für 4 Personen.',
+    )
   })
 })

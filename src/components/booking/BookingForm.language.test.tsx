@@ -21,6 +21,14 @@ import type {
   ParticipantDetails,
 } from './detailsTypes'
 
+// landr-rmcsu.7: the review's seat pre-check (any group > 1) reads
+// availability before submit; stub that read so `fetch` only ever sees the
+// submit POST these tests assert on.
+vi.mock('@/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/client')>()
+  return { ...actual, getAvailability: vi.fn().mockResolvedValue([]) }
+})
+
 vi.stubEnv('VITE_USE_MOCKS', '0')
 vi.stubEnv('VITE_API_BASE_URL', 'http://api.test.invalid')
 
@@ -62,6 +70,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [
   { ...BOOKER, service_role_code: 'participant' },

@@ -1,3 +1,4 @@
+import { fillBillingFields } from '@/test/fillBilling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -1104,6 +1105,7 @@ describe('App', () => {
       fireEvent.change(bookerLast, { target: { value: 'Lovelace' } })
       fireEvent.change(bookerEmail, { target: { value: 'ada@example.com' } })
       fireEvent.change(bookerPhone, { target: { value: '+34 600000000' } })
+      fillBillingFields()
 
       const detailsContinue = screen.getByRole('button', { name: /continue/i })
       fireEvent.click(detailsContinue)
@@ -1184,6 +1186,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(
         screen.getByRole('button', { name: /add participant/i }),
       )
@@ -1311,6 +1314,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       // The OTP request fires on the email's blur, not on every keystroke.
       fireEvent.blur(
         document.querySelector<HTMLInputElement>('input[name="booker_email"]')!,
@@ -1418,6 +1422,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
 
       // DetailsStep never gets a comment typed into it here — the whole
       // point is that the field is untouched on this step and only filled
@@ -1550,6 +1555,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // PickupLocationPicker → pick "Beach Parking" → Continue.
@@ -1732,6 +1738,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       // The hotel room is a capacity-2 Double Room; the occupancy gate now
       // requires both spots filled, so add a second guest before continuing.
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
@@ -1947,6 +1954,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -2751,6 +2759,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Klein')
       setInput('booker_email', 'thomas@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the invite flow still reaches the custom-form
@@ -3615,6 +3624,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /add participant/i }))
       setInput('participant_2_first_name', 'Grace')
       setInput('participant_2_last_name', 'Hopper')
@@ -3685,6 +3695,394 @@ describe('App', () => {
         (l) => l.product_id === 'svc-1',
       )!
       expect(serviceLine.selected_days).toEqual([iso2])
+    })
+  })
+
+  // landr-rmcsu.5: the dates step asks "How many of you?", marks days that
+  // cannot take the group, pre-creates that many participant rows, and the
+  // review step's "Change dates" re-opens the calendar on the committed days
+  // (it used to drop them) with the group size kept.
+  describe('group size on the dates step (landr-rmcsu.5)', () => {
+    it('stepper marks short days, pre-fills participants, and Change dates keeps the selection', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      const day1 = new Date()
+      day1.setHours(12, 0, 0, 0)
+      const day2 = new Date(day1)
+      day2.setDate(day2.getDate() + 1)
+      const iso = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-grp',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      const slotFor = (d: Date, seats: number) => ({
+        availability_id: `a-${iso(d)}`,
+        date: iso(d),
+        start_time: null,
+        end_time: null,
+        capacity: 10,
+        capacity_reserved: 10 - seats,
+        available_seats: seats,
+        status: 'open',
+      })
+      mocks.getAvailability.mockResolvedValue([slotFor(day1, 10), slotFor(day2, 1)])
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Group Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+      await waitFor(() =>
+        expect(document.querySelector('button[data-short="true"]')).toBeNull(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      // day2 has 1 seat → short for 2: marked and not selectable.
+      const shortBtn = document.querySelector<HTMLButtonElement>('button[data-short="true"]')
+      expect(shortBtn).not.toBeNull()
+      expect(shortBtn).toBeDisabled()
+
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      expect(screen.getByText('1 day selected')).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      // Details: the second participant row already exists.
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      // Seats ran out meanwhile → the review offers "Change dates".
+      mocks.submitBooking.mockRejectedValueOnce(
+        new HttpError(
+          422,
+          'Unprocessable Entity',
+          JSON.stringify({ detail: { error: 'capacity_exceeded', message: 'full' } }),
+        ),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      fireEvent.click(await screen.findByTestId('review-change-dates'))
+
+      // Back on the calendar with the committed day still selected and the
+      // group size kept.
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByText('1 day selected')).toBeInTheDocument()
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('2')
+      await waitFor(() =>
+        expect(screen.getByTestId('multi-day-step-submit')).not.toBeDisabled(),
+      )
+    })
+
+    // landr-rmcsu.7: the group size belongs to the product it was chosen for.
+    it('switching to a different product resets the group size', async () => {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      const day1 = new Date()
+      day1.setHours(12, 0, 0, 0)
+      const iso = `${day1.getFullYear()}-${String(day1.getMonth() + 1).padStart(2, '0')}-${String(day1.getDate()).padStart(2, '0')}`
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-a',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day A',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+        makeProduct({
+          product_id: 'svc-b',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Group Day B',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: `a-${iso}`,
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+
+      render(<App />)
+      await waitFor(() => screen.getByText('Group Day A'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day A' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      fireEvent.click(screen.getByRole('button', { name: 'One person more' }))
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('3')
+
+      // Back out to the catalogue (dates → product detail → catalogue).
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByTestId('product-detail-step')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('step-back-button'))
+
+      await waitFor(() => screen.getByText('Group Day B'))
+      fireEvent.click(screen.getByRole('button', { name: 'Group Day B' }))
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+    })
+  })
+
+  // landr-rmcsu.6: the operator's stored flow decides whether customers enter
+  // participants before or after picking dates. Both orders, end to end, with a
+  // remote-flow fixture (getProductFlow mock).
+  describe('participants position from the remote flow (landr-rmcsu.6)', () => {
+    const day1 = new Date()
+    day1.setHours(12, 0, 0, 0)
+    const day2 = new Date(day1)
+    day2.setDate(day2.getDate() + 1)
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const slotFor = (d: Date, seats: number) => ({
+      availability_id: `a-${iso(d)}`,
+      date: iso(d),
+      start_time: null,
+      end_time: null,
+      capacity: 10,
+      capacity_reserved: 10 - seats,
+      available_seats: seats,
+      status: 'open',
+    })
+    const setInput = (name: string, value: string) =>
+      fireEvent.change(
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+        { target: { value } },
+      )
+    const value = (name: string) =>
+      document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!.value
+
+    function setup(modules: { kind: string; position: number }[]) {
+      mocks.getOperatorSettings.mockResolvedValue({
+        slug: 'test-operator',
+        expose_seats_to_customer: false,
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-order',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Order Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      // day2 has a single seat → short for a party of 2.
+      mocks.getAvailability.mockResolvedValue([slotFor(day1, 10), slotFor(day2, 1)])
+      mocks.getProductFlow.mockResolvedValue({ modules })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-rmcsu-6',
+        semantic_state: 'pending',
+      })
+    }
+
+    function fillParty() {
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      setInput('participant_2_first_name', 'Grace')
+      setInput('participant_2_last_name', 'Hopper')
+      setInput('participant_2_phone', '+34600000002')
+    }
+
+    it('participants stored before selection: details first, then a seat-aware dates step without the stepper', async () => {
+      setup([
+        { kind: 'participants', position: 1 },
+        { kind: 'selection', position: 2 },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText('Order Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Order Day' }))
+      // The flow is fetched on the product page, so Book lands on details.
+      await waitFor(() => expect(mocks.getProductFlow).toHaveBeenCalled())
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByText(/Pick your dates/i)).not.toBeInTheDocument()
+      // No dates yet → the sidebar shows no price ("—" / empty state).
+      expect(
+        within(screen.getByTestId('price-sidebar-desktop')).getByText(
+          /Pick your options to see the price/i,
+        ),
+      ).toBeInTheDocument()
+      expect(mocks.estimateBookingPrice).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Dates come second: the group size is known, so no stepper, and the
+      // calendar already judges days against the party of 2.
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('party-size-value')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(document.querySelector('button[data-short="true"]')).not.toBeNull(),
+      )
+      expect(document.querySelector('button[data-short="true"]')).toBeDisabled()
+      // The breadcrumb follows the plan order: Participants before Dates.
+      const trail = screen.getByTestId('step-breadcrumb').textContent ?? ''
+      expect(trail.indexOf('Participants')).toBeGreaterThan(-1)
+      expect(trail.indexOf('Participants')).toBeLessThan(trail.indexOf('Dates'))
+
+      // Back from Dates returns to the participants, still filled in.
+      fireEvent.click(screen.getByTestId('step-back-button'))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      expect(value('booker_first_name')).toBe('Ada')
+      expect(value('participant_2_first_name')).toBe('Grace')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      // Dates were the second frame step → straight on to the middles.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0]![0] as {
+        participants: { first_name: string }[]
+        products: { product_id: string; selected_days: string[] }[]
+      }
+      expect(body.participants.map((p) => p.first_name)).toEqual(['Ada', 'Grace'])
+      expect(
+        body.products.find((l) => l.product_id === 'svc-order')!.selected_days,
+      ).toEqual([iso(day1)])
+    })
+
+    it('a start=dates embed opens on the participants step when they run first', async () => {
+      setup([
+        { kind: 'participants', position: 1 },
+        { kind: 'selection', position: 2 },
+      ])
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-order',
+          slug: 'order-day',
+          product_kind: 'service',
+          service_time_shape: 'days_range',
+          is_contiguous: false,
+          name: 'Order Day',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          max_party_size: 8,
+        }),
+      ])
+      window.history.replaceState(
+        {}, '', `/?w=${MOCK_TOKEN}&product=order-day&start=dates`,
+      )
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      // The first funnel step of a start=dates embed: nothing to go back to.
+      expect(screen.queryByTestId('step-back-button')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('party-size-value')).not.toBeInTheDocument()
+      // Dates → Participants is the whole trail (no product crumb).
+      expect(screen.getByTestId('step-back-button')).toHaveTextContent('Participants')
+    })
+
+    it('participants stored after selection: today\'s flow — dates with the stepper, then details', async () => {
+      setup([
+        { kind: 'selection', position: 1 },
+        { kind: 'participants', position: 2 },
+      ])
+      render(<App />)
+      await waitFor(() => screen.getByText('Order Day'))
+      fireEvent.click(screen.getByRole('button', { name: 'Order Day' }))
+      await waitFor(() => expect(mocks.getProductFlow).toHaveBeenCalled())
+      fireEvent.click(await screen.findByTestId('product-detail-book-cta'))
+
+      await waitFor(() => expect(screen.getByText(/Pick your dates/i)).toBeInTheDocument())
+      expect(screen.getByTestId('party-size-value')).toHaveTextContent('1')
+      const enabled = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(enabled[0]!)
+      fireEvent.click(screen.getByTestId('multi-day-step-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      const trail = screen.getByTestId('step-breadcrumb').textContent ?? ''
+      expect(trail.indexOf('Dates')).toBeLessThan(trail.indexOf('Participants'))
+      fireEvent.click(screen.getByTestId('add-participant'))
+      fillParty()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
     })
   })
 
@@ -3763,6 +4161,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // KEYSTONE ASSERTION: the custom-form step renders (NOT straight to review).
@@ -3860,6 +4259,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // Straight to review — no custom-form step is produced.
@@ -3926,6 +4326,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The widget still works — straight to review, no custom-form, no crash.
@@ -4020,6 +4421,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The flow fetch is still in flight (releaseFirstFlow not yet called) —
@@ -4120,6 +4522,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The custom-form step renders from App's already-resolved flow — no
@@ -4188,6 +4591,7 @@ describe('App', () => {
       setInput('booker_last_name', 'Lovelace')
       setInput('booker_email', 'ada@example.com')
       setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -4615,6 +5019,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     }
 
@@ -4683,6 +5088,38 @@ describe('App', () => {
       await waitFor(() =>
         expect(screen.getByTestId('participant-language-board')).toBeInTheDocument(),
       )
+    })
+
+    // landr-h0opd.3: ONE offered language = nothing to choose. The step is
+    // skipped, but the API still validates participants[].language for a
+    // restricted product, so every member is submitted with that language.
+    it('skips the language step for a single-language product and auto-fills its language on submit', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'German Only',
+          needs_pickup: false,
+          hotel_offering: 'none',
+          guide_languages: ['de'],
+        }),
+      ])
+      render(<App />)
+      await pickProduct('German Only')
+      await fillDateThenBooker()
+
+      // Straight from details to review — no board, no language crumb.
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0][0] as Body
+      expect(body.participants).toHaveLength(1)
+      for (const p of body.participants) expect(p).toMatchObject({ language: 'de' })
     })
 
     const twoProducts = () => [
@@ -4876,6 +5313,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
@@ -5009,6 +5447,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
 
       // The language step still appears, with no custom form anywhere.
@@ -5140,6 +5579,7 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       // A non-guiding companion joins the trip but is never in the activity.
       fireEvent.click(screen.getByRole('button', { name: /add companion/i }))
       setField('companion_1_first_name', 'Kay')
@@ -5205,7 +5645,12 @@ describe('App', () => {
   // is NOT consulted at all any more; see offeredLanguagesForProduct's doc
   // in App.tsx and OperatorSettings.offered_languages's doc in types.ts.
   describe('per-product guide languages (landr-p68d2.2)', () => {
-    async function advanceToLanguageBoardWithProduct(product: Product) {
+    async function advanceToLanguageBoardWithProduct(
+      product: Product,
+      // landr-h0opd.3: a single-language product skips the board and lands
+      // straight on the review screen.
+      landOn: 'board' | 'review' = 'board',
+    ) {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
       mocks.getProductFlow.mockResolvedValue({ modules: null })
@@ -5247,11 +5692,18 @@ describe('App', () => {
       setField('booker_last_name', 'Lovelace')
       setField('booker_email', 'ada@example.com')
       setField('booker_phone', '+34600000001')
+      fillBillingFields()
       fireEvent.click(screen.getByTestId('add-participant'))
       setField('participant_2_first_name', 'Grace')
       setField('participant_2_last_name', 'Hopper')
       setField('participant_2_phone', '+34600000002')
       fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      if (landOn === 'review') {
+        await waitFor(() =>
+          expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+        )
+        return
+      }
       await waitFor(() =>
         expect(
           screen.getByTestId('participant-language-board'),
@@ -5268,6 +5720,10 @@ describe('App', () => {
         // never reads it, not merely that a real response lacks it.
         offered_languages: ['en', 'de', 'es'],
       })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'b-it',
+        semantic_state: 'pending',
+      })
       await advanceToLanguageBoardWithProduct(
         makeProduct({
           name: 'Denmark Paragliding Trip',
@@ -5276,16 +5732,22 @@ describe('App', () => {
           hotel_offering: 'none',
           guide_languages: ['it'],
         }),
+        'review',
       )
-      // Exactly one column, already fully seeded — seedAssignment's one-tap
-      // shortcut for a single offered language — and the operator setting
-      // never surfaces.
-      expect(screen.getByTestId('lang-column-it')).toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-en')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-de')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-column-es')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('lang-add-en')).not.toBeInTheDocument()
-      expect(screen.getByTestId('language-step-submit')).toBeEnabled()
+      // landr-h0opd.3: one offered language → no board at all (nothing to
+      // choose), and the operator setting never surfaces.
+      expect(screen.queryByTestId('participant-language-board')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('breadcrumb-assign-languages')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      // Every party member is auto-filled with the product's one language —
+      // the API validates participants[].language on every submit.
+      const body = mocks.submitBooking.mock.calls[0][0] as {
+        participants: Array<Record<string, unknown>>
+      }
+      expect(body.participants).toHaveLength(2)
+      for (const p of body.participants) expect(p).toMatchObject({ language: 'it' })
     })
 
     it('shows all four columns for a four-language product', async () => {

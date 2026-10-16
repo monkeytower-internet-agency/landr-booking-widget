@@ -2463,6 +2463,50 @@ describe('AccommodationStep — shared-double reference field (landr-otml0.3)', 
     ).not.toBeInTheDocument()
   })
 
+  // landr-jsu3n.3: invitee sharing the inviter's room gets the inviter's hotel.
+  it('invite mode with the inviter hotel: read-only "Staying at", no hotel radios', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+        initialHotelLocationId="hotel-b"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('staying-at-hotel')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('staying-at-hotel')).toHaveTextContent(
+      'Hotel del Mar',
+    )
+    expect(screen.queryByText('Hotel Mirador')).not.toBeInTheDocument()
+    expect(document.querySelector('input[name="hotel"]')).toBeNull()
+  })
+
+  it('invite mode without an inviter hotel keeps the hotel picker', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(document.querySelectorAll('input[name="hotel"]')).toHaveLength(2),
+    )
+  })
+
   it('looks up a complete 8-char reference and shows the masked confirm card', async () => {
     await enterSharedDouble()
     mocks.lookupBookingReference.mockResolvedValue({
@@ -2953,5 +2997,103 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(
       screen.queryByTestId('shared-double-too-late-others'),
     ).not.toBeInTheDocument()
+  })
+
+  // ── landr-jiagg.2: booker books for someone else ───────────────────
+  // The shared double covers the BOOKER'S own bed — without the booker in
+  // the party it is not offered, and a restored shared-double falls back.
+
+  it('allowSharedDouble=false hides the shared-double mode', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        allowSharedDouble={false}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('accommodation-mode-package')).toBeInTheDocument()
+    expect(screen.getByTestId('accommodation-mode-guiding-only')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('accommodation-mode-shared-double'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('allowSharedDouble=false turns a restored shared-double mode into package', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        allowSharedDouble={false}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    const packageRadio = screen
+      .getByTestId('accommodation-mode-package')
+      .querySelector('input[type="radio"]') as HTMLInputElement
+    expect(packageRadio.checked).toBe(true)
+  })
+
+  it('allowSharedDouble=false on a restored shared-double clears the lifted join_ref', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onJoinRefChange = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        allowSharedDouble={false}
+        onJoinRefChange={onJoinRefChange}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(onJoinRefChange).toHaveBeenCalledWith(null))
+  })
+
+  it('a restored shared-double with the booker joining leaves the join_ref alone', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onJoinRefChange = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        onJoinRefChange={onJoinRefChange}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(onJoinRefChange).not.toHaveBeenCalledWith(null)
   })
 })

@@ -248,6 +248,63 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     )
   })
 
+  // landr-jiagg.2: a booker who booked for someone else is not a participant —
+  // the line lists only the people taking part (straight from summary, which
+  // the API builds from booking_participants), never the booker's name.
+  it('lists only the participants when the booker did not take part', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        participant_count: 1,
+        participants: [{ name: 'Max Lovelace' }],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const line = screen.getByTestId('confirmation-participants')
+    expect(line).toHaveTextContent('1 participant')
+    expect(line).toHaveTextContent('Max Lovelace')
+    expect(line).not.toHaveTextContent('Ada')
+  })
+
+  // landr-jsu3n.1: the Party block groups exactly like the confirmation
+  // email; the count line counts only the included participants.
+  it('renders included, separate-guiding and guest groups in the Party block', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        participant_count: 1,
+        participants: [
+          { name: 'Matthias Klein', is_guiding: true },
+          {
+            name: 'Alyda Maria Vargas Ramires',
+            is_guiding: false,
+            companion_kind: 'separate_guiding',
+          },
+          { name: 'Tom Guest', is_guiding: false, companion_kind: 'guest' },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
+      '1 participant',
+    )
+    expect(screen.getByTestId('confirmation-party')).toHaveTextContent('Party')
+    const included = screen.getByTestId('confirmation-party-included')
+    expect(included).toHaveTextContent('Participants (included in this booking)')
+    expect(included).toHaveTextContent('Matthias Klein')
+    expect(included).not.toHaveTextContent('Alyda')
+    const sep = screen.getByTestId('confirmation-party-separate-guiding')
+    expect(sep).toHaveTextContent(
+      'Joining the activity — separate guiding booking',
+    )
+    expect(sep).toHaveTextContent('Alyda Maria Vargas Ramires')
+    const guests = screen.getByTestId('confirmation-party-guests')
+    expect(guests).toHaveTextContent('Not doing the activity (guests)')
+    expect(guests).toHaveTextContent('Tom Guest')
+    expect(screen.getByTestId('confirmation-participants')).not.toHaveTextContent(
+      '3 participants',
+    )
+  })
+
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
@@ -258,9 +315,9 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
       '2 participants',
     )
-    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
-      'Ada Lovelace, Grace Hopper',
-    )
+    const included = screen.getByTestId('confirmation-party-included')
+    expect(included).toHaveTextContent('Ada Lovelace')
+    expect(included).toHaveTextContent('Grace Hopper')
     expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
       'Main Beach',
     )
@@ -1443,17 +1500,34 @@ describe('Confirmation — landr-otml0.4 group/invite share surfaces', () => {
   it('shows the reference prominently with a copy button and the share hint', async () => {
     const { writeText } = stubClipboard()
     const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
-    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    render(<Confirmation response={response} onRestart={vi.fn()} shareReferenceEnabled />)
 
     expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
-    expect(
-      screen.getByText(
-        /share this with anyone booking their own guiding who wants to be grouped with you/i,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('confirmation-share-reference-hint')).toHaveTextContent(
+      'Share this reference with anyone booking the same activity who wants to be grouped with you.',
+    )
 
     fireEvent.click(screen.getByTestId('confirmation-reference-copy'))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('REF-1234'))
+  })
+
+  // landr-h0opd.3: the hint is per-product — the reference + copy button
+  // always show, the hint only when the product has sharing switched on.
+  it('hides the share hint (but keeps the reference + copy) when the product has sharing off', () => {
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} shareReferenceEnabled={false} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
+    expect(screen.getByTestId('confirmation-reference-copy')).toBeInTheDocument()
+    expect(screen.queryByTestId('confirmation-share-reference-hint')).not.toBeInTheDocument()
+  })
+
+  it('hides the share hint when the flag is absent (older API → false)', () => {
+    const response = baseResponse({ summary: baseSummary({ booking_reference: 'REF-1234' }) })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-reference-value')).toHaveTextContent('REF-1234')
+    expect(screen.queryByTestId('confirmation-share-reference-hint')).not.toBeInTheDocument()
   })
 
   it('renders no invite cards, group block, or hint when the response carries none of it (older API / no companions)', () => {

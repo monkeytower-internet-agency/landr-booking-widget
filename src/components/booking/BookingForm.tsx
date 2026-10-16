@@ -30,10 +30,14 @@ import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
-import type {
-  BookerDetails,
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  billingAddressComplete,
+  billingToPayload,
+  bookerJoins,
+  participantsForSubmit,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from './detailsTypes'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -43,6 +47,7 @@ import {
   forceBookReasonMessage,
   nightsWord,
   seatsShortMessage,
+  seatsShortDaysMessage,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -107,6 +112,7 @@ import { alignFormResponses, parseFormResponseErrors } from './formScopes'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
+import type { CalculatedTotal } from '@/components/booking/PriceSidebar'
 import {
   augmentStaffSubmit,
   isStaffSubmitBody,
@@ -332,6 +338,15 @@ interface Props {
    */
   unPriceable?: boolean
   /**
+   * landr-h0opd.3: the calculated booking total from App.tsx's PriceSidebar
+   * estimate (see its onCalculatedTotalChange doc). Shown as the staff
+   * price-override input's placeholder and as a "Calculated: …" line under
+   * it, so the operator sees what they are overriding. Display only — an
+   * empty override input still means "no override" (the submit uses the
+   * calculated total server-side). Absent/null → the generic placeholder.
+   */
+  calculatedTotal?: CalculatedTotal | null
+  /**
    * landr-otml0.3 review fix (MINOR 6): fires with the 0-based companion
    * index when the API rejects submit with 422 companion_contact_required
    * (the client-side D11 gate should make this unreachable in the normal
@@ -497,6 +512,17 @@ function readLanguageError(
 }
 
 /**
+ * landr-h0opd.3: "250.00 EUR" — the calculated total in the same plain
+ * decimal form the operator types into the override input, plus the
+ * booking currency. Falls back to the raw string for a non-numeric amount.
+ */
+function formatOverridePlaceholder(total: CalculatedTotal): string {
+  const n = Number(total.amount)
+  const amount = Number.isFinite(n) ? n.toFixed(2) : total.amount
+  return `${amount} ${total.currency}`
+}
+
+/**
  * The customer-facing sentence for a language 422 — the same wording the
  * language step's own gate uses, so a server rejection and a client-side block
  * never read as two different problems. Names EVERY offender the API listed
@@ -635,6 +661,19 @@ const formatHttpError = (
     const name = (err.detail as { first_name?: unknown }).first_name
     const who = typeof name === 'string' && name.trim() ? name : 'This companion'
     return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
+  }
+  // landr-jiagg.1/.2: server backstop — a shared double without the booker
+  // in the roster. The widget never sends that (no shared-double option, no
+  // key on the wire when the booker does not take part); a clear message if
+  // a stale tab ever does.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'shared_double_requires_booker'
+  ) {
+    return tr('sharedDoubleRequiresBookerMessage', browserLocale())
   }
   // landr-zeg4u.6: server backstop for the shared-double room rules the
   // accommodation step already enforces — only the booker's bed is the host's
@@ -828,7 +867,7 @@ export function BookingForm({
   customerComment,
   onCustomerCommentChange = () => {},
   participantLanguages = {},
-  isSharedDouble = false,
+  isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
   perRoomAddons,
@@ -839,11 +878,18 @@ export function BookingForm({
   inviteToken,
   joinRef,
   unPriceable = false,
+  calculatedTotal = null,
   onCompanionContactRequired,
   onBack,
   onChangeDates,
   onConfirmed,
 }: Props) {
+  // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
+  // exists when the booker takes part. A booker booking for someone else is
+  // never offered it (AccommodationStep) and this is the belt-and-braces gate:
+  // no shared-double review copy, and no is_shared_double key on the wire.
+  const bookerJoining = bookerJoins(booker)
+  const isSharedDouble = isSharedDoubleProp && bookerJoining
   const [serverError, setServerError] = useState<string | null>(null)
   const [capacityExceeded, setCapacityExceeded] = useState(false)
   const [windowAmbiguous, setWindowAmbiguous] = useState(false)
@@ -1140,15 +1186,22 @@ export function BookingForm({
     try {
       const selectedDaysForSubmit =
         selection.kind === 'slot' ? [selection.slot.date] : selection.selectedDays
-      // landr-f987a.4: party-size check before submit — the host's guiding
-      // participants + invited companions must all fit on every selected day.
-      // Best effort: a failed availability read never blocks the submit (the
-      // API re-checks and answers capacity_exceeded).
+      // landr-f987a.4 / landr-rmcsu.7: party-size check before submit — the
+      // whole group (guiding participants + invited companions) must fit on
+      // every selected day. Runs for ANY group > 1, not only when invitees
+      // were added: a participants-only group of 3 used to fall through to
+      // the API's capacity_exceeded 422, which names ONE day. Best effort: a
+      // failed availability read never blocks the submit (the API re-checks
+      // and answers capacity_exceeded). A fixed course window is judged by
+      // its own picker, not here.
       const need = seatsNeeded(participants.length, companions, product.invite_hold_hours)
-      const hasInvitees =
-        product.invite_hold_hours !== 0 &&
-        companions.some((c) => c.companion_kind === 'separate_guiding')
-      if (!staff.active && selection.kind === 'days' && hasInvitees && need > 1 && selectedDaysForSubmit.length > 0) {
+      if (
+        !staff.active &&
+        selection.kind === 'days' &&
+        !selection.fixedDateWindowId &&
+        need > 1 &&
+        selectedDaysForSubmit.length > 0
+      ) {
         try {
           const sorted = [...selectedDaysForSubmit].sort()
           const slots = await getAvailability(
@@ -1159,11 +1212,14 @@ export function BookingForm({
           )
           const short = shortDays(slots, sorted, need)
           if (short.length > 0) {
+            // landr-rmcsu.5: name every short day, not just the first.
             setServerError(
-              seatsShortMessage(
-                formatDayLabel(short[0].date, locale),
-                short[0].left,
-                short[0].need,
+              seatsShortDaysMessage(
+                short.map((d) => ({
+                  label: formatDayLabel(d.date, locale),
+                  left: d.left,
+                  need: d.need,
+                })),
                 locale,
               ),
             )
@@ -1253,11 +1309,21 @@ export function BookingForm({
         customer_last_name: booker.last_name,
         customer_email: booker.email,
         customer_phone: booker.phone || null,
+        // landr-uuntm.3: invoice recipient's billing address. The public
+        // widget requires it (DetailsStep gate); a staff-entered booking may
+        // legitimately leave it out, in which case the key is omitted rather
+        // than sent half-filled (the API 422s an incomplete address).
+        ...(billingAddressComplete(booker.billing)
+          ? { customer_billing: billingToPayload(booker.billing) }
+          : {}),
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: productLines,
-        participants: participants.map((p, idx) => {
+        // landr-jiagg.2: no booker row when the booker does not take part
+        // (DetailsStep already left it out); "Participant 1"'s blank
+        // email/phone are filled from the booker here, at the wire only.
+        participants: participantsForSubmit(booker, participants).map((p, idx) => {
           // landr-gb2f.2: attach the participant's assigned hotel_room unit
           // (room_product_id + room_unit_index, PINNED wire contract). The
           // assignment map is keyed by participant index. Unassigned (and
@@ -1398,7 +1464,10 @@ export function BookingForm({
         // is an additional room for companions only — landr-zeg4u.4), false
         // for every other
         // mode. The API persists it on bookings.is_shared_double.
-        is_shared_double: isSharedDouble,
+        // landr-jiagg.2: never sent when the booker does not take part — the
+        // API 422s shared_double_requires_booker on a true, and the key has no
+        // meaning without the booker's own bed.
+        ...(bookerJoining ? { is_shared_double: isSharedDouble } : {}),
         // landr-71kz.4: form_responses from CustomFormStep(s). Optional —
         // only sent when the product has a configured flow; hidden-field
         // answers are already pruned by CustomFormStep before reaching here.
@@ -1430,7 +1499,11 @@ export function BookingForm({
         // no-reference booking, matching every other optional-marker field
         // in this payload.
         ...(inviteToken ? { invite_token: inviteToken } : {}),
-        ...(joinRef ? { join_ref: joinRef } : {}),
+        // landr-jiagg.2: a shared-double reference joins the booker's OWN bed
+        // into the host's group — gated exactly like is_shared_double, so a
+        // reference confirmed before the booker stepped out never links a
+        // non-participating booker's booking into someone's group.
+        ...(joinRef && bookerJoining ? { join_ref: joinRef } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff
@@ -1598,10 +1671,20 @@ export function BookingForm({
               </>
             ) : null}
           </dl>
+          {/* landr-jiagg.2: the payer who is not in the participant list. */}
+          {!bookerJoining ? (
+            <p
+              className="mt-2 text-xs text-muted-foreground"
+              data-testid="review-booker-not-joining"
+            >
+              {tr('notTakingPartPaysInvoice', locale)}
+            </p>
+          ) : null}
         </section>
 
-        {/* Participants summary. participants[0] mirrors the booker, so
-            we render the heading + a clear row-per-person list. */}
+        {/* Participants summary. participants[0] mirrors the booker when they
+            take part; when they book for someone else (landr-jiagg.2) it is
+            the roster alone. Either way: heading + one row per person. */}
         <section
           data-testid="review-participants"
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
@@ -1875,10 +1958,22 @@ export function BookingForm({
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  placeholder="e.g. 250.00"
+                  placeholder={
+                    calculatedTotal
+                      ? formatOverridePlaceholder(calculatedTotal)
+                      : 'e.g. 250.00'
+                  }
                   value={overrideAmount}
                   onChange={(e) => setOverrideAmount(e.target.value)}
                 />
+                {calculatedTotal ? (
+                  <p
+                    className="text-xs text-muted-foreground"
+                    data-testid="override-calculated-total"
+                  >
+                    Calculated: {formatOverridePlaceholder(calculatedTotal)}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="override-reason">Reason</Label>

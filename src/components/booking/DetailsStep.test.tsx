@@ -1,5 +1,6 @@
+import { fillBillingFields } from '@/test/fillBilling'
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // landr-bx5y: jsdom has no global AnimationEvent constructor. Without one,
@@ -28,6 +29,9 @@ import * as client from '@/api/client'
 import type { Product, ServiceRole } from '@/api/types'
 import type { BookingSelection } from './BookingForm'
 import { DetailsStep } from './DetailsStep'
+import { emptyBilling } from './detailsTypes'
+import { BOOKER_MEMBER_ID } from './partyIdentity'
+import { StaffModeProvider } from '@/lib/staffMode.tsx'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -79,6 +83,7 @@ function fillBooker({
   fireEvent.change(byName('booker_last_name'), { target: { value: last } })
   fireEvent.change(byName('booker_email'), { target: { value: email } })
   fireEvent.change(byName('booker_phone'), { target: { value: phone } })
+  fillBillingFields()
 }
 
 describe('DetailsStep (landr-8c03)', () => {
@@ -386,6 +391,7 @@ describe('DetailsStep (landr-8c03)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialParticipants={[
           {
@@ -563,6 +569,7 @@ describe('DetailsStep — service_role selector (landr-mg0a)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialParticipants={[
           {
@@ -1580,6 +1587,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialMemberPerkOtp="654321"
         onBack={vi.fn()}
@@ -2213,7 +2221,7 @@ describe('DetailsStep no-accommodation products (landr-lu41h)', () => {
         selection={DAYS_SELECTION}
         onBack={vi.fn()}
         onConfirm={onConfirm}
-        initialBooker={{ first_name: 'Ada', last_name: 'L', email: 'ada@example.com', phone: '+34600000000' }}
+        initialBooker={{ first_name: 'Ada', last_name: 'L', email: 'ada@example.com', phone: '+34600000000', billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' } }}
         initialCompanions={[
           { id: 'c1', first_name: 'Mia', last_name: 'Berg', email: 'm@example.com', phone: '', companion_kind: 'guest' },
         ]}
@@ -2284,9 +2292,77 @@ describe('DetailsStep product max_party_size (landr-zy2wm.2)', () => {
     expect(clickAddUntilGone()).toBe(5)
   })
 
-  it('a cap above the widget cap does not raise it', () => {
-    renderWith(50)
-    expect(clickAddUntilGone()).toBe(5)
+  // landr-rmcsu.5: the old min(5, max_party_size - 1) clamp is gone — a cap
+  // above 6 is honoured, and the larger-group line shows at THAT cap.
+  it('a cap above 6 raises the participant limit to max_party_size - 1', () => {
+    renderWith(10)
+    expect(clickAddUntilGone()).toBe(9)
+    expect(screen.getByTestId('participant-row-10')).toBeInTheDocument()
+    expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(
+      'Maximum of 9 additional participants reached',
+    )
+  })
+})
+
+describe('DetailsStep prefillParticipantCount (landr-rmcsu.5)', () => {
+  const restored = (first: string) => ({
+    first_name: first,
+    last_name: 'X',
+    email: '',
+    phone: '+34 600 000 002',
+    service_role_code: '',
+  })
+
+  it('pre-creates empty rows up to the dates-step group size and tells the sidebar', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 8 })}
+        selection={DAYS_SELECTION}
+        prefillParticipantCount={4}
+        onLiveParticipantsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('participant-row-4')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-5')).not.toBeInTheDocument()
+    expect(onLive).toHaveBeenCalledWith(4, [], 0)
+    // Still removable / addable by the customer.
+    expect(screen.getByTestId('add-participant')).toBeInTheDocument()
+  })
+
+  it('never drops restored rows and never exceeds the product cap', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 3 })}
+        selection={DAYS_SELECTION}
+        initialParticipants={[restored('Ada'), restored('Grace')]}
+        prefillParticipantCount={6}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(byName('participant_2_first_name')).toHaveValue('Grace')
+    expect(screen.getByTestId('participant-row-3')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-row-4')).not.toBeInTheDocument()
+  })
+
+  it('a smaller group size than the restored party removes nobody', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        initialParticipants={[restored('Ada'), restored('Grace'), restored('Linus')]}
+        prefillParticipantCount={1}
+        onLiveParticipantsChange={onLive}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(byName('participant_3_first_name')).toHaveValue('Linus')
+    expect(onLive).not.toHaveBeenCalled()
   })
 })
 
@@ -2316,5 +2392,784 @@ describe('DetailsStep max_party_size also caps companions (landr-zy2wm.2)', () =
   it('no cap keeps companions available', () => {
     renderWith(null)
     expect(screen.getByTestId('companions-section')).toBeInTheDocument()
+  })
+})
+
+// landr-uuntm.3: billing address in the booker block.
+describe('DetailsStep — billing address (landr-uuntm.3)', () => {
+  // Pin the guess chain: the edge answers "unknown" and the browser has no
+  // region, so nothing pre-fills the country unless a test says so.
+  function noGuess() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ country: null }) })),
+    )
+    vi.stubGlobal('navigator', { languages: ['en'], language: 'en' })
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  function renderStep(props: Partial<React.ComponentProps<typeof DetailsStep>> = {}) {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+        {...props}
+      />,
+    )
+    return onConfirm
+  }
+  function fillContactOnly() {
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    fireEvent.change(byName('booker_last_name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(byName('booker_email'), { target: { value: 'ada@example.com' } })
+    fireEvent.change(byName('booker_phone'), { target: { value: '+34 600 000 000' } })
+  }
+
+  it('renders the group with its helper line, accessible labels and autocomplete tokens', () => {
+    noGuess()
+    renderStep()
+    const group = screen.getByRole('group', { name: 'Billing address' })
+    expect(group).toHaveTextContent('We need this for your invoice.')
+    expect(screen.getByLabelText('Street and number')).toHaveAttribute(
+      'autocomplete',
+      expect.stringContaining('address-line1'),
+    )
+    expect(screen.getByLabelText('Address line 2 (optional)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Postal code')).toHaveAttribute(
+      'autocomplete',
+      expect.stringContaining('postal-code'),
+    )
+    expect(screen.getByLabelText('City')).toHaveAttribute(
+      'autocomplete',
+      expect.stringContaining('address-level2'),
+    )
+    expect(screen.getByLabelText('Country')).toHaveAttribute(
+      'autocomplete',
+      expect.stringContaining('country'),
+    )
+  })
+
+  it('blocks Continue and flags the four required fields until they are filled', () => {
+    noGuess()
+    const onConfirm = renderStep()
+    fillContactOnly()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+    for (const name of [
+      'booker_billing_address_line1',
+      'booker_billing_postal_code',
+      'booker_billing_city',
+      'booker_billing_country',
+    ]) {
+      expect(byName(name)).toHaveAttribute('aria-invalid', 'true')
+    }
+    // line 2 / company / tax id are optional and never flagged.
+    expect(byName('booker_billing_address_line2')).not.toHaveAttribute('aria-invalid')
+    expect(document.getElementById('booker-billing-line1-error')).toHaveTextContent('Required')
+    // The first invalid field gets focus.
+    expect(byName('booker_billing_address_line1')).toHaveFocus()
+  })
+
+  it('flags a single required field on blur and clears it once filled', () => {
+    noGuess()
+    renderStep()
+    const city = byName('booker_billing_city')
+    fireEvent.blur(city)
+    expect(city).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.change(city, { target: { value: 'Madrid' } })
+    expect(city).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('confirms with the billing address on the booker (company hidden by default)', () => {
+    noGuess()
+    const onConfirm = renderStep()
+    fillContactOnly()
+    fillBillingFields()
+    fireEvent.change(byName('booker_billing_address_line2'), { target: { value: '3B' } })
+    expect(screen.queryByLabelText('Tax ID (NIF / VAT)')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![0].billing).toEqual({
+      address_line1: 'Calle Mayor 1',
+      address_line2: '3B',
+      postal_code: '28013',
+      city: 'Madrid',
+      region: '',
+      country: 'ES',
+      company: '',
+      tax_id: '',
+      name: '',
+    })
+  })
+
+  it('"Invoice to a company?" reveals company + tax id; unchecking clears them', () => {
+    noGuess()
+    const onConfirm = renderStep()
+    fillContactOnly()
+    fillBillingFields()
+    const toggle = screen.getByRole('checkbox', { name: 'Invoice to a company?' })
+    expect(toggle).not.toBeChecked()
+    fireEvent.click(toggle)
+    fireEvent.change(screen.getByLabelText('Company'), { target: { value: 'Para42 SL' } })
+    const tax = screen.getByLabelText('Tax ID (NIF / VAT)')
+    expect(tax).toBeInTheDocument()
+    fireEvent.change(tax, { target: { value: 'B12345678' } })
+    // Company is optional: Continue works with it filled...
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0]![0].billing).toMatchObject({
+      company: 'Para42 SL',
+      tax_id: 'B12345678',
+    })
+    // ...and switching it off wipes the hidden values.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
+    expect(screen.queryByLabelText('Company')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[1]![0].billing).toMatchObject({ company: '', tax_id: '', name: '' })
+  })
+
+  it('restores the billing address (and an open company section) from initialBooker', () => {
+    noGuess()
+    renderStep({
+      initialBooker: {
+        first_name: 'Ada',
+        last_name: 'L',
+        email: 'ada@example.com',
+        phone: '+34600000000',
+        billing: {
+          address_line1: 'Hauptstr. 5',
+          address_line2: '',
+          postal_code: '10115',
+          city: 'Berlin',
+          region: '',
+          country: 'DE',
+          company: 'Acme GmbH',
+          tax_id: 'DE1',
+          name: '',
+        },
+      },
+    })
+    expect(byName('booker_billing_address_line1')).toHaveValue('Hauptstr. 5')
+    expect(byName('booker_billing_country')).toHaveValue('DE')
+    expect(screen.getByRole('checkbox', { name: 'Invoice to a company?' })).toBeChecked()
+    expect(screen.getByLabelText('Company')).toHaveValue('Acme GmbH')
+  })
+
+  // landr-jsu3n.2: optional "Invoice name" + the company toggle, also for an
+  // invitee joining through an invite link.
+  describe.each([
+    ['direct booking', false],
+    ['invite link', true],
+  ])('Invoice name and company toggle — %s', (_label, inviteMode) => {
+    it('renders the optional Invoice name, the company toggle and the company fields', () => {
+      noGuess()
+      renderStep({ inviteMode })
+      expect(screen.getByLabelText('Invoice name (optional)')).toHaveValue('')
+      const toggle = screen.getByRole('checkbox', { name: 'Invoice to a company?' })
+      expect(toggle).toBeInTheDocument()
+      fireEvent.click(toggle)
+      expect(screen.getByTestId('booker-billing-company-fields')).toBeInTheDocument()
+    })
+
+    it('confirms with the Invoice name on the booker billing; "Invoice to:" shows it', () => {
+      noGuess()
+      const onConfirm = renderStep({ inviteMode })
+      fillContactOnly()
+      fillBillingFields()
+      fireEvent.change(screen.getByLabelText('Invoice name (optional)'), {
+        target: { value: 'Grace Hopper' },
+      })
+      expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Grace Hopper')
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
+      fireEvent.change(byName('booker_billing_company'), { target: { value: 'Acme SL' } })
+      expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Acme SL')
+      expect(screen.getByTestId('invoice-to-line-1')).toHaveTextContent('Grace Hopper')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      expect(onConfirm).toHaveBeenCalledTimes(1)
+      expect(onConfirm.mock.calls[0]![0].billing).toMatchObject({
+        name: 'Grace Hopper',
+        company: 'Acme SL',
+      })
+    })
+  })
+
+  it('keeps the Invoice name when the company toggle is switched off', () => {
+    noGuess()
+    const onConfirm = renderStep()
+    fillContactOnly()
+    fillBillingFields()
+    fireEvent.change(screen.getByLabelText('Invoice name (optional)'), {
+      target: { value: 'Grace Hopper' },
+    })
+    const toggle = screen.getByRole('checkbox', { name: 'Invoice to a company?' })
+    fireEvent.click(toggle)
+    fireEvent.change(byName('booker_billing_company'), { target: { value: 'Acme SL' } })
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0]![0].billing).toMatchObject({
+      name: 'Grace Hopper',
+      company: '',
+    })
+  })
+
+  it('tolerates an initialBooker persisted before billing existed', () => {
+    noGuess()
+    const legacy = {
+      first_name: 'Ada',
+      last_name: 'L',
+      email: 'ada@example.com',
+      phone: '+34600000000',
+    } as unknown as React.ComponentProps<typeof DetailsStep>['initialBooker']
+    const onConfirm = renderStep({ initialBooker: legacy })
+    expect(byName('booker_billing_city')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('pre-fills the country from the edge guess while the field is still empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ country: 'AT' }) })),
+    )
+    renderStep()
+    await waitFor(() => expect(byName('booker_billing_country')).toHaveValue('AT'))
+  })
+
+  it('falls back to the browser locale region, then the operator country', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
+    vi.stubGlobal('navigator', { languages: ['de-CH', 'de'], language: 'de-CH' })
+    const { unmount } = render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        operatorCountry="ES"
+      />,
+    )
+    await waitFor(() => expect(byName('booker_billing_country')).toHaveValue('CH'))
+    unmount()
+    vi.stubGlobal('navigator', { languages: ['en'], language: 'en' })
+    renderStep({ operatorCountry: 'es' })
+    await waitFor(() => expect(byName('booker_billing_country')).toHaveValue('ES'))
+  })
+
+  it('never overrides a country the customer picked while the guess was in flight', async () => {
+    let release!: () => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve({ ok: true, json: async () => ({ country: 'AT' }) })
+          }),
+      ),
+    )
+    renderStep()
+    fireEvent.change(byName('booker_billing_country'), { target: { value: 'FR' } })
+    release()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(byName('booker_billing_country')).toHaveValue('FR')
+  })
+
+  it('keeps the country empty when the customer picked then cleared it before the guess landed', async () => {
+    let release!: () => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve({ ok: true, json: async () => ({ country: 'AT' }) })
+          }),
+      ),
+    )
+    renderStep()
+    const country = byName('booker_billing_country')
+    fireEvent.change(country, { target: { value: 'FR' } })
+    fireEvent.change(country, { target: { value: '' } })
+    release()
+    await new Promise((r) => setTimeout(r, 0))
+    // Empty again, but deliberately so: the guess must not sneak back in.
+    expect(byName('booker_billing_country')).toHaveValue('')
+  })
+
+  it('does not run (or override) the guess when the country is already restored', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ country: 'AT' }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    renderStep({
+      initialBooker: {
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        billing: { ...emptyBilling(), country: 'IT' },
+      },
+    })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(byName('booker_billing_country')).toHaveValue('IT')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('names countries in German on a German locale', () => {
+    noGuess()
+    vi.stubGlobal('navigator', { languages: ['de'], language: 'de' })
+    renderStep()
+    const opt = byName<HTMLSelectElement>('booker_billing_country').querySelector(
+      'option[value="DE"]',
+    )
+    expect(opt).toHaveTextContent('Deutschland')
+  })
+})
+
+describe('DetailsStep — billing address in staff mode (landr-uuntm.3)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function renderStaff() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ country: null }) })),
+    )
+    vi.stubGlobal('navigator', { languages: ['en'], language: 'en' })
+    const onConfirm = vi.fn()
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't.o.k', powers: [], operatorId: 'op-1' }}
+      >
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      </StaffModeProvider>,
+    )
+    return onConfirm
+  }
+
+  it('shows the group but reads as optional: blur on empty fields flags nothing', () => {
+    renderStaff()
+    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
+    for (const name of [
+      'booker_billing_address_line1',
+      'booker_billing_postal_code',
+      'booker_billing_city',
+      'booker_billing_country',
+    ]) {
+      const el = byName(name)
+      fireEvent.blur(el)
+      expect(el).not.toHaveAttribute('aria-invalid')
+    }
+    expect(document.querySelector('[id^="booker-billing-"][id$="-error"]')).toBeNull()
+  })
+
+  it('Continue works without an address, and carries one when the operator enters it', () => {
+    const onConfirm = renderStaff()
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Ada' } })
+    fireEvent.change(byName('booker_last_name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(byName('booker_email'), { target: { value: 'ada@example.com' } })
+    fireEvent.change(byName('booker_phone'), { target: { value: '+34 600 000 000' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![0].billing.city).toBe('')
+
+    fillBillingFields()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+    expect(onConfirm.mock.calls[1]![0].billing).toMatchObject({
+      address_line1: 'Calle Mayor 1',
+      country: 'ES',
+    })
+  })
+})
+
+// landr-jiagg.2: "I'm booking for someone else and won't take part" — the
+// booker pays (customer_* fields) but is not in participants[].
+describe('DetailsStep — booking for someone else (landr-jiagg.2)', () => {
+  const TOGGLE = "I'm booking for someone else and won't take part"
+
+  function fillP1({
+    first = 'Max',
+    last = 'Lovelace',
+    phone = '+34 600 111 222',
+  }: { first?: string; last?: string; phone?: string } = {}) {
+    fireEvent.change(byName('participant_1_first_name'), { target: { value: first } })
+    fireEvent.change(byName('participant_1_last_name'), { target: { value: last } })
+    if (phone) fireEvent.change(byName('participant_1_phone'), { target: { value: phone } })
+  }
+
+  it('the toggle swaps the helper text and reveals an editable "Participant 1" row', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
+      "You'll be listed as participant 1",
+    )
+    expect(screen.queryByTestId('participant-row-1')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+
+    expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
+      'Add the people who are joining below.',
+    )
+    const row = screen.getByTestId('participant-row-1')
+    expect(row).toHaveTextContent('Participant 1')
+    expect(screen.getByText(/Participants \(1 total\)/)).toBeInTheDocument()
+    expect(byName('participant_1_email').placeholder).toBe('same as yours')
+    // Participant 1 is required — no remove control while it is the only row.
+    expect(screen.queryByTestId('remove-participant-1')).not.toBeInTheDocument()
+  })
+
+  it('gates Continue on Participant 1 first + last + phone; confirms with no booker row', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        serviceRoles={[
+          { id: 'r1', code: 'participant', label: 'Participant', label_localized: null, sort_order: 0 },
+        ]}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    const submit = screen.getByTestId('details-step-submit')
+
+    fireEvent.click(submit)
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fillP1({ phone: '' })
+    fireEvent.click(submit)
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.change(byName('participant_1_phone'), { target: { value: '+34 600 111 222' } })
+    fireEvent.click(submit)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const [booker, participants] = onConfirm.mock.calls[0]!
+    expect(booker).toMatchObject({ first_name: 'Ada', joins: false })
+    expect(participants).toHaveLength(1)
+    expect(participants[0]).toMatchObject({
+      first_name: 'Max',
+      last_name: 'Lovelace',
+      phone: '+34 600 111 222',
+      // blank in the draft — filled from the booker only on the wire
+      email: '',
+      service_role_code: 'participant',
+    })
+    expect(participants[0].id).not.toBe(BOOKER_MEMBER_ID)
+  })
+
+  it('confirms with joins=true and the booker mirrored when the toggle stays off', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    const [booker, participants] = onConfirm.mock.calls[0]!
+    expect(booker.joins).toBe(true)
+    expect(participants[0].id).toBe(BOOKER_MEMBER_ID)
+  })
+
+  it('unticking restores the mirrored participant 1 and keeps typed rows as 2..N', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    const toggle = screen.getByRole('checkbox', { name: TOGGLE })
+    fireEvent.click(toggle)
+    fillP1()
+    fireEvent.click(toggle)
+
+    expect(screen.getByTestId('booker-participant-helper')).toHaveTextContent(
+      "You'll be listed as participant 1",
+    )
+    expect(screen.queryByTestId('participant-row-1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('participant-row-2')).toHaveTextContent('Participant 2')
+    expect(byName('participant_2_first_name').value).toBe('Max')
+
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    const [booker, participants] = onConfirm.mock.calls[0]!
+    expect(booker.joins).toBe(true)
+    expect(participants.map((p: { first_name: string }) => p.first_name)).toEqual(['Ada', 'Max'])
+  })
+
+  it('a tick-untick round trip leaves no blank required row behind', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    const toggle = screen.getByRole('checkbox', { name: TOGGLE })
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+    expect(screen.queryByTestId('participant-row-2')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![1]).toHaveLength(1)
+  })
+
+  it('the product cap counts the roster, not 1 + additional', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 2 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    // Booker joins: one more person fits.
+    fireEvent.click(screen.getByTestId('add-participant'))
+    expect(screen.getByTestId('participants-max-notice')).toBeInTheDocument()
+    // Booker steps out: their seat frees up — the roster may hold two.
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    expect(screen.getByTestId('participant-row-1')).toBeInTheDocument()
+    expect(screen.getByTestId('add-participant')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('add-participant'))
+    expect(screen.getByTestId('participant-row-2')).toBeInTheDocument()
+    expect(screen.getByTestId('participants-max-notice')).toBeInTheDocument()
+  })
+
+  it('a max_party_size=1 product still shows Participant 1 when the booker steps out', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 1 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('participant-row-1')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    expect(screen.getByTestId('participant-row-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('add-participant')).not.toBeInTheDocument()
+  })
+
+  it('the live sidebar gets the roster, never the non-joining booker', () => {
+    const onLive = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+        onLiveParticipantsChange={onLive}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    expect(onLive).toHaveBeenLastCalledWith(1, [], 0)
+    fireEvent.change(byName('participant_1_first_name'), { target: { value: 'Max' } })
+    expect(onLive).toHaveBeenLastCalledWith(1, ['Max'], 0)
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Adele' } })
+    expect(onLive).toHaveBeenLastCalledWith(1, ['Max'], 0)
+  })
+
+  it('restores a non-joining booker with their roster on Back', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        initialBooker={{
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          email: 'ada@example.com',
+          phone: '+34 600 000 000',
+          billing: emptyBilling(),
+          joins: false,
+        }}
+        initialParticipants={[
+          {
+            id: 'pm-max',
+            first_name: 'Max',
+            last_name: 'Lovelace',
+            email: '',
+            phone: '+34 600 111 222',
+            service_role_code: 'participant',
+          },
+        ]}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('checkbox', { name: TOGGLE })).toBeChecked()
+    expect(byName('participant_1_first_name').value).toBe('Max')
+    expect(screen.queryByTestId('participant-row-2')).not.toBeInTheDocument()
+  })
+
+  it('hides the toggle in the invite-join flow', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        inviteMode
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('checkbox', { name: TOGGLE })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('booker-not-joining-toggle')).not.toBeInTheDocument()
+  })
+
+  it('shows the toggle in staff mode', () => {
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't.o.k', powers: [], operatorId: 'op-1' }}
+      >
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      </StaffModeProvider>,
+    )
+    expect(screen.getByRole('checkbox', { name: TOGGLE })).toBeInTheDocument()
+  })
+
+  // Review follow-up: unticking never deletes a filled row. Over the cap,
+  // the max notice shows and Continue stays blocked until the customer
+  // removes someone themselves.
+  it('unticking over the product cap keeps every typed row and blocks Continue', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 2 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    const toggle = screen.getByRole('checkbox', { name: TOGGLE })
+    fireEvent.click(toggle)
+    fillP1()
+    fireEvent.click(screen.getByTestId('add-participant'))
+    fireEvent.change(byName('participant_2_first_name'), { target: { value: 'Grace' } })
+    fireEvent.change(byName('participant_2_last_name'), { target: { value: 'Hopper' } })
+    fireEvent.change(byName('participant_2_phone'), { target: { value: '+34 600 333 444' } })
+
+    fireEvent.click(toggle)
+    // Booker is participant 1 again; both typed rows survive as 2 and 3.
+    expect(byName('participant_2_first_name').value).toBe('Max')
+    expect(byName('participant_3_first_name').value).toBe('Grace')
+    expect(screen.getByTestId('participants-max-notice')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(screen.getByTestId('details-step-gate')).toHaveTextContent(
+      'remove someone to continue',
+    )
+
+    fireEvent.click(screen.getByTestId('remove-participant-3'))
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(
+      onConfirm.mock.calls[0]![1].map((p: { first_name: string }) => p.first_name),
+    ).toEqual(['Ada', 'Max'])
+  })
+
+  it('the max notice counts the roster when the booker does not take part (max_party_size=1)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 1 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    const notice = screen.getByTestId('participants-max-notice')
+    expect(notice).toHaveTextContent('Maximum of 1 participant reached')
+    expect(notice).not.toHaveTextContent(/0 additional/)
+  })
+})
+
+// landr-jiagg.2 (+ landr-jiagg.5 block rule): the "Invoice to:" cue.
+describe('DetailsStep — "Invoice to:" cue (landr-jiagg.2)', () => {
+  it('appears once the booker has a name and updates live', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('invoice-to-region')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.queryByTestId('invoice-to')).not.toBeInTheDocument()
+    fireEvent.change(byName('booker_last_name'), { target: { value: 'Klein' } })
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Invoice to:')
+    expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Klein')
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Olaf' } })
+    expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Olaf Klein')
+    expect(screen.queryByTestId('invoice-to-line-1')).not.toBeInTheDocument()
+  })
+
+  it('reads company, then the booker as contact person, when invoicing a company', () => {
+    render(
+      <DetailsStep
+        product={makeProduct()}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Olaf' } })
+    fireEvent.change(byName('booker_last_name'), { target: { value: 'Klein' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
+    // Toggle on but company still blank → the person alone.
+    expect(screen.queryByTestId('invoice-to-line-1')).not.toBeInTheDocument()
+    fireEvent.change(byName('booker_billing_company'), {
+      target: { value: 'monkeytower internet agency' },
+    })
+    expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent(
+      'monkeytower internet agency',
+    )
+    expect(screen.getByTestId('invoice-to-line-1')).toHaveTextContent('Olaf Klein')
+    // Toggle off clears the company → back to one line.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
+    expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Olaf Klein')
+    expect(screen.queryByTestId('invoice-to-line-1')).not.toBeInTheDocument()
+  })
+
+  it('is shown in staff mode too', () => {
+    render(
+      <StaffModeProvider
+        value={{ active: true, token: 't.o.k', powers: [], operatorId: 'op-1' }}
+      >
+        <DetailsStep
+          product={makeProduct()}
+          selection={DAYS_SELECTION}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      </StaffModeProvider>,
+    )
+    fireEvent.change(byName('booker_first_name'), { target: { value: 'Olaf' } })
+    expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Olaf')
   })
 })

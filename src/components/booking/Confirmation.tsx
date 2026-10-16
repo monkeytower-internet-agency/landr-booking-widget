@@ -56,6 +56,13 @@ interface Props {
    * appStepMachine.ts's 'confirmed' step doc.
    */
   isSharedDouble?: boolean
+  /**
+   * landr-h0opd.3: the booked product's `share_reference_enabled` flag.
+   * The "share this reference to be grouped with you" hint shows only when
+   * true; the reference itself and its copy button always show. Absent (an
+   * older API, or a caller that does not know the product) → false.
+   */
+  shareReferenceEnabled?: boolean
 }
 
 /**
@@ -540,6 +547,48 @@ const POST_BOOKING_PROSE_CLASSES =
   'text-sm text-foreground [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-2 [&_p]:leading-relaxed last:[&_p]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-primary [&_a]:underline'
 
 /**
+ * "Party" block (landr-jsu3n.1) — the same three groups, in the same order
+ * and wording, as the confirmation email: included participants, companions
+ * joining with their own guiding booking, and guests.
+ */
+function PartyBlock({
+  locale,
+  included,
+  separateGuiding,
+  guests,
+}: {
+  locale?: string
+  included: BookingSummary['participants']
+  separateGuiding: BookingSummary['participants']
+  guests: BookingSummary['participants']
+}) {
+  const groups = [
+    { key: 'included', heading: tr('partyIncludedHeading', locale), people: included },
+    {
+      key: 'separate-guiding',
+      heading: tr('partySeparateGuidingHeading', locale),
+      people: separateGuiding,
+    },
+    { key: 'guests', heading: tr('partyGuestsHeading', locale), people: guests },
+  ].filter((g) => g.people.length > 0)
+  return (
+    <div data-testid="confirmation-party" className="space-y-2 pt-1">
+      <h4 className="text-sm font-semibold">{tr('partyHeading', locale)}</h4>
+      {groups.map((g) => (
+        <div key={g.key} data-testid={`confirmation-party-${g.key}`}>
+          <p className="text-xs font-semibold text-muted-foreground">{g.heading}</p>
+          <ul className="list-disc pl-5">
+            {g.people.map((p, i) => (
+              <li key={`${p.name}-${i}`}>{p.name}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
  * "Your booking" card (landr-nva1a.4, step 3) — what was booked, sourced
  * from `response.summary` (the same builder that feeds the confirmation
  * email, so this never drifts from what the customer's inbox says).
@@ -547,6 +596,20 @@ const POST_BOOKING_PROSE_CLASSES =
 function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
   const hasParticipantNames = summary.participants.length > 0
+  // landr-jsu3n.1: same three groups as the confirmation email — included
+  // participants, separate-guiding companions, guests (any other companion).
+  const partyIncluded = summary.participants.filter(
+    (p) => p.is_guiding !== false,
+  )
+  const partyCompanions = summary.participants.filter(
+    (p) => p.is_guiding === false,
+  )
+  const partySeparateGuiding = partyCompanions.filter(
+    (p) => p.companion_kind === 'separate_guiding',
+  )
+  const partyGuests = partyCompanions.filter(
+    (p) => p.companion_kind !== 'separate_guiding',
+  )
   // landr-78i5e.8 review fix (MAJOR): `periods` is optional/best-effort —
   // an older API deploy, or any periods_for_booking lookup failure,
   // yields it absent/[]. The widget and API promote independently
@@ -610,12 +673,17 @@ function BookingDetailsCard({ summary }: { summary: BookingSummary }) {
             📅 {summary.dates.label}
           </p>
         ) : null}
-        <p data-testid="confirmation-participants">
-          {participantCountLabel(summary.participant_count, locale)}
-          {hasParticipantNames
-            ? ` — ${summary.participants.map((p) => p.name).join(', ')}`
-            : ''}
-        </p>
+        <div data-testid="confirmation-participants" className="space-y-1">
+          <p>{participantCountLabel(summary.participant_count, locale)}</p>
+          {hasParticipantNames ? (
+            <PartyBlock
+              locale={locale}
+              included={partyIncluded}
+              separateGuiding={partySeparateGuiding}
+              guests={partyGuests}
+            />
+          ) : null}
+        </div>
         {summary.pickup_location ? (
           <p data-testid="confirmation-pickup">
             {tr('pickupPrefix', locale)} {summary.pickup_location}
@@ -891,7 +959,12 @@ function PostBookingSection({
   )
 }
 
-export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
+export function Confirmation({
+  response,
+  onRestart,
+  isSharedDouble,
+  shareReferenceEnabled = false,
+}: Props) {
   const locale = browserLocale()
   /**
    * landr-acew: build Google Calendar and Outlook deep-link URLs from
@@ -1010,9 +1083,17 @@ export function Confirmation({ response, onRestart, isSharedDouble }: Props) {
             testId="confirmation-reference-copy"
           />
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {tr('shareReferenceHint', locale)}
-        </p>
+        {/* landr-h0opd.3: only for products where the operator switched
+            reference sharing on — elsewhere grouping by reference is not
+            offered, so the hint would only invite a confused customer. */}
+        {shareReferenceEnabled ? (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            data-testid="confirmation-share-reference-hint"
+          >
+            {tr('shareReferenceHint', locale)}
+          </p>
+        ) : null}
         {/*
           landr-821d6.7: the operator's own customer-facing wording for the
           booking's current stage (falls back to the staff label when the

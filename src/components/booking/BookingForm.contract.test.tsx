@@ -25,6 +25,14 @@ import type {
   ParticipantDetails,
 } from './detailsTypes'
 
+// landr-rmcsu.7: the review's seat pre-check (any group > 1) reads
+// availability before submit; stub that read so `fetch` only ever sees the
+// submit POST these tests assert on.
+vi.mock('@/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/client')>()
+  return { ...actual, getAvailability: vi.fn().mockResolvedValue([]) }
+})
+
 vi.stubEnv('VITE_USE_MOCKS', '0')
 vi.stubEnv('VITE_API_BASE_URL', 'http://api.test.invalid')
 
@@ -64,6 +72,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [
   // landr-mg0a: empty service_role_code intentionally exercises the
@@ -97,6 +106,7 @@ const EXPECTED_TOP_LEVEL = [
   'customer_last_name',
   'customer_phone',
   'customer_preferred_locale',
+  'customer_billing',
 ] as const
 
 const REQUIRED_PRODUCT_LINE = ['product_id', 'quantity'] as const
@@ -164,6 +174,20 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(body.customer_phone).toBe('+34 600 111 222')
     expect(typeof body.customer_preferred_locale).toBe('string')
     expect(body.booking_channel).toBe('public_website')
+
+    // landr-uuntm.3: billing address — trimmed, blank optionals -> null,
+    // country upper-cased (BillingAddressIn, landr-uuntm.1).
+    expect(body.customer_billing).toEqual({
+      address_line1: 'Calle Mayor 1',
+      address_line2: null,
+      postal_code: '28013',
+      city: 'Madrid',
+      region: null,
+      country: 'ES',
+      company: null,
+      tax_id: null,
+      name: null,
+    })
 
     // cancellation_deadline is an ISO datetime string, computed as
     // 00:00 UTC of (firstDay − 1 day) = 2026-06-09T00:00:00.000Z
@@ -1085,5 +1109,286 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
     expect(response.share_secret).toBe('secret-abc')
     expect(response.group.members[0].reference).toBe('A1B2C3D4')
     expect(response.invites[0].invite_url).toContain('tok-2')
+  })
+})
+
+describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  afterEach(() => fetchSpy.mockRestore())
+
+  async function submit(booker: typeof BOOKER) {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={booker}
+        participants={PARTICIPANTS}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        addons={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    return JSON.parse(String(init.body)) as Record<string, unknown>
+  }
+
+  it('sends company and tax id when the customer invoices a company', async () => {
+    const body = await submit({
+      ...BOOKER,
+      billing: {
+        address_line1: 'Hauptstr. 5',
+        address_line2: 'Hinterhaus',
+        postal_code: '10115',
+        city: 'Berlin',
+        region: 'BE',
+        country: 'DE',
+        company: 'Para42 GmbH',
+        tax_id: 'DE123456789',
+        name: ' Grace Hopper ',
+      },
+    })
+    expect(body.customer_billing).toEqual({
+      address_line1: 'Hauptstr. 5',
+      address_line2: 'Hinterhaus',
+      postal_code: '10115',
+      city: 'Berlin',
+      region: 'BE',
+      country: 'DE',
+      company: 'Para42 GmbH',
+      tax_id: 'DE123456789',
+      name: 'Grace Hopper',
+    })
+  })
+
+  it('omits customer_billing entirely when no complete address exists (staff-entered booking)', async () => {
+    const body = await submit({
+      ...BOOKER,
+      billing: {
+        address_line1: '',
+        address_line2: '',
+        postal_code: '',
+        city: '',
+        region: '',
+        country: '',
+        company: '',
+        tax_id: '',
+        name: '',
+      },
+    })
+    expect(body).not.toHaveProperty('customer_billing')
+  })
+})
+
+// landr-jiagg.2: PINNED wire contract for "I'm booking for someone else and
+// won't take part". The booker stays the customer_* (invoice recipient);
+// participants[] carries NO booker row when joins=false and DOES carry it
+// when joins=true; is_shared_double is never sent when joins=false.
+describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ booking_id: 'b-1', semantic_state: 'pending' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  afterEach(() => fetchSpy.mockRestore())
+
+  const CHILD: ParticipantDetails = {
+    id: 'pm-child',
+    first_name: 'Max',
+    last_name: 'Lovelace',
+    email: '',
+    phone: '',
+    service_role_code: 'participant',
+  }
+  const FRIEND: ParticipantDetails = {
+    id: 'pm-friend',
+    first_name: 'Grace',
+    last_name: 'Hopper',
+    email: '',
+    phone: '+34 600 999 888',
+    service_role_code: 'participant',
+  }
+
+  async function submit(
+    booker: BookerDetails,
+    participants: ParticipantDetails[],
+    extra: { isSharedDouble?: boolean; pickupLocationId?: string | null } = {},
+  ) {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={booker}
+        participants={participants}
+        pickupLocationId={extra.pickupLocationId ?? null}
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble={extra.isSharedDouble}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    return JSON.parse(String(init.body)) as Record<string, unknown>
+  }
+
+  it('joins=false: participants[] is the roster only; the booker stays the customer', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD, FRIEND])
+    expect(body.customer_first_name).toBe('Ada')
+    expect(body.customer_email).toBe('ada@example.com')
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants.map((p) => p.first_name)).toEqual(['Max', 'Grace'])
+    expect(participants.some((p) => p.first_name === 'Ada')).toBe(false)
+  })
+
+  it('joins=false: Participant 1 blank email/phone are filled from the booker; rows 2..N untouched', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD, FRIEND])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants[0]).toMatchObject({
+      first_name: 'Max',
+      email: 'ada@example.com',
+      phone: '+34 600 111 222',
+    })
+    expect(participants[1]).toMatchObject({
+      first_name: 'Grace',
+      email: null,
+      phone: '+34 600 999 888',
+    })
+  })
+
+  it('joins=false: never sends is_shared_double, even if a stale draft says shared double', async () => {
+    const body = await submit({ ...BOOKER, joins: false }, [CHILD], {
+      isSharedDouble: true,
+      pickupLocationId: 'hotel-a',
+    })
+    expect(body).not.toHaveProperty('is_shared_double')
+  })
+
+  it('joins=true: participants[0] is the booker row and is_shared_double is sent', async () => {
+    const body = await submit({ ...BOOKER, joins: true }, [
+      { ...BOOKER, id: 'booker', service_role_code: 'participant' },
+      FRIEND,
+    ])
+    const participants = body.participants as Array<Record<string, unknown>>
+    expect(participants.map((p) => p.first_name)).toEqual(['Ada', 'Grace'])
+    expect(body.is_shared_double).toBe(false)
+  })
+
+  it('a legacy booker without the flag is treated as joining (key sent)', async () => {
+    const body = await submit(BOOKER, PARTICIPANTS)
+    expect(body.is_shared_double).toBe(false)
+    expect((body.participants as unknown[]).length).toBe(2)
+  })
+
+  it('maps a shared_double_requires_booker 422 to a readable message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: { error: 'shared_double_requires_booker', message: 'raw server text' },
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={BOOKER}
+        participants={PARTICIPANTS}
+        pickupLocationId="hotel-a"
+        isSharedDouble
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    const errBox = await screen.findByTestId('review-error')
+    expect(errBox.textContent).toMatch(/only pick it when you take part yourself/i)
+    expect(errBox.textContent).not.toMatch(/422/)
+  })
+
+  // Review follow-up (MAJOR): a reference confirmed while the booker still
+  // took part (accommodation → Back → tick the toggle) must never link the
+  // non-participating booker's booking into the host's group.
+  it('joins=false: a stale confirmed join_ref and shared double are both dropped from the body', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: false }}
+        participants={[CHILD]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('join_ref')
+    expect(body).not.toHaveProperty('is_shared_double')
+  })
+
+  it('joins=true: the confirmed join_ref still rides along', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: true }}
+        participants={[{ ...BOOKER, id: 'booker', service_role_code: 'participant' }]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.join_ref).toBe('A1B2C3D4')
+    expect(body.is_shared_double).toBe(true)
   })
 })

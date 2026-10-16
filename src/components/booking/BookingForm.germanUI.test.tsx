@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Product } from '@/api/types'
 import { configureCustomerLocale, overrideBookingLocale } from '@/lib/locale'
 import { BookingForm, type BookingSelection } from './BookingForm'
+import { DetailsStep } from './DetailsStep'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
 
 vi.stubEnv('VITE_USE_MOCKS', '0')
@@ -60,6 +61,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [{ ...BOOKER, service_role_code: 'participant' }]
 
@@ -147,5 +149,168 @@ describe('BookingForm — German UI (landr-5aih0.9)', () => {
     })
 
     expect(globalThis.fetch).toHaveBeenCalled()
+  })
+})
+
+describe('DetailsStep billing address — German UI (landr-uuntm.3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  function renderDetails() {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+  }
+
+  it('shows the billing group, toggle and tax id in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderDetails()
+
+    expect(screen.getByRole('group', { name: 'Rechnungsadresse' })).toBeInTheDocument()
+    expect(screen.getByText('Diese Angaben benötigen wir für Ihre Rechnung.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Straße und Hausnummer')).toBeInTheDocument()
+    expect(screen.getByLabelText('Adresszusatz (optional)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Postleitzahl')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ort')).toBeInTheDocument()
+    expect(screen.getByLabelText('Land')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Rechnung an ein Unternehmen?' }))
+    expect(screen.getByLabelText('Unternehmen')).toBeInTheDocument()
+    expect(screen.getByLabelText('Steuernummer (NIF / USt-IdNr.)')).toBeInTheDocument()
+    // English strings must not leak through.
+    expect(screen.queryByText('Billing address')).not.toBeInTheDocument()
+    expect(screen.queryByText('We need this for your invoice.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the English labels on an English browser', () => {
+    setBrowserLanguage('en-US')
+    configureCustomerLocale(['en', 'de'], 'en')
+    renderDetails()
+    expect(screen.getByRole('group', { name: 'Billing address' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Street and number')).toBeInTheDocument()
+  })
+})
+
+// landr-jiagg.2: "booking for someone else" — every new label in German.
+describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    configureCustomerLocale(null, null)
+  })
+
+  it('DetailsStep: toggle, helper, Participant 1 placeholder and "Rechnung an:" in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+      }),
+    )
+    expect(
+      screen.getByText('Tragen Sie unten die Personen ein, die teilnehmen.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Teilnehmer \(1 insgesamt\)/)).toBeInTheDocument()
+    expect(
+      document.querySelector<HTMLInputElement>('[name="participant_1_email"]')!.placeholder,
+    ).toBe('wie Ihre')
+
+    fireEvent.change(document.querySelector('[name="booker_first_name"]')!, {
+      target: { value: 'Olaf' },
+    })
+    fireEvent.change(document.querySelector('[name="booker_last_name"]')!, {
+      target: { value: 'Klein' },
+    })
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Rechnung an:')
+    expect(screen.getByTestId('invoice-to')).toHaveTextContent('Olaf Klein')
+    // English strings must not leak through.
+    expect(screen.queryByText("I'm booking for someone else and won't take part")).not.toBeInTheDocument()
+    expect(screen.queryByText('Invoice to:')).not.toBeInTheDocument()
+  })
+
+  it('BookingForm review: "Nimmt nicht teil · zahlt die Rechnung" in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: false }}
+        participants={[
+          {
+            id: 'pm-max',
+            first_name: 'Max',
+            last_name: 'Lovelace',
+            email: '',
+            phone: '+34 600 999 888',
+            service_role_code: 'participant',
+          },
+        ]}
+        companions={[]}
+        participantLanguages={{}}
+        pickupLocationId={null}
+        accommodationRooms={[]}
+        addons={[]}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('review-booker-not-joining')).toHaveTextContent(
+      'Nimmt nicht teil · zahlt die Rechnung',
+    )
+  })
+
+  it('DetailsStep: the roster max notice and over-cap gate line in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={{ ...makeServiceProduct(), max_party_size: 1 }}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const toggle = screen.getByRole('checkbox', {
+      name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+    })
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(
+      'Maximal 1 Teilnehmer erreicht',
+    )
+    fireEvent.change(document.querySelector('[name="participant_1_first_name"]')!, {
+      target: { value: 'Max' },
+    })
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('details-step-gate')).toHaveTextContent(
+      'entfernen Sie jemanden, um fortzufahren',
+    )
   })
 })

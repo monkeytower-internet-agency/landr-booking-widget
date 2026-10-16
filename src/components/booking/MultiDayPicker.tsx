@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDay, type Modifiers } from 'react-day-picker'
 import type { AvailabilitySlot, HotelOffering } from '@/api/types'
 import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
+import { CalendarDayHintContext } from '@/components/ui/calendarDayHints'
 import { Button } from '@/components/ui/button'
-import { isDayBookable, forceReasonsFor } from '@/components/booking/bookability'
+import { forceReasonsFor } from '@/components/booking/bookability'
 import {
   describeForceReasons,
   multiDayDiffSummary,
   multiDayResetDroppedNotice,
   multiDayResetToDatesLabel,
+  seatsLeftLabel,
   tr,
   type ForceReason,
 } from '@/lib/strings'
@@ -24,6 +26,8 @@ import {
 } from '@/components/booking/calendarStart'
 import { useContainerWide } from '@/components/booking/useContainerWide'
 import { HelpDisclosure } from '@/components/booking/HelpDisclosure'
+import { ShortDayLegend } from '@/components/booking/PartySize'
+import { seatFit } from '@/lib/seatHold'
 
 type Mode = 'individual' | 'range'
 
@@ -92,6 +96,15 @@ interface MultiDayPickerProps {
    * "Change dates"). Cleared on the first edit like a Reset notice.
    */
   initialDroppedCount?: number
+  /**
+   * landr-rmcsu.5: seats the group needs on every picked day. Days with some
+   * seats but fewer than this are "short": disabled for a customer, struck
+   * through in amber with an "n seats left" label + tooltip, and listed in a
+   * legend. Range fills and contiguity only walk days that fit. Staff with
+   * force_book can still pick a short day (it then counts as a capacity
+   * force). Absent / 1 → today's `available_seats > 0` rule.
+   */
+  seatsNeeded?: number
 }
 
 
@@ -143,6 +156,7 @@ export function MultiDayPicker({
   originalValue,
   originalValueLabel,
   initialDroppedCount,
+  seatsNeeded,
 }: MultiDayPickerProps) {
   const staff = useStaffMode()
   const locale = browserLocale()
@@ -157,16 +171,24 @@ export function MultiDayPicker({
   // means the existing staff force-book path (canForce →
   // disabled=undefined, see the Calendar below) transparently covers
   // lead-time overrides too — no separate override plumbing needed.
-  const availableSet = useMemo(() => {
-    return new Set(
-      availability
-        .filter(
-          (slot) =>
-            slot.available_seats > 0 && isDayBookable(slot, hotelOffering),
-        )
-        .map((slot) => slot.date),
-    )
-  }, [availability, hotelOffering])
+  // landr-rmcsu.5: "available" now means "fits the whole group" — a day
+  // with fewer free seats than seatsNeeded moves to `shortDays` instead.
+  const need = Math.max(1, seatsNeeded ?? 1)
+  const { fit: availableSet, short: shortSeats } = useMemo(
+    () => seatFit(availability, hotelOffering, need),
+    [availability, hotelOffering, need],
+  )
+  const shortDates = useMemo(
+    () => Array.from(shortSeats.keys()).sort().map(dateFromIso),
+    [shortSeats],
+  )
+  const dayHint = useCallback(
+    (date: Date) => {
+      const left = shortSeats.get(isoDate(date))
+      return left === undefined ? undefined : seatsLeftLabel(left, locale)
+    },
+    [shortSeats, locale],
+  )
 
   // landr-t869m.5: date → slot lookup so a force-booked day can name WHICH
   // gate(s) it bypassed (capacity and/or lead time), same fail-open-to-
@@ -244,15 +266,16 @@ export function MultiDayPicker({
     const present = new Set<ForceReason>()
     for (const iso of forcedDays) {
       const slot = slotsByDate.get(iso)
+      // landr-rmcsu.5: a day short for the group is a capacity force too.
       const reasons = slot
-        ? forceReasonsFor(slot.available_seats > 0, slot, hotelOffering)
+        ? forceReasonsFor(slot.available_seats >= need, slot, hotelOffering)
         : (['capacity'] as ForceReason[])
       reasons.forEach((r) => present.add(r))
     }
     return (['capacity', 'lead_time', 'accommodation_lead_time'] as ForceReason[]).filter(
       (r) => present.has(r),
     )
-  }, [forcedDays, slotsByDate, hotelOffering])
+  }, [forcedDays, slotsByDate, hotelOffering, need])
 
   const applyClick = useCallback(
     (day: Date, toggle: boolean) => {
@@ -266,7 +289,19 @@ export function MultiDayPicker({
       // day. Normal customers (canForce false) keep the original early-return,
       // so a sold-out day is never selectable for them.
       if (!availableSet.has(key)) {
-        if (!canForce) return
+        if (!canForce) {
+          // landr-rmcsu.7: a day that was selected and then stopped fitting
+          // (stepper raised, Back / Change dates, sold out meanwhile) must
+          // stay deselectable — a disabled-and-selected day with no way off
+          // would strand the customer behind the gate message.
+          if (valueSet.has(key)) {
+            const without = new Set(valueSet)
+            without.delete(key)
+            setAnchor(day)
+            onChange(sortedDates(without))
+          }
+          return
+        }
         if (
           !window.confirm(
             'Force-book this full / blocked day on behalf of the customer?',
@@ -494,39 +529,45 @@ export function MultiDayPicker({
           </Button>
         </div>
       )}
-      <Calendar
-        mode="multiple"
-        selected={value}
-        onSelect={handleSelect}
-        // landr-aoak.2: in staff mode every day stays selectable so the
-        // operator can force-book a sold-out / blocked day. Normal customers
-        // keep the original predicate (only available days are clickable).
-        disabled={
-          canForce ? undefined : (date) => !availableSet.has(isoDate(date))
-        }
-        month={month}
-        onMonthChange={setMonth}
-        numberOfMonths={wide ? 2 : 1}
-        // Two months already show every day once; outside-day duplicates of the
-        // neighbouring month would double-paint a selection.
-        showOutsideDays={!wide}
-        endMonth={horizonMonth}
-        // landr-711: do NOT pass range_start / range_middle / range_end
-        // modifiers. CalendarDayButton paints range_middle with bg-accent
-        // (light gray) instead of bg-primary, so mid-run selected days
-        // looked unselected. Every day in `value` should fall through to
-        // data-selected-single=true and render in the same primary color,
-        // regardless of contiguity. The picker is multi-select; a
-        // "continuous range" visual is meaningless here — the user picks
-        // discrete days, even when they happen to be adjacent.
-        //
-        // landr-otml0.3 — diffAdded/diffRemoved are undefined (falsy) for
-        // every non-invite booking, so this is a no-op split there.
-        modifiers={{
-          diffAdded: diffAddedDates,
-          diffRemoved: diffRemovedDates,
-        }}
-      />
+      {/* landr-rmcsu.5: "n seats left" label + tooltip on short days. */}
+      <CalendarDayHintContext.Provider value={dayHint}>
+        <Calendar
+          mode="multiple"
+          selected={value}
+          onSelect={handleSelect}
+          // landr-aoak.2: in staff mode every day stays selectable so the
+          // operator can force-book a sold-out / blocked day. Normal customers
+          // keep the original predicate (only available days are clickable).
+          disabled={
+            canForce
+              ? undefined
+              : (date) => !availableSet.has(isoDate(date)) && !valueSet.has(isoDate(date))
+          }
+          month={month}
+          onMonthChange={setMonth}
+          numberOfMonths={wide ? 2 : 1}
+          // Two months already show every day once; outside-day duplicates of the
+          // neighbouring month would double-paint a selection.
+          showOutsideDays={!wide}
+          endMonth={horizonMonth}
+          // landr-711: do NOT pass range_start / range_middle / range_end
+          // modifiers. CalendarDayButton paints range_middle with bg-accent
+          // (light gray) instead of bg-primary, so mid-run selected days
+          // looked unselected. Every day in `value` should fall through to
+          // data-selected-single=true and render in the same primary color,
+          // regardless of contiguity. The picker is multi-select; a
+          // "continuous range" visual is meaningless here — the user picks
+          // discrete days, even when they happen to be adjacent.
+          //
+          // landr-otml0.3 — diffAdded/diffRemoved are undefined (falsy) for
+          // every non-invite booking, so this is a no-op split there.
+          modifiers={{
+            diffAdded: diffAddedDates,
+            diffRemoved: diffRemovedDates,
+            short: shortDates,
+          }}
+        />
+      </CalendarDayHintContext.Provider>
       {showPeek ? (
         <div
           role="group"
@@ -546,7 +587,7 @@ export function MultiDayPicker({
           <div className="grid grid-cols-7">
             {peekDays.map((date) => {
               const iso = isoDate(date)
-              const disabled = !canForce && !availableSet.has(iso)
+              const disabled = !canForce && !availableSet.has(iso) && !valueSet.has(iso)
               return (
                 <div key={iso} className="flex flex-col items-center">
                   <span
@@ -563,15 +604,22 @@ export function MultiDayPicker({
                         disabled,
                         diffAdded: diffAddedSet.has(iso),
                         diffRemoved: diffRemovedSet.has(iso),
+                        short: shortSeats.has(iso),
                       } as Modifiers
                     }
                     disabled={disabled}
-                    aria-label={date.toLocaleDateString(locale, {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
+                    aria-label={[
+                      date.toLocaleDateString(locale, {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      }),
+                      dayHint(date),
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                    title={dayHint(date)}
                     className={disabled ? 'text-muted-foreground opacity-50' : undefined}
                     onClick={(event) => handlePeekClick(date, event)}
                   >
@@ -583,6 +631,7 @@ export function MultiDayPicker({
           </div>
         </div>
       ) : null}
+      {shortSeats.size > 0 ? <ShortDayLegend /> : null}
       {nothingBefore ? (
         <p
           className="text-xs text-muted-foreground"
