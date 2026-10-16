@@ -375,6 +375,11 @@ type Bundle = {
 
   // ---- Confirmation ----
   yourBookingTitle: string
+  // landr-jsu3n.1: confirmation "Party" block — same groups as the email.
+  partyHeading: string
+  partyIncludedHeading: string
+  partySeparateGuidingHeading: string
+  partyGuestsHeading: string
   priceBreakdownTitle: string
   atHotelPayAtCheckin: string
   referenceLabel: string
@@ -1071,6 +1076,10 @@ const en: Bundle = {
   confirmBookingLabel: 'Confirm booking',
 
   yourBookingTitle: 'Your booking',
+  partyHeading: 'Party',
+  partyIncludedHeading: 'Participants (included in this booking)',
+  partySeparateGuidingHeading: 'Joining the activity — separate guiding booking',
+  partyGuestsHeading: 'Not doing the activity (guests)',
   priceBreakdownTitle: 'Price breakdown',
   atHotelPayAtCheckin: 'At hotel · pay at check-in',
   referenceLabel: 'Reference',
@@ -1741,6 +1750,10 @@ const de: Bundle = {
   confirmBookingLabel: 'Buchung bestätigen',
 
   yourBookingTitle: 'Ihre Buchung',
+  partyHeading: 'Reisegruppe',
+  partyIncludedHeading: 'Teilnehmer (in dieser Buchung enthalten)',
+  partySeparateGuidingHeading: 'Nimmt an der Aktivität teil — eigene separate Buchung',
+  partyGuestsHeading: 'Nimmt nicht an der Aktivität teil (Begleitung)',
   priceBreakdownTitle: 'Preisaufschlüsselung',
   atHotelPayAtCheckin: 'Im Hotel · Zahlung beim Check-in',
   referenceLabel: 'Referenz',
