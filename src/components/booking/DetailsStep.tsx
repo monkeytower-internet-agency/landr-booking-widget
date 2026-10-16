@@ -1491,11 +1491,10 @@ export function DetailsStep({
                     onChange={(e) => updateBillingField('company', e.target.value)}
                   />
                 </Field>
-                <Field label={tr('billingTaxIdLabel', locale)} htmlFor="booker-billing-tax-id">
+                <Field label={tr('billingTaxIdLabel', locale)} htmlFor="booker-billing-vat-id">
                   <Input
-                    id="booker-billing-tax-id"
-                    name="booker_billing_tax_id"
-                    autoComplete="off"
+                    id="booker-billing-vat-id"
+                    name="vat_id"
                     value={booker.billing.tax_id}
                     onChange={(e) => updateBillingField('tax_id', e.target.value)}
                   />
