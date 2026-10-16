@@ -10617,6 +10617,39 @@
             "title": "Host Reference",
             "type": "string"
           },
+          "host_room_capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Room Capacity"
+          },
+          "host_room_free_beds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Room Free Beds"
+          },
+          "host_room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Room Name"
+          },
           "hotel_location_id": {
             "anyOf": [
               {
