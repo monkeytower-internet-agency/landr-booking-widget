@@ -5207,6 +5207,11 @@
             ],
             "title": "Offer Accepted At"
           },
+          "offer_changed_since_sent": {
+            "default": false,
+            "title": "Offer Changed Since Sent",
+            "type": "boolean"
+          },
           "offer_confirmation_held": {
             "default": false,
             "title": "Offer Confirmation Held",
@@ -5242,6 +5247,11 @@
           "offer_hotel_pending": {
             "default": false,
             "title": "Offer Hotel Pending",
+            "type": "boolean"
+          },
+          "offer_outdated": {
+            "default": false,
+            "title": "Offer Outdated",
             "type": "boolean"
           },
           "offer_sends": {
@@ -5306,6 +5316,16 @@
             "title": "Positions Total",
             "type": "string"
           },
+          "previous_offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferSnapshotOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "prices_include_tax": {
             "default": true,
             "title": "Prices Include Tax",
@@ -5337,6 +5357,16 @@
             "default": true,
             "title": "Show Savings",
             "type": "boolean"
+          },
+          "suggested_offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferSuggestionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "target_total": {
             "anyOf": [
@@ -13758,6 +13788,111 @@
           "sent_at"
         ],
         "title": "OfferSendOut",
+        "type": "object"
+      },
+      "OfferSnapshotOut": {
+        "description": "landr-wbzjp.4: an earlier offer, kept for the old-vs-new comparison.\n\n``kind`` = ``sent`` (the offer as the customer last received it) or\n``applied`` (the saved offer, never sent in this shape). Totals use the\noffer's own settings: ``positions_total`` is the positions' offer sum,\n``offer_total`` the final gross the customer pays the operator (after\ngroup discount + tax, no pay-at-hotel lines).",
+        "properties": {
+          "free_spot_count": {
+            "default": 0,
+            "title": "Free Spot Count",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "sent",
+              "applied"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer_discount": {
+            "$ref": "#/components/schemas/OfferDiscountOut"
+          },
+          "offer_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Offer Total",
+            "type": "string"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/OfferPositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "positions_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          }
+        },
+        "required": [
+          "kind",
+          "positions",
+          "original_total",
+          "positions_total",
+          "offer_total",
+          "offer_discount"
+        ],
+        "title": "OfferSnapshotOut",
+        "type": "object"
+      },
+      "OfferSuggestionOut": {
+        "description": "landr-wbzjp.4: the suggested new offer once the booking changed -- the\nfresh positions at the previous offer's discount %. Its positions ARE the\nresponse's ``positions``. ``mode`` = ``target`` (the old offer was a typed\ntotal: type ``offer_total`` as the new target) or ``prices`` (per-position\nprices: the positions' ``unit_price`` carry the suggestion).",
+        "properties": {
+          "mode": {
+            "enum": [
+              "target",
+              "prices"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "offer_discount": {
+            "$ref": "#/components/schemas/OfferDiscountOut"
+          },
+          "offer_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Offer Total",
+            "type": "string"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "positions_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "original_total",
+          "positions_total",
+          "offer_total",
+          "offer_discount"
+        ],
+        "title": "OfferSuggestionOut",
         "type": "object"
       },
       "OfferTax": {
@@ -35313,7 +35448,7 @@
     },
     "/api/public/bookings/{token}/accept-offer": {
       "post": {
-        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,\nlandr-xcyh1.2).\n\nRecords ``offer_accepted_at`` (once), then -- landr-kstic -- runs the\ngeneral approval while the booking waits at the general gate\n(``custom_offer_flow.advance_from_general_gate``) with the operator who\nSENT the offer as the approver: the hotel is asked only now (or, with no\nhotel step, the booking reaches ``awaiting_payment`` and the\nconfirmation + payment link go out; the stamp comes first, so the\nconfirmation gate does not hold it). A booking already at\n``awaiting_payment`` with its confirmation held (the hotel confirmed\nbefore this yes) gets it released\n(``custom_offer_flow.release_held_confirmation``).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_changed_since_sent`` (edited after the send: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
+        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,\nlandr-xcyh1.2).\n\nRecords ``offer_accepted_at`` (once), then -- landr-kstic -- runs the\ngeneral approval while the booking waits at the general gate\n(``custom_offer_flow.advance_from_general_gate``) with the operator who\nSENT the offer as the approver: the hotel is asked only now (or, with no\nhotel step, the booking reaches ``awaiting_payment`` and the\nconfirmation + payment link go out; the stamp comes first, so the\nconfirmation gate does not hold it). A booking already at\n``awaiting_payment`` with its confirmation held (the hotel confirmed\nbefore this yes) gets it released\n(``custom_offer_flow.release_held_confirmation``).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_changed_since_sent`` (edited after the send, or the\nbooking's days / products changed under it -- landr-wbzjp.4: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
         "operationId": "accept_offer_public",
         "parameters": [
           {

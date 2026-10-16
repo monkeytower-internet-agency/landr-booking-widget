@@ -2478,7 +2478,8 @@ export interface paths {
          *
          *     Errors: 401 bad/expired token; 404 ``booking_not_found``; 409
          *     ``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never
-         *     sent), ``offer_changed_since_sent`` (edited after the send: the link is
+         *     sent), ``offer_changed_since_sent`` (edited after the send, or the
+         *     booking's days / products changed under it -- landr-wbzjp.4: the link is
          *     stale until the offer is re-sent), ``booking_closed`` (deleted /
          *     cancelled / finalised).
          */
@@ -12817,6 +12818,11 @@ export interface components {
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
             /**
+             * Offer Changed Since Sent
+             * @default false
+             */
+            offer_changed_since_sent: boolean;
+            /**
              * Offer Confirmation Held
              * @default false
              */
@@ -12834,6 +12840,11 @@ export interface components {
              * @default false
              */
             offer_hotel_pending: boolean;
+            /**
+             * Offer Outdated
+             * @default false
+             */
+            offer_outdated: boolean;
             /** Offer Sends */
             offer_sends?: components["schemas"]["OfferSendOut"][];
             /** Offer Sent At */
@@ -12858,6 +12869,7 @@ export interface components {
              * @default 0
              */
             positions_total: string;
+            previous_offer?: components["schemas"]["OfferSnapshotOut"] | null;
             /**
              * Prices Include Tax
              * @default true
@@ -12880,6 +12892,7 @@ export interface components {
              * @default true
              */
             show_savings: boolean;
+            suggested_offer?: components["schemas"]["OfferSuggestionOut"] | null;
             /** Target Total */
             target_total?: string | null;
             /** Tax Key */
@@ -15894,6 +15907,61 @@ export interface components {
              * Format: date-time
              */
             sent_at: string;
+        };
+        /**
+         * OfferSnapshotOut
+         * @description landr-wbzjp.4: an earlier offer, kept for the old-vs-new comparison.
+         *
+         *     ``kind`` = ``sent`` (the offer as the customer last received it) or
+         *     ``applied`` (the saved offer, never sent in this shape). Totals use the
+         *     offer's own settings: ``positions_total`` is the positions' offer sum,
+         *     ``offer_total`` the final gross the customer pays the operator (after
+         *     group discount + tax, no pay-at-hotel lines).
+         */
+        OfferSnapshotOut: {
+            /**
+             * Free Spot Count
+             * @default 0
+             */
+            free_spot_count: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "sent" | "applied";
+            offer_discount: components["schemas"]["OfferDiscountOut"];
+            /** Offer Total */
+            offer_total: string;
+            /** Original Total */
+            original_total: string;
+            /** Positions */
+            positions: components["schemas"]["OfferPositionOut"][];
+            /** Positions Total */
+            positions_total: string;
+            /** Sent At */
+            sent_at?: string | null;
+        };
+        /**
+         * OfferSuggestionOut
+         * @description landr-wbzjp.4: the suggested new offer once the booking changed -- the
+         *     fresh positions at the previous offer's discount %. Its positions ARE the
+         *     response's ``positions``. ``mode`` = ``target`` (the old offer was a typed
+         *     total: type ``offer_total`` as the new target) or ``prices`` (per-position
+         *     prices: the positions' ``unit_price`` carry the suggestion).
+         */
+        OfferSuggestionOut: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "target" | "prices";
+            offer_discount: components["schemas"]["OfferDiscountOut"];
+            /** Offer Total */
+            offer_total: string;
+            /** Original Total */
+            original_total: string;
+            /** Positions Total */
+            positions_total: string;
         };
         /**
          * OfferTax
