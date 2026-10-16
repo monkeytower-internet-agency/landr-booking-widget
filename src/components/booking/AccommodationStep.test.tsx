@@ -2767,6 +2767,104 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(isSharedDouble).toBe(true)
   })
 
+  it('blocks Continue when the inviter room is full and the companion has no room (landr-wp8e9.2)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        hostRoomFreeBeds={0}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('host-room-full')).toHaveTextContent(
+      "The room you're sharing is full",
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+    expect(screen.queryByText(/swap/i)).not.toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+    expect(screen.queryByTestId('host-room-full')).not.toBeInTheDocument()
+  })
+
+  it('lets the companion share the inviter room while it has a free bed (landr-wp8e9.2)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        hostRoomFreeBeds={1}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('host-room-full')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled()
+  })
+
+  it('blocks only the overflow: 2 companions, 1 free bed (landr-wp8e9.2)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('double-room', 'Double Room', 73, 2),
+    ])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        participantCount={1}
+        participantNames={['Thomas']}
+        companionNames={['Mia', 'Leo']}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        hostRoomFreeBeds={1}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('host-room-full')).toHaveTextContent(
+        'Only 1 more bed is free',
+      ),
+    )
+    await waitFor(() =>
+      expect(screen.getByText('Double Room')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /Continue/i })).toBeDisabled()
+    fireEvent.click(
+      screen.getByRole('button', { name: /Increase Double Room quantity/i }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Continue/i })).not.toBeDisabled(),
+    )
+  })
+
   it('a lone companion may take a double — partial rooms are allowed (landr-zeg4u.5)', async () => {
     mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
     mocks.getHotelRoomsForHotel.mockResolvedValue([

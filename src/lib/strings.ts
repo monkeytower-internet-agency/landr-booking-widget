@@ -236,6 +236,9 @@ type Bundle = {
   requestMoreButton: string
   needLargerGroupDialogDescription: string
   othersSharingYourRoom: string
+  // landr-wp8e9.2: invite mode + the inviter's room is full -> the legend
+  // can no longer promise the companions share a room.
+  peopleTravellingWithYou: string
   howAreTheyJoining: string
   companionKindGuestLabel: string
   companionKindSeparateGuidingLabel: string
@@ -931,6 +934,7 @@ const en: Bundle = {
   needLargerGroupDialogDescription:
     "Need a larger group or a custom booking? Send us the details and we'll be in touch.",
   othersSharingYourRoom: 'Others sharing your room',
+  peopleTravellingWithYou: 'People travelling with you',
   howAreTheyJoining: 'How are they joining?',
   companionKindGuestLabel: 'Not doing the activity (partner / child / friend)',
   companionKindSeparateGuidingLabel: 'Joining the activity — booking their own guiding separately',
@@ -1607,6 +1611,7 @@ const de: Bundle = {
   needLargerGroupDialogDescription:
     'Größere Gruppe oder individuelle Buchung gewünscht? Senden Sie uns die Details und wir melden uns bei Ihnen.',
   othersSharingYourRoom: 'Weitere Personen in Ihrem Zimmer',
+  peopleTravellingWithYou: 'Personen, die mit Ihnen reisen',
   howAreTheyJoining: 'Wie nehmen sie teil?',
   companionKindGuestLabel: 'Nimmt nicht an der Aktivität teil (Partner/in, Kind, Freund/in)',
   companionKindSeparateGuidingLabel: 'Nimmt an der Aktivität teil — bucht eigenes Guiding separat',
@@ -2814,6 +2819,35 @@ export function additionalAccommodationRequiredHint(names: string, count: number
   }
   const verb = count === 1 ? 'needs' : 'need'
   return `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${names} ${verb} a room here.`
+}
+
+/**
+ * landr-wp8e9.2: invite mode — the room the invitee shares with the inviter has
+ * fewer free beds than the invitee has unplaced companions. `freeBeds` is the
+ * inviter room's remaining capacity (0 = full). No swap wording by design.
+ */
+export function hostRoomFullMessage(freeBeds: number, unplaced: number, locale?: string): string {
+  const de = isGermanLocale(locale)
+  if (freeBeds <= 0) {
+    return de
+      ? unplaced === 1
+        ? 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie ein Zimmer für die Person, die mit Ihnen reist.'
+        : 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie Zimmer für die Personen, die mit Ihnen reisen.'
+      : unplaced === 1
+        ? "The room you're sharing is full — add a room for the person travelling with you."
+        : "The room you're sharing is full — add a room for the people travelling with you."
+  }
+  if (de) {
+    return `Im Zimmer, das Sie sich teilen, ${freeBeds === 1 ? 'ist nur noch 1 Bett' : `sind nur noch ${freeBeds} Betten`} frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.`
+  }
+  return `Only ${freeBeds} more ${freeBeds === 1 ? 'bed is' : 'beds are'} free in the room you're sharing — add a room for the rest of the people travelling with you.`
+}
+
+/** landr-wp8e9.2: replaces the "Optional — …" rooms hint when the host room cannot take the companions. */
+export function hostRoomFullRequiredHint(locale?: string): string {
+  return isGermanLocale(locale)
+    ? 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, für die anderen ist dort kein Platz mehr.'
+    : 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.'
 }
 
 /** AvailabilityPicker's "Times on {date}" subheading. */
