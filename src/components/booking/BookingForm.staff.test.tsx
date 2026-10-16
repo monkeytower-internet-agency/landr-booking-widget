@@ -97,6 +97,11 @@ function renderForm(
   )
 }
 
+// landr-v78ap: the fixed-price section is collapsed by default.
+function openFixedPrice() {
+  fireEvent.click(screen.getByTestId('override-toggle'))
+}
+
 const DAYS: BookingSelection = {
   kind: 'days',
   selectedDays: ['2026-02-01', '2026-02-02'],
@@ -161,6 +166,7 @@ describe('BookingForm — staff mode', () => {
   it('routes the staff submit to the STAFF endpoint with the operator id + override (string), NOT the public path', async () => {
     renderForm(DAYS, true)
     expect(screen.getByTestId('staff-price-override')).toBeInTheDocument()
+    openFixedPrice()
 
     fireEvent.change(screen.getByTestId('override-amount'), {
       target: { value: '199.95' },
@@ -216,6 +222,7 @@ describe('BookingForm — staff mode', () => {
         />
       </StaffModeProvider>,
     )
+    openFixedPrice()
     expect(screen.getByTestId('override-amount')).toHaveAttribute(
       'placeholder',
       '250.00 EUR',
@@ -227,12 +234,14 @@ describe('BookingForm — staff mode', () => {
 
   it('keeps the generic placeholder and no "Calculated" line without an estimate', () => {
     renderForm(DAYS, true)
+    openFixedPrice()
     expect(screen.getByTestId('override-amount')).toHaveAttribute('placeholder', 'e.g. 250.00')
     expect(screen.queryByTestId('override-calculated-total')).not.toBeInTheDocument()
   })
 
   it('drops the override when the operator clears the input — submit uses the calculated total', async () => {
     renderForm(DAYS, true)
+    openFixedPrice()
     fireEvent.change(screen.getByTestId('override-amount'), {
       target: { value: '199.95' },
     })
@@ -257,6 +266,7 @@ describe('BookingForm — staff mode', () => {
 
   it('blocks submit when an override amount is set without a reason', async () => {
     renderForm(DAYS, true)
+    openFixedPrice()
     fireEvent.change(screen.getByTestId('override-amount'), {
       target: { value: '50' },
     })
@@ -266,6 +276,104 @@ describe('BookingForm — staff mode', () => {
     expect(submitStaffBooking).not.toHaveBeenCalled()
     expect(submitBooking).not.toHaveBeenCalled()
     expect(screen.getByTestId('review-error')).toHaveTextContent(/reason/i)
+  })
+
+  // landr-v78ap: collapsible fixed price + "Book & build offer".
+  describe('fixed-price disclosure + Book & build offer (landr-v78ap)', () => {
+    it('is collapsed by default: toggle visible, inputs absent', () => {
+      renderForm(DAYS, true)
+      expect(screen.getByTestId('override-toggle')).toHaveTextContent('Set a fixed price instead')
+      expect(screen.queryByTestId('override-amount')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('override-reason')).not.toBeInTheDocument()
+    })
+
+    it('expands to the inputs and collapsing clears amount + reason', async () => {
+      renderForm(DAYS, true)
+      openFixedPrice()
+      expect(screen.getByText('Fixed price (operator)')).toBeInTheDocument()
+      fireEvent.change(screen.getByTestId('override-amount'), { target: { value: '80' } })
+      fireEvent.change(screen.getByTestId('override-reason'), { target: { value: 'friend' } })
+      fireEvent.click(screen.getByTestId('override-collapse'))
+      expect(screen.queryByTestId('override-amount')).not.toBeInTheDocument()
+      openFixedPrice()
+      expect(screen.getByTestId('override-amount')).toHaveValue(null)
+      expect(screen.getByTestId('override-reason')).toHaveValue('')
+      // and a submit after collapse carries no override
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      })
+      await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+      const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [string, StaffSubmitBody]
+      expect(body).not.toHaveProperty('override_gross_total')
+      expect(body).not.toHaveProperty('override_reason')
+    })
+
+    it('does NOT render "Book & build offer" for a customer', () => {
+      renderForm(DAYS, false)
+      expect(screen.queryByTestId('review-build-offer-btn')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('override-toggle')).not.toBeInTheDocument()
+    })
+
+    it('renders "Book & build offer" for staff, enabled with no amount', () => {
+      renderForm(DAYS, true)
+      const btn = screen.getByRole('button', { name: /Book & build offer/i })
+      expect(btn).toBeEnabled()
+      expect(screen.queryByTestId('review-build-offer-hint')).not.toBeInTheDocument()
+    })
+
+    it('disables "Book & build offer" with a hint while an amount is entered, re-enables when cleared', () => {
+      renderForm(DAYS, true)
+      openFixedPrice()
+      fireEvent.change(screen.getByTestId('override-amount'), { target: { value: '80' } })
+      expect(screen.getByTestId('review-build-offer-btn')).toBeDisabled()
+      expect(screen.getByTestId('review-build-offer-hint')).toHaveTextContent(
+        'Clear the fixed price to build an offer instead',
+      )
+      fireEvent.change(screen.getByTestId('override-amount'), { target: { value: '' } })
+      expect(screen.getByTestId('review-build-offer-btn')).toBeEnabled()
+    })
+
+    describe('parent postMessage', () => {
+      let postMessage: ReturnType<typeof vi.fn>
+      let parentSpy: ReturnType<typeof vi.spyOn>
+      beforeEach(() => {
+        postMessage = vi.fn()
+        parentSpy = vi
+          .spyOn(window, 'parent', 'get')
+          .mockReturnValue({ postMessage } as unknown as Window)
+      })
+      afterEach(() => parentSpy.mockRestore())
+
+      it('"Book & build offer" submits with no override and posts open_tab:"offer"', async () => {
+        const onConfirmed = vi.fn()
+        renderForm(DAYS, true, onConfirmed)
+        await act(async () => {
+          fireEvent.click(screen.getByTestId('review-build-offer-btn'))
+        })
+        await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+        const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [string, StaffSubmitBody]
+        expect(body).not.toHaveProperty('override_gross_total')
+        expect(body).not.toHaveProperty('override_reason')
+        await waitFor(() => expect(postMessage).toHaveBeenCalledTimes(1))
+        expect(postMessage.mock.calls[0]![0]).toEqual({
+          type: 'landr:booking-created',
+          booking_id: 'bk-staff-1',
+          open_tab: 'offer',
+        })
+        expect(onConfirmed).toHaveBeenCalled()
+      })
+
+      it('the primary submit posts NO open_tab key', async () => {
+        renderForm(DAYS, true)
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+        })
+        await waitFor(() => expect(postMessage).toHaveBeenCalledTimes(1))
+        const msg = postMessage.mock.calls[0]![0] as Record<string, unknown>
+        expect(msg).toEqual({ type: 'landr:booking-created', booking_id: 'bk-staff-1' })
+        expect(msg).not.toHaveProperty('open_tab')
+      })
+    })
   })
 
   // landr-xtkae.2: the staff submit spreads the public body, so a synthesised
