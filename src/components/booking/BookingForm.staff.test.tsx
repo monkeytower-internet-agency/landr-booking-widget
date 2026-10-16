@@ -64,6 +64,7 @@ const ADA_BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 000 000',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
 }
 
 const ADA_PARTICIPANT: ParticipantDetails = {
@@ -187,6 +188,15 @@ describe('BookingForm — staff mode', () => {
     expect(body.booking_channel).toBe('agent_dashboard')
     expect(body.override_gross_total).toBe('199.95')
     expect(body.override_reason).toBe('loyalty discount')
+    // landr-uuntm.3: the billing address rides the staff path too (the staff
+    // endpoint accepts customer_billing from landr-uuntm.2 on).
+    expect(body.customer_billing).toMatchObject({
+      address_line1: 'Calle Mayor 1',
+      postal_code: '28013',
+      city: 'Madrid',
+      country: 'ES',
+      company: null,
+    })
   })
 
   // landr-h0opd.3: the calculated total is the override input's placeholder.

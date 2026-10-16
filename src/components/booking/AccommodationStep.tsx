@@ -301,6 +301,14 @@ interface Props {
    */
   inviteMode?: boolean
   /**
+   * landr-jiagg.2 — false when the booker books for someone else and does not
+   * take part. The shared double covers the BOOKER'S own bed, so without the
+   * booker in the party there is nothing to share: the option is not offered
+   * (and a restored 'shared-double' falls back to 'package'). Default true.
+   * Never false together with inviteMode (the invite flow hides the toggle).
+   */
+  allowSharedDouble?: boolean
+  /**
    * landr-otml0.3 — fires whenever the confirmed shared-double reference
    * changes: the 8-char code once the customer picks "Yes, link us" on the
    * masked-lookup confirm, or `null` when they clear it / pick "No" / switch
@@ -367,6 +375,7 @@ export function AccommodationStep({
   initialAgeMap,
   initialBreakfastMap,
   inviteMode = false,
+  allowSharedDouble = true,
   onJoinRefChange,
 }: Props) {
   const locale = browserLocale()
@@ -392,6 +401,8 @@ export function AccommodationStep({
     // landr-zeg4u.4: an invitee is sharing the host's double by definition.
     if (inviteMode) return 'shared-double'
     if (initialMode) {
+      // landr-jiagg.2: no shared double without the booker in the party.
+      if (initialMode === 'shared-double' && !allowSharedDouble) return 'package'
       // Guard: a stale 'guiding-only' on a mandatory product is invalid.
       if (initialMode === 'guiding-only' && isMandatory) return 'package'
       return initialMode
@@ -457,6 +468,24 @@ export function AccommodationStep({
       window.clearTimeout(timer)
     }
   }, [refInput, operatorToken])
+
+  // landr-jiagg.2: a restored 'shared-double' that the initialiser above
+  // downgraded to 'package' (the booker no longer takes part) must also drop
+  // the reference confirmed on the earlier visit — App.tsx holds it as lifted
+  // state that otherwise only resets on a full restart. Mount-only; async
+  // IIFE per this file's convention (no synchronous state update in an effect).
+  useEffect(() => {
+    if (inviteMode || allowSharedDouble || initialMode !== 'shared-double') return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      onJoinRefChange?.(null)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const confirmJoinRef = () => {
     if (refLookup.status !== 'found') return
@@ -1016,6 +1045,8 @@ export function AccommodationStep({
   // modes. Also clears add-on selections so a customer switching hotels
   // doesn't carry over breakfasts from the previous hotel's room list.
   function changeHotel(nextId: string | null) {
+    // landr-jsu3n.3: an invitee's hotel is the inviter's — never changeable.
+    if (inviteMode && initialHotelLocationId) return
     setSelectedHotelId(nextId)
     setRooms(null)
     setRoomsError(null)
@@ -1678,7 +1709,8 @@ export function AccommodationStep({
               label: tr('bookAccommodationPackageLabel', locale),
               hint: tr('bookAccommodationPackageHint', locale),
             },
-            sharedDoubleOption,
+            // landr-jiagg.2: only when the booker takes part.
+            ...(allowSharedDouble ? [sharedDoubleOption] : []),
           ]),
     ]
 
@@ -1686,6 +1718,13 @@ export function AccommodationStep({
   // hotel exists. Auto-select banner when exactly one hotel; radio list
   // when multiple.
   const showHotelContext = needsHotel && hotels && hotels.length > 0
+  // landr-jsu3n.3: invite mode + the inviter's hotel known (and offered by
+  // this operator) → the hotel is fixed: read-only "Staying at <hotel>", no
+  // radio picker. Unknown / unlisted hotel falls back to the normal picker.
+  const inviteLockedHotel =
+    inviteMode && mode === 'shared-double' && initialHotelLocationId && hotels
+      ? (hotels.find((h) => h.location_id === initialHotelLocationId) ?? null)
+      : null
 
   return (
     <Card>
@@ -1800,15 +1839,19 @@ export function AccommodationStep({
         {/* Hotel picker — package + shared-double modes. Hidden when only
             one hotel exists (auto-selected via the effect above). */}
         {showHotelContext ? (
-          hotels.length === 1 ? (
-            <p className="text-sm text-muted-foreground">
+          hotels.length === 1 || inviteLockedHotel ? (
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="staying-at-hotel"
+            >
               {(() => {
                 const [before, after] = splitOnPlaceholder(tr('stayingAtTemplate', locale), 'hotel')
+                const shown = inviteLockedHotel ?? hotels[0]!
                 return (
                   <>
                     {before}
                     <span className="font-medium text-foreground">
-                      {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
+                      {pickLocalized(shown.name, shown.name_localized, locale)}
                     </span>
                     {after}
                   </>

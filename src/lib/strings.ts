@@ -212,9 +212,21 @@ type Bundle = {
   addParticipantButton: string
   addGuestButton: string
   enterYourNameEmailPhoneCue: string
+  enterYourNameEmailPhoneBillingCue: string
   fillInEveryRequiredField: string
   roleLabel: string
   includeYourCountryCode: string
+  billingAddressTitle: string
+  billingAddressHelper: string
+  billingStreetLabel: string
+  billingAddressLine2Label: string
+  billingPostalCodeLabel: string
+  billingCityLabel: string
+  billingCountryLabel: string
+  billingCountryPlaceholder: string
+  billingInvoiceToCompanyLabel: string
+  billingCompanyLabel: string
+  billingTaxIdLabel: string
   memberPerkOtpLabel: string
   maxAdditionalParticipantsTemplate: string
   needLargerGroupHint: string
@@ -336,6 +348,17 @@ type Bundle = {
   companionContactRequiredTemplate: string
   themFallback: string
   youWillBeListedAsParticipant1: string
+  // landr-jiagg.2: "booking for someone else" (booker pays, does not take part).
+  bookingForSomeoneElseLabel: string
+  addPeopleJoiningBelow: string
+  participantsTotalTemplate: string
+  sameAsYoursPlaceholder: string
+  invoiceToLabel: string
+  notTakingPartPaysInvoice: string
+  sharedDoubleRequiresBookerMessage: string
+  maxParticipantsReachedOne: string
+  maxParticipantsReachedTemplate: string
+  tooManyPeopleRemoveSomeone: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
   participantsYouPayForHint: string
@@ -871,9 +894,21 @@ const en: Bundle = {
   addParticipantButton: '+ Add participant',
   addGuestButton: '+ Add guest',
   enterYourNameEmailPhoneCue: 'enter your name, email and phone',
+  enterYourNameEmailPhoneBillingCue: 'enter your name, email, phone and billing address',
   fillInEveryRequiredField: 'Fill in every required field to continue.',
   roleLabel: 'Role',
   includeYourCountryCode: 'Include your country code',
+  billingAddressTitle: 'Billing address',
+  billingAddressHelper: 'We need this for your invoice.',
+  billingStreetLabel: 'Street and number',
+  billingAddressLine2Label: 'Address line 2 (optional)',
+  billingPostalCodeLabel: 'Postal code',
+  billingCityLabel: 'City',
+  billingCountryLabel: 'Country',
+  billingCountryPlaceholder: '— select a country —',
+  billingInvoiceToCompanyLabel: 'Invoice to a company?',
+  billingCompanyLabel: 'Company',
+  billingTaxIdLabel: 'Tax ID (NIF / VAT)',
   memberPerkOtpLabel: 'Member? Enter the 6-digit code we emailed you to apply your member price.',
   maxAdditionalParticipantsTemplate: 'Maximum of {n} additional participants reached',
   needLargerGroupHint: 'Need a larger group or a custom booking?',
@@ -1004,6 +1039,18 @@ const en: Bundle = {
   themFallback: 'them',
   youWillBeListedAsParticipant1:
     "You'll be listed as participant 1. Add more people below if others are joining.",
+  bookingForSomeoneElseLabel: "I'm booking for someone else and won't take part",
+  addPeopleJoiningBelow: 'Add the people who are joining below.',
+  participantsTotalTemplate: 'Participants ({n} total)',
+  sameAsYoursPlaceholder: 'same as yours',
+  invoiceToLabel: 'Invoice to:',
+  notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
+  maxParticipantsReachedOne: 'Maximum of 1 participant reached',
+  maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
+  tooManyPeopleRemoveSomeone:
+    'There are more people than this activity allows — remove someone to continue.',
+  sharedDoubleRequiresBookerMessage:
+    'A shared double room covers your own bed, so you can only pick it when you take part yourself. Please go back to accommodation and choose another option.',
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
   participantsYouPayForHint: "People you're booking and paying for.",
@@ -1513,9 +1560,21 @@ const de: Bundle = {
   addParticipantButton: '+ Teilnehmer hinzufügen',
   addGuestButton: '+ Gast hinzufügen',
   enterYourNameEmailPhoneCue: 'Name, E-Mail und Telefon eingeben',
+  enterYourNameEmailPhoneBillingCue: 'Name, E-Mail, Telefon und Rechnungsadresse eingeben',
   fillInEveryRequiredField: 'Füllen Sie alle Pflichtfelder aus, um fortzufahren.',
   roleLabel: 'Rolle',
   includeYourCountryCode: 'Bitte mit Landesvorwahl',
+  billingAddressTitle: 'Rechnungsadresse',
+  billingAddressHelper: 'Diese Angaben benötigen wir für Ihre Rechnung.',
+  billingStreetLabel: 'Straße und Hausnummer',
+  billingAddressLine2Label: 'Adresszusatz (optional)',
+  billingPostalCodeLabel: 'Postleitzahl',
+  billingCityLabel: 'Ort',
+  billingCountryLabel: 'Land',
+  billingCountryPlaceholder: '— Land auswählen —',
+  billingInvoiceToCompanyLabel: 'Rechnung an ein Unternehmen?',
+  billingCompanyLabel: 'Unternehmen',
+  billingTaxIdLabel: 'Steuernummer (NIF / USt-IdNr.)',
   memberPerkOtpLabel: 'Mitglied? Geben Sie den 6-stelligen Code ein, den wir Ihnen per E-Mail geschickt haben, um Ihren Mitgliederpreis anzuwenden.',
   maxAdditionalParticipantsTemplate: 'Maximal {n} zusätzliche Teilnehmer erreicht',
   needLargerGroupHint: 'Größere Gruppe oder individuelle Buchung gewünscht?',
@@ -1650,6 +1709,18 @@ const de: Bundle = {
   themFallback: 'ihnen',
   youWillBeListedAsParticipant1:
     'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
+  bookingForSomeoneElseLabel: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+  addPeopleJoiningBelow: 'Tragen Sie unten die Personen ein, die teilnehmen.',
+  participantsTotalTemplate: 'Teilnehmer ({n} insgesamt)',
+  sameAsYoursPlaceholder: 'wie Ihre',
+  invoiceToLabel: 'Rechnung an:',
+  notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
+  maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
+  maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
+  tooManyPeopleRemoveSomeone:
+    'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
+  sharedDoubleRequiresBookerMessage:
+    'Ein geteiltes Doppelzimmer deckt Ihr eigenes Bett ab und ist daher nur wählbar, wenn Sie selbst teilnehmen. Bitte gehen Sie zurück zur Unterkunft und wählen Sie eine andere Option.',
   notAMemberOrNoCode:
     'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
   participantsYouPayForHint: 'Personen, die Sie buchen und bezahlen.',
@@ -2653,6 +2724,19 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 /** DetailsStep: "Other participants ({n} total)". */
 export function otherParticipantsHeading(n: number, locale?: string): string {
   return tr('otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
+ *  "Maximum of {n} participants reached" ("1 participant" singular). */
+export function maxParticipantsReachedMessage(n: number, locale?: string): string {
+  return n === 1
+    ? tr('maxParticipantsReachedOne', locale)
+    : tr('maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
+}
+
+/** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
+export function participantsTotalHeading(n: number, locale?: string): string {
+  return tr('participantsTotalTemplate', locale).replace('{n}', String(n))
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */

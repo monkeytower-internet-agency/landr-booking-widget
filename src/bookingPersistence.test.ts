@@ -9,6 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Step, BookingDraft } from './appStepMachine'
 import type { Product } from '@/api/types'
+import type { BookerDetails } from './components/booking/detailsTypes'
 import {
   BOOKING_PROGRESS_STORAGE_KEY,
   clearStoredProgress,
@@ -64,6 +65,9 @@ const draft: BookingDraft = {
     last_name: 'Lovelace',
     email: 'ada@example.com',
     phone: '+49 30 1234567',
+    billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+    // landr-jiagg.2: the current bundle always writes the flag.
+    joins: true,
   },
   participants: [],
 }
@@ -425,5 +429,87 @@ describe('normalizePartyIdentity backfill (landr-uwvl)', () => {
       step: detailsStep,
       bookingDraft: {},
     })
+  })
+})
+
+describe('billing backfill (landr-uuntm.3)', () => {
+  it('backfills empty billing on a booker persisted before the field existed (step + draft)', () => {
+    const legacyBooker = {
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      phone: '+49 30 1234567',
+    }
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({
+        step: { ...detailsStep, booker: legacyBooker },
+        bookingDraft: { booker: legacyBooker },
+      }),
+    )
+    const restored = readStoredProgress()!
+    const empty = {
+      address_line1: '',
+      address_line2: '',
+      postal_code: '',
+      city: '',
+      region: '',
+      country: '',
+      company: '',
+      tax_id: '',
+    }
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.billing).toEqual(empty)
+    expect(restored.bookingDraft.booker!.billing).toEqual(empty)
+  })
+
+  it('round-trips a filled billing address (back-nav / reload restore)', () => {
+    writeStoredProgress({ step: { ...detailsStep, booker: draft.booker }, bookingDraft: draft })
+    const restored = readStoredProgress()!
+    expect(restored.bookingDraft.booker!.billing).toEqual(draft.booker!.billing)
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.billing.country).toBe('ES')
+  })
+})
+
+// landr-jiagg.2: "I'm booking for someone else and won't take part" rides the
+// booker through sessionStorage; a draft from an older bundle (no flag) comes
+// back as joining — that booker was mirrored into participants[0].
+describe('booker.joins persistence (landr-jiagg.2)', () => {
+  it('round-trips joins=false with a roster that has no booker row', () => {
+    const notJoining: BookingDraft = {
+      booker: { ...draft.booker!, joins: false },
+      participants: [
+        {
+          id: 'pm-child',
+          first_name: 'Max',
+          last_name: 'Lovelace',
+          email: '',
+          phone: '+49 151 0000000',
+          service_role_code: 'participant',
+        },
+      ],
+    }
+    writeStoredProgress({
+      step: { ...detailsStep, booker: notJoining.booker },
+      bookingDraft: notJoining,
+    })
+    const restored = readStoredProgress()!
+    expect(restored.bookingDraft.booker!.joins).toBe(false)
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.joins).toBe(false)
+    expect(restored.bookingDraft.participants).toEqual(notJoining.participants)
+  })
+
+  it('restores a draft from an older bundle (no joins flag) as joining', () => {
+    const legacyBooker = { ...draft.booker! } as Partial<BookerDetails>
+    delete legacyBooker.joins
+    window.sessionStorage.setItem(
+      BOOKING_PROGRESS_STORAGE_KEY,
+      JSON.stringify({
+        step: { ...detailsStep, booker: legacyBooker },
+        bookingDraft: { booker: legacyBooker, participants: [] },
+      }),
+    )
+    const restored = readStoredProgress()!
+    expect(restored.bookingDraft.booker!.joins).toBe(true)
+    expect((restored.step as unknown as { booker: BookerDetails }).booker.joins).toBe(true)
   })
 })

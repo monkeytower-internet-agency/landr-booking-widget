@@ -111,4 +111,22 @@ describe('augmentStaffSubmit — staff path (landr-aoak.4 corrected contract)', 
     expect(out.customer_email).toBe('ada@example.com')
     expect(out.products).toHaveLength(1)
   })
+
+  it('keeps customer_billing on the staff body (landr-uuntm.3)', () => {
+    const billing = {
+      address_line1: 'Calle Mayor 1',
+      address_line2: null,
+      postal_code: '28013',
+      city: 'Madrid',
+      region: null,
+      country: 'ES',
+      company: null,
+      tax_id: null,
+    }
+    const out = augmentStaffSubmit(
+      { ...baseBody(), customer_billing: billing },
+      { session: activeSession, forced: false },
+    ) as StaffSubmitBody
+    expect(out.customer_billing).toEqual(billing)
+  })
 })

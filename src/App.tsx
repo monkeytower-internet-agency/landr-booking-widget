@@ -26,10 +26,12 @@ import { OfferPage } from '@/components/booking/OfferPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
-import type {
-  BookerDetails,
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  bookerJoins,
+  emptyBilling,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from '@/components/booking/detailsTypes'
 // landr-uwvl: the draft/step carry the three party maps keyed by a STABLE
 // PartyMemberId; AccommodationStep + BookingForm consume them positionally.
@@ -551,6 +553,7 @@ function BookingFlowApp() {
             last_name: prefill.invitee_last_name,
             email: '',
             phone: '',
+            billing: emptyBilling(),
           },
           hotelLocationId: prefill.hotel_location_id,
           isSharedDouble: prefill.is_shared_double,
@@ -616,6 +619,7 @@ function BookingFlowApp() {
             last_name: prefill.last_name ?? '',
             email: prefill.email ?? '',
             phone: prefill.phone ?? '',
+            billing: emptyBilling(),
           },
         })
       } catch {
@@ -2411,8 +2415,13 @@ function BookingFlowApp() {
             // predate the key) the field stays hidden rather than flashing in
             // and then vanishing.
             hasMemberPerks={operatorSettings.has_member_perks ?? false}
+            // landr-uuntm.3: last link of the billing-country guess chain.
+            operatorCountry={operatorSettings.country ?? null}
             // landr-ehye: token passed to GroupInquiryForm for the POST.
             operatorToken={token!}
+            // landr-jiagg.2: an invitee takes the seat themselves — no
+            // "I'm booking for someone else" toggle in the invite flow.
+            inviteMode={!!inviteData}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-rmcsu.5: pre-create the participant rows the dates-step
@@ -2460,6 +2469,10 @@ function BookingFlowApp() {
                     })
             }
             onConfirm={(booker, participants, companions, comment) => {
+              // landr-jiagg.2: a booker who books for someone else has no bed
+              // of their own to share — drop any shared-double reference
+              // confirmed on an earlier pass through accommodation.
+              if (!bookerJoins(booker)) setJoinRef(null)
               // landr-rmcsu.6: participants before dates → the dates step is
               // next (also after a "Change participants" detour, so the
               // calendar re-checks the dates against the edited party).
@@ -2508,6 +2521,11 @@ function BookingFlowApp() {
             // invite-linked customer is already joined via the token.
             inviteMode={!!inviteData}
             onJoinRefChange={setJoinRef}
+            // landr-jiagg.2: the shared double is the booker's own bed — not
+            // offered when the booker books for someone else. The party below
+            // (step.participants) then carries no booker row at all, so
+            // BOOKER_MEMBER_ID never reaches the room/age/breakfast seams.
+            allowSharedDouble={bookerJoins(step.booker)}
             // landr-sjrd: progressive name disambiguation — build the whole
             // party (participants first, companions after; mirrors the room
             // assignment index space) and split disambiguated labels back at
@@ -2539,7 +2557,11 @@ function BookingFlowApp() {
             // instead of empty steppers. Each field is independently
             // optional — only what was previously confirmed comes back.
             // landr-ffyg.2: also restore the chosen accommodation mode.
-            initialHotelLocationId={step.hotelLocationId}
+            // landr-jsu3n.3: an invitee sharing the inviter's room gets the
+            // inviter's hotel (fixed, read-only in AccommodationStep).
+            initialHotelLocationId={
+              inviteData?.hotel_location_id ?? step.hotelLocationId
+            }
             initialRooms={step.accommodationRooms}
             initialAddons={step.addons}
             // landr-gb2f.5: restore the exact per-room add-on map on back-nav

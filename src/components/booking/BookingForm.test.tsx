@@ -58,6 +58,7 @@ const ADA_BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 000 000',
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
 }
 
 function bookerAsParticipant(b: BookerDetails): ParticipantDetails {
@@ -2197,5 +2198,57 @@ describe('BookingForm — per-occupant breakfast review (landr-rjvd)', () => {
     expect(status0).toHaveTextContent('with breakfast')
     // No per-occupant rows rendered in legacy path.
     expect(screen.queryByTestId('room-occupant-breakfast-0-0')).toBeNull()
+  })
+})
+
+// landr-jiagg.2: review for a booker who books for someone else.
+describe('BookingForm — booker not taking part review (landr-jiagg.2)', () => {
+  const MAX: ParticipantDetails = {
+    id: 'pm-max',
+    first_name: 'Max',
+    last_name: 'Lovelace',
+    email: '',
+    phone: '+34 600 111 222',
+    service_role_code: 'participant',
+  }
+
+  it('booker card says "Not taking part · pays the invoice"; participants list the roster only', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={{ ...ADA_BOOKER, joins: false }}
+        participants={[MAX]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    const booker = screen.getByTestId('review-booker')
+    expect(booker).toHaveTextContent('Ada Lovelace')
+    expect(screen.getByTestId('review-booker-not-joining')).toHaveTextContent(
+      'Not taking part · pays the invoice',
+    )
+    const participants = screen.getByTestId('review-participants')
+    expect(participants).toHaveTextContent(/Participants \(1\)/)
+    expect(participants).toHaveTextContent(/1\. Max Lovelace/)
+    expect(participants).not.toHaveTextContent('Ada')
+  })
+
+  it('no sub-line when the booker takes part', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={{ ...ADA_BOOKER, joins: true }}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('review-booker-not-joining')).not.toBeInTheDocument()
   })
 })

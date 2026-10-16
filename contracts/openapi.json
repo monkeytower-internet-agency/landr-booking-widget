@@ -1,6 +1,73 @@
 {
   "components": {
     "schemas": {
+      "AcceptOfferResponse": {
+        "description": "POST /{token}/accept-offer (landr-bo0wd.1).\n\n``already_accepted`` = the yes was recorded before (double click, or an\nacceptance-free offer); nothing moved this time. ``advanced`` = this call\nran the general-approval transition (landr-kstic: the normal case -- the\nbooking waits at the general gate until the customer accepts; the hotel\nrequest, or with no hotel step the confirmation + payment link, goes out\nnow). ``confirmation_sent`` = this yes released a held confirmation step\n(the booking already sat at ``awaiting_payment``): the customer\nconfirmation + payment link are on their way.\n``payment_allowed`` = the offer page may take payment now: False while the\nhotel step is ahead or in progress (``offer_hotel_pending``) or the hotel\ndeclined (``offer_hotel_declined``) -- the payment link then arrives the\nusual way once the hotel confirmed.",
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "advanced": {
+            "title": "Advanced",
+            "type": "boolean"
+          },
+          "already_accepted": {
+            "title": "Already Accepted",
+            "type": "boolean"
+          },
+          "confirmation_sent": {
+            "default": false,
+            "title": "Confirmation Sent",
+            "type": "boolean"
+          },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
+          "offer_hotel_declined": {
+            "default": false,
+            "title": "Offer Hotel Declined",
+            "type": "boolean"
+          },
+          "offer_hotel_pending": {
+            "title": "Offer Hotel Pending",
+            "type": "boolean"
+          },
+          "payment_allowed": {
+            "title": "Payment Allowed",
+            "type": "boolean"
+          },
+          "stage_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Code"
+          }
+        },
+        "required": [
+          "already_accepted",
+          "advanced",
+          "offer_hotel_pending",
+          "payment_allowed"
+        ],
+        "title": "AcceptOfferResponse",
+        "type": "object"
+      },
       "AccountLinkRequest": {
         "properties": {
           "email": {
@@ -856,6 +923,20 @@
         "title": "ApproveIn",
         "type": "object"
       },
+      "AskBillingAddressResponse": {
+        "description": "Result of POST .../ask-billing-address.",
+        "properties": {
+          "sent_at": {
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sent_at"
+        ],
+        "title": "AskBillingAddressResponse",
+        "type": "object"
+      },
       "AskPartnerIn": {
         "properties": {
           "note": {
@@ -1391,6 +1472,193 @@
           "created_at"
         ],
         "title": "BdIntentOut",
+        "type": "object"
+      },
+      "BillingAddressIn": {
+        "description": "The invoice recipient's postal address.\n\n``address_line1``, ``postal_code``, ``city`` and ``country`` are required\nand must be non-blank after stripping (a whitespace-only value is a 422,\nnot a silently-missing address). The rest are optional and blank-fold to\n``None``. ``company`` + ``tax_id`` are the \"invoice to a company\" pair.",
+        "properties": {
+          "address_line1": {
+            "maxLength": 200,
+            "title": "Address Line1",
+            "type": "string"
+          },
+          "address_line2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Line2"
+          },
+          "city": {
+            "maxLength": 120,
+            "title": "City",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "country": {
+            "description": "ISO 3166-1 alpha-2, e.g. 'DE'.",
+            "title": "Country",
+            "type": "string"
+          },
+          "postal_code": {
+            "maxLength": 32,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "tax_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Id"
+          }
+        },
+        "required": [
+          "address_line1",
+          "postal_code",
+          "city",
+          "country"
+        ],
+        "title": "BillingAddressIn",
+        "type": "object"
+      },
+      "BillingAddressPatchIn": {
+        "description": "landr-uuntm.2: a contact's billing address plus who supplied it.\n\n``source`` is limited to the two staff-side origins (the widget and\nmy.site paths set theirs server-side). ``only_if_missing`` makes the call\na fill-never-overwrite write: when the contact already has an invoiceable\naddress nothing is written (the WooCommerce importer's backfill of\nalready-imported bookings; the customer or staff may have fixed it since).",
+        "properties": {
+          "address_line1": {
+            "maxLength": 200,
+            "title": "Address Line1",
+            "type": "string"
+          },
+          "address_line2": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Line2"
+          },
+          "city": {
+            "maxLength": 120,
+            "title": "City",
+            "type": "string"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "country": {
+            "description": "ISO 3166-1 alpha-2, e.g. 'DE'.",
+            "title": "Country",
+            "type": "string"
+          },
+          "only_if_missing": {
+            "default": false,
+            "title": "Only If Missing",
+            "type": "boolean"
+          },
+          "postal_code": {
+            "maxLength": 32,
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "source": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "woocommerce_import"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "tax_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Id"
+          }
+        },
+        "required": [
+          "address_line1",
+          "postal_code",
+          "city",
+          "country"
+        ],
+        "title": "BillingAddressPatchIn",
+        "type": "object"
+      },
+      "BillingAddressSavedOut": {
+        "properties": {
+          "billing_address_missing": {
+            "default": false,
+            "title": "Billing Address Missing",
+            "type": "boolean"
+          }
+        },
+        "title": "BillingAddressSavedOut",
         "type": "object"
       },
       "BookingCalendarEvent": {
@@ -4111,6 +4379,214 @@
         "title": "CompanionIn",
         "type": "object"
       },
+      "CompanyInquiryAnswers": {
+        "properties": {
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "needs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Needs",
+            "type": "array"
+          },
+          "offers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "products_count": {
+            "title": "Products Count",
+            "type": "string"
+          },
+          "team_size": {
+            "title": "Team Size",
+            "type": "string"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          }
+        },
+        "required": [
+          "company_name",
+          "country",
+          "team_size",
+          "products_count"
+        ],
+        "title": "CompanyInquiryAnswers",
+        "type": "object"
+      },
+      "CompanyInquiryCreated": {
+        "properties": {
+          "inquiry_id": {
+            "title": "Inquiry Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inquiry_id"
+        ],
+        "title": "CompanyInquiryCreated",
+        "type": "object"
+      },
+      "CompanyInquiryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "company_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "country": {
+            "pattern": "^[A-Za-z]{2}$",
+            "title": "Country",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "needs": {
+            "items": {
+              "$ref": "#/components/schemas/Need"
+            },
+            "maxItems": 8,
+            "title": "Needs",
+            "type": "array"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            },
+            "maxItems": 4,
+            "title": "Offers",
+            "type": "array"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "products_count": {
+            "$ref": "#/components/schemas/ProductsCount"
+          },
+          "team_size": {
+            "$ref": "#/components/schemas/TeamSize"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          }
+        },
+        "required": [
+          "company_name",
+          "country",
+          "team_size",
+          "products_count"
+        ],
+        "title": "CompanyInquiryIn",
+        "type": "object"
+      },
+      "CompanyInquiryOut": {
+        "properties": {
+          "answers": {
+            "$ref": "#/components/schemas/CompanyInquiryAnswers"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "operator_id": {
+            "title": "Operator Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "operator_id",
+          "created_at",
+          "answers"
+        ],
+        "title": "CompanyInquiryOut",
+        "type": "object"
+      },
       "ConfirmBody": {
         "properties": {
           "confirm_name": {
@@ -4336,10 +4812,107 @@
             "title": "Lines",
             "type": "array"
           },
+          "positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferPositionIn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positions"
+          },
           "prices_include_tax": {
             "default": true,
             "title": "Prices Include Tax",
             "type": "boolean"
+          },
+          "requires_acceptance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requires Acceptance"
+          },
+          "rounding": {
+            "default": "exact",
+            "enum": [
+              "exact",
+              "0.50",
+              "1",
+              "5"
+            ],
+            "title": "Rounding",
+            "type": "string"
+          },
+          "show_savings": {
+            "default": true,
+            "title": "Show Savings",
+            "type": "boolean"
+          },
+          "target_offer_total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Offer Total"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
+          },
+          "tax_key": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Key"
+          },
+          "tax_label": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Label"
           },
           "tax_rate": {
             "anyOf": [
@@ -4557,6 +5130,17 @@
             ],
             "title": "Group Threshold"
           },
+          "has_hotel": {
+            "default": false,
+            "title": "Has Hotel",
+            "type": "boolean"
+          },
+          "hotel_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hotel Total",
+            "type": "string"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/CustomOfferLineOut"
@@ -4569,9 +5153,104 @@
             "title": "Net Total",
             "type": "string"
           },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
+          "offer_confirmation_held": {
+            "default": false,
+            "title": "Offer Confirmation Held",
+            "type": "boolean"
+          },
+          "offer_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferDiscountOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offer_hotel_declined_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Hotel Declined At"
+          },
+          "offer_hotel_pending": {
+            "default": false,
+            "title": "Offer Hotel Pending",
+            "type": "boolean"
+          },
+          "offer_sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Sent At"
+          },
+          "offer_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Total"
+          },
+          "original_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
           "paying_count": {
             "title": "Paying Count",
             "type": "integer"
+          },
+          "periods": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/OfferPositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "positions_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
           },
           "prices_include_tax": {
             "default": true,
@@ -4589,6 +5268,67 @@
               }
             ],
             "title": "Regular Unit Price"
+          },
+          "requires_acceptance": {
+            "default": true,
+            "title": "Requires Acceptance",
+            "type": "boolean"
+          },
+          "rounding": {
+            "default": "exact",
+            "title": "Rounding",
+            "type": "string"
+          },
+          "show_savings": {
+            "default": true,
+            "title": "Show Savings",
+            "type": "boolean"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
+          },
+          "tax_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Key"
+          },
+          "tax_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Label"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Rate"
           },
           "tax_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -4611,6 +5351,62 @@
           "lines"
         ],
         "title": "CustomOfferOut",
+        "type": "object"
+      },
+      "CustomOfferPreviewOut": {
+        "properties": {
+          "offer_discount": {
+            "$ref": "#/components/schemas/OfferDiscountOut"
+          },
+          "offer_total": {
+            "default": "0",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Offer Total",
+            "type": "string"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/OfferPositionOut"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "positions_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Positions Total",
+            "type": "string"
+          },
+          "rounding": {
+            "title": "Rounding",
+            "type": "string"
+          },
+          "target_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Total"
+          }
+        },
+        "required": [
+          "positions",
+          "original_total",
+          "positions_total",
+          "offer_discount",
+          "rounding",
+          "target_total"
+        ],
+        "title": "CustomOfferPreviewOut",
         "type": "object"
       },
       "CustomerSignoffIn": {
@@ -6305,6 +7101,33 @@
           "html": {
             "title": "Html",
             "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Stage"
+          },
+          "send_allowed": {
+            "default": true,
+            "title": "Send Allowed",
+            "type": "boolean"
           },
           "subject": {
             "title": "Subject",
@@ -9904,6 +10727,17 @@
             ],
             "title": "Currency"
           },
+          "customer_contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Contact Id"
+          },
           "customer_name": {
             "anyOf": [
               {
@@ -11738,6 +12572,20 @@
         "title": "MyUnitRequestIn",
         "type": "object"
       },
+      "Need": {
+        "enum": [
+          "pickup_locations",
+          "staff_scheduling",
+          "resources_equipment",
+          "partners_hotels",
+          "multiple_languages",
+          "payments_online",
+          "invoicing",
+          "other"
+        ],
+        "title": "Need",
+        "type": "string"
+      },
       "NoShowIn": {
         "properties": {
           "charge_cancellation_fee": {
@@ -11938,6 +12786,55 @@
         "title": "NumberingSeriesListResult",
         "type": "object"
       },
+      "Offer": {
+        "enum": [
+          "flights/activities",
+          "courses",
+          "accommodation",
+          "other"
+        ],
+        "title": "Offer",
+        "type": "string"
+      },
+      "OfferAdjustments": {
+        "description": "Adjustments below the positions: free spots and the >N group discount.",
+        "properties": {
+          "free_spot_count": {
+            "default": 0,
+            "title": "Free Spot Count",
+            "type": "integer"
+          },
+          "group_discount_amount": {
+            "default": 0.0,
+            "title": "Group Discount Amount",
+            "type": "number"
+          },
+          "group_discount_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Discount Pct"
+          },
+          "group_threshold": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Threshold"
+          }
+        },
+        "title": "OfferAdjustments",
+        "type": "object"
+      },
       "OfferBankDetails": {
         "description": "Operator bank account for a bank-transfer payment (landr-t63w0).",
         "properties": {
@@ -12098,6 +12995,170 @@
           }
         },
         "title": "OfferCustomer",
+        "type": "object"
+      },
+      "OfferDiscount": {
+        "description": "Overall offer discount: ``amount`` total, ``per_day`` averaged over the\ndiscounted days, ``pct`` of the regular total.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          },
+          "per_day": {
+            "title": "Per Day",
+            "type": "number"
+          }
+        },
+        "required": [
+          "amount",
+          "per_day",
+          "pct"
+        ],
+        "title": "OfferDiscount",
+        "type": "object"
+      },
+      "OfferDiscountOut": {
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "pct": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pct",
+            "type": "string"
+          },
+          "per_day": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Per Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "per_day",
+          "pct"
+        ],
+        "title": "OfferDiscountOut",
+        "type": "object"
+      },
+      "OfferEmailPreview": {
+        "properties": {
+          "body_html": {
+            "default": "",
+            "title": "Body Html",
+            "type": "string"
+          },
+          "body_text": {
+            "default": "",
+            "title": "Body Text",
+            "type": "string"
+          },
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "to_address": {
+            "default": "",
+            "title": "To Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "html"
+        ],
+        "title": "OfferEmailPreview",
+        "type": "object"
+      },
+      "OfferLineItem": {
+        "description": "One priced product line of the offer (landr-b48i5), same order as\n``product_lines``. Read from the persisted ``computed_price_breakdown``\nvia ``booking_line_items`` \u2014 never recomputed.\n\n``participants`` / ``per_person_price`` are set only when the line is\npriced per head (a ``per_participant_tier`` rule, or any rule whose\ndetail has ``per_participant`` true) AND ``line_total / qty /\nparticipants`` divides to whole cents; otherwise both are ``None`` and\nthe page shows the line total alone.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line_total": {
+            "title": "Line Total",
+            "type": "number"
+          },
+          "paid_to": {
+            "enum": [
+              "operator",
+              "hotel"
+            ],
+            "title": "Paid To",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "per_person_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Person Price"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "label",
+          "qty",
+          "units",
+          "line_total",
+          "unit_price",
+          "paid_to"
+        ],
+        "title": "OfferLineItem",
         "type": "object"
       },
       "OfferParticipant": {
@@ -12270,6 +13331,251 @@
         "title": "OfferPayment",
         "type": "object"
       },
+      "OfferPositionIn": {
+        "description": "One position of the composed offer (landr-8f1sh.1).\n\nIdentity is ``(booking_product_id, position_key)`` from GET\n``positions``. ``unit_price`` is the OFFER price per unit (day) per\nparticipant; omitted = the regular price (or the computed value when the\nbody carries ``target_total``). ``units`` / ``participants`` are optional\nechoes validated against the server's seed (422 ``position_mismatch``);\nthe server never takes them, nor any total, from the client.",
+        "properties": {
+          "booking_product_id": {
+            "title": "Booking Product Id",
+            "type": "string"
+          },
+          "exclude_from_discount": {
+            "default": false,
+            "title": "Exclude From Discount",
+            "type": "boolean"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "position_key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Position Key",
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units"
+          }
+        },
+        "required": [
+          "booking_product_id",
+          "position_key"
+        ],
+        "title": "OfferPositionIn",
+        "type": "object"
+      },
+      "OfferPositionLine": {
+        "description": "One position of an applied custom offer (landr-8f1sh.1).\n\n``original_*`` are the regular prices; when ``show_savings`` is False they\nare redacted to the offer prices (see\n``custom_offer_positions.public_positions_wire``).",
+        "properties": {
+          "excluded": {
+            "default": false,
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "original_total": {
+            "title": "Original Total",
+            "type": "number"
+          },
+          "original_unit_price": {
+            "title": "Original Unit Price",
+            "type": "number"
+          },
+          "participants": {
+            "title": "Participants",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
+          },
+          "units": {
+            "title": "Units",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "units",
+          "participants",
+          "original_unit_price",
+          "unit_price",
+          "original_total",
+          "total"
+        ],
+        "title": "OfferPositionLine",
+        "type": "object"
+      },
+      "OfferPositionOut": {
+        "properties": {
+          "booking_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Product Id"
+          },
+          "date_range_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range End"
+          },
+          "date_range_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range Start"
+          },
+          "discount_per_unit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Per Unit",
+            "type": "string"
+          },
+          "discount_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total",
+            "type": "string"
+          },
+          "exclude_from_discount": {
+            "title": "Exclude From Discount",
+            "type": "boolean"
+          },
+          "in_offer": {
+            "title": "In Offer",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Id"
+          },
+          "original_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Total",
+            "type": "string"
+          },
+          "original_unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Original Unit Price",
+            "type": "string"
+          },
+          "participants": {
+            "title": "Participants",
+            "type": "integer"
+          },
+          "position_key": {
+            "title": "Position Key",
+            "type": "string"
+          },
+          "rounding_adjustment": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Rounding Adjustment",
+            "type": "string"
+          },
+          "total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "type": "string"
+          },
+          "unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price",
+            "type": "string"
+          },
+          "units": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Units",
+            "type": "string"
+          }
+        },
+        "required": [
+          "position_key",
+          "booking_product_id",
+          "label",
+          "units",
+          "participants",
+          "original_unit_price",
+          "unit_price",
+          "original_total",
+          "total",
+          "discount_total",
+          "discount_per_unit",
+          "exclude_from_discount",
+          "rounding_adjustment",
+          "in_offer"
+        ],
+        "title": "OfferPositionOut",
+        "type": "object"
+      },
       "OfferProductLine": {
         "additionalProperties": true,
         "description": "One entry of the RPC's ``product_lines`` array. Mirrors the\nwidget's ``OfferProductLine`` TypeScript interface.",
@@ -12343,6 +13649,31 @@
           "quantity"
         ],
         "title": "OfferProductLine",
+        "type": "object"
+      },
+      "OfferTax": {
+        "description": "The tax the operator picked for the offer (landr-bo0wd.7). ``pct`` is a\npercentage number (7.0 = 7 %); ``label`` the tax's name (\"IVA\") or None.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pct"
+        ],
+        "title": "OfferTax",
         "type": "object"
       },
       "OfferTotals": {
@@ -13363,6 +14694,11 @@
             "title": "Product Id",
             "type": "string"
           },
+          "share_reference_enabled": {
+            "default": false,
+            "title": "Share Reference Enabled",
+            "type": "boolean"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -13567,6 +14903,17 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
           },
           "customer_languages": {
             "items": {
@@ -16569,6 +17916,58 @@
         "title": "ProductCategoryTemplateOut",
         "type": "object"
       },
+      "ProductDayCapacity": {
+        "description": "One day of one product limited by its OWN per-day seat cap.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "booked": {
+            "title": "Booked",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "seat_limit_source": {
+            "const": "product",
+            "default": "product",
+            "title": "Seat Limit Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "date",
+          "capacity",
+          "booked",
+          "available"
+        ],
+        "title": "ProductDayCapacity",
+        "type": "object"
+      },
       "ProductFlowResponse": {
         "additionalProperties": true,
         "description": "Response of GET \u2026/products/{id}/flow. Mirrors the widget's\n``ProductFlowResponse`` TypeScript interface (src/api/flowTypes.ts).\n``modules`` is null for products with no configured flow (legacy\nshape) or list of modules otherwise.",
@@ -17163,6 +18562,11 @@
             ],
             "title": "Service Time Shape"
           },
+          "share_reference_enabled": {
+            "default": false,
+            "title": "Share Reference Enabled",
+            "type": "boolean"
+          },
           "short_description": {
             "anyOf": [
               {
@@ -17728,6 +19132,17 @@
             ],
             "title": "Service Time Shape"
           },
+          "share_reference_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Reference Enabled"
+          },
           "short_description": {
             "anyOf": [
               {
@@ -18051,6 +19466,15 @@
         },
         "title": "ProductRequirementPatch",
         "type": "object"
+      },
+      "ProductsCount": {
+        "enum": [
+          "1-3",
+          "4-10",
+          "10+"
+        ],
+        "title": "ProductsCount",
+        "type": "string"
       },
       "PromoteTicketIn": {
         "description": "Body for the promote endpoint.\n\npromotion_prompt: Olaf's engineering prompt \u2014 the human-compiled\n    description of the customer problem translated into engineering work.\n    This is what the bridge worker (.19) will pass to `bd create`.\n    Must be non-empty (min_length=1); strip-only content is also rejected\n    by the router before writing.",
@@ -18386,6 +19810,113 @@
             ],
             "title": "Ical Url"
           },
+          "line_items": {
+            "items": {
+              "$ref": "#/components/schemas/OfferLineItem"
+            },
+            "title": "Line Items",
+            "type": "array"
+          },
+          "offer_accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Accepted At"
+          },
+          "offer_adjustments": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferAdjustments"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offer_discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferDiscount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offer_hotel_declined": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Hotel Declined"
+          },
+          "offer_hotel_pending": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Hotel Pending"
+          },
+          "offer_positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OfferPositionLine"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Positions"
+          },
+          "offer_prices_include_tax": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Prices Include Tax"
+          },
+          "offer_requires_acceptance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Requires Acceptance"
+          },
+          "offer_tax": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfferTax"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "operator_name": {
             "anyOf": [
               {
@@ -18414,12 +19945,31 @@
               }
             ]
           },
+          "periods": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
           "product_lines": {
             "items": {
               "$ref": "#/components/schemas/OfferProductLine"
             },
             "title": "Product Lines",
             "type": "array"
+          },
+          "show_savings": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Savings"
           },
           "stage": {
             "anyOf": [
@@ -18597,6 +20147,16 @@
             },
             "title": "Companions",
             "type": "array"
+          },
+          "customer_billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingAddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "customer_comment": {
             "anyOf": [
@@ -24428,6 +25988,15 @@
       },
       "StaffSubmitBookingIn": {
         "properties": {
+          "billing_address_source": {
+            "default": "staff",
+            "enum": [
+              "staff",
+              "woocommerce_import"
+            ],
+            "title": "Billing Address Source",
+            "type": "string"
+          },
           "booking_channel": {
             "default": "agent_dashboard",
             "title": "Booking Channel",
@@ -24443,6 +26012,16 @@
             },
             "title": "Companions",
             "type": "array"
+          },
+          "customer_billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingAddressIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "customer_comment": {
             "anyOf": [
@@ -26028,6 +27607,54 @@
         ],
         "title": "TaxRateCheck",
         "type": "object"
+      },
+      "TaxRateItem": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pct": {
+            "title": "Pct",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "holded",
+              "default"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pct",
+          "label",
+          "source"
+        ],
+        "title": "TaxRateItem",
+        "type": "object"
+      },
+      "TeamSize": {
+        "enum": [
+          "1",
+          "2-5",
+          "6-20",
+          "20+"
+        ],
+        "title": "TeamSize",
+        "type": "string"
       },
       "TemplateCatalogueEntryOut": {
         "description": "One pick in the \"Add from template\" catalogue \u2014 a bundle (a named\ngroup of singles, e.g. 'kayak_rafting') or a standalone single\n(e.g. 'accommodation').",
@@ -33564,6 +35191,49 @@
         ]
       }
     },
+    "/api/public/bookings/{token}/accept-offer": {
+      "post": {
+        "description": "The customer accepts the custom offer behind ``token`` (landr-bo0wd.1,\nlandr-xcyh1.2).\n\nRecords ``offer_accepted_at`` (once), then -- landr-kstic -- runs the\ngeneral approval while the booking waits at the general gate\n(``custom_offer_flow.advance_from_general_gate``) with the operator who\nSENT the offer as the approver: the hotel is asked only now (or, with no\nhotel step, the booking reaches ``awaiting_payment`` and the\nconfirmation + payment link go out; the stamp comes first, so the\nconfirmation gate does not hold it). A booking already at\n``awaiting_payment`` with its confirmation held (the hotel confirmed\nbefore this yes) gets it released\n(``custom_offer_flow.release_held_confirmation``).\n\nErrors: 401 bad/expired token; 404 ``booking_not_found``; 409\n``offer_not_applied`` (no applied offer), ``offer_not_sent`` (never\nsent), ``offer_changed_since_sent`` (edited after the send: the link is\nstale until the offer is re-sent), ``booking_closed`` (deleted /\ncancelled / finalised).",
+        "operationId": "accept_offer_public",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptOfferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Offer Public",
+        "tags": [
+          "public-bookings"
+        ]
+      }
+    },
     "/api/public/bookings/{token}/calendar.ics": {
       "get": {
         "description": "The whole booking as one .ics (landr-3vr5; token-scoped, landr-5aih0.4).\n\nTimed + zoned VEVENTs for days with a known start (pickup time, else the\ntime-slot start), all-day otherwise; LOCATION/GEO = the meeting point.\nSee :mod:`app.services.booking_calendar_context`.\n\n410 for a bare booking UUID: that was the pre-5aih0.4 link (the UUID was\nthe credential). It is never looked up, so the answer does not reveal\nwhether the booking exists. 401 for any other bad/expired token, 404 when\na valid token's booking no longer exists (or was cancelled).",
@@ -33819,6 +35489,59 @@
           }
         },
         "summary": "Get Briefing",
+        "tags": [
+          "public-briefings"
+        ]
+      }
+    },
+    "/api/public/briefings/{token}/billing-address": {
+      "put": {
+        "description": "Save the invoice recipient's billing address from the customer page.\n\nTHE TOKEN IS THE AUTHORISATION, exactly as for the page itself (same\nliveness gate via ``_resolve_briefing_booking``; every failure is the same\nopaque 404). The address is written to the BOOKER contact\n(``bookings.customer_contact_id``) with\n``billing_address_source='customer_page'``, then any Holded invoice row\nparked on ``billing_address_missing`` for that contact is re-queued.\n\nFirst write wins: the page only offers the form while the address is\nmissing, so a second submit means two people raced. The write is a\nconditional UPDATE (only while the contact still has no address), not a\nread-then-write, so the race cannot overwrite -- 409\n``billing_address_already_set``. The stored address is never echoed back.\nMetered per IP and per token like ``/join``.",
+        "operationId": "public_briefing_put_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingAddressIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingAddressSavedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Billing Address",
         "tags": [
           "public-briefings"
         ]
@@ -38842,6 +40565,130 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview": {
+      "post": {
+        "description": "Compute the positions a PUT with this body would store, WITHOUT\npersisting anything -- so the composer's live preview and the save use\nthe one server-side spread (target total, rounding, leftover) and can\nnever disagree. Only ``positions`` / ``target_total`` / ``rounding`` are\nread; totals beyond the positions (group discount, tax, hotel) are not\npart of the preview.",
+        "operationId": "preview_custom_offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomOfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomOfferPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Custom Offer",
+        "tags": [
+          "staff-bookings-custom-offer"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/bookings/{booking_id}/custom-offer/preview-email": {
+      "post": {
+        "description": "Render the email ``send-offer`` would send, from the SAVED offer.\n\nSame context builder and render path as the real send, run in no-write\npreview mode (``capture_email_preview``): nothing is enqueued, no token is\nissued (the link is a placeholder) and ``offer_sent_at`` is not touched.\nRender problems propagate as a 500, like the other staff mail previews.",
+        "operationId": "preview_offer_email",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferEmailPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Offer Email",
+        "tags": [
+          "staff-bookings-send-offer"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/bookings/{booking_id}/email-preview": {
       "get": {
         "operationId": "email_preview",
@@ -40926,6 +42773,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SendWithOverrideBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -42652,6 +44516,108 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/company-inquiry": {
+      "get": {
+        "operationId": "get_latest_company_inquiry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyInquiryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Company Inquiry",
+        "tags": [
+          "staff-company-inquiry"
+        ]
+      },
+      "post": {
+        "operationId": "create_company_inquiry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyInquiryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyInquiryCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Company Inquiry",
+        "tags": [
+          "staff-company-inquiry"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/config-health": {
       "get": {
         "description": "Return all active config issues for the operator.\n\nResponse shape::\n\n    {\n        \"issues\": [\n            {\n                \"id\": \"hotel_missing_email\",\n                \"severity\": \"error\",\n                \"title\": \"Hotel has no booking email\",\n                \"message\": \"'Grand Hotel' has no booking email ...\",\n                \"target_route\": \"/settings/resources/hotel\",\n                \"action_label\": \"Fix\",\n                \"dismissible\": true\n            }\n        ]\n    }\n\nlandr-07gzo.10: `dismissible` is False for issue kinds the operator\nshould keep seeing until fixed (currently pickup_point_missing_icon and\nhotel_missing_icon_or_colour) \u2014 the dashboard must not offer a dismiss\ncontrol for those. True for every pre-existing check (unchanged\nbehaviour).\n\nEmpty list means the operator has no active misconfigurations.\nThe dashboard renders nothing when issues is empty.",
@@ -43035,6 +45001,75 @@
         "summary": "Contact Booking Overlaps Staff Session",
         "tags": [
           "staff-contact-booking-overlaps"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/contacts/{contact_id}/billing-address": {
+      "patch": {
+        "description": "Write the billing address (invoice recipient) onto one contact.\n\nReturns ``{\"updated\": bool, \"contact_id\", \"billing_address_source\"}``.\n``updated`` is false only when ``only_if_missing`` found an address.",
+        "operationId": "patch_contact_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingAddressPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Patch Contact Billing Address",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Contact Billing Address",
+        "tags": [
+          "staff-contacts"
         ]
       }
     },
@@ -43951,9 +45986,69 @@
         ]
       }
     },
+    "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/ask-billing-address": {
+      "post": {
+        "description": "Email the booker asking for the invoice billing address (landr-uuntm.4).\n\nAuthz is the retry route's: operator membership + the ``invoicing``\nfeature gate, and the row is looked up with ``operator_id`` AND\n``action='invoice_push'`` filters (404 otherwise).\n\nOnly for a row parked ``blocked_on_human`` /\n``failure_reason='billing_address_missing'`` (409 otherwise -- a row blocked\non a contact-matching decision, a failed or already-transferred row has\nnothing the customer can fix). Resolves booking -> booker contact -> email\nand sends the transactional ``billing_address_request`` email with the\nbooking's my.site share link (DE/EN/ES by the customer's language).\n\nResend guard: a second ask for the same booking inside 24 h is a 409\n``{detail: 'recently_sent', next_allowed_at}``. The guard row is written\nBEFORE the send (atomically, ``claim_billing_address_request`` -- an\nadvisory lock per booking, DB clock) and removed again if the send fails,\nso a concurrent double-click sends exactly one email.\nResponse ``{sent_at}``.",
+        "operationId": "ask_billing_address",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sync_log_id",
+            "required": true,
+            "schema": {
+              "title": "Sync Log Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskBillingAddressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Not blocked on a missing billing address (string detail), or `{detail: 'recently_sent', next_allowed_at}` inside the 24 h resend window."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ask Billing Address",
+        "tags": [
+          "staff-holded-invoicing"
+        ]
+      }
+    },
     "/api/staff/operators/{operator_id}/holded/invoices/{sync_log_id}/retry": {
       "post": {
-        "description": "Retry ONE Holded invoice transfer \u2014 landr-g71ua.1.\n\n``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can\nnever be picked up by any later pass. This route is the only way back:\nit makes the row eligible again and then runs one real pass, reporting\nboth the pass counters and the row's own resulting state.\n\nTwo accepted entry states, deliberately handled differently:\n\n  * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,\n    ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter\n    resets because a human explicitly asked for another go \u2014 otherwise a\n    row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail\n    straight back to ``failed`` on its first transient error.\n  * ``pending`` -> do NOT rewrite the row. It is already eligible; all a\n    retry can add is skipping the remaining backoff, so only\n    ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would\n    throw away a live retry budget the worker is legitimately using.\n\nEvery other state 409s with its own message (see ``_RETRY_CONFLICTS``);\nan unknown/other-operator/non-invoice row 404s.\n\nThe requeue UPDATE is conditional on ``status='failed'`` \u2014 the same\ncompare-and-set discipline ``_claim_row`` uses. A concurrent worker or a\nsecond retry press that got there first therefore cannot be clobbered:\nzero affected rows means we lost, so we re-read and re-run the gate\ninstead of proceeding on a stale view of the row.",
+        "description": "Retry ONE Holded invoice transfer \u2014 landr-g71ua.1.\n\n``run_holded_sync`` selects ``status='pending'``, so a ``failed`` row can\nnever be picked up by any later pass. This route is the only way back:\nit makes the row eligible again and then runs one real pass, reporting\nboth the pass counters and the row's own resulting state.\n\nTwo accepted entry states, deliberately handled differently:\n\n  * ``failed`` -> requeue. ``status='pending'``, ``attempt_count=0``,\n    ``next_retry_at=NULL``, ``failure_reason=NULL``. The attempt counter\n    resets because a human explicitly asked for another go \u2014 otherwise a\n    row that already exhausted ``DEFAULT_MAX_ATTEMPTS`` would fail\n    straight back to ``failed`` on its first transient error.\n  * ``pending`` -> do NOT rewrite the row. It is already eligible; all a\n    retry can add is skipping the remaining backoff, so only\n    ``next_retry_at`` is cleared. Rewriting ``attempt_count`` here would\n    throw away a live retry budget the worker is legitimately using.\n\n  * ``blocked_on_human`` with ``failure_reason='billing_address_missing'``\n    (landr-uuntm.1) -> requeue like ``failed`` but ``attempt_count`` is\n    kept. Staff fixed the booker's address on the contact sheet; if it is\n    still incomplete the pass re-blocks the row. A row blocked on a\n    contact-matching DECISION still 409s.\n\nEvery other state 409s with its own message (see ``_RETRY_CONFLICTS``);\nan unknown/other-operator/non-invoice row 404s.\n\nThe requeue UPDATE is conditional on ``status='failed'`` \u2014 the same\ncompare-and-set discipline ``_claim_row`` uses. A concurrent worker or a\nsecond retry press that got there first therefore cannot be clobbered:\nzero affected rows means we lost, so we re-read and re-run the gate\ninstead of proceeding on a stale view of the row.",
         "operationId": "retry_holded_invoice",
         "parameters": [
           {
@@ -48621,6 +50716,78 @@
         "summary": "Patch Product Category",
         "tags": [
           "staff-product-categories"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/product-day-capacity": {
+      "get": {
+        "description": "Per-day seat numbers of every product whose OWN daily cap limits it\n(``products.day_capacity_source = 'product'``), for the staff calendar's\nproduct-cap lane (landr-rmcsu).\n\nThese are the numbers the public booking widget enforces \u2014 the rows come\nfrom the same ``public_get_product_availability`` RPC and the same\n``_fill_seat_numbers`` step the public endpoint uses, so the dashboard\ncannot show a second seat definition. ``booked`` is the\nguiding participants of live bookings (``product_day_seat_load``).\n\nOmitted: products limited by ``resources`` (the pool lanes already show\nthem), days whose ``seat_limit_source`` is not ``product`` (sentinel /\n``none`` / pool-filled days), closed days (the RPC does not return them),\nand slot rows of time_slot products (a per-day number needs a whole-day\nshape). Like the widget, products that are inactive or not publicly\nlisted return no rows. Ordered by product name, then date.",
+        "operationId": "list_product_day_capacity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductDayCapacity"
+                  },
+                  "title": "Response List Product Day Capacity",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Product Day Capacity",
+        "tags": [
+          "staff-availability"
         ]
       }
     },
@@ -58123,6 +60290,57 @@
         "summary": "Patch Tag",
         "tags": [
           "staff-tags"
+        ]
+      }
+    },
+    "/api/staff/operators/{operator_id}/tax-rates": {
+      "get": {
+        "operationId": "list_tax_rates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaxRateItem"
+                  },
+                  "title": "Response List Tax Rates",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tax Rates",
+        "tags": [
+          "staff-operator-tax-rates"
         ]
       }
     },

@@ -61,12 +61,18 @@ import type { CompanionDetails, ParticipantDetails } from './detailsTypes'
 export type PartyMemberId = string
 
 /**
- * The booker's id. participants[0] is ALWAYS the booker (mirrored via
- * `bookerToParticipant`), and there is exactly one, so a fixed sentinel is
- * both correct and necessary: `bookerToParticipant` is called INLINE ON EVERY
+ * The booker's id. When the booker takes part, participants[0] is the booker
+ * (mirrored via `bookerToParticipant`), and there is exactly one, so a fixed
+ * sentinel is both correct and necessary: `bookerToParticipant` is called INLINE ON EVERY
  * RENDER in DetailsStep (`participantsForValidation`), so minting a fresh id
  * there would churn the booker's identity on every keystroke and detach them
  * from their own room.
+ *
+ * landr-jiagg.2: when the booker books for someone else (`booker.joins ===
+ * false`) they are NOT in the party at all — participants[] is the roster
+ * only, no row carries this id, and any map entry keyed by it (a room the
+ * booker held before ticking the toggle) is dropped at the identity → index
+ * seam like any other member who left the party.
  */
 export const BOOKER_MEMBER_ID: PartyMemberId = 'booker'
 

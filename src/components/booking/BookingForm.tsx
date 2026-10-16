@@ -30,10 +30,14 @@ import type { AddonSelection } from './addonsState'
 import type { PerRoomAddons } from '@/appStepMachine'
 import { formatDayLabel, formatDayRange } from './dateLabel'
 import { hasFixedStartTimes, toHHMM } from './slotKey'
-import type {
-  BookerDetails,
-  CompanionDetails,
-  ParticipantDetails,
+import {
+  billingAddressComplete,
+  billingToPayload,
+  bookerJoins,
+  participantsForSubmit,
+  type BookerDetails,
+  type CompanionDetails,
+  type ParticipantDetails,
 } from './detailsTypes'
 import { ContinueAction } from './ContinueAction'
 import { CustomerCommentField } from './CustomerCommentField'
@@ -658,6 +662,19 @@ const formatHttpError = (
     const who = typeof name === 'string' && name.trim() ? name : 'This companion'
     return `${who} needs an email or phone number to send them their booking link — please go back and add one.`
   }
+  // landr-jiagg.1/.2: server backstop — a shared double without the booker
+  // in the roster. The widget never sends that (no shared-double option, no
+  // key on the wire when the booker does not take part); a clear message if
+  // a stale tab ever does.
+  if (
+    err.status === 422 &&
+    err.detail !== null &&
+    typeof err.detail === 'object' &&
+    !Array.isArray(err.detail) &&
+    (err.detail as { error?: unknown }).error === 'shared_double_requires_booker'
+  ) {
+    return tr('sharedDoubleRequiresBookerMessage', browserLocale())
+  }
   // landr-zeg4u.6: server backstop for the shared-double room rules the
   // accommodation step already enforces — only the booker's bed is the host's
   // double, so every other guiding participant needs a booked room.
@@ -850,7 +867,7 @@ export function BookingForm({
   customerComment,
   onCustomerCommentChange = () => {},
   participantLanguages = {},
-  isSharedDouble = false,
+  isSharedDouble: isSharedDoubleProp = false,
   roomAssignment,
   occupantAgeMap = {},
   perRoomAddons,
@@ -867,6 +884,12 @@ export function BookingForm({
   onChangeDates,
   onConfirmed,
 }: Props) {
+  // landr-jiagg.2: the shared double covers the BOOKER'S own bed, so it only
+  // exists when the booker takes part. A booker booking for someone else is
+  // never offered it (AccommodationStep) and this is the belt-and-braces gate:
+  // no shared-double review copy, and no is_shared_double key on the wire.
+  const bookerJoining = bookerJoins(booker)
+  const isSharedDouble = isSharedDoubleProp && bookerJoining
   const [serverError, setServerError] = useState<string | null>(null)
   const [capacityExceeded, setCapacityExceeded] = useState(false)
   const [windowAmbiguous, setWindowAmbiguous] = useState(false)
@@ -1286,11 +1309,21 @@ export function BookingForm({
         customer_last_name: booker.last_name,
         customer_email: booker.email,
         customer_phone: booker.phone || null,
+        // landr-uuntm.3: invoice recipient's billing address. The public
+        // widget requires it (DetailsStep gate); a staff-entered booking may
+        // legitimately leave it out, in which case the key is omitted rather
+        // than sent half-filled (the API 422s an incomplete address).
+        ...(billingAddressComplete(booker.billing)
+          ? { customer_billing: billingToPayload(booker.billing) }
+          : {}),
         customer_preferred_locale: locale,
         cancellation_deadline: cancellationDeadline(firstSelectionDate(selection)),
         booking_channel: 'public_website',
         products: productLines,
-        participants: participants.map((p, idx) => {
+        // landr-jiagg.2: no booker row when the booker does not take part
+        // (DetailsStep already left it out); "Participant 1"'s blank
+        // email/phone are filled from the booker here, at the wire only.
+        participants: participantsForSubmit(booker, participants).map((p, idx) => {
           // landr-gb2f.2: attach the participant's assigned hotel_room unit
           // (room_product_id + room_unit_index, PINNED wire contract). The
           // assignment map is keyed by participant index. Unassigned (and
@@ -1431,7 +1464,10 @@ export function BookingForm({
         // is an additional room for companions only — landr-zeg4u.4), false
         // for every other
         // mode. The API persists it on bookings.is_shared_double.
-        is_shared_double: isSharedDouble,
+        // landr-jiagg.2: never sent when the booker does not take part — the
+        // API 422s shared_double_requires_booker on a true, and the key has no
+        // meaning without the booker's own bed.
+        ...(bookerJoining ? { is_shared_double: isSharedDouble } : {}),
         // landr-71kz.4: form_responses from CustomFormStep(s). Optional —
         // only sent when the product has a configured flow; hidden-field
         // answers are already pruned by CustomFormStep before reaching here.
@@ -1463,7 +1499,11 @@ export function BookingForm({
         // no-reference booking, matching every other optional-marker field
         // in this payload.
         ...(inviteToken ? { invite_token: inviteToken } : {}),
-        ...(joinRef ? { join_ref: joinRef } : {}),
+        // landr-jiagg.2: a shared-double reference joins the booker's OWN bed
+        // into the host's group — gated exactly like is_shared_double, so a
+        // reference confirmed before the booker stepped out never links a
+        // non-participating booker's booking into someone's group.
+        ...(joinRef && bookerJoining ? { join_ref: joinRef } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff
@@ -1631,10 +1671,20 @@ export function BookingForm({
               </>
             ) : null}
           </dl>
+          {/* landr-jiagg.2: the payer who is not in the participant list. */}
+          {!bookerJoining ? (
+            <p
+              className="mt-2 text-xs text-muted-foreground"
+              data-testid="review-booker-not-joining"
+            >
+              {tr('notTakingPartPaysInvoice', locale)}
+            </p>
+          ) : null}
         </section>
 
-        {/* Participants summary. participants[0] mirrors the booker, so
-            we render the heading + a clear row-per-person list. */}
+        {/* Participants summary. participants[0] mirrors the booker when they
+            take part; when they book for someone else (landr-jiagg.2) it is
+            the roster alone. Either way: heading + one row per person. */}
         <section
           data-testid="review-participants"
           className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
