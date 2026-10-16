@@ -2858,6 +2858,11 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "own_accommodation": {
+            "default": false,
+            "title": "Own Accommodation",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4380,6 +4385,11 @@
               }
             ],
             "title": "Occupant Age Band"
+          },
+          "own_accommodation": {
+            "default": false,
+            "title": "Own Accommodation",
+            "type": "boolean"
           },
           "phone": {
             "anyOf": [
@@ -10690,6 +10700,11 @@
           "operator_id": {
             "title": "Operator Id",
             "type": "string"
+          },
+          "own_accommodation": {
+            "default": false,
+            "title": "Own Accommodation",
+            "type": "boolean"
           },
           "product_id": {
             "anyOf": [

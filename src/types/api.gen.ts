@@ -11941,6 +11941,11 @@ export interface components {
             is_guiding: boolean;
             /** Name */
             name: string;
+            /**
+             * Own Accommodation
+             * @default false
+             */
+            own_accommodation: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -12531,6 +12536,11 @@ export interface components {
             occupant_age?: number | null;
             /** Occupant Age Band */
             occupant_age_band?: string | null;
+            /**
+             * Own Accommodation
+             * @default false
+             */
+            own_accommodation: boolean;
             /** Phone */
             phone?: string | null;
             /** Room Product Id */
@@ -14784,6 +14794,11 @@ export interface components {
             language?: string | null;
             /** Operator Id */
             operator_id: string;
+            /**
+             * Own Accommodation
+             * @default false
+             */
+            own_accommodation: boolean;
             /** Product Id */
             product_id?: string | null;
             /** Seat Hold Expires At */
