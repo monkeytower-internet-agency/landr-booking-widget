@@ -469,6 +469,24 @@ export function AccommodationStep({
     }
   }, [refInput, operatorToken])
 
+  // landr-jiagg.2: a restored 'shared-double' that the initialiser above
+  // downgraded to 'package' (the booker no longer takes part) must also drop
+  // the reference confirmed on the earlier visit — App.tsx holds it as lifted
+  // state that otherwise only resets on a full restart. Mount-only; async
+  // IIFE per this file's convention (no synchronous state update in an effect).
+  useEffect(() => {
+    if (inviteMode || allowSharedDouble || initialMode !== 'shared-double') return
+    let cancelled = false
+    void (async () => {
+      if (cancelled) return
+      onJoinRefChange?.(null)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const confirmJoinRef = () => {
     if (refLookup.status !== 'found') return
     setRefLookup({ status: 'confirmed', result: refLookup.result })

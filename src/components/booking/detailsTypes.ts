@@ -343,11 +343,14 @@ export function detailsAreComplete(
   // landr-1url: the booker's phone must also look internationally-formatted
   // (leading '+' + country code).
   if (!isValidPhoneFormat(booker.phone)) return false
-  // participants[0] is the booker (mirrored) — skip; validate 1..N
+  // participants[0] is the booker (mirrored) when they take part — their
+  // name/phone were checked above, so that row only needs first + last here.
+  // When the booker does not take part (landr-jiagg.2) every row, including
+  // participants[0] ("Participant 1"), needs first + last + a valid phone.
   for (let i = 0; i < participants.length; i++) {
     const p = participants[i]!
     if (!p.first_name.trim() || !p.last_name.trim()) return false
-    // landr-nkbi: every participant (other than the booker who is validated
+    // landr-nkbi: every participant other than the booker row (validated
     // separately above) must supply a non-empty phone number.
     const isBookerRow = i === 0 && firstRowIsBooker
     if (!isBookerRow && !p.phone.trim()) return false

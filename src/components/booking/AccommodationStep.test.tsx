@@ -3008,4 +3008,48 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
       .querySelector('input[type="radio"]') as HTMLInputElement
     expect(packageRadio.checked).toBe(true)
   })
+
+  it('allowSharedDouble=false on a restored shared-double clears the lifted join_ref', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onJoinRefChange = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        allowSharedDouble={false}
+        onJoinRefChange={onJoinRefChange}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(onJoinRefChange).toHaveBeenCalledWith(null))
+  })
+
+  it('a restored shared-double with the booker joining leaves the join_ref alone', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([
+      makeRoom('single-room', 'Single Room', 49),
+    ])
+    const onJoinRefChange = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('optional')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        initialMode="shared-double"
+        onJoinRefChange={onJoinRefChange}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('accommodation-mode')).toBeInTheDocument(),
+    )
+    expect(onJoinRefChange).not.toHaveBeenCalledWith(null)
+  })
 })

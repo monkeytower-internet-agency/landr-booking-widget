@@ -1330,4 +1330,61 @@ describe('BookingForm submit body — booker not taking part (landr-jiagg.2)', (
     expect(errBox.textContent).toMatch(/only pick it when you take part yourself/i)
     expect(errBox.textContent).not.toMatch(/422/)
   })
+
+  // Review follow-up (MAJOR): a reference confirmed while the booker still
+  // took part (accommodation → Back → tick the toggle) must never link the
+  // non-participating booker's booking into the host's group.
+  it('joins=false: a stale confirmed join_ref and shared double are both dropped from the body', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: false }}
+        participants={[CHILD]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('join_ref')
+    expect(body).not.toHaveProperty('is_shared_double')
+  })
+
+  it('joins=true: the confirmed join_ref still rides along', async () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct()}
+        selection={SELECTION}
+        booker={{ ...BOOKER, joins: true }}
+        participants={[{ ...BOOKER, id: 'booker', service_role_code: 'participant' }]}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[]}
+        addons={[]}
+        isSharedDouble
+        joinRef="A1B2C3D4"
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.join_ref).toBe('A1B2C3D4')
+    expect(body.is_shared_double).toBe(true)
+  })
 })

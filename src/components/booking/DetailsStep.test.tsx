@@ -2991,6 +2991,62 @@ describe('DetailsStep — booking for someone else (landr-jiagg.2)', () => {
     )
     expect(screen.getByRole('checkbox', { name: TOGGLE })).toBeInTheDocument()
   })
+
+  // Review follow-up: unticking never deletes a filled row. Over the cap,
+  // the max notice shows and Continue stays blocked until the customer
+  // removes someone themselves.
+  it('unticking over the product cap keeps every typed row and blocks Continue', () => {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 2 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    const toggle = screen.getByRole('checkbox', { name: TOGGLE })
+    fireEvent.click(toggle)
+    fillP1()
+    fireEvent.click(screen.getByTestId('add-participant'))
+    fireEvent.change(byName('participant_2_first_name'), { target: { value: 'Grace' } })
+    fireEvent.change(byName('participant_2_last_name'), { target: { value: 'Hopper' } })
+    fireEvent.change(byName('participant_2_phone'), { target: { value: '+34 600 333 444' } })
+
+    fireEvent.click(toggle)
+    // Booker is participant 1 again; both typed rows survive as 2 and 3.
+    expect(byName('participant_2_first_name').value).toBe('Max')
+    expect(byName('participant_3_first_name').value).toBe('Grace')
+    expect(screen.getByTestId('participants-max-notice')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(screen.getByTestId('details-step-gate')).toHaveTextContent(
+      'remove someone to continue',
+    )
+
+    fireEvent.click(screen.getByTestId('remove-participant-3'))
+    fireEvent.click(screen.getByTestId('details-step-submit'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(
+      onConfirm.mock.calls[0]![1].map((p: { first_name: string }) => p.first_name),
+    ).toEqual(['Ada', 'Max'])
+  })
+
+  it('the max notice counts the roster when the booker does not take part (max_party_size=1)', () => {
+    render(
+      <DetailsStep
+        product={makeProduct({ max_party_size: 1 })}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: TOGGLE }))
+    const notice = screen.getByTestId('participants-max-notice')
+    expect(notice).toHaveTextContent('Maximum of 1 participant reached')
+    expect(notice).not.toHaveTextContent(/0 additional/)
+  })
 })
 
 // landr-jiagg.2 (+ landr-jiagg.5 block rule): the "Invoice to:" cue.

@@ -2469,6 +2469,10 @@ function BookingFlowApp() {
                     })
             }
             onConfirm={(booker, participants, companions, comment) => {
+              // landr-jiagg.2: a booker who books for someone else has no bed
+              // of their own to share — drop any shared-double reference
+              // confirmed on an earlier pass through accommodation.
+              if (!bookerJoins(booker)) setJoinRef(null)
               // landr-rmcsu.6: participants before dates → the dates step is
               // next (also after a "Change participants" detour, so the
               // calendar re-checks the dates against the edited party).

@@ -283,4 +283,34 @@ describe('Booking for someone else — German UI (landr-jiagg.2)', () => {
       'Nimmt nicht teil · zahlt die Rechnung',
     )
   })
+
+  it('DetailsStep: the roster max notice and over-cap gate line in German', () => {
+    setBrowserLanguage('de-DE')
+    configureCustomerLocale(['en', 'de'], 'en')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ country: null }), { status: 200 }),
+    )
+    render(
+      <DetailsStep
+        product={{ ...makeServiceProduct(), max_party_size: 1 }}
+        selection={SELECTION}
+        onBack={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+    const toggle = screen.getByRole('checkbox', {
+      name: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+    })
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('participants-max-notice')).toHaveTextContent(
+      'Maximal 1 Teilnehmer erreicht',
+    )
+    fireEvent.change(document.querySelector('[name="participant_1_first_name"]')!, {
+      target: { value: 'Max' },
+    })
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('details-step-gate')).toHaveTextContent(
+      'entfernen Sie jemanden, um fortzufahren',
+    )
+  })
 })

@@ -1499,7 +1499,11 @@ export function BookingForm({
         // no-reference booking, matching every other optional-marker field
         // in this payload.
         ...(inviteToken ? { invite_token: inviteToken } : {}),
-        ...(joinRef ? { join_ref: joinRef } : {}),
+        // landr-jiagg.2: a shared-double reference joins the booker's OWN bed
+        // into the host's group — gated exactly like is_shared_double, so a
+        // reference confirmed before the booker stepped out never links a
+        // non-participating booker's booking into someone's group.
+        ...(joinRef && bookerJoining ? { join_ref: joinRef } : {}),
       }
       // landr-aoak.2 [S3].3/.6: parse the optional operator price-override and
       // route the whole body through the SINGLE staff adapter. With no staff

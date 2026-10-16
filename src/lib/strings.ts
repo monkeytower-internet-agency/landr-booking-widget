@@ -356,6 +356,9 @@ type Bundle = {
   invoiceToLabel: string
   notTakingPartPaysInvoice: string
   sharedDoubleRequiresBookerMessage: string
+  maxParticipantsReachedOne: string
+  maxParticipantsReachedTemplate: string
+  tooManyPeopleRemoveSomeone: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
   participantsYouPayForHint: string
@@ -1042,6 +1045,10 @@ const en: Bundle = {
   sameAsYoursPlaceholder: 'same as yours',
   invoiceToLabel: 'Invoice to:',
   notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
+  maxParticipantsReachedOne: 'Maximum of 1 participant reached',
+  maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
+  tooManyPeopleRemoveSomeone:
+    'There are more people than this activity allows — remove someone to continue.',
   sharedDoubleRequiresBookerMessage:
     'A shared double room covers your own bed, so you can only pick it when you take part yourself. Please go back to accommodation and choose another option.',
   notAMemberOrNoCode:
@@ -1708,6 +1715,10 @@ const de: Bundle = {
   sameAsYoursPlaceholder: 'wie Ihre',
   invoiceToLabel: 'Rechnung an:',
   notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
+  maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
+  maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
+  tooManyPeopleRemoveSomeone:
+    'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
   sharedDoubleRequiresBookerMessage:
     'Ein geteiltes Doppelzimmer deckt Ihr eigenes Bett ab und ist daher nur wählbar, wenn Sie selbst teilnehmen. Bitte gehen Sie zurück zur Unterkunft und wählen Sie eine andere Option.',
   notAMemberOrNoCode:
@@ -2713,6 +2724,14 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 /** DetailsStep: "Other participants ({n} total)". */
 export function otherParticipantsHeading(n: number, locale?: string): string {
   return tr('otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
+ *  "Maximum of {n} participants reached" ("1 participant" singular). */
+export function maxParticipantsReachedMessage(n: number, locale?: string): string {
+  return n === 1
+    ? tr('maxParticipantsReachedOne', locale)
+    : tr('maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
 }
 
 /** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */

@@ -19,6 +19,7 @@ import {
   otherParticipantsHeading,
   participantOrdinalLabel,
   participantsTotalHeading,
+  maxParticipantsReachedMessage,
   removeCompanionAriaLabel,
   removeParticipantAriaLabel,
   tr,
@@ -669,9 +670,10 @@ export function DetailsStep({
   // every typed row; when it is empty an empty "Participant 1" appears (seeded
   // with the booker's role, which is the operator default unless they picked
   // one). Untick = the booker is participant 1 again (mirrored, read-only) and
-  // the typed rows become participants 2..N. The auto-minted row goes away if
-  // it is still blank, and rows beyond the product cap (the booker takes a
-  // seat back) are trimmed from the end, blank ones first.
+  // EVERY typed row stays, as participants 2..N. Only the still-blank row the
+  // tick itself minted goes away. If booker + roster now exceed the product
+  // cap nothing is trimmed: the max notice shows and Continue stays blocked
+  // (detailsWithinCap) until the customer removes a row themselves.
   const toggleBookingForSomeoneElse = (notJoining: boolean) => {
     if (inviteMode) return
     let next = additional
@@ -687,22 +689,6 @@ export function DetailsStep({
         next = next.slice(1)
       }
       autoFirstRowIdRef.current = null
-      const cap = Math.max(
-        0,
-        Math.min(rowCapFor(true), othersCapFor(true) - companions.length),
-      )
-      if (next.length > cap) {
-        const blanks = next.filter(isBlankRow).length
-        let dropBlanks = Math.min(blanks, next.length - cap)
-        next = next.filter((row) => {
-          if (dropBlanks > 0 && isBlankRow(row)) {
-            dropBlanks -= 1
-            return false
-          }
-          return true
-        })
-        next = next.slice(0, cap)
-      }
     }
     const nextBooker = { ...booker, joins: !notJoining }
     setBooker(nextBooker)
@@ -1099,12 +1085,18 @@ export function DetailsStep({
   const participantsForValidation: ParticipantDetails[] = joins
     ? [bookerToParticipant(booker, bookerRoleCode), ...additional]
     : additional
-  const canContinue = detailsAreComplete(
-    bookerForSubmit,
-    participantsForValidation,
-    companions,
-    requireBilling,
-  )
+  // landr-jiagg.2: unticking never trims typed rows, so the roster can sit
+  // above the product cap until the customer removes one — block Continue.
+  const withinCap =
+    additional.length <= rowCap && additional.length + companions.length <= othersCap
+  const canContinue =
+    withinCap &&
+    detailsAreComplete(
+      bookerForSubmit,
+      participantsForValidation,
+      companions,
+      requireBilling,
+    )
   // landr-80ubl.3: the one-next-action rule's pending required control for
   // this screen is "your contact details" — the other sections (additional
   // participants, companions) are opt-in via their own "+ Add" affordances,
@@ -1127,6 +1119,9 @@ export function DetailsStep({
     // when the form is actually complete (unchanged behavior for the valid
     // case).
     if (!canContinue) {
+      // landr-jiagg.2: over the cap is not a blank field — the gate line and
+      // the max notice say what to do; nothing to focus.
+      if (!withinCap) return
       markAllTouched()
       focusFirstInvalid()
       return
@@ -1741,7 +1736,12 @@ export function DetailsStep({
               data-testid="participants-max-notice"
             >
               <p className="text-sm font-medium text-muted-foreground">
-                {tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(moreAllowed))}
+                {/* landr-jiagg.2: worded from the cap that applies — "additional"
+                    beyond the joining booker, or the whole roster when the
+                    booker does not take part (never "Maximum of 0 additional"). */}
+                {joins
+                  ? tr('maxAdditionalParticipantsTemplate', locale).replace('{n}', String(maxAdditional))
+                  : maxParticipantsReachedMessage(rowCap, locale)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tr('needLargerGroupHint', locale)}
@@ -2118,7 +2118,11 @@ export function DetailsStep({
               data-testid="details-step-gate"
               className="min-w-0 flex-1 text-xs text-muted-foreground"
             >
-              {canContinue ? tr('readyToContinue', locale) : tr('fillInEveryRequiredField', locale)}
+              {canContinue
+                ? tr('readyToContinue', locale)
+                : !withinCap
+                  ? tr('tooManyPeopleRemoveSomeone', locale)
+                  : tr('fillInEveryRequiredField', locale)}
             </p>
             <Button
               type="button"
