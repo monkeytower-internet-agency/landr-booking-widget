@@ -6,6 +6,7 @@ import {
   formatMoney,
   isDiscountRule,
   splitLineItems,
+  isSavingsLine,
 } from './priceSidebarHelpers'
 
 describe('buildAddonLines (landr-qez0)', () => {
@@ -397,5 +398,13 @@ describe('buildDiscountExplanation — savings line (landr-qj1g)', () => {
     const lines = buildDiscountExplanation(rule, 'EUR')
     expect(lines).toHaveLength(1)
     expect(lines[0]).not.toMatch(/save/)
+  })
+})
+
+describe('isSavingsLine', () => {
+  it('matches the savings line only', () => {
+    expect(isSavingsLine('saves €15.00/day vs standard rate')).toBe(true)
+    expect(isSavingsLine('3 consecutive days · €75.00/day × 1 participant')).toBe(false)
+    expect(isSavingsLine('spart 15,00 €/Tag gegenüber dem Standardpreis', 'de')).toBe(true)
   })
 })
