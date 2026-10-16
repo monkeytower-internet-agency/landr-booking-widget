@@ -40,6 +40,7 @@ import {
   type ParticipantDetails,
 } from './detailsTypes'
 import { ContinueAction } from './ContinueAction'
+import { isOwnAccommodation, ownAccommodationWire } from './ownAccommodation'
 import { CustomerCommentField } from './CustomerCommentField'
 import { UN_PRICEABLE_MESSAGE } from './priceSidebarHelpers'
 import {
@@ -1404,7 +1405,12 @@ export function BookingForm({
           ? {
               companions: companions.map<Companion>((c, cIdx) => {
                 const memberIdx = participants.length + cIdx
-                const assigned = roomAssignment?.[memberIdx]
+                // landr-qw2v8.2: an own-accommodation companion never carries a
+                // room (the API 422s own_accommodation_invalid otherwise), even
+                // if a stale assignment entry for them is still in the draft.
+                const assigned = isOwnAccommodation(c)
+                  ? undefined
+                  : roomAssignment?.[memberIdx]
                 // landr-doam.1: per-occupant age band + age for companions.
                 const ageEntry = occupantAgeMap[memberIdx]
                 const isChild = ageEntry?.band === 'child'
@@ -1433,6 +1439,9 @@ export function BookingForm({
                   ...(c.companion_kind === 'separate_guiding'
                     ? { companion_kind: 'separate_guiding' as const }
                     : {}),
+                  // landr-qw2v8.2: "arranges own accommodation" — no room on
+                  // this booking. Omitted when false.
+                  ...ownAccommodationWire(c),
                   // landr-r6e5x.4 wire field (PINNED contract): companions are
                   // assigned a guide language exactly like participants — the
                   // board makes no distinction and neither does the API.
@@ -1788,6 +1797,14 @@ export function BookingForm({
                         {tr('notDoingActivity', locale)}
                       </span>
                     )}
+                    {isOwnAccommodation(c) ? (
+                      <span
+                        className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400"
+                        data-testid={`companion-own-accommodation-label-${idx}`}
+                      >
+                        {tr('ownAccommodationNoRoomBooked', locale)}
+                      </span>
+                    ) : null}
                     {c.email ? (
                       <span className="ml-2 text-xs text-muted-foreground break-all">
                         {c.email}
