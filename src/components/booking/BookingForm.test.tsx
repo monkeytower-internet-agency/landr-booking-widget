@@ -58,7 +58,7 @@ const ADA_BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 000 000',
-  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
 }
 
 function bookerAsParticipant(b: BookerDetails): ParticipantDetails {

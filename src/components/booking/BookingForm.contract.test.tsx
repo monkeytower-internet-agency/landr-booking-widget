@@ -72,7 +72,7 @@ const BOOKER: BookerDetails = {
   last_name: 'Lovelace',
   email: 'ada@example.com',
   phone: '+34 600 111 222',
-  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+  billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
 }
 const PARTICIPANTS: ParticipantDetails[] = [
   // landr-mg0a: empty service_role_code intentionally exercises the
@@ -186,6 +186,7 @@ describe('BookingForm submit body — matches /api/public/bookings PublicSubmitB
       country: 'ES',
       company: null,
       tax_id: null,
+      name: null,
     })
 
     // cancellation_deadline is an ISO datetime string, computed as
@@ -1159,6 +1160,7 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
         country: 'DE',
         company: 'Para42 GmbH',
         tax_id: 'DE123456789',
+        name: ' Grace Hopper ',
       },
     })
     expect(body.customer_billing).toEqual({
@@ -1170,6 +1172,7 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
       country: 'DE',
       company: 'Para42 GmbH',
       tax_id: 'DE123456789',
+      name: 'Grace Hopper',
     })
   })
 
@@ -1185,6 +1188,7 @@ describe('BookingForm submit body — billing address (landr-uuntm.3)', () => {
         country: '',
         company: '',
         tax_id: '',
+        name: '',
       },
     })
     expect(body).not.toHaveProperty('customer_billing')

@@ -225,6 +225,8 @@ type Bundle = {
   billingCountryLabel: string
   billingCountryPlaceholder: string
   billingInvoiceToCompanyLabel: string
+  billingInvoiceNameLabel: string
+  billingInvoiceNameHint: string
   billingCompanyLabel: string
   billingTaxIdLabel: string
   memberPerkOtpLabel: string
@@ -907,6 +909,8 @@ const en: Bundle = {
   billingCountryLabel: 'Country',
   billingCountryPlaceholder: '— select a country —',
   billingInvoiceToCompanyLabel: 'Invoice to a company?',
+  billingInvoiceNameLabel: 'Invoice name (optional)',
+  billingInvoiceNameHint: 'Only if the invoice should be made out to a different name than yours.',
   billingCompanyLabel: 'Company',
   billingTaxIdLabel: 'Tax ID (NIF / VAT)',
   memberPerkOtpLabel: 'Member? Enter the 6-digit code we emailed you to apply your member price.',
@@ -1573,6 +1577,8 @@ const de: Bundle = {
   billingCountryLabel: 'Land',
   billingCountryPlaceholder: '— Land auswählen —',
   billingInvoiceToCompanyLabel: 'Rechnung an ein Unternehmen?',
+  billingInvoiceNameLabel: 'Name auf der Rechnung (optional)',
+  billingInvoiceNameHint: 'Nur, wenn die Rechnung auf einen anderen Namen als Ihren ausgestellt werden soll.',
   billingCompanyLabel: 'Unternehmen',
   billingTaxIdLabel: 'Steuernummer (NIF / USt-IdNr.)',
   memberPerkOtpLabel: 'Mitglied? Geben Sie den 6-stelligen Code ein, den wir Ihnen per E-Mail geschickt haben, um Ihren Mitgliederpreis anzuwenden.',

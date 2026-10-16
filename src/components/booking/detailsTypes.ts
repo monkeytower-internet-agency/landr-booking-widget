@@ -43,6 +43,8 @@ export interface BillingDetails {
   country: string
   company: string
   tax_id: string
+  /** landr-jsu3n.2: optional bill-to (invoice) name; '' = invoice the booker. */
+  name: string
 }
 
 export interface BookerDetails {
@@ -175,6 +177,7 @@ export function emptyBilling(): BillingDetails {
     country: '',
     company: '',
     tax_id: '',
+    name: '',
   }
 }
 
@@ -236,6 +239,7 @@ export function billingToPayload(b: BillingDetails): CustomerBilling {
     country: b.country.trim().toUpperCase(),
     company: blankToNull(b.company),
     tax_id: blankToNull(b.tax_id),
+    name: blankToNull(b.name),
   }
 }
 
@@ -415,12 +419,17 @@ export function participantsForSubmit(
  * when the "Invoice to a company?" toggle is on and the company is non-blank;
  * then the booker follows as the contact person. Empty when the booker has no
  * name yet (the cue is not rendered).
+ *
+ * landr-jsu3n.2: the optional "Invoice name" replaces the booker's own name as
+ * the person line (and shows even before the booker has typed a name).
  */
 export function invoiceToLines(
   booker: Pick<BookerDetails, 'first_name' | 'last_name' | 'billing'>,
   invoiceToCompany: boolean,
 ): string[] {
-  const person = `${booker.first_name.trim()} ${booker.last_name.trim()}`.trim()
+  const invoiceName = (booker.billing?.name ?? '').trim()
+  const person =
+    invoiceName || `${booker.first_name.trim()} ${booker.last_name.trim()}`.trim()
   if (!person) return []
   const company = invoiceToCompany ? (booker.billing?.company ?? '').trim() : ''
   return company ? [company, person] : [person]

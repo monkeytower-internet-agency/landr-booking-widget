@@ -65,7 +65,7 @@ const draft: BookingDraft = {
     last_name: 'Lovelace',
     email: 'ada@example.com',
     phone: '+49 30 1234567',
-    billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+    billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
     // landr-jiagg.2: the current bundle always writes the flag.
     joins: true,
   },
@@ -457,6 +457,7 @@ describe('billing backfill (landr-uuntm.3)', () => {
       country: '',
       company: '',
       tax_id: '',
+      name: '',
     }
     expect((restored.step as unknown as { booker: BookerDetails }).booker.billing).toEqual(empty)
     expect(restored.bookingDraft.booker!.billing).toEqual(empty)

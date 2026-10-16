@@ -1380,6 +1380,25 @@ export function DetailsStep({
                 </div>
               ) : null}
             </div>
+            {/* landr-jsu3n.2: optional bill-to name — also in the invite flow.
+                Always visible (not behind the company toggle): a private
+                guest can have the invoice made out to someone else too. */}
+            <Field
+              label={tr('billingInvoiceNameLabel', locale)}
+              htmlFor="booker-billing-name"
+            >
+              <Input
+                id="booker-billing-name"
+                name="booker_billing_name"
+                autoComplete="off"
+                data-testid="booker-billing-name"
+                value={booker.billing.name}
+                onChange={(e) => updateBillingField('name', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {tr('billingInvoiceNameHint', locale)}
+              </p>
+            </Field>
             <div className="grid gap-3 sm:grid-cols-6">
               <div className="sm:col-span-6">
                 <Field
