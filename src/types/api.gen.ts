@@ -14757,6 +14757,12 @@ export interface components {
              * @default
              */
             host_reference: string;
+            /** Host Room Capacity */
+            host_room_capacity?: number | null;
+            /** Host Room Free Beds */
+            host_room_free_beds?: number | null;
+            /** Host Room Name */
+            host_room_name?: string | null;
             /** Hotel Location Id */
             hotel_location_id?: string | null;
             /**
