@@ -155,6 +155,11 @@ interface Props {
    * accommodation step, and is only offered when the booker joins.)
    */
   inviteMode?: boolean
+  /**
+   * landr-wp8e9.2: beds still free in the inviter's room. 0 → the companions
+   * legend says "People travelling with you" (they cannot share that room).
+   */
+  hostRoomFreeBeds?: number | null
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -321,6 +326,7 @@ export function DetailsStep({
   operatorCountry,
   prefillParticipantCount,
   inviteMode = false,
+  hostRoomFreeBeds = null,
 }: Props) {
   const locale = browserLocale()
   // landr-uuntm.3: staff-entered bookings (operator dashboard, phone walk-ins)
@@ -1853,7 +1859,11 @@ export function DetailsStep({
         >
           <legend className="text-sm font-medium">
             {tr(
-              noAccommodation ? 'guestsPayingForThemselves' : 'othersSharingYourRoom',
+              noAccommodation
+                ? 'guestsPayingForThemselves'
+                : inviteMode && hostRoomFreeBeds === 0
+                  ? 'peopleTravellingWithYou'
+                  : 'othersSharingYourRoom',
               locale,
             )}
           </legend>

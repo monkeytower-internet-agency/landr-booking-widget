@@ -2428,6 +2428,7 @@ function BookingFlowApp() {
             // landr-jiagg.2: an invitee takes the seat themselves — no
             // "I'm booking for someone else" toggle in the invite flow.
             inviteMode={!!inviteData}
+            hostRoomFreeBeds={inviteData?.host_room_free_beds ?? null}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-rmcsu.5: pre-create the participant rows the dates-step
@@ -2526,6 +2527,9 @@ function BookingFlowApp() {
             // landr-otml0.3: hides the shared-double reference field — an
             // invite-linked customer is already joined via the token.
             inviteMode={!!inviteData}
+            hostRoomFreeBeds={inviteData?.host_room_free_beds ?? null}
+            hostDisplayName={inviteData?.host_display_name ?? ''}
+            hostRoomName={inviteData?.host_room_name ?? null}
             onJoinRefChange={setJoinRef}
             // landr-jiagg.2: the shared double is the booker's own bed — not
             // offered when the booker books for someone else. The party below

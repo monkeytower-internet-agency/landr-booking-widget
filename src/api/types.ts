@@ -1475,6 +1475,21 @@ export interface InvitePrefill {
   seat_hold_expires_at?: components['schemas']['InvitePrefillOut']['seat_hold_expires_at']
   seat_hold_hours?: components['schemas']['InvitePrefillOut']['seat_hold_hours']
   seats_were_free?: components['schemas']['InvitePrefillOut']['seats_were_free']
+  /**
+   * landr-wp8e9.2: beds still free in the inviter's room, the invitee's own bed
+   * already counted as taken (floored at 0). null / absent = unknown (no room
+   * assignment or unknown capacity, or an API that predates the field) — never
+   * blocks. Hand-typed rather than generated so the widget merges before the
+   * API half (landr-wp8e9.1).
+   */
+  host_room_free_beds?: number | null
+  /**
+   * landr-wp8e9.2: display name of the hotel_room product the inviter booked for
+   * the invitee, and its capacity_per_unit. null / absent = unknown (legacy data
+   * or an API predating the field); the copy then omits the room name.
+   */
+  host_room_name?: string | null
+  host_room_capacity?: number | null
 }
 
 /**

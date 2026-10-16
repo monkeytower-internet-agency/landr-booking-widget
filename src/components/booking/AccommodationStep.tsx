@@ -23,6 +23,8 @@ import {
   applyAssignment,
   assignBreakfastChip,
   autoAssignSharedDoubleOccupants,
+  countUnplacedCompanions,
+  hostRoomOverflow,
   autoAssignParty,
   clampBreakfastMap,
   sharedDoubleOccupancyStatus,
@@ -66,6 +68,11 @@ import { formatDayLabel } from './dateLabel'
 import {
   accommodationTooLateMessage,
   additionalAccommodationRequiredHint,
+  hostRoomFullMessage,
+  inviteRoomBookedNotice,
+  inviteRoomHint,
+  inviteRoomLabel,
+  hostRoomFullRequiredHint,
   nightsWord,
   occupancyOverbookWarning,
   qtyAdjustAriaLabel,
@@ -301,6 +308,15 @@ interface Props {
    */
   inviteMode?: boolean
   /**
+   * landr-wp8e9.2: beds still free in the inviter's room (InvitePrefill
+   * .host_room_free_beds). Invite mode only. null / undefined = unknown, never
+   * blocks. Companions without a room of their own count against it.
+   */
+  hostRoomFreeBeds?: number | null
+  /** landr-wp8e9.2: inviter's display name + the room they booked, for the invite copy. */
+  hostDisplayName?: string
+  hostRoomName?: string | null
+  /**
    * landr-jiagg.2 — false when the booker books for someone else and does not
    * take part. The shared double covers the BOOKER'S own bed, so without the
    * booker in the party there is nothing to share: the option is not offered
@@ -375,6 +391,9 @@ export function AccommodationStep({
   initialAgeMap,
   initialBreakfastMap,
   inviteMode = false,
+  hostRoomFreeBeds = null,
+  hostDisplayName = '',
+  hostRoomName = null,
   allowSharedDouble = true,
   onJoinRefChange,
 }: Props) {
@@ -1227,6 +1246,13 @@ export function AccommodationStep({
   const productName = pickLocalized(product.name, product.name_localized, locale)
   const totalRoomsPicked = roomSelections.reduce((acc, r) => acc + r.quantity, 0)
 
+  // landr-wp8e9.2: invite mode — companions without a room of their own share
+  // the inviter's room; when that room is full they MUST get one (no swap).
+  const hostRoomCheck = hostRoomOverflow(
+    inviteMode && sharedDoubleRooms ? hostRoomFreeBeds : null,
+    countUnplacedCompanions(participantCount, companionCount, assignment),
+  )
+
   // Overbook warning inputs (landr-qpab) — both are non-blocking; the
   // customer can still hit Continue with the warning visible. We compute
   // capacity vs participants and breakfast vs participants from the same
@@ -1423,6 +1449,8 @@ export function AccommodationStep({
       : mode === 'shared-double'
         ? Boolean(selectedHotelId) &&
           !sharedDoubleOthersTooLate &&
+          // landr-wp8e9.2: the inviter's room cannot take the unplaced companions.
+          !hostRoomCheck.blocked &&
           // landr-zeg4u.4 / .5: additional rooms are optional for companions,
           // but required once another guiding participant is in the party;
           // once one is picked it must be properly occupied (no empty unit,
@@ -1683,9 +1711,11 @@ export function AccommodationStep({
   // additional rooms).
   const sharedDoubleOption = {
     value: 'shared-double' as const,
-    label: tr('sharedDoubleLabel', locale),
+    label: inviteMode
+      ? inviteRoomLabel(hostDisplayName, locale)
+      : tr('sharedDoubleLabel', locale),
     hint: inviteMode
-      ? 'Your bed is in the double room the person who invited you already booked. You are collected from the hotel.'
+      ? inviteRoomHint(locale)
       : 'No room booked — the other guest holds the double room. You are collected from the hotel.',
   }
   const modeOptions: { value: AccommodationMode; label: string; hint: string }[] =
@@ -1917,7 +1947,7 @@ export function AccommodationStep({
           >
             {inviteMode ? (
               <span data-testid="invite-room-booked-notice">
-                {tr('sharedDoubleInviteNotice', locale)}
+                {inviteRoomBookedNotice(hostDisplayName, hostRoomName, locale)}
               </span>
             ) : (
               <>{tr('sharedDoubleNormalNotice', locale)}</>
@@ -2054,7 +2084,23 @@ export function AccommodationStep({
                       sharedDoubleGuidingNames.length,
                       locale,
                     )
-                  : tr('additionalAccommodationOptionalHint', locale)}
+                  : hostRoomCheck.freeBeds !== null &&
+                      companionCount > hostRoomCheck.freeBeds
+                    ? hostRoomFullRequiredHint(locale)
+                    : tr('additionalAccommodationOptionalHint', locale)}
+              </p>
+            ) : null}
+            {hostRoomCheck.blocked ? (
+              <p
+                className="text-sm text-destructive"
+                role="alert"
+                data-testid="host-room-full"
+              >
+                {hostRoomFullMessage(
+                  hostRoomCheck.freeBeds ?? 0,
+                  hostRoomCheck.unplaced,
+                  locale,
+                )}
               </p>
             ) : null}
             {rooms === null && !roomsError ? (

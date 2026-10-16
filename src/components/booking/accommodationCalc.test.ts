@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Product, ProductAddon } from '@/api/types'
 import {
+  countUnplacedCompanions,
+  hostRoomOverflow,
   autoAssignSharedDoubleOccupants,
   sharedDoubleOccupancyStatus,
   unitsWithEmptyBeds,
@@ -1635,5 +1637,36 @@ describe('unitsWithEmptyBeds (landr-395ks)', () => {
     expect(
       unitsWithEmptyBeds([double], { 1: { roomProductId: 'gone', unitIndex: 0 } }),
     ).toEqual([])
+  })
+})
+
+describe('host room overflow (landr-wp8e9.2)', () => {
+  it('0 free beds + 1 unplaced companion blocks', () => {
+    expect(hostRoomOverflow(0, 1)).toEqual({ blocked: true, freeBeds: 0, unplaced: 1 })
+  })
+  it('1 free bed + 1 unplaced companion is fine', () => {
+    expect(hostRoomOverflow(1, 1).blocked).toBe(false)
+  })
+  it('1 free bed + 2 unplaced companions blocks', () => {
+    expect(hostRoomOverflow(1, 2).blocked).toBe(true)
+  })
+  it('null / undefined (unknown) never blocks', () => {
+    expect(hostRoomOverflow(null, 5).blocked).toBe(false)
+    expect(hostRoomOverflow(undefined, 5).blocked).toBe(false)
+  })
+  it('0 free beds + 0 unplaced companions (all in own rooms) is fine', () => {
+    expect(hostRoomOverflow(0, 0).blocked).toBe(false)
+  })
+  it('counts only companions (indices P..P+C-1) without a room', () => {
+    const room = { roomProductId: 'r', unitIndex: 0 }
+    // P=1, C=2: index 0 booker (ignored), 1 + 2 companions.
+    expect(countUnplacedCompanions(1, 2, {})).toBe(2)
+    expect(countUnplacedCompanions(1, 2, { 1: room })).toBe(1)
+    expect(countUnplacedCompanions(1, 2, { 1: room, 2: room })).toBe(0)
+    expect(countUnplacedCompanions(1, 0, {})).toBe(0)
+  })
+  it('a companion placed in an own room does not overflow a full host room', () => {
+    const unplaced = countUnplacedCompanions(1, 1, { 1: { roomProductId: 'r', unitIndex: 0 } })
+    expect(hostRoomOverflow(0, unplaced).blocked).toBe(false)
   })
 })
