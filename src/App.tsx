@@ -22,6 +22,7 @@ import {
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
+import { LegalFooter } from '@/components/LegalFooter'
 import { OfferPage } from '@/components/booking/OfferPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
@@ -237,6 +238,7 @@ function App() {
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <CancelPage token={route.token} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -250,8 +252,9 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
               <OfferPage token={route.token} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -266,8 +269,9 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
               <OfferPage token={route.token} mode="pay" />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -286,6 +290,7 @@ function App() {
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -310,6 +315,7 @@ function App() {
               <MembershipReturnPage
                 status={memberParam === '1' ? 'success' : 'cancelled'}
               />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>

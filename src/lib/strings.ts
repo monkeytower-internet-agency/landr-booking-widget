@@ -500,6 +500,9 @@ type Bundle = {
   whatYoureBooking: string
   // landr-1zkp7 — /pay + /offer restyle (dates table, per-line prices, hero)
   offerColItem: string
+  /** Footer links on the standalone token pages (offer/pay/cancel/reply). */
+  legalImprint: string
+  legalPrivacy: string
   offerColDates: string
   offerColLength: string
   offerLengthDaySingular: string
@@ -1195,6 +1198,8 @@ const en: Bundle = {
   statusLabel: 'Status:',
   whatYoureBooking: "What you're booking",
   offerColItem: 'Item',
+  legalImprint: 'Imprint',
+  legalPrivacy: 'Privacy Policy',
   offerColDates: 'Dates',
   offerColLength: 'Length',
   offerLengthDaySingular: '{n} day',
@@ -1872,6 +1877,8 @@ const de: Bundle = {
   statusLabel: 'Status:',
   whatYoureBooking: 'Was Sie buchen',
   offerColItem: 'Leistung',
+  legalImprint: 'Impressum',
+  legalPrivacy: 'Datenschutzerklärung',
   offerColDates: 'Datum',
   offerColLength: 'Dauer',
   offerLengthDaySingular: '{n} Tag',
