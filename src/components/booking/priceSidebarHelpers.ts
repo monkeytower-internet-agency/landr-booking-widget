@@ -174,6 +174,16 @@ function withParticipantSuffix(
 }
 
 /**
+ * True for the "saves €15.00/day vs standard rate" line the tier builders
+ * below append, so the sidebar can colour savings green like the
+ * "− Multi-day savings" row. Matches the locale template around {amount}.
+ */
+export function isSavingsLine(line: string, locale?: string): boolean {
+  const [prefix, suffix] = tr('savesVsStandardRate', locale).split('{amount}')
+  return line.startsWith(prefix) && line.endsWith(suffix ?? '')
+}
+
+/**
  * per_streak_tier detail = { streaks: [[length, perDay], ...],
  * per_participant, participants, base_tier? }. One line per consecutive
  * run, e.g. "3 consecutive days · €75.00/day". When base_tier is present

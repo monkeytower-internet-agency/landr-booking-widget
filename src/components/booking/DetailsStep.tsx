@@ -1250,6 +1250,10 @@ export function DetailsStep({
                 checked={!joins}
                 onCheckedChange={(v) => toggleBookingForSomeoneElse(v === true)}
                 data-testid="booker-not-joining-toggle"
+                // Sits inside the blue NextAction well: the default light-grey
+                // border / translucent dark fill vanish there, so draw a solid
+                // contrasting box in both themes.
+                className="border-foreground/60 bg-background dark:border-foreground/70 dark:bg-background"
               />
               <Label htmlFor="booker-not-joining-toggle" className="text-sm font-normal">
                 {tr('bookingForSomeoneElseLabel', locale)}

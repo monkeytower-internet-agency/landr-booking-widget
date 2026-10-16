@@ -168,6 +168,7 @@ type Bundle = {
 
   // ---- LanguageStep / ParticipantLanguageBoard ----
   guideLanguageTitle: string
+  guideLanguageOthersHint: string
   optionalSuffix: string
   unassignedOption: string
   roomFullSuffix: string
@@ -862,6 +863,8 @@ const en: Bundle = {
   choosePickupLocationToContinue: 'Choose a pickup location to continue.',
 
   guideLanguageTitle: 'Guide language',
+  guideLanguageOthersHint:
+    'Other participants will choose their own language when they make their own booking.',
   optionalSuffix: '(optional)',
   unassignedOption: 'Unassigned',
   roomFullSuffix: ' (full)',
@@ -1536,6 +1539,8 @@ const de: Bundle = {
   choosePickupLocationToContinue: 'Wählen Sie einen Abholort, um fortzufahren.',
 
   guideLanguageTitle: 'Guide-Sprache',
+  guideLanguageOthersHint:
+    'Andere Teilnehmende wählen ihre Sprache selbst, wenn sie ihre eigene Buchung vornehmen.',
   optionalSuffix: '(optional)',
   unassignedOption: 'Nicht zugeordnet',
   roomFullSuffix: ' (voll)',
