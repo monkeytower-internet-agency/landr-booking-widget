@@ -1045,6 +1045,8 @@ export function AccommodationStep({
   // modes. Also clears add-on selections so a customer switching hotels
   // doesn't carry over breakfasts from the previous hotel's room list.
   function changeHotel(nextId: string | null) {
+    // landr-jsu3n.3: an invitee's hotel is the inviter's — never changeable.
+    if (inviteMode && initialHotelLocationId) return
     setSelectedHotelId(nextId)
     setRooms(null)
     setRoomsError(null)
@@ -1716,6 +1718,13 @@ export function AccommodationStep({
   // hotel exists. Auto-select banner when exactly one hotel; radio list
   // when multiple.
   const showHotelContext = needsHotel && hotels && hotels.length > 0
+  // landr-jsu3n.3: invite mode + the inviter's hotel known (and offered by
+  // this operator) → the hotel is fixed: read-only "Staying at <hotel>", no
+  // radio picker. Unknown / unlisted hotel falls back to the normal picker.
+  const inviteLockedHotel =
+    inviteMode && mode === 'shared-double' && initialHotelLocationId && hotels
+      ? (hotels.find((h) => h.location_id === initialHotelLocationId) ?? null)
+      : null
 
   return (
     <Card>
@@ -1830,15 +1839,19 @@ export function AccommodationStep({
         {/* Hotel picker — package + shared-double modes. Hidden when only
             one hotel exists (auto-selected via the effect above). */}
         {showHotelContext ? (
-          hotels.length === 1 ? (
-            <p className="text-sm text-muted-foreground">
+          hotels.length === 1 || inviteLockedHotel ? (
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="staying-at-hotel"
+            >
               {(() => {
                 const [before, after] = splitOnPlaceholder(tr('stayingAtTemplate', locale), 'hotel')
+                const shown = inviteLockedHotel ?? hotels[0]!
                 return (
                   <>
                     {before}
                     <span className="font-medium text-foreground">
-                      {pickLocalized(hotels[0]!.name, hotels[0]!.name_localized, locale)}
+                      {pickLocalized(shown.name, shown.name_localized, locale)}
                     </span>
                     {after}
                   </>

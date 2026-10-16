@@ -2557,7 +2557,11 @@ function BookingFlowApp() {
             // instead of empty steppers. Each field is independently
             // optional — only what was previously confirmed comes back.
             // landr-ffyg.2: also restore the chosen accommodation mode.
-            initialHotelLocationId={step.hotelLocationId}
+            // landr-jsu3n.3: an invitee sharing the inviter's room gets the
+            // inviter's hotel (fixed, read-only in AccommodationStep).
+            initialHotelLocationId={
+              inviteData?.hotel_location_id ?? step.hotelLocationId
+            }
             initialRooms={step.accommodationRooms}
             initialAddons={step.addons}
             // landr-gb2f.5: restore the exact per-room add-on map on back-nav
