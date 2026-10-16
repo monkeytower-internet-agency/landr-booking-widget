@@ -296,12 +296,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // Nothing to click, nothing to pay until the updated offer arrives.
   const hotelDeclined = flagsPresent && offer?.offer_hotel_declined === true
   const hotelPending = flagsPresent && !hotelDeclined && offer?.offer_hotel_pending === true
-  // landr-xcyh1.3: the offer has hotel rooms and the hotel step is behind us.
+  // landr-jsu3n.6: "Hotel confirmed" is said ONLY when the API says a hotel
+  // yes exists (offer_hotel_confirmed). Having hotel lines and no pending step
+  // is not a yes: a hotel that was never asked also has pending=false.
   const hotelConfirmed =
     flagsPresent &&
     !hotelPending &&
     !hotelDeclined &&
-    (offer?.line_items ?? []).some((li) => li.paid_to === 'hotel')
+    offer?.offer_hotel_confirmed === true
   const needsAccept = flagsPresent && requiresAcceptance && !accepted && !hotelDeclined
   const onlineAvailable = !offer?.payment || offer.payment.online_available
   const acceptOnly = flagsPresent && (hotelPending || !onlineAvailable)
@@ -389,6 +391,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               offer_accepted_at: resp.offer_accepted_at ?? new Date().toISOString(),
               offer_hotel_pending: resp.offer_hotel_pending,
               offer_hotel_declined: resp.offer_hotel_declined ?? prev.offer_hotel_declined,
+              offer_hotel_confirmed: resp.offer_hotel_confirmed ?? prev.offer_hotel_confirmed,
             }
           : prev,
       )
