@@ -290,7 +290,6 @@ type Bundle = {
   completeStepsAboveToContinue: string
   checkingAccommodationAvailability: string
   howWouldYouLikeToHandleAccommodation: string
-  sharedDoubleInviteNotice: string
   sharedDoubleNormalNotice: string
   travellingWithFamilyHint: string
   pleaseEnterChildAgeHint: string
@@ -985,8 +984,6 @@ const en: Bundle = {
   completeStepsAboveToContinue: 'Complete the steps above to continue.',
   checkingAccommodationAvailability: 'Checking accommodation availability for this date…',
   howWouldYouLikeToHandleAccommodation: 'How would you like to handle accommodation?',
-  sharedDoubleInviteNotice:
-    'Your own room is already booked — you are sharing the double room of the person who invited you, and you will be collected from the hotel.',
   sharedDoubleNormalNotice:
     'You are sharing a double room with another guest. No room is booked for you — the other guest holds the room — and you will be collected from the hotel.',
   travellingWithFamilyHint:
@@ -1662,8 +1659,6 @@ const de: Bundle = {
   completeStepsAboveToContinue: 'Schließen Sie die obigen Schritte ab, um fortzufahren.',
   checkingAccommodationAvailability: 'Verfügbarkeit der Unterkunft für dieses Datum wird geprüft…',
   howWouldYouLikeToHandleAccommodation: 'Wie möchten Sie die Unterkunft handhaben?',
-  sharedDoubleInviteNotice:
-    'Ihr eigenes Zimmer ist bereits gebucht — Sie teilen sich das Doppelzimmer der Person, die Sie eingeladen hat, und werden vom Hotel abgeholt.',
   sharedDoubleNormalNotice:
     'Sie teilen sich ein Doppelzimmer mit einem anderen Gast. Für Sie ist kein Zimmer gebucht — der andere Gast hat das Zimmer — und Sie werden vom Hotel abgeholt.',
   travellingWithFamilyHint:
@@ -2841,6 +2836,34 @@ export function hostRoomFullMessage(freeBeds: number, unplaced: number, locale?:
     return `Im Zimmer, das Sie sich teilen, ${freeBeds === 1 ? 'ist nur noch 1 Bett' : `sind nur noch ${freeBeds} Betten`} frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.`
   }
   return `Only ${freeBeds} more ${freeBeds === 1 ? 'bed is' : 'beds are'} free in the room you're sharing — add a room for the rest of the people travelling with you.`
+}
+
+/**
+ * landr-wp8e9.2: invite-mode accommodation copy that names the REAL room the
+ * inviter booked for the invitee (never "double"). `host` empty falls back to a
+ * generic "the person who invited you"; `roomName` null drops the room clause.
+ */
+export function inviteRoomBookedNotice(host: string, roomName: string | null, locale?: string): string {
+  const de = isGermanLocale(locale)
+  const who = host.trim() || (de ? 'der Person, die Sie eingeladen hat' : 'the person who invited you')
+  const room = roomName?.trim() ? `: ${roomName.trim()}` : ''
+  return de
+    ? `Ihr Zimmer ist bereits von ${who} gebucht${room}. Sie werden vom Hotel abgeholt.`
+    : `Your room is already booked by ${who}${room}. You will be collected from the hotel.`
+}
+
+/** landr-wp8e9.2: invite-mode radio label ("My room is booked by {host}") - no "double". */
+export function inviteRoomLabel(host: string, locale?: string): string {
+  const de = isGermanLocale(locale)
+  const who = host.trim() || (de ? 'der Person, die mich eingeladen hat' : 'the person who invited me')
+  return de ? `Mein Zimmer ist von ${who} gebucht` : `My room is booked by ${who}`
+}
+
+/** landr-wp8e9.2: invite-mode radio hint (replaces the hardcoded "double room" English). */
+export function inviteRoomHint(locale?: string): string {
+  return isGermanLocale(locale)
+    ? 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.'
+    : 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.'
 }
 
 /** landr-wp8e9.2: replaces the "Optional — …" rooms hint when the host room cannot take the companions. */

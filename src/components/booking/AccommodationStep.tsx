@@ -69,6 +69,9 @@ import {
   accommodationTooLateMessage,
   additionalAccommodationRequiredHint,
   hostRoomFullMessage,
+  inviteRoomBookedNotice,
+  inviteRoomHint,
+  inviteRoomLabel,
   hostRoomFullRequiredHint,
   nightsWord,
   occupancyOverbookWarning,
@@ -310,6 +313,9 @@ interface Props {
    * blocks. Companions without a room of their own count against it.
    */
   hostRoomFreeBeds?: number | null
+  /** landr-wp8e9.2: inviter's display name + the room they booked, for the invite copy. */
+  hostDisplayName?: string
+  hostRoomName?: string | null
   /**
    * landr-jiagg.2 — false when the booker books for someone else and does not
    * take part. The shared double covers the BOOKER'S own bed, so without the
@@ -386,6 +392,8 @@ export function AccommodationStep({
   initialBreakfastMap,
   inviteMode = false,
   hostRoomFreeBeds = null,
+  hostDisplayName = '',
+  hostRoomName = null,
   allowSharedDouble = true,
   onJoinRefChange,
 }: Props) {
@@ -1703,9 +1711,11 @@ export function AccommodationStep({
   // additional rooms).
   const sharedDoubleOption = {
     value: 'shared-double' as const,
-    label: tr('sharedDoubleLabel', locale),
+    label: inviteMode
+      ? inviteRoomLabel(hostDisplayName, locale)
+      : tr('sharedDoubleLabel', locale),
     hint: inviteMode
-      ? 'Your bed is in the double room the person who invited you already booked. You are collected from the hotel.'
+      ? inviteRoomHint(locale)
       : 'No room booked — the other guest holds the double room. You are collected from the hotel.',
   }
   const modeOptions: { value: AccommodationMode; label: string; hint: string }[] =
@@ -1937,7 +1947,7 @@ export function AccommodationStep({
           >
             {inviteMode ? (
               <span data-testid="invite-room-booked-notice">
-                {tr('sharedDoubleInviteNotice', locale)}
+                {inviteRoomBookedNotice(hostDisplayName, hostRoomName, locale)}
               </span>
             ) : (
               <>{tr('sharedDoubleNormalNotice', locale)}</>

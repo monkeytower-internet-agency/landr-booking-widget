@@ -2633,6 +2633,7 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     expect(screen.getByTestId('invite-room-booked-notice')).toHaveTextContent(
       /already booked/i,
     )
+    expect(screen.getByTestId('shared-double-notice')).not.toHaveTextContent(/double/i)
     expect(
       screen.queryByTestId('accommodation-mode-guiding-only'),
     ).not.toBeInTheDocument()
@@ -2765,6 +2766,53 @@ describe('AccommodationStep — invitee accommodation (landr-zeg4u.4)', () => {
     const [rooms, , , , isSharedDouble] = onConfirm.mock.calls[0]!
     expect(rooms).toEqual([])
     expect(isSharedDouble).toBe(true)
+  })
+
+  it('invite copy names the real room and host, never "double" (landr-wp8e9.2)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        hostDisplayName="Olaf"
+        hostRoomName="Premium Single"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-room-booked-notice')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('invite-room-booked-notice')).toHaveTextContent(
+      'Your room is already booked by Olaf: Premium Single.',
+    )
+    const mode = screen.getByTestId('accommodation-mode-shared-double')
+    expect(mode).toHaveTextContent('My room is booked by Olaf')
+    expect(mode).not.toHaveTextContent(/double/i)
+  })
+
+  it('invite copy without a known room omits the room clause (landr-wp8e9.2)', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+        hostDisplayName="Olaf"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('invite-room-booked-notice')).toHaveTextContent(
+        'Your room is already booked by Olaf. You will',
+      ),
+    )
   })
 
   it('blocks Continue when the inviter room is full and the companion has no room (landr-wp8e9.2)', async () => {

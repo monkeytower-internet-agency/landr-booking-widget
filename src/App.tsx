@@ -2528,6 +2528,8 @@ function BookingFlowApp() {
             // invite-linked customer is already joined via the token.
             inviteMode={!!inviteData}
             hostRoomFreeBeds={inviteData?.host_room_free_beds ?? null}
+            hostDisplayName={inviteData?.host_display_name ?? ''}
+            hostRoomName={inviteData?.host_room_name ?? null}
             onJoinRefChange={setJoinRef}
             // landr-jiagg.2: the shared double is the booker's own bed — not
             // offered when the booker books for someone else. The party below

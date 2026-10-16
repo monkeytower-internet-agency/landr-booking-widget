@@ -1483,6 +1483,13 @@ export interface InvitePrefill {
    * API half (landr-wp8e9.1).
    */
   host_room_free_beds?: number | null
+  /**
+   * landr-wp8e9.2: display name of the hotel_room product the inviter booked for
+   * the invitee, and its capacity_per_unit. null / absent = unknown (legacy data
+   * or an API predating the field); the copy then omits the room name.
+   */
+  host_room_name?: string | null
+  host_room_capacity?: number | null
 }
 
 /**
