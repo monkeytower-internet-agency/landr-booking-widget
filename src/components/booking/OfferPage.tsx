@@ -906,9 +906,22 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           locale,
         )
       : ''
-  const heroTitle = product_lines[0]?.name ?? null
+  // The hero names what the customer is doing (the activity), never the room:
+  // hotel lines are left out of the headline and surface as "with
+  // accommodation". An older API sends no paid_to, so nothing is hotel and the
+  // first line still leads; a hotel-only booking falls back to the room name.
+  const isHotelLine = (pl: (typeof product_lines)[number], i: number) =>
+    lineItemFor(lineItems, pl.product_id, i)?.paid_to === 'hotel'
+  const heroLines = product_lines.filter((pl, i) => !isHotelLine(pl, i))
+  const hasHotelLine = heroLines.length < product_lines.length
+  const headlineLines = heroLines.length > 0 ? heroLines : product_lines
+  const heroName = headlineLines[0]?.name ?? null
+  const heroTitle =
+    heroName && hasHotelLine && heroLines.length > 0
+      ? `${heroName} ${tr('offerHeroWithAccommodation', locale)}`
+      : heroName
   const heroSecondary =
-    product_lines.length > 1 ? product_lines.slice(1).map((pl) => pl.name).join(' · ') : null
+    headlineLines.length > 1 ? headlineLines.slice(1).map((pl) => pl.name).join(' · ') : null
   const thClass =
     'px-4 py-2 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground'
 

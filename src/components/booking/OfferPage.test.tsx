@@ -1307,6 +1307,19 @@ describe('OfferPage — custom offer v2 positions (landr-8f1sh.4)', () => {
     resetQueryParams()
   })
 
+  it('hero names the activity, not the hotel room, and adds "with accommodation" (hotel line listed first)', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...WITH_OFFER,
+      product_lines: [...WITH_OFFER.product_lines].reverse(),
+      line_items: [...WITH_OFFER.line_items].reverse(),
+    })
+    render(<OfferPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    const hero = screen.getByTestId('offer-hero')
+    expect(hero.querySelector('h1')).toHaveTextContent('Guided Paragliding Day with accommodation')
+    expect(hero).not.toHaveTextContent('Hotel Alpenblick')
+  })
+
   it('lists the offer positions with the regular price struck and a discount row (show_savings on)', async () => {
     mocks.getBookingByToken.mockResolvedValue(WITH_OFFER)
     render(<OfferPage token={TOKEN} />)
