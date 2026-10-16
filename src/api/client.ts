@@ -1142,6 +1142,12 @@ export interface PublicBookingOffer {
    * no bank details, and the page offers nothing to click.
    */
   offer_hotel_declined?: boolean | null
+  /**
+   * landr-jsu3n.5/.6 (landr-api #1068): true only when a hotel yes exists. The
+   * one signal for the "Hotel confirmed" banner; `offer_hotel_pending` false
+   * alone also covers a hotel that was never asked.
+   */
+  offer_hotel_confirmed?: boolean | null
 }
 
 /**
@@ -1161,6 +1167,8 @@ export interface AcceptOfferResponse {
   confirmation_sent?: boolean
   /** landr-xcyh1.3: the hotel declined; the yes is recorded, nothing is released. */
   offer_hotel_declined?: boolean
+  /** landr-jsu3n.5: a hotel yes exists. */
+  offer_hotel_confirmed?: boolean
 }
 
 /**

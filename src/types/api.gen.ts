@@ -10692,7 +10692,9 @@ export interface components {
          *     ``payment_allowed`` = the offer page may take payment now: False while the
          *     hotel step is ahead or in progress (``offer_hotel_pending``) or the hotel
          *     declined (``offer_hotel_declined``) -- the payment link then arrives the
-         *     usual way once the hotel confirmed.
+         *     usual way once the hotel confirmed. landr-jsu3n.5: a staff offer's hotel
+         *     is asked at send, so its accept is accept-only (``payment_allowed``
+         *     False) until the hotel's yes; ``offer_hotel_confirmed`` = that yes is in.
          */
         AcceptOfferResponse: {
             /**
@@ -10711,6 +10713,11 @@ export interface components {
             confirmation_sent: boolean;
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
+            /**
+             * Offer Hotel Confirmed
+             * @default false
+             */
+            offer_hotel_confirmed: boolean;
             /**
              * Offer Hotel Declined
              * @default false
@@ -11404,7 +11411,8 @@ export interface components {
          *     ``address_line1``, ``postal_code``, ``city`` and ``country`` are required
          *     and must be non-blank after stripping (a whitespace-only value is a 422,
          *     not a silently-missing address). The rest are optional and blank-fold to
-         *     ``None``. ``company`` + ``tax_id`` are the "invoice to a company" pair.
+         *     ``None``. ``company`` + ``tax_id`` are the "invoice to a company" pair;
+         *     ``name`` (landr-jsu3n.2) is an optional different bill-to name.
          */
         BillingAddressIn: {
             /** Address Line1 */
@@ -11420,6 +11428,11 @@ export interface components {
              * @description ISO 3166-1 alpha-2, e.g. 'DE'.
              */
             country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
             /** Postal Code */
             postal_code: string;
             /** Region */
@@ -11451,6 +11464,11 @@ export interface components {
              * @description ISO 3166-1 alpha-2, e.g. 'DE'.
              */
             country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
             /**
              * Only If Missing
              * @default false
@@ -11913,6 +11931,8 @@ export interface components {
         };
         /** BookingSummaryParticipant */
         BookingSummaryParticipant: {
+            /** Companion Kind */
+            companion_kind?: string | null;
             /**
              * Is Guiding
              * @default true
@@ -12802,6 +12822,11 @@ export interface components {
              */
             offer_confirmation_held: boolean;
             offer_discount?: components["schemas"]["OfferDiscountOut"] | null;
+            /**
+             * Offer Hotel Confirmed
+             * @default false
+             */
+            offer_hotel_confirmed: boolean;
             /** Offer Hotel Declined At */
             offer_hotel_declined_at?: string | null;
             /**
@@ -17865,6 +17890,8 @@ export interface components {
             offer_accepted_at?: string | null;
             offer_adjustments?: components["schemas"]["OfferAdjustments"] | null;
             offer_discount?: components["schemas"]["OfferDiscount"] | null;
+            /** Offer Hotel Confirmed */
+            offer_hotel_confirmed?: boolean | null;
             /** Offer Hotel Declined */
             offer_hotel_declined?: boolean | null;
             /** Offer Hotel Pending */

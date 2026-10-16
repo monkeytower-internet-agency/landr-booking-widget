@@ -265,6 +265,46 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(line).not.toHaveTextContent('Ada')
   })
 
+  // landr-jsu3n.1: the Party block groups exactly like the confirmation
+  // email; the count line counts only the included participants.
+  it('renders included, separate-guiding and guest groups in the Party block', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        participant_count: 1,
+        participants: [
+          { name: 'Matthias Klein', is_guiding: true },
+          {
+            name: 'Alyda Maria Vargas Ramires',
+            is_guiding: false,
+            companion_kind: 'separate_guiding',
+          },
+          { name: 'Tom Guest', is_guiding: false, companion_kind: 'guest' },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
+      '1 participant',
+    )
+    expect(screen.getByTestId('confirmation-party')).toHaveTextContent('Party')
+    const included = screen.getByTestId('confirmation-party-included')
+    expect(included).toHaveTextContent('Participants (included in this booking)')
+    expect(included).toHaveTextContent('Matthias Klein')
+    expect(included).not.toHaveTextContent('Alyda')
+    const sep = screen.getByTestId('confirmation-party-separate-guiding')
+    expect(sep).toHaveTextContent(
+      'Joining the activity — separate guiding booking',
+    )
+    expect(sep).toHaveTextContent('Alyda Maria Vargas Ramires')
+    const guests = screen.getByTestId('confirmation-party-guests')
+    expect(guests).toHaveTextContent('Not doing the activity (guests)')
+    expect(guests).toHaveTextContent('Tom Guest')
+    expect(screen.getByTestId('confirmation-participants')).not.toHaveTextContent(
+      '3 participants',
+    )
+  })
+
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)
@@ -275,9 +315,9 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
       '2 participants',
     )
-    expect(screen.getByTestId('confirmation-participants')).toHaveTextContent(
-      'Ada Lovelace, Grace Hopper',
-    )
+    const included = screen.getByTestId('confirmation-party-included')
+    expect(included).toHaveTextContent('Ada Lovelace')
+    expect(included).toHaveTextContent('Grace Hopper')
     expect(screen.getByTestId('confirmation-pickup')).toHaveTextContent(
       'Main Beach',
     )

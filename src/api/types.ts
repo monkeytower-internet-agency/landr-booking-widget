@@ -1063,6 +1063,8 @@ export interface CustomerBilling {
   country: string
   company?: string | null
   tax_id?: string | null
+  /** landr-jsu3n.2: optional bill-to (invoice) name when not the booker. */
+  name?: string | null
 }
 
 export interface SubmitBookingBody {
@@ -1512,6 +1514,9 @@ export interface BookingSummaryDates {
 export interface BookingSummaryParticipant {
   name: string
   is_guiding?: boolean
+  /** landr-jsu3n.1: set on non-guiding companions; groups the Party block
+   * exactly like the confirmation email. */
+  companion_kind?: 'guest' | 'separate_guiding' | null
 }
 
 /**

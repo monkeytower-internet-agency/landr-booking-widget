@@ -225,6 +225,8 @@ type Bundle = {
   billingCountryLabel: string
   billingCountryPlaceholder: string
   billingInvoiceToCompanyLabel: string
+  billingInvoiceNameLabel: string
+  billingInvoiceNameHint: string
   billingCompanyLabel: string
   billingTaxIdLabel: string
   memberPerkOtpLabel: string
@@ -375,6 +377,11 @@ type Bundle = {
 
   // ---- Confirmation ----
   yourBookingTitle: string
+  // landr-jsu3n.1: confirmation "Party" block — same groups as the email.
+  partyHeading: string
+  partyIncludedHeading: string
+  partySeparateGuidingHeading: string
+  partyGuestsHeading: string
   priceBreakdownTitle: string
   atHotelPayAtCheckin: string
   referenceLabel: string
@@ -907,6 +914,8 @@ const en: Bundle = {
   billingCountryLabel: 'Country',
   billingCountryPlaceholder: '— select a country —',
   billingInvoiceToCompanyLabel: 'Invoice to a company?',
+  billingInvoiceNameLabel: 'Invoice name (optional)',
+  billingInvoiceNameHint: 'Only if the invoice should be made out to a different name than yours.',
   billingCompanyLabel: 'Company',
   billingTaxIdLabel: 'Tax ID (NIF / VAT)',
   memberPerkOtpLabel: 'Member? Enter the 6-digit code we emailed you to apply your member price.',
@@ -1071,6 +1080,10 @@ const en: Bundle = {
   confirmBookingLabel: 'Confirm booking',
 
   yourBookingTitle: 'Your booking',
+  partyHeading: 'Party',
+  partyIncludedHeading: 'Participants (included in this booking)',
+  partySeparateGuidingHeading: 'Joining the activity — separate guiding booking',
+  partyGuestsHeading: 'Not doing the activity (guests)',
   priceBreakdownTitle: 'Price breakdown',
   atHotelPayAtCheckin: 'At hotel · pay at check-in',
   referenceLabel: 'Reference',
@@ -1233,11 +1246,11 @@ const en: Bundle = {
   offerAgreedTitle: 'Your booking as agreed',
   offerAgreedDescription: 'This is your booking as we agreed it, so there is nothing for you to accept.',
   offerAcceptedDescription: 'You have accepted this offer.',
-  offerReviewHotelDescription: 'Review the details below and accept the offer. We asked the hotel when we sent it; you receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
+  offerReviewHotelDescription: 'Review the details below. You can accept the offer now; we send your confirmation and payment link as soon as the hotel confirms.',
   offerReviewAcceptDescription: 'Review the details below and click Accept offer to confirm your booking.',
-  offerHotelNote: 'This offer is valid once the hotel confirms your rooms.',
-  offerHotelNoteAfterAccept: 'We asked the hotel when we sent this offer. You receive the confirmation and payment link once the hotel has confirmed and you have accepted.',
-  offerHotelNoteNow: 'We are asking the hotel to confirm. You receive the payment link by email as soon as they have.',
+  offerHotelNote: 'Your offer becomes valid once the hotel confirms your dates.',
+  offerHotelNoteAfterAccept: 'You can accept now — we send your confirmation and payment link as soon as the hotel confirms.',
+  offerHotelNoteNow: 'You have accepted. We are waiting for the hotel; we send your confirmation and payment link as soon as it confirms.',
   offerHotelConfirmed: 'Hotel confirmed',
   offerHotelConfirmedAfterAccept: 'The hotel has confirmed your rooms. Accept the offer to get your confirmation and payment link.',
   offerHotelConfirmedAccepted: 'The hotel has confirmed your rooms.',
@@ -1573,6 +1586,8 @@ const de: Bundle = {
   billingCountryLabel: 'Land',
   billingCountryPlaceholder: '— Land auswählen —',
   billingInvoiceToCompanyLabel: 'Rechnung an ein Unternehmen?',
+  billingInvoiceNameLabel: 'Name auf der Rechnung (optional)',
+  billingInvoiceNameHint: 'Nur, wenn die Rechnung auf einen anderen Namen als Ihren ausgestellt werden soll.',
   billingCompanyLabel: 'Unternehmen',
   billingTaxIdLabel: 'Steuernummer (NIF / USt-IdNr.)',
   memberPerkOtpLabel: 'Mitglied? Geben Sie den 6-stelligen Code ein, den wir Ihnen per E-Mail geschickt haben, um Ihren Mitgliederpreis anzuwenden.',
@@ -1741,6 +1756,10 @@ const de: Bundle = {
   confirmBookingLabel: 'Buchung bestätigen',
 
   yourBookingTitle: 'Ihre Buchung',
+  partyHeading: 'Reisegruppe',
+  partyIncludedHeading: 'Teilnehmer (in dieser Buchung enthalten)',
+  partySeparateGuidingHeading: 'Nimmt an der Aktivität teil — eigene separate Buchung',
+  partyGuestsHeading: 'Nimmt nicht an der Aktivität teil (Begleitung)',
   priceBreakdownTitle: 'Preisaufschlüsselung',
   atHotelPayAtCheckin: 'Im Hotel · Zahlung beim Check-in',
   referenceLabel: 'Referenz',
@@ -1904,11 +1923,11 @@ const de: Bundle = {
   offerAgreedTitle: 'Ihre Buchung wie vereinbart',
   offerAgreedDescription: 'Das ist Ihre Buchung so, wie wir sie vereinbart haben – Sie müssen nichts bestätigen.',
   offerAcceptedDescription: 'Sie haben dieses Angebot angenommen.',
-  offerReviewHotelDescription: 'Prüfen Sie die Details unten und nehmen Sie das Angebot an. Wir haben das Hotel beim Senden angefragt; Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
+  offerReviewHotelDescription: 'Prüfen Sie die Details unten. Sie können das Angebot jetzt annehmen; Bestätigung und Zahlungslink senden wir, sobald das Hotel bestätigt.',
   offerReviewAcceptDescription: 'Prüfen Sie die Details unten und klicken Sie auf „Angebot annehmen“, um Ihre Buchung zu bestätigen.',
-  offerHotelNote: 'Dieses Angebot gilt, sobald das Hotel Ihre Zimmer bestätigt.',
-  offerHotelNoteAfterAccept: 'Wir haben das Hotel beim Senden dieses Angebots angefragt. Bestätigung und Zahlungslink erhalten Sie, sobald das Hotel bestätigt hat und Sie zugesagt haben.',
-  offerHotelNoteNow: 'Wir fragen das Hotel gerade an. Den Zahlungslink erhalten Sie per E-Mail, sobald es bestätigt hat.',
+  offerHotelNote: 'Ihr Angebot gilt, sobald das Hotel Ihre Daten bestätigt.',
+  offerHotelNoteAfterAccept: 'Sie können jetzt zusagen — Bestätigung und Zahlungslink senden wir, sobald das Hotel bestätigt.',
+  offerHotelNoteNow: 'Sie haben zugesagt. Wir warten auf das Hotel; Bestätigung und Zahlungslink senden wir, sobald es bestätigt.',
   offerHotelConfirmed: 'Hotel bestätigt',
   offerHotelConfirmedAfterAccept: 'Das Hotel hat Ihre Zimmer bestätigt. Nehmen Sie das Angebot an, um Bestätigung und Zahlungslink zu erhalten.',
   offerHotelConfirmedAccepted: 'Das Hotel hat Ihre Zimmer bestätigt.',

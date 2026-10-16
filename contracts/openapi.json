@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "AcceptOfferResponse": {
-        "description": "POST /{token}/accept-offer (landr-bo0wd.1).\n\n``already_accepted`` = the yes was recorded before (double click, or an\nacceptance-free offer); nothing moved this time. ``advanced`` = this call\nran the general-approval transition (landr-kstic: the normal case -- the\nbooking waits at the general gate until the customer accepts; the hotel\nrequest, or with no hotel step the confirmation + payment link, goes out\nnow). ``confirmation_sent`` = this yes released a held confirmation step\n(the booking already sat at ``awaiting_payment``): the customer\nconfirmation + payment link are on their way.\n``payment_allowed`` = the offer page may take payment now: False while the\nhotel step is ahead or in progress (``offer_hotel_pending``) or the hotel\ndeclined (``offer_hotel_declined``) -- the payment link then arrives the\nusual way once the hotel confirmed.",
+        "description": "POST /{token}/accept-offer (landr-bo0wd.1).\n\n``already_accepted`` = the yes was recorded before (double click, or an\nacceptance-free offer); nothing moved this time. ``advanced`` = this call\nran the general-approval transition (landr-kstic: the normal case -- the\nbooking waits at the general gate until the customer accepts; the hotel\nrequest, or with no hotel step the confirmation + payment link, goes out\nnow). ``confirmation_sent`` = this yes released a held confirmation step\n(the booking already sat at ``awaiting_payment``): the customer\nconfirmation + payment link are on their way.\n``payment_allowed`` = the offer page may take payment now: False while the\nhotel step is ahead or in progress (``offer_hotel_pending``) or the hotel\ndeclined (``offer_hotel_declined``) -- the payment link then arrives the\nusual way once the hotel confirmed. landr-jsu3n.5: a staff offer's hotel\nis asked at send, so its accept is accept-only (``payment_allowed``\nFalse) until the hotel's yes; ``offer_hotel_confirmed`` = that yes is in.",
         "properties": {
           "accepted": {
             "default": true,
@@ -33,6 +33,11 @@
               }
             ],
             "title": "Offer Accepted At"
+          },
+          "offer_hotel_confirmed": {
+            "default": false,
+            "title": "Offer Hotel Confirmed",
+            "type": "boolean"
           },
           "offer_hotel_declined": {
             "default": false,
@@ -1475,7 +1480,7 @@
         "type": "object"
       },
       "BillingAddressIn": {
-        "description": "The invoice recipient's postal address.\n\n``address_line1``, ``postal_code``, ``city`` and ``country`` are required\nand must be non-blank after stripping (a whitespace-only value is a 422,\nnot a silently-missing address). The rest are optional and blank-fold to\n``None``. ``company`` + ``tax_id`` are the \"invoice to a company\" pair.",
+        "description": "The invoice recipient's postal address.\n\n``address_line1``, ``postal_code``, ``city`` and ``country`` are required\nand must be non-blank after stripping (a whitespace-only value is a 422,\nnot a silently-missing address). The rest are optional and blank-fold to\n``None``. ``company`` + ``tax_id`` are the \"invoice to a company\" pair;\n``name`` (landr-jsu3n.2) is an optional different bill-to name.",
         "properties": {
           "address_line1": {
             "maxLength": 200,
@@ -1515,6 +1520,19 @@
             "description": "ISO 3166-1 alpha-2, e.g. 'DE'.",
             "title": "Country",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.",
+            "title": "Name"
           },
           "postal_code": {
             "maxLength": 32,
@@ -1596,6 +1614,19 @@
             "description": "ISO 3166-1 alpha-2, e.g. 'DE'.",
             "title": "Country",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.",
+            "title": "Name"
           },
           "only_if_missing": {
             "default": false,
@@ -2808,6 +2839,17 @@
       "BookingSummaryParticipant": {
         "additionalProperties": true,
         "properties": {
+          "companion_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companion Kind"
+          },
           "is_guiding": {
             "default": true,
             "title": "Is Guiding",
@@ -5179,6 +5221,11 @@
                 "type": "null"
               }
             ]
+          },
+          "offer_hotel_confirmed": {
+            "default": false,
+            "title": "Offer Hotel Confirmed",
+            "type": "boolean"
           },
           "offer_hotel_declined_at": {
             "anyOf": [
@@ -19848,6 +19895,17 @@
                 "type": "null"
               }
             ]
+          },
+          "offer_hotel_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Hotel Confirmed"
           },
           "offer_hotel_declined": {
             "anyOf": [
