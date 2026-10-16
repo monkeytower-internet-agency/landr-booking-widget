@@ -155,6 +155,7 @@ type Bundle = {
   /** Invite banner (App.tsx) — {host}, {ref}. Hotel variant only when the invite prefills a hotel (landr-2jsaf). */
   inviteBannerDatesAndHotel: string
   inviteBannerDatesOnly: string
+  inviteBannerOwnAccommodation: string
   hostDayUnavailableOne: string
   hostDaysUnavailableOther: string
 
@@ -350,6 +351,11 @@ type Bundle = {
   companionOrdinalTemplate: string
   maxCompanionsReachedTemplate: string
   companionInviteHint: string
+  companionOwnAccommodationLabel: string
+  companionOwnAccommodationHint: string
+  ownAccommodationNoRoomBooked: string
+  inviteOwnBookRoomLabel: string
+  inviteOwnBookRoomHint: string
   companionContactRequiredTemplate: string
   themFallback: string
   youWillBeListedAsParticipant1: string
@@ -853,6 +859,8 @@ const en: Bundle = {
     'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
   inviteBannerDatesOnly:
     'You’re joining {host}’s booking (ref {ref}). Dates are prefilled — change anything that differs for you.',
+  inviteBannerOwnAccommodation:
+    'You’re joining {host}’s booking (ref {ref}). Dates are prefilled. No room is booked for you there — choose guiding only, or book a room with us.',
   hostDayUnavailableOne:
     "1 of {host}'s days is no longer available — change your dates to continue.",
   hostDaysUnavailableOther:
@@ -1052,6 +1060,12 @@ const en: Bundle = {
   companionOrdinalTemplate: 'Guest {n}',
   maxCompanionsReachedTemplate: 'Maximum of {n} guests reached',
   companionInviteHint: "We'll use this to send them their own booking link.",
+  companionOwnAccommodationLabel: 'Arranges own accommodation (no room booked through us)',
+  companionOwnAccommodationHint:
+    'No room is booked for them in this booking. Their invite link lets them book guiding only or a room of their own.',
+  ownAccommodationNoRoomBooked: 'own accommodation — no room booked',
+  inviteOwnBookRoomLabel: 'Book a room with us',
+  inviteOwnBookRoomHint: 'Pick a hotel and a room of your own. The hotel of the person who invited you is preselected.',
   companionContactRequiredTemplate: 'We need an email or phone number to send {name} their booking link',
   themFallback: 'them',
   youWillBeListedAsParticipant1:
@@ -1529,6 +1543,8 @@ const de: Bundle = {
     'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
   inviteBannerDatesOnly:
     'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
+  inviteBannerOwnAccommodation:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt. Für Sie ist dort kein Zimmer gebucht — wählen Sie nur Guiding oder buchen Sie ein Zimmer bei uns.',
   hostDayUnavailableOne:
     '1 der Termine von {host} ist nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
   hostDaysUnavailableOther:
@@ -1731,6 +1747,12 @@ const de: Bundle = {
   companionOrdinalTemplate: 'Gast {n}',
   maxCompanionsReachedTemplate: 'Maximal {n} Gäste erreicht',
   companionInviteHint: 'Damit senden wir ihnen ihren eigenen Buchungslink.',
+  companionOwnAccommodationLabel: 'Kümmert sich selbst um die Unterkunft (kein Zimmer über uns gebucht)',
+  companionOwnAccommodationHint:
+    'Für diese Person wird in dieser Buchung kein Zimmer gebucht. Über ihren Einladungslink kann sie nur Guiding oder ein eigenes Zimmer buchen.',
+  ownAccommodationNoRoomBooked: 'eigene Unterkunft — kein Zimmer gebucht',
+  inviteOwnBookRoomLabel: 'Zimmer bei uns buchen',
+  inviteOwnBookRoomHint: 'Wählen Sie ein Hotel und ein eigenes Zimmer. Das Hotel der Person, die Sie eingeladen hat, ist vorausgewählt.',
   companionContactRequiredTemplate:
     'Wir benötigen eine E-Mail-Adresse oder Telefonnummer, um {name} den Buchungslink zu senden',
   themFallback: 'ihnen',
@@ -2161,9 +2183,15 @@ export function inviteBannerMessage(
   reference: string,
   hasHotel: boolean,
   locale?: string,
+  ownAccommodation = false,
 ): string {
   const t = pickBundle(locale)
-  const template = hasHotel ? t.inviteBannerDatesAndHotel : t.inviteBannerDatesOnly
+  // landr-qw2v8.2: no room is booked for this invitee — never claim a hotel.
+  const template = ownAccommodation
+    ? t.inviteBannerOwnAccommodation
+    : hasHotel
+      ? t.inviteBannerDatesAndHotel
+      : t.inviteBannerDatesOnly
   return template.replace('{host}', host).replace('{ref}', reference)
 }
 
@@ -2867,6 +2895,11 @@ export function inviteRoomHint(locale?: string): string {
   return isGermanLocale(locale)
     ? 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.'
     : 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.'
+}
+
+/** landr-qw2v8.2: "{name}: own accommodation — no room booked" (host review + confirmation). */
+export function ownAccommodationNoRoomLabel(name: string, locale?: string): string {
+  return `${name}: ${tr('ownAccommodationNoRoomBooked', locale)}`
 }
 
 /** landr-wp8e9.2: replaces the "Optional — …" rooms hint when the host room cannot take the companions. */

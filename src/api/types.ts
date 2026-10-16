@@ -976,6 +976,14 @@ export interface Companion {
    */
   companion_kind?: 'guest' | 'separate_guiding' | null
   /**
+   * landr-qw2v8.2: a 'separate_guiding' companion who arranges their own
+   * accommodation (camper, own flat): NO room is booked for them on this
+   * booking. Omitted when false. The API 422s `own_accommodation_invalid` when
+   * it is sent for a 'guest' companion or together with a room_product_id, so
+   * the widget never assigns such a companion to a room.
+   */
+  own_accommodation?: boolean
+  /**
    * landr-r6e5x.4 / epic decision D3: the companion's assigned guide language
    * (ISO 639-1). Mirrors the Participant field exactly — the assignment board
    * makes no distinction between a guiding participant and a companion, and
@@ -1490,6 +1498,13 @@ export interface InvitePrefill {
    */
   host_room_name?: string | null
   host_room_capacity?: number | null
+  /**
+   * landr-qw2v8.2: the inviter booked this person WITHOUT a room ("arranges own
+   * accommodation"). When true is_shared_double is false and host_room_* are
+   * null; the invitee chooses guiding only or their own room. Optional so an
+   * API predating the field reads as false.
+   */
+  own_accommodation?: boolean
 }
 
 /**
@@ -1532,6 +1547,8 @@ export interface BookingSummaryParticipant {
   /** landr-jsu3n.1: set on non-guiding companions; groups the Party block
    * exactly like the confirmation email. */
   companion_kind?: 'guest' | 'separate_guiding' | null
+  /** landr-qw2v8.2: no room booked through us for this separate_guiding companion. */
+  own_accommodation?: boolean
 }
 
 /**

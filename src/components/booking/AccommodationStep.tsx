@@ -317,6 +317,15 @@ interface Props {
   hostDisplayName?: string
   hostRoomName?: string | null
   /**
+   * landr-qw2v8.2: true when this booking arrived via an invite link of a
+   * companion the inviter booked WITHOUT a room ("arranges own accommodation").
+   * There is no host room to share, so the step runs as a normal (non-invite)
+   * one — App passes inviteMode=false and allowSharedDouble=false — offering
+   * only "Guiding only" and "Book a room with us"; the inviter's hotel is
+   * preselected (initialHotelLocationId) but stays changeable.
+   */
+  inviteOwnAccommodation?: boolean
+  /**
    * landr-jiagg.2 — false when the booker books for someone else and does not
    * take part. The shared double covers the BOOKER'S own bed, so without the
    * booker in the party there is nothing to share: the option is not offered
@@ -394,6 +403,7 @@ export function AccommodationStep({
   hostRoomFreeBeds = null,
   hostDisplayName = '',
   hostRoomName = null,
+  inviteOwnAccommodation = false,
   allowSharedDouble = true,
   onJoinRefChange,
 }: Props) {
@@ -429,6 +439,10 @@ export function AccommodationStep({
     if (offering === 'optional' && initialIncludeHotel === false) {
       return 'guiding-only'
     }
+    // landr-qw2v8.2: this invitee was booked WITHOUT a room because they
+    // arrange their own accommodation — lead with guiding only (when the
+    // product allows it); "Book a room with us" is one click away.
+    if (inviteOwnAccommodation && offering === 'optional') return 'guiding-only'
     return 'package'
   })
 
@@ -747,7 +761,17 @@ export function AccommodationStep({
   useEffect(() => {
     if (!needsHotel) return
     if (!hotels || hotels.length !== 1) return
-    if (selectedHotelId) return
+    // landr-qw2v8.2: the inviter's hotel may not be offered by this operator
+    // (it is only a preselection) — then fall back to the lone hotel.
+    if (
+      selectedHotelId &&
+      !(
+        inviteOwnAccommodation &&
+        !hotels.some((h) => h.location_id === selectedHotelId)
+      )
+    ) {
+      return
+    }
     let cancelled = false
     void (async () => {
       if (cancelled) return
@@ -757,7 +781,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  }, [needsHotel, hotels, selectedHotelId])
+  }, [needsHotel, hotels, selectedHotelId, inviteOwnAccommodation])
 
   // Fetch rooms when a hotel is selected AND this mode books rooms (package,
   // or shared-double with companions — landr-zeg4u.4). Plain shared-double
@@ -1736,8 +1760,12 @@ export function AccommodationStep({
         : [
             {
               value: 'package' as const,
-              label: tr('bookAccommodationPackageLabel', locale),
-              hint: tr('bookAccommodationPackageHint', locale),
+              label: inviteOwnAccommodation
+                ? tr('inviteOwnBookRoomLabel', locale)
+                : tr('bookAccommodationPackageLabel', locale),
+              hint: inviteOwnAccommodation
+                ? tr('inviteOwnBookRoomHint', locale)
+                : tr('bookAccommodationPackageHint', locale),
             },
             // landr-jiagg.2: only when the booker takes part.
             ...(allowSharedDouble ? [sharedDoubleOption] : []),

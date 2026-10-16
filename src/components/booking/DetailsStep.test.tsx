@@ -3173,3 +3173,78 @@ describe('DetailsStep — "Invoice to:" cue (landr-jiagg.2)', () => {
     expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Olaf')
   })
 })
+
+describe('DetailsStep — companion arranges own accommodation (landr-qw2v8.2)', () => {
+  function addSeparateGuiding(product = makeProduct()) {
+    const onConfirm = vi.fn()
+    render(
+      <DetailsStep
+        product={product}
+        selection={DAYS_SELECTION}
+        onBack={vi.fn()}
+        onConfirm={onConfirm}
+      />,
+    )
+    fillBooker()
+    fireEvent.click(screen.getByTestId('add-companion'))
+    fireEvent.change(byName('companion_1_first_name'), { target: { value: 'Thomas' } })
+    fireEvent.change(byName('companion_1_last_name'), { target: { value: 'Klein' } })
+    return onConfirm
+  }
+
+  it('offers the toggle only once the companion is separate_guiding', () => {
+    addSeparateGuiding()
+    expect(screen.queryByTestId('companion-own-accommodation-0')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    expect(screen.getByTestId('companion-own-accommodation-0')).toHaveTextContent(
+      'Arranges own accommodation (no room booked through us)',
+    )
+  })
+
+  it('submits own_accommodation=true on the flagged companion', () => {
+    const onConfirm = addSeparateGuiding()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /arranges own accommodation/i }),
+    )
+    expect(screen.getByTestId('companion-own-accommodation-hint-0')).toBeInTheDocument()
+    fireEvent.change(byName('companion_1_email'), { target: { value: 't@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0]![2][0]).toMatchObject({
+      companion_kind: 'separate_guiding',
+      own_accommodation: true,
+    })
+  })
+
+  it('flipping back to guest drops the flag', () => {
+    const onConfirm = addSeparateGuiding()
+    fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /arranges own accommodation/i }),
+    )
+    fireEvent.click(screen.getByTestId('companion-kind-0-guest'))
+    expect(screen.queryByTestId('companion-own-accommodation-0')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0]![2][0]).toMatchObject({ companion_kind: 'guest' })
+    expect(onConfirm.mock.calls[0]![2][0]).not.toHaveProperty('own_accommodation')
+  })
+
+  it('is not offered on a product with no accommodation at all', () => {
+    addSeparateGuiding(makeProduct({ hotel_offering: 'none' }))
+    expect(screen.queryByTestId('companion-own-accommodation-0')).not.toBeInTheDocument()
+  })
+
+  it('has German copy', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    try {
+      addSeparateGuiding()
+      fireEvent.click(screen.getByTestId('companion-kind-0-separate_guiding'))
+      expect(screen.getByTestId('companion-own-accommodation-0')).toHaveTextContent(
+        'Kümmert sich selbst um die Unterkunft',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
