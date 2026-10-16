@@ -348,6 +348,17 @@ type Bundle = {
   companionContactRequiredTemplate: string
   themFallback: string
   youWillBeListedAsParticipant1: string
+  // landr-jiagg.2: "booking for someone else" (booker pays, does not take part).
+  bookingForSomeoneElseLabel: string
+  addPeopleJoiningBelow: string
+  participantsTotalTemplate: string
+  sameAsYoursPlaceholder: string
+  invoiceToLabel: string
+  notTakingPartPaysInvoice: string
+  sharedDoubleRequiresBookerMessage: string
+  maxParticipantsReachedOne: string
+  maxParticipantsReachedTemplate: string
+  tooManyPeopleRemoveSomeone: string
   notAMemberOrNoCode: string
   companionsShareAccommodationExplainer: string
   participantsYouPayForHint: string
@@ -1028,6 +1039,18 @@ const en: Bundle = {
   themFallback: 'them',
   youWillBeListedAsParticipant1:
     "You'll be listed as participant 1. Add more people below if others are joining.",
+  bookingForSomeoneElseLabel: "I'm booking for someone else and won't take part",
+  addPeopleJoiningBelow: 'Add the people who are joining below.',
+  participantsTotalTemplate: 'Participants ({n} total)',
+  sameAsYoursPlaceholder: 'same as yours',
+  invoiceToLabel: 'Invoice to:',
+  notTakingPartPaysInvoice: 'Not taking part · pays the invoice',
+  maxParticipantsReachedOne: 'Maximum of 1 participant reached',
+  maxParticipantsReachedTemplate: 'Maximum of {n} participants reached',
+  tooManyPeopleRemoveSomeone:
+    'There are more people than this activity allows — remove someone to continue.',
+  sharedDoubleRequiresBookerMessage:
+    'A shared double room covers your own bed, so you can only pick it when you take part yourself. Please go back to accommodation and choose another option.',
   notAMemberOrNoCode:
     "Not a member, or don't have a code? Leave this blank — it won't affect your booking.",
   participantsYouPayForHint: "People you're booking and paying for.",
@@ -1686,6 +1709,18 @@ const de: Bundle = {
   themFallback: 'ihnen',
   youWillBeListedAsParticipant1:
     'Sie werden als Teilnehmer 1 aufgeführt. Fügen Sie unten weitere Personen hinzu, wenn andere mitkommen.',
+  bookingForSomeoneElseLabel: 'Ich buche für jemand anderen und nehme selbst nicht teil',
+  addPeopleJoiningBelow: 'Tragen Sie unten die Personen ein, die teilnehmen.',
+  participantsTotalTemplate: 'Teilnehmer ({n} insgesamt)',
+  sameAsYoursPlaceholder: 'wie Ihre',
+  invoiceToLabel: 'Rechnung an:',
+  notTakingPartPaysInvoice: 'Nimmt nicht teil · zahlt die Rechnung',
+  maxParticipantsReachedOne: 'Maximal 1 Teilnehmer erreicht',
+  maxParticipantsReachedTemplate: 'Maximal {n} Teilnehmer erreicht',
+  tooManyPeopleRemoveSomeone:
+    'Es sind mehr Personen eingetragen, als diese Aktivität erlaubt — entfernen Sie jemanden, um fortzufahren.',
+  sharedDoubleRequiresBookerMessage:
+    'Ein geteiltes Doppelzimmer deckt Ihr eigenes Bett ab und ist daher nur wählbar, wenn Sie selbst teilnehmen. Bitte gehen Sie zurück zur Unterkunft und wählen Sie eine andere Option.',
   notAMemberOrNoCode:
     'Kein Mitglied oder keinen Code zur Hand? Lassen Sie dieses Feld leer — das hat keinen Einfluss auf Ihre Buchung.',
   participantsYouPayForHint: 'Personen, die Sie buchen und bezahlen.',
@@ -2689,6 +2724,19 @@ export function nextStepSendGroupLabel(inviteCount: number, locale?: string): st
 /** DetailsStep: "Other participants ({n} total)". */
 export function otherParticipantsHeading(n: number, locale?: string): string {
   return tr('otherParticipantsTotalTemplate', locale).replace('{n}', String(n))
+}
+
+/** landr-jiagg.2 DetailsStep max notice when the booker does not take part:
+ *  "Maximum of {n} participants reached" ("1 participant" singular). */
+export function maxParticipantsReachedMessage(n: number, locale?: string): string {
+  return n === 1
+    ? tr('maxParticipantsReachedOne', locale)
+    : tr('maxParticipantsReachedTemplate', locale).replace('{n}', String(n))
+}
+
+/** landr-jiagg.2 DetailsStep (booker not taking part): "Participants ({n} total)". */
+export function participantsTotalHeading(n: number, locale?: string): string {
+  return tr('participantsTotalTemplate', locale).replace('{n}', String(n))
 }
 
 /** DetailsStep: "Add anyone else taking part. You can add up to {n} more." */

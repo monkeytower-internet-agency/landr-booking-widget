@@ -163,7 +163,9 @@ export function normalizePartyIdentity(progress: BookingProgress): BookingProgre
     Array.isArray(draft.companions) ? draft.companions.length : 0,
   )
 
-  // participants[0] is always the booker — pin them to the same sentinel
+  // participants[0] is always the booker in a pre-landr-uwvl blob (the
+  // landr-jiagg.2 "not taking part" flag postdates ids, so a blob this old
+  // never carries it) — pin them to the same sentinel
   // `bookerToParticipant` stamps, so a restored booker keeps their identity
   // across the remount that re-derives participants[0] from the booker fields.
   const participantIds: PartyMemberId[] = Array.from(
@@ -242,6 +244,24 @@ export function normalizeBookerBilling(progress: BookingProgress): BookingProgre
 }
 
 /**
+ * landr-jiagg.2: a blob written before "I'm booking for someone else" existed
+ * carries a booker without `joins`. Such a booker always took part (they were
+ * mirrored into participants[0]), so restore them as joining — explicitly, on
+ * both containers, rather than leaning on every reader treating absent as
+ * true. A blob that already carries the flag (true or false) is untouched.
+ */
+export function normalizeBookerJoins(progress: BookingProgress): BookingProgress {
+  const fix = <T extends { booker?: BookerDetails }>(c: T): T =>
+    c.booker && typeof c.booker.joins !== 'boolean'
+      ? { ...c, booker: { ...c.booker, joins: true } }
+      : c
+  return {
+    step: fix(progress.step as Step & { booker?: BookerDetails }) as Step,
+    bookingDraft: fix(progress.bookingDraft),
+  }
+}
+
+/**
  * Read + parse the persisted progress. Returns null when nothing is
  * stored, the blob is unparseable/legacy, the stored step is not a
  * restorable one, OR storage is unavailable/throws (sandboxed embed).
@@ -264,13 +284,15 @@ export function readStoredProgress(): BookingProgress | null {
     if (!isRestorableStep(step)) return null
     // landr-uwvl: migrate a pre-identity blob before it reaches App state —
     // see normalizePartyIdentity. A no-op for blobs written by this bundle.
-    return normalizeBookerBilling(
-      normalizePartyIdentity({
-        step,
-        // Draft is optional in the blob; default to empty so a partial
-        // write never restores `undefined` into App's draft state.
-        bookingDraft: (parsed.bookingDraft as BookingDraft) ?? {},
-      }),
+    return normalizeBookerJoins(
+      normalizeBookerBilling(
+        normalizePartyIdentity({
+          step,
+          // Draft is optional in the blob; default to empty so a partial
+          // write never restores `undefined` into App's draft state.
+          bookingDraft: (parsed.bookingDraft as BookingDraft) ?? {},
+        }),
+      ),
     )
   } catch {
     // Unparseable JSON, blocked storage, or a shape we don't recognise —
