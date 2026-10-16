@@ -391,7 +391,7 @@ describe('DetailsStep (landr-8c03)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
-          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialParticipants={[
           {
@@ -569,7 +569,7 @@ describe('DetailsStep — service_role selector (landr-mg0a)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
-          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialParticipants={[
           {
@@ -1587,7 +1587,7 @@ describe('DetailsStep — member-perk OTP entry (landr-fn4i)', () => {
           last_name: 'Lovelace',
           email: 'ada@example.com',
           phone: '+34 600 000 000',
-          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' },
+          billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' },
         }}
         initialMemberPerkOtp="654321"
         onBack={vi.fn()}
@@ -2221,7 +2221,7 @@ describe('DetailsStep no-accommodation products (landr-lu41h)', () => {
         selection={DAYS_SELECTION}
         onBack={vi.fn()}
         onConfirm={onConfirm}
-        initialBooker={{ first_name: 'Ada', last_name: 'L', email: 'ada@example.com', phone: '+34600000000', billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '' } }}
+        initialBooker={{ first_name: 'Ada', last_name: 'L', email: 'ada@example.com', phone: '+34600000000', billing: { address_line1: 'Calle Mayor 1', address_line2: '', postal_code: '28013', city: 'Madrid', region: '', country: 'ES', company: '', tax_id: '', name: '' } }}
         initialCompanions={[
           { id: 'c1', first_name: 'Mia', last_name: 'Berg', email: 'm@example.com', phone: '', companion_kind: 'guest' },
         ]}
@@ -2501,6 +2501,7 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
       country: 'ES',
       company: '',
       tax_id: '',
+      name: '',
     })
   })
 
@@ -2526,7 +2527,7 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
     expect(screen.queryByLabelText('Company')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(onConfirm.mock.calls[1]![0].billing).toMatchObject({ company: '', tax_id: '' })
+    expect(onConfirm.mock.calls[1]![0].billing).toMatchObject({ company: '', tax_id: '', name: '' })
   })
 
   it('restores the billing address (and an open company section) from initialBooker', () => {
@@ -2546,6 +2547,7 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
           country: 'DE',
           company: 'Acme GmbH',
           tax_id: 'DE1',
+          name: '',
         },
       },
     })
@@ -2553,6 +2555,63 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
     expect(byName('booker_billing_country')).toHaveValue('DE')
     expect(screen.getByRole('checkbox', { name: 'Invoice to a company?' })).toBeChecked()
     expect(screen.getByLabelText('Company')).toHaveValue('Acme GmbH')
+  })
+
+  // landr-jsu3n.2: optional "Invoice name" + the company toggle, also for an
+  // invitee joining through an invite link.
+  describe.each([
+    ['direct booking', false],
+    ['invite link', true],
+  ])('Invoice name and company toggle — %s', (_label, inviteMode) => {
+    it('renders the optional Invoice name, the company toggle and the company fields', () => {
+      noGuess()
+      renderStep({ inviteMode })
+      expect(screen.getByLabelText('Invoice name (optional)')).toHaveValue('')
+      const toggle = screen.getByRole('checkbox', { name: 'Invoice to a company?' })
+      expect(toggle).toBeInTheDocument()
+      fireEvent.click(toggle)
+      expect(screen.getByTestId('booker-billing-company-fields')).toBeInTheDocument()
+    })
+
+    it('confirms with the Invoice name on the booker billing; "Invoice to:" shows it', () => {
+      noGuess()
+      const onConfirm = renderStep({ inviteMode })
+      fillContactOnly()
+      fillBillingFields()
+      fireEvent.change(screen.getByLabelText('Invoice name (optional)'), {
+        target: { value: 'Grace Hopper' },
+      })
+      expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Grace Hopper')
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Invoice to a company?' }))
+      fireEvent.change(byName('booker_billing_company'), { target: { value: 'Acme SL' } })
+      expect(screen.getByTestId('invoice-to-line-0')).toHaveTextContent('Acme SL')
+      expect(screen.getByTestId('invoice-to-line-1')).toHaveTextContent('Grace Hopper')
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      expect(onConfirm).toHaveBeenCalledTimes(1)
+      expect(onConfirm.mock.calls[0]![0].billing).toMatchObject({
+        name: 'Grace Hopper',
+        company: 'Acme SL',
+      })
+    })
+  })
+
+  it('keeps the Invoice name when the company toggle is switched off', () => {
+    noGuess()
+    const onConfirm = renderStep()
+    fillContactOnly()
+    fillBillingFields()
+    fireEvent.change(screen.getByLabelText('Invoice name (optional)'), {
+      target: { value: 'Grace Hopper' },
+    })
+    const toggle = screen.getByRole('checkbox', { name: 'Invoice to a company?' })
+    fireEvent.click(toggle)
+    fireEvent.change(byName('booker_billing_company'), { target: { value: 'Acme SL' } })
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onConfirm.mock.calls[0]![0].billing).toMatchObject({
+      name: 'Grace Hopper',
+      company: '',
+    })
   })
 
   it('tolerates an initialBooker persisted before billing existed', () => {

@@ -1063,6 +1063,8 @@ export interface CustomerBilling {
   country: string
   company?: string | null
   tax_id?: string | null
+  /** landr-jsu3n.2: optional bill-to (invoice) name when not the booker. */
+  name?: string | null
 }
 
 export interface SubmitBookingBody {
