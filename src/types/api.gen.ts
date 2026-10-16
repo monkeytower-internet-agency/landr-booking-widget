@@ -11411,7 +11411,8 @@ export interface components {
          *     ``address_line1``, ``postal_code``, ``city`` and ``country`` are required
          *     and must be non-blank after stripping (a whitespace-only value is a 422,
          *     not a silently-missing address). The rest are optional and blank-fold to
-         *     ``None``. ``company`` + ``tax_id`` are the "invoice to a company" pair.
+         *     ``None``. ``company`` + ``tax_id`` are the "invoice to a company" pair;
+         *     ``name`` (landr-jsu3n.2) is an optional different bill-to name.
          */
         BillingAddressIn: {
             /** Address Line1 */
@@ -11427,6 +11428,11 @@ export interface components {
              * @description ISO 3166-1 alpha-2, e.g. 'DE'.
              */
             country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
             /** Postal Code */
             postal_code: string;
             /** Region */
@@ -11458,6 +11464,11 @@ export interface components {
              * @description ISO 3166-1 alpha-2, e.g. 'DE'.
              */
             country: string;
+            /**
+             * Name
+             * @description landr-jsu3n.2: optional bill-to (invoice) name when it is not the booker. With ``company`` set it is the company's contact person.
+             */
+            name?: string | null;
             /**
              * Only If Missing
              * @default false
