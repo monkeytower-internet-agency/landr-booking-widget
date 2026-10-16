@@ -2463,6 +2463,50 @@ describe('AccommodationStep — shared-double reference field (landr-otml0.3)', 
     ).not.toBeInTheDocument()
   })
 
+  // landr-jsu3n.3: invitee sharing the inviter's room gets the inviter's hotel.
+  it('invite mode with the inviter hotel: read-only "Staying at", no hotel radios', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    const onConfirm = vi.fn()
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        inviteMode
+        initialHotelLocationId="hotel-b"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('staying-at-hotel')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('staying-at-hotel')).toHaveTextContent(
+      'Hotel del Mar',
+    )
+    expect(screen.queryByText('Hotel Mirador')).not.toBeInTheDocument()
+    expect(document.querySelector('input[name="hotel"]')).toBeNull()
+  })
+
+  it('invite mode without an inviter hotel keeps the hotel picker', async () => {
+    mocks.getHotelsForOperator.mockResolvedValue([HOTEL_A, HOTEL_B])
+    mocks.getHotelRoomsForHotel.mockResolvedValue([])
+    render(
+      <AccommodationStep
+        product={makeService('mandatory')}
+        selectedDays={['2026-06-10']}
+        operatorToken="para42"
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        inviteMode
+      />,
+    )
+    await waitFor(() =>
+      expect(document.querySelectorAll('input[name="hotel"]')).toHaveLength(2),
+    )
+  })
+
   it('looks up a complete 8-char reference and shows the masked confirm card', async () => {
     await enterSharedDouble()
     mocks.lookupBookingReference.mockResolvedValue({
