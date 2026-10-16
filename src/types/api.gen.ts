@@ -12834,6 +12834,8 @@ export interface components {
              * @default false
              */
             offer_hotel_pending: boolean;
+            /** Offer Sends */
+            offer_sends?: components["schemas"]["OfferSendOut"][];
             /** Offer Sent At */
             offer_sent_at?: string | null;
             /** Offer Total */
@@ -15868,6 +15870,30 @@ export interface components {
             selected_days?: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * OfferSendOut
+         * @description landr-wbzjp.3: one send of the offer -- a snapshot taken at send time.
+         */
+        OfferSendOut: {
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Offer Total */
+            offer_total?: string | null;
+            /** Outbound Email Id */
+            outbound_email_id?: string | null;
+            /** Recipients */
+            recipients?: string[];
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
         };
         /**
          * OfferTax

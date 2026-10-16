@@ -5244,6 +5244,13 @@
             "title": "Offer Hotel Pending",
             "type": "boolean"
           },
+          "offer_sends": {
+            "items": {
+              "$ref": "#/components/schemas/OfferSendOut"
+            },
+            "title": "Offer Sends",
+            "type": "array"
+          },
           "offer_sent_at": {
             "anyOf": [
               {
@@ -13696,6 +13703,61 @@
           "quantity"
         ],
         "title": "OfferProductLine",
+        "type": "object"
+      },
+      "OfferSendOut": {
+        "description": "landr-wbzjp.3: one send of the offer -- a snapshot taken at send time.",
+        "properties": {
+          "currency": {
+            "default": "EUR",
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "offer_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Total"
+          },
+          "outbound_email_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outbound Email Id"
+          },
+          "recipients": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recipients",
+            "type": "array"
+          },
+          "sent_at": {
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sent_at"
+        ],
+        "title": "OfferSendOut",
         "type": "object"
       },
       "OfferTax": {
