@@ -515,6 +515,7 @@ type Bundle = {
   offerLengthNightSingular: string
   offerLengthNightPlural: string
   offerYourTripWithTemplate: string
+  offerHeroWithAccommodation: string
   // landr-8f1sh.4 — custom offer v2: positions, discount row, periods table
   offerColPeriod: string
   offerPeriodArrival: string
@@ -1212,6 +1213,7 @@ const en: Bundle = {
   offerLengthNightSingular: '{n} night',
   offerLengthNightPlural: '{n} nights',
   offerYourTripWithTemplate: 'Your trip with {operator}',
+  offerHeroWithAccommodation: 'with accommodation',
   offerColPeriod: 'Period',
   offerPeriodArrival: 'Arrival',
   offerPeriodDeparture: 'Departure',
@@ -1892,6 +1894,7 @@ const de: Bundle = {
   offerLengthNightSingular: '{n} Nacht',
   offerLengthNightPlural: '{n} Nächte',
   offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
+  offerHeroWithAccommodation: 'mit Unterkunft',
   offerColPeriod: 'Zeitraum',
   offerPeriodArrival: 'Anreise',
   offerPeriodDeparture: 'Abreise',
