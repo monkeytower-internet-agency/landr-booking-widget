@@ -1512,6 +1512,9 @@ export interface BookingSummaryDates {
 export interface BookingSummaryParticipant {
   name: string
   is_guiding?: boolean
+  /** landr-jsu3n.1: set on non-guiding companions; groups the Party block
+   * exactly like the confirmation email. */
+  companion_kind?: 'guest' | 'separate_guiding' | null
 }
 
 /**
