@@ -44,6 +44,12 @@
 #      staging" recovery. Then main's tip IS a commit staging already carries.
 #      Accepted when DEPLOY_SHA is reachable from STAGING_REF and BEFORE_SHA is
 #      an ancestor of DEPLOY_SHA: only code staging already has.
+#   Dispatch / re-run. workflow_dispatch (how a failed prod deploy is re-run by
+#      hand) has no previous tip: BEFORE_SHA is empty or all zeros (likewise for
+#      a re-run after a force-push). The previous tip is then DEPLOY_SHA^1 and
+#      shapes A/B apply as above: a 2-parent HEAD must be a console merge of
+#      staging, a 1-parent HEAD must already be on staging. A direct commit on
+#      main that is not on staging is still refused.
 #   The console's other shapes never touch main (hotfixes merge into staging
 #   only; a 204 "nothing to merge" creates no commit and no push).
 #
@@ -60,6 +66,7 @@ err() { echo "::error::$*" >&2; }
 cmd_git_shape() {
   local deploy="${DEPLOY_SHA:?DEPLOY_SHA is required}"
   local before="${BEFORE_SHA:-}"
+  local before_in="$before"
   local staging="${STAGING_REF:-origin/staging}"
 
   if ! git rev-parse --verify --quiet "${staging}^{commit}" >/dev/null; then
@@ -67,8 +74,19 @@ cmd_git_shape() {
     return 1
   fi
   if [[ -z "$before" || "$before" =~ ^0+$ ]] || ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
-    err "prod deploy guard: push has no usable previous main tip (BEFORE_SHA='${before}') — a new/force-pushed main is not a release-console promotion. Refusing to deploy ${deploy}."
-    return 1
+    # No usable previous tip: a manual workflow_dispatch (the documented way to
+    # re-run a failed prod deploy), or a re-run after a force-push. Derive it
+    # from the commit itself: a console merge's first parent IS the previous
+    # main tip, and a fast-forward's first parent is an ancestor on staging. The
+    # shape checks below then apply unchanged (parent 2 on staging + subject for
+    # A; reachable from staging for B), so a direct commit on main that is not
+    # on staging is still refused. Limit: only the tip is judged, not whatever
+    # sits under its first parent.
+    if ! before=$(git rev-parse --verify --quiet "${deploy}^1^{commit}"); then
+      err "prod deploy guard: no usable previous main tip (BEFORE_SHA='${before_in}') and ${deploy:0:8} has no parent to derive one from. Refusing to deploy."
+      return 1
+    fi
+    echo "prod deploy guard: no usable BEFORE_SHA ('${before_in}'), deriving previous tip from ${deploy:0:8}^1 (workflow_dispatch / re-run)."
   fi
 
   local subject parents p1 p2 added
@@ -94,7 +112,7 @@ cmd_git_shape() {
     return 0
   fi
 
-  err "prod deploy guard: main tip ${deploy:0:8} is NOT a release-console staging→main promotion (parents: $(( ${#parents[@]} - 1 )), first-parent commits in this push: ${added}, parent1==previous tip: $([[ "$p1" == "$before" ]] && echo yes || echo no), parent2 on ${staging}: $([[ -n "$p2" ]] && git merge-base --is-ancestor "$p2" "$staging" && echo yes || echo no), subject: '${subject}'). A direct push or dev→main merge reaches production untested. NOT deploying. If main was pushed to by mistake, revert it and promote through the release console."
+  err "prod deploy guard: main tip ${deploy:0:8} is NOT a release-console staging→main promotion (parents: $(( ${#parents[@]} - 1 )), first-parent commits in this push: ${added}, parent1==previous tip: $([[ "$p1" == "$before" ]] && echo yes || echo no), parent2 on ${staging}: $([[ -n "$p2" ]] && git merge-base --is-ancestor "$p2" "$staging" && echo yes || echo no), subject: '${subject}'). A direct push or dev→main merge reaches prod untested. NOT deploying. If main was pushed to by mistake, revert it and promote through the release console."
   return 1
 }
 
