@@ -33,7 +33,13 @@ import { expect, test, type Page } from '@playwright/test'
  * — do NOT re-point this spec at another real catalog product again.
  */
 
-const WIDGET_TOKEN = process.env.WIDGET_TOKEN ?? 'para42StableDevToken42'
+// No default on purpose: this repo is PUBLIC, so the dev operator's widget token
+// lives only in the WIDGET_TOKEN env (repo secret in CI, your shell locally).
+// landr-uzb1o.5.
+const WIDGET_TOKEN = process.env.WIDGET_TOKEN
+if (!WIDGET_TOKEN) {
+  throw new Error('WIDGET_TOKEN env var is required (dev operator widget token; see e2e-smoke.yml)')
+}
 
 async function pickFirstAvailableDate(page: Page) {
   // react-day-picker renders one month per view; the widget shows a 60-day
