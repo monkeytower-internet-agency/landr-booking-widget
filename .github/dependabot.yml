@@ -1,0 +1,13 @@
+# landr-uzb1o.5: keep the SHA-pinned `uses:` refs in .github/workflows current.
+# Dependabot bumps the pinned SHA and the trailing `# vX.Y.Z` comment together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ['*']

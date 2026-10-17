@@ -10,6 +10,12 @@ permissions:
   contents: read
   deployments: write
 
+# landr-uzb1o.5: serialize prod deploys (never cancel one mid-flight); every
+# other ref/PR gets its own group so previews are not queued behind prod.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'deploy-prod-landr-booking-widget' || format('deploy-landr-booking-widget-{0}', github.ref) }}
+  cancel-in-progress: false
+
 jobs:
   # landr-r6e5x.1 (2026-09-11): NOT gated behind ALLOW_GITHUB_RUNNERS, unlike
   # every other repo's ubuntu-latest fallback tier — deliberate, not an
@@ -23,6 +29,7 @@ jobs:
   # provision a self-hosted widget runner if that's ever wanted.
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment:
       # landr-imrd: name the environment after the tier actually being
       # deployed, not a blanket 'production' — pushes to dev/staging were
@@ -32,9 +39,9 @@ jobs:
       # else (PR, workflow_dispatch) keeps the prior 'preview' behavior.
       name: ${{ github.event_name != 'push' && 'preview' || github.ref_name == 'main' && 'production' || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -104,7 +111,7 @@ jobs:
             || grep -qi "already exists" /tmp/pages-create.log
 
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
