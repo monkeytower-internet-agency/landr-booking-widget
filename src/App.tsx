@@ -22,6 +22,7 @@ import {
 import { ServiceAddonsStep } from '@/components/booking/ServiceAddonsStep'
 import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
+import { LegalFooter } from '@/components/LegalFooter'
 import { OfferPage } from '@/components/booking/OfferPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
@@ -43,6 +44,11 @@ import {
   toIndexKeyed,
   toIndexKeyedOrUndefined,
 } from '@/components/booking/partyIdentity'
+import {
+  buildRoomRoster,
+  isOwnAccommodationInvite,
+  roomedCompanions,
+} from '@/components/booking/ownAccommodation'
 import { LanguageStep } from '@/components/booking/LanguageStep'
 import {
   languageStepNeeded,
@@ -237,6 +243,7 @@ function App() {
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <CancelPage token={route.token} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -250,8 +257,9 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
               <OfferPage token={route.token} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -266,8 +274,9 @@ function App() {
         <StaffModeProvider>
           <TierBadge />
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
-            <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
               <OfferPage token={route.token} mode="pay" />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -286,6 +295,7 @@ function App() {
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6">
               <ApprovalReplyPage token={route.token} intent={route.intent} />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -310,6 +320,7 @@ function App() {
               <MembershipReturnPage
                 status={memberParam === '1' ? 'success' : 'cancelled'}
               />
+              <LegalFooter />
             </div>
           </div>
         </StaffModeProvider>
@@ -1524,7 +1535,9 @@ function BookingFlowApp() {
     // to stable PartyMemberIds now, against the very roster the step was
     // rendered with, so a later add/remove of a participant or companion can
     // never renumber the party out from under them.
-    const partyRoster = buildPartyRoster(participants, companions)
+    // landr-qw2v8.2: the confirm payload is in the ROOMED roster's index space
+    // (own-accommodation companions are not in it) — see ownAccommodation.ts.
+    const partyRoster = buildRoomRoster(participants, companions)
     const partyAssignment = roomAssignment
       ? toIdentityKeyed(roomAssignment, partyRoster)
       : undefined
@@ -1924,6 +1937,7 @@ function BookingFlowApp() {
                 inviteData.host_reference,
                 inviteData.hotel_location_id !== null,
                 browserLocale(),
+                isOwnAccommodationInvite(inviteData),
               )}
             </span>
             <InviteHoldNote
@@ -2422,6 +2436,7 @@ function BookingFlowApp() {
             // landr-jiagg.2: an invitee takes the seat themselves — no
             // "I'm booking for someone else" toggle in the invite flow.
             inviteMode={!!inviteData}
+            hostRoomFreeBeds={inviteData?.host_room_free_beds ?? null}
             initialBooker={step.booker}
             initialParticipants={step.participants}
             // landr-rmcsu.5: pre-create the participant rows the dates-step
@@ -2519,13 +2534,22 @@ function BookingFlowApp() {
             participantCount={step.participants.length}
             // landr-otml0.3: hides the shared-double reference field — an
             // invite-linked customer is already joined via the token.
-            inviteMode={!!inviteData}
+            // landr-qw2v8.2: an invitee the inviter booked WITHOUT a room has no
+            // host room to share — the step runs as a normal one (guiding only
+            // or a room of their own, inviter's hotel preselected).
+            inviteMode={!!inviteData && !isOwnAccommodationInvite(inviteData)}
+            inviteOwnAccommodation={isOwnAccommodationInvite(inviteData)}
+            hostRoomFreeBeds={inviteData?.host_room_free_beds ?? null}
+            hostDisplayName={inviteData?.host_display_name ?? ''}
+            hostRoomName={inviteData?.host_room_name ?? null}
             onJoinRefChange={setJoinRef}
             // landr-jiagg.2: the shared double is the booker's own bed — not
             // offered when the booker books for someone else. The party below
             // (step.participants) then carries no booker row at all, so
             // BOOKER_MEMBER_ID never reaches the room/age/breakfast seams.
-            allowSharedDouble={bookerJoins(step.booker)}
+            allowSharedDouble={
+              bookerJoins(step.booker) && !isOwnAccommodationInvite(inviteData)
+            }
             // landr-sjrd: progressive name disambiguation — build the whole
             // party (participants first, companions after; mirrors the room
             // assignment index space) and split disambiguated labels back at
@@ -2534,12 +2558,14 @@ function BookingFlowApp() {
             // effort, can't add an initial without a last name).
             {...(() => {
               const pCount = step.participants.length
+              // landr-qw2v8.2: companions who arrange their own accommodation
+              // are not in the room party at all (no chip, no occupancy).
               const party = [
                 ...step.participants.map((p) => ({
                   first: p.first_name,
                   last: p.last_name ?? '',
                 })),
-                ...step.companions.map((c) => ({
+                ...roomedCompanions(step.companions).map((c) => ({
                   first: c.first_name,
                   last: c.last_name ?? '',
                 })),
@@ -2560,7 +2586,10 @@ function BookingFlowApp() {
             // landr-jsu3n.3: an invitee sharing the inviter's room gets the
             // inviter's hotel (fixed, read-only in AccommodationStep).
             initialHotelLocationId={
-              inviteData?.hotel_location_id ?? step.hotelLocationId
+              isOwnAccommodationInvite(inviteData)
+                ? // landr-qw2v8.2: a preselection only — a restored choice wins.
+                  (step.hotelLocationId ?? inviteData?.hotel_location_id ?? null)
+                : (inviteData?.hotel_location_id ?? step.hotelLocationId)
             }
             initialRooms={step.accommodationRooms}
             initialAddons={step.addons}
@@ -2582,7 +2611,9 @@ function BookingFlowApp() {
             // autoAssignParty to top up) while everyone else keeps the exact
             // room they were in, instead of inheriting their neighbour's.
             {...(() => {
-              const roster = buildPartyRoster(step.participants, step.companions)
+              // landr-qw2v8.2: AccommodationStep's party-index space is the
+              // ROOMED roster (participants + companions who need a bed).
+              const roster = buildRoomRoster(step.participants, step.companions)
               return {
                 initialAssignment: toIndexKeyedOrUndefined(
                   step.roomAssignment,

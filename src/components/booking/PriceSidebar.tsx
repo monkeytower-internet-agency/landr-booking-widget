@@ -48,6 +48,7 @@ import { useBookingEstimate } from './useBookingEstimate'
 import {
   buildAddonLines,
   buildDiscountExplanation,
+  isSavingsLine,
   formatMoney,
   isDiscountRule,
   splitLineItems,
@@ -228,7 +229,11 @@ function BookingOverviewBody({
                     {lines.map((line, lineIdx) => (
                       <span
                         key={`rule-${idx}-line-${lineIdx}`}
-                        className="block tabular-nums"
+                        className={cn(
+                          'block tabular-nums',
+                          isSavingsLine(line, locale) &&
+                            'text-emerald-700 dark:text-emerald-400',
+                        )}
                       >
                         {line}
                       </span>

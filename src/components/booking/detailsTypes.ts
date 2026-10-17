@@ -137,6 +137,13 @@ export interface CompanionDetails {
    * submit. Never affects this booking's price or participant count.
    */
   companion_kind: 'guest' | 'separate_guiding'
+  /**
+   * landr-qw2v8.2: a 'separate_guiding' companion who arranges their own
+   * accommodation — NO room is booked for them on this booking. Only offered
+   * (and only kept) on a separate_guiding companion of a booking with
+   * accommodation; see ownAccommodation.ts. Absent = false.
+   */
+  own_accommodation?: boolean
 }
 
 /**

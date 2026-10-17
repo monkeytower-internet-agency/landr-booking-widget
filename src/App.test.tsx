@@ -2817,6 +2817,142 @@ describe('App', () => {
       expect(screen.queryByTestId('invite-banner')).not.toBeInTheDocument()
     })
 
+    // landr-qw2v8.2: the inviter booked this person WITHOUT a room ("arranges
+    // own accommodation"). The invite must not force the shared room: the
+    // invitee chooses guiding only or a room of their own.
+    it('/i/<token> of an own-accommodation companion offers guiding-only or a room, never the shared room (landr-qw2v8.2)', async () => {
+      window.history.replaceState({}, '', '/i/tok-own-acc')
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-own-acc',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'optional',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.getHotelsForOperator.mockResolvedValue([
+        {
+          location_id: 'hotel-a',
+          name: 'Hotel Mirador',
+          name_localized: null,
+          parent_id: null,
+          role_type: { code: 'hotel', label: 'Hotel' },
+        },
+      ])
+      mocks.getInvitePrefill.mockResolvedValue({
+        operator_id: 'op-1',
+        widget_token: MOCK_TOKEN,
+        product_id: 'svc-own-acc',
+        dates: [iso],
+        hotel_location_id: 'hotel-a',
+        is_shared_double: false,
+        own_accommodation: true,
+        host_room_free_beds: null,
+        host_room_name: null,
+        host_room_capacity: null,
+        invitee_first_name: 'Thomas',
+        invitee_last_name: 'Klein',
+        host_display_name: 'Olaf K***n',
+        host_reference: 'A1B2C3D4',
+        language: 'en',
+      })
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-own-1',
+        status: 'confirmed',
+      })
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      render(<App />)
+      await waitFor(() => {
+        expect(screen.getByTestId('invite-banner')).toHaveTextContent(
+          'No room is booked for you there',
+        )
+      })
+      expect(screen.getByTestId('invite-banner')).not.toHaveTextContent(
+        /hotel are prefilled/i,
+      )
+
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      await waitFor(() => {
+        const enabled = screen
+          .getAllByRole('gridcell')
+          .map((c) => c.querySelector('button'))
+          .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+        expect(enabled.length).toBeGreaterThan(0)
+      })
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Thomas')
+      setInput('booker_last_name', 'Klein')
+      setInput('booker_email', 'thomas@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Accommodation: guiding only (preselected) or a room - no shared room.
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('accommodation-mode-guiding-only'),
+        ).toBeInTheDocument(),
+      )
+      expect(
+        screen.getByTestId('accommodation-mode-guiding-only').querySelector('input')!,
+      ).toBeChecked()
+      expect(screen.getByTestId('accommodation-mode-package')).toHaveTextContent(
+        'Book a room with us',
+      )
+      expect(
+        screen.queryByTestId('accommodation-mode-shared-double'),
+      ).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const body = mocks.submitBooking.mock.calls[0]![0] as {
+        is_shared_double?: boolean
+        invite_token?: string
+        products: { product_id: string }[]
+      }
+      expect(body.invite_token).toBe('tok-own-acc')
+      expect(body.is_shared_double).toBe(false)
+      expect(body.products.map((p) => p.product_id)).toEqual(['svc-own-acc'])
+    })
+
     it('/i/<token> whose prefill carries no widget_token falls back to the landing page', async () => {
       window.history.replaceState({}, '', '/i/tok-no-operator')
       mocks.listProducts.mockResolvedValue([])

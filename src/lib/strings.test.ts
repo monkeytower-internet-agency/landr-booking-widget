@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   inviteBannerMessage,
+  ownAccommodationNoRoomLabel,
   describeForceReasons,
   forceBookReasonMessage,
   isGermanLocale,
@@ -140,6 +141,25 @@ describe('inviteBannerMessage (landr-2jsaf)', () => {
     const datesOnly = inviteBannerMessage('Olaf K***n', '67C66263', false, 'de')
     expect(datesOnly).toContain('Die Termine sind vorausgefüllt')
     expect(datesOnly).not.toMatch(/hotel/i)
+  })
+})
+
+describe('own-accommodation copy (landr-qw2v8.2)', () => {
+  it('the invite banner never claims a hotel or a shared room', () => {
+    const en = inviteBannerMessage('Olaf K***n', '67C66263', true, 'en', true)
+    expect(en).toContain('No room is booked for you there')
+    expect(en).not.toMatch(/hotel are prefilled/i)
+    const de = inviteBannerMessage('Olaf K***n', '67C66263', true, 'de', true)
+    expect(de).toContain('kein Zimmer gebucht')
+  })
+
+  it('names the person with the no-room suffix in both locales', () => {
+    expect(ownAccommodationNoRoomLabel('Sophie Müller', 'en')).toBe(
+      'Sophie Müller: own accommodation — no room booked',
+    )
+    expect(ownAccommodationNoRoomLabel('Sophie Müller', 'de')).toBe(
+      'Sophie Müller: eigene Unterkunft — kein Zimmer gebucht',
+    )
   })
 })
 

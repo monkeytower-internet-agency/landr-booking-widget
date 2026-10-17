@@ -38,6 +38,7 @@ import {
   participantCountLabel,
   pickBundle,
   plural,
+  ownAccommodationNoRoomLabel,
   sendBookingLinkToLabel,
   tr,
   holdHeldLabel,
@@ -579,7 +580,12 @@ function PartyBlock({
           <p className="text-xs font-semibold text-muted-foreground">{g.heading}</p>
           <ul className="list-disc pl-5">
             {g.people.map((p, i) => (
-              <li key={`${p.name}-${i}`}>{p.name}</li>
+              <li key={`${p.name}-${i}`}>
+                {/* landr-qw2v8.2: no room booked through us for this person. */}
+                {p.own_accommodation === true
+                  ? ownAccommodationNoRoomLabel(p.name, locale)
+                  : p.name}
+              </li>
             ))}
           </ul>
         </div>

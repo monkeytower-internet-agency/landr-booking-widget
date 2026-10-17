@@ -94,6 +94,12 @@ const ALLOWED_LITERALS: Record<string, string[]> = {
     'Reason',
     'Leave blank to use the calculated total. When set, this gross total replaces the computed price for this booking.',
     'Override price (operator)',
+    // landr-v78ap: collapsible fixed-price disclosure + staff-only second submit.
+    'Fixed price (operator)',
+    'Use calculated price',
+    'Set a fixed price instead',
+    'Clear the fixed price to build an offer instead',
+    'Book &amp; build offer',
     '[placeholder] Reason for the override (required when set)',
     // landr-h0opd.3: staff-only "Calculated: 250.00 EUR" line under the override input.
     'Calculated:',
