@@ -155,6 +155,7 @@ type Bundle = {
   /** Invite banner (App.tsx) — {host}, {ref}. Hotel variant only when the invite prefills a hotel (landr-2jsaf). */
   inviteBannerDatesAndHotel: string
   inviteBannerDatesOnly: string
+  inviteBannerOwnAccommodation: string
   hostDayUnavailableOne: string
   hostDaysUnavailableOther: string
 
@@ -168,6 +169,7 @@ type Bundle = {
 
   // ---- LanguageStep / ParticipantLanguageBoard ----
   guideLanguageTitle: string
+  guideLanguageOthersHint: string
   optionalSuffix: string
   unassignedOption: string
   roomFullSuffix: string
@@ -235,6 +237,9 @@ type Bundle = {
   requestMoreButton: string
   needLargerGroupDialogDescription: string
   othersSharingYourRoom: string
+  // landr-wp8e9.2: invite mode + the inviter's room is full -> the legend
+  // can no longer promise the companions share a room.
+  peopleTravellingWithYou: string
   howAreTheyJoining: string
   companionKindGuestLabel: string
   companionKindSeparateGuidingLabel: string
@@ -286,7 +291,6 @@ type Bundle = {
   completeStepsAboveToContinue: string
   checkingAccommodationAvailability: string
   howWouldYouLikeToHandleAccommodation: string
-  sharedDoubleInviteNotice: string
   sharedDoubleNormalNotice: string
   travellingWithFamilyHint: string
   pleaseEnterChildAgeHint: string
@@ -347,6 +351,11 @@ type Bundle = {
   companionOrdinalTemplate: string
   maxCompanionsReachedTemplate: string
   companionInviteHint: string
+  companionOwnAccommodationLabel: string
+  companionOwnAccommodationHint: string
+  ownAccommodationNoRoomBooked: string
+  inviteOwnBookRoomLabel: string
+  inviteOwnBookRoomHint: string
   companionContactRequiredTemplate: string
   themFallback: string
   youWillBeListedAsParticipant1: string
@@ -500,6 +509,9 @@ type Bundle = {
   whatYoureBooking: string
   // landr-1zkp7 — /pay + /offer restyle (dates table, per-line prices, hero)
   offerColItem: string
+  /** Footer links on the standalone token pages (offer/pay/cancel/reply). */
+  legalImprint: string
+  legalPrivacy: string
   offerColDates: string
   offerColLength: string
   offerLengthDaySingular: string
@@ -509,6 +521,7 @@ type Bundle = {
   offerLengthNightSingular: string
   offerLengthNightPlural: string
   offerYourTripWithTemplate: string
+  offerHeroWithAccommodation: string
   // landr-8f1sh.4 — custom offer v2: positions, discount row, periods table
   offerColPeriod: string
   offerPeriodArrival: string
@@ -846,6 +859,8 @@ const en: Bundle = {
     'You’re joining {host}’s booking (ref {ref}). Dates and hotel are prefilled — change anything that differs for you.',
   inviteBannerDatesOnly:
     'You’re joining {host}’s booking (ref {ref}). Dates are prefilled — change anything that differs for you.',
+  inviteBannerOwnAccommodation:
+    'You’re joining {host}’s booking (ref {ref}). Dates are prefilled. No room is booked for you there — choose guiding only, or book a room with us.',
   hostDayUnavailableOne:
     "1 of {host}'s days is no longer available — change your dates to continue.",
   hostDaysUnavailableOther:
@@ -859,6 +874,8 @@ const en: Bundle = {
   choosePickupLocationToContinue: 'Choose a pickup location to continue.',
 
   guideLanguageTitle: 'Guide language',
+  guideLanguageOthersHint:
+    'Other participants will choose their own language when they make their own booking.',
   optionalSuffix: '(optional)',
   unassignedOption: 'Unassigned',
   roomFullSuffix: ' (full)',
@@ -925,6 +942,7 @@ const en: Bundle = {
   needLargerGroupDialogDescription:
     "Need a larger group or a custom booking? Send us the details and we'll be in touch.",
   othersSharingYourRoom: 'Others sharing your room',
+  peopleTravellingWithYou: 'People travelling with you',
   howAreTheyJoining: 'How are they joining?',
   companionKindGuestLabel: 'Not doing the activity (partner / child / friend)',
   companionKindSeparateGuidingLabel: 'Joining the activity — booking their own guiding separately',
@@ -975,8 +993,6 @@ const en: Bundle = {
   completeStepsAboveToContinue: 'Complete the steps above to continue.',
   checkingAccommodationAvailability: 'Checking accommodation availability for this date…',
   howWouldYouLikeToHandleAccommodation: 'How would you like to handle accommodation?',
-  sharedDoubleInviteNotice:
-    'Your own room is already booked — you are sharing the double room of the person who invited you, and you will be collected from the hotel.',
   sharedDoubleNormalNotice:
     'You are sharing a double room with another guest. No room is booked for you — the other guest holds the room — and you will be collected from the hotel.',
   travellingWithFamilyHint:
@@ -1044,6 +1060,12 @@ const en: Bundle = {
   companionOrdinalTemplate: 'Guest {n}',
   maxCompanionsReachedTemplate: 'Maximum of {n} guests reached',
   companionInviteHint: "We'll use this to send them their own booking link.",
+  companionOwnAccommodationLabel: 'Arranges own accommodation (no room booked through us)',
+  companionOwnAccommodationHint:
+    'No room is booked for them in this booking. Their invite link lets them book guiding only or a room of their own.',
+  ownAccommodationNoRoomBooked: 'own accommodation — no room booked',
+  inviteOwnBookRoomLabel: 'Book a room with us',
+  inviteOwnBookRoomHint: 'Pick a hotel and a room of your own. The hotel of the person who invited you is preselected.',
   companionContactRequiredTemplate: 'We need an email or phone number to send {name} their booking link',
   themFallback: 'them',
   youWillBeListedAsParticipant1:
@@ -1195,6 +1217,8 @@ const en: Bundle = {
   statusLabel: 'Status:',
   whatYoureBooking: "What you're booking",
   offerColItem: 'Item',
+  legalImprint: 'Imprint',
+  legalPrivacy: 'Privacy Policy',
   offerColDates: 'Dates',
   offerColLength: 'Length',
   offerLengthDaySingular: '{n} day',
@@ -1203,6 +1227,7 @@ const en: Bundle = {
   offerLengthNightSingular: '{n} night',
   offerLengthNightPlural: '{n} nights',
   offerYourTripWithTemplate: 'Your trip with {operator}',
+  offerHeroWithAccommodation: 'with accommodation',
   offerColPeriod: 'Period',
   offerPeriodArrival: 'Arrival',
   offerPeriodDeparture: 'Departure',
@@ -1518,6 +1543,8 @@ const de: Bundle = {
     'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Termine und Hotel sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
   inviteBannerDatesOnly:
     'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt — ändern Sie, was bei Ihnen abweicht.',
+  inviteBannerOwnAccommodation:
+    'Sie schließen sich der Buchung von {host} an (Ref. {ref}). Die Termine sind vorausgefüllt. Für Sie ist dort kein Zimmer gebucht — wählen Sie nur Guiding oder buchen Sie ein Zimmer bei uns.',
   hostDayUnavailableOne:
     '1 der Termine von {host} ist nicht mehr verfügbar — ändern Sie Ihre Termine, um fortzufahren.',
   hostDaysUnavailableOther:
@@ -1531,6 +1558,8 @@ const de: Bundle = {
   choosePickupLocationToContinue: 'Wählen Sie einen Abholort, um fortzufahren.',
 
   guideLanguageTitle: 'Guide-Sprache',
+  guideLanguageOthersHint:
+    'Andere Teilnehmende wählen ihre Sprache selbst, wenn sie ihre eigene Buchung vornehmen.',
   optionalSuffix: '(optional)',
   unassignedOption: 'Nicht zugeordnet',
   roomFullSuffix: ' (voll)',
@@ -1597,6 +1626,7 @@ const de: Bundle = {
   needLargerGroupDialogDescription:
     'Größere Gruppe oder individuelle Buchung gewünscht? Senden Sie uns die Details und wir melden uns bei Ihnen.',
   othersSharingYourRoom: 'Weitere Personen in Ihrem Zimmer',
+  peopleTravellingWithYou: 'Personen, die mit Ihnen reisen',
   howAreTheyJoining: 'Wie nehmen sie teil?',
   companionKindGuestLabel: 'Nimmt nicht an der Aktivität teil (Partner/in, Kind, Freund/in)',
   companionKindSeparateGuidingLabel: 'Nimmt an der Aktivität teil — bucht eigenes Guiding separat',
@@ -1647,8 +1677,6 @@ const de: Bundle = {
   completeStepsAboveToContinue: 'Schließen Sie die obigen Schritte ab, um fortzufahren.',
   checkingAccommodationAvailability: 'Verfügbarkeit der Unterkunft für dieses Datum wird geprüft…',
   howWouldYouLikeToHandleAccommodation: 'Wie möchten Sie die Unterkunft handhaben?',
-  sharedDoubleInviteNotice:
-    'Ihr eigenes Zimmer ist bereits gebucht — Sie teilen sich das Doppelzimmer der Person, die Sie eingeladen hat, und werden vom Hotel abgeholt.',
   sharedDoubleNormalNotice:
     'Sie teilen sich ein Doppelzimmer mit einem anderen Gast. Für Sie ist kein Zimmer gebucht — der andere Gast hat das Zimmer — und Sie werden vom Hotel abgeholt.',
   travellingWithFamilyHint:
@@ -1719,6 +1747,12 @@ const de: Bundle = {
   companionOrdinalTemplate: 'Gast {n}',
   maxCompanionsReachedTemplate: 'Maximal {n} Gäste erreicht',
   companionInviteHint: 'Damit senden wir ihnen ihren eigenen Buchungslink.',
+  companionOwnAccommodationLabel: 'Kümmert sich selbst um die Unterkunft (kein Zimmer über uns gebucht)',
+  companionOwnAccommodationHint:
+    'Für diese Person wird in dieser Buchung kein Zimmer gebucht. Über ihren Einladungslink kann sie nur Guiding oder ein eigenes Zimmer buchen.',
+  ownAccommodationNoRoomBooked: 'eigene Unterkunft — kein Zimmer gebucht',
+  inviteOwnBookRoomLabel: 'Zimmer bei uns buchen',
+  inviteOwnBookRoomHint: 'Wählen Sie ein Hotel und ein eigenes Zimmer. Das Hotel der Person, die Sie eingeladen hat, ist vorausgewählt.',
   companionContactRequiredTemplate:
     'Wir benötigen eine E-Mail-Adresse oder Telefonnummer, um {name} den Buchungslink zu senden',
   themFallback: 'ihnen',
@@ -1872,6 +1906,8 @@ const de: Bundle = {
   statusLabel: 'Status:',
   whatYoureBooking: 'Was Sie buchen',
   offerColItem: 'Leistung',
+  legalImprint: 'Impressum',
+  legalPrivacy: 'Datenschutzerklärung',
   offerColDates: 'Datum',
   offerColLength: 'Dauer',
   offerLengthDaySingular: '{n} Tag',
@@ -1880,6 +1916,7 @@ const de: Bundle = {
   offerLengthNightSingular: '{n} Nacht',
   offerLengthNightPlural: '{n} Nächte',
   offerYourTripWithTemplate: 'Ihre Reise mit {operator}',
+  offerHeroWithAccommodation: 'mit Unterkunft',
   offerColPeriod: 'Zeitraum',
   offerPeriodArrival: 'Anreise',
   offerPeriodDeparture: 'Abreise',
@@ -2146,9 +2183,15 @@ export function inviteBannerMessage(
   reference: string,
   hasHotel: boolean,
   locale?: string,
+  ownAccommodation = false,
 ): string {
   const t = pickBundle(locale)
-  const template = hasHotel ? t.inviteBannerDatesAndHotel : t.inviteBannerDatesOnly
+  // landr-qw2v8.2: no room is booked for this invitee — never claim a hotel.
+  const template = ownAccommodation
+    ? t.inviteBannerOwnAccommodation
+    : hasHotel
+      ? t.inviteBannerDatesAndHotel
+      : t.inviteBannerDatesOnly
   return template.replace('{host}', host).replace('{ref}', reference)
 }
 
@@ -2802,6 +2845,68 @@ export function additionalAccommodationRequiredHint(names: string, count: number
   }
   const verb = count === 1 ? 'needs' : 'need'
   return `Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but ${names} ${verb} a room here.`
+}
+
+/**
+ * landr-wp8e9.2: invite mode — the room the invitee shares with the inviter has
+ * fewer free beds than the invitee has unplaced companions. `freeBeds` is the
+ * inviter room's remaining capacity (0 = full). No swap wording by design.
+ */
+export function hostRoomFullMessage(freeBeds: number, unplaced: number, locale?: string): string {
+  const de = isGermanLocale(locale)
+  if (freeBeds <= 0) {
+    return de
+      ? unplaced === 1
+        ? 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie ein Zimmer für die Person, die mit Ihnen reist.'
+        : 'Das Zimmer, das Sie sich teilen, ist voll — buchen Sie Zimmer für die Personen, die mit Ihnen reisen.'
+      : unplaced === 1
+        ? "The room you're sharing is full — add a room for the person travelling with you."
+        : "The room you're sharing is full — add a room for the people travelling with you."
+  }
+  if (de) {
+    return `Im Zimmer, das Sie sich teilen, ${freeBeds === 1 ? 'ist nur noch 1 Bett' : `sind nur noch ${freeBeds} Betten`} frei — buchen Sie ein Zimmer für die übrigen Personen, die mit Ihnen reisen.`
+  }
+  return `Only ${freeBeds} more ${freeBeds === 1 ? 'bed is' : 'beds are'} free in the room you're sharing — add a room for the rest of the people travelling with you.`
+}
+
+/**
+ * landr-wp8e9.2: invite-mode accommodation copy that names the REAL room the
+ * inviter booked for the invitee (never "double"). `host` empty falls back to a
+ * generic "the person who invited you"; `roomName` null drops the room clause.
+ */
+export function inviteRoomBookedNotice(host: string, roomName: string | null, locale?: string): string {
+  const de = isGermanLocale(locale)
+  const who = host.trim() || (de ? 'der Person, die Sie eingeladen hat' : 'the person who invited you')
+  const room = roomName?.trim() ? `: ${roomName.trim()}` : ''
+  return de
+    ? `Ihr Zimmer ist bereits von ${who} gebucht${room}. Sie werden vom Hotel abgeholt.`
+    : `Your room is already booked by ${who}${room}. You will be collected from the hotel.`
+}
+
+/** landr-wp8e9.2: invite-mode radio label ("My room is booked by {host}") - no "double". */
+export function inviteRoomLabel(host: string, locale?: string): string {
+  const de = isGermanLocale(locale)
+  const who = host.trim() || (de ? 'der Person, die mich eingeladen hat' : 'the person who invited me')
+  return de ? `Mein Zimmer ist von ${who} gebucht` : `My room is booked by ${who}`
+}
+
+/** landr-wp8e9.2: invite-mode radio hint (replaces the hardcoded "double room" English). */
+export function inviteRoomHint(locale?: string): string {
+  return isGermanLocale(locale)
+    ? 'Ihr Bett ist in dem Zimmer, das die Person, die Sie eingeladen hat, bereits gebucht hat. Sie werden vom Hotel abgeholt.'
+    : 'Your bed is in the room the person who invited you already booked. You are collected from the hotel.'
+}
+
+/** landr-qw2v8.2: "{name}: own accommodation — no room booked" (host review + confirmation). */
+export function ownAccommodationNoRoomLabel(name: string, locale?: string): string {
+  return `${name}: ${tr('ownAccommodationNoRoomBooked', locale)}`
+}
+
+/** landr-wp8e9.2: replaces the "Optional — …" rooms hint when the host room cannot take the companions. */
+export function hostRoomFullRequiredHint(locale?: string): string {
+  return isGermanLocale(locale)
+    ? 'Zimmer für die Personen, die mit Ihnen reisen. Ihr eigenes Bett ist bereits durch das gemeinsame Doppelzimmer abgedeckt, für die anderen ist dort kein Platz mehr.'
+    : 'Rooms for the people travelling with you. Your own bed is already covered by the shared double room, but there is no space left in it for anyone else.'
 }
 
 /** AvailabilityPicker's "Times on {date}" subheading. */

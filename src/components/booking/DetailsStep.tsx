@@ -55,6 +55,7 @@ import {
 } from './detailsTypes'
 // landr-uwvl: stable per-member identity for the room-assignment maps.
 import { withMemberId } from './partyIdentity'
+import { normalizeOwnAccommodation } from './ownAccommodation'
 import { GroupInquiryForm } from './GroupInquiryForm'
 import { NextAction } from './NextAction'
 import {
@@ -155,6 +156,11 @@ interface Props {
    * accommodation step, and is only offered when the booker joins.)
    */
   inviteMode?: boolean
+  /**
+   * landr-wp8e9.2: beds still free in the inviter's room. 0 → the companions
+   * legend says "People travelling with you" (they cannot share that room).
+   */
+  hostRoomFreeBeds?: number | null
   /** Re-entry data when the customer hits Back from a downstream step. */
   initialBooker?: BookerDetails
   initialParticipants?: ParticipantDetails[]
@@ -321,6 +327,7 @@ export function DetailsStep({
   operatorCountry,
   prefillParticipantCount,
   inviteMode = false,
+  hostRoomFreeBeds = null,
 }: Props) {
   const locale = browserLocale()
   // landr-uuntm.3: staff-entered bookings (operator dashboard, phone walk-ins)
@@ -430,7 +437,10 @@ export function DetailsStep({
   const [companions, setCompanions] = useState<CompanionDetails[]>(() =>
     (initialCompanions ?? []).map((c) =>
       withMemberId(
-        noAccommodation ? { ...c, companion_kind: 'separate_guiding' } : c,
+        normalizeOwnAccommodation(
+          noAccommodation ? { ...c, companion_kind: 'separate_guiding' } : c,
+          !noAccommodation,
+        ),
       ),
     ),
   )
@@ -648,6 +658,23 @@ export function DetailsStep({
     if (!row) return
     const next = companions.slice()
     next[idx] = { ...row, [key]: value }
+    setCompanions(next)
+    notifyLive(booker, additional, next)
+  }
+
+  // landr-qw2v8.2: switching a companion back to 'guest' drops the
+  // own-accommodation flag with it (it is only valid on separate_guiding).
+  const setCompanionKind = (
+    idx: number,
+    kind: CompanionDetails['companion_kind'],
+  ) => {
+    const row = companions[idx]
+    if (!row) return
+    const next = companions.slice()
+    next[idx] = normalizeOwnAccommodation(
+      { ...row, companion_kind: kind },
+      true,
+    )
     setCompanions(next)
     notifyLive(booker, additional, next)
   }
@@ -1130,8 +1157,13 @@ export function DetailsStep({
       bookerForSubmit,
       participantsForValidation,
       noAccommodation
-        ? companions.map((c) => ({ ...c, companion_kind: 'separate_guiding' as const }))
-        : companions,
+        ? companions.map((c) =>
+            normalizeOwnAccommodation(
+              { ...c, companion_kind: 'separate_guiding' as const },
+              false,
+            ),
+          )
+        : companions.map((c) => normalizeOwnAccommodation(c, true)),
       comment.trim(),
     )
   }
@@ -1250,6 +1282,10 @@ export function DetailsStep({
                 checked={!joins}
                 onCheckedChange={(v) => toggleBookingForSomeoneElse(v === true)}
                 data-testid="booker-not-joining-toggle"
+                // Sits inside the blue NextAction well: the default light-grey
+                // border / translucent dark fill vanish there, so draw a solid
+                // contrasting box in both themes.
+                className="border-foreground/60 bg-background dark:border-foreground/70 dark:bg-background"
               />
               <Label htmlFor="booker-not-joining-toggle" className="text-sm font-normal">
                 {tr('bookingForSomeoneElseLabel', locale)}
@@ -1849,7 +1885,11 @@ export function DetailsStep({
         >
           <legend className="text-sm font-medium">
             {tr(
-              noAccommodation ? 'guestsPayingForThemselves' : 'othersSharingYourRoom',
+              noAccommodation
+                ? 'guestsPayingForThemselves'
+                : inviteMode && hostRoomFreeBeds === 0
+                  ? 'peopleTravellingWithYou'
+                  : 'othersSharingYourRoom',
               locale,
             )}
           </legend>
@@ -1950,9 +1990,7 @@ export function DetailsStep({
                         name={`companion_${idx + 1}_kind`}
                         value={opt.value}
                         checked={row.companion_kind === opt.value}
-                        onChange={() =>
-                          updateCompanion(idx, 'companion_kind', opt.value)
-                        }
+                        onChange={() => setCompanionKind(idx, opt.value)}
                         className="h-3.5 w-3.5 accent-primary"
                       />
                       {opt.label}
@@ -1960,6 +1998,38 @@ export function DetailsStep({
                   ))}
                 </div>
               </fieldset>
+              ) : null}
+              {/* landr-qw2v8.2: a companion who books their own guiding may
+                  arrange their own accommodation (camper, own flat). They are
+                  then left out of the room assignment entirely, the booking
+                  says so, and their invite link offers guiding-only or a room.
+                  Only on a booking WITH accommodation. */}
+              {!noAccommodation && row.companion_kind === 'separate_guiding' ? (
+                <div className="sm:col-span-2 flex flex-col gap-1">
+                  <label
+                    className="flex cursor-pointer items-center gap-2 text-xs"
+                    data-testid={`companion-own-accommodation-${idx}`}
+                  >
+                    <input
+                      type="checkbox"
+                      name={`companion_${idx + 1}_own_accommodation`}
+                      checked={row.own_accommodation === true}
+                      onChange={(e) =>
+                        updateCompanion(idx, 'own_accommodation', e.target.checked)
+                      }
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
+                    {tr('companionOwnAccommodationLabel', locale)}
+                  </label>
+                  {row.own_accommodation === true ? (
+                    <p
+                      className="text-xs text-muted-foreground"
+                      data-testid={`companion-own-accommodation-hint-${idx}`}
+                    >
+                      {tr('companionOwnAccommodationHint', locale)}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
               <Field label={tr('firstNameLabel', locale)} htmlFor={`companion-${idx}-first`} error={cFirstV.error}>
                 <Input

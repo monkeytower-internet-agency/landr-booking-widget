@@ -2252,3 +2252,95 @@ describe('BookingForm — booker not taking part review (landr-jiagg.2)', () => 
     expect(screen.queryByTestId('review-booker-not-joining')).not.toBeInTheDocument()
   })
 })
+
+describe('BookingForm — own-accommodation companion (landr-qw2v8.2)', () => {
+  beforeEach(() => {
+    vi.mocked(submitBooking).mockReset()
+    vi.mocked(getAvailability).mockReset()
+  })
+
+  const OWN: React.ComponentProps<typeof BookingForm>['companions'] = [
+    {
+      first_name: 'Sophie',
+      last_name: 'Müller',
+      email: 'sophie@example.com',
+      phone: '',
+      companion_kind: 'separate_guiding',
+      own_accommodation: true,
+    },
+    {
+      first_name: 'Tim',
+      last_name: 'Müller',
+      email: '',
+      phone: '',
+      companion_kind: 'guest',
+    },
+  ]
+
+  it('review names the person as "own accommodation — no room booked"', () => {
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={makeServiceProduct('days_range')}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={OWN}
+        pickupLocationId={null}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('companion-own-accommodation-label-0')).toHaveTextContent(
+      'own accommodation — no room booked',
+    )
+    expect(
+      screen.queryByTestId('companion-own-accommodation-label-1'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('submits own_accommodation=true with no room, even next to a stale assignment entry', async () => {
+    const submitMock = vi.mocked(submitBooking)
+    submitMock.mockResolvedValue({ booking_id: 'b', status: 'confirmed' } as never)
+    render(
+      <BookingForm
+        widgetToken="para42"
+        product={{ ...makeServiceProduct('days_range'), invite_hold_hours: 0 }}
+        selection={DAYS_SELECTION}
+        booker={ADA_BOOKER}
+        participants={[bookerAsParticipant(ADA_BOOKER)]}
+        companions={OWN}
+        pickupLocationId="hotel-a"
+        accommodationRooms={[{ productId: 'room-1', quantity: 1 }]}
+        // index 1 = Sophie (stale entry from before she was flagged), 2 = Tim.
+        roomAssignment={{
+          0: { roomProductId: 'room-1', unitIndex: 0 },
+          1: { roomProductId: 'room-1', unitIndex: 0 },
+          2: { roomProductId: 'room-1', unitIndex: 0 },
+        }}
+        onBack={vi.fn()}
+        onConfirmed={vi.fn()}
+      />,
+    )
+    vi.mocked(getAvailability).mockResolvedValue([] as never)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1))
+    const companions = submitMock.mock.calls[0]![0].companions!
+    expect(companions[0]).toMatchObject({
+      first_name: 'Sophie',
+      companion_kind: 'separate_guiding',
+      own_accommodation: true,
+      room_product_id: null,
+      room_unit_index: null,
+    })
+    // Everyone else is unchanged: no flag, normal room.
+    expect(companions[1]).toMatchObject({
+      first_name: 'Tim',
+      room_product_id: 'room-1',
+      room_unit_index: 0,
+    })
+    expect(companions[1]).not.toHaveProperty('own_accommodation')
+  })
+})

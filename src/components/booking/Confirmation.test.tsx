@@ -305,6 +305,34 @@ describe('Confirmation — landr-nva1a.4 success-screen summary', () => {
     )
   })
 
+  // landr-qw2v8.2: a separate-guiding companion without a room is named as such.
+  it('says "own accommodation — no room booked" next to a companion who arranges their own stay', () => {
+    const response = baseResponse({
+      summary: baseSummary({
+        participant_count: 1,
+        participants: [
+          { name: 'Matthias Klein', is_guiding: true },
+          {
+            name: 'Alyda Vargas',
+            is_guiding: false,
+            companion_kind: 'separate_guiding',
+            own_accommodation: true,
+          },
+          {
+            name: 'Ben Roomed',
+            is_guiding: false,
+            companion_kind: 'separate_guiding',
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    const sep = screen.getByTestId('confirmation-party-separate-guiding')
+    expect(sep).toHaveTextContent('Alyda Vargas: own accommodation — no room booked')
+    expect(sep).toHaveTextContent('Ben Roomed')
+    expect(sep).not.toHaveTextContent('Ben Roomed: own accommodation')
+  })
+
   it('renders the "Your booking" card from summary: products, dates, participants, pickup', () => {
     const response = baseResponse({ summary: baseSummary() })
     render(<Confirmation response={response} onRestart={vi.fn()} />)

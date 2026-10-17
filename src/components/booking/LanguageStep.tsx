@@ -189,6 +189,11 @@ export function LanguageStep({
       <CardHeader>
         <CardTitle>{tr('guideLanguageTitle', locale)}</CardTitle>
         <CardDescription>{productName}</CardDescription>
+        {participantNames.length > 1 ? (
+          <p className="text-xs text-muted-foreground" data-testid="language-step-others-hint">
+            {tr('guideLanguageOthersHint', locale)}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {/* landr-80ubl.1: zen by default — the why and the how-to sit behind

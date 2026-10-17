@@ -761,6 +761,48 @@ export function sharedDoubleOccupancyStatus(
 }
 
 /**
+ * landr-wp8e9.2: companions (unified party indices P..P+C-1) with no room
+ * picked here. In an invite booking these are the people "sharing the
+ * inviter's room".
+ */
+export function countUnplacedCompanions(
+  participantCount: number,
+  companionCount: number,
+  assignment: RoomAssignmentMap,
+): number {
+  let n = 0
+  for (let i = participantCount; i < participantCount + companionCount; i++) {
+    if (!assignment[i]) n++
+  }
+  return n
+}
+
+export interface HostRoomOverflow {
+  blocked: boolean
+  /** Free beds in the inviter's room, or null when unknown. */
+  freeBeds: number | null
+  unplaced: number
+}
+
+/**
+ * landr-wp8e9.2: the inviter's room only has `hostRoomFreeBeds` free beds. Every
+ * companion the invitee does not place in a room of their own is assumed to
+ * share it; more of them than free beds blocks Continue. null / undefined
+ * (unknown, or an API without the field) never blocks. Mirrors the API's
+ * `host_room_full` 422 (landr-wp8e9.1).
+ */
+export function hostRoomOverflow(
+  hostRoomFreeBeds: number | null | undefined,
+  unplacedCompanions: number,
+): HostRoomOverflow {
+  if (hostRoomFreeBeds == null) {
+    return { blocked: false, freeBeds: null, unplaced: unplacedCompanions }
+  }
+  const freeBeds = Math.max(0, hostRoomFreeBeds)
+  return { blocked: unplacedCompanions > freeBeds, freeBeds, unplaced: unplacedCompanions }
+}
+
+/**
  * landr-395ks: booked units holding at least one but fewer occupants than
  * their capacity, with how many beds stay empty. Shared-double lets these
  * through on purpose (a partner may take a double), but the unit is charged
