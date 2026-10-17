@@ -29,6 +29,7 @@ jobs:
   # runner if that's ever wanted; until then, leave this as-is.
   widget-booking-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # 2026-09-04: `continue-on-error: true` REMOVED. It sat on the only job in
     # this workflow, so the whole run concluded `success` even when the job
     # failed — this job failed 4 runs straight (33823233122 onward, after being
@@ -40,9 +41,9 @@ jobs:
     # The signal stays a regression *signal*, as the header says; it is simply
     # visible again instead of being swallowed.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -55,12 +56,21 @@ jobs:
           # Defaults (playwright.config.ts) already point at the public dev
           # deployments — override here only if that ever needs to change.
           WIDGET_BASE_URL: https://bw-dev.landr.de
-          WIDGET_TOKEN: para42StableDevToken42
-        run: npx playwright test
+          # landr-uzb1o.5: the token used to be hardcoded here — in a PUBLIC repo.
+          # It now comes from the WIDGET_TOKEN repo secret. Fork PRs get no
+          # secrets, so there the step is skipped with a warning instead of
+          # failing on a missing token.
+          WIDGET_TOKEN: ${{ secrets.WIDGET_TOKEN }}
+        run: |
+          if [ -z "$WIDGET_TOKEN" ]; then
+            echo "::warning::WIDGET_TOKEN secret unavailable (fork PR?) - e2e smoke skipped"
+            exit 0
+          fi
+          npx playwright test
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: widget-e2e-smoke-report
           path: playwright-report/
