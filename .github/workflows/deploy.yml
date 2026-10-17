@@ -40,6 +40,23 @@ jobs:
       name: ${{ github.event_name != 'push' && 'preview' || github.ref_name == 'main' && 'production' || github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Full history on main: the prod guard below walks first-parent ancestry.
+          fetch-depth: ${{ github.ref == 'refs/heads/main' && 0 || 1 }}
+
+      - name: Guard — main tip must be the release console's staging→main promotion
+        # landr-uzb1o.22. GitHub Free has no branch protection, so a direct push
+        # to main would otherwise deploy untested code. Pure git, runs before any
+        # step that holds a Cloudflare credential. Accepted commit shapes are
+        # documented in scripts/ci-prod-deploy-guard.sh.
+        if: github.ref == 'refs/heads/main'
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          git fetch --quiet origin staging
+          [ "$(git rev-parse HEAD)" = "$DEPLOY_SHA" ] || { echo "::error::checked-out HEAD is not the pushed commit"; exit 1; }
+          bash scripts/ci-prod-deploy-guard.sh git-shape
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
