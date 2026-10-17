@@ -517,7 +517,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: one-shot reset of a restored shared-double reference
   }, [])
 
   const confirmJoinRef = () => {
@@ -901,7 +901,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-seed add-ons only when the room catalogue changes; initialAddons is mount-time input
   }, [addonsByRoom])
   // ^ intentionally excludes `initialAddons` and `addonSelection` from
   //   dependencies: initialAddons is a prop that never changes after mount;
@@ -1165,7 +1165,7 @@ export function AccommodationStep({
     // useCallback-wrapped); including it would re-run this effect every
     // render for no benefit — the guard above already no-ops once mode is
     // 'guiding-only'.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- changeMode is recreated every render and the guard no-ops once mode is guiding-only
   }, [accommodationTooLate, mode, inviteMode])
 
   const { checkInIso, checkOutIso, nights } = useMemo(
@@ -1260,7 +1260,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-assign when the party or room signature changes; roomUnits is covered by unitSignature
   }, [unitSignature, participantCount, companionCount, roomCatalogueReady, sharedDoubleRooms])
   // ^ keyed on unitSignature (a stable string) + participantCount +
   //   companionCount rather than the roomUnits array identity (which changes
@@ -1612,7 +1612,7 @@ export function AccommodationStep({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the JSON signatures; the assignment and add-on objects change identity every render
   }, [breakfastSignatureAddon, breakfastSignatureAssignment, roomCatalogueReady])
   // ^ keyed on stable JSON signatures rather than object identity so the effect
   //   only re-fires when the data actually changes. setBreakfastMap reads the

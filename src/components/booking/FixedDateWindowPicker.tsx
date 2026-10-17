@@ -213,7 +213,7 @@ export function FixedDateWindowPicker({
   useEffect(() => {
     if (selectedWindow) onLiveDaysChange?.(expandWindowDays(selectedWindow))
     // Fire only when the resolved window changes (i.e. the restore resolves).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire when the resolved window changes; onLiveDaysChange is a parent callback with unstable identity
   }, [selectedWindow])
 
   // landr-t869m.5: which gate(s) the picked window bypasses, if any — empty

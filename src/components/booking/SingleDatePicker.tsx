@@ -154,7 +154,7 @@ export function SingleDatePicker({
   useEffect(() => {
     if (selected) onLiveDaysChange?.([isoDate(selected)])
     // Fire once for the initial restored value only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once for the initial restored selection only
   }, [])
 
   // landr-t869m.2: gate on lead-time bookability too, folded into the same

@@ -589,7 +589,7 @@ export function DetailsStep({
   useEffect(() => {
     if (prefilledOnMount.current) notifyLive(booker, additional, companions)
     // Mount only: later changes go through the event handlers above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: later changes notify through the event handlers
   }, [])
 
   // landr-4uyu: add a single additional participant below the last card.
@@ -753,7 +753,7 @@ export function DetailsStep({
       cancelled = true
     }
     // Mount-only on purpose: a one-shot guess, never re-run on edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: one-shot country guess, never re-run on edits
   }, [])
 
   // landr-fn4i / landr-5krc: called from the booker email input's onBlur.
@@ -857,7 +857,7 @@ export function DetailsStep({
     // Deliberately mount-only — initialFocusCompanionContactIndex is a
     // one-shot value for THIS mount; re-running on every render would
     // re-focus the field on unrelated re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: one-shot focus request; re-running would re-focus on unrelated renders
   }, [])
 
   // landr-bx5y: browser autofill can hand a phone field a value with the
