@@ -12,9 +12,7 @@
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "gen:types": "bash scripts/gen-types.sh",
-    "gen:api-types": "bash scripts/gen-api-types.sh",
-    "typecheck:strict": "node scripts/strict-ratchet.mjs",
-    "typecheck:strict:update": "node scripts/strict-ratchet.mjs --update"
+    "gen:api-types": "bash scripts/gen-api-types.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -159,7 +159,7 @@ export function useBookingEstimate(
     // string-serialised form of body+operatorToken+productId). If we
     // also listed `body` here React's identity check would re-fire on
     // every parent render even when the actual inputs haven't changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inputs are tracked via debouncedKey; listing body would re-fire on every parent render
   }, [debouncedKey])
 
   // Immediate re-fetch that bypasses the debounce timer. Safe to call

@@ -593,7 +593,7 @@ function BookingFlowApp() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per invite/queryToken; failInvite and the other values are read at call time
   }, [invite, queryToken])
   // landr-frqgv.3: resolve `?c=<token>` once, at mount — a customer
   // re-booking from their own contact page (my.landr.de/c/{token}). Unlike
@@ -640,7 +640,7 @@ function BookingFlowApp() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot prefill per contactPageToken; re-running on mergeDraft or restoredProgress would overwrite edits
   }, [contactPageToken])
   // landr-71kz.4: accumulated form_responses from CustomFormStep(s), keyed
   // by form_key. Each custom-form step merges its entry in on confirm.
@@ -1051,7 +1051,7 @@ function BookingFlowApp() {
       )
     })
     // ensureProductFlow is stable; remoteFlow is the cache guard.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureProductFlow is stable; remoteFlow only guards the cache and bookingDraft is read at fetch time
   }, [token, activeProductId])
 
   // landr-iyyf fix-forward (MEDIUM 2): mergeCapturedDraft's deep-merge keeps
@@ -1108,12 +1108,7 @@ function BookingFlowApp() {
     // URL param (initial or switcher-written) takes priority — never clobber it.
     if (hasVariantInLocation()) return
     setVariant(operatorSettings.widget_variant)
-  // setVariant is stable (comes from useState setter via the context) — safe
-  // to omit from deps. hasVariantInLocation reads window.location.search which
-  // is always fresh at effect-run time. The only meaningful dep is the resolved
-  // field from the settings object.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operatorSettings.widget_variant])
+  }, [operatorSettings.widget_variant, setVariant])
 
   // landr-4a5j: resolve the first-step catalog layout. Precedence mirrors
   // ?variant= exactly (highest to lowest):
@@ -1185,7 +1180,7 @@ function BookingFlowApp() {
     return () => {
       cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when the token changes; group, product and previewToken are read at fetch time
   }, [token])
 
   // landr-87n9.2: clear the live-lifted accommodation state. Called on every

@@ -98,7 +98,7 @@ export function useStartMonth(
     setMonth(pickStartMonth(selectedIsos, bookable))
     // Only the arrival of availability matters; selection changes after
     // that are the customer's own clicks and must not move the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the arrival of availability moves the month; selection changes are the customer's own clicks
   }, [bookable])
   return [month, setMonth]
 }
