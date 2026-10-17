@@ -53,7 +53,7 @@
 #   The console's other shapes never touch main (hotfixes merge into staging
 #   only; a 204 "nothing to merge" creates no commit and no push).
 #
-# The api repo's guard has a second `migration-head` subcommand (prod schema vs
+# The backend repo's variant of this guard has a second subcommand (schema vs
 # migration files). It does not apply to a frontend repo and is not carried
 # here: this script is git-shape only.
 #
