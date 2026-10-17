@@ -180,7 +180,7 @@ export function ApprovalReplyPage({ token, intent }: Props) {
     }
     // token is stable for the lifetime of this component; seedFormFromContext
     // only changes if `intent` changes, which it also can't post-mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch on token/loadAttempt only; seedFormFromContext changes only with a prop fixed after mount
   }, [token, loadAttempt])
 
   const locale = normalizeReplyLocale(langOverride ?? context?.locale ?? 'en')

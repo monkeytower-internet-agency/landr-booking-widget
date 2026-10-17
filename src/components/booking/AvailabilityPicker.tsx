@@ -219,7 +219,7 @@ export function AvailabilityPicker({
         (s) => slotKey(s) === selectedSlotId && (canForce || slotIsPickable(s)),
       ),
     // slotIsPickable closes over product.hotel_offering only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slotIsPickable closes over product.hotel_offering and need, both already listed
     [slotsForSelectedDate, selectedSlotId, canForce, product.hotel_offering, need],
   )
   const selectedForceReasons: ForceReason[] =

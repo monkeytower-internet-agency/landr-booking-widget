@@ -337,7 +337,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       cancelled = true
     }
   // token is stable for the lifetime of this component
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; token is stable for the component's lifetime and status is only the mount gate
   }, [])
 
   // landr-6l7y: ?paid=1 return from Stripe — re-check with the server
@@ -375,7 +375,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       cancelled = true
     }
   // token is stable for the lifetime of this component
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run the payment-return poll once on mount; token is stable and status is the output
   }, [])
 
   // landr-bo0wd.5: record the customer's yes. Folds the answer into `offer`
@@ -452,7 +452,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
       // render here. Same navigation pattern the 'cancelled' status button
       // a few lines below uses inline, which the compiler does not flag.
       if (typeof window !== 'undefined') {
-        // eslint-disable-next-line react-hooks/immutability
+        // eslint-disable-next-line react-hooks/immutability -- click-handler navigation, not render; the compiler rule over-flags it
         window.location.href = resp.checkout_url
       }
     } catch (err) {
@@ -508,7 +508,6 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const onContinueToStripe = () => {
     if (!depositPreview) return
     if (typeof window !== 'undefined') {
-      // eslint-disable-next-line react-hooks/immutability
       window.location.href = depositPreview.checkoutUrl
     }
   }
