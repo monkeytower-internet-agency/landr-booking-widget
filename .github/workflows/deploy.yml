@@ -117,21 +117,22 @@ jobs:
       # landr-3a8mh.1: Firebase Hosting (Google IPs) is the primary host for
       # bw*.landr.de — Spanish ISPs null-route shared Cloudflare IPs on LaLiga
       # match days. CF Pages below stays deployed as the warm standby (rollback
-      # = point the DNS record back at <project>.pages.dev). Push-only: PRs keep
-      # CF preview URLs. Off until FIREBASE_HOSTING_ENABLED is set, i.e. until
+      # = point the DNS record back at <project>.pages.dev). Never on PRs: they keep
+      # CF preview URLs; a manual dispatch on a tier branch deploys too (each SA is bound
+      # to its branch, so other refs are excluded). Off until FIREBASE_HOSTING_ENABLED is set, i.e. until
       # the sites + WIF SAs exist (scripts/bw-firebase-provision.sh, meta-repo).
       # Runs before CF so a failing primary fails the job before the standby moves.
       # Own WIF pool (github-widget): the landr-api pool binds its SAs by ref alone,
       # so this public repo must never get a provider in that pool.
       - name: Authenticate with Google Cloud (OIDC, Firebase Hosting)
-        if: github.event_name == 'push' && vars.FIREBASE_HOSTING_ENABLED == 'true'
+        if: github.event_name != 'pull_request' && contains(fromJSON('["refs/heads/main","refs/heads/staging","refs/heads/dev"]'), github.ref) && vars.FIREBASE_HOSTING_ENABLED == 'true'
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           workload_identity_provider: projects/693721943357/locations/global/workloadIdentityPools/github-widget/providers/github-actions
           service_account: bw-deploy-${{ steps.env.outputs.deploy_tier }}@landr-de.iam.gserviceaccount.com
 
       - name: Publish to Firebase Hosting
-        if: github.event_name == 'push' && vars.FIREBASE_HOSTING_ENABLED == 'true'
+        if: github.event_name != 'pull_request' && contains(fromJSON('["refs/heads/main","refs/heads/staging","refs/heads/dev"]'), github.ref) && vars.FIREBASE_HOSTING_ENABLED == 'true'
         run: |
           jq --arg site "${{ steps.env.outputs.firebase_site }}" '.hosting.site = $site' firebase.json > /tmp/firebase.json
           mv /tmp/firebase.json firebase.json
