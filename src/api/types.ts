@@ -1640,6 +1640,21 @@ export interface BookingPeriod {
  * screen and the email agree verbatim. Money fields are bare decimal
  * strings, matching every other estimate/summary figure.
  */
+/**
+ * landr-1l6hl.4: a LEGACY operator price override explained as one row
+ * (`imported_price` for a historical import price, else `price_override`).
+ * `amount` = list price − charged price (negative when above list). The
+ * operator's reason is staff-only and never in the public payload. Money
+ * fields are decimal strings.
+ */
+export interface PriceAdjustment {
+  kind: 'imported_price' | 'price_override'
+  label: string
+  amount: string
+  regular_total: string
+  price: string
+}
+
 export interface BookingSummary {
   booking_id: string
   booking_reference: string
@@ -1670,6 +1685,8 @@ export interface BookingSummary {
    * success screen skips the savings congrats card in that case.
    */
   price_overridden?: boolean
+  /** landr-1l6hl.4: the legacy override, explained. Absent on an older API. */
+  price_adjustment?: PriceAdjustment | null
   /**
    * landr-nva1a.2: per-product after-booking content. Absent until that
    * sibling ticket's API PR merges — Confirmation must tolerate absence
@@ -1767,12 +1784,25 @@ export interface EstimateRequestBody {
 /**
  * One "− <label>  <amount>" row of a customer-facing price breakdown
  * (landr-nva1a.1/.4). `kind` is 'multi_day' | 'voucher' | 'perk' |
- * 'discount'; `amount` is a positive decimal string. `label` is already
- * localized server-side. Shared by EstimateResponse.savings and
- * BookingSummary.savings.
+ * 'discount', plus (landr-1l6hl.4) 'special_price' | 'offer_discount' |
+ * 'group_discount' | 'free_spots' when an offer is applied; `amount` is a
+ * positive decimal string. `label` is localized server-side for the older
+ * kinds and English for the offer kinds — the widget translates those by
+ * `kind` (see savingRows.savingLabel). Shared by EstimateResponse.savings,
+ * BookingSummary.savings and PublicBookingOffer.savings.
  */
 export interface SavingLine {
-  kind: 'multi_day' | 'voucher' | 'perk' | 'discount'
+  kind:
+    | 'multi_day'
+    | 'voucher'
+    | 'perk'
+    | 'discount'
+    | 'special_price'
+    | 'offer_discount'
+    | 'group_discount'
+    | 'free_spots'
+    | 'imported_price'
+    | 'price_override'
   label: string
   amount: string
 }

@@ -2640,6 +2640,13 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
   it('falls back to the browser locale region, then the operator country', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
     vi.stubGlobal('navigator', { languages: ['de-CH', 'de'], language: 'de-CH' })
+    // No zone -> the timezone step (landr-3a8mh.1) knows nothing; the runner's own TZ must not leak in.
+    const real = Intl.DateTimeFormat.prototype.resolvedOptions
+    const tz = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...real.call(this), timeZone: 'UTC' }
+      })
     const { unmount } = render(
       <DetailsStep
         product={makeProduct()}
@@ -2654,6 +2661,7 @@ describe('DetailsStep — billing address (landr-uuntm.3)', () => {
     vi.stubGlobal('navigator', { languages: ['en'], language: 'en' })
     renderStep({ operatorCountry: 'es' })
     await waitFor(() => expect(byName('booker_billing_country')).toHaveValue('ES'))
+    tz.mockRestore()
   })
 
   it('never overrides a country the customer picked while the guess was in flight', async () => {
