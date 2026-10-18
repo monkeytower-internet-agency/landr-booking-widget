@@ -69,6 +69,19 @@ cmd_git_shape() {
   local before_in="$before"
   local staging="${STAGING_REF:-origin/staging}"
 
+  # actions/checkout defaults to a depth-1 clone, and a GitHub expression such
+  # as `cond && 0 || 1` always yields 1 (0 is falsy), so the tip can arrive with
+  # its parents cut off ("parents: 0") and every shape check below would refuse
+  # a correct promotion. Complete the history here instead of trusting the
+  # workflow's fetch-depth; one extra fetch, read-only.
+  if [[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
+    echo "prod deploy guard: shallow checkout detected, fetching the full history first."
+    git fetch --quiet --unshallow origin || git fetch --quiet --deepen=1000 origin
+    if [[ "$staging" == origin/* ]]; then
+      git fetch --quiet origin "+refs/heads/${staging#origin/}:refs/remotes/${staging}"
+    fi
+  fi
+
   if ! git rev-parse --verify --quiet "${staging}^{commit}" >/dev/null; then
     err "prod deploy guard: ${staging} not found — cannot verify the release came from staging. Fetch it (git fetch origin staging) and re-run."
     return 1
