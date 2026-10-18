@@ -1942,3 +1942,176 @@ describe('OfferPage — offer v3 flow: acceptance + hotel step (landr-bo0wd.5)',
     expect(screen.queryByTestId('offer-accept-pay-btn')).not.toBeInTheDocument()
   })
 })
+
+// ─── landr-1l6hl.5: special price / offer discount rows on /pay ──────────────
+// Staging booking b192fa19: list price 980, agreed price 800. The page used to
+// show "Amount due 800 / Your share 980" with nothing explaining the gap.
+const SPECIAL_PRICE_PAY = {
+  ...OFFER,
+  totals: {
+    gross_total: 980.0,
+    tax_total: 64.11,
+    net_total: 915.89,
+    balance_due: 800.0,
+    currency: 'EUR',
+    // API re-bases the operator figures onto the offer price.
+    operator_gross_total: 800.0,
+    operator_tax_total: 52.34,
+    operator_net_total: 747.66,
+    hotel_gross_total: 0,
+    hotel_tax_total: 0,
+    hotel_net_total: 0,
+    has_hotel_lines: false,
+  },
+  line_items: [
+    {
+      product_id: 'p1',
+      label: 'Guided Paragliding Day',
+      qty: 1,
+      units: 1,
+      line_total: 980.0,
+      unit_price: 980.0,
+      paid_to: 'operator',
+      participants: null,
+      per_person_price: null,
+    },
+  ],
+  savings: [{ kind: 'special_price', label: 'Special price', amount: '180.00' }],
+  savings_total: '180.00',
+  subtotal_before_savings: '980.00',
+  amount_due: '800.00',
+  price_adjustment: null,
+  price_source: 'special_price',
+}
+
+describe('OfferPage — special price rows (mode="pay", landr-1l6hl.5)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shows list price, the special price row and the amount due', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPECIAL_PRICE_PAY)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    expect(screen.getByTestId('offer-line-total')).toHaveTextContent(formatCurrency(980, 'EUR'))
+    const saving = screen.getByTestId('offer-saving')
+    expect(saving).toHaveTextContent('Special price (agreed)')
+    expect(saving).toHaveTextContent(`−${formatCurrency(180, 'EUR')}`)
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(800, 'EUR'))
+    // The old unexplained net/tax rows are gone.
+    expect(screen.queryByTestId('offer-net-total')).not.toBeInTheDocument()
+  })
+
+  it('never shows "Your share" next to a special price', async () => {
+    mocks.getBookingByToken.mockResolvedValue(SPECIAL_PRICE_PAY)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.queryByTestId('offer-operator-gross-total')).not.toBeInTheDocument()
+    expect(screen.queryByText(/your share/i)).not.toBeInTheDocument()
+  })
+
+  it('hides "Your share" when the old payload re-based nothing but has no hotel lines', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...OFFER,
+      totals: {
+        gross_total: 980,
+        tax_total: 64.11,
+        net_total: 915.89,
+        balance_due: 800,
+        currency: 'EUR',
+        operator_gross_total: 980,
+        operator_tax_total: 64.11,
+        operator_net_total: 915.89,
+        has_hotel_lines: false,
+      },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.queryByTestId('offer-operator-gross-total')).not.toBeInTheDocument()
+  })
+
+  it('translates the row by kind for a German customer', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' })
+    mocks.getBookingByToken.mockResolvedValue(SPECIAL_PRICE_PAY)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-saving')).toHaveTextContent('Sonderpreis (vereinbart)')
+    expect(screen.queryByText(/special price/i)).not.toBeInTheDocument()
+  })
+
+  it('lists offer discount, group discount and free spots as separate rows', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPECIAL_PRICE_PAY,
+      line_items: [
+        ...SPECIAL_PRICE_PAY.line_items,
+        { ...SPECIAL_PRICE_PAY.line_items[0], product_id: 'p2', label: 'Video package', line_total: 100, unit_price: 100 },
+      ],
+      savings: [
+        { kind: 'offer_discount', label: 'Your offer discount', amount: '100.00' },
+        { kind: 'group_discount', label: 'Group discount', amount: '50.00' },
+        { kind: 'free_spots', label: 'Free spots', amount: '130.00' },
+      ],
+      savings_total: '280.00',
+      subtotal_before_savings: '1080.00',
+      amount_due: '800.00',
+      price_source: 'custom_offer',
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+
+    const rows = screen.getAllByTestId('offer-saving')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual([
+      'offer_discount',
+      'group_discount',
+      'free_spots',
+    ])
+    expect(rows[0]).toHaveTextContent('Offer discount')
+    expect(screen.getByTestId('offer-subtotal')).toHaveTextContent(formatCurrency(1080, 'EUR'))
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(800, 'EUR'))
+  })
+
+  it('explains a legacy imported price with an "Imported price" row', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPECIAL_PRICE_PAY,
+      savings: [],
+      savings_total: '0.00',
+      subtotal_before_savings: '980.00',
+      price_adjustment: {
+        kind: 'imported_price',
+        label: 'Imported price',
+        amount: '180.00',
+        regular_total: '980.00',
+        price: '800.00',
+      },
+      price_source: 'imported_price',
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    const saving = screen.getByTestId('offer-saving')
+    expect(saving).toHaveTextContent('Imported price')
+    expect(saving).toHaveTextContent(`−${formatCurrency(180, 'EUR')}`)
+    expect(screen.queryByTestId('offer-operator-gross-total')).not.toBeInTheDocument()
+  })
+
+  it('shows the offer price before the remaining amount after a partial payment', async () => {
+    mocks.getBookingByToken.mockResolvedValue({
+      ...SPECIAL_PRICE_PAY,
+      totals: { ...SPECIAL_PRICE_PAY.totals, balance_due: 500 },
+    })
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.getByTestId('offer-price-after-savings')).toHaveTextContent(
+      formatCurrency(800, 'EUR'),
+    )
+    expect(screen.getByTestId('offer-balance-due')).toHaveTextContent(formatCurrency(500, 'EUR'))
+  })
+
+  it('keeps today\'s rows when the API sends no savings block', async () => {
+    mocks.getBookingByToken.mockResolvedValue(OFFER)
+    render(<OfferPage token={TOKEN} mode="pay" />)
+    await waitFor(() => screen.getByTestId('offer-ready'))
+    expect(screen.queryByTestId('offer-saving')).not.toBeInTheDocument()
+    expect(screen.getByTestId('offer-net-total')).toBeInTheDocument()
+  })
+})

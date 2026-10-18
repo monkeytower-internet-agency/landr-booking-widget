@@ -90,6 +90,55 @@ describe('Confirmation — German UI (landr-5aih0.9)', () => {
     expect(screen.queryByText('Price breakdown')).not.toBeInTheDocument()
   })
 
+  // landr-1l6hl.5: the confirmation explains the special price by kind.
+  it('translates the special price row to German and keeps the amount due', () => {
+    setBrowserLanguage('de-DE')
+    const response = baseResponse({
+      summary: baseSummary({
+        savings: [{ kind: 'special_price', label: 'Special price', amount: '180.00' }],
+        savings_total: '180.00',
+        subtotal_before_savings: '980.00',
+        amount_due: '800.00',
+        line_items: [
+          {
+            product_id: 'svc',
+            label: 'Tandem Classic',
+            qty: 1,
+            units: 1,
+            unit_price: '980.00',
+            line_total: '980.00',
+            paid_to: 'operator',
+          },
+        ],
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+
+    expect(screen.getByTestId('confirmation-saving')).toHaveTextContent('Sonderpreis (vereinbart)')
+    expect(screen.getByTestId('confirmation-amount-due')).toHaveTextContent('800')
+    expect(screen.queryByText(/Special price/)).not.toBeInTheDocument()
+  })
+
+  it('explains a legacy imported price on the confirmation', () => {
+    setBrowserLanguage('en-US')
+    const response = baseResponse({
+      summary: baseSummary({
+        subtotal_before_savings: '800.00',
+        amount_due: '800.00',
+        price_adjustment: {
+          kind: 'imported_price',
+          label: 'Imported price',
+          amount: '180.00',
+          regular_total: '980.00',
+          price: '800.00',
+        },
+      }),
+    })
+    render(<Confirmation response={response} onRestart={vi.fn()} />)
+    expect(screen.getByTestId('confirmation-saving')).toHaveTextContent('Imported price')
+    expect(screen.getByTestId('confirmation-subtotal')).toHaveTextContent('980')
+  })
+
   it('renders English on a non-German browser (default)', () => {
     setBrowserLanguage('en-US')
     const response = baseResponse({ summary: baseSummary() })

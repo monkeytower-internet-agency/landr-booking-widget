@@ -32,6 +32,7 @@ import {
   type OfferPeriodRow,
 } from './offerDates'
 import { hasSaving } from './offerPositions'
+import { savingLabel, savingRows } from './savingRows'
 
 /**
  * Customer offer review + Accept & Pay page (landr-uvfg.4b).
@@ -784,8 +785,14 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   // price override), so the customer can see why the two differ instead of
   // the rows silently not summing.
   const operatorGross = totals.operator_gross_total
+  // landr-1l6hl.5: a genuine split share only. With a special price / offer /
+  // legacy override (`price_source`) the operator figures ARE the price and
+  // the savings rows explain the gap, and a booking with no hotel lines has
+  // no one to split with -- the row would only contradict "Amount due".
   const showOperatorGross =
     splitAvailable &&
+    totals.has_hotel_lines === true &&
+    !offer.price_source &&
     operatorGross != null &&
     Math.abs(operatorGross - chargeAmount) >= 0.005
   // balance_due <= 0 means this card payment is settled (fully paid, or in
@@ -821,7 +828,8 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
     mode === 'pay' &&
     !alreadySettled &&
     totals.gross_total !== chargeAmount &&
-    !splitAvailable
+    !splitAvailable &&
+    !offer.price_source
 
   // landr-1zkp7: per-line prices (absent on an older API => today's rendering)
   const lineItems = offer.line_items ?? []
@@ -837,9 +845,43 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const freeSpotCount = adjustments?.free_spot_count ?? 0
   // The operator-paid lines are replaced by the positions; the hotel part
   // (read-only, never discounted) stays as its own rows.
-  const breakdownLines = hasPositions
-    ? lineItems.filter((li) => li.paid_to === 'hotel')
-    : lineItems
+  // landr-1l6hl.5: when the API explains the price (special price, offer
+  // discount, group discount, free spots, or a legacy override), /pay shows
+  // list price -> "- reason" rows -> Amount due instead of an unexplained gap.
+  // `line_items` are LIST-priced; with offer positions the same list prices
+  // come from `original_total`. An offer that hides its savings keeps the
+  // redacted positions layout (nothing to explain, and its rows would not add
+  // up against list-priced lines).
+  const explained = savingRows(offer)
+  const operatorListLines: OfferLineItem[] = hasPositions
+    ? positions.map((p, i) => ({
+        product_id: `position-${i}`,
+        label: p.label,
+        qty: 1,
+        units: p.units,
+        line_total: p.original_total,
+        unit_price: p.original_total,
+        paid_to: 'operator',
+        participants: null,
+        per_person_price: null,
+      }))
+    : lineItems.filter((li) => li.paid_to !== 'hotel')
+  const savingsLayout =
+    mode === 'pay' &&
+    explained != null &&
+    offer.amount_due != null &&
+    operatorListLines.length > 0 &&
+    !(hasPositions && !showSavings)
+  const hotelListLines = lineItems.filter((li) => li.paid_to === 'hotel')
+  const amountDueOffer = Number(offer.amount_due ?? 0)
+  // The savings rows end at the offer price; a partial payment makes the
+  // amount still due smaller, so the offer price gets its own row first.
+  const showOfferPriceRow = savingsLayout && Math.abs(amountDueOffer - chargeAmount) >= 0.005
+  const breakdownLines = savingsLayout
+    ? operatorListLines
+    : hasPositions
+      ? hotelListLines
+      : lineItems
   const periodRows: OfferPeriodRow[] = !hasPositions
     ? []
     : offer.periods && offer.periods.length > 0
@@ -986,6 +1028,52 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const hotelAtArrival =
     totals.hotel_gross_total ??
     lineItems.filter((li) => li.paid_to === 'hotel').reduce((n, li) => n + li.line_total, 0)
+
+  const renderLineRow = (li: OfferLineItem, i: number, muted = false) => (
+                <tr
+                  key={`${li.product_id}-${i}`}
+                  className={muted ? 'border-b align-top text-muted-foreground' : 'border-b align-top'}
+                  data-testid="offer-line-item"
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium">
+                      {li.label}
+                      {li.qty > 1 && (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          &times; {li.qty}
+                        </span>
+                      )}
+                    </div>
+                    {li.per_person_price != null && li.participants != null && li.participants > 0 && (
+                      <div
+                        className="text-xs text-muted-foreground tabular-nums"
+                        data-testid="offer-line-per-person"
+                      >
+                        {formatCurrency(li.per_person_price, currencyCode, locale)}{' '}
+                        {plural(
+                          li.participants,
+                          tr('participantSuffixSingular', locale),
+                          tr('participantSuffixPlural', locale),
+                        ).replace('{n}', String(li.participants))}
+                      </div>
+                    )}
+                    {li.paid_to === 'hotel' && (
+                      <div
+                        className="text-xs text-muted-foreground"
+                        data-testid="offer-line-hotel"
+                      >
+                        {tr('offerPayableAtHotelShort', locale)}
+                      </div>
+                    )}
+                  </td>
+                  <td
+                    className="px-4 py-2.5 text-right tabular-nums"
+                    data-testid="offer-line-total"
+                  >
+                    {formatCurrency(li.line_total, currencyCode, locale)}
+                  </td>
+                </tr>
+  )
 
   return (
     <div data-testid="offer-ready" className="flex flex-col gap-5">
@@ -1203,7 +1291,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
               {/* landr-8f1sh.4: the OFFER's positions — label, €/day × people
                   (the offer price; the regular one struck through when the
                   operator shows the discount), line total. */}
-              {positions.map((p, i) => {
+              {(savingsLayout ? [] : positions).map((p, i) => {
                 const saved = hasSaving(p, showSavings)
                 return (
                   <tr
@@ -1325,7 +1413,9 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                         className="font-medium text-emerald-700 dark:text-emerald-400"
                         data-testid="offer-discount"
                       >
-                        <td className="px-4 py-1">− {tr('offerDiscountLabel', locale)}</td>
+                        <td className="px-4 py-1">− {offer.price_source === 'special_price'
+                            ? tr('savingSpecialPriceLabel', locale)
+                            : tr('offerDiscountLabel', locale)}</td>
                         <td
                           className="px-4 py-1 text-right tabular-nums"
                           data-testid="offer-discount-amount"
@@ -1414,7 +1504,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                 </>
               ) : (
                 <>
-              {offerDiscount && offerDiscount.amount > 0 && (
+              {!savingsLayout && offerDiscount && offerDiscount.amount > 0 && (
                 <tr
                   className="text-emerald-700 dark:text-emerald-400"
                   data-testid="offer-discount"
@@ -1428,7 +1518,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </td>
                 </tr>
               )}
-              {groupDiscountAmount > 0 && (
+              {!savingsLayout && groupDiscountAmount > 0 && (
                 <tr
                   className="text-emerald-700 dark:text-emerald-400"
                   data-testid="offer-group-discount"
@@ -1445,7 +1535,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </td>
                 </tr>
               )}
-              {freeSpotCount > 0 && (
+              {!savingsLayout && freeSpotCount > 0 && (
                 <tr data-testid="offer-free-spots">
                   <td className="px-4 py-1 text-muted-foreground">
                     {tr('offerFreeSpotsTemplate', locale).replace('{n}', String(freeSpotCount))}
@@ -1455,64 +1545,63 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                   </td>
                 </tr>
               )}
-              {breakdownLines.map((li, i) => (
-                <tr
-                  key={`${li.product_id}-${i}`}
-                  className="border-b align-top"
-                  data-testid="offer-line-item"
-                >
-                  <td className="px-4 py-2.5">
-                    <div className="font-medium">
-                      {li.label}
-                      {li.qty > 1 && (
-                        <span className="ml-1 font-normal text-muted-foreground">
-                          &times; {li.qty}
-                        </span>
-                      )}
-                    </div>
-                    {li.per_person_price != null && li.participants != null && li.participants > 0 && (
-                      <div
-                        className="text-xs text-muted-foreground tabular-nums"
-                        data-testid="offer-line-per-person"
+              {breakdownLines.map((li, i) => renderLineRow(li, i))}
+              {savingsLayout && explained ? (
+                <>
+                  {operatorListLines.length > 1 && (
+                    <tr data-testid="offer-subtotal">
+                      <td className="px-4 py-1 text-muted-foreground">
+                        {tr('offerSubtotalLabel', locale)}
+                      </td>
+                      <td className="px-4 py-1 text-right tabular-nums text-muted-foreground">
+                        {formatCurrency(Number(explained.subtotal), currencyCode, locale)}
+                      </td>
+                    </tr>
+                  )}
+                  {explained.rows.map((row, i) => (
+                    <tr
+                      key={`${row.kind}-${i}`}
+                      className="text-emerald-700 dark:text-emerald-400"
+                      data-testid="offer-saving"
+                      data-kind={row.kind}
+                    >
+                      <td className="px-4 py-1">{savingLabel(row, locale)}</td>
+                      <td
+                        className="px-4 py-1 text-right tabular-nums"
+                        data-testid="offer-saving-amount"
                       >
-                        {formatCurrency(li.per_person_price, currencyCode, locale)}{' '}
-                        {plural(
-                          li.participants,
-                          tr('participantSuffixSingular', locale),
-                          tr('participantSuffixPlural', locale),
-                        ).replace('{n}', String(li.participants))}
-                      </div>
-                    )}
-                    {li.paid_to === 'hotel' && (
-                      <div
-                        className="text-xs text-muted-foreground"
-                        data-testid="offer-line-hotel"
-                      >
-                        {tr('offerPayableAtHotelShort', locale)}
-                      </div>
-                    )}
-                  </td>
-                  <td
-                    className="px-4 py-2.5 text-right tabular-nums"
-                    data-testid="offer-line-total"
-                  >
-                    {formatCurrency(li.line_total, currencyCode, locale)}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td className="px-4 py-1 text-muted-foreground">{tr('offerSubtotalLabel', locale)}</td>
-                <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-net-total">
-                  {formatCurrency(breakdownNet, currencyCode, locale)}
-                </td>
-              </tr>
-              {breakdownTax > 0 && (
-                <tr>
-                  <td className="px-4 py-1 text-muted-foreground">{tr('taxLabel', locale)}</td>
-                  <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-tax-total">
-                    {formatCurrency(breakdownTax, currencyCode, locale)}
-                  </td>
-                </tr>
+                        −{formatCurrency(Number(row.amount), currencyCode, locale)}
+                      </td>
+                    </tr>
+                  ))}
+                  {showOfferPriceRow && (
+                    <tr className="border-t" data-testid="offer-price-after-savings">
+                      <td className="px-4 py-1 text-muted-foreground">
+                        {tr('offerTotalLabel', locale)}
+                      </td>
+                      <td className="px-4 py-1 text-right tabular-nums">
+                        {formatCurrency(amountDueOffer, currencyCode, locale)}
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ) : (
+                <>
+                  <tr>
+                    <td className="px-4 py-1 text-muted-foreground">{tr('offerSubtotalLabel', locale)}</td>
+                    <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-net-total">
+                      {formatCurrency(breakdownNet, currencyCode, locale)}
+                    </td>
+                  </tr>
+                  {breakdownTax > 0 && (
+                    <tr>
+                      <td className="px-4 py-1 text-muted-foreground">{tr('taxLabel', locale)}</td>
+                      <td className="px-4 py-1 text-right tabular-nums" data-testid="offer-tax-total">
+                        {formatCurrency(breakdownTax, currencyCode, locale)}
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
               {mode === 'pay' ? (
                 <>
@@ -1567,6 +1656,19 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
                       </td>
                     </tr>
                   )}
+                  {savingsLayout && taxAmount > 0 && taxPct > 0 && (
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="px-4 pb-1 text-right text-xs text-muted-foreground tabular-nums"
+                        data-testid="offer-tax-included"
+                      >
+                        {taxLine('incl', taxAmount)}
+                      </td>
+                    </tr>
+                  )}
+                  {savingsLayout &&
+                    hotelListLines.map((li, i) => renderLineRow(li, i, true))}
                   {showTotalBookingValue && (
                     <tr>
                       <td className="px-4 py-1 text-muted-foreground">

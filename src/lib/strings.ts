@@ -536,6 +536,12 @@ type Bundle = {
   offerParticipantsTitle: string
   offerPriceBreakdownTitle: string
   offerSubtotalLabel: string
+  // landr-1l6hl.5: price rows the API explains by `kind` (special price etc.)
+  savingSpecialPriceLabel: string
+  savingOfferDiscountLabel: string
+  savingGroupDiscountLabel: string
+  savingFreeSpotsLabel: string
+  savingImportedPriceLabel: string
   taxLabel: string
   amountDueLabel: string
   nothingDueNow: string
@@ -1241,6 +1247,11 @@ const en: Bundle = {
   offerParticipantsTitle: 'Participants',
   offerPriceBreakdownTitle: 'Price breakdown',
   offerSubtotalLabel: 'Subtotal',
+  savingSpecialPriceLabel: 'Special price (agreed)',
+  savingOfferDiscountLabel: 'Offer discount',
+  savingGroupDiscountLabel: 'Group discount',
+  savingFreeSpotsLabel: 'Free spots',
+  savingImportedPriceLabel: 'Imported price',
   taxLabel: 'Tax',
   amountDueLabel: 'Amount due',
   nothingDueNow: 'Nothing due now',
@@ -1930,6 +1941,11 @@ const de: Bundle = {
   offerParticipantsTitle: 'Teilnehmer',
   offerPriceBreakdownTitle: 'Preisaufschlüsselung',
   offerSubtotalLabel: 'Zwischensumme',
+  savingSpecialPriceLabel: 'Sonderpreis (vereinbart)',
+  savingOfferDiscountLabel: 'Angebotsrabatt',
+  savingGroupDiscountLabel: 'Gruppenrabatt',
+  savingFreeSpotsLabel: 'Freiplätze',
+  savingImportedPriceLabel: 'Importierter Preis',
   taxLabel: 'Steuer',
   amountDueLabel: 'Fälliger Betrag',
   nothingDueNow: 'Derzeit nichts fällig',
