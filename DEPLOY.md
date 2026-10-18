@@ -15,7 +15,7 @@ Google's ranges have never been blocked (hayahora.futbol tracker). Every push to
 `bw*.landr.de` DNS points at whichever host is primary (Firebase: DNS-only A record, grey cloud).
 **Rollback** = point the record back at `<project>.pages.dev` (proxied CNAME); both hosts always
 carry the same build. The Firebase step authenticates with WIF (SA `bw-deploy-<tier>@landr-de`)
-and is gated on the repo variable `FIREBASE_HOSTING_ENABLED == 'true'`; provisioning lives in
+(own WIF pool `github-widget`, never the landr-api `github` pool) and is gated on the repo variable `FIREBASE_HOSTING_ENABLED == 'true'`; provisioning lives in
 the meta-repo `scripts/bw-firebase-provision.sh`.
 
 Off Cloudflare the Pages Functions don't run: `/geo` falls through to the browser-timezone
