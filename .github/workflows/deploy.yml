@@ -9,6 +9,8 @@ on:
 permissions:
   contents: read
   deployments: write
+  # landr-3a8mh.1: OIDC token for the Firebase Hosting deploy (WIF, no stored key).
+  id-token: write
 
 # landr-uzb1o.5: serialize prod deploys (never cancel one mid-flight); every
 # other ref/PR gets its own group so previews are not queued behind prod.
@@ -85,16 +87,19 @@ jobs:
             echo "api_base=https://landr-api-service-693721943357.europe-west3.run.app"  >> "$GITHUB_OUTPUT"
             echo "production_branch=main"                                                >> "$GITHUB_OUTPUT"
             echo "deploy_tier=prod"                                                       >> "$GITHUB_OUTPUT"
+            echo "firebase_site=landr-bw"                                                 >> "$GITHUB_OUTPUT"
           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
             echo "project=landr-booking-widget-staging"                                  >> "$GITHUB_OUTPUT"
             echo "api_base=https://landr-api-staging-693721943357.europe-west3.run.app"  >> "$GITHUB_OUTPUT"
             echo "production_branch=staging"                                             >> "$GITHUB_OUTPUT"
             echo "deploy_tier=staging"                                                    >> "$GITHUB_OUTPUT"
+            echo "firebase_site=landr-bw-staging"                                         >> "$GITHUB_OUTPUT"
           else
             echo "project=landr-booking-widget-dev"                                      >> "$GITHUB_OUTPUT"
             echo "api_base=https://api-dev.landr.de"                                     >> "$GITHUB_OUTPUT"
             echo "production_branch=dev"                                                  >> "$GITHUB_OUTPUT"
             echo "deploy_tier=dev"                                                        >> "$GITHUB_OUTPUT"
+            echo "firebase_site=landr-bw-dev"                                             >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build
@@ -108,6 +113,30 @@ jobs:
       # landr-tkgx8.2: per-tier API base for functions/_middleware.ts (splash logo).
       - name: Write edge function config
         run: echo '{"apiBase":"${{ steps.env.outputs.api_base }}"}' > functions/_config.json
+
+      # landr-3a8mh.1: Firebase Hosting (Google IPs) is the primary host for
+      # bw*.landr.de — Spanish ISPs null-route shared Cloudflare IPs on LaLiga
+      # match days. CF Pages below stays deployed as the warm standby (rollback
+      # = point the DNS record back at <project>.pages.dev). Push-only: PRs keep
+      # CF preview URLs. Off until FIREBASE_HOSTING_ENABLED is set, i.e. until
+      # the sites + WIF SAs exist (scripts/bw-firebase-provision.sh, meta-repo).
+      # Runs before CF so a failing primary fails the job before the standby moves.
+      # Own WIF pool (github-widget): the landr-api pool binds its SAs by ref alone,
+      # so this public repo must never get a provider in that pool.
+      - name: Authenticate with Google Cloud (OIDC, Firebase Hosting)
+        if: github.event_name == 'push' && vars.FIREBASE_HOSTING_ENABLED == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: projects/693721943357/locations/global/workloadIdentityPools/github-widget/providers/github-actions
+          service_account: bw-deploy-${{ steps.env.outputs.deploy_tier }}@landr-de.iam.gserviceaccount.com
+
+      - name: Publish to Firebase Hosting
+        if: github.event_name == 'push' && vars.FIREBASE_HOSTING_ENABLED == 'true'
+        run: |
+          jq --arg site "${{ steps.env.outputs.firebase_site }}" '.hosting.site = $site' firebase.json > /tmp/firebase.json
+          mv /tmp/firebase.json firebase.json
+          npx --yes firebase-tools@15.32.1 deploy --only hosting --project landr-de \
+            --non-interactive --message "${{ github.ref_name }} ${{ github.sha }}"
 
       - name: Ensure Cloudflare Pages project exists (idempotent)
         env:

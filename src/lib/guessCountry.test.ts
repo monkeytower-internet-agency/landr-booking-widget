@@ -1,5 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { geoCountry, guessCountry, localeCountry, GEO_TIMEOUT_MS } from './guessCountry'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  geoCountry,
+  guessCountry,
+  localeCountry,
+  timezoneCountry,
+  GEO_TIMEOUT_MS,
+} from './guessCountry'
 import { countryName, countryOptions, normalizeCountryCode } from './countries'
 
 function stubNav(languages: string[] | undefined, language = languages?.[0] ?? '') {
@@ -11,10 +17,18 @@ function stubFetch(impl: () => Promise<unknown>) {
   return f
 }
 const ok = (body: unknown) => async () => ({ ok: true, json: async () => body })
+// The runner's own zone must not leak into the chain (vitest-threads-pool-ignores-tz).
+function stubTz(timeZone: string | undefined) {
+  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
+    () => ({ resolvedOptions: () => ({ timeZone }) }) as unknown as Intl.DateTimeFormat,
+  )
+}
 
+beforeEach(() => stubTz('UTC'))
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe('geoCountry', () => {
@@ -126,7 +140,44 @@ describe('localeCountry', () => {
   })
 })
 
+describe('timezoneCountry', () => {
+  it('maps the IANA zone to its country (Tenerife -> ES)', async () => {
+    stubTz('Atlantic/Canary')
+    expect(await timezoneCountry()).toBe('ES')
+  })
+  it('knows legacy aliases browsers still report', async () => {
+    stubTz('Asia/Calcutta')
+    expect(await timezoneCountry()).toBe('IN')
+  })
+  it.each(['UTC', 'Etc/GMT+1', '', undefined])('treats %p as unknown', async (tz) => {
+    stubTz(tz)
+    expect(await timezoneCountry()).toBeNull()
+  })
+  it('returns null when Intl throws', async () => {
+    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+      throw new Error('no Intl')
+    })
+    expect(await timezoneCountry()).toBeNull()
+  })
+})
+
 describe('guessCountry chain', () => {
+  it('off Cloudflare (/geo is the SPA HTML) the timezone beats locale and operator', async () => {
+    stubFetch(async () => ({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('Unexpected token <')
+      },
+    }))
+    stubTz('Europe/Berlin')
+    stubNav(['en-GB'])
+    expect(await guessCountry('ES')).toBe('DE')
+  })
+  it('edge geo still wins over the timezone', async () => {
+    stubFetch(ok({ country: 'AT' }))
+    stubTz('Atlantic/Canary')
+    expect(await guessCountry('ES')).toBe('AT')
+  })
   it('prefers the edge geo answer over locale and operator', async () => {
     stubFetch(ok({ country: 'AT' }))
     stubNav(['de-DE'])
