@@ -24,6 +24,7 @@ import { browserLocale } from '@/lib/locale'
 import { tr } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 import { formatMoney } from './priceSidebarHelpers'
+import { savingLabel } from './savingRows'
 
 export interface PriceBreakdownProps {
   /** Decimal string. Omit/null when there's nothing to break down. */
@@ -84,7 +85,7 @@ export function PriceBreakdown({
                 className="flex items-baseline justify-between gap-2 text-sm text-emerald-700 dark:text-emerald-400"
                 data-testid={`${testIdPrefix}-saving`}
               >
-                <span>− {saving.label}</span>
+                <span>− {savingLabel(saving, locale)}</span>
                 <span className="tabular-nums">
                   −{formatMoney(saving.amount, currency, locale)}
                 </span>

@@ -4548,6 +4548,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/operators/{operator_id}/bookings/payment-link-missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Payment Link Missing
+         * @description Booking ids whose ``payment_link_missing`` flag is true.
+         *
+         *     No ``ids`` -> every flagged booking of the operator; with repeated ``ids``
+         *     -> only those among them (the page being rendered). Operator-scoped:
+         *     another operator's ids are never reported.
+         */
+        get: operations["staff_list_payment_link_missing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/operators/{operator_id}/bookings/quick-create": {
         parameters: {
             query?: never;
@@ -12825,6 +12849,8 @@ export interface components {
             lines: components["schemas"]["CustomOfferLineOut"][];
             /** Net Total */
             net_total: string;
+            /** Note */
+            note?: string | null;
             /** Offer Accepted At */
             offer_accepted_at?: string | null;
             /**
@@ -12861,6 +12887,8 @@ export interface components {
             offer_sent_at?: string | null;
             /** Offer Total */
             offer_total?: string | null;
+            /** Origin */
+            origin?: string | null;
             /**
              * Original Total
              * @default 0
@@ -13509,6 +13537,8 @@ export interface components {
         EmailPreview: {
             /** Html */
             html: string;
+            /** Offer Sent */
+            offer_sent?: boolean | null;
             /** Reason */
             reason?: string | null;
             /** Reason Stage */
@@ -16901,6 +16931,10 @@ export interface components {
             override_gross_total: string | null;
             /** Override Reason */
             override_reason: string | null;
+            /** Regular Total */
+            regular_total?: string | null;
+            /** Special Price */
+            special_price?: string | null;
         };
         /** PriceRuleOut */
         PriceRuleOut: {
@@ -17047,12 +17081,24 @@ export interface components {
             /** Line Items */
             line_items?: components["schemas"]["PricingBreakdownLineItem"][];
             multi_day_savings?: components["schemas"]["MultiDaySavingsOut"] | null;
+            /** Offer */
+            offer?: {
+                [key: string]: unknown;
+            } | null;
             /** Operator Total */
             operator_total: string;
+            /** Price Adjustment */
+            price_adjustment?: {
+                [key: string]: string;
+            } | null;
+            /** Price Source */
+            price_source?: string | null;
             /** Savings */
             savings?: components["schemas"]["SavingLineOut"][] | null;
             /** Savings Total */
             savings_total?: string | null;
+            /** Special Price Note */
+            special_price_note?: string | null;
             /** Subtotal Before Savings */
             subtotal_before_savings?: string | null;
         } & {
@@ -17990,6 +18036,8 @@ export interface components {
          *     this forward-compatible with RPC columns not yet consumed here.
          */
         PublicBookingOffer: {
+            /** Amount Due */
+            amount_due?: string | null;
             /** Booking Id */
             booking_id: string;
             /** Cancellation Deadline */
@@ -18027,11 +18075,23 @@ export interface components {
             periods?: {
                 [key: string]: unknown;
             }[];
+            /** Price Adjustment */
+            price_adjustment?: {
+                [key: string]: string;
+            } | null;
+            /** Price Source */
+            price_source?: string | null;
             /** Product Lines */
             product_lines?: components["schemas"]["OfferProductLine"][];
+            /** Savings */
+            savings?: components["schemas"]["SavingLineOut"][] | null;
+            /** Savings Total */
+            savings_total?: string | null;
             /** Show Savings */
             show_savings?: boolean | null;
             stage?: components["schemas"]["CustomerStageLabel"] | null;
+            /** Subtotal Before Savings */
+            subtotal_before_savings?: string | null;
             totals: components["schemas"]["OfferTotals"];
         } & {
             [key: string]: unknown;
@@ -19790,6 +19850,15 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * SendConfirmationBody
+         * @description ``email_override`` (landr-j6clr.1) plus the payment-link switch.
+         */
+        SendConfirmationBody: {
+            email_override?: components["schemas"]["EmailOverrideIn"] | null;
+            /** Include Payment Link */
+            include_payment_link?: boolean | null;
+        };
         /** SendMessageRequest */
         SendMessageRequest: {
             /** Body */
@@ -20400,12 +20469,18 @@ export interface components {
         };
         /** StageMailOptions */
         StageMailOptions: {
+            /** Already Sent */
+            already_sent?: string[];
+            /** Blocked Reason */
+            blocked_reason?: string | null;
             /** Canonical */
             canonical: boolean;
             /** Customer */
             customer: string[];
             /** Hotel */
             hotel: string[];
+            /** Offer Sent */
+            offer_sent?: boolean | null;
         };
         /**
          * StagingActivityIn
@@ -28029,6 +28104,41 @@ export interface operations {
             };
         };
     };
+    staff_list_payment_link_missing: {
+        parameters: {
+            query?: {
+                ids?: string[] | null;
+            };
+            header?: never;
+            path: {
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     quick_create_booking: {
         parameters: {
             query?: never;
@@ -29528,7 +29638,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["SendWithOverrideBody"] | null;
+                "application/json": components["schemas"]["SendConfirmationBody"] | null;
             };
         };
         responses: {

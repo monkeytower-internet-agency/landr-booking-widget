@@ -16,9 +16,11 @@ import type {
   Location,
   MeetingPoint,
   OperatorSettings,
+  PriceAdjustment,
   Product,
   ProductAddon,
   ProductGroup,
+  SavingLine,
   ServiceRole,
   StaffSubmitBody,
   SubmitBookingBody,
@@ -1148,6 +1150,24 @@ export interface PublicBookingOffer {
    * alone also covers a hotel that was never asked.
    */
   offer_hotel_confirmed?: boolean | null
+  /**
+   * landr-1l6hl.4 (landr-api #1111): the offer-aware savings block of /pay.
+   * `line_items` stay LIST-priced, so the page reads list price →
+   * `savings` rows (special price / offer discount / group discount / free
+   * spots, or a legacy `price_adjustment`) → `amount_due`. All optional for
+   * rolling deploy; absent (older API, or a booking without a persisted
+   * price breakdown) keeps today's net/tax/amount-due rendering. The
+   * operator's reason for a special price is staff-only and not in here.
+   * `price_source`: 'special_price' | 'custom_offer' | 'imported_price' |
+   * 'price_override' | null. When it is set, `totals.operator_*` already
+   * equal the amount due (re-based onto the offer price).
+   */
+  savings?: SavingLine[] | null
+  savings_total?: string | null
+  subtotal_before_savings?: string | null
+  amount_due?: string | null
+  price_adjustment?: PriceAdjustment | null
+  price_source?: string | null
 }
 
 /**

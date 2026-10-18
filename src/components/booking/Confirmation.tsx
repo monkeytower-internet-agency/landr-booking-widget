@@ -29,6 +29,7 @@ import { formatDayLabel } from './dateLabel'
 import { PeriodsTable } from './PeriodsTable'
 import { sanitizePostBookingHtml } from './postBookingSanitize'
 import { PriceBreakdown } from './PriceBreakdown'
+import { savingRows } from './savingRows'
 import { formatMoney, splitLineItems } from './priceSidebarHelpers'
 import {
   bookedRefLabel,
@@ -846,6 +847,10 @@ function SavingsCongratsCard({
 function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
   const locale = browserLocale()
   const { operator, hotel } = splitLineItems(summary.line_items)
+  // landr-1l6hl.5: line items stay list-priced; a special price / offer
+  // discount (or a legacy override) is explained as a row, never left as an
+  // unexplained gap between the lines and the amount due.
+  const explained = savingRows(summary)
   return (
     <div
       data-testid="confirmation-price-breakdown"
@@ -868,8 +873,8 @@ function ConfirmationPriceBreakdown({ summary }: { summary: BookingSummary }) {
         </ul>
       ) : null}
       <PriceBreakdown
-        subtotalBeforeSavings={summary.subtotal_before_savings}
-        savings={summary.savings}
+        subtotalBeforeSavings={explained?.subtotal ?? summary.subtotal_before_savings}
+        savings={explained?.rows ?? summary.savings}
         amountDue={summary.amount_due}
         currency={summary.currency}
         totalLabel={tr('amountDueLabel', locale)}
