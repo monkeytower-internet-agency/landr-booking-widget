@@ -264,18 +264,54 @@ describe('BookingForm — staff mode', () => {
     expect(body).not.toHaveProperty('override_reason')
   })
 
-  it('blocks submit when an override amount is set without a reason', async () => {
+  it('disables Book and outlines the reason input while a fixed price has no reason', async () => {
     renderForm(DAYS, true)
     openFixedPrice()
     fireEvent.change(screen.getByTestId('override-amount'), {
       target: { value: '50' },
     })
+    const book = screen.getByRole('button', { name: /Confirm booking/i })
+    expect(book).toBeDisabled()
+    expect(screen.getByTestId('override-reason')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('override-amount')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByText('Give a reason for the fixed price')).toBeInTheDocument()
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      fireEvent.click(book)
     })
     expect(submitStaffBooking).not.toHaveBeenCalled()
     expect(submitBooking).not.toHaveBeenCalled()
-    expect(screen.getByTestId('review-error')).toHaveTextContent(/reason/i)
+
+    fireEvent.change(screen.getByTestId('override-reason'), {
+      target: { value: 'regular customer' },
+    })
+    expect(screen.getByTestId('override-reason')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeEnabled()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+    })
+    await waitFor(() => expect(submitStaffBooking).toHaveBeenCalledTimes(1))
+    const [, body] = vi.mocked(submitStaffBooking).mock.calls[0]! as [
+      string,
+      StaffSubmitBody,
+    ]
+    expect(body.override_gross_total).toBe('50.00')
+    expect(body.override_reason).toBe('regular customer')
+  })
+
+  it('disables Book and outlines the amount input when the fixed price is negative', () => {
+    renderForm(DAYS, true)
+    openFixedPrice()
+    fireEvent.change(screen.getByTestId('override-reason'), {
+      target: { value: 'typo check' },
+    })
+    fireEvent.change(screen.getByTestId('override-amount'), {
+      target: { value: '-5' },
+    })
+    expect(screen.getByRole('button', { name: /Confirm booking/i })).toBeDisabled()
+    expect(screen.getByTestId('override-amount')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Enter a valid price')).toBeInTheDocument()
+    expect(screen.queryByTestId('review-error')).not.toBeInTheDocument()
   })
 
   // landr-v78ap: collapsible fixed price + "Book & build offer".

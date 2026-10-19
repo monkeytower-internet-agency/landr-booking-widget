@@ -910,6 +910,16 @@ export function BookingForm({
   // landr-v78ap: the fixed-price section is a disclosure, collapsed by default.
   // Collapsing clears both inputs so a hidden value is never submitted.
   const [overrideOpen, setOverrideOpen] = useState(false)
+  // A typed fixed price needs a valid amount and a reason; until then Book is
+  // disabled and the offending input is outlined in place.
+  const overrideAmountNum = Number(overrideAmount)
+  const overrideAmountInvalid =
+    canOverridePrice &&
+    overrideAmount.trim() !== '' &&
+    (!Number.isFinite(overrideAmountNum) || overrideAmountNum < 0)
+  const overrideReasonMissing =
+    canOverridePrice && overrideAmount.trim() !== '' && overrideReason.trim() === ''
+  const overrideBlocked = overrideAmountInvalid || overrideReasonMissing
   const collapseOverride = () => {
     setOverrideAmount('')
     setOverrideReason('')
@@ -1532,13 +1542,9 @@ export function BookingForm({
       let priceOverride: PriceOverride | null = null
       if (!buildOffer && canOverridePrice && overrideAmount.trim() !== '') {
         const grossTotal = Number(overrideAmount)
-        if (!Number.isFinite(grossTotal) || grossTotal < 0) {
-          setServerError('Override price must be a non-negative number.')
-          setSubmitting(false)
-          return
-        }
-        if (overrideReason.trim() === '') {
-          setServerError('Please give a reason for the price override.')
+        // Both cases are surfaced inline as field state (overrideBlocked
+        // disables Book and outlines the input); this guard is a no-op backstop.
+        if (!Number.isFinite(grossTotal) || grossTotal < 0 || overrideReason.trim() === '') {
           setSubmitting(false)
           return
         }
@@ -2034,10 +2040,14 @@ export function BookingForm({
             with the fixed price at creation, so disabled while an amount is
             entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
-          ready={!submitting && !unPriceable}
+          ready={!submitting && !unPriceable && !overrideBlocked}
           reason={
             unPriceable
               ? UN_PRICEABLE_MESSAGE
+              : overrideAmountInvalid
+              ? 'Enter a valid price'
+              : overrideReasonMissing
+              ? 'Give a reason for the fixed price'
               : overlaps.length > 0 && !submitting
                 ? 'This customer already has a booking on these dates. You can still book.'
                 : submitting
@@ -2098,6 +2108,7 @@ export function BookingForm({
                               ? formatOverridePlaceholder(calculatedTotal)
                               : 'e.g. 250.00'
                           }
+                          aria-invalid={overrideAmountInvalid || undefined}
                           value={overrideAmount}
                           onChange={(e) => setOverrideAmount(e.target.value)}
                         />
@@ -2116,7 +2127,8 @@ export function BookingForm({
                           id="override-reason"
                           data-testid="override-reason"
                           type="text"
-                          placeholder="Reason for the override (required when set)"
+                          placeholder="Reason for the fixed price (required)"
+                          aria-invalid={overrideReasonMissing || undefined}
                           value={overrideReason}
                           onChange={(e) => setOverrideReason(e.target.value)}
                         />
