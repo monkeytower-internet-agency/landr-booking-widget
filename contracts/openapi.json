@@ -5525,6 +5525,120 @@
         "title": "CustomOfferPreviewOut",
         "type": "object"
       },
+      "CustomerDetailsFormIn": {
+        "properties": {
+          "answers": {
+            "additionalProperties": true,
+            "title": "Answers",
+            "type": "object"
+          },
+          "form_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Form Key",
+            "type": "string"
+          },
+          "people": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxProperties": 200,
+            "title": "People",
+            "type": "object"
+          }
+        },
+        "required": [
+          "form_key"
+        ],
+        "title": "CustomerDetailsFormIn",
+        "type": "object"
+      },
+      "CustomerDetailsIn": {
+        "properties": {
+          "form_responses": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerDetailsFormIn"
+            },
+            "maxItems": 100,
+            "title": "Form Responses",
+            "type": "array"
+          }
+        },
+        "title": "CustomerDetailsIn",
+        "type": "object"
+      },
+      "CustomerDetailsOut": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/DetailsFormAnswers"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "forms": {
+            "items": {
+              "$ref": "#/components/schemas/DetailsProductForms"
+            },
+            "title": "Forms",
+            "type": "array"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/DetailsPerson"
+            },
+            "title": "People",
+            "type": "array"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          }
+        },
+        "required": [
+          "pending"
+        ],
+        "title": "CustomerDetailsOut",
+        "type": "object"
+      },
+      "CustomerDetailsSavedOut": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "completed"
+        ],
+        "title": "CustomerDetailsSavedOut",
+        "type": "object"
+      },
       "CustomerSignoffIn": {
         "properties": {
           "notes": {
@@ -6945,6 +7059,87 @@
           "participant_id"
         ],
         "title": "DayUnitSortItem",
+        "type": "object"
+      },
+      "DetailsFormAnswers": {
+        "description": "Answers of one form, in the shape PUT takes: booking-scope ``answers``\nplus ``people`` keyed by booking_participant_id.",
+        "properties": {
+          "answers": {
+            "additionalProperties": true,
+            "title": "Answers",
+            "type": "object"
+          },
+          "form_key": {
+            "title": "Form Key",
+            "type": "string"
+          },
+          "people": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "People",
+            "type": "object"
+          }
+        },
+        "required": [
+          "form_key"
+        ],
+        "title": "DetailsFormAnswers",
+        "type": "object"
+      },
+      "DetailsPerson": {
+        "description": "One person of the booking. ``booking_participant_id`` is the stable key\nper-person answers travel under; ``participant`` = a guiding participant\n(answers participant- AND guest-scope fields), ``guest`` = a companion\n(guest-scope fields only).",
+        "properties": {
+          "booking_participant_id": {
+            "title": "Booking Participant Id",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "participant",
+              "guest"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "booking_participant_id",
+          "kind",
+          "display_name"
+        ],
+        "title": "DetailsPerson",
+        "type": "object"
+      },
+      "DetailsProductForms": {
+        "description": "The custom forms of one product line. ``modules`` are the product\nflow's ``custom_form`` modules in the exact shape of\n``GET /api/public/operators/{token}/products/{id}/flow`` (form key /\nversion / name / ordered fields with visibility_rule, scope ...).",
+        "properties": {
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/FlowModuleDef"
+            },
+            "title": "Modules",
+            "type": "array"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name"
+        ],
+        "title": "DetailsProductForms",
         "type": "object"
       },
       "DevToStagingIn": {
@@ -8484,6 +8679,21 @@
           "answered": {
             "title": "Answered",
             "type": "boolean"
+          },
+          "answered_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "customer",
+                  "staff"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered By"
           },
           "field_key": {
             "title": "Field Key",
@@ -26543,6 +26753,11 @@
             ],
             "title": "Customer Comment"
           },
+          "customer_completes_forms": {
+            "default": false,
+            "title": "Customer Completes Forms",
+            "type": "boolean"
+          },
           "customer_declarations": {
             "anyOf": [
               {
@@ -26644,6 +26859,20 @@
               }
             ],
             "title": "Force Book Reason"
+          },
+          "form_responses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FormResponseIn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Responses"
           },
           "ignore_capacity": {
             "default": false,
@@ -35982,6 +36211,100 @@
           }
         },
         "summary": "Get Cancel Preview",
+        "tags": [
+          "public-bookings"
+        ]
+      }
+    },
+    "/api/public/bookings/{token}/details": {
+      "get": {
+        "description": "The forms the customer still owes (or has answered) for this booking.\n\n``pending`` is true while the operator is waiting for the answers. The\ncall also works once complete (``pending: false``) so the page can say so.",
+        "operationId": "public_get_booking_details",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetailsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Booking Details",
+        "tags": [
+          "public-bookings"
+        ]
+      },
+      "put": {
+        "description": "Save the customer's answers and clear the pending state.\n\nValidated with the booking submit's validators (booking + person scope,\nvisibility, required-when-visible); a form left out counts as empty, so a\nmissing required answer is 422 ``form_responses_invalid`` (errors carry\n``booking_participant_id`` for per-person ones). Replaces whatever staff\npre-filled (``answered_by`` becomes ``customer``). 409\n``customer_details_already_complete`` when nothing is pending.",
+        "operationId": "public_put_booking_details",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerDetailsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetailsSavedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Booking Details",
         "tags": [
           "public-bookings"
         ]

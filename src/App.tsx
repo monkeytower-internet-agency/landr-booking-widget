@@ -24,6 +24,7 @@ import type { AddonSelection } from '@/components/booking/addonsState'
 import { CancelPage } from '@/components/booking/CancelPage'
 import { LegalFooter } from '@/components/LegalFooter'
 import { OfferPage } from '@/components/booking/OfferPage'
+import { DetailsPage } from '@/components/booking/DetailsPage'
 import { ApprovalReplyPage } from '@/components/booking/ApprovalReplyPage'
 import { Confirmation } from '@/components/booking/Confirmation'
 import { DetailsStep } from '@/components/booking/DetailsStep'
@@ -276,6 +277,23 @@ function App() {
           <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
             <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
               <OfferPage token={route.token} mode="pay" />
+              <LegalFooter />
+            </div>
+          </div>
+        </StaffModeProvider>
+      </VariantProvider>
+    )
+  }
+  // landr-kcxx5.4: customer completes pending booking forms from an email link.
+  // Token-scoped like /offer and /pay: no operator query param, no operator fetch.
+  if (route.kind === 'details') {
+    return (
+      <VariantProvider value={variantFromLocation()}>
+        <StaffModeProvider>
+          <TierBadge />
+          <div className="min-h-screen embedded:min-h-0 overscroll-y-contain bg-background text-foreground">
+            <div className="mx-auto flex max-w-md flex-col gap-6 p-6 md:max-w-3xl">
+              <DetailsPage token={route.token} />
               <LegalFooter />
             </div>
           </div>

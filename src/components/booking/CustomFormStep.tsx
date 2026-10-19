@@ -114,7 +114,16 @@ export interface CustomFormStepProps {
    */
   customerComment?: string
   onCustomerCommentChange?: (comment: string) => void
-  onBack: () => void
+  /** Absent → no back button (landr-kcxx5.4: the first form of /details). */
+  onBack?: () => void
+  /**
+   * landr-kcxx5.4: the /details/{token} page reuses this step for the
+   * customer-completes-forms flow. `submitLabel` replaces "Continue" on the
+   * final form ("Submit"); `hideCustomerComment` drops the booking-flow-only
+   * "Anything we should know?" field. Both default to the booking-flow look.
+   */
+  submitLabel?: string
+  hideCustomerComment?: boolean
   /**
    * Called with the pruned answers + form metadata when the customer submits.
    */
@@ -608,6 +617,8 @@ export function CustomFormStep({
   customerComment = '',
   onCustomerCommentChange = () => {},
   onBack,
+  submitLabel,
+  hideCustomerComment = false,
   onConfirm,
 }: CustomFormStepProps) {
   // landr — English-first: render custom forms in English rather than the
@@ -945,11 +956,13 @@ export function CustomFormStep({
 
         {/* landr-n6ii3: same field DetailsStep collects, editable here too —
             last field before Continue. */}
-        <CustomerCommentField
-          value={customerComment}
-          onChange={onCustomerCommentChange}
-          collapsible
-        />
+        {hideCustomerComment ? null : (
+          <CustomerCommentField
+            value={customerComment}
+            onChange={onCustomerCommentChange}
+            collapsible
+          />
+        )}
 
         <ContinueAction
           ready={!loading && !fetchError && isFormComplete}
@@ -960,6 +973,7 @@ export function CustomFormStep({
           }
           reasonId="cf-step-gate"
           onContinue={handleSubmit}
+          {...(submitLabel ? { label: submitLabel } : {})}
           data-testid="cf-submit"
         />
       </CardContent>
