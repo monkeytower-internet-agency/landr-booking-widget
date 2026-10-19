@@ -1970,87 +1970,6 @@ export function BookingForm({
           </section>
         ) : null}
 
-        {/* landr-aoak.2 [S3].3: operator price-override (staff mode only).
-            Sets override_gross_total + override_reason via the submit adapter.
-            Hidden entirely for normal customers. */}
-        {canOverridePrice ? (
-          <section
-            data-testid="staff-price-override"
-            className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
-          >
-            {overrideOpen ? (
-              <>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Fixed price (operator)</h3>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={collapseOverride}
-                    data-testid="override-collapse"
-                  >
-                    Use calculated price
-                  </Button>
-                </div>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  Leave blank to use the calculated total. When set, this gross total
-                  replaces the computed price for this booking.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="override-amount">New gross total</Label>
-                    <Input
-                      id="override-amount"
-                      data-testid="override-amount"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder={
-                        calculatedTotal
-                          ? formatOverridePlaceholder(calculatedTotal)
-                          : 'e.g. 250.00'
-                      }
-                      value={overrideAmount}
-                      onChange={(e) => setOverrideAmount(e.target.value)}
-                    />
-                    {calculatedTotal ? (
-                      <p
-                        className="text-xs text-muted-foreground"
-                        data-testid="override-calculated-total"
-                      >
-                        Calculated: {formatOverridePlaceholder(calculatedTotal)}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="override-reason">Reason</Label>
-                    <Input
-                      id="override-reason"
-                      data-testid="override-reason"
-                      type="text"
-                      placeholder="Reason for the override (required when set)"
-                      value={overrideReason}
-                      onChange={(e) => setOverrideReason(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setOverrideOpen(true)}
-                aria-expanded={false}
-                data-testid="override-toggle"
-              >
-                Set a fixed price instead
-              </Button>
-            )}
-          </section>
-        ) : null}
-
         {/* landr-zenj.1: mirrors PriceSidebar's un_priceable block — see
             that component's onUnPriceableChange doc for why this reads a
             prop instead of fetching its own estimate. Takes priority over
@@ -2106,6 +2025,14 @@ export function BookingForm({
           collapsible
         />
 
+        {/* landr-xpbt2: every control that finishes the booking sits in this
+            one box — above Confirm, the operator price-override
+            (landr-aoak.2 [S3].3: sets override_gross_total + override_reason
+            via the submit adapter); below it, the staff-only secondary submit
+            (landr-v78ap: books with NO fixed-price override and asks the
+            dashboard to open the booking on its Offer tab; mutually exclusive
+            with the fixed price at creation, so disabled while an amount is
+            entered). Both are hidden entirely for normal customers. */}
         <ContinueAction
           ready={!submitting && !unPriceable}
           reason={
@@ -2118,6 +2045,11 @@ export function BookingForm({
                 : tr('readyToConfirm', locale)
           }
           reasonId="review-step-gate"
+          cueLabel={
+            canOverridePrice
+              ? 'Last step: confirm, optionally change the price'
+              : tr('reviewStepCueLabel', locale)
+          }
           label={
             submitting
               ? tr('submittingEllipsis', locale)
@@ -2127,33 +2059,110 @@ export function BookingForm({
           }
           onContinue={() => void onConfirm()}
           data-testid="review-confirm-btn"
+          above={
+            canOverridePrice ? (
+              <section
+                data-testid="staff-price-override"
+                className="rounded-lg border bg-surface-raised p-3 shadow-elev-1"
+              >
+                {overrideOpen ? (
+                  <>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold">Fixed price (operator)</h3>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={collapseOverride}
+                        data-testid="override-collapse"
+                      >
+                        Use calculated price
+                      </Button>
+                    </div>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Leave blank to use the calculated total. When set, this gross total
+                      replaces the computed price for this booking.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="override-amount">New gross total</Label>
+                        <Input
+                          id="override-amount"
+                          data-testid="override-amount"
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          placeholder={
+                            calculatedTotal
+                              ? formatOverridePlaceholder(calculatedTotal)
+                              : 'e.g. 250.00'
+                          }
+                          value={overrideAmount}
+                          onChange={(e) => setOverrideAmount(e.target.value)}
+                        />
+                        {calculatedTotal ? (
+                          <p
+                            className="text-xs text-muted-foreground"
+                            data-testid="override-calculated-total"
+                          >
+                            Calculated: {formatOverridePlaceholder(calculatedTotal)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="override-reason">Reason</Label>
+                        <Input
+                          id="override-reason"
+                          data-testid="override-reason"
+                          type="text"
+                          placeholder="Reason for the override (required when set)"
+                          value={overrideReason}
+                          onChange={(e) => setOverrideReason(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setOverrideOpen(true)}
+                    aria-expanded={false}
+                    data-testid="override-toggle"
+                  >
+                    Set a fixed price instead
+                  </Button>
+                )}
+              </section>
+            ) : null
+          }
+          below={
+            staff.active ? (
+              <div className="flex items-center justify-end gap-3">
+                {overrideAmount.trim() !== '' ? (
+                  <p
+                    className="min-w-0 flex-1 text-xs text-muted-foreground"
+                    data-testid="review-build-offer-hint"
+                  >
+                    Clear the fixed price to build an offer instead
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void onConfirm({ buildOffer: true })}
+                  disabled={submitting || unPriceable || overrideAmount.trim() !== ''}
+                  data-testid="review-build-offer-btn"
+                >
+                  Book &amp; build offer
+                </Button>
+              </div>
+            ) : null
+          }
         />
 
-        {/* landr-v78ap: staff-only secondary submit. Books with NO fixed-price
-            override and asks the dashboard to open the booking on its Offer
-            tab. Never rendered for customers. Mutually exclusive with the
-            fixed price at creation, so disabled while an amount is entered. */}
-        {staff.active ? (
-          <div className="flex items-center justify-end gap-3">
-            {overrideAmount.trim() !== '' ? (
-              <p
-                className="min-w-0 flex-1 text-xs text-muted-foreground"
-                data-testid="review-build-offer-hint"
-              >
-                Clear the fixed price to build an offer instead
-              </p>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void onConfirm({ buildOffer: true })}
-              disabled={submitting || unPriceable || overrideAmount.trim() !== ''}
-              data-testid="review-build-offer-btn"
-            >
-              Book &amp; build offer
-            </Button>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   )

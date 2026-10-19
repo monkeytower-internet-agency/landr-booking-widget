@@ -377,6 +377,8 @@ type Bundle = {
   guestsPayingForThemselvesExplainer: string
   guestFallbackTemplate: string
   readyToConfirm: string
+  /** landr-xpbt2: review step's confirm box label — the final step, not "Next: continue". */
+  reviewStepCueLabel: string
   submittingYourBookingEllipsis: string
   sharedDoubleOwnBedNote: string
   joiningActivitySeparateGuiding: string
@@ -1100,6 +1102,7 @@ const en: Bundle = {
     "and room assignment, but not to this booking's activity or price.",
   guestFallbackTemplate: 'Guest {n}',
   readyToConfirm: 'Ready to confirm.',
+  reviewStepCueLabel: 'Last step: confirm your booking',
   submittingYourBookingEllipsis: 'Submitting your booking…',
   sharedDoubleOwnBedNote: 'Your own bed is the shared double room booked by the host.',
   joiningActivitySeparateGuiding: 'joining the activity (separate guiding)',
@@ -1793,6 +1796,7 @@ const de: Bundle = {
     'Hotelbelegung und Zimmerzuteilung hinzugefügt, aber nicht zur Aktivität oder zum Preis dieser Buchung.',
   guestFallbackTemplate: 'Gast {n}',
   readyToConfirm: 'Bereit zum Bestätigen.',
+  reviewStepCueLabel: 'Letzter Schritt: Buchung bestätigen',
   submittingYourBookingEllipsis: 'Ihre Buchung wird gesendet…',
   sharedDoubleOwnBedNote: 'Ihr eigenes Bett ist das vom Gastgeber gebuchte Doppelzimmer.',
   joiningActivitySeparateGuiding: 'nimmt an der Aktivität teil (separates Guiding)',

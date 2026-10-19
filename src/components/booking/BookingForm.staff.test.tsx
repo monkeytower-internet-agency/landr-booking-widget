@@ -314,6 +314,27 @@ describe('BookingForm — staff mode', () => {
       expect(screen.queryByTestId('override-toggle')).not.toBeInTheDocument()
     })
 
+    // landr-xpbt2: all three finishing controls share the one confirm box.
+    it('puts fixed price, Confirm and Book & build offer in one "Last step" box for staff', () => {
+      renderForm(DAYS, true)
+      const box = screen
+        .getByTestId('review-confirm-btn')
+        .closest('[data-next-action]') as HTMLElement
+      expect(box).toHaveAttribute('data-next-action', 'active')
+      expect(box).toContainElement(screen.getByTestId('override-toggle'))
+      expect(box).toContainElement(screen.getByTestId('review-build-offer-btn'))
+      expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+        'Last step: confirm, optionally change the price',
+      )
+    })
+
+    it('labels the customer confirm box as the last step', () => {
+      renderForm(DAYS, false)
+      expect(screen.getByTestId('next-action-cue')).toHaveTextContent(
+        'Last step: confirm your booking',
+      )
+    })
+
     it('renders "Book & build offer" for staff, enabled with no amount', () => {
       renderForm(DAYS, true)
       const btn = screen.getByRole('button', { name: /Book & build offer/i })
