@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { field } from '@/test/customerDetailsFixtures'
-import { localizeFieldError } from './formErrorText'
+import { findFlowField, localizeFieldError } from './formErrorText'
 
 // landr-kcxx5.10: the API's per-field 422 items read in the customer's
 // language; unknown codes keep the server message.
@@ -37,8 +37,23 @@ describe('localizeFieldError', () => {
     )
   })
 
-  it('falls back to the field key when no definition is at hand', () => {
-    expect(localizeFieldError(e('required'), undefined, 'de')).toBe('weight_kg ist ein Pflichtfeld.')
+  it('keeps the server message (never the raw key) when the field cannot be resolved', () => {
+    expect(
+      localizeFieldError(e('required', "Field 'weight_kg' is required."), undefined, 'de'),
+    ).toBe("Field 'weight_kg' is required.")
+  })
+
+  it('findFlowField resolves a field by form and field key', () => {
+    const flow = {
+      modules: [
+        { kind: 'custom_form', position: 0, form: { key: 'f1', version: 1, name: 'F', name_localized: null, fields: [weight] } },
+      ],
+    }
+    expect(findFlowField(flow, 'f1', 'weight_kg')).toBe(weight)
+    expect(findFlowField(flow, 'f2', 'weight_kg')).toBeUndefined()
+    expect(findFlowField(flow, 'f1', 'nope')).toBeUndefined()
+    expect(findFlowField(null, 'f1', 'weight_kg')).toBeUndefined()
+    expect(findFlowField(undefined, 'f1', 'weight_kg')).toBeUndefined()
   })
 
   it('keeps the server message for an unknown code', () => {
@@ -47,7 +62,8 @@ describe('localizeFieldError', () => {
     )
   })
 
-  it('keeps the server message when a bound is unknown (no definition)', () => {
-    expect(localizeFieldError(e('min', 'must be >= 30'), undefined, 'de')).toBe('must be >= 30')
+  it('keeps the server message when a bound is unknown', () => {
+    const unbounded = field('weight_kg', { label: 'Weight', field_type: 'number' })
+    expect(localizeFieldError(e('min', 'must be >= 30'), unbounded, 'de')).toBe('must be >= 30')
   })
 })

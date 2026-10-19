@@ -643,8 +643,10 @@ describe('BookingForm — staff mode', () => {
       })
       const err = await screen.findByTestId('review-error')
       expect(err).toHaveTextContent(/Some answers in the form need fixing/)
-      // landr-kcxx5.10: the known code is rendered in the customer's language.
-      expect(err).toHaveTextContent('weight is required.')
+      // landr-kcxx5.10: no flow (so no label) is at hand here: the server's
+      // message is shown verbatim, never the raw field key.
+      expect(err).toHaveTextContent('Weight is required')
+      expect(err).not.toHaveTextContent('weight is required.')
     })
   })
 })

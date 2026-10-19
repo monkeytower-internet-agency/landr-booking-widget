@@ -3250,6 +3250,8 @@ function BookingFlowApp() {
             // landr-71kz.4: custom form answers collected by CustomFormStep(s).
             // Only sent when at least one form_response was accumulated.
             formResponses={formResponses.length > 0 ? formResponses : undefined}
+            // landr-kcxx5.10: field labels for localized 422 form errors.
+            productFlow={resolvedFlowForProduct(step.product.product_id)}
             // Staff mode: forms left for the customer (empty otherwise).
             customerCompletesForms={customFormsWithoutResponse(
               step.product,

@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
+import type { ProductFlowResponse } from '@/api/flowTypes'
+import { field } from '@/test/customerDetailsFixtures'
 import { BookingForm, type BookingSelection } from './BookingForm'
 import { HttpError, getAvailability, submitBooking } from '@/api/client'
 import type { BookerDetails, ParticipantDetails } from './detailsTypes'
@@ -610,7 +612,27 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
 })
 
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
-  afterEach(() => {
+  // landr-kcxx5.10: the resolved product flow App hands BookingForm (labels for 422 form errors).
+const INTAKE_FLOW: ProductFlowResponse = {
+  modules: [
+    {
+      kind: 'custom_form',
+      position: 0,
+      form: {
+        key: 'intake',
+        version: 1,
+        name: 'Intake',
+        name_localized: null,
+        fields: [
+          field('weight_kg', { label: 'Weight', field_type: 'number' }),
+          field('diet', { label: 'Diet', field_type: 'select' }),
+        ],
+      },
+    },
+  ],
+}
+
+afterEach(() => {
   vi.unstubAllGlobals()
 })
 
@@ -1550,12 +1572,14 @@ beforeEach(() => {
 
   // landr-9d82r.4: a per-person form answer rejected by the API (422
   // form_responses_invalid, person: {kind, index}) names the right person.
-  // landr-kcxx5.10: known codes read in the customer's language; the machine
-  // field key stands in for the label (the submit step holds no form defs).
+  // landr-kcxx5.10: known codes read in the customer's language, with the field
+  // label taken from the product flow App already resolved.
   it.each([
-    ['en-US', 'Ben: weight_kg is required.', 'Cleo: diet contains an invalid option.'],
-    ['de-DE', 'Ben: weight_kg ist ein Pflichtfeld.', 'Cleo: diet enthält eine ungültige Auswahl.'],
-  ])('maps a per-person form_responses_invalid 422 onto the right person (%s)', async (language, ben, cleo) => {
+    ['en-US', true, 'Ben: Weight is required.', 'Cleo: Diet contains an invalid option.'],
+    ['de-DE', true, 'Ben: Weight ist ein Pflichtfeld.', 'Cleo: Diet enthält eine ungültige Auswahl.'],
+    // no resolvable label: the server's message verbatim, never the raw key
+    ['de-DE', false, 'Ben: Weight is required.', 'Cleo: Diet is not an option.'],
+  ])('maps a per-person form_responses_invalid 422 onto the right person (%s, flow: %s)', async (language, withFlow, ben, cleo) => {
     vi.stubGlobal('navigator', { ...navigator, language })
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(
@@ -1599,6 +1623,7 @@ beforeEach(() => {
           { first_name: 'Cleo', last_name: '', email: '', phone: '', companion_kind: 'guest' },
         ]}
         pickupLocationId={null}
+        productFlow={withFlow ? INTAKE_FLOW : null}
         onBack={vi.fn()}
         onConfirmed={vi.fn()}
       />,

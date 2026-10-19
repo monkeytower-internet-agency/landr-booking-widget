@@ -7,9 +7,11 @@
  * strings CustomFormStep's own client-side validation uses) with the field's
  * label when the form definition is at hand. An unknown code, or a bound the
  * definition cannot supply, falls back to the server message — never to a
- * guess.
+ * guess. Without the field's definition there is no customer-facing label (the
+ * server names the field by its machine key), so the server message is shown
+ * verbatim — a raw field key is never put in the translated wording.
  */
-import type { FlowFieldDef } from '@/api/flowTypes'
+import type { FlowFieldDef, ProductFlowResponse } from '@/api/flowTypes'
 import { pickLocalized } from '@/lib/locale'
 import { fmt, tr } from '@/lib/strings'
 
@@ -19,9 +21,23 @@ export interface FieldErrorLike {
   message: string
 }
 
+/** The definition of `fieldKey` in the form `formKey` of a product flow, if resolvable. */
+export function findFlowField(
+  flow: ProductFlowResponse | null | undefined,
+  formKey: string,
+  fieldKey: string,
+): FlowFieldDef | undefined {
+  for (const mod of flow?.modules ?? []) {
+    if (mod.kind !== 'custom_form' || mod.form?.key !== formKey) continue
+    const hit = mod.form.fields.find((f) => f.key === fieldKey)
+    if (hit) return hit
+  }
+  return undefined
+}
+
 /**
- * @param field  the field's definition when known (label, bounds); without it
- *               the machine key stands in for the label.
+ * @param field  the field's definition (label, bounds); undefined when it
+ *               cannot be resolved, which keeps the server message.
  * @param locale the customer's resolved widget locale.
  */
 export function localizeFieldError(
@@ -29,8 +45,8 @@ export function localizeFieldError(
   field: FlowFieldDef | undefined,
   locale: string,
 ): string {
-  const label =
-    (field ? pickLocalized(field.label, field.label_localized, 'en') : '') || error.field_key
+  if (!field) return error.message
+  const label = pickLocalized(field.label, field.label_localized, 'en') || field.key
   const rule = field?.validation ?? null
   const withBound = (key: Parameters<typeof tr>[0], bound: unknown): string =>
     typeof bound === 'number'

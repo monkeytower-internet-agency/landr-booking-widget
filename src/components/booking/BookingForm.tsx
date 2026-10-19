@@ -110,7 +110,8 @@ import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 import { alignFormResponses, parseFormResponseErrors } from './formScopes'
-import { localizeFieldError } from './formErrorText'
+import type { ProductFlowResponse } from '@/api/flowTypes'
+import { findFlowField, localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
@@ -310,6 +311,12 @@ interface Props {
    * Ignored without an active staff session, so the public path is unchanged.
    */
   customerCompletesForms?: CustomerCompletesForm[]
+  /**
+   * landr-kcxx5.10: the product's already-resolved flow (App's cache), used
+   * only to look up field labels/bounds when a form-answer 422 comes back so
+   * its messages can be shown in the customer's language.
+   */
+  productFlow?: ProductFlowResponse | null
   /**
    * landr-fn4i / landr-5krc: the one-time subscription-perk code the
    * customer typed into DetailsStep's optional inline field, lifted live
@@ -610,6 +617,7 @@ const formatHttpError = (
   memberLabels: string[] = [],
   participantCount: number = 0,
   timedSlot: boolean = false,
+  productFlow: ProductFlowResponse | null | undefined = undefined,
 ): string => {
   // landr-r6e5x.4: the typed per-participant-language rejections come first —
   // they are actionable ("go back and assign X") in a way the generic 422
@@ -711,12 +719,12 @@ const formatHttpError = (
   if (err.status === 422 && formErrors && formErrors.length > 0) {
     const lines = formErrors.slice(0, 6).map((item) => {
       const who = item.partyIndex !== null ? memberLabels[item.partyIndex] : undefined
-      // landr-kcxx5.10: known codes read in the customer's language. No field
-      // definitions here, so the label is the field key and bounded codes
-      // (min/max) keep the server's message.
+      // landr-kcxx5.10: known codes read in the customer's language, with the
+      // field label from the product flow App already resolved; a field that
+      // cannot be resolved keeps the server's message.
       const text = localizeFieldError(
         { field_key: item.fieldKey, code: item.code, message: item.message },
-        undefined,
+        findFlowField(productFlow, item.formKey, item.fieldKey),
         browserLocale(),
       )
       return who && who.trim() ? `${who}: ${text}` : text
@@ -893,6 +901,7 @@ export function BookingForm({
   breakfastMap = {},
   formResponses,
   customerCompletesForms,
+  productFlow,
   memberPerkOtp,
   inviteToken,
   joinRef,
@@ -1621,7 +1630,7 @@ export function BookingForm({
       if (err instanceof HttpError) {
         const timedSlot = selection.kind === 'slot' && !!selection.slot.start_time
         setServerError(
-          formatHttpError(err, partyMemberLabels, participants.length, timedSlot),
+          formatHttpError(err, partyMemberLabels, participants.length, timedSlot, productFlow),
         )
         // A stale start time recovers the same way as a full day/slot: the
         // "change" button returns to the picker, which re-fetches availability.
