@@ -732,6 +732,47 @@ type Bundle = {
   removeCompanionAriaTemplate: string
   useYourEmailAria: string
   useYourPhoneAria: string
+
+  // ---- landr-kcxx5.10: customer-completes-forms (/details page + inline offer step), form validation ----
+  detailsPageTitle: string
+  detailsLoadingTitle: string
+  detailsLoadingBody: string
+  detailsInvalidTitle: string
+  detailsInvalidBody: string
+  detailsErrorTitle: string
+  detailsErrorBody: string
+  detailsRetry: string
+  detailsNothingTitle: string
+  detailsNothingBody: string
+  detailsNothingBodyNoOperator: string
+  detailsDoneTitle: string
+  detailsDoneBody: string
+  detailsDoneBodyNoOperator: string
+  detailsIntro: string
+  detailsIntroNoOperator: string
+  detailsInlineIntro: string
+  detailsInlineIntroNoOperator: string
+  detailsStepCounter: string
+  detailsSubmit: string
+  detailsSubmitAndAccept: string
+  detailsSaving: string
+  detailsConfirmTitle: string
+  detailsConfirmBody: string
+  detailsConfirmBodyNoOperator: string
+  detailsConfirmButton: string
+  detailsProblemsTitle: string
+  detailsSaveFailed: string
+  detailsBookingClosed: string
+  fieldRequiredTemplate: string
+  fieldMinLengthTemplate: string
+  fieldMaxLengthTemplate: string
+  fieldInvalidDateTemplate: string
+  fieldMinTemplate: string
+  fieldMaxTemplate: string
+  fieldInvalidFormatTemplate: string
+  fieldInvalidOptionTemplate: string
+  fieldInvalidValueTemplate: string
+  staffCustomerDetailsPending: string
 }
 
 const en: Bundle = {
@@ -1434,6 +1475,48 @@ const en: Bundle = {
   removeCompanionAriaTemplate: 'Remove companion {n}',
   useYourEmailAria: 'Use your email',
   useYourPhoneAria: 'Use your phone',
+
+  // ---- landr-kcxx5.10 ----
+  detailsPageTitle: 'Your details',
+  detailsLoadingTitle: 'Loading your questions…',
+  detailsLoadingBody: 'One moment, please.',
+  detailsInvalidTitle: 'This link is no longer valid',
+  detailsInvalidBody:
+    'The link may have expired or been replaced. Please contact the company you booked with.',
+  detailsErrorTitle: 'Something went wrong',
+  detailsErrorBody: 'We could not load your questions. Please try again in a moment.',
+  detailsRetry: 'Try again',
+  detailsNothingTitle: 'Nothing to complete',
+  detailsNothingBody: 'There is nothing left for you to fill in. {operator} already has everything they need.',
+  detailsNothingBodyNoOperator: 'There is nothing left for you to fill in. The organiser already has everything they need.',
+  detailsDoneTitle: 'Thanks — your details are saved',
+  detailsDoneBody: 'We have passed them on to {operator}. You can close this page.',
+  detailsDoneBodyNoOperator: 'We have passed them on. You can close this page.',
+  detailsIntro: 'Please answer the questions below for your booking with {operator}.',
+  detailsIntroNoOperator: 'Please answer the questions below for your booking.',
+  detailsInlineIntro: 'Before you accept, {operator} needs a few details from you.',
+  detailsInlineIntroNoOperator: 'Before you accept, we need a few details from you.',
+  detailsStepCounter: 'Form {n} of {total}',
+  detailsSubmit: 'Submit',
+  detailsSubmitAndAccept: 'Save and accept',
+  detailsSaving: 'Saving…',
+  detailsConfirmTitle: 'No questions left to answer',
+  detailsConfirmBody: 'The questions for this booking are no longer needed. Confirm to let {operator} know.',
+  detailsConfirmBodyNoOperator: 'The questions for this booking are no longer needed. Confirm to let the organiser know.',
+  detailsConfirmButton: 'Confirm',
+  detailsProblemsTitle: 'Please check these answers',
+  detailsSaveFailed: 'We could not save your details. Please try again.',
+  detailsBookingClosed: 'This booking is closed, so details can no longer be added.',
+  fieldRequiredTemplate: '{label} is required.',
+  fieldMinLengthTemplate: '{label} must be at least {n} characters.',
+  fieldMaxLengthTemplate: '{label} must be at most {n} characters.',
+  fieldInvalidDateTemplate: '{label} must be a valid date.',
+  fieldMinTemplate: '{label} must be at least {n}.',
+  fieldMaxTemplate: '{label} must be at most {n}.',
+  fieldInvalidFormatTemplate: '{label} has an invalid format.',
+  fieldInvalidOptionTemplate: '{label} contains an invalid option.',
+  fieldInvalidValueTemplate: '{label} has an invalid value.',
+  staffCustomerDetailsPending: 'The customer still has to complete their details — we sent them the link.',
 }
 
 const de: Bundle = {
@@ -2136,6 +2219,48 @@ const de: Bundle = {
   removeCompanionAriaTemplate: 'Begleitperson {n} entfernen',
   useYourEmailAria: 'E-Mail übernehmen',
   useYourPhoneAria: 'Telefon übernehmen',
+
+  // ---- landr-kcxx5.10 ----
+  detailsPageTitle: 'Ihre Angaben',
+  detailsLoadingTitle: 'Ihre Fragen werden geladen …',
+  detailsLoadingBody: 'Einen Moment bitte.',
+  detailsInvalidTitle: 'Dieser Link ist nicht mehr gültig',
+  detailsInvalidBody:
+    'Der Link ist möglicherweise abgelaufen oder wurde ersetzt. Bitte wenden Sie sich an das Unternehmen, bei dem Sie gebucht haben.',
+  detailsErrorTitle: 'Etwas ist schiefgelaufen',
+  detailsErrorBody: 'Ihre Fragen konnten nicht geladen werden. Bitte versuchen Sie es gleich noch einmal.',
+  detailsRetry: 'Erneut versuchen',
+  detailsNothingTitle: 'Nichts mehr auszufüllen',
+  detailsNothingBody: 'Sie müssen nichts mehr ausfüllen. {operator} hat bereits alles, was benötigt wird.',
+  detailsNothingBodyNoOperator: 'Sie müssen nichts mehr ausfüllen. Der Veranstalter hat bereits alles, was benötigt wird.',
+  detailsDoneTitle: 'Danke – Ihre Angaben sind gespeichert',
+  detailsDoneBody: 'Wir haben sie an {operator} weitergegeben. Sie können diese Seite schließen.',
+  detailsDoneBodyNoOperator: 'Wir haben sie weitergegeben. Sie können diese Seite schließen.',
+  detailsIntro: 'Bitte beantworten Sie die folgenden Fragen zu Ihrer Buchung bei {operator}.',
+  detailsIntroNoOperator: 'Bitte beantworten Sie die folgenden Fragen zu Ihrer Buchung.',
+  detailsInlineIntro: 'Bevor Sie annehmen, benötigt {operator} noch ein paar Angaben von Ihnen.',
+  detailsInlineIntroNoOperator: 'Bevor Sie annehmen, benötigen wir noch ein paar Angaben von Ihnen.',
+  detailsStepCounter: 'Formular {n} von {total}',
+  detailsSubmit: 'Absenden',
+  detailsSubmitAndAccept: 'Speichern und annehmen',
+  detailsSaving: 'Wird gespeichert …',
+  detailsConfirmTitle: 'Keine Fragen mehr offen',
+  detailsConfirmBody: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um {operator} Bescheid zu geben.',
+  detailsConfirmBodyNoOperator: 'Die Fragen zu dieser Buchung werden nicht mehr benötigt. Bestätigen Sie, um dem Veranstalter Bescheid zu geben.',
+  detailsConfirmButton: 'Bestätigen',
+  detailsProblemsTitle: 'Bitte prüfen Sie diese Angaben',
+  detailsSaveFailed: 'Ihre Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.',
+  detailsBookingClosed: 'Diese Buchung ist abgeschlossen, daher können keine Angaben mehr ergänzt werden.',
+  fieldRequiredTemplate: '{label} ist ein Pflichtfeld.',
+  fieldMinLengthTemplate: '{label} muss mindestens {n} Zeichen lang sein.',
+  fieldMaxLengthTemplate: '{label} darf höchstens {n} Zeichen lang sein.',
+  fieldInvalidDateTemplate: '{label} muss ein gültiges Datum sein.',
+  fieldMinTemplate: '{label} muss mindestens {n} sein.',
+  fieldMaxTemplate: '{label} darf höchstens {n} sein.',
+  fieldInvalidFormatTemplate: '{label} hat ein ungültiges Format.',
+  fieldInvalidOptionTemplate: '{label} enthält eine ungültige Auswahl.',
+  fieldInvalidValueTemplate: '{label} hat einen ungültigen Wert.',
+  staffCustomerDetailsPending: 'Der Kunde muss seine Angaben noch vervollständigen — wir haben ihm den Link geschickt.',
 }
 
 /**
@@ -2153,6 +2278,13 @@ export function pickBundle(locale?: string): Bundle {
 
 export function tr(key: keyof Bundle, locale?: string): string {
   return pickBundle(locale)[key]
+}
+
+/** Fill `{name}` placeholders in a bundle template; unknown names are left as-is. */
+export function fmt(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    name in values ? String(values[name]) : whole,
+  )
 }
 
 /** True when the resolved locale gets the German bundle. */

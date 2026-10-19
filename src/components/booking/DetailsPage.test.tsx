@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HttpError } from '@/api/client'
 import type { CustomerDetails, CustomerDetailsPutBody } from '@/api/customerDetailsTypes'
 import {
@@ -51,6 +51,10 @@ describe('DetailsPage', () => {
     mocks.putBookingDetails.mockReset()
     mocks.getBookingByToken.mockReset()
     mocks.getBookingByToken.mockResolvedValue({ operator_name: 'Sky Co' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('reads only on load: no PUT before Submit', async () => {
@@ -261,5 +265,110 @@ describe('DetailsPage', () => {
     await waitFor(() => screen.getByTestId('details-error'))
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
     await waitFor(() => screen.getByTestId('details-ready'))
+  })
+  // ---- landr-kcxx5.10 ----
+
+  it('answers: [] (scoped token) means no prefill: empty forms, no crash', async () => {
+    mocks.getBookingDetails.mockResolvedValue({ ...PENDING_DETAILS, answers: [] })
+    await ready()
+    expect(input('cf-field-licence').value).toBe('')
+    expect(input('cf-participant-0-field-weight_kg').value).toBe('')
+    expect(input('cf-participant-1-field-weight_kg').value).toBe('')
+    expect(input('cf-companion-0-field-diet').value).toBe('')
+    expect(screen.getByTestId('cf-submit')).toBeDisabled()
+  })
+
+  it('answers missing altogether is also no prefill', async () => {
+    mocks.getBookingDetails.mockResolvedValue({
+      pending: true,
+      forms: PENDING_DETAILS.forms,
+      people: PENDING_DETAILS.people,
+    })
+    await ready()
+    expect(input('cf-field-licence').value).toBe('')
+  })
+
+  const requiredError = {
+    form_key: 'declarations',
+    field_key: 'weight_kg',
+    code: 'required',
+    message: "Field 'weight_kg' is required.",
+    booking_participant_id: 'pb',
+  }
+  const rejected = (errors: unknown[]) =>
+    new HttpError(
+      422,
+      'Unprocessable',
+      JSON.stringify({ detail: { error: 'form_responses_invalid', errors } }),
+    )
+
+  it.each([
+    ['en-US', 'Ben Pilot: Weight is required.', 'Please check these answers'],
+    ['de-DE', 'Ben Pilot: Weight ist ein Pflichtfeld.', 'Bitte prüfen Sie diese Angaben'],
+    ['fr-FR', 'Ben Pilot: Weight is required.', 'Please check these answers'],
+  ])('server 422 codes read in the customer language (%s)', async (language, line, title) => {
+    vi.stubGlobal('navigator', { ...navigator, language })
+    mocks.getBookingDetails.mockResolvedValue(PENDING_DETAILS)
+    mocks.putBookingDetails.mockRejectedValueOnce(rejected([requiredError]))
+    await ready()
+    fillAll()
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => screen.getByTestId('details-problems'))
+    expect(screen.getByTestId('details-problems')).toHaveTextContent(title)
+    expect(screen.getByTestId('details-problems')).toHaveTextContent(line)
+  })
+
+  it('maps bounded codes through the form definition and keeps unknown codes verbatim', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de' })
+    mocks.getBookingDetails.mockResolvedValue(PENDING_DETAILS)
+    mocks.putBookingDetails.mockRejectedValueOnce(
+      rejected([
+        { ...requiredError, code: 'max', message: 'Field weight_kg must be <= 200.' },
+        { ...requiredError, code: 'brand_new_rule', message: 'Server wording stays.' },
+      ]),
+    )
+    await ready()
+    fillAll()
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => screen.getByTestId('details-problems'))
+    const box = screen.getByTestId('details-problems')
+    expect(box).toHaveTextContent('Ben Pilot: Weight darf höchstens 200 sein.')
+    expect(box).toHaveTextContent('Ben Pilot: Server wording stays.')
+  })
+
+  it('renders the whole page chrome in German on a German locale', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-AT' })
+    mocks.getBookingDetails.mockResolvedValue(PENDING_DETAILS)
+    mocks.putBookingDetails.mockResolvedValue({ completed: true })
+    await ready()
+    await waitFor(() => screen.getByText(/Bitte beantworten Sie die folgenden Fragen zu Ihrer Buchung bei Sky Co\./))
+    expect(document.title).toBe('Ihre Angaben')
+    expect(screen.getByTestId('cf-submit')).toHaveTextContent('Absenden')
+    fillAll()
+    fireEvent.click(screen.getByTestId('cf-submit'))
+    await waitFor(() => screen.getByTestId('details-done'))
+    expect(screen.getByTestId('details-done')).toHaveTextContent('Danke – Ihre Angaben sind gespeichert')
+    expect(screen.getByTestId('details-done')).toHaveTextContent('Sky Co')
+  })
+
+  it('German "nothing to complete" card', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de' })
+    mocks.getBookingDetails.mockResolvedValue({ pending: false })
+    render(<DetailsPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('details-nothing'))
+    expect(screen.getByTestId('details-nothing')).toHaveTextContent('Nichts mehr auszufüllen')
+  })
+
+  it('German invalid-link and retryable-error cards', async () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de' })
+    mocks.getBookingDetails.mockRejectedValueOnce(new HttpError(404, 'x', ''))
+    const first = render(<DetailsPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('details-invalid'))
+    expect(screen.getByTestId('details-invalid')).toHaveTextContent('Dieser Link ist nicht mehr gültig')
+    first.unmount()
+    mocks.getBookingDetails.mockRejectedValueOnce(new HttpError(500, 'x', ''))
+    render(<DetailsPage token={TOKEN} />)
+    await waitFor(() => screen.getByTestId('details-error'))
+    expect(screen.getByTestId('details-error')).toHaveTextContent('Erneut versuchen')
   })
 })

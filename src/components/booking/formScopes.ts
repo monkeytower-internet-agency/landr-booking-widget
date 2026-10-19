@@ -233,7 +233,10 @@ export function alignFormResponses(
 
 /** One item of a 422 `form_responses_invalid` body, mapped to a person. */
 export interface FormResponseErrorItem {
+  formKey: string
   fieldKey: string
+  /** The API's machine code (`required`, `option`, …), '' when absent. */
+  code: string
   message: string
   /** Index in the unified party space (participants first), or null = booking-level. */
   partyIndex: number | null
@@ -257,6 +260,7 @@ export function parseFormResponseErrors(
   for (const raw of d.errors) {
     if (!raw || typeof raw !== 'object') continue
     const e = raw as {
+      form_key?: unknown
       field_key?: unknown
       message?: unknown
       code?: unknown
@@ -275,7 +279,13 @@ export function parseFormResponseErrors(
       if (person.kind === 'participant') partyIndex = person.index
       else if (person.kind === 'companion') partyIndex = participantCount + person.index
     }
-    items.push({ fieldKey, message, partyIndex })
+    items.push({
+      formKey: typeof e.form_key === 'string' ? e.form_key : '',
+      fieldKey,
+      code: typeof e.code === 'string' ? e.code : '',
+      message,
+      partyIndex,
+    })
   }
   return items
 }

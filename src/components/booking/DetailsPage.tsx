@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { browserLocale, configureCustomerLocale } from '@/lib/locale'
 import { CustomerDetailsForm } from './CustomerDetailsForm'
-import { fmtDetails, pickDetailsBundle } from './detailsStrings'
+import { fmt, pickBundle } from '@/lib/strings'
 
 /**
  * Customer "complete your details" page (landr-kcxx5.4), rendered at
@@ -34,7 +34,7 @@ interface Props {
 export function DetailsPage({ token }: Props) {
   // Standalone token page: no operator settings fetch, so no whitelist.
   configureCustomerLocale(null, null)
-  const t = pickDetailsBundle(browserLocale())
+  const t = pickBundle(browserLocale())
 
   const [status, setStatus] = useState<Status>('loading')
   const [details, setDetails] = useState<CustomerDetails | null>(null)
@@ -42,8 +42,8 @@ export function DetailsPage({ token }: Props) {
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    document.title = t.pageTitle
-  }, [t.pageTitle])
+    document.title = t.detailsPageTitle
+  }, [t.detailsPageTitle])
 
   useEffect(() => {
     let cancelled = false
@@ -79,10 +79,10 @@ export function DetailsPage({ token }: Props) {
     return (
       <Card data-testid="details-loading">
         <CardHeader>
-          <CardTitle>{t.loadingTitle}</CardTitle>
+          <CardTitle>{t.detailsLoadingTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">{t.loadingBody}</p>
+          <p className="text-sm text-muted-foreground">{t.detailsLoadingBody}</p>
         </CardContent>
       </Card>
     )
@@ -92,10 +92,10 @@ export function DetailsPage({ token }: Props) {
     return (
       <Card data-testid="details-invalid">
         <CardHeader>
-          <CardTitle>{t.invalidTitle}</CardTitle>
+          <CardTitle>{t.detailsInvalidTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm">{t.invalidBody}</p>
+          <p className="text-sm">{t.detailsInvalidBody}</p>
         </CardContent>
       </Card>
     )
@@ -105,10 +105,10 @@ export function DetailsPage({ token }: Props) {
     return (
       <Card data-testid="details-error">
         <CardHeader>
-          <CardTitle>{t.errorTitle}</CardTitle>
+          <CardTitle>{t.detailsErrorTitle}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <p className="text-sm">{t.errorBody}</p>
+          <p className="text-sm">{t.detailsErrorBody}</p>
           <Button
             type="button"
             variant="outline"
@@ -117,7 +117,7 @@ export function DetailsPage({ token }: Props) {
               setAttempt((n) => n + 1)
             }}
           >
-            {t.retry}
+            {t.detailsRetry}
           </Button>
         </CardContent>
       </Card>
@@ -128,10 +128,10 @@ export function DetailsPage({ token }: Props) {
     return (
       <Card data-testid="details-nothing">
         <CardHeader>
-          <CardTitle>{t.nothingTitle}</CardTitle>
+          <CardTitle>{t.detailsNothingTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm">{op ? fmtDetails(t.nothingBody, op) : t.nothingBodyNoOperator}</p>
+          <p className="text-sm">{op ? fmt(t.detailsNothingBody, op) : t.detailsNothingBodyNoOperator}</p>
         </CardContent>
       </Card>
     )
@@ -141,10 +141,10 @@ export function DetailsPage({ token }: Props) {
     return (
       <Card data-testid="details-done">
         <CardHeader>
-          <CardTitle>{t.doneTitle}</CardTitle>
+          <CardTitle>{t.detailsDoneTitle}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm">{op ? fmtDetails(t.doneBody, op) : t.doneBodyNoOperator}</p>
+          <p className="text-sm">{op ? fmt(t.detailsDoneBody, op) : t.detailsDoneBodyNoOperator}</p>
         </CardContent>
       </Card>
     )
@@ -154,8 +154,8 @@ export function DetailsPage({ token }: Props) {
     <div className="flex flex-col gap-4" data-testid="details-ready">
       <Card>
         <CardHeader>
-          <CardTitle>{t.pageTitle}</CardTitle>
-          <CardDescription>{op ? fmtDetails(t.intro, op) : t.introNoOperator}</CardDescription>
+          <CardTitle>{t.detailsPageTitle}</CardTitle>
+          <CardDescription>{op ? fmt(t.detailsIntro, op) : t.detailsIntroNoOperator}</CardDescription>
         </CardHeader>
       </Card>
       {details ? (

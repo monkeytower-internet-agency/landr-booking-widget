@@ -45,6 +45,7 @@ import type {
   ProductFlowResponse,
 } from '@/api/flowTypes'
 import { ContinueAction } from './ContinueAction'
+import { validateField } from './customFormValidation'
 import { CustomerCommentField } from './CustomerCommentField'
 import { isFieldVisible, pruneHiddenAnswers, type AnswerMap } from './fieldVisibility'
 import {
@@ -178,111 +179,6 @@ function findFormInFlow(
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Validate a single field's answer. Returns an error string or null.
- * Fail-open: a bad validation blob never hard-errors (landr-71kz.2 §C1).
- */
-function validateField(
-  field: FlowFieldDef,
-  answers: AnswerMap,
-  locale: string,
-): string | null {
-  if (!isFieldVisible(field, answers)) return null
-  const rawVal = answers[field.key]
-  const label = pickLocalized(field.label, field.label_localized, locale) || field.key
-
-  // Required check
-  if (field.required) {
-    if (rawVal === undefined || rawVal === null) {
-      return `${label} is required.`
-    }
-    if (Array.isArray(rawVal) && rawVal.length === 0) {
-      return `${label} is required.`
-    }
-    if (typeof rawVal === 'string' && rawVal.trim() === '') {
-      return `${label} is required.`
-    }
-  }
-
-  // Skip validation rules for empty optional fields.
-  if (rawVal === undefined || rawVal === null) return null
-  if (Array.isArray(rawVal) && rawVal.length === 0) return null
-  if (typeof rawVal === 'string' && rawVal.trim() === '' && !field.required) return null
-
-  const v = field.validation
-  if (!v) return null
-
-  try {
-    const strVal = Array.isArray(rawVal) ? rawVal.join(',') : String(rawVal)
-
-    // min_length / max_length (string fields)
-    if (
-      typeof rawVal === 'string' &&
-      (field.field_type === 'text' || field.field_type === 'textarea')
-    ) {
-      if (typeof v.min_length === 'number' && rawVal.length < v.min_length) {
-        return `${label} must be at least ${v.min_length} characters.`
-      }
-      if (typeof v.max_length === 'number' && rawVal.length > v.max_length) {
-        return `${label} must be at most ${v.max_length} characters.`
-      }
-    }
-
-    // landr-9d82r.4: date fields carry "YYYY-MM-DD" (the native control's value).
-    if (field.field_type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
-      return `${label} must be a valid date.`
-    }
-
-    // min / max (number fields)
-    if (field.field_type === 'number') {
-      const num = Number(rawVal)
-      if (!Number.isNaN(num)) {
-        if (typeof v.min === 'number' && num < v.min) {
-          return `${label} must be at least ${v.min}.`
-        }
-        if (typeof v.max === 'number' && num > v.max) {
-          return `${label} must be at most ${v.max}.`
-        }
-      }
-    }
-
-    // pattern (full-match regex, fail-open on uncompilable)
-    if (typeof v.pattern === 'string' && v.pattern) {
-      try {
-        const re = new RegExp(`^(?:${v.pattern})$`)
-        if (!re.test(strVal)) {
-          return `${label} has an invalid format.`
-        }
-      } catch {
-        // Uncompilable pattern → skip (landr-71kz.2 §C1 fail-open).
-      }
-    }
-
-    // options membership (select / radio / checkbox / multiselect)
-    if (
-      field.options &&
-      field.options.length > 0 &&
-      (field.field_type === 'select' ||
-        field.field_type === 'radio' ||
-        field.field_type === 'language' ||
-        field.field_type === 'checkbox' ||
-        field.field_type === 'multiselect')
-    ) {
-      const validValues = field.options.map((o) => o.value)
-      const vals = Array.isArray(rawVal) ? rawVal : [String(rawVal)]
-      for (const v of vals) {
-        if (!validValues.includes(v)) {
-          return `${label} contains an invalid option.`
-        }
-      }
-    }
-  } catch {
-    // Validation blob is bad → skip (fail-open).
-  }
-
-  return null
-}
 
 /** Convert the initial answers (Record<string, unknown>) into a typed AnswerMap. */
 function normaliseInitial(
@@ -781,7 +677,7 @@ export function CustomFormStep({
     // Validate all visible booking-level fields.
     const errors: Record<string, string> = {}
     for (const field of bookingScopeFields) {
-      const err = validateField(field, answers, locale)
+      const err = validateField(field, answers, locale, uiLocale)
       if (err) errors[field.key] = err
     }
     // landr-9d82r.4: and every visible field of every person.
@@ -789,7 +685,7 @@ export function CustomFormStep({
     for (const person of people) {
       const evalAnswers = personEvalAnswers(person)
       for (const field of personFields(person)) {
-        const err = validateField(field, evalAnswers, locale)
+        const err = validateField(field, evalAnswers, locale, uiLocale)
         if (err) {
           nextPersonErrors[person.key] = {
             ...(nextPersonErrors[person.key] ?? {}),
@@ -837,7 +733,7 @@ export function CustomFormStep({
     const bookingOk = bookingScopeFields.every(
       (field) =>
         !isFieldVisible(field, answers) ||
-        validateField(field, answers, locale) === null,
+        validateField(field, answers, locale, uiLocale) === null,
     )
     if (!bookingOk) return false
     return people.every((person) => {
@@ -846,7 +742,7 @@ export function CustomFormStep({
         personAnswers[person.key],
       )
       return fieldsForKind(allFields, person.kind).every(
-        (field) => validateField(field, evalAnswers, locale) === null,
+        (field) => validateField(field, evalAnswers, locale, uiLocale) === null,
       )
     })
   }, [
@@ -855,6 +751,7 @@ export function CustomFormStep({
     allFields,
     answers,
     locale,
+    uiLocale,
     people,
     prunedBooking,
     personAnswers,
