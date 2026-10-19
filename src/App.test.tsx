@@ -4343,6 +4343,144 @@ describe('App', () => {
       expect(entry.answers.language).toBe('en')
     })
 
+    // landr-kcxx5.8: the submitted entries live in the persisted draft, so a
+    // reload BETWEEN two custom forms keeps the first form's response. Without
+    // it the submit carried only the last form and the API 422'd
+    // form_responses_required.
+    it('submits BOTH forms of a two-form product when the page is reloaded between them (landr-kcxx5.8)', async () => {
+      const today = new Date()
+      today.setHours(12, 0, 0, 0)
+      const iso = today.toISOString().slice(0, 10)
+      const base = declarationsFlow()
+      mocks.getProductFlow.mockResolvedValue({
+        modules: [
+          ...base.modules,
+          {
+            kind: 'custom_form',
+            position: 1,
+            form: {
+              key: 'weight_form',
+              version: 1,
+              name: 'Pilot weight',
+              name_localized: null,
+              fields: [
+                {
+                  key: 'weight_kg',
+                  field_type: 'text',
+                  label: 'Weight in kg',
+                  label_localized: null,
+                  help_text: null,
+                  help_text_localized: null,
+                  required: true,
+                  position: 0,
+                  options: null,
+                  validation: null,
+                  visibility_rule: null,
+                },
+              ],
+            },
+          },
+        ],
+      })
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({
+          product_id: 'svc-1',
+          product_kind: 'service',
+          service_time_shape: 'single_date',
+          name: 'Tandem Flight',
+          needs_pickup: false,
+          hotel_offering: 'none',
+        }),
+      ])
+      mocks.getAvailability.mockResolvedValue([
+        {
+          availability_id: 'a-1',
+          date: iso,
+          start_time: null,
+          end_time: null,
+          capacity: 10,
+          capacity_reserved: 0,
+          available_seats: 10,
+          status: 'open',
+        },
+      ])
+      mocks.submitBooking.mockResolvedValue({
+        booking_id: 'bk-1',
+        status: 'confirmed',
+      })
+      const setInput = (name: string, value: string) =>
+        fireEvent.change(
+          document.querySelector<HTMLInputElement>(`input[name="${name}"]`)!,
+          { target: { value } },
+        )
+
+      const rendered = render(<App />)
+      await pickProduct('Tandem Flight')
+      await waitFor(() =>
+        expect(screen.getByText(/Pick a date/i)).toBeInTheDocument(),
+      )
+      const dayButtons = screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .filter((b): b is HTMLButtonElement => !!b && !b.disabled)
+      fireEvent.click(dayButtons[0]!)
+      fireEvent.click(await screen.findByRole('button', { name: /continue/i }))
+      await waitFor(() =>
+        expect(screen.getByText(/your contact details/i)).toBeInTheDocument(),
+      )
+      setInput('booker_first_name', 'Ada')
+      setInput('booker_last_name', 'Lovelace')
+      setInput('booker_email', 'ada@example.com')
+      setInput('booker_phone', '+34 600000000')
+      fillBillingFields()
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+      // Form 1: declarations.
+      await passLanguageStep()
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-license_valid')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('cf-checkbox-license_valid-yes'))
+      fireEvent.change(screen.getByTestId('cf-field-language'), {
+        target: { value: 'en' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      // Form 2 is showing — now reload: in-memory state is gone, only the
+      // sessionStorage draft survives.
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-weight_kg')).toBeInTheDocument(),
+      )
+      rendered.unmount()
+      render(<App />)
+      await waitFor(() =>
+        expect(screen.getByTestId('cf-field-weight_kg')).toBeInTheDocument(),
+      )
+      fireEvent.change(screen.getByTestId('cf-field-weight_kg'), {
+        target: { value: '82' },
+      })
+      fireEvent.click(screen.getByTestId('cf-submit'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/review your booking/i)).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /confirm booking/i }))
+
+      await waitFor(() => expect(mocks.submitBooking).toHaveBeenCalled())
+      const submitBody = mocks.submitBooking.mock.calls[0]![0] as {
+        form_responses?: { form_key: string; answers: Record<string, unknown> }[]
+      }
+      const byKey = Object.fromEntries(
+        (submitBody.form_responses ?? []).map((r) => [r.form_key, r]),
+      )
+      expect(Object.keys(byKey).sort()).toEqual([
+        'customer_declarations',
+        'weight_form',
+      ])
+      expect(byKey.customer_declarations!.answers.license_valid).toEqual(['yes'])
+      expect(byKey.weight_form!.answers.weight_kg).toBe('82')
+    })
+
     // Staff mode: the custom-form step defaults to "customer completes this".
     describe('staff mode: customer completes the custom form', () => {
       const staffToken = `${btoa(JSON.stringify({ operator_id: 'op-staff-1' }))}.sig`
