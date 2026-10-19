@@ -13,8 +13,16 @@ Google's ranges have never been blocked (hayahora.futbol tracker). Every push to
 | dev | `landr-bw-dev` | `landr-booking-widget-dev` |
 
 `bw*.landr.de` DNS points at whichever host is primary (Firebase: DNS-only A record, grey cloud).
-**Rollback** = point the record back at `<project>.pages.dev` (proxied CNAME); both hosts always
-carry the same build. The Firebase step authenticates with WIF (SA `bw-deploy-<tier>@landr-de`)
+**Rollback** = point the record back at `<project>.pages.dev` (proxied CNAME) **and** re-validate
+the Pages custom domain: Pages deactivates it while DNS points elsewhere, and a proxied CNAME to a
+deactivated binding answers 522. `curl -X PATCH -H "Authorization: Bearer $CF_PAGES_TOKEN"
+https://api.cloudflare.com/client/v4/accounts/<acct>/pages/projects/<project>/domains/<host>` →
+`pending` → `active` in ~2 min. Both hosts always carry the same build.
+
+**Cutover order (learned 2026-10-19, ~12 min prod 404):** Firebase only marks the host active on its
+own DNS re-check, and that check backs off while the domain sits in HOST_MISMATCH. Register the
+Firebase custom domain (and its `_acme-challenge` TXT) **right before** the flip, flip, then poll
+`hostState` via the Hosting API until HOST_ACTIVE. Never flip a domain registered hours earlier. The Firebase step authenticates with WIF (SA `bw-deploy-<tier>@landr-de`)
 (own WIF pool `github-widget`, never the landr-api `github` pool) and is gated on the repo variable `FIREBASE_HOSTING_ENABLED == 'true'`; provisioning lives in
 the meta-repo `scripts/bw-firebase-provision.sh`.
 
