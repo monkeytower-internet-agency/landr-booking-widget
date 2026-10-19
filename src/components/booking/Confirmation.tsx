@@ -1167,6 +1167,13 @@ export function Confirmation({
           <p className="text-sm">
             Booking created on behalf of the customer. It is currently{' '}
             <span className="font-medium">{response.semantic_state}</span>.
+            {response.customer_details_pending ? (
+              // landr-kcxx5.10: the customer owes custom-form answers and has
+              // been sent the link (customer_completes_forms).
+              <span className="mt-1 block" data-testid="confirmation-customer-details-pending">
+                {tr('staffCustomerDetailsPending', locale)}
+              </span>
+            ) : null}
           </p>
         ) : approvalKind === 'auto' ? (
           // landr-5oox.6 (OD-7): auto-approved bookings are confirmed

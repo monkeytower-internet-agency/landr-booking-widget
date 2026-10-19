@@ -35,7 +35,8 @@ import {
   initialAnswersFor,
   rosterSources,
 } from './customerDetails'
-import { fmtDetails, pickDetailsBundle } from './detailsStrings'
+import { fmt, pickBundle } from '@/lib/strings'
+import { localizeFieldError } from './formErrorText'
 
 interface Props {
   token: string
@@ -60,7 +61,8 @@ export function CustomerDetailsForm({
   submitLabel,
   onSaved,
 }: Props) {
-  const t = pickDetailsBundle(browserLocale())
+  const locale = browserLocale()
+  const t = pickBundle(locale)
   const forms = useMemo(() => collectForms(details), [details])
   const roster = useMemo(() => rosterSources(details.people ?? []), [details.people])
   const nameOf = useMemo(() => {
@@ -80,7 +82,13 @@ export function CustomerDetailsForm({
 
   const describe = (e: DetailsFieldError): string => {
     const who = e.booking_participant_id ? nameOf.get(e.booking_participant_id) : null
-    return who ? `${who}: ${e.message}` : e.message
+    const field = forms
+      .find((f) => f.form.key === e.form_key)
+      ?.form.fields.find((f) => f.key === e.field_key)
+    // landr-kcxx5.10: known codes read in the customer's language; anything
+    // else keeps the server's message.
+    const text = localizeFieldError(e, field, locale)
+    return who ? `${who}: ${text}` : text
   }
 
   const submit = async (all: Record<string, Confirmed>) => {
@@ -98,7 +106,7 @@ export function CustomerDetailsForm({
     } catch (err) {
       const fieldErrors = detailsFieldErrors(err)
       if (fieldErrors) {
-        setProblems(fieldErrors.length > 0 ? fieldErrors.map(describe) : [t.saveFailed])
+        setProblems(fieldErrors.length > 0 ? fieldErrors.map(describe) : [t.detailsSaveFailed])
         const first = fieldErrors[0]
         const at = first ? forms.findIndex((f) => f.form.key === first.form_key) : -1
         if (at >= 0) setIndex(at)
@@ -106,10 +114,10 @@ export function CustomerDetailsForm({
       } else if (conflictErrorCode(err) === 'customer_details_already_complete') {
         onSaved()
       } else if (conflictErrorCode(err) === 'booking_closed') {
-        setProblems([t.bookingClosed])
+        setProblems([t.detailsBookingClosed])
       } else {
         if (!(err instanceof HttpError)) console.error('[landr] putBookingDetails failed', err)
-        setProblems([t.saveFailed])
+        setProblems([t.detailsSaveFailed])
       }
     } finally {
       inFlight.current = false
@@ -137,11 +145,11 @@ export function CustomerDetailsForm({
     return (
       <Card data-testid="details-confirm">
         <CardHeader>
-          <CardTitle>{t.confirmTitle}</CardTitle>
+          <CardTitle>{t.detailsConfirmTitle}</CardTitle>
           <CardDescription>
             {operatorName
-              ? fmtDetails(t.confirmBody, { operator: operatorName })
-              : t.confirmBodyNoOperator}
+              ? fmt(t.detailsConfirmBody, { operator: operatorName })
+              : t.detailsConfirmBodyNoOperator}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -156,7 +164,7 @@ export function CustomerDetailsForm({
             onClick={() => void submit({})}
             data-testid="details-confirm-btn"
           >
-            {saving ? t.saving : (submitLabel ?? t.confirmButton)}
+            {saving ? t.detailsSaving : (submitLabel ?? t.detailsConfirmButton)}
           </Button>
         </CardContent>
       </Card>
@@ -170,7 +178,7 @@ export function CustomerDetailsForm({
     <div className="flex flex-col gap-3" data-testid="details-form">
       {forms.length > 1 ? (
         <p className="px-1 text-xs text-muted-foreground" data-testid="details-step-counter">
-          {fmtDetails(t.stepCounter, { n: String(at + 1), total: String(forms.length) })}
+          {fmt(t.detailsStepCounter, { n: String(at + 1), total: String(forms.length) })}
         </p>
       ) : null}
       {problems.length > 0 ? (
@@ -179,7 +187,7 @@ export function CustomerDetailsForm({
           className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
           data-testid="details-problems"
         >
-          <p className="font-semibold">{t.problemsTitle}</p>
+          <p className="font-semibold">{t.detailsProblemsTitle}</p>
           <ul className="mt-1 list-disc pl-5">
             {problems.map((p, i) => (
               <li key={i}>{p}</li>
@@ -189,7 +197,7 @@ export function CustomerDetailsForm({
       ) : null}
       {saving ? (
         <p className="px-1 text-sm text-muted-foreground" role="status" data-testid="details-saving">
-          {t.saving}
+          {t.detailsSaving}
         </p>
       ) : null}
       <CustomFormStep
@@ -211,7 +219,7 @@ export function CustomerDetailsForm({
               },
             }
           : {})}
-        submitLabel={showLast ? (submitLabel ?? t.submit) : undefined}
+        submitLabel={showLast ? (submitLabel ?? t.detailsSubmit) : undefined}
         onConfirm={(entry, raw) => onConfirm(at, entry, raw)}
       />
     </div>

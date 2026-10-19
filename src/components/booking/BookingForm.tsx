@@ -110,6 +110,7 @@ import { Label } from '@/components/ui/label'
 import { browserLocale, browserTimezone } from '@/lib/locale'
 import { StepBackButton } from './StepBackButton'
 import { alignFormResponses, parseFormResponseErrors } from './formScopes'
+import { localizeFieldError } from './formErrorText'
 import { Button } from '@/components/ui/button'
 import { useStaffMode, resolveParentTargetOrigin } from '@/lib/staffMode'
 import { OperatorOverrideBadge } from '@/components/booking/OperatorOverrideBadge'
@@ -710,7 +711,15 @@ const formatHttpError = (
   if (err.status === 422 && formErrors && formErrors.length > 0) {
     const lines = formErrors.slice(0, 6).map((item) => {
       const who = item.partyIndex !== null ? memberLabels[item.partyIndex] : undefined
-      return who && who.trim() ? `${who}: ${item.message}` : item.message
+      // landr-kcxx5.10: known codes read in the customer's language. No field
+      // definitions here, so the label is the field key and bounded codes
+      // (min/max) keep the server's message.
+      const text = localizeFieldError(
+        { field_key: item.fieldKey, code: item.code, message: item.message },
+        undefined,
+        browserLocale(),
+      )
+      return who && who.trim() ? `${who}: ${text}` : text
     })
     return `${tr('formResponsesInvalidIntro', browserLocale())} ${lines.join('; ')}`
   }

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Product } from '@/api/types'
 import { BookingForm, type BookingSelection } from './BookingForm'
@@ -610,7 +610,11 @@ describe('BookingForm — review-only screen (landr-8c03)', () => {
 })
 
 describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)', () => {
-  beforeEach(() => {
+  afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+beforeEach(() => {
     vi.mocked(submitBooking).mockReset()
     // landr-rmcsu.7: the seat pre-check now runs for any group > 1; reset so a
     // queued availability answer never leaks into a later test.
@@ -1546,7 +1550,13 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
 
   // landr-9d82r.4: a per-person form answer rejected by the API (422
   // form_responses_invalid, person: {kind, index}) names the right person.
-  it('maps a per-person form_responses_invalid 422 onto the right person', async () => {
+  // landr-kcxx5.10: known codes read in the customer's language; the machine
+  // field key stands in for the label (the submit step holds no form defs).
+  it.each([
+    ['en-US', 'Ben: weight_kg is required.', 'Cleo: diet contains an invalid option.'],
+    ['de-DE', 'Ben: weight_kg ist ein Pflichtfeld.', 'Cleo: diet enthält eine ungültige Auswahl.'],
+  ])('maps a per-person form_responses_invalid 422 onto the right person (%s)', async (language, ben, cleo) => {
+    vi.stubGlobal('navigator', { ...navigator, language })
     const submitMock = vi.mocked(submitBooking)
     submitMock.mockRejectedValue(
       new HttpError(
@@ -1594,12 +1604,12 @@ describe('BookingForm — submit payload (landr-8c03 + landr-cip6 + landr-vyaz)'
       />,
     )
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Confirm booking/i }))
+      fireEvent.click(screen.getByTestId('review-confirm-btn'))
     })
     await waitFor(() =>
-      expect(screen.getByTestId('review-error')).toHaveTextContent('Ben: Weight is required.'),
+      expect(screen.getByTestId('review-error')).toHaveTextContent(ben),
     )
-    expect(screen.getByTestId('review-error')).toHaveTextContent('Cleo: Diet is not an option.')
+    expect(screen.getByTestId('review-error')).toHaveTextContent(cleo)
   })
 
   // landr-9d82r.4: person answers are clamped to the CURRENT headcount.

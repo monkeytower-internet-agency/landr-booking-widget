@@ -26,11 +26,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { browserLocale, configureCustomerLocale, resolveCustomerStageLabel } from '@/lib/locale'
-import { plural, tr } from '@/lib/strings'
+import { fmt, pickBundle, plural, tr } from '@/lib/strings'
 import { formatCurrency } from './accommodationCalc'
 import { CustomerDetailsForm } from './CustomerDetailsForm'
 import { collectForms } from './customerDetails'
-import { fmtDetails, pickDetailsBundle } from './detailsStrings'
 import {
   derivePeriodRows,
   formatRange,
@@ -810,7 +809,7 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
   const chargeAmount = chargeRemaining(totals)
 
   // landr-kcxx5.4: accepting is gated on the customer's pending forms.
-  const detailsT = pickDetailsBundle(locale)
+  const detailsT = pickBundle(locale)
   const detailsGate =
     mode === 'offer' &&
     needsAccept &&
@@ -1909,13 +1908,13 @@ export function OfferPage({ token, mode = 'offer' }: Props) {
           <div className="flex flex-col gap-3" data-testid="offer-details-gate">
             <p className="text-sm text-muted-foreground">
               {operatorName
-                ? fmtDetails(detailsT.inlineIntro, { operator: operatorName })
-                : detailsT.inlineIntroNoOperator}
+                ? fmt(detailsT.detailsInlineIntro, { operator: operatorName })
+                : detailsT.detailsInlineIntroNoOperator}
             </p>
             <CustomerDetailsForm
               token={token}
               details={pendingDetails}
-              submitLabel={detailsT.submitAndAccept}
+              submitLabel={detailsT.detailsSubmitAndAccept}
               onSaved={() => {
                 setPendingDetails(null)
                 void onAcceptAndPay()
