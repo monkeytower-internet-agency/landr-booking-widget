@@ -114,6 +114,7 @@ import type { RemoteFlow } from './flowPlan'
 import { BreadcrumbNavContext } from '@/components/booking/breadcrumbNav'
 import {
   clearStoredProgress,
+  consumeFreshStartParam,
   readStoredProgress,
   writeStoredProgress,
 } from './bookingPersistence'
@@ -411,10 +412,14 @@ function BookingFlowApp() {
   // refresh) should still resume exactly where the customer left off. The
   // prefill effect below is the one that has to defer to a restore, not
   // this memo — see its comment.
-  const restoredProgress = useMemo(
-    () => (token && !product && !group && !invite ? readStoredProgress() : null),
-    [token, product, group, invite],
-  )
+  // `?fresh=1` (the dashboard's staff Add-booking modal, every open) wins over
+  // any restore: consumeFreshStartParam clears the stored progress and strips
+  // the param so an in-iframe reload mid-session restores normally again.
+  const restoredProgress = useMemo(() => {
+    const fresh = consumeFreshStartParam()
+    if (fresh) return null
+    return token && !product && !group && !invite ? readStoredProgress() : null
+  }, [token, product, group, invite])
   const [step, setStep] = useState<Step>(
     () => restoredProgress?.step ?? { name: 'pick-product' },
   )

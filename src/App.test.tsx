@@ -4956,6 +4956,42 @@ describe('App', () => {
       expect(screen.queryByTestId('product-list')).not.toBeInTheDocument()
     })
 
+    it('fresh=1 skips the restore, clears storage and strips the param (staff Add-booking)', async () => {
+      mocks.listProducts.mockResolvedValue([
+        makeProduct({ product_id: 'p-1', slug: 'tandem', name: 'Tandem' }),
+      ])
+      window.sessionStorage.setItem(
+        BOOKING_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          step: {
+            name: 'details',
+            product: makeProduct({
+              product_id: 'p-1',
+              slug: 'tandem',
+              name: 'Tandem',
+              service_time_shape: 'days_range',
+            }),
+            selection: { kind: 'days', selectedDays: ['2026-07-01'] },
+          },
+          bookingDraft: {},
+        }),
+      )
+      window.history.replaceState({}, '', `/?w=${MOCK_TOKEN}&fresh=1`)
+      render(<App />)
+      // Starts at the catalogue, NOT on the stale details step.
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId('product-grid') ??
+            screen.queryByTestId('product-list'),
+        ).toBeInTheDocument()
+      })
+      expect(
+        document.querySelector('input[name="booker_first_name"]'),
+      ).not.toBeInTheDocument()
+      expect(window.sessionStorage.getItem(BOOKING_PROGRESS_STORAGE_KEY)).toBeNull()
+      expect(window.location.search).toBe(`?w=${MOCK_TOKEN}`)
+    })
+
     // landr-31fq: a genuine sessionStorage reload-restore repopulates
     // step.booker.email (persisted) but NEVER memberPerkOtp (App.tsx's bare
     // in-memory useState — deliberately excluded from the persisted
